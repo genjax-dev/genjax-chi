@@ -16,7 +16,6 @@ from genjax._src.core.generative import (
     ChangeTargetUpdateSpec,
     Constraint,
     GenerativeFunction,
-    GenerativeFunctionClosure,
     Mask,
     MaskSample,
     Retdiff,
@@ -40,8 +39,12 @@ from genjax._src.core.typing import (
 @Pytree.dataclass
 class MaskTrace(Trace):
     mask_combinator: "MaskCombinator"
+    args: Tuple
     inner: Trace
     check: BoolArray
+
+    def get_args(self):
+        return self.args
 
     def get_gen_fn(self):
         return self.mask_combinator
@@ -69,26 +72,24 @@ class MaskCombinator(GenerativeFunction):
     If the invocation is masked with the boolean array `False`, it's contribution to the score of the trace is ignored. Otherwise, it has same semantics as if one was invoking the generative function without masking.
     """
 
-    check: BoolArray
-    inner_args: Tuple
-    inner: Callable[[Any], GenerativeFunction] = Pytree.static()
+    gen_fn: GenerativeFunction
 
     @typecheck
     def simulate(
         self,
         key: PRNGKey,
+        args: Tuple,
     ) -> MaskTrace:
-        inner_gen_fn = self.inner(*self.inner_args)
-        tr = inner_gen_fn.simulate(key)
+        tr = self.gen_fn.simulate(key, args)
         return MaskTrace(self, tr, self.check)
 
     @typecheck
     def assess(
         self,
         constraint: Constraint,
+        args: Tuple,
     ) -> Tuple[FloatArray, Mask]:
-        inner_gen_fn = self.inner(*self.inner_args)
-        score, retval = inner_gen_fn.assess(constraint)
+        score, retval = self.gen_fn.assess(constraint, args)
         return self.check * score, Mask(self.check, retval)
 
     @typecheck
@@ -96,9 +97,9 @@ class MaskCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: Constraint,
+        args: Tuple,
     ) -> Tuple[MaskTrace, FloatArray]:
-        inner_gen_fn = self.inner(*self.inner_args)
-        tr, w = inner_gen_fn.importance(key, constraint)
+        tr, w = self.gen_fn.importance(key, constraint, args)
         w = self.check * w
         return MaskTrace(self, tr, self.check), w
 
@@ -145,9 +146,5 @@ class MaskCombinator(GenerativeFunction):
 #############
 
 
-def mask_combinator(f) -> GenerativeFunctionClosure:
-    @GenerativeFunction.closure
-    def inner(check, *args) -> MaskCombinator:
-        return MaskCombinator(check, args, f)
-
-    return inner
+def mask_combinator(f) -> MaskCombinator:
+    return MaskCombinator(f)

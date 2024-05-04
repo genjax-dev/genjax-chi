@@ -72,45 +72,38 @@ def static_check_address_type(addr):
         raise StaticAddressJAX(addr)
 
 
-#####
-# Abstract generative function call
-#####
-
-
-# We defer the abstract call here so that, when we
-# stage, any traced values stored in `gen_fn`
-# get lifted to by `get_shaped_aval`.
-def _abstract_gen_fn_call(gen_fn, _):
-    return gen_fn.__abstract_call__()
-
-
 ############################################################
 # Trace call (denotes invocation of a generative function) #
 ############################################################
 
 
-def _trace(gen_fn: GenerativeFunction, addr: Address):
-    static_check_address_type(addr)
-    addr = Pytree.tree_const(addr)
-    return initial_style_bind(trace_p)(_abstract_gen_fn_call)(
-        gen_fn,
-        addr,
-    )
+# We defer the abstract call here so that, when we
+# stage, any traced values stored in `gen_fn`
+# get lifted to by `get_shaped_aval`.
+def _abstract_gen_fn_call(addr, gen_fn, args):
+    return gen_fn.__abstract_call__(*args)
 
 
 @typecheck
-def trace(addr: Address) -> Callable:
+def trace(
+    addr: Address,
+    gen_fn: GenerativeFunction,
+    args: Tuple,
+):
     """Invoke a generative function, binding its generative semantics with the current
     caller.
 
     Arguments:
         addr: An address denoting the site of a generative function invocation.
         gen_fn: A generative function invoked as a callee of `StaticGenerativeFunction`.
-
-    Returns:
-        callable: A callable which wraps the `trace_p` primitive, accepting arguments (`args`) and binding the primitive with them. This raises the primitive to be handled by `StaticGenerativeFunction` transformations.
     """
-    return lambda gen_fn: _trace(gen_fn, addr)
+    static_check_address_type(addr)
+    addr = Pytree.tree_const(addr)
+    return initial_style_bind(trace_p)(_abstract_gen_fn_call)(
+        addr,
+        gen_fn,
+        args,
+    )
 
 
 ######################################
@@ -154,8 +147,13 @@ class StaticHandler(StatefulHandler):
         return prim == trace_p
 
     def dispatch(self, prim, *tracers, **_params):
+        in_tree = _params.get("in_tree")
+        num_consts = _params.get("num_consts")
+        non_const_tracers = tracers[num_consts:]
+        addr, gen_fn, args = jtu.tree_unflatten(in_tree, non_const_tracers)
         if prim == trace_p:
-            return self.handle_trace(*tracers, **_params)
+            v = self.handle_trace(addr, gen_fn, args)
+            return jtu.tree_leaves(v)
         else:
             raise Exception("Illegal primitive: {}".format(prim))
 
@@ -182,19 +180,15 @@ class SimulateHandler(StaticHandler):
             self.score,
         )
 
-    def handle_trace(self, *tracers, **_params):
-        in_tree = _params.get("in_tree")
-        num_consts = _params.get("num_consts")
-        passed_in_tracers = tracers[num_consts:]
-        gen_fn, addr = jtu.tree_unflatten(in_tree, passed_in_tracers)
+    def handle_trace(self, addr, gen_fn, args):
         self.visit(addr)
         self.key, sub_key = jax.random.split(self.key)
-        tr = gen_fn.simulate(sub_key)
+        tr = gen_fn.simulate(sub_key, args)
         score = tr.get_score()
         self.address_traces.append(tr)
         self.score += score
         v = tr.get_retval()
-        return jtu.tree_leaves(v)
+        return v
 
 
 def simulate_transform(source_fn):

@@ -116,7 +116,6 @@ class VmapCombinator(GenerativeFunction):
         ```
     """
 
-    args: Tuple
     kernel: GenerativeFunctionClosure
     in_axes: Tuple = Pytree.static()
 
@@ -292,19 +291,15 @@ class VmapCombinator(GenerativeFunction):
 
 
 def vmap_combinator(
-    gen_fn_closure: Optional[GenerativeFunctionClosure] = None,
+    gen_fn: Optional[GenerativeFunctionClosure] = None,
     /,
     *,
     in_axes: Tuple,
-) -> Callable | GenerativeFunctionClosure:
-    def decorator(gen_fn_closure) -> GenerativeFunctionClosure:
-        @GenerativeFunction.closure
-        def inner(*args):
-            return VmapCombinator(args, gen_fn_closure, in_axes)
+) -> Callable | VmapCombinator:
+    def decorator(gen_fn) -> VmapCombinator:
+        return VmapCombinator(gen_fn, in_axes)
 
-        return inner
-
-    if gen_fn_closure:
-        return decorator(gen_fn_closure)
+    if gen_fn:
+        return decorator(gen_fn)
     else:
         return decorator

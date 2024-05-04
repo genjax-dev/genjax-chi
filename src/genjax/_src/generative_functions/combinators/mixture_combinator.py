@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from genjax._src.core.generative import GenerativeFunctionClosure
+from genjax._src.core.generative import GenerativeFunction
 from genjax._src.generative_functions.combinators.compose_combinator import (
     compose_combinator,
 )
@@ -27,12 +27,12 @@ from genjax._src.generative_functions.static.static_gen_fn import static_gen_fn
 
 
 def mixture_combinator(
-    *gen_fn_closures: GenerativeFunctionClosure,
-) -> GenerativeFunctionClosure:
+    *gen_fns: GenerativeFunction,
+) -> GenerativeFunction:
     def argument_pushforward(mixture_logits, *args):
         return (mixture_logits, *args)
 
-    inner_combinator_closure = switch_combinator(*gen_fn_closures)
+    inner_combinator_closure = switch_combinator(*gen_fns)
 
     @static_gen_fn
     def mixture_model(mixture_logits, *args):

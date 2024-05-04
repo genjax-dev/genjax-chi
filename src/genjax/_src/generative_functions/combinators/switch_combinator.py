@@ -136,37 +136,25 @@ class SwitchCombinator(GenerativeFunction):
         ```
     """
 
-    idx: IntArray
-    branch_args: Tuple
     branches: Tuple[GenerativeFunctionClosure, ...]
 
-    def get_branch_gen_fn(self, idx: int):
-        branch_closure = self.branches[idx]
-        branch_args = self.branch_args[idx]
-        return (
-            branch_closure(*branch_args)
-            if isinstance(branch_args, tuple)
-            else branch_closure(branch_args)
-        )
-
     # Optimized abstract call for tracing.
-    def __abstract_call__(self):
-        gen_fn = self.get_branch_gen_fn(0)
-        return gen_fn.__abstract_call__()
+    def __abstract_call__(self, *args):
+        branch_gen_fn = self.branches[0]
+        return branch_gen_fn.__abstract_call__(args[0])
 
-    def _empty_trace_leaves(self):
+    def _empty_trace_leaves(self, *args):
         trace_leaves = []
-        for idx in range(len(self.branches)):
-            gen_fn = self.get_branch_gen_fn(idx)
-            empty_trace = gen_fn.get_empty_trace()
+        for idx, branch_gen_fn in enumerate(self.branches):
+            empty_trace = branch_gen_fn.get_empty_trace(args[idx])
             leaves = jtu.tree_leaves(empty_trace)
             trace_leaves.append(leaves)
         return trace_leaves
 
-    def _empty_trace_defs(self):
+    def _empty_trace_defs(self, *args):
         trace_defs = []
         for idx in range(len(self.branches)):
-            gen_fn = self.get_branch_gen_fn(idx)
+            gen_fn = self.get_branch_gen_fn(idx, args)
             empty_trace = gen_fn.get_empty_trace()
             trace_def = jtu.tree_structure(empty_trace)
             trace_defs.append(trace_def)
@@ -257,11 +245,5 @@ class SwitchCombinator(GenerativeFunction):
 #############
 
 
-def switch_combinator(
-    *f: GenerativeFunction,
-) -> GenerativeFunctionClosure:
-    @GenerativeFunction.closure
-    def inner(idx: IntArray, *args: Any) -> SwitchCombinator:
-        return SwitchCombinator(idx, args, f)
-
-    return inner
+def switch_combinator(*f: GenerativeFunction) -> SwitchCombinator:
+    return SwitchCombinator(f)

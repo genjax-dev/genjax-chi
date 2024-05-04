@@ -15,24 +15,24 @@
 
 from tensorflow_probability.substrates import jax as tfp
 
+from genjax._src.core.pytree import Pytree
 from genjax._src.generative_functions.distributions.distribution import ExactDensity
 
 tfd = tfp.distributions
 
 
 def tfp_distribution(dist):
-    def inner(*args, **kwargs):
-        def sampler(key, *args, **kwargs):
-            d = dist(*args, **kwargs)
-            return d.sample(seed=key)
+    @Pytree.partial()
+    def sampler(key, *args, **kwargs):
+        d = dist(*args, **kwargs)
+        return d.sample(seed=key)
 
-        def logpdf(v, *args, **kwargs):
-            d = dist(*args, **kwargs)
-            return d.log_prob(v)
+    @Pytree.partial()
+    def logpdf(v, *args, **kwargs):
+        d = dist(*args, **kwargs)
+        return d.log_prob(v)
 
-        return ExactDensity(args, sampler, logpdf, kwargs)
-
-    return inner
+    return ExactDensity(sampler, logpdf)
 
 
 #####################

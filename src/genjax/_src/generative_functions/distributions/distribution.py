@@ -17,11 +17,9 @@ import abc
 
 import jax
 import jax.numpy as jnp
-import jax.tree_util as jtu
 from jax.lax import cond
 
 from genjax._src.core.generative import (
-    ChangeTargetUpdateSpec,
     ChoiceMap,
     Constraint,
     EmptyUpdateSpec,
@@ -37,10 +35,11 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree import Pytree, Closure
 from genjax._src.core.typing import (
     Any,
     Callable,
+    Dict,
     FloatArray,
     PRNGKey,
     Tuple,
@@ -58,14 +57,18 @@ class DistributionTrace(
     Trace,
 ):
     gen_fn: GenerativeFunction
+    args: Tuple
     value: Any
     score: FloatArray
 
-    def get_gen_fn(self):
-        return self.gen_fn
+    def get_args(self) -> Tuple:
+        return self.args
 
     def get_retval(self):
         return self.value
+
+    def get_gen_fn(self):
+        return self.gen_fn
 
     def get_score(self):
         return self.score
@@ -104,7 +107,7 @@ class Distribution(GenerativeFunction):
         args: Tuple,
     ) -> DistributionTrace:
         (w, v) = self.random_weighted(key, *args)
-        tr = DistributionTrace(self, v, w)
+        tr = DistributionTrace(self, args, v, w)
         return tr
 
     @typecheck
@@ -120,11 +123,11 @@ class Distribution(GenerativeFunction):
             w = self.estimate_logpdf(key, v, *args)
             score = w
             bwd_spec = RemoveSampleUpdateSpec(v)
-            return (DistributionTrace(self, v, score), w, bwd_spec)
+            return (DistributionTrace(self, args, v, score), w, bwd_spec)
         elif static_check_is_concrete(check):
             score, v = self.random_weighted(key, *args)
             return (
-                DistributionTrace(self, v, score),
+                DistributionTrace(self, args, v, score),
                 jnp.array(0.0),
                 EmptyUpdateSpec(),
             )
@@ -144,7 +147,7 @@ class Distribution(GenerativeFunction):
 
                     def _importance(key, v):
                         w = self.estimate_logpdf(key, v, *args)
-                        tr = DistributionTrace(self, v, w)
+                        tr = DistributionTrace(self, args, v, w)
                         return (tr, w)
 
                     tr, w = cond(flag, _importance, _simulate, key, value)
@@ -186,27 +189,29 @@ class Distribution(GenerativeFunction):
         argdiffs: Tuple,
     ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
         check = constraint.has_value()
+        primals = Diff.tree_primals(argdiffs)
         if static_check_is_concrete(check) and check:
             v = constraint.get_value()
-            fwd = self.estimate_logpdf(key, v)
+            fwd = self.estimate_logpdf(key, v, *primals)
             bwd = trace.get_score()
             w = fwd - bwd
-            new_tr = DistributionTrace(self, v, fwd)
+            new_tr = DistributionTrace(self, primals, v, fwd)
             discard = trace.get_sample()
             retval_diff = Diff.tree_diff_unknown_change(v)
             return (new_tr, w, retval_diff, discard)
         elif static_check_is_concrete(check):
             value_chm = trace.get_sample()
             v = value_chm.get_value()
-            fwd = self.estimate_logpdf(key, v, *args)
+            fwd = self.estimate_logpdf(key, v, *primals)
             bwd = trace.get_score()
             w = fwd - bwd
-            new_tr = DistributionTrace(self, v, fwd)
+            new_tr = DistributionTrace(self, primals, v, fwd)
             retval_diff = Diff.tree_diff_no_change(v)
             return (new_tr, w, retval_diff, EmptyUpdateSpec())
         else:
             raise NotImplementedError
 
+    # TODO: check math.
     def update_remove_sample(
         self,
         key: PRNGKey,
@@ -225,16 +230,21 @@ class Distribution(GenerativeFunction):
         key: PRNGKey,
         trace: DistributionTrace,
         update_spec: MaskUpdateSpec,
+        argdiffs: Tuple,
     ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
         old_value = trace.get_retval()
+        primals = Diff.tree_primals(argdiffs)
         match update_spec:
             case MaskUpdateSpec(flag, spec):
-                possible_trace, w, retdiff, bwd_spec = self.update(key, trace, spec)
+                possible_trace, w, retdiff, bwd_spec = self.update(
+                    key, trace, spec, argdiffs
+                )
                 new_value = possible_trace.get_retval()
                 w = w * flag
                 bwd_spec = MaskUpdateSpec(flag, bwd_spec)
                 new_trace = DistributionTrace(
                     self,
+                    primals,
                     jax.lax.select(flag, new_value, old_value),
                     jax.lax.select(flag, possible_trace.get_score(), trace.get_score()),
                 )
@@ -246,24 +256,12 @@ class Distribution(GenerativeFunction):
         key: PRNGKey,
         trace: DistributionTrace,
         selection: Selection,
+        argdiffs: Tuple,
     ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
         check, _ = selection.has_addr(())
         return self.update(
-            key, trace, MaskUpdateSpec.maybe(check, RemoveSampleUpdateSpec())
+            key, trace, MaskUpdateSpec.maybe(check, RemoveSampleUpdateSpec()), argdiffs
         )
-
-    def update_change_target(
-        self,
-        key: PRNGKey,
-        trace: DistributionTrace,
-        argdiffs: Tuple,
-        inner_spec: UpdateSpec,
-    ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
-        Diff.static_check_tree_diff(argdiffs)
-        args = Diff.tree_primal(argdiffs)
-        dist_def = jtu.tree_structure(self)
-        new_dist = jtu.tree_unflatten(dist_def, args)
-        return new_dist.update(key, trace, inner_spec)
 
     @typecheck
     def update(
@@ -271,60 +269,69 @@ class Distribution(GenerativeFunction):
         key: PRNGKey,
         trace: Trace,
         update_spec: UpdateSpec,
+        argdiffs: Tuple,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
         match update_spec:
             case EmptyUpdateSpec():
                 return self.update_empty(trace)
 
             case Constraint():
-                return self.update_constraint(key, trace, spec)
+                return self.update_constraint(key, trace, update_spec, argdiffs)
 
             case MaskUpdateSpec(flag, spec):
-                return self.update_mask_spec(key, trace, update_spec)
-
-            case ChangeTargetUpdateSpec(argdiffs, spec):
-                return self.update_change_target(key, trace, argdiffs, spec)
+                return self.update_mask_spec(key, trace, update_spec, argdiffs)
 
             case RemoveSampleUpdateSpec():
-                return self.update_remove_sample(key, trace)
+                return self.update_remove_sample(key, trace, argdiffs)
 
             case RemoveSelectionUpdateSpec(selection):
-                return self.update_remove_selection(key, trace, selection)
+                return self.update_remove_selection(key, trace, selection, argdiffs)
 
             case _:
                 raise Exception(f"Not implement fwd spec: {update_spec}.")
 
 
-#####
-# ExactDensity
-#####
+################
+# ExactDensity #
+################
 
 
 @Pytree.dataclass
 class ExactDensity(Distribution):
-    args: Tuple
-    sampler: Callable = Pytree.static()
-    logpdf_evaluator: Callable = Pytree.static()
-    kwargs: dict = Pytree.field(default_factory=dict)
+    sampler: Closure
+    logpdf_evaluator: Closure
 
-    def __abstract_call__(self):
+    def __abstract_call__(self, *args):
         key = jax.random.PRNGKey(0)
-        return self.sampler(key, *self.args, **self.kwargs)
+        return self.sampler(key, *args)
+
+    def handle_kwargs(self, kwargs: Dict) -> GenerativeFunction:
+        @Pytree.partial(self, kwargs)
+        def new_sampler(self, kwargs, key, *args):
+            return self.sampler(key, *args, **kwargs)
+
+        @Pytree.partial(self, kwargs)
+        def new_logpdf(self, kwargs, v, *args):
+            return self.logpdf_evaluator(v, *args, **kwargs)
+
+        return ExactDensity(new_sampler, new_logpdf)
 
     def random_weighted(
         self,
         key: PRNGKey,
+        *args,
     ) -> Tuple[FloatArray, Any]:
-        v = self.sampler(key, *self.args, **self.kwargs)
-        w = self.logpdf_evaluator(v, *self.args, **self.kwargs)
+        v = self.sampler(key, *args)
+        w = self.logpdf_evaluator(v, *args)
         return (w, v)
 
     def estimate_logpdf(
         self,
         key: PRNGKey,
         v: Any,
+        *args,
     ) -> FloatArray:
-        w = self.logpdf_evaluator(v, *self.args, **self.kwargs)
+        w = self.logpdf_evaluator(v, *args)
         if w.shape:
             return jnp.sum(w)
         else:
@@ -332,8 +339,8 @@ class ExactDensity(Distribution):
 
 
 @typecheck
-def exact_density(sampler: Callable, logpdf: Callable):
-    def inner(*args, **kwargs):
-        return ExactDensity(args, sampler, logpdf, kwargs)
-
-    return inner
+def exact_density(
+    sampler: Callable,
+    logpdf: Callable,
+):
+    return ExactDensity(sampler, logpdf)

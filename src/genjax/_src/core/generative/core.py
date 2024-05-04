@@ -28,15 +28,14 @@ from genjax._src.core.typing import (
     Bool,
     BoolArray,
     Callable,
+    Dict,
     FloatArray,
     Int,
     IntArray,
     Is,
     List,
-    Optional,
     PRNGKey,
     Tuple,
-    Type,
     static_check_is_concrete,
 )
 
@@ -317,28 +316,25 @@ class TraceSummary(Pytree):
 
 
 class GenerativeFunction(Pytree):
-    def __abstract_call__(self) -> Any:
+    def __call__(self, *args, **kwargs) -> "GenerativeFunctionClosure":
+        return GenerativeFunctionClosure(self, args, kwargs)
+
+    def __abstract_call__(self, *args) -> Any:
         """Used to support JAX tracing, although this default implementation involves no
         JAX operations (it takes a fixed-key sample from the return value).
 
         Generative functions may customize this to improve compilation time.
         """
-        return self.simulate(jax.random.PRNGKey(0)).get_retval()
+        return self.simulate(jax.random.PRNGKey(0), args).get_retval()
 
-    @property
-    def _type_tuple(self):
-        trace_shape = self.get_trace_data_shape()
-        TT = type(trace_shape)
-        ST = type(trace_shape.get_sample())
-        retval_shape = trace_shape.get_retval()
-        RT = type(jnp.zeros(retval_shape.shape, dtype=retval_shape.dtype))
-        return (RT, ST, TT)
+    def handle_kwargs(self, kwargs: Dict) -> "GenerativeFunction":
+        return self
 
-    def get_trace_data_shape(self) -> Any:
-        return get_trace_data_shape(self)
+    def get_trace_data_shape(self, *args) -> Any:
+        return get_trace_data_shape(self, *args)
 
-    def get_empty_trace(self) -> Trace:
-        data_shape = self.get_trace_data_shape()
+    def get_empty_trace(self, *args) -> Trace:
+        data_shape = self.get_trace_data_shape(*args)
         return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), data_shape)
 
     @abstractmethod
@@ -375,21 +371,15 @@ class GenerativeFunction(Pytree):
         trace: Trace,
         spec: UpdateSpec,
     ) -> Weight:
-        _, w, _, _ = self.update(key, trace, spec)
+        args = self.trace.get_args()
+        argdiffs = Diff.tree_diff_no_change(args)
+        _, w, _, _ = self.update(key, trace, spec, argdiffs)
         return -w
 
     # NOTE: Supports pretty printing in penzai.
     def treescope_color(self):
         type_string = str(type(self))
         return formatting_util.color_from_string(type_string)
-
-    # NOTE: Supports callee syntax, and the ability to overload it in callers.
-    def __matmul__(self, addr):
-        return handle_off_trace_stack(addr, self)
-
-    @classmethod
-    def closure(cls, fn: Callable, *args):
-        return GenerativeFunctionClosure(fn, args)
 
     ###############################################
     # Convenience: postfix syntax for combinators #
@@ -433,7 +423,7 @@ class GenerativeFunction(Pytree):
 
         return switch_combinator(self, *gen_fn)
 
-    def mixor(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
+    def mix(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
         from genjax import mixture_combinator
 
         return mixture_combinator(self, gen_fn)
@@ -446,13 +436,14 @@ class GenerativeFunction(Pytree):
 GLOBAL_TRACE_OP_HANDLER_STACK: List[Callable] = []
 
 
-def handle_off_trace_stack(addr, gen_fn: GenerativeFunction):
+def handle_off_trace_stack(addr, gen_fn: GenerativeFunction, args):
     if GLOBAL_TRACE_OP_HANDLER_STACK:
         handler = GLOBAL_TRACE_OP_HANDLER_STACK[-1]
-        return handler(addr, gen_fn)
+        return handler(addr, gen_fn, args)
     else:
-        key = jax.random.PRNGKey(0)
-        return gen_fn(key)
+        raise Exception(
+            "Attempting to invoke trace outside of a tracing context.\nIf you want to invoke the generative function closure, and recieve a return value,\ninvoke it with a key."
+        )
 
 
 def push_trace_overload_stack(handler, fn):
@@ -469,27 +460,43 @@ def push_trace_overload_stack(handler, fn):
 class GenerativeFunctionClosure(Pytree):
     gen_fn: GenerativeFunction
     args: Tuple
+    kwargs: Dict
 
     def __call__(self, key: PRNGKey) -> Any:
-        tr = self.gen_fn.simulate(key, self.args)
+        new_gen_fn = self.gen_fn.handle_kwargs(self.kwargs)
+        tr = new_gen_fn.simulate(key, self.args)
         return tr.get_retval()
 
-    ####################################
-    # Support the old interface syntax #
-    ####################################
+    # NOTE: Supports callee syntax, and the ability to overload it in callers.
+    def __matmul__(self, addr):
+        new_gen_fn = self.gen_fn.handle_kwargs(self.kwargs)
+        return handle_off_trace_stack(
+            addr,
+            new_gen_fn,
+            self.args,
+        )
+
+    #############################################
+    # Support the interface with reduced syntax #
+    #############################################
 
     def simulate(
         self,
         key: PRNGKey,
     ):
-        return self.gen_fn.simulate(key, self.args)
+        return self.gen_fn.handle_kwargs(self.kwargs).simulate(
+            key,
+            self.args,
+        )
 
     def importance(
         self,
         key: PRNGKey,
         constraint: Constraint,
     ):
-        return self.gen_fn.importance(key, constraint, self.args)
+        return self.gen_fn.handle_kwargs(self.kwargs).importance(
+            key, constraint, self.args
+        )
 
     def update(
         self,
@@ -497,4 +504,6 @@ class GenerativeFunctionClosure(Pytree):
         trace: Trace,
         spec: UpdateSpec,
     ):
-        return self.gen_fn.update(key, trace, spec, self.args)
+        return self.gen_fn.handle_kwargs(self.kwargs).update(
+            key, trace, spec, self.args
+        )

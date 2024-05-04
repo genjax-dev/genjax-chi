@@ -15,7 +15,7 @@
 import jax.numpy as jnp
 
 from genjax._src.core.generative import (
-    GenerativeFunctionClosure,
+    GenerativeFunction,
 )
 from genjax._src.core.typing import Callable, Int, IntArray, Optional, Tuple, typecheck
 from genjax._src.generative_functions.combinators.address_bijection_combinator import (
@@ -32,11 +32,11 @@ from genjax._src.generative_functions.static.static_gen_fn import static_gen_fn
 
 @typecheck
 def repeat_combinator(
-    gen_fn: Optional[GenerativeFunctionClosure] = None,
+    gen_fn: Optional[GenerativeFunction] = None,
     /,
     *,
     num_repeats: Int,
-) -> Callable | GenerativeFunctionClosure:
+) -> Callable | GenerativeFunction:
     def decorator(gen_fn):
         def argument_pushforward(*args):
             return (jnp.zeros(num_repeats), args)

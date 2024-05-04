@@ -20,7 +20,6 @@ from genjax._src.core.generative import (
     ChoiceMap,
     Constraint,
     GenerativeFunction,
-    GenerativeFunctionClosure,
     RemoveSelectionUpdateSpec,
     Retdiff,
     Trace,
@@ -120,18 +119,16 @@ class ScanCombinator(GenerativeFunction):
         ```
     """
 
-    args: Tuple
-    kernel_closure: GenerativeFunctionClosure
+    kernel: GenerativeFunction
     max_length: Int = Pytree.static()
 
     # To get the type of return value, just invoke
     # the scanned over source (with abstract tracer arguments).
-    def __abstract_call__(self) -> Any:
-        (carry, scanned_in) = self.args
+    def __abstract_call__(self, *args) -> Any:
+        (carry, scanned_in) = args
 
         def _inner(carry, scanned_in):
-            gen_fn = self.kernel_closure(carry, scanned_in)
-            v, scanned_out = gen_fn.__abstract_call__()
+            v, scanned_out = self.kernel.__abstract_call__(carry, scanned_in)
             return v, scanned_out
 
         v, scanned_out = jax.lax.scan(
@@ -147,12 +144,12 @@ class ScanCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
+        args: Tuple,
     ) -> ScanTrace:
-        carry, scanned_in = self.args
+        carry, scanned_in = args
 
         def _inner_simulate(key, carry, scanned_in):
-            kernel_gen_fn = self.kernel_closure(carry, scanned_in)
-            tr = kernel_gen_fn.simulate(key)
+            tr = self.gen_fn.simulate(key, (carry, scanned_in))
             (carry, scanned_out) = tr.get_retval()
             score = tr.get_score()
             return (carry, score), (tr, scanned_out)
@@ -179,12 +176,14 @@ class ScanCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: ChoiceMap,
+        args: Tuple,
     ) -> Tuple[ScanTrace, FloatArray, UpdateSpec]:
-        (carry, scanned_in) = self.args
+        (carry, scanned_in) = args
 
         def _inner_importance(key, constraint, carry, scanned_in):
-            kernel_gen_fn = self.kernel_closure(carry, scanned_in)
-            tr, w, bwd_spec = kernel_gen_fn.importance(key, constraint)
+            tr, w, bwd_spec = self.kernel.importance(
+                key, constraint, (carry, scanned_in)
+            )
             (carry, scanned_out) = tr.get_retval()
             score = tr.get_score()
             return (carry, score), (tr, scanned_out, w, bwd_spec)
@@ -217,10 +216,11 @@ class ScanCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: Constraint,
+        args: Tuple,
     ) -> Tuple[ScanTrace, Weight, UpdateSpec]:
         match constraint:
             case ChoiceMap():
-                return self.importance_choice_map(key, constraint)
+                return self.importance_choice_map(key, constraint, args)
 
             case _:
                 raise NotImplementedError
@@ -247,17 +247,17 @@ class ScanCombinator(GenerativeFunction):
         key: PRNGKey,
         trace: Trace,
         spec: UpdateSpec,
+        argdiffs: Tuple,
     ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateSpec]:
-        carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(self.args)
+        carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(argdiffs)
 
         def _inner_update(key, subtrace, subspec, carry, scanned_in):
-            kernel_gen_fn = self.kernel_closure(carry, scanned_in)
             (
                 new_subtrace,
                 w,
                 (carry_retdiff, scanned_out_retdiff),
                 bwd_spec,
-            ) = kernel_gen_fn.update(key, subtrace, subspec)
+            ) = self.gen_fn.update(key, subtrace, subspec, (carry, scanned_in))
             score = new_subtrace.get_score()
             return (carry_retdiff, score), (
                 new_subtrace,
@@ -305,30 +305,16 @@ class ScanCombinator(GenerativeFunction):
         )
 
     @typecheck
-    def update_change_target(
-        self,
-        key: PRNGKey,
-        trace: ScanTrace,
-        argdiffs: Tuple,
-        subspec: UpdateSpec,
-    ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateSpec]:
-        primals = Diff.tree_primal(argdiffs)
-        new_combinator = ScanCombinator(primals, self.kernel_closure, self.max_length)
-        return new_combinator.update(key, trace, subspec)
-
-    @typecheck
     def update(
         self,
         key: PRNGKey,
         trace: ScanTrace,
         update_spec: UpdateSpec,
+        argdiffs: Tuple,
     ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateSpec]:
         match update_spec:
-            case ChangeTargetUpdateSpec(argdiffs, subspec):
-                return self.update_change_target(key, trace, argdiffs, subspec)
-
             case _:
-                return self.update_generic(key, trace, update_spec)
+                return self.update_generic(key, trace, update_spec, argdiffs)
 
     def assess(
         self,
@@ -344,17 +330,13 @@ class ScanCombinator(GenerativeFunction):
 
 @typecheck
 def scan_combinator(
-    gen_fn_closure: Optional[GenerativeFunctionClosure] = None,
+    gen_fn_closure: Optional[GenerativeFunction] = None,
     /,
     *,
     max_length: Int,
 ):
     def decorator(f):
-        @GenerativeFunction.closure
-        def inner(*args):
-            return ScanCombinator(args, f, max_length)
-
-        return inner
+        return ScanCombinator(f, max_length)
 
     if gen_fn_closure:
         return decorator(gen_fn_closure)

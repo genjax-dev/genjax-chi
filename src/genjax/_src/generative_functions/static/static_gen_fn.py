@@ -24,11 +24,12 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.core import push_trace_overload_stack
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
     Callable,
+    Dict,
     PRNGKey,
     Tuple,
     typecheck,
@@ -52,8 +53,9 @@ from genjax._src.generative_functions.static.static_transforms import (
 def handler_trace_with_static(
     addr: Address,
     gen_fn: GenerativeFunction,
+    args: Tuple,
 ):
-    return trace(addr)(gen_fn)
+    return trace(addr, gen_fn, args)
 
 
 @Pytree.dataclass
@@ -91,12 +93,19 @@ class StaticGenerativeFunction(GenerativeFunction):
         *We're aware of it, and we're working on it!*
     """
 
-    source: Callable = Pytree.static()
+    source: Closure
 
     # To get the type of return value, just invoke
     # the source (with abstract tracer arguments).
     def __abstract_call__(self, *args) -> Any:
         return self.source(*args)
+
+    def handle_kwargs(self, kwargs: Dict) -> GenerativeFunction:
+        @Pytree.partial(kwargs)
+        def kwarged_source(kwargs, *args):
+            return self.source(*args, **kwargs)
+
+        return StaticGenerativeFunction(kwarged_source)
 
     @typecheck
     def simulate(
@@ -109,7 +118,7 @@ class StaticGenerativeFunction(GenerativeFunction):
         )
         (args, retval, address_visitor, address_traces, score) = simulate_transform(
             syntax_sugar_handled
-        )(key, *args)
+        )(key, args)
         return StaticTrace(
             self,
             args,
@@ -249,4 +258,8 @@ class StaticGenerativeFunction(GenerativeFunction):
 
 @typecheck
 def static_gen_fn(f: Callable[[Any], Any]) -> GenerativeFunction:
-    return StaticGenerativeFunction(f)
+    if isinstance(f, Closure):
+        return StaticGenerativeFunction(f)
+    else:
+        closure = Pytree.partial()(f)
+        return StaticGenerativeFunction(closure)

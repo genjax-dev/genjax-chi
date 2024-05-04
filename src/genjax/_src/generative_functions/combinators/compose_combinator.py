@@ -41,8 +41,8 @@ from genjax._src.core.typing import (
 @Pytree.dataclass
 class ComposeTrace(Trace):
     compose_combinator: "ComposeCombinator"
-    args: Tuple
     inner: Trace
+    args: Tuple
     retval: Any
 
     def get_args(self):
@@ -72,26 +72,26 @@ class ComposeCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
+        args: Tuple,
     ) -> ComposeTrace:
-        inner_args = self.argument_pushforward(*self.inner_args)
-        inner_gen_fn = self.inner(*inner_args)
-        tr = inner_gen_fn.simulate(key)
+        inner_args = self.argument_pushforward(*args)
+        tr = self.inner.simulate(key, inner_args)
         inner_retval = tr.get_retval()
         retval = self.retval_pushforward(self.inner_args, tr.get_sample(), inner_retval)
-        return ComposeTrace(self, tr, retval)
+        return ComposeTrace(self, tr, args, retval)
 
     @typecheck
     def importance(
         self,
         key: PRNGKey,
         constraint: Constraint,
+        args: Tuple,
     ) -> Tuple[ComposeTrace, FloatArray, UpdateSpec]:
-        inner_args = self.argument_pushforward(*self.inner_args)
-        inner_gen_fn = self.inner(*inner_args)
-        tr, w, bwd_spec = inner_gen_fn.importance(key, constraint)
+        inner_args = self.argument_pushforward(*args)
+        tr, w, bwd_spec = self.inner.importance(key, constraint, inner_args)
         inner_retval = tr.get_retval()
         retval = self.retval_pushforward(self.inner_args, tr.get_sample(), inner_retval)
-        return ComposeTrace(self, tr, retval), w, bwd_spec
+        return ComposeTrace(self, tr, args, retval), w, bwd_spec
 
     @typecheck
     def update_fallback(

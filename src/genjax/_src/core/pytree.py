@@ -36,8 +36,6 @@ from typing_extensions import dataclass_transform
 from genjax._src.core.typing import (
     Any,
     Callable,
-    Int,
-    IntArray,
     List,
     Tuple,
     static_check_is_array,
@@ -404,5 +402,5 @@ class Closure(Pytree):
     dyn_args: Tuple
     fn: Callable = Pytree.static()
 
-    def __call__(self, *args):
-        return self.fn(*self.dyn_args, *args)
+    def __call__(self, *args, **kwargs):
+        return self.fn(*self.dyn_args, *args, **kwargs)

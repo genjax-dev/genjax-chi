@@ -135,15 +135,15 @@ def trees(f):
     return wrapped
 
 
-def get_trace_data_shape(gen_fn):
-    def _apply(key):
-        tr = gen_fn.simulate(key)
+def get_trace_data_shape(gen_fn, *args):
+    def _apply(key, *args):
+        tr = gen_fn.simulate(key, *args)
         return tr
 
     # Value doesn't matter, where just using types for staging.
     key = jax.random.PRNGKey(0)
 
-    (_, trace_shape) = make_jaxpr(_apply, return_shape=True)(key)
+    (_, trace_shape) = make_jaxpr(_apply, return_shape=True)(key, *args)
     return trace_shape
 
 

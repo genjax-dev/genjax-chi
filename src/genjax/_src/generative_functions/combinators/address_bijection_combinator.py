@@ -14,11 +14,9 @@
 
 
 from genjax._src.core.generative import (
-    ChangeTargetUpdateSpec,
     ChoiceMap,
     Constraint,
     GenerativeFunction,
-    GenerativeFunctionClosure,
     Retdiff,
     Sample,
     Trace,
@@ -29,7 +27,6 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
-    Optional,
     PRNGKey,
     Tuple,
     typecheck,
@@ -41,11 +38,14 @@ class AddressBijectionTrace(Trace):
     gen_fn: "AddressBijectionCombinator"
     inner: Trace
 
-    def get_gen_fn(self) -> GenerativeFunction:
-        return self.gen_fn
+    def get_args(self) -> Tuple:
+        return self.inner.get_args()
 
     def get_retval(self) -> Any:
         return self.inner.get_retval()
+
+    def get_gen_fn(self) -> GenerativeFunction:
+        return self.gen_fn
 
     def get_sample(self) -> Sample:
         sample: ChoiceMap = self.inner.get_sample()
@@ -81,8 +81,7 @@ class AddressBijectionCombinator(GenerativeFunction):
         key: PRNGKey,
         args: Tuple,
     ) -> Trace:
-        inner = self.gen_fn(*args)
-        tr = inner.simulate(key)
+        tr = self.gen_fn.simulate(key, args)
         return AddressBijectionTrace(self, tr)
 
     def importance(
