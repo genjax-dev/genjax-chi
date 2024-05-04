@@ -3,8 +3,6 @@ from pyobsplot import Plot, js
 import pyobsplot
 from ipywidgets import GridBox, Layout
 from timeit import default_timer as timer
-from functools import partial
-# %%
 
 class benchmark(object):
     """
@@ -66,28 +64,42 @@ plot_options = {
     "default": {"width": 500, "height": 350, "inset": 20},
 }
 
-
-def apply_options(opts, plot):
-    """
-    Apply plot options to an existing plot.
-
-    Args:
-        opts (dict): A dictionary of plot options to apply.
-        plot (pyobsplot.widget.ObsplotWidget or Any): The plot to apply options to.
-            If it's an ObsplotWidget, the options will be merged with the existing plot spec.
-            Otherwise, it will be returned as-is.
-
-    Returns:
-        pyobsplot.widget.ObsplotWidget (with options applied) or the passed-in value.
-    """
-    if isinstance(plot, pyobsplot.widget.ObsplotWidget):
-        opts = plot_options[opts] if isinstance(opts, str) else opts
-        return Plot.plot({**plot.spec["code"], **opts})
-    return plot
+# def flatten(xs):
+#     flattened = []
+#     for x in xs:
+#         if isinstance(x, list):
+#             flattened.extend(flatten(x))
+#         else:
+#             flattened.append(x)
+#     return flattened
 
 
-def show(marks, **opts):
-    return Plot.plot({**plot_options["default"], **opts, "marks": marks})
+class PlotSpec:
+    def __init__(self, marks=None, **opts):
+        self.opts = opts or {}
+        self.opts['marks'] = marks or opts.get('marks', [])
+        self._plot = None
+        
+    def __add__(self, opts):
+        if isinstance(opts, list):
+            opts = {**self.opts, 'marks': self.opts.get('marks') + opts}
+            return PlotSpec(**opts)
+        if isinstance(opts, dict):
+            opts = {**self.opts, **opts, 'marks': self.opts.get('marks') + opts.get('marks', [])}
+            return PlotSpec(**opts)
+        if isinstance(opts, PlotSpec):
+            return self + opts.opts 
+        raise TypeError(
+            f"Unsupported operand type(s) for +: 'PlotSpec' and '{type(opts).__name__}'"
+        )
+        
+    def plot(self):
+        if self._plot is None:
+            self._plot = Plot.plot({**plot_options["default"], **self.opts,})
+        return self._plot    
+    def _repr_mimebundle_(self, include=None, exclude=None):
+        return self.plot()._repr_mimebundle_()
+    
 
 # TODO 
 # this should be a lighter-weight thing. creating ObsplotWidgets is too heavyweight.
@@ -109,7 +121,7 @@ def scatter(xs, ys, **opts):
     label = opts.get('label', None)
     fill = js(f"()=>'{label}'") if label else opts.get('fill', None) or "black"
     
-    return show(
+    return PlotSpec(
         [
             Plot.frame({"stroke": "#ddd", "strokeWidth": 1}),
             Plot.dot(
@@ -126,7 +138,7 @@ def scatter(xs, ys, **opts):
     )
 
 
-def small_multiples(marksets, plot_opts={}, layout_opts={}):
+def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
     """
     Create a grid of small multiple plots from the given list of mark sets.
 
@@ -146,36 +158,11 @@ def small_multiples(marksets, plot_opts={}, layout_opts={}):
     }
 
     return GridBox(
-        [apply_options(plot_opts, marks) for marks in marksets],
+        [(plotspec + plot_opts).plot() for plotspec in plotspecs],
         layout=Layout(**layout_opts),
     )
 
+def dot(values, **opts):
+    return PlotSpec([Plot.dot(values, opts)])
 
 # %%
-
-from pyobsplot.widget import ObsplotWidget
-
-
-def __add__(self, other):
-    if isinstance(other, ObsplotWidget):
-        combined_data = {**self.spec["code"], **other.spec["code"]}
-
-        return ObsplotWidget(
-            {
-                **combined_data,
-                "marks": self.spec["code"]["marks"] + other.spec["code"]["marks"],
-            }
-        )
-    else:
-        raise TypeError(
-            f"Unsupported operand type(s) for +: 'ObsplotWidget' and '{type(other).__name__}'"
-        )
-
-
-# Monkey patch the __add__ method onto the ObsplotWidget class
-# This way we can "add" plots together to overlay their marks.
-ObsplotWidget.__add__ = __add__
-ObsplotWidget.plot = lambda self, **opts: apply_options(opts, self)
-
-def dot(values, **opts):
-    return show([Plot.dot(values, opts)])
