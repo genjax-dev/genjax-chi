@@ -100,9 +100,9 @@ class StaticGenerativeFunction(GenerativeFunction):
     def __abstract_call__(self, *args) -> Any:
         return self.source(*args)
 
-    def handle_kwargs(self, kwargs: Dict) -> GenerativeFunction:
-        @Pytree.partial(kwargs)
-        def kwarged_source(kwargs, *args):
+    def handle_kwargs(self) -> GenerativeFunction:
+        @Pytree.partial()
+        def kwarged_source(args, kwargs):
             return self.source(*args, **kwargs)
 
         return StaticGenerativeFunction(kwarged_source)

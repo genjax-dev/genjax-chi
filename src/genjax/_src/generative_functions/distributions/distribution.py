@@ -24,6 +24,7 @@ from genjax._src.core.generative import (
     Constraint,
     EmptyUpdateSpec,
     GenerativeFunction,
+    IgnoreKwargs,
     Mask,
     MaskUpdateSpec,
     RemoveSampleUpdateSpec,
@@ -305,13 +306,13 @@ class ExactDensity(Distribution):
         key = jax.random.PRNGKey(0)
         return self.sampler(key, *args)
 
-    def handle_kwargs(self, kwargs: Dict) -> GenerativeFunction:
-        @Pytree.partial(self, kwargs)
-        def new_sampler(self, kwargs, key, *args):
+    def handle_kwargs(self) -> GenerativeFunction:
+        @Pytree.partial()
+        def new_sampler(self, key, args, kwargs):
             return self.sampler(key, *args, **kwargs)
 
-        @Pytree.partial(self, kwargs)
-        def new_logpdf(self, kwargs, v, *args):
+        @Pytree.partial()
+        def new_logpdf(self, v, args, kwargs):
             return self.logpdf_evaluator(v, *args, **kwargs)
 
         return ExactDensity(new_sampler, new_logpdf)

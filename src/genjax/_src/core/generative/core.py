@@ -327,8 +327,8 @@ class GenerativeFunction(Pytree):
         """
         return self.simulate(jax.random.PRNGKey(0), args).get_retval()
 
-    def handle_kwargs(self, kwargs: Dict) -> "GenerativeFunction":
-        return self
+    def handle_kwargs(self) -> "GenerativeFunction":
+        return IgnoreKwargs(self)
 
     def get_trace_data_shape(self, *args) -> Any:
         return get_trace_data_shape(self, *args)
@@ -457,24 +457,63 @@ def push_trace_overload_stack(handler, fn):
 
 
 @Pytree.dataclass
+class IgnoreKwargs(GenerativeFunction):
+    wrapped: "GenerativeFunction"
+
+    def handle_kwargs(self) -> "GenerativeFunction":
+        raise NotImplementedError
+
+    def simulate(
+        self,
+        key: PRNGKey,
+        args: Tuple,
+    ):
+        return self.wrapped.simulate(key, args[:-1])
+
+    def importance(
+        self,
+        key: PRNGKey,
+        constraint: Constraint,
+        args: Tuple,
+    ):
+        return self.wrapped.importance(key, constraint, args[:-1])
+
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        update_spec: Constraint,
+        argdiffs: Tuple,
+    ):
+        return self.wrapped.update(key, trace, update_spec, argdiffs[:-1])
+
+
+@Pytree.dataclass
 class GenerativeFunctionClosure(Pytree):
     gen_fn: GenerativeFunction
     args: Tuple
     kwargs: Dict
 
     def __call__(self, key: PRNGKey) -> Any:
-        new_gen_fn = self.gen_fn.handle_kwargs(self.kwargs)
-        tr = new_gen_fn.simulate(key, self.args)
+        gen_fn = self.gen_fn.handle_kwargs() if self.kwargs else self.gen_fn
+        tr = gen_fn.simulate(key, (self.args, self.kwargs))
         return tr.get_retval()
 
     # NOTE: Supports callee syntax, and the ability to overload it in callers.
     def __matmul__(self, addr):
-        new_gen_fn = self.gen_fn.handle_kwargs(self.kwargs)
-        return handle_off_trace_stack(
-            addr,
-            new_gen_fn,
-            self.args,
-        )
+        if self.kwargs:
+            gen_fn = self.gen_fn.handle_kwargs() if self.kwargs else self.gen_fn
+            return handle_off_trace_stack(
+                addr,
+                gen_fn,
+                (self.args, self.kwargs),
+            )
+        else:
+            return handle_off_trace_stack(
+                addr,
+                self.gen_fn,
+                self.args,
+            )
 
     #############################################
     # Support the interface with reduced syntax #
@@ -484,9 +523,10 @@ class GenerativeFunctionClosure(Pytree):
         self,
         key: PRNGKey,
     ):
-        return self.gen_fn.handle_kwargs(self.kwargs).simulate(
+        gen_fn = self.gen_fn.handle_kwargs() if self.kwargs else self.gen_fn
+        return gen_fn.simulate(
             key,
-            self.args,
+            (self.args, self.kwargs),
         )
 
     def importance(
@@ -494,8 +534,11 @@ class GenerativeFunctionClosure(Pytree):
         key: PRNGKey,
         constraint: Constraint,
     ):
-        return self.gen_fn.handle_kwargs(self.kwargs).importance(
-            key, constraint, self.args
+        gen_fn = self.gen_fn.handle_kwargs() if self.kwargs else self.gen_fn
+        return gen_fn.importance(
+            key,
+            constraint,
+            (self.args, self.kwargs),
         )
 
     def update(
@@ -504,6 +547,10 @@ class GenerativeFunctionClosure(Pytree):
         trace: Trace,
         spec: UpdateSpec,
     ):
-        return self.gen_fn.handle_kwargs(self.kwargs).update(
-            key, trace, spec, self.args
+        gen_fn = self.gen_fn.handle_kwargs() if self.kwargs else self.gen_fn
+        return gen_fn.update(
+            key,
+            trace,
+            spec,
+            (self.args, self.kwargs),
         )
