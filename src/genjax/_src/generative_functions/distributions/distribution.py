@@ -307,15 +307,18 @@ class ExactDensity(Distribution):
         return self.sampler(key, *args)
 
     def handle_kwargs(self) -> GenerativeFunction:
-        @Pytree.partial()
-        def new_sampler(self, key, args, kwargs):
+        @Pytree.partial(self)
+        def sampler_with_kwargs(self, key, args, kwargs):
             return self.sampler(key, *args, **kwargs)
 
-        @Pytree.partial()
-        def new_logpdf(self, v, args, kwargs):
+        @Pytree.partial(self)
+        def logpdf_with_kwargs(self, v, args, kwargs):
             return self.logpdf_evaluator(v, *args, **kwargs)
 
-        return ExactDensity(new_sampler, new_logpdf)
+        return ExactDensity(
+            sampler_with_kwargs,
+            logpdf_with_kwargs,
+        )
 
     def random_weighted(
         self,

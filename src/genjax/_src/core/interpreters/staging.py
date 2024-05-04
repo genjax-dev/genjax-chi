@@ -137,7 +137,7 @@ def trees(f):
 
 def get_trace_data_shape(gen_fn, *args):
     def _apply(key, *args):
-        tr = gen_fn.simulate(key, *args)
+        tr = gen_fn.simulate(key, args)
         return tr
 
     # Value doesn't matter, where just using types for staging.

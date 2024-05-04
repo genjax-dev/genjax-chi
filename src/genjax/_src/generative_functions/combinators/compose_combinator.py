@@ -77,7 +77,7 @@ class ComposeCombinator(GenerativeFunction):
         inner_args = self.argument_pushforward(*args)
         tr = self.inner.simulate(key, inner_args)
         inner_retval = tr.get_retval()
-        retval = self.retval_pushforward(self.inner_args, tr.get_sample(), inner_retval)
+        retval = self.retval_pushforward(inner_args, tr.get_sample(), inner_retval)
         return ComposeTrace(self, tr, args, retval)
 
     @typecheck
@@ -90,7 +90,7 @@ class ComposeCombinator(GenerativeFunction):
         inner_args = self.argument_pushforward(*args)
         tr, w, bwd_spec = self.inner.importance(key, constraint, inner_args)
         inner_retval = tr.get_retval()
-        retval = self.retval_pushforward(self.inner_args, tr.get_sample(), inner_retval)
+        retval = self.retval_pushforward(inner_args, tr.get_sample(), inner_retval)
         return ComposeTrace(self, tr, args, retval), w, bwd_spec
 
     @typecheck
@@ -99,12 +99,13 @@ class ComposeCombinator(GenerativeFunction):
         key: PRNGKey,
         trace: ComposeTrace,
         update_spec: UpdateSpec,
+        argdiffs: Tuple,
     ) -> Tuple[ComposeTrace, FloatArray, Any, Any]:
-        inner_args = self.argument_pushforward(*self.inner_args)
-        inner_gen_fn = self.inner(*inner_args)
+        primals = Diff.tree_primal(argdiffs)
+        inner_argdiffs = self.argument_pushforward(*primals)
         inner_trace = trace.inner
-        tr, w, inner_retdiff, bwd_spec = inner_gen_fn.update(
-            key, inner_trace, update_spec
+        tr, w, inner_retdiff, bwd_spec = self.inner.update(
+            key, inner_trace, update_spec, inner_argdiffs
         )
         inner_retval_primals = Diff.tree_primal(inner_retdiff)
         inner_retval_tangents = Diff.tree_tangent(inner_retdiff)
@@ -113,7 +114,7 @@ class ComposeCombinator(GenerativeFunction):
         )
         retval_primal = Diff.tree_primal(retval_diff)
         return (
-            ComposeTrace(self, tr, self.args, retval_primal),
+            ComposeTrace(self, tr, primals, retval_primal),
             w,
             retval_diff,
             bwd_spec,

@@ -468,7 +468,8 @@ class IgnoreKwargs(GenerativeFunction):
         key: PRNGKey,
         args: Tuple,
     ):
-        return self.wrapped.simulate(key, args[:-1])
+        (args, kwargs) = args
+        return self.wrapped.simulate(key, args)
 
     def importance(
         self,
@@ -476,7 +477,8 @@ class IgnoreKwargs(GenerativeFunction):
         constraint: Constraint,
         args: Tuple,
     ):
-        return self.wrapped.importance(key, constraint, args[:-1])
+        (args, kwargs) = args
+        return self.wrapped.importance(key, constraint, args)
 
     def update(
         self,
@@ -485,7 +487,8 @@ class IgnoreKwargs(GenerativeFunction):
         update_spec: Constraint,
         argdiffs: Tuple,
     ):
-        return self.wrapped.update(key, trace, update_spec, argdiffs[:-1])
+        (argdiffs, kwargdiffs) = argdiffs
+        return self.wrapped.update(key, trace, update_spec, argdiffs)
 
 
 @Pytree.dataclass
@@ -494,18 +497,30 @@ class GenerativeFunctionClosure(Pytree):
     args: Tuple
     kwargs: Dict
 
-    def __call__(self, key: PRNGKey) -> Any:
-        gen_fn = self.gen_fn.handle_kwargs() if self.kwargs else self.gen_fn
-        tr = gen_fn.simulate(key, (self.args, self.kwargs))
-        return tr.get_retval()
+    def get_gen_fn_with_kwargs(self):
+        return self.gen_fn.handle_kwargs()
+
+    def get_trace_data_shape(self) -> Any:
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.get_trace_data_shape(self.args, self.kwargs)
+        else:
+            return self.gen_fn.get_trace_data_shape(*self.args)
+
+    def get_empty_trace(self) -> Trace:
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.get_empty_trace(self.args, self.kwargs)
+        else:
+            return self.gen_fn.get_empty_trace(*self.args)
 
     # NOTE: Supports callee syntax, and the ability to overload it in callers.
     def __matmul__(self, addr):
         if self.kwargs:
-            gen_fn = self.gen_fn.handle_kwargs() if self.kwargs else self.gen_fn
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return handle_off_trace_stack(
                 addr,
-                gen_fn,
+                maybe_kwarged_gen_fn,
                 (self.args, self.kwargs),
             )
         else:
@@ -515,6 +530,22 @@ class GenerativeFunctionClosure(Pytree):
                 self.args,
             )
 
+    def __call__(self, key: PRNGKey) -> Any:
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.simulate(
+                key, (self.args, self.kwargs)
+            ).get_retval()
+        else:
+            return self.gen_fn.simulate(key, self.args).get_retval()
+
+    def __abstract_call__(self) -> Any:
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.__abstract_call__(*self.args, **self.kwargs)
+        else:
+            return self.gen_fn.__abstract_call__(*self.args)
+
     #############################################
     # Support the interface with reduced syntax #
     #############################################
@@ -523,23 +554,29 @@ class GenerativeFunctionClosure(Pytree):
         self,
         key: PRNGKey,
     ):
-        gen_fn = self.gen_fn.handle_kwargs() if self.kwargs else self.gen_fn
-        return gen_fn.simulate(
-            key,
-            (self.args, self.kwargs),
-        )
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.simulate(
+                key,
+                (self.args, self.kwargs),
+            )
+        else:
+            return self.gen_fn.simulate(key, self.args)
 
     def importance(
         self,
         key: PRNGKey,
         constraint: Constraint,
     ):
-        gen_fn = self.gen_fn.handle_kwargs() if self.kwargs else self.gen_fn
-        return gen_fn.importance(
-            key,
-            constraint,
-            (self.args, self.kwargs),
-        )
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.importance(
+                key,
+                constraint,
+                (self.args, self.kwargs),
+            )
+        else:
+            return self.gen_fn.importance(key, constraint, self.args)
 
     def update(
         self,
@@ -547,10 +584,13 @@ class GenerativeFunctionClosure(Pytree):
         trace: Trace,
         spec: UpdateSpec,
     ):
-        gen_fn = self.gen_fn.handle_kwargs() if self.kwargs else self.gen_fn
-        return gen_fn.update(
-            key,
-            trace,
-            spec,
-            (self.args, self.kwargs),
-        )
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.update(
+                key,
+                trace,
+                spec,
+                (self.args, self.kwargs),
+            )
+        else:
+            return self.gen_fn.update(key, trace, spec, self.args)

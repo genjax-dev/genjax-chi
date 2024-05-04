@@ -64,14 +64,18 @@ class SwitchSample(Sample):
 @Pytree.dataclass
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
-    idx: IntArray
+    args: Tuple
     subtraces: List[Trace]
     retval: Any
     score: FloatArray
 
+    def get_args(self) -> Tuple:
+        return self.args
+
     def get_sample(self):
+        (idx, *_) = self.args
         return SwitchSample(
-            self.idx,
+            idx,
             list(
                 map(lambda tr: tr.get_sample(), self.subtraces),
             ),
@@ -139,31 +143,45 @@ class SwitchCombinator(GenerativeFunction):
     branches: Tuple[GenerativeFunctionClosure, ...]
 
     # Optimized abstract call for tracing.
-    def __abstract_call__(self, *args):
-        branch_gen_fn = self.branches[0]
-        return branch_gen_fn.__abstract_call__(args[0])
+    def __abstract_call__(self, idx, *args):
+        branch_gen_fn_closure = self.get_branch_gen_fn_closure(0, args)
+        return branch_gen_fn_closure.__abstract_call__()
+
+    def get_branch_gen_fn_closure(
+        self,
+        static_idx: int,
+        args: Tuple,
+    ):
+        branch_gen_fn = self.branches[static_idx]
+        branch_args = (
+            args[static_idx]
+            if isinstance(args[static_idx], tuple)
+            else (args[static_idx],)
+        )
+        return branch_gen_fn(*branch_args)
 
     def _empty_trace_leaves(self, *args):
         trace_leaves = []
-        for idx, branch_gen_fn in enumerate(self.branches):
-            empty_trace = branch_gen_fn.get_empty_trace(args[idx])
+        for idx in range(len(self.branches)):
+            branch_gen_fn_closure = self.get_branch_gen_fn_closure(idx, args)
+            empty_trace = branch_gen_fn_closure.get_empty_trace()
             leaves = jtu.tree_leaves(empty_trace)
             trace_leaves.append(leaves)
         return trace_leaves
 
-    def _empty_trace_defs(self, *args):
+    def _empty_trace_defs(self, dynamic_idx, *args):
         trace_defs = []
-        for idx in range(len(self.branches)):
-            gen_fn = self.get_branch_gen_fn(idx, args)
-            empty_trace = gen_fn.get_empty_trace()
+        for static_idx in range(len(self.branches)):
+            gen_fn_closure = self.get_branch_gen_fn_closure(static_idx, args)
+            empty_trace = gen_fn_closure.get_empty_trace()
             trace_def = jtu.tree_structure(empty_trace)
             trace_defs.append(trace_def)
         return trace_defs
 
-    def _simulate(self, key, static_idx):
-        branch_gen_fn = self.get_branch_gen_fn(static_idx)
-        tr = branch_gen_fn.simulate(key)
-        trace_leaves = self._empty_trace_leaves()
+    def _simulate(self, key, static_idx, args):
+        branch_gen_fn_closure = self.get_branch_gen_fn_closure(static_idx, args)
+        tr = branch_gen_fn_closure.simulate(key)
+        trace_leaves = self._empty_trace_leaves(*args)
         trace_leaves[static_idx] = jtu.tree_leaves(tr)
         retval = tr.get_retval()
         score = tr.get_score()
@@ -173,20 +191,24 @@ class SwitchCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
+        args: Tuple,
     ) -> SwitchTrace:
         def _inner(idx: int):
-            return lambda key: self._simulate(key, idx)
+            return lambda key, args: self._simulate(key, idx, args)
 
+        (idx, *branch_args) = args
         branch_functions = list(map(_inner, range(len(self.branches))))
-        trace_defs = self._empty_trace_defs()
-        trace_leaves, (score, retval) = jax.lax.switch(self.idx, branch_functions, key)
+        trace_defs = self._empty_trace_defs(*args)
+        trace_leaves, (score, retval) = jax.lax.switch(
+            idx, branch_functions, key, branch_args
+        )
         subtraces = list(
             map(
                 lambda x: jtu.tree_unflatten(trace_defs[x], trace_leaves[x]),
                 range(len(trace_leaves)),
             )
         )
-        return SwitchTrace(self, self.idx, subtraces, retval, score)
+        return SwitchTrace(self, args, subtraces, retval, score)
 
     def _importance(self, key, branch, static_idx, constraint):
         branch_gen_fn = branch(*self.branch_args)

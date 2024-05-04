@@ -36,8 +36,8 @@ def mixture_combinator(
 
     @static_gen_fn
     def mixture_model(mixture_logits, *args):
-        mix_idx = categorical(logits=mixture_logits) @ "idx"
-        v = inner_combinator_closure(mix_idx, *args) @ "value"
+        mix_idx = categorical(logits=mixture_logits) @ "mixture_component"
+        v = inner_combinator_closure(mix_idx, *args) @ "component_sample"
         return v
 
     return compose_combinator(
