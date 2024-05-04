@@ -75,6 +75,7 @@ class ComposeCombinator(GenerativeFunction):
         args: Tuple,
     ) -> ComposeTrace:
         inner_args = self.argument_pushforward(*args)
+        print(inner_args)
         tr = self.inner.simulate(key, inner_args)
         inner_retval = tr.get_retval()
         retval = self.retval_pushforward(inner_args, tr.get_sample(), inner_retval)

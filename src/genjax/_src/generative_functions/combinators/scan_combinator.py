@@ -44,8 +44,15 @@ from genjax._src.core.typing import (
 class ScanTrace(Trace):
     scan_gen_fn: "ScanCombinator"
     inner: Trace
+    args: Tuple
     retval: Any
     score: FloatArray
+
+    def get_args(self) -> Tuple:
+        return self.args
+
+    def get_retval(self):
+        return self.retval
 
     def get_sample(self):
         return jax.vmap(
@@ -54,9 +61,6 @@ class ScanTrace(Trace):
 
     def get_gen_fn(self):
         return self.scan_gen_fn
-
-    def get_retval(self):
-        return self.retval
 
     def get_score(self):
         return self.score
@@ -80,11 +84,11 @@ class StaticResizeUpdateSpec(UpdateSpec):
 
 @Pytree.dataclass
 class ScanCombinator(GenerativeFunction):
-    """> `ScanCombinator` accepts a kernel generative function, as well as a static
+    """> `ScanCombinator` accepts a kernel_gen_fn generative function, as well as a static
     maximum unroll length, and provides a scan-like pattern of generative computation.
 
-    !!! info "Kernel generative functions"
-        A kernel generative function is one which accepts and returns the same signature of arguments. Under the hood, `ScanCombinator` is implemented using `jax.lax.scan` - which has the same requirements.
+    !!! info "kernel_gen_fn generative functions"
+        A kernel_gen_fn generative function is one which accepts and returns the same signature of arguments. Under the hood, `ScanCombinator` is implemented using `jax.lax.scan` - which has the same requirements.
 
     Examples:
         ```python exec="yes" source="tabbed-left"
@@ -92,7 +96,7 @@ class ScanCombinator(GenerativeFunction):
         import genjax
         console = genjax.console()
 
-        # A kernel generative function.
+        # A kernel_gen_fn generative function.
         @genjax.static_gen_fn
         def random_walk(prev):
             x = genjax.normal(prev, 1.0) @ "x"
@@ -119,7 +123,7 @@ class ScanCombinator(GenerativeFunction):
         ```
     """
 
-    kernel: GenerativeFunction
+    kernel_gen_fn: GenerativeFunction
     max_length: Int = Pytree.static()
 
     # To get the type of return value, just invoke
@@ -128,7 +132,7 @@ class ScanCombinator(GenerativeFunction):
         (carry, scanned_in) = args
 
         def _inner(carry, scanned_in):
-            v, scanned_out = self.kernel.__abstract_call__(carry, scanned_in)
+            v, scanned_out = self.kernel_gen_fn.__abstract_call__(carry, scanned_in)
             return v, scanned_out
 
         v, scanned_out = jax.lax.scan(
@@ -149,7 +153,7 @@ class ScanCombinator(GenerativeFunction):
         carry, scanned_in = args
 
         def _inner_simulate(key, carry, scanned_in):
-            tr = self.gen_fn.simulate(key, (carry, scanned_in))
+            tr = self.kernel_gen_fn.simulate(key, (carry, scanned_in))
             (carry, scanned_out) = tr.get_retval()
             score = tr.get_score()
             return (carry, score), (tr, scanned_out)
@@ -170,7 +174,7 @@ class ScanCombinator(GenerativeFunction):
             length=self.max_length,
         )
 
-        return ScanTrace(self, tr, (carried_out, scanned_out), jnp.sum(scores))
+        return ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores))
 
     def importance_choice_map(
         self,
@@ -181,7 +185,7 @@ class ScanCombinator(GenerativeFunction):
         (carry, scanned_in) = args
 
         def _inner_importance(key, constraint, carry, scanned_in):
-            tr, w, bwd_spec = self.kernel.importance(
+            tr, w, bwd_spec = self.kernel_gen_fn.importance(
                 key, constraint, (carry, scanned_in)
             )
             (carry, scanned_out) = tr.get_retval()
@@ -257,7 +261,7 @@ class ScanCombinator(GenerativeFunction):
                 w,
                 (carry_retdiff, scanned_out_retdiff),
                 bwd_spec,
-            ) = self.gen_fn.update(key, subtrace, subspec, (carry, scanned_in))
+            ) = self.kernel_gen_fn.update(key, subtrace, subspec, (carry, scanned_in))
             score = new_subtrace.get_score()
             return (carry_retdiff, score), (
                 new_subtrace,
@@ -330,7 +334,7 @@ class ScanCombinator(GenerativeFunction):
 
 @typecheck
 def scan_combinator(
-    gen_fn_closure: Optional[GenerativeFunction] = None,
+    gen_fn: Optional[GenerativeFunction] = None,
     /,
     *,
     max_length: Int,
@@ -338,7 +342,7 @@ def scan_combinator(
     def decorator(f):
         return ScanCombinator(f, max_length)
 
-    if gen_fn_closure:
-        return decorator(gen_fn_closure)
+    if gen_fn:
+        return decorator(gen_fn)
     else:
         return decorator
