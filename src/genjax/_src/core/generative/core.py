@@ -22,6 +22,7 @@ from penzai.core import formatting_util
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import get_trace_data_shape, staged_and
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.traceback_util import gfi_boundary, register_exclusion
 from genjax._src.core.typing import (
     Annotated,
     Any,
@@ -34,12 +35,12 @@ from genjax._src.core.typing import (
     IntArray,
     Is,
     List,
-    Optional,
     PRNGKey,
-    String,
     Tuple,
     static_check_is_concrete,
 )
+
+register_exclusion(__file__)
 
 Weight = Annotated[
     FloatArray,
@@ -340,29 +341,8 @@ class GenerativeFunction(Pytree):
         return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), data_shape)
 
     @classmethod
-    def gfi_exception_handler(
-        cls,
-        method: Optional[Callable] = None,
-        /,
-        *,
-        subcls: String,
-    ):
-        def decorator(method):
-            def exception_handled_gfi_method(*args):
-                try:
-                    return method(*args)
-                except Exception as e:
-                    method_name = method.__name__  # Getting method name
-                    exception_msg = f"------ this exception occurred while invoking {subcls}.{method_name} -------"
-                    print(exception_msg)
-                    raise e
-
-            return exception_handled_gfi_method
-
-        if method:
-            return decorator(method)
-        else:
-            return decorator
+    def gfi_boundary(cls, c: Callable) -> Callable:
+        return gfi_boundary(c)
 
     @abstractmethod
     def simulate(

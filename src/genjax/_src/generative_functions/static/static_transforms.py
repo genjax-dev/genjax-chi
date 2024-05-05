@@ -41,8 +41,8 @@ from genjax._src.core.interpreters.incremental import (
     incremental,
 )
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
-    Callable,
     FloatArray,
     List,
     PRNGKey,
@@ -51,6 +51,8 @@ from genjax._src.core.typing import (
     typecheck,
 )
 from genjax.core.exceptions import AddressReuse, StaticAddressJAX
+
+register_exclusion(__file__)
 
 ##############
 # Primitives #

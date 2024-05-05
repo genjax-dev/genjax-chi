@@ -28,6 +28,7 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     FloatArray,
@@ -38,6 +39,9 @@ from genjax._src.core.typing import (
     Tuple,
     typecheck,
 )
+
+register_exclusion(__file__)
+
 
 ######################
 # Switch sample type #
@@ -187,6 +191,7 @@ class SwitchCombinator(GenerativeFunction):
         score = tr.get_score()
         return trace_leaves, (score, retval)
 
+    @GenerativeFunction.gfi_boundary
     @typecheck
     def simulate(
         self,

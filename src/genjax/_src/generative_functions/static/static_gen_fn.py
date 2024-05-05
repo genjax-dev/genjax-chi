@@ -25,11 +25,11 @@ from genjax._src.core.generative import (
 from genjax._src.core.generative.core import push_trace_overload_stack
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Closure, Pytree
+from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
     Callable,
-    Dict,
     PRNGKey,
     Tuple,
     typecheck,
@@ -42,6 +42,9 @@ from genjax._src.generative_functions.static.static_transforms import (
     trace,
     update_transform,
 )
+
+register_exclusion(__file__)
+
 
 #######################
 # Generative function #
@@ -107,6 +110,7 @@ class StaticGenerativeFunction(GenerativeFunction):
 
         return StaticGenerativeFunction(kwarged_source)
 
+    @GenerativeFunction.gfi_boundary
     @typecheck
     def simulate(
         self,

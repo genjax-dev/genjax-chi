@@ -18,7 +18,6 @@ from genjax._src.core.generative import (
     ChoiceMap,
     Constraint,
     GenerativeFunction,
-    GenerativeFunctionClosure,
     Retdiff,
     Trace,
     UpdateSpec,
@@ -26,6 +25,7 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.interpreters.incremental import Diff, incremental
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -36,6 +36,8 @@ from genjax._src.core.typing import (
     Tuple,
     typecheck,
 )
+
+register_exclusion(__file__)
 
 
 @Pytree.dataclass
@@ -68,6 +70,7 @@ class ComposeCombinator(GenerativeFunction):
     retval_pushforward: Callable = Pytree.static()
     info: Optional[String] = Pytree.static(default=None)
 
+    @GenerativeFunction.gfi_boundary
     @typecheck
     def simulate(
         self,

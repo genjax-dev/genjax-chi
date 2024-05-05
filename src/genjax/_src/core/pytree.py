@@ -33,6 +33,7 @@ from penzai.treescope.handlers import builtin_structure_handler
 from penzai.treescope.handlers.penzai import struct_handler
 from typing_extensions import dataclass_transform
 
+from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -42,6 +43,8 @@ from genjax._src.core.typing import (
     static_check_is_concrete,
     static_check_supports_grad,
 )
+
+register_exclusion(__file__)
 
 
 class Pytree(pz.Struct):

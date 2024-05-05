@@ -22,15 +22,16 @@ import jax.tree_util as jtu
 from jax import tree_util
 from jax import util as jax_util
 from jax.extend import linear_util as lu
-from jax.extend.source_info_util import register_exclusion
 from jax.interpreters import ad, batching, mlir
 from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import Bool, Callable, List, Union, Value, typecheck
 
 register_exclusion(__file__)
+
 
 #########################
 # Custom JAX primitives #
