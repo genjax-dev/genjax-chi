@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from genjax import static_gen_fn
+import genjax.studio.plot as plot
 
 key = jax.random.PRNGKey(314159)
 

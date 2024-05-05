@@ -3,7 +3,10 @@ from pyobsplot import Plot, js
 import pyobsplot
 from ipywidgets import GridBox, Layout
 from timeit import default_timer as timer
+import json   
 
+
+# %%
 class benchmark(object):
     """
     A context manager for simple benchmarking.
@@ -99,45 +102,32 @@ class PlotSpec:
         return self._plot    
     def _repr_mimebundle_(self, include=None, exclude=None):
         return self.plot()._repr_mimebundle_()
-    
 
-# TODO 
-# this should be a lighter-weight thing. creating ObsplotWidgets is too heavyweight.
-# some kind of "wrapped spec" / "Marks" class that creates an ObsplotWidget lazily?
-# I think creating many widgets is causing jupyter to crash.
+def constantly(x):
+    x = json.dumps(x)
+    return pyobsplot.js(f"()=>{x}")
+
 def scatter(xs, ys, **opts):
     """
-    Create a scatter plot using the given x and y data points.
-
-    Args:
-        xs (array-like): The x-coordinates of the data points.
-        ys (array-like): The y-coordinates of the data points.
-        **opts: Additional options to pass to the Plot.dot mark.
-
-    Returns:
-        pyobsplot.widget.ObsplotWidget: The scatter plot widget.
+    Wraps Plot.dot to accept lists of xs and ys as values
     """
     opts = opts or {}
-    label = opts.get('label', None)
-    fill = js(f"()=>'{label}'") if label else opts.get('fill', None) or "black"
     
     return PlotSpec(
         [
-            Plot.frame({"stroke": "#ddd", "strokeWidth": 1}),
             Plot.dot(
                 {"length": len(xs)},
                 {
                     "x": ensure_list(xs),
                     "y": ensure_list(ys),
-                    "fill": fill,
                     **opts,
                 },
             ),
-        ],
-        color={'legend': True, 'scheme': 'Set1'}
+        ]
     )
 
 
+# %%
 def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
     """
     Create a grid of small multiple plots from the given list of mark sets.
@@ -164,5 +154,3 @@ def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
 
 def dot(values, **opts):
     return PlotSpec([Plot.dot(values, opts)])
-
-# %%

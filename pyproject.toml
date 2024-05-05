@@ -34,7 +34,7 @@ classifiers = [
 Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.10,<3.13"
 jax = "^0.4.24"
 numpy = "^1.26.4"
 tensorflow-probability = "^0.23.0"
@@ -50,6 +50,8 @@ typing_extensions = ">=4.6.0,<5"
 oryx = "^0.2.6"
 deprecated = "^1.2.14"
 anywidget = "^0.9.10"
+jupyterlab = "^4.1.8"
+jupyter = "^1.0.0"
 
 [tool.poetry.group.dev]
 optional = true
@@ -68,6 +70,13 @@ safety = "^2.3.5"
 seaborn = "^0.12.1"
 tinygp = "^0.2.3"
 xdoctest = "^1.1.0"
+jupyter = "^1.0.0"
+jupyterlab = "^4.1.8"
+ipykernel = "^6.29.4"
+jupyterlab-widgets = "^3.0.10"
+ipywidgets = "^8.1.2"
+ipython = "^8.24.0"
+anywidget = "^0.9.10"
 
 [tool.poetry.group.docs]
 optional = true
