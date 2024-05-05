@@ -2269,7 +2269,7 @@ recommended = ["mkdocs-minify-plugin (>=0.7,<1.0)", "mkdocs-redirects (>=1.2,<2.
 
 [package.source]
 type = "git"
-url = "git@github.com:probcomp/mkdocs-material-insiders.git"
+url = "https://github.com/squidfunk/mkdocs-material-insiders"
 reference = "HEAD"
 resolved_reference = "8e9d40feddda6c89d7b7715a51671f8f017cd32a"
 
@@ -2312,7 +2312,7 @@ python-legacy = ["mkdocstrings-python-legacy (>=0.2.1)"]
 
 [[package]]
 name = "mkdocstrings-python"
-version = "0.1.dev395+g995e505"
+version = "1.10.0.1.8.2.dev19+g995e505"
 description = "A Python handler for mkdocstrings."
 optional = false
 python-versions = ">=3.8"
@@ -2325,7 +2325,7 @@ mkdocstrings = ">=0.25"
 
 [package.source]
 type = "git"
-url = "git@github.com:probcomp/mkdocstrings-python.git"
+url = "https://github.com/pawamoy-insiders/mkdocstrings-python"
 reference = "HEAD"
 resolved_reference = "995e505236e2937828e54306ca96b9142ad1aeb3"
 
@@ -4591,4 +4591,4 @@ msgpack = ["msgpack"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "e69aaed19dc7d54bb165626f00b011a9058a0f942d4afe03a43f2d565713b4b9"
+content-hash = "bd378b58b027291f144a9c0d51ee0ed57a3bbdaf459df556672641598672be89"
