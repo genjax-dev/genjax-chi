@@ -29,3 +29,8 @@ a.autorefs-external:hover::after {
 span.doc.doc-object-name {
   font-family: "Berkeley Mono", monospace;
 }
+
+div.result {
+  font-size: 0.85em;
+  font-family: "Berkeley Mono", monospace;
+}

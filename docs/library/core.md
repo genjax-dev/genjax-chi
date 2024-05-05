@@ -33,6 +33,18 @@ Traces are data structures which record (execution and inference) data about the
 
 ## Frequently used types of (`Sample`, `Constraint`, `UpdateSpec`)
 
+::: genjax.core.ChoiceMap
+    options:
+      members:
+        - at
+        - filter
+
+::: genjax.core.Selection
+    options:
+      members:
+        - at
+        - filter
+
 ## We ♥ JAX: everything is JAX compatible by default
 
 GenJAX exposes a set of core abstract classes which build on JAX's `Pytree` interface. These datatypes are used as abstract base mixins for many of the key dataclasses in GenJAX.

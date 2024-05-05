@@ -225,7 +225,7 @@ class Selection(Pytree):
 
         Examples:
             Basic usage might involve creating singular selection instances:
-            ```python exec="yes" source="tabbed-left"
+            ```python exec="yes" html="true" source="material-block" session="core"
             import jax
             import genjax
             from genjax import Selection as S
@@ -241,7 +241,7 @@ class Selection(Pytree):
 
             Instances of `Selection` support a full algebra, which allows you to describe unions, intersections, and complements of the address sets represented by `Selection`.
 
-            ```python exec="yes" source="tabbed-left"
+            ```python exec="yes" html="true" source="material-block" session="core"
             import jax
             import genjax
             from genjax import Selection as S
@@ -258,7 +258,7 @@ class Selection(Pytree):
             ```
 
            Selections can be complemented, using the negation operator `~`:
-            ```python exec="yes" source="tabbed-left"
+            ```python exec="yes" html="true" source="material-block" session="core"
             import jax
             import genjax
             from genjax import Selection as S
@@ -273,7 +273,7 @@ class Selection(Pytree):
             ```
 
            The complement of a selection is itself a selection, which can be combined with other selections using the algebra operators:
-            ```python exec="yes" source="tabbed-left"
+            ```python exec="yes" html="true" source="material-block" session="core"
             import jax
             import genjax
             from genjax import Selection as S
@@ -288,7 +288,7 @@ class Selection(Pytree):
             ```
 
            These objects are JAX compatible, meaning you can create selections over multiple indices using `jax.vmap`, and pass these objects over `jax.jit` boundaries:
-            ```python exec="yes" source="tabbed-left"
+            ```python exec="yes" html="true" source="material-block" session="core"
             import jax
             import jax.numpy as jnp
             import genjax
@@ -364,13 +364,13 @@ class ChoiceMap(Sample, Constraint):
         return self.has_submap(())
 
     def filter(self, selection: Selection) -> "ChoiceMap":
-        """Filter the addresses in a choice map, returning a new choice.
+        """Filter the choice map on the `Selection`. The resulting choice map only contains the addresses in the selection.
 
         Examples:
-            ```python exec="yes" source="tabbed-left"
+            ```python exec="yes" source="material-block" session="core"
             import jax
             import genjax
-            from genjax import bernoulli
+            from genjax import bernoulli, Selection
 
             @genjax.static_gen_fn
             def model():
@@ -380,10 +380,10 @@ class ChoiceMap(Sample, Constraint):
 
             key = jax.random.PRNGKey(314159)
             tr = model.simulate(key, ())
-            choice = tr.strip()
-            selection = genjax.select("x")
-            filtered = choice.filter(selection)
-            print(filtered.render_html())
+            chm = tr.get_sample()
+            selection = Selection.at["x"]
+            filtered = chm.filter(selection)
+            print("y" in filtered)
             ```
         """
         return choice_map_filtered(selection, self)
