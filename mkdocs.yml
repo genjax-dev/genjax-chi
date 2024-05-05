@@ -24,8 +24,8 @@ nav:
   - Library reference:
       - Core: library/core.md
       - Generative functions: library/generative_functions.md
-      - ADEV: library/adev.md
-      - Inference: library/inference.md
+    # - ADEV: library/adev.md
+    # - Inference: library/inference.md
   - For developers:
       - Developing: developing.md
       - Code of conduct: codeofconduct.md
@@ -58,6 +58,7 @@ theme:
     - navigation.tracking
     - navigation.instant
     - navigation.instant.progress
+    - navigation.instant.preview
     - navigation.path
     - navigation.prune
     - search.highlight
@@ -87,11 +88,11 @@ plugins:
       handlers:
         python:
           options:
+            show_symbol_type_toc: true
             show_source: true
             show_root_heading: true
             show_root_full_path: true
             show_symbol_type_heading: true
-            show_symbol_type_toc: true
             parameter_headings: true
             separate_signature: true
             signature_crossrefs: true
@@ -112,6 +113,7 @@ extra_javascript:
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 markdown_extensions:
+  - abbr
   - attr_list
   - md_in_html
   - admonition
@@ -133,4 +135,5 @@ markdown_extensions:
   - pymdownx.arithmatex:
       generic: true
   - toc:
+      title: On this page
       permalink: true

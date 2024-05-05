@@ -1,8 +1,10 @@
-# At the center of it all ... `genjax.core`
+# Journey to the center of `genjax.core`
 
-GenJAX consists of a _core_ set of functionality and datatypes, used to enforce consistent interfaces, build up generative functions, and ensure JAX compatibility. This page describes the set of core datatypes in GenJAX, including the core JAX compatibility datatypes (`Pytree`), and the key Gen generative datatypes (`GenerativeFunction`, `Trace`, `Sample`, `Constraint`, and `UpdateSpec`). This page also describes GenJAX's approach to _staging computations using JAX_, and the ways in which GenJAX uses JAX to apply program transformations in the implementations of some generative functions.
+GenJAX consists of a _core_ set of functionality and datatypes, used to enforce consistent interfaces, build up generative functions, and ensure JAX compatibility. This page describes the set of core datatypes in GenJAX, including the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree]), and the key Gen generative datatypes ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`UpdateSpec`][genjax.core.UpdateSpec]).
 
-## Core generative datatypes
+This page also describes GenJAX's approach to [full JAX compatibility](core.md#we-jax-everything-is-jax-compatible-by-default).
+
+## Generative types
 
 The main computational objects in Gen are _generative functions_. These objects support an abstract interface of methods and associated types. The interface is designed to allow the implementations of Bayesian inference algorithms to abstract over the implementation of common subroutines (like computing importance weights, or accept-reject ratios).
 
@@ -19,11 +21,11 @@ Traces are data structures which record (execution and inference) data about the
 ::: genjax.core.Trace
     options:
       members:
-        - get_gen_fn
+        - get_args
         - get_retval
+        - get_gen_fn
         - get_sample
         - get_score
-        - project
 
 ::: genjax.core.Sample
 ::: genjax.core.Constraint

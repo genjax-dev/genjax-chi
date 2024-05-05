@@ -1,8 +1,8 @@
 # Putting the Gen back in generative
 
-The central programmable object of GenJAX is _the generative function_.
+The central programmable object of GenJAX is [_the generative function_](core.md#genjax.core.GenerativeFunction): these are the infamous _probabilistic programs_ which you write with Gen. In this section, we will explore a menagerie of these objects, and discuss their _compositional_ interface in gory detail.
 
-## The *why*: as in, why care?
+## The good, the bad, and the *wait, why*?
 
 Here's one of them now:
 

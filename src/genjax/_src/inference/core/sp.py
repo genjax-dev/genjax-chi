@@ -121,8 +121,8 @@ class InferenceAlgorithm(SampleDistribution):
         Given a `key: PRNGKey`, and a `target: Target`, returns a pair `(log_w, choice)`.
         `choice : Sample` is a choicemap on the addresses sampled at in `target.gen_fn` not in `target.constraints`;
         it is sampled by running the inference algorithm represented by `self`.
-        `log_w` is a random weight such that $w = \exp(\texttt{log_w})$ satisfies
-        $\mathbb{E}[1 / w \mid \texttt{choice}] = 1 / P(\texttt{choice} \mid \texttt{target.constraints})`, where `P` is the
+        `log_w` is a random weight such that $w = \\exp(\\texttt{log_w})$ satisfies
+        $\\mathbb{E}[1 / w \\mid \\texttt{choice}] = 1 / P(\\texttt{choice} \\mid \\texttt{target.constraints})`, where `P` is the
         distribution on choicemaps represented by `target.gen_fn`.
         """
         pass
@@ -135,8 +135,8 @@ class InferenceAlgorithm(SampleDistribution):
         target: Target,
     ) -> FloatArray:
         """
-        Given a `key: PRNGKey`, `latent_choices: Sample` and a `target: Target`, returns a random value $\log(w)$
-        such that $\mathbb{E}[w] = P(\texttt{latent_choices} \mid \texttt{target.constraints})$, where $P$
+        Given a `key: PRNGKey`, `latent_choices: Sample` and a `target: Target`, returns a random value $\\log(w)$
+        such that $\\mathbb{E}[w] = P(\\texttt{latent_choices} \\mid \\texttt{target.constraints})$, where $P$
         is the distribution on choicemaps represented by `target.gen_fn`.
         """
         pass

@@ -34,7 +34,9 @@ from genjax._src.core.typing import (
     IntArray,
     Is,
     List,
+    Optional,
     PRNGKey,
+    String,
     Tuple,
     static_check_is_concrete,
 )
@@ -108,7 +110,7 @@ class EmptyConstraint(Constraint):
     """
     An `EmptyConstraint` encodes the lack of a constraint.
 
-    Formally, `EmptyConstraint(x)` represents the constraint `(x \mapsto (), ())`.
+    Formally, `EmptyConstraint(x)` represents the constraint `(x $\\mapsto$ (), ())`.
     """
 
     pass
@@ -120,7 +122,7 @@ class EqualityConstraint(Constraint):
     An `EqualityConstraint` encodes the constraint that the value output by a
     distribution is equal to a provided value.
 
-    Formally, `EqualityConstraint(x)` represents the constraint `(x \mapsto x, x)`.
+    Formally, `EqualityConstraint(x)` represents the constraint `(x $\\mapsto$ x, x)`.
     """
 
     x: Any
@@ -131,7 +133,7 @@ class MaskConstraint(Constraint):
     """
     A `MaskConstraint` encodes a possible constraint.
 
-    Formally, `MaskConstraint(f: Bool, c: Constraint)` represents the constraint `Option((x \mapsto x, x))`,
+    Formally, `MaskConstraint(f: Bool, c: Constraint)` represents the constraint `Option((x $\\mapsto$ x, x))`,
     where the None case is represented by `EmptyConstraint`.
     """
 
@@ -144,7 +146,7 @@ class SwitchConstraint(Constraint):
     """
     A `SwitchConstraint` encodes that one of a set of possible constraints is active _at runtime_, using a provided index.
 
-    Formally, `SwitchConstraint(idx: IntArray, cs: List[Constraint])` represents the constraint `(x \mapsto xs[idx], ys[idx])`.
+    Formally, `SwitchConstraint(idx: IntArray, cs: List[Constraint])` represents the constraint (`x` $\\mapsto$ `xs[idx]`, `ys[idx]`).
     """
 
     idx: IntArray
@@ -157,7 +159,7 @@ class IntervalConstraint(Constraint):
     An IntervalConstraint encodes the constraint that the value output by a
     distribution on the reals lies within a given interval.
 
-    Formally, `IntervalConstraint(a, b)` represents the constraint `(x \mapsto a <= x <= b, True)`.
+    Formally, `IntervalConstraint(a, b)` represents the constraint (`x` $\\mapsto$ `a` $\\leq$ `x` $\\leq$ `b`, `True`).
     """
 
     a: FloatArray
@@ -170,7 +172,7 @@ class BijectiveConstraint(Constraint):
     A `BijectiveConstraint` encodes the constraint that the value output by a distribution
     must, under a bijective transformation, be equal to the value provided to the constraint.
 
-    Formally, `BijectiveConstraint(bwd, v)` represents the constraint `(x \mapsto inverse(bwd)(x), v)`.
+    Formally, `BijectiveConstraint(bwd, v)` represents the constraint `(x $\\mapsto$ inverse(bwd)(x), v)`.
     """
 
     bwd: Callable[[Any], "Sample"]
@@ -336,6 +338,31 @@ class GenerativeFunction(Pytree):
     def get_empty_trace(self, *args) -> Trace:
         data_shape = self.get_trace_data_shape(*args)
         return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), data_shape)
+
+    @classmethod
+    def gfi_exception_handler(
+        cls,
+        method: Optional[Callable] = None,
+        /,
+        *,
+        subcls: String,
+    ):
+        def decorator(method):
+            def exception_handled_gfi_method(*args):
+                try:
+                    return method(*args)
+                except Exception as e:
+                    method_name = method.__name__  # Getting method name
+                    exception_msg = f"------ this exception occurred while invoking {subcls}.{method_name} -------"
+                    print(exception_msg)
+                    raise e
+
+            return exception_handled_gfi_method
+
+        if method:
+            return decorator(method)
+        else:
+            return decorator
 
     @abstractmethod
     def simulate(

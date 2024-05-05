@@ -230,15 +230,13 @@ class Selection(Pytree):
             import genjax
             from genjax import Selection as S
 
-            console = genjax.console()
-
             # Create a selection.
             s = S.at[0, "x"]
 
             # Check if an address is in a selection.
             check = s[0, "x", "y"]
 
-            print(console.render(check))
+            print(check)
             ```
 
             Instances of `Selection` support a full algebra, which allows you to describe unions, intersections, and complements of the address sets represented by `Selection`.
@@ -248,8 +246,6 @@ class Selection(Pytree):
             import genjax
             from genjax import Selection as S
 
-            console = genjax.console()
-
             # Create a selection.
             s = S.at[0, "x"] | S.at[1, "y"] | S.at["z"]
 
@@ -258,7 +254,7 @@ class Selection(Pytree):
             check2 = s[1, "y"]
             check3 = s["z", "y"]
 
-            print(console.render((check1, check2, check3)))
+            print(check1, check2, check3)
             ```
 
            Selections can be complemented, using the negation operator `~`:
@@ -267,15 +263,13 @@ class Selection(Pytree):
             import genjax
             from genjax import Selection as S
 
-            console = genjax.console()
-
             # Create a selection.
             s = S.at[0, "x"] | S.at[1, "y"] | S.at["z"]
 
             # Check if an address is in the complement of the selection.
             check = (~s)[1, "x", "y"]
 
-            print(console.render(check))
+            print(check)
             ```
 
            The complement of a selection is itself a selection, which can be combined with other selections using the algebra operators:
@@ -284,15 +278,13 @@ class Selection(Pytree):
             import genjax
             from genjax import Selection as S
 
-            console = genjax.console()
-
             # Create a selection.
             s = S.at[0, "x"] | S.at[1, "y"] | S.at["z"]
 
             # Check if an address is in the complement of the selection.
             check = (~s | s)[0, "x"]
 
-            print(console.render(check))
+            print(check)
             ```
 
            These objects are JAX compatible, meaning you can create selections over multiple indices using `jax.vmap`, and pass these objects over `jax.jit` boundaries:
@@ -302,8 +294,6 @@ class Selection(Pytree):
             import genjax
             from genjax import Selection as S
 
-            console = genjax.console()
-
             # Create a selection.
             s = jax.vmap(lambda idx: S.at[idx, "x"])(jnp.arange(5))
 
@@ -311,7 +301,7 @@ class Selection(Pytree):
             check1 = (~s | s)[0, "x"]
             check2 = (~s | s)[4, "x"]
 
-            print(console.render((check1, check2)))
+            print(check1, check2)
             ```
         """
         return Selection.SelectionBuilder()
@@ -382,22 +372,18 @@ class ChoiceMap(Sample, Constraint):
             import genjax
             from genjax import bernoulli
 
-            console = genjax.console()
-
-
             @genjax.static_gen_fn
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
                 return x
 
-
             key = jax.random.PRNGKey(314159)
             tr = model.simulate(key, ())
             choice = tr.strip()
             selection = genjax.select("x")
             filtered = choice.filter(selection)
-            print(console.render(filtered))
+            print(filtered.render_html())
             ```
         """
         return choice_map_filtered(selection, self)
