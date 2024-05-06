@@ -336,11 +336,12 @@ class MarkDefault(PlotSpec):
 frame = MarkDefault("frame", {"stroke": "#dddddd"})
 """Adds a frame, defaulting to a light gray stroke."""
 
-ruleY = MarkDefault("ruleY", {"y": 0})  
+ruleY = MarkDefault("ruleY", [0])  
 """Adds a horizontal rule, defaulting to y=0."""
 
-ruleX = MarkDefault("ruleX", {"x": 0})
+ruleX = MarkDefault("ruleX", [0])
 """Adds a vertical rule, defaulting to x=0."""
+
 
 # The following convenience dicts can be added directly to PlotSpecs to declare additional behaviour.
 
