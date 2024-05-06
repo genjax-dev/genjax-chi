@@ -371,6 +371,14 @@ class GenerativeFunction(Pytree):
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
         raise NotImplementedError
 
+    @abstractmethod
+    def assess(
+        self,
+        sample: Sample,
+        args: Tuple,
+    ) -> Tuple[Weight, Any]:
+        raise NotImplementedError
+
     # TODO: check the math.
     def project(
         self,
@@ -378,7 +386,7 @@ class GenerativeFunction(Pytree):
         trace: Trace,
         spec: UpdateSpec,
     ) -> Weight:
-        args = self.trace.get_args()
+        args = trace.get_args()
         argdiffs = Diff.tree_diff_no_change(args)
         _, w, _, _ = self.update(key, trace, spec, argdiffs)
         return -w
@@ -607,3 +615,16 @@ class GenerativeFunctionClosure(Pytree):
             )
         else:
             return self.gen_fn.update(key, trace, spec, self.args)
+
+    def assess(
+        self,
+        sample: Sample,
+    ):
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.assess(
+                sample,
+                (self.args, self.kwargs),
+            )
+        else:
+            return self.gen_fn.assess(sample, self.args)

@@ -20,9 +20,11 @@ utilize other generative functions using the exposed `trace` (or the syntactic s
 """
 
 from .static_gen_fn import StaticGenerativeFunction, static_gen_fn
-from .static_transforms import trace, trace_p
+from .static_transforms import AddressReuse, StaticAddressJAX, trace, trace_p
 
 __all__ = [
+    "StaticAddressJAX",
+    "AddressReuse",
     "StaticGenerativeFunction",
     "static_gen_fn",
     "trace_p",

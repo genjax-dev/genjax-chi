@@ -30,12 +30,14 @@ from genjax._src.core.typing import (
     Any,
     ArrayLike,
     Callable,
+    FloatArray,
+    List,
     PRNGKey,
     Tuple,
     typecheck,
 )
-from genjax._src.generative_functions.static.static_datatypes import StaticTrace
 from genjax._src.generative_functions.static.static_transforms import (
+    AddressVisitor,
     assess_transform,
     importance_transform,
     simulate_transform,
@@ -44,6 +46,45 @@ from genjax._src.generative_functions.static.static_transforms import (
 )
 
 register_exclusion(__file__)
+
+#########
+# Trace #
+#########
+
+
+@Pytree.dataclass
+class StaticTrace(Trace):
+    gen_fn: GenerativeFunction
+    args: Tuple
+    retval: Any
+    addresses: AddressVisitor
+    subtraces: List[Trace]
+    score: FloatArray
+
+    def get_args(self) -> Tuple:
+        return self.args
+
+    def get_retval(self) -> Any:
+        return self.retval
+
+    def get_gen_fn(self) -> GenerativeFunction:
+        return self.gen_fn
+
+    def get_sample(self) -> ChoiceMap:
+        addresses = self.addresses.get_visited()
+        chm = ChoiceMap.n
+        for addr, subtrace in zip(addresses, self.subtraces):
+            chm = chm ^ ChoiceMap.a(addr, subtrace.get_sample())
+
+        return chm
+
+    def get_score(self) -> FloatArray:
+        return self.score
+
+    def get_subtrace(self, addr: Address):
+        addresses = self.addresses.get_visited()
+        idx = addresses.index(addr)
+        return self.subtraces[idx]
 
 
 #######################

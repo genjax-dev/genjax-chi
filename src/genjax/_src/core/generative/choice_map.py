@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from dataclasses import dataclass
 from functools import reduce
 from operator import or_
 
@@ -30,6 +31,7 @@ from genjax._src.core.interpreters.staging import (
     staged_or,
 )
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
@@ -45,6 +47,8 @@ from genjax._src.core.typing import (
     static_check_is_concrete,
     typecheck,
 )
+
+register_exclusion(__file__)
 
 #################
 # Address types #
@@ -144,7 +148,7 @@ class Selection(Pytree):
         return lambda fn: Selection(fn, info)
 
     @classmethod
-    def get_address_head(cls, addr: Address) -> Address:
+    def get_address_head(cls, addr: Address) -> AddressComponent:
         if isinstance(addr, tuple) and addr:
             return addr[0]
         else:
@@ -318,6 +322,17 @@ class Selection(Pytree):
 ###############
 
 
+@dataclass
+class ChoiceMapNoValueAtAddress(Exception):
+    """Attempt to re-write an address in a GenJAX trace.
+
+    Any given address for a random choice may only be written to once. You can choose a
+    different name for the choice, or nest it into a scope where it is unique.
+    """
+
+    subaddr: Any
+
+
 @Pytree.dataclass
 class ChoiceMap(Sample, Constraint):
     """
@@ -334,30 +349,39 @@ class ChoiceMap(Sample, Constraint):
     def get_constraint(self) -> Constraint:
         return self
 
+    def call(self, addr: AddressComponent):
+        return self.choice_map_fn(addr)
+
+    def call_recurse(self, addr: Address):
+        head: AddressComponent = Selection.get_address_head(addr)
+        tail = Selection.get_address_tail(addr)
+        v, check, submap = self.call(head)
+        if tail:
+            tail_v, tail_check, tail_submap = submap.call_recurse(tail)
+            return tail_v, staged_and(check, tail_check), tail_submap
+        else:
+            return v, check, submap
+
     #######################
     # Map-like interfaces #
     #######################
 
-    def get_submap(self, addr: AddressComponent) -> "ChoiceMap":
-        if isinstance(addr, tuple) and addr == ():
-            return self.get_value()
-        else:
-            _, check, submap = self.choice_map_fn(addr)
-            submap = (
-                jtu.tree_map(
-                    lambda v: v[addr] if jnp.array(check, copy=False).shape else v,
-                    submap,
-                )
-                if isinstance(addr, DynamicAddressComponent)
-                else submap
+    @typecheck
+    def get_submap(self, addr: Address) -> "ChoiceMap":
+        _, check, submap = self.call_recurse(addr)
+        submap = (
+            jtu.tree_map(
+                lambda v: v[addr] if jnp.array(check, copy=False).shape else v,
+                submap,
             )
-            return submap
+            if isinstance(addr, DynamicAddressComponent)
+            else submap
+        )
+        return submap
 
-    def get_value(self) -> Any:
-        return self()
-
-    def has_submap(self, addr: AddressComponent) -> BoolArray:
-        _, check, _ = self.choice_map_fn(addr)
+    @typecheck
+    def has_submap(self, addr: Address) -> Bool | BoolArray:
+        _, check, _ = self.call_recurse(addr)
         check = (
             check[addr]
             if jnp.array(check, copy=False).shape
@@ -366,9 +390,13 @@ class ChoiceMap(Sample, Constraint):
         )
         return check
 
-    def has_value(self) -> Union[Bool, BoolArray]:
+    def get_value(self) -> Any:
+        return self()
+
+    def has_value(self) -> Bool | BoolArray:
         return self.has_submap(())
 
+    @typecheck
     def filter(self, selection: Selection) -> "ChoiceMap":
         """Filter the choice map on the `Selection`. The resulting choice map only contains the addresses in the selection.
 
@@ -436,20 +464,6 @@ class ChoiceMap(Sample, Constraint):
     def at(self) -> AddressIndex:
         return ChoiceMap.AddressIndex(self, [])
 
-    def call(self, addr: AddressComponent):
-        return self.choice_map_fn(addr)
-
-    def call_recurse(self, addr: Address):
-        addr = Pytree.tree_unwrap_const(addr)
-        head = Selection.get_address_head(addr)
-        tail = Selection.get_address_tail(addr)
-        v, check, submap = self.call(head)
-        if tail:
-            tail_v, tail_check, tail_submap = submap.call_recurse(tail)
-            return tail_v, staged_and(check, tail_check), tail_submap
-        else:
-            return v, check, submap
-
     ###########
     # Dunders #
     ###########
@@ -461,17 +475,22 @@ class ChoiceMap(Sample, Constraint):
         return choice_map_or(self, other)
 
     def __getitem__(self, addr: Address):
-        addr = Pytree.tree_unwrap_const(addr)
         head = Selection.get_address_head(addr)
         tail = Selection.get_address_tail(addr)
         submap = self.get_submap(head)
         if tail:
-            return submap[tail]
+            try:
+                return submap[tail]
+            except ChoiceMapNoValueAtAddress as e:
+                raise ChoiceMapNoValueAtAddress((head, *e.subaddr)) from e
         else:
-            return submap()
+            v = submap()
+            if v:
+                return v
+            else:
+                raise ChoiceMapNoValueAtAddress(addr)
 
     def __contains__(self, addr: Address):
-        addr = Pytree.tree_unwrap_const(addr)
         head = Selection.get_address_head(addr)
         tail = Selection.get_address_tail(addr)
         check = self.has_submap(head)
@@ -481,8 +500,8 @@ class ChoiceMap(Sample, Constraint):
             submap = self.get_submap(head)
             return submap.has_submap(tail)
 
-    def __call__(self):
-        v, _, _ = self.choice_map_fn(())
+    def __call__(self, *args):
+        v, _, _ = self.call_recurse(args)
         return v
 
     def __str__(self):
@@ -719,7 +738,10 @@ def choice_map_masked(flag: Bool | BoolArray, c: ChoiceMap):
             v, check, submap = c.call(head)
             and_check = staged_and(flag, check)
             if static_check_is_concrete(and_check):
-                return_map = submap
+                if and_check:
+                    return v, True, submap
+                else:
+                    return None, False, choice_map_empty
             else:
                 return_map = choice_map_masked(and_check, submap)
             return (Mask.maybe_none(and_check, v), and_check, return_map)

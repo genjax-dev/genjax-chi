@@ -13,6 +13,8 @@
 # limitations under the License.
 
 from genjax._src.generative_functions.static import (
+    AddressReuse,
+    StaticAddressJAX,
     StaticGenerativeFunction,
     static_gen_fn,
     trace,
@@ -20,6 +22,8 @@ from genjax._src.generative_functions.static import (
 )
 
 __all__ = [
+    "AddressReuse",
+    "StaticAddressJAX",
     "trace_p",
     "trace",
     "static_gen_fn",

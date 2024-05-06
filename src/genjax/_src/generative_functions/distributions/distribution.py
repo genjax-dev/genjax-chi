@@ -29,6 +29,7 @@ from genjax._src.core.generative import (
     RemoveSampleUpdateSpec,
     RemoveSelectionUpdateSpec,
     Retdiff,
+    Sample,
     Selection,
     Trace,
     UpdateSpec,
@@ -63,16 +64,16 @@ class DistributionTrace(
     def get_args(self) -> Tuple:
         return self.args
 
-    def get_retval(self):
+    def get_retval(self) -> Any:
         return self.value
 
-    def get_gen_fn(self):
+    def get_gen_fn(self) -> GenerativeFunction:
         return self.gen_fn
 
-    def get_score(self):
+    def get_score(self) -> FloatArray:
         return self.score
 
-    def get_sample(self):
+    def get_sample(self) -> ChoiceMap:
         return ChoiceMap.v(self.value)
 
 
@@ -191,7 +192,7 @@ class Distribution(GenerativeFunction):
         argdiffs: Tuple,
     ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
         check = constraint.has_value()
-        primals = Diff.tree_primals(argdiffs)
+        primals = Diff.tree_primal(argdiffs)
         if static_check_is_concrete(check) and check:
             v = constraint.get_value()
             fwd = self.estimate_logpdf(key, v, *primals)
@@ -223,7 +224,8 @@ class Distribution(GenerativeFunction):
         gen_fn = trace.get_gen_fn()
         original = trace.get_score()
         removed_value = trace.get_retval()
-        new_tr = gen_fn.simulate(key)
+        primals = Diff.tree_primal(argdiffs)
+        new_tr = gen_fn.simulate(key, primals)
         retdiff = Diff.tree_diff_unknown_change(new_tr.get_retval())
         return new_tr, -original, retdiff, ChoiceMap.v(removed_value)
 
@@ -235,7 +237,7 @@ class Distribution(GenerativeFunction):
         argdiffs: Tuple,
     ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
         old_value = trace.get_retval()
-        primals = Diff.tree_primals(argdiffs)
+        primals = Diff.tree_primal(argdiffs)
         match update_spec:
             case MaskUpdateSpec(flag, spec):
                 possible_trace, w, retdiff, bwd_spec = self.update(
@@ -293,6 +295,15 @@ class Distribution(GenerativeFunction):
             case _:
                 raise Exception(f"Not implement fwd spec: {update_spec}.")
 
+    @GenerativeFunction.gfi_boundary
+    @typecheck
+    def assess(
+        self,
+        sample: Sample,
+        args: Tuple,
+    ):
+        raise NotImplementedError
+
 
 ################
 # ExactDensity #
@@ -342,6 +353,17 @@ class ExactDensity(Distribution):
             return jnp.sum(w)
         else:
             return w
+
+    @GenerativeFunction.gfi_boundary
+    @typecheck
+    def assess(
+        self,
+        sample: Sample,
+        args: Tuple,
+    ):
+        key = jax.random.PRNGKey(0)
+        tr, w, _ = self.importance(key, sample, args)
+        return w, tr.get_retval()
 
 
 @typecheck

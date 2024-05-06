@@ -22,11 +22,11 @@ import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
     Address,
-    ChangeTargetUpdateSpec,
     ChoiceMap,
     Constraint,
     GenerativeFunction,
     RemoveSelectionUpdateSpec,
+    Sample,
     Trace,
     UpdateSpec,
 )
@@ -50,9 +50,25 @@ from genjax._src.core.typing import (
     static_check_is_concrete,
     typecheck,
 )
-from genjax.core.exceptions import AddressReuse, StaticAddressJAX
 
 register_exclusion(__file__)
+
+##############################
+# Static language exceptions #
+##############################
+
+
+class AddressReuse(Exception):
+    """Attempt to re-write an address in a GenJAX trace.
+
+    Any given address for a random choice may only be written to once. You can choose a
+    different name for the choice, or nest it into a scope where it is unique.
+    """
+
+
+class StaticAddressJAX(Exception):
+    """Static addresses must not contain JAX traced values."""
+
 
 ##############
 # Primitives #
@@ -116,7 +132,7 @@ def trace(
 # Usage in transforms: checks for duplicate addresses.
 @Pytree.dataclass
 class AddressVisitor(Pytree):
-    visited: List = Pytree.field(default_factory=list)
+    visited: List = Pytree.static(default_factory=list)
 
     def visit(self, addr):
         if addr in self.visited:
@@ -139,8 +155,16 @@ class AddressVisitor(Pytree):
 @dataclass
 class StaticHandler(StatefulHandler):
     @abstractmethod
-    def handle_trace(*traces, **_params):
+    def handle_trace(
+        self,
+        addr: Address,
+        gen_fn: GenerativeFunction,
+        args: Tuple,
+    ):
         raise NotImplementedError
+
+    def handle_retval(self, v):
+        return jtu.tree_leaves(v)
 
     # By default, the interpreter handlers for this language
     # handle the two primitives we defined above
@@ -153,9 +177,10 @@ class StaticHandler(StatefulHandler):
         num_consts = _params.get("num_consts")
         non_const_tracers = tracers[num_consts:]
         addr, gen_fn, args = jtu.tree_unflatten(in_tree, non_const_tracers)
+        addr = Pytree.tree_unwrap_const(addr)
         if prim == trace_p:
             v = self.handle_trace(addr, gen_fn, args)
-            return jtu.tree_leaves(v)
+            return self.handle_retval(v)
         else:
             raise Exception("Illegal primitive: {}".format(prim))
 
@@ -182,7 +207,13 @@ class SimulateHandler(StaticHandler):
             self.score,
         )
 
-    def handle_trace(self, addr, gen_fn, args):
+    @typecheck
+    def handle_trace(
+        self,
+        addr: Address,
+        gen_fn: GenerativeFunction,
+        args: Tuple,
+    ):
         self.visit(addr)
         self.key, sub_key = jax.random.split(self.key)
         tr = gen_fn.simulate(sub_key, args)
@@ -250,21 +281,17 @@ class ImportanceHandler(StaticHandler):
             case _:
                 raise ValueError(f"Not implemented fwd_spec: {self.fwd_spec}")
 
-    def handle_trace(self, *tracers, **_params):
-        in_tree = _params.get("in_tree")
-        num_consts = _params.get("num_consts")
-        passed_in_tracers = tracers[num_consts:]
-        gen_fn, addr = jtu.tree_unflatten(in_tree, passed_in_tracers)
+    def handle_trace(self, addr, gen_fn, args):
         self.visit(addr)
         sub_map = self.get_subconstraint(addr)
         self.key, sub_key = jax.random.split(self.key)
-        tr, w, bwd_spec = gen_fn.importance(sub_key, sub_map)
+        tr, w, bwd_spec = gen_fn.importance(sub_key, sub_map, args)
         self.address_traces.append(tr)
         self.bwd_specs.append(bwd_spec)
         self.score += tr.get_score()
         self.weight += w
         v = tr.get_retval()
-        return jtu.tree_leaves(v)
+        return v
 
 
 def importance_transform(source_fn):
@@ -339,28 +366,29 @@ class UpdateHandler(StaticHandler):
         addr = Pytree.tree_unwrap_const(addr)
         return self.previous_trace.get_subtrace(addr)
 
-    def handle_trace(self, *tracers, **_params):
-        in_tree = _params.get("in_tree")
-        num_consts = _params.get("num_consts")
-        argdiffs = tracers[num_consts:]
-        primals = Diff.tree_primal(argdiffs)
-        gen_fn, addr = jtu.tree_unflatten(in_tree, primals)
-        self.visit(addr)
+    def handle_retval(self, v):
+        return jtu.tree_leaves(v, is_leaf=lambda v: isinstance(v, Diff))
 
-        # Run the update step.
+    @typecheck
+    def handle_trace(
+        self,
+        addr: Address,
+        gen_fn: GenerativeFunction,
+        argdiffs: Tuple,
+    ):
+        self.visit(addr)
         subtrace = self.get_subtrace(addr)
         subspec = self.get_subspec(addr)
         self.key, sub_key = jax.random.split(self.key)
-        fwd_spec = ChangeTargetUpdateSpec(argdiffs, subspec)
-        (tr, w, retval_diff, bwd_spec) = gen_fn.update(sub_key, subtrace, fwd_spec)
+        (tr, w, retval_diff, bwd_spec) = gen_fn.update(
+            sub_key, subtrace, subspec, argdiffs
+        )
         self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
         self.bwd_specs.append(bwd_spec)
 
-        # We have to convert the Diff back to tracers to return
-        # from the primitive.
-        return jtu.tree_leaves(retval_diff, is_leaf=lambda v: isinstance(v, Diff))
+        return retval_diff
 
 
 def update_transform(source_fn):
@@ -408,24 +436,32 @@ def update_transform(source_fn):
 
 @dataclass
 class AssessHandler(StaticHandler):
-    constraints: ChoiceMap
+    sample: Sample
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def yield_state(self):
         return (self.score,)
 
-    def handle_trace(self, *tracers, **_params):
-        in_tree = _params.get("in_tree")
-        num_consts = _params.get("num_consts")
-        passed_in_tracers = tracers[num_consts:]
-        gen_fn, addr, *args = jtu.tree_unflatten(in_tree, passed_in_tracers)
-        self.visit(addr)
-        args = tuple(args)
-        submap = self.get_submap(addr)
+    def get_subsample(self, addr: Address):
+        match self.sample:
+            case ChoiceMap():
+                return self.sample.get_submap(addr)
+
+            case _:
+                raise ValueError(f"Not implemented: {self.fwd_spec}")
+
+    @typecheck
+    def handle_trace(
+        self,
+        addr: Address,
+        gen_fn: GenerativeFunction,
+        args: Tuple,
+    ):
+        submap = self.get_subsample(addr)
         (score, v) = gen_fn.assess(submap, args)
         self.score += score
-        return jtu.tree_leaves(v)
+        return v
 
 
 def assess_transform(source_fn):
