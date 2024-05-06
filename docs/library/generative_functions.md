@@ -89,6 +89,8 @@ our_final_model = dependent_coin_flipper.mix(
 print(our_final_model.render_html())
 ```
 
+And now, we'll meet our first _generative function interface_: [`simulate`][genjax.core.GenerativeFunction.simulate]:
+
 ```python exec="yes" html="true" source="material-block" session="genfn"
 from jax import jit
 from jax.random import PRNGKey
@@ -98,6 +100,8 @@ key = PRNGKey(0)
 tr = jit(our_final_model.simulate)(key, (mix1_logit, (), (mix2_logit, (), p)))
 print(tr.render_html())
 ```
+
+The object `tr` returned by `GenerativeFunction.simulate` is a [`Trace`][genjax.core.Trace] object, a representation of a sampling process provided by generative function. Traces are something that you will become intimately familiar with as you work with GenJAX - they are one of the key types that Gen uses to represent the results of probabilistic computations.
 
 ## `StaticGenerativeFunction`: a programmatic language
 

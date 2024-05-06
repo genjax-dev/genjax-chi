@@ -123,7 +123,7 @@ class Distribution(GenerativeFunction):
             v = chm.get_value()
             w = self.estimate_logpdf(key, v, *args)
             score = w
-            bwd_spec = RemoveSampleUpdateSpec(v)
+            bwd_spec = RemoveSampleUpdateSpec()
             return (DistributionTrace(self, args, v, score), w, bwd_spec)
         elif static_check_is_concrete(check):
             score, v = self.random_weighted(key, *args)

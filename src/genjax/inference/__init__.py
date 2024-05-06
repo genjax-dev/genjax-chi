@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.inference.core.sp import (
+from genjax._src.inference.sp import (
     InferenceAlgorithm,
     Marginal,
     SampleDistribution,

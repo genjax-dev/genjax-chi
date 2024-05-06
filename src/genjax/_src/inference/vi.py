@@ -31,7 +31,6 @@ from genjax._src.adev.primitives import (
     normal_reinforce,
     normal_reparam,
 )
-from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -48,8 +47,8 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     geometric,
     normal,
 )
-from genjax._src.inference.core.sp import SampleDistribution, Target
 from genjax._src.inference.smc import Importance, ImportanceK
+from genjax._src.inference.sp import SampleDistribution, Target
 
 tfd = tfp.distributions
 

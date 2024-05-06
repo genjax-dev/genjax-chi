@@ -194,13 +194,13 @@ class Sample(Pytree):
 
 
 @Pytree.dataclass
-class EmptySample(Pytree):
+class EmptySample(Sample):
     def get_constraint(self) -> Constraint:
         return EmptyConstraint()
 
 
 @Pytree.dataclass
-class MaskSample(Pytree):
+class MaskSample(Sample):
     flag: BoolArray
     sample: Sample
 
@@ -434,6 +434,11 @@ class GenerativeFunction(Pytree):
         from genjax import mixture_combinator
 
         return mixture_combinator(self, gen_fn)
+
+    def attach(self, **kwargs) -> "GenerativeFunction":
+        from genjax.inference.smc import attach_combinator
+
+        return attach_combinator(self, **kwargs)
 
 
 # NOTE: Setup a global handler stack for the `trace` callee sugar.

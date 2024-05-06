@@ -264,7 +264,7 @@ class StaticGenerativeFunction(GenerativeFunction):
 
 
 @typecheck
-def static_gen_fn(f: Callable[[Any], Any]) -> GenerativeFunction:
+def static_gen_fn(f: Callable) -> GenerativeFunction:
     if isinstance(f, Closure):
         return StaticGenerativeFunction(f)
     else:

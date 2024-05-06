@@ -25,10 +25,22 @@ from jax import vmap
 from jax.scipy.special import logsumexp
 
 from genjax._src.core.generative import Sample, Trace
+from genjax._src.core.generative.core import (
+    Constraint,
+    EmptySample,
+    GenerativeFunction,
+    Retdiff,
+    Sample,
+    Trace,
+    UpdateSpec,
+    Weight,
+)
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Any,
     ArrayLike,
     BoolArray,
+    Callable,
     FloatArray,
     Int,
     Optional,
@@ -39,7 +51,11 @@ from genjax._src.core.typing import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
 )
-from genjax._src.inference.core.sp import (
+from genjax._src.generative_functions.static.static_gen_fn import (
+    StaticGenerativeFunction,
+    static_gen_fn,
+)
+from genjax._src.inference.sp import (
     InferenceAlgorithm,
     SampleDistribution,
     Target,
@@ -477,3 +493,254 @@ class ChangeTarget(SMCAlgorithm):
         )
         total_weight = logsumexp(all_weights)
         return retained_score - (total_weight - jnp.log(num_particles))
+
+
+########################################################
+# Encapsulating SMC moves as re-usable inference logic #
+########################################################
+
+
+@Pytree.dataclass
+class KernelTrace(Trace):
+    gen_fn: "KernelGenerativeFunction"
+    inner: Trace
+
+    def get_args(self) -> Tuple:
+        return self.inner.get_args()
+
+    def get_retval(self) -> Any:
+        return self.inner.get_retval()
+
+    def get_gen_fn(self) -> GenerativeFunction:
+        return self.gen_fn
+
+    def get_score(self) -> FloatArray:
+        return self.inner.get_score()
+
+    def get_sample(self) -> Sample:
+        return self.inner.get_sample()
+
+
+@Pytree.dataclass
+class KernelGenerativeFunction(GenerativeFunction):
+    source: StaticGenerativeFunction
+
+    def simulate(
+        self,
+        key: PRNGKey,
+        args: Tuple,
+    ) -> Trace:
+        gen_fn = static_gen_fn(self.source)
+        tr = gen_fn.simulate(key, args)
+        return tr
+
+    def importance(
+        self,
+        key: PRNGKey,
+        constraint: Constraint,
+        args: Tuple,
+    ) -> Tuple[Trace, Weight, UpdateSpec]:
+        raise NotImplementedError
+
+    def update(
+        self,
+        key: PRNGKey,
+        trace: KernelTrace,
+        update_spec: UpdateSpec,
+        args: Tuple,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
+        raise NotImplementedError
+
+
+@typecheck
+def kernel_gen_fn(
+    source: Callable[
+        [Sample, Target],
+        Tuple[UpdateSpec, Sample],
+    ],
+) -> KernelGenerativeFunction:
+    return KernelGenerativeFunction(static_gen_fn(source))
+
+
+class SMCMove(Pytree):
+    @abstractmethod
+    def weight_correction(
+        self,
+        old_latents: Sample,
+        new_latents: Sample,
+        K_aux: Sample,
+        K_aux_score: FloatArray,
+    ) -> FloatArray:
+        pass
+
+
+@Pytree.dataclass
+class SMCP3Move(SMCMove):
+    K: KernelGenerativeFunction
+    L: KernelGenerativeFunction
+
+    @typecheck
+    def weight_correction(
+        self,
+        old_latents: Sample,
+        new_latents: Sample,
+        K_aux: Sample,
+        K_aux_score: FloatArray,
+    ) -> FloatArray:
+        pass
+
+
+@Pytree.dataclass
+class DirectOverload(SMCMove):
+    impl: Callable
+
+    @typecheck
+    def weight_correction(
+        self,
+        old_latents: Sample,
+        new_latents: Sample,
+        K_aux: Sample,
+        K_aux_score: FloatArray,
+    ) -> FloatArray:
+        return jnp.array(0.0)
+
+
+@Pytree.dataclass
+class DeferToInternal(SMCMove):
+    @typecheck
+    def weight_correction(
+        self,
+        old_latents: Sample,
+        new_latents: Sample,
+        K_aux: Sample,
+        K_aux_score: FloatArray,
+    ) -> FloatArray:
+        return jnp.array(0.0)
+
+
+@Pytree.dataclass
+class AttachTrace(Trace):
+    gen_fn: "AttachCombinator"
+    inner: Trace
+
+    def get_args(self) -> Tuple:
+        return self.inner.get_args()
+
+    def get_retval(self) -> Any:
+        return self.inner.get_retval()
+
+    def get_gen_fn(self) -> GenerativeFunction:
+        return self.gen_fn
+
+
+@Pytree.dataclass
+@typecheck
+class AttachCombinator(GenerativeFunction):
+    gen_fn: GenerativeFunction
+    importance_move: SMCMove = Pytree.static(default=DeferToInternal())
+    update_move: SMCMove = Pytree.static(default=DeferToInternal())
+
+    @GenerativeFunction.gfi_boundary
+    @typecheck
+    def simulate(
+        self,
+        key: PRNGKey,
+        args: Tuple,
+    ) -> Trace:
+        tr = self.gen_fn.simulate(key, args)
+        return AttachTrace(self, tr)
+
+    @GenerativeFunction.gfi_boundary
+    @typecheck
+    def importance(
+        self,
+        key: PRNGKey,
+        constraint: Constraint,
+        args: Tuple,
+    ) -> Tuple[Trace, Weight, UpdateSpec]:
+        move = self.importance_move(constraint)
+        match move:
+            case SMCP3Move(K, _):
+                K_tr = K.simulate(key, (EmptySample(), constraint))
+                K_aux_score = K_tr.get_score()
+                (new_latents, aux) = K_tr.get_retval()
+                w_smc = move.weight(
+                    EmptySample(),  # old latents
+                    new_latents,  # new latents
+                    aux,  # aux from K
+                    K_aux_score,
+                )
+                tr, w, bwd = self.gen_fn.importance(key, new_latents, args)
+                return tr, w + w_smc, bwd
+
+            case DirectOverload(importance_impl):
+                return importance_impl(key, constraint, args)
+
+            case DeferToInternal():
+                return self.gen_fn.importance(key, constraint, args)
+
+            case _:
+                raise Exception("Invalid move type")
+
+    @GenerativeFunction.gfi_boundary
+    @typecheck
+    def update(
+        self,
+        key: PRNGKey,
+        trace: AttachTrace,
+        update_spec: UpdateSpec,
+        argdiffs: Tuple,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
+        gen_fn_trace = trace.inner
+        move = self.update_move(update_spec)
+        previous_latents = move.get_previous_latents()
+        new_constraint = move.get_new_constraint()
+        match move:
+            case SMCP3Move(K, _):
+                K_tr = K.simulate(key, (previous_latents, new_constraint))
+                K_aux_score = K_tr.get_score()
+                (new_latents, K_aux) = K_tr.get_retval()
+                old_latents = trace.get_sample()
+                w_smc = move.weight(
+                    old_latents,  # old latents
+                    new_latents,  # new latents
+                    K_aux,  # aux from K
+                    K_aux_score,
+                )
+                tr, w, retdiff, bwd_spec = self.gen_fn.update(
+                    key,
+                    gen_fn_trace,
+                    new_latents,
+                    argdiffs,
+                )
+                return tr, w + w_smc, retdiff, bwd_spec
+
+            case DirectOverload(update_impl):
+                return update_impl(key)
+
+            case DeferToInternal():
+                return self.gen_fn.update(
+                    key,
+                    gen_fn_trace,
+                    update_spec,
+                    argdiffs,
+                )
+
+            case _:
+                raise Exception("Invalid move type")
+
+
+@typecheck
+def attach_combinator(
+    gen_fn: Optional[GenerativeFunction] = None,
+    /,
+    *,
+    importance_move: SMCMove = DeferToInternal(),
+    update_move: SMCMove = DeferToInternal(),
+):
+    if importance_move or update_move:
+        return AttachCombinator(
+            gen_fn,
+            importance_move,
+            update_move,
+        )
