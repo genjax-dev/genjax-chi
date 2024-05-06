@@ -18,7 +18,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import Sequence
+from genjax._src.core.typing import Any, Sequence
 
 
 def get_call_fallback(d, k, fn, fallback):
@@ -70,7 +70,8 @@ def set_payload(leaf_schema, pytree):
     return payload
 
 
-def build_from_payload(visitation, form, payload):
+def build_from_payload(visitation, form, keys, values):
+    payload = dict(zip(keys, values))
     counter = dict()
 
     def _check_counter_get(k):
@@ -87,7 +88,8 @@ class StaticCollection(Pytree):
 
 
 class DataSharedSumTree(Pytree):
-    payload: dict
+    values: Any
+    keys: StaticCollection = Pytree.static()
     visitations: StaticCollection = Pytree.static()
     forms: StaticCollection = Pytree.static()
 
@@ -103,12 +105,17 @@ class DataSharedSumTree(Pytree):
         visitations = StaticCollection(visitations)
         forms = StaticCollection(forms)
         payload = set_payload(leaf_schema, source)
-        return DataSharedSumTree(payload, visitations, forms)
+        return DataSharedSumTree(
+            list(payload.values()),
+            list(payload.keys()),
+            visitations,
+            forms,
+        )
 
     def materialize_iterator(self):
         static_visitations = self.visitations.seq
         static_forms = self.forms.seq
         return map(
-            lambda args: build_from_payload(args[0], args[1], self.payload),
+            lambda args: build_from_payload(args[0], args[1], self.keys, self.values),
             zip(static_visitations, static_forms),
         )

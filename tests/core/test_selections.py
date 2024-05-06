@@ -12,29 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
-import jax
+from genjax import Selection as S
 
 
 class TestSelections:
-    def test_hierarchical_selection(self):
-        new = genjax.select("x", ("z", "y"))
-        assert new.has_addr("z")
-        assert new.has_addr("x")
-        v = new["x"]
-        assert isinstance(v, genjax.AllSelection)
-        v = new["z", "y"]
-        assert isinstance(v, genjax.AllSelection)
-
-    def test_hierarchical_selection_filter(self):
-        @genjax.static_gen_fn
-        def simple_normal():
-            y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-            y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
-            return y1 + y2
-
-        key = jax.random.PRNGKey(314159)
-        tr = jax.jit(simple_normal.simulate)(key, ())
-        selection = genjax.select("y1")
-        choice = tr.filter(selection)
-        assert choice["y1"] == tr["y1"]
+    def test_selection(self):
+        new = S.s("x") | (S.s("z") >> S.s("y"))
+        assert new["x"]
+        assert new["z", "y"]
+        new = S.at["x"]
+        assert new["x"]
+        assert new["x", "y"]
+        assert new["x", "y", "z"]
+        new = S.at["x", "y", "z"]
+        assert new["x", "y", "z"]
+        assert not new["x"]
+        assert not new["x", "y"]

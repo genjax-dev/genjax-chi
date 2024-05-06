@@ -34,6 +34,19 @@ from jax._src.interpreters.partial_eval import DynamicJaxprTracer
 
 class TestSimulate:
     def test_simulate_with_no_choices(self):
+        @genjax.static_gen_fn
+        def empty(x):
+            return jnp.square(x - 3.0)
+
+        key = jax.random.PRNGKey(314159)
+        fn = jax.jit(empty.simulate)
+        key, sub_key = jax.random.split(key)
+        tr = fn(sub_key, (jnp.ones(4),))
+        chm = tr.get_choices()
+        assert chm.is_empty()
+        assert tr.get_score() == 0.0
+
+    def test_simple_normal_simulate(self):
         @genjax.static
         def empty(x):
             return jnp.square(x - 3.0)
@@ -113,6 +126,19 @@ class TestSimulate:
 
 class TestAssess:
     def test_assess_with_no_choices(self):
+        @genjax.static_gen_fn
+        def empty(x):
+            return jnp.square(x - 3.0)
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(empty.simulate)(sub_key, (jnp.ones(4),))
+        jitted = jax.jit(empty.assess)
+        chm = tr.get_choices().strip()
+        (score, retval) = jitted(chm, (jnp.ones(4),))
+        assert score == tr.get_score()
+
+    def test_simple_normal_assess(self):
         @genjax.static
         def empty(x):
             return jnp.square(x - 3.0)
@@ -458,15 +484,15 @@ class TestUpdate:
         # Test new scores.
         assert updated["y1"] == new_y1
         sel = genjax.select("y1")
-        assert updated.project(sel) == genjax.normal.logpdf(new_y1, 0.0, 1.0)
+        assert updated.project(key, sel) == genjax.normal.logpdf(new_y1, 0.0, 1.0)
         assert updated["y2"] == old_y2
         sel = genjax.select("y2")
-        assert updated.project(sel) == pytest.approx(
+        assert updated.project(key, sel) == pytest.approx(
             genjax.normal.logpdf(old_y2, new_y1, 1.0), 0.0001
         )
         assert updated["y3"] == old_y3
         sel = genjax.select("y3")
-        assert updated.project(sel) == pytest.approx(
+        assert updated.project(key, sel) == pytest.approx(
             genjax.normal.logpdf(old_y3, new_y1 + old_y2, 1.0), 0.0001
         )
 

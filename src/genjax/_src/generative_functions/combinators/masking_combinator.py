@@ -56,7 +56,11 @@ class MaskingTrace(Trace):
     def get_args(self):
         return (self.check, self.inner.get_args())
 
-    def project(self, selection: Selection) -> FloatArray:
+    def project(
+        self,
+        key: PRNGKey,
+        selection: Selection,
+    ) -> FloatArray:
         return self.check * self.inner.project(selection)
 
 
