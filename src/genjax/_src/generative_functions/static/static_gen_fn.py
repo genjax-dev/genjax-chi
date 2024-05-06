@@ -110,8 +110,8 @@ class StaticGenerativeFunction(GenerativeFunction):
 
         return StaticGenerativeFunction(kwarged_source)
 
-    @GenerativeFunction.gfi_boundary
     @typecheck
+    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,
@@ -177,6 +177,7 @@ class StaticGenerativeFunction(GenerativeFunction):
         )
 
     @typecheck
+    @GenerativeFunction.gfi_boundary
     def importance(
         self,
         key: PRNGKey,
@@ -190,6 +191,7 @@ class StaticGenerativeFunction(GenerativeFunction):
                 raise Exception("Not implemented")
 
     @typecheck
+    @GenerativeFunction.gfi_boundary
     def update(
         self,
         key: PRNGKey,
@@ -240,6 +242,7 @@ class StaticGenerativeFunction(GenerativeFunction):
         )
 
     @typecheck
+    @GenerativeFunction.gfi_boundary
     def assess(
         self,
         sample: ChoiceMap,

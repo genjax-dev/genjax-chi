@@ -24,7 +24,6 @@ from genjax._src.core.generative import (
     Constraint,
     EmptyUpdateSpec,
     GenerativeFunction,
-    IgnoreKwargs,
     Mask,
     MaskUpdateSpec,
     RemoveSampleUpdateSpec,
@@ -36,11 +35,10 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.pytree import Pytree, Closure
+from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
-    Dict,
     FloatArray,
     PRNGKey,
     Tuple,
@@ -101,6 +99,7 @@ class Distribution(GenerativeFunction):
     ) -> FloatArray:
         pass
 
+    @GenerativeFunction.gfi_boundary
     @typecheck
     def simulate(
         self,
@@ -111,6 +110,7 @@ class Distribution(GenerativeFunction):
         tr = DistributionTrace(self, args, v, w)
         return tr
 
+    @GenerativeFunction.gfi_boundary
     @typecheck
     def importance_choice_map(
         self,
@@ -158,6 +158,7 @@ class Distribution(GenerativeFunction):
                 case _:
                     raise Exception("Unhandled type.")
 
+    @GenerativeFunction.gfi_boundary
     @typecheck
     def importance(
         self,
@@ -264,6 +265,7 @@ class Distribution(GenerativeFunction):
             key, trace, MaskUpdateSpec.maybe(check, RemoveSampleUpdateSpec()), argdiffs
         )
 
+    @GenerativeFunction.gfi_boundary
     @typecheck
     def update(
         self,

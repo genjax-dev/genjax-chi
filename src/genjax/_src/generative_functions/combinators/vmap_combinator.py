@@ -33,6 +33,7 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.choice_map import RemoveSelectionUpdateSpec
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
@@ -43,6 +44,8 @@ from genjax._src.core.typing import (
     Tuple,
     typecheck,
 )
+
+register_exclusion(__file__)
 
 
 @Pytree.dataclass

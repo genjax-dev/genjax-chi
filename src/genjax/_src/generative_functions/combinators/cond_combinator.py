@@ -15,12 +15,15 @@
 import jax.numpy as jnp
 
 from genjax._src.core.generative import GenerativeFunctionClosure
+from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.generative_functions.combinators.compose_combinator import (
     compose_combinator,
 )
 from genjax._src.generative_functions.combinators.switch_combinator import (
     switch_combinator,
 )
+
+register_exclusion(__file__)
 
 
 def cond_combinator(

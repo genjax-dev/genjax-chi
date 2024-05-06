@@ -24,6 +24,7 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -31,6 +32,8 @@ from genjax._src.core.typing import (
     Tuple,
     typecheck,
 )
+
+register_exclusion(__file__)
 
 
 @Pytree.dataclass
@@ -76,6 +79,7 @@ class AddressBijectionCombinator(GenerativeFunction):
     # Generative function interfaces #
     ##################################
 
+    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,
@@ -84,6 +88,7 @@ class AddressBijectionCombinator(GenerativeFunction):
         tr = self.gen_fn.simulate(key, args)
         return AddressBijectionTrace(self, tr)
 
+    @GenerativeFunction.gfi_boundary
     def importance(
         self,
         key: PRNGKey,
@@ -117,6 +122,7 @@ class AddressBijectionCombinator(GenerativeFunction):
         bwd_spec = inner_bwd_spec.addr_fn(self.address_bijection)
         return tr, w, retdiff, bwd_spec
 
+    @GenerativeFunction.gfi_boundary
     def update(
         self,
         key: PRNGKey,

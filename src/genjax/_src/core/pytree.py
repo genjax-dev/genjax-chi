@@ -42,6 +42,7 @@ from genjax._src.core.typing import (
     static_check_is_array,
     static_check_is_concrete,
     static_check_supports_grad,
+    typecheck,
 )
 
 register_exclusion(__file__)

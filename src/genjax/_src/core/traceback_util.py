@@ -13,9 +13,6 @@
 # limitations under the License.
 
 import jax._src.traceback_util as traceback_util
-from jax import config
-
-config.update("jax_traceback_filtering", "remove_frames")
 
 register_exclusion = traceback_util.register_exclusion
 

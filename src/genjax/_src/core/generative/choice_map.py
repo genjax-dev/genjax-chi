@@ -86,6 +86,39 @@ class classproperty:
         return self.fget(owner)
 
 
+#####################
+# Builder interface #
+#####################
+
+
+@Pytree.dataclass
+class SelectionBuilder(Pytree):
+    def __getitem__(self, addr_comps):
+        if not isinstance(addr_comps, Tuple):
+            addr_comps = (addr_comps,)
+
+        def _comp_to_sel(comp: AddressComponent):
+            if isinstance(comp, EllipsisType):
+                return Selection.a
+            elif isinstance(comp, DynamicAddressComponent):
+                return Selection.idx(comp)
+            # TODO: make this work, for slices where we can make it work.
+            elif isinstance(comp, slice):
+                idxs = jnp.arange(comp)
+                return vmap(Selection.idx)(idxs)
+            elif isinstance(comp, StaticAddressComponent):
+                return Selection.s(comp)
+            else:
+                raise Exception(
+                    f"Provided address component {comp} is not a valid address component type."
+                )
+
+        sel = _comp_to_sel(addr_comps[-1])
+        for comp in reversed(addr_comps[:-1]):
+            sel = select_and_then(_comp_to_sel(comp), sel)
+        return sel
+
+
 @Pytree.dataclass
 class Selection(Pytree):
     has_addr: SelectionFunction
@@ -155,6 +188,10 @@ class Selection(Pytree):
     def __repr__(self):
         return f"Selection({self.info})"
 
+    #################################################
+    # Convenient syntax for constructing selections #
+    #################################################
+
     @classproperty
     def n(cls) -> "Selection":
         return select_none
@@ -188,39 +225,8 @@ class Selection(Pytree):
     def f(cls, *addrs: Address):
         return reduce(or_, (cls.at[addr] for addr in addrs))
 
-    #####################
-    # Builder interface #
-    #####################
-
-    @Pytree.dataclass
-    class SelectionBuilder(Pytree):
-        def __getitem__(self, addr_comps):
-            if not isinstance(addr_comps, Tuple):
-                addr_comps = (addr_comps,)
-
-            def _comp_to_sel(comp: AddressComponent):
-                if isinstance(comp, EllipsisType):
-                    return Selection.a
-                elif isinstance(comp, DynamicAddressComponent):
-                    return Selection.idx(comp)
-                # TODO: make this work, for slices where we can make it work.
-                elif isinstance(comp, slice):
-                    idxs = jnp.arange(comp)
-                    return vmap(Selection.idx)(idxs)
-                elif isinstance(comp, StaticAddressComponent):
-                    return Selection.s(comp)
-                else:
-                    raise Exception(
-                        f"Provided address component {comp} is not a valid address component type."
-                    )
-
-            sel = _comp_to_sel(addr_comps[-1])
-            for comp in reversed(addr_comps[:-1]):
-                sel = select_and_then(_comp_to_sel(comp), sel)
-            return sel
-
     @classproperty
-    def at(cls) -> "Selection.SelectionBuilder":
+    def at(cls) -> SelectionBuilder:
         """Access the `SelectionBuilder` interface, which supports indexing to specify a selection.
 
         Examples:
@@ -304,7 +310,7 @@ class Selection(Pytree):
             print(check1, check2)
             ```
         """
-        return Selection.SelectionBuilder()
+        return SelectionBuilder()
 
 
 ###############
@@ -323,7 +329,7 @@ class ChoiceMap(Sample, Constraint):
     """
 
     choice_map_fn: "ChoiceMapFunction"
-    info: String = Pytree.static()
+    info: str = Pytree.static()
 
     def get_constraint(self) -> Constraint:
         return self
@@ -485,9 +491,9 @@ class ChoiceMap(Sample, Constraint):
     def __repr__(self):
         return f"ChoiceMap({self.info})"
 
-    ################
-    # Construction #
-    ################
+    ######################################
+    # Convenient syntax for construction #
+    ######################################
 
     @classproperty
     def n(cls) -> "ChoiceMap":

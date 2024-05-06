@@ -17,6 +17,7 @@ import jax.numpy as jnp
 from genjax._src.core.generative import (
     GenerativeFunction,
 )
+from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import Callable, Int, IntArray, Optional, Tuple, typecheck
 from genjax._src.generative_functions.combinators.address_bijection_combinator import (
     address_bijection_combinator,
@@ -28,6 +29,8 @@ from genjax._src.generative_functions.combinators.vmap_combinator import (
     vmap_combinator,
 )
 from genjax._src.generative_functions.static.static_gen_fn import static_gen_fn
+
+register_exclusion(__file__)
 
 
 @typecheck

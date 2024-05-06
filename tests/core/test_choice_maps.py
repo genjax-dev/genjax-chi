@@ -13,19 +13,32 @@
 # limitations under the License.
 
 
-import genjax
+from genjax import ChoiceMap as C
+from genjax import Selection as S
 
 
-class TestChoiceMaps:
-    def test_hierarchical_choice_map(self):
-        choice = genjax.choice_map({("x", "y"): 5.0})
-        new = choice.get_submap("x")
-        assert isinstance(new, genjax.ChoiceMap)
-        assert isinstance(new, genjax.HierarchicalChoiceMap)
-        choice = genjax.choice_map()
-        choice = choice.insert("x", 0.5)
-        choice = choice.insert("y", 0.3)
-        choice = choice.insert(("z", "x"), 0.2)
-        assert choice["x"] == 0.5
-        assert choice["y"] == 0.3
-        assert choice["z", "x"] == 0.2
+class TestChoiceMap:
+    def test_value_map(self):
+        value_chm = C.v(3.0)
+        assert 3.0 == value_chm()
+        assert 3.0 == value_chm.get_submap(())
+        assert () in value_chm
+
+    def test_address_map(self):
+        chm = C.a("x", 3.0)
+        assert chm["x"] == 3.0
+
+
+class TestSelections:
+    def test_selection(self):
+        new = S.s("x") | (S.s("z") >> S.s("y"))
+        assert new["x"]
+        assert new["z", "y"]
+        new = S.at["x"]
+        assert new["x"]
+        assert new["x", "y"]
+        assert new["x", "y", "z"]
+        new = S.at["x", "y", "z"]
+        assert new["x", "y", "z"]
+        assert not new["x"]
+        assert not new["x", "y"]
