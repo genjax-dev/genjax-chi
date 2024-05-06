@@ -1,9 +1,11 @@
 import math
+from typing import Generator, override
 
 import genjax
 import jax.numpy as jnp
 import jax.random
 from genjax import Pytree
+from genjax._src.core.typing import ArrayLike
 from genjax._src.generative_functions.static.static_gen_fn import (
     StaticGenerativeFunction,
 )
@@ -34,7 +36,7 @@ class Block:
 class BlockFunction(Pytree):
     """A BlockFunction is a Pytree which is also Callable."""
 
-    def __call__(self, x: float):
+    def __call__(self, x: ArrayLike) -> FloatArray:
         raise NotImplementedError
 
 
@@ -43,7 +45,7 @@ class BinaryOperation(BlockFunction):
     r: BlockFunction
     op: Callable = Pytree.static()  # TODO: refine type
 
-    def __call__(self, x: float):
+    def __call__(self, x: ArrayLike) -> FloatArray:
         return self.op(self.l(x), self.r(x))
 
 
@@ -62,10 +64,11 @@ class Polynomial(Block):
         self.jitted_sample = jax.jit(self.gf.simulate)
 
     class Function(BlockFunction):
-        params: FloatArray
+        coefficients: FloatArray
 
+        @override
         def __call__(self, x: float):
-            return jax.numpy.polyval(self.params, jnp.array(x))
+            return jax.numpy.polyval(self.coefficients, jnp.array(x))
 
 
 class Periodic(Block):
@@ -82,7 +85,8 @@ class Periodic(Block):
         phase: FloatArray
         period: FloatArray
 
-        def __call__(self, x: float):
+        @override
+        def __call__(self, x: ArrayLike) -> FloatArray:
             return self.amplitude * jnp.sin(self.phase + 2 * x * math.pi / self.period)
 
 
@@ -99,7 +103,8 @@ class Exponential(Block):
         a: FloatArray
         b: FloatArray
 
-        def __call__(self, x: float):
+        @override
+        def __call__(self, x: ArrayLike) -> FloatArray:
             return self.a * jnp.exp(self.b * x)
 
 
@@ -133,7 +138,8 @@ class Compose(Block):
         f: BlockFunction = Pytree.field()
         g: BlockFunction = Pytree.field()
 
-        def __call__(self, x: float):
+        @override
+        def __call__(self, x: ArrayLike) -> FloatArray:
             return self.f(self.g(x))
 
 
@@ -151,7 +157,7 @@ class CoinToss(Block):
         self.jitted_sample = jax.jit(self.gf.simulate)
 
 
-def Run(b: Block, k0: PRNGKey = jax.random.PRNGKey(0)):
+def Run(b: Block, k0: PRNGKey = jax.random.PRNGKey(0)) -> Generator[genjax.Trace, None, None]:
     while True:
         k0, k1 = jax.random.split(k0)
         yield b.sample(k1)
@@ -197,7 +203,7 @@ class CurveFit:
                 })
             )
         })
-        k0, k1, k2 = jax.random.split(jax.random.PRNGKey(0), 3)
+        k1, k2 = jax.random.split(jax.random.PRNGKey(0))
         trs, ws = jax.vmap(self.jitted_importance, in_axes=(0, None, None))(
             jax.random.split(k1, N),
             choose_ys,
