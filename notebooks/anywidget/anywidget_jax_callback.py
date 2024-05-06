@@ -7,7 +7,8 @@ import asyncio
 from uuid import uuid4
 
 
-# %% 
+# %%
+
 
 class Widget(anywidget.AnyWidget):
     _esm = """
@@ -62,29 +63,26 @@ class Widget(anywidget.AnyWidget):
     @anywidget.experimental.command
     def _receive_message(self, msg, buffers):
         print("MSG", msg)
-        msg_id = msg["id"] 
+        msg_id = msg["id"]
         result = msg["result"]
         future = self._futures.pop(msg_id)
         future.set_result(result)
         return ["ok", []]
-  
+
+
 w = Widget()
 w
-# %% 
-
-# %% 
-
-
-# %% 
+# %%
 
 async def do_something_impure(x):
     """Generate a random array like x using the global_rng state"""
     print(f"Doing something impure with {x}")
     return x
 
+
 @jax.jit
 def numpy_random_like(x):
     return io_callback(do_something_impure, x, x)
 
-jax.vmap(numpy_random_like)(jnp.zeros(2))
 
+jax.vmap(numpy_random_like)(jnp.zeros(2))

@@ -46,9 +46,10 @@ plot_options = {
     "default": {"width": 500, "height": 350, "inset": 20},
 }
 
+
 def _merge_dicts_recursively(dict1, dict2):
     """
-    Recursively merge two dictionaries. 
+    Recursively merge two dictionaries.
     Values in dict2 overwrite values in dict1. If both values are dictionaries, recursively merge them.
     """
     if not isinstance(dict1, dict) or not isinstance(dict2, dict):
@@ -170,10 +171,10 @@ def scatter(xs, ys, opts={}, **kwargs):
 
 # %%
 def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
-     # TODO 
-     # replace this with a pyobsplot-style js stub which 
-     # implements all the children in the same js context,
-     # each widget has high overhead.
+    # TODO
+    # replace this with a pyobsplot-style js stub which
+    # implements all the children in the same js context,
+    # each widget has high overhead.
     """
     Create a grid of small multiple plots from the given list of mark sets.
 
@@ -196,6 +197,7 @@ def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
         [(plotspec + plot_opts).plot() for plotspec in plotspecs],
         layout=Layout(**layout_opts),
     )
+
 
 def fetch_exports():
     """
@@ -229,6 +231,7 @@ def fetch_exports():
                     exports[type].append(name)
 
     return exports
+
 
 # fetch_mark_names()
 
@@ -387,7 +390,9 @@ def _wrap_mark_fn(fn, fn_name):
 
 
 _plot_fns = {
-    name: _wrap_mark_fn(getattr(Plot, name), name) if type == 'mark' else getattr(Plot, name)
+    name: _wrap_mark_fn(getattr(Plot, name), name)
+    if type == "mark"
+    else getattr(Plot, name)
     for type, names in _PLOT_EXPORTS.items()
     for name in names
 }
@@ -443,12 +448,12 @@ grid = {"grid": True}
 color_legend = {"color": {"legend": True}}
 """Show a color legend."""
 
+
 def color_scheme(name):
     """
     See https://observablehq.com/plot/features/scales#color-scales
     """
-    return {'color': {'scheme': name}}
-
+    return {"color": {"scheme": name}}
 
 
 # Example usage

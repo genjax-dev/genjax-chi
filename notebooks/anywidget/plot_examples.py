@@ -2,9 +2,11 @@
 import genjax.studio.plot as plot
 import numpy as np
 
+
 # Generate random data from a normal distribution
 def normal_100():
     return np.random.normal(loc=0, scale=1, size=1000)
+
 
 # %% [markdown]
 # ### Histogram

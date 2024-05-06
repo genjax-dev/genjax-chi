@@ -1,13 +1,13 @@
-
-#%% 
+# %%
 
 # Commented out IPython magic to ensure Python compatibility.
 # %pip install anywidget
 
 import anywidget
 
+
 class Widget(anywidget.AnyWidget):
-  _esm = """
+    _esm = """
   import { html, render, useState } from 'https://esm.sh/htm/preact/standalone'
 
   function App({invoke, model}){
@@ -30,9 +30,11 @@ class Widget(anywidget.AnyWidget):
   }
   export default {render: renderWidget}
   """
-  @anywidget.experimental.command
-  def ping(self, msg, buffers):
-    return "pong", None
+
+    @anywidget.experimental.command
+    def ping(self, msg, buffers):
+        return "pong", None
+
 
 w = Widget()
 w

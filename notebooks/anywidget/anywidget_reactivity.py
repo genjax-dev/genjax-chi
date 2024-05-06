@@ -12,34 +12,44 @@ class ExampleWidget(anywidget.AnyWidget):
     _esm = "anywidget_reactivity.js"
     # the following assignments create "traitlets", little bits of reactive state which
     # are 2-way bound to "model" in the js environment.
-    
+
     # faceSize will be set from Python using a slider.
     faceSize = traitlets.Int(default_value=100).tag(sync=True)
-    
+
     # mousePos will be set from js using an `onmousemove` handler.
-    mousePos = traitlets.Dict(default_value={'x': 0, 'y': 0, 'height': 0}).tag(sync=True)
-    
+    mousePos = traitlets.Dict(default_value={"x": 0, "y": 0, "height": 0}).tag(
+        sync=True
+    )
+
     # happiness will be computed *in python* using `mousePos` values received from js
     happiness = traitlets.Float(default_value=1).tag(sync=True)
-    
-# instantiate our widget class    
+
+
+# instantiate our widget class
 example = ExampleWidget()
 
-# to set happiness, we write a function which receives a 'change' event and then 
+
+# to set happiness, we write a function which receives a 'change' event and then
 # call widget.observe(...)
 def set_happiness(mousePosChange):
-    example.happiness = (mousePosChange.new['height'] - mousePosChange.new['y']) / mousePosChange.new['height']
-example.observe(handler=set_happiness, names='mousePos')
+    example.happiness = (
+        mousePosChange.new["height"] - mousePosChange.new["y"]
+    ) / mousePosChange.new["height"]
+
+
+example.observe(handler=set_happiness, names="mousePos")
+
 
 def linkedWidget(ipywidget, anywidget, attr):
     # returns ipywidget bound to an anywidget instance's trait at name
     w.link((anywidget, attr), (ipywidget, "value"))
     return ipywidget
 
-# after widget has loaded, send messages to it:
-example.send({'foo': 'bar'})
 
-# for controlling update frequency as widgets change, 
+# after widget has loaded, send messages to it:
+example.send({"foo": "bar"})
+
+# for controlling update frequency as widgets change,
 # see docs: https://ipywidgets.readthedocs.io/en/latest/examples/Widget%20Events.html
 
 w.VBox(
@@ -51,7 +61,3 @@ w.VBox(
         example,
     ]
 )
-
-# %%
-
-import genjax 

@@ -1,5 +1,6 @@
 from timeit import default_timer as timer
 
+
 class benchmark(object):
     """
     A context manager for simple benchmarking.

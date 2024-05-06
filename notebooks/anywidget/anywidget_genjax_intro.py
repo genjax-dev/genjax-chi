@@ -14,6 +14,7 @@ key = jax.random.PRNGKey(314159)
 
 # %%
 
+
 # Two branches for a branching submodel.
 @static_gen_fn
 def model_y(x, coefficients):
@@ -64,9 +65,11 @@ key, sub_key = jax.random.split(key)
 traces = jax.vmap(lambda k: model.simulate(k, (data,)))(jax.random.split(key, 10))
 
 plot.small_multiples(
-    [plot.scatter(data, ys) for ys in plot.get_address(traces, ["ys", "$ALL", "y", "value"])]
+    [
+        plot.scatter(data, ys)
+        for ys in plot.get_address(traces, ["ys", "$ALL", "y", "value"])
+    ]
 )
-
 
 
 # %%

@@ -4,10 +4,12 @@
 from penzai import pz
 from IPython.display import display, HTML
 
+
 def init_genjax_penzai_display():
     # hide JAX paths
     display(HTML("<style>span.copybutton{display:none}</style>"))
     pz.ts.register_as_default(fancy_selections=False)
+
 
 init_genjax_penzai_display()
 
@@ -16,6 +18,7 @@ init_genjax_penzai_display()
 
 import genjax
 import jax.numpy as jnp
+
 
 @genjax.static_gen_fn
 def model(mu, coins):
@@ -52,6 +55,7 @@ def to_jsonable(x):
 
 def to_json(x):
     return json.dumps(x)
+
 
 #######################################################################
 # Treescope handler registration
@@ -96,9 +100,9 @@ from penzai.treescope.foldable_representation import embedded_iframe
 from pyobsplot import Plot
 
 
-
 from penzai.treescope.foldable_representation import basic_parts
 from penzai.treescope.foldable_representation import common_structures
+
 
 def to_node(x):
     # automatic coercion of strings to Text nodes
@@ -122,8 +126,10 @@ def collapsed(label, children):
         )
     )
 
+
 # %%
 from penzai.treescope.foldable_representation import embedded_iframe
+
 
 def iframe(html, fallback="# No text representation"):
     return embedded_iframe.EmbeddedIFrame(
@@ -133,8 +139,10 @@ def iframe(html, fallback="# No text representation"):
         ),
     )
 
+
 #######################################################################
 # Observable Plot IFrame implementation
+
 
 def make_plot_html(plot):
     return (
@@ -151,6 +159,7 @@ def make_plot_html(plot):
     """
     )
 
+
 def small_histogram(values):
     return Plot.plot(
         {
@@ -160,15 +169,21 @@ def small_histogram(values):
         }
     )
 
+
 from pyobsplot.widget import ObsplotWidget
+
+
 def handle_obsplots(node, path, subtree_renderer):
     if isinstance(node, ObsplotWidget):
         return iframe(make_plot_html(node))
     return NotImplemented
 
+
 from jax.tree_util import GetAttrKey
+
+
 def handle_score(node, path, subtree_renderer):
-    # TODO 
+    # TODO
     # make a better decision about whether to generate a histogram of the score.
     # possibly put behind a button.
     if (
