@@ -19,7 +19,7 @@ def your_first_model():
 print(your_first_model().render_html())
 ```
 
-Here's the first creature -- a `GenerativeFunction`! The powers of these creatures are numerous, and each power has a special name. The first name we will learn is `simulate`.
+Here's the first creature -- a `GenerativeFunction`! The powers of these creatures are numerous, and each power has a special name. The first name we will learn is [`simulate`][genjax.core.GenerativeFunction.simulate].
 
 ```python exec="yes" html="true" source="material-block" session="cookbook"
 import jax
