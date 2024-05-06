@@ -14,11 +14,9 @@
 
 import copy
 
-import rich
+import rich.console
+import rich.tree
 
-import genjax._src.core.pretty_printing as gpp
-from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
-from genjax._src.core.pretty_printing import CustomPretty
 from genjax._src.core.pytree import Pytree
 
 ########
@@ -26,8 +24,8 @@ from genjax._src.core.pytree import Pytree
 ########
 
 
-class Trie(Pytree, CustomPretty):
-    inner: HashableDict = Pytree.field(default_factory=hashable_dict)
+class Trie(Pytree):
+    inner: dict = Pytree.field(default_factory=dict)
 
     def is_static_empty(self):
         return not bool(self.inner)
@@ -42,7 +40,7 @@ class Trie(Pytree, CustomPretty):
             first, *rest = addr
             rest = tuple(rest)
             if first not in copied_inner:
-                submap = Trie(hashable_dict())
+                submap = Trie()
             else:
                 submap = copied_inner[first]
             new_submap = submap.trie_insert(rest, value)
@@ -104,16 +102,10 @@ class Trie(Pytree, CustomPretty):
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self, tree):
-        for k, v in self.get_submaps_shallow():
-            subk = tree.add(f"[bold]:{k}")
-            _ = v.__rich_tree__(subk)
+    def _append_to_rich_tree(self, tree):
+        for k, v in self.inner.items():
+            tree.add(rich.console.Group(f"[bold]{k}", v))
         return tree
 
-    def pformat_tree(self, **kwargs):
-        tree = rich.tree.Tree(f"[b]{self.__class__.__name__}[/b]")
-        for k, v in self.inner.items():
-            subk = tree.add(f"[bold]:{k}")
-            submap = gpp._pformat(v, **kwargs)
-            subk.add(submap)
-        return tree
+    def __rich__(self):
+        return self._append_to_rich_tree(rich.tree.Tree("Trie"))

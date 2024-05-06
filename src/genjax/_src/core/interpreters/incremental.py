@@ -35,7 +35,6 @@ import jax.core as jc
 import jax.tree_util as jtu
 from jax import util as jax_util
 
-from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.interpreters.forward import Environment, StatefulHandler
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
@@ -233,7 +232,7 @@ def default_propagation_rule(prim, *args, **_params):
 
 
 class IncrementalInterpreter(Pytree):
-    custom_rules: HashableDict[jc.Primitive, Callable] = Pytree.static()
+    custom_rules: dict[jc.Primitive, Callable] = Pytree.static(default_factory=dict)
 
     def _eval_jaxpr_forward(
         self,
@@ -297,7 +296,7 @@ def incremental(f: Callable):
         primals: Tuple,
         tangents: Tuple,
     ):
-        interpreter = IncrementalInterpreter(hashable_dict())
+        interpreter = IncrementalInterpreter()
         return interpreter.run_interpreter(
             _stateful_handler,
             f,

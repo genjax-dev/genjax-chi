@@ -21,12 +21,10 @@ import jax.core as jc
 import jax.tree_util as jtu
 from jax import tree_util
 from jax import util as jax_util
-from jax._src import core as jc
 from jax.extend import linear_util as lu
 from jax.interpreters import ad, batching, mlir
 from jax.interpreters import partial_eval as pe
 
-from genjax._src.core.datatypes.hashable_dict import HashableDict, hashable_dict
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Bool, Callable, List, Union, Value, typecheck
@@ -143,9 +141,20 @@ VarOrLiteral = Union[jc.Var, jc.Literal]
 class Environment(Pytree):
     """Keeps track of variables and their values during propagation."""
 
-    env: HashableDict[jc.Var, Value] = Pytree.field(default_factory=hashable_dict)
+    env: dict[int, Value] = Pytree.field(default_factory=dict)
 
     def read(self, var: VarOrLiteral) -> Value:
+        if isinstance(var, jc.Literal):
+            return var.val
+        else:
+            v = self.env.get(var.count)
+            if v is None:
+                raise ValueError(
+                    f"Unbound variable in interpreter environment at count {var.count}:\nEnvironment keys (count): {list(self.env.keys())}"
+                )
+            return v
+
+    def get(self, var: VarOrLiteral) -> Value:
         if isinstance(var, jc.Literal):
             return var.val
         else:
@@ -154,7 +163,7 @@ class Environment(Pytree):
     def write(self, var: VarOrLiteral, cell: Value) -> Value:
         if isinstance(var, jc.Literal):
             return cell
-        cur_cell = self.read(var)
+        cur_cell = self.get(var)
         if isinstance(var, jc.DropVar):
             return cur_cell
         self.env[var.count] = cell
@@ -172,10 +181,10 @@ class Environment(Pytree):
     def __contains__(self, var: VarOrLiteral):
         if isinstance(var, jc.Literal):
             return True
-        return var in self.env
+        return var.count in self.env
 
     def copy(self):
-        return copy.copy(self)
+        return copy.deepcopy(self)
 
 
 class StatefulHandler:

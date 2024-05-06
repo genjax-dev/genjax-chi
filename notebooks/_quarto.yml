@@ -41,6 +41,9 @@ website:
           - href: introduction/intro_interpreted.ipynb
             text: Introduction (interpreted dialect)
 
+          - href: introduction/saving_traces.ipynb
+            text: Saving Traces to Disk
+
   page-footer:
     center: © Copyright 2022-2024 [MIT Probabilistic Computing Project](http://probcomp.csail.mit.edu/)
 

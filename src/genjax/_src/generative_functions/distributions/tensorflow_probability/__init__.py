@@ -49,6 +49,9 @@ class TFPDistribution(ExactDensity, JAXGenerativeFunction):
         else:
             return lp
 
+    def __rich__(self):
+        return self.make_distribution.__name__
+
 
 #####################
 # Wrapper instances #

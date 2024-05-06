@@ -13,8 +13,8 @@
 # limitations under the License.
 
 
-import jax
-import plum
+import sys
+
 import rich
 from rich import traceback
 from rich.console import Console
@@ -84,40 +84,27 @@ def console(
     enforce_checkify=False,
     **pretty_kwargs,
 ):
-    try:
-        # Try to ignore these packages in pretty printing.
-        import asyncio
+    suppress = [
+        sys.modules[m]
+        for m in ["jax", "plum", "asyncio", "tornado", "traitlets", "ipykernel"]
+        if m in sys.modules
+    ]
 
-        import ipykernel
-        import tornado
-        import traitlets
+    traceback_kwargs = {
+        "word_wrap": True,
+        "show_locals": False,
+        "max_frames": 30,
+        "suppress": suppress,
+        **pretty_kwargs,
+    }
 
-        traceback_kwargs = {
-            "word_wrap": True,
-            "show_locals": False,
-            "max_frames": 30,
-            "suppress": [
-                jax,
-                plum,
-                asyncio,
-                tornado,
-                traitlets,
-                ipykernel,
-            ],
-            **pretty_kwargs,
-        }
-    except Exception:
-        traceback_kwargs = {
-            "word_wrap": True,
-            "show_locals": False,
-            "max_frames": 30,
-            "suppress": [jax, plum],
-            **pretty_kwargs,
-        }
+    for arg in ["max_frames", "show_locals"]:
+        if arg in pretty_kwargs:
+            traceback_kwargs[arg] = pretty_kwargs[arg]
+            del pretty_kwargs[arg]
 
-    finally:
-        return GenJAXConsole(
-            Console(soft_wrap=True),
-            traceback_kwargs,
-            enforce_checkify,
-        )
+    return GenJAXConsole(
+        Console(soft_wrap=True, **pretty_kwargs),
+        traceback_kwargs,
+        enforce_checkify,
+    )

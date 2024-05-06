@@ -16,9 +16,12 @@ from typing import Callable
 
 import jax
 import jax.numpy as jnp
+import rich.tree
 
 from genjax._src.core.datatypes.generative import (
     Choice,
+    EmptyChoice,
+    GenerativeFunction,
     JAXGenerativeFunction,
     Selection,
     Trace,
@@ -40,6 +43,7 @@ from genjax._src.generative_functions.static.static_gen_fn import SupportsCallee
 
 
 class RepeatTrace(Trace):
+    gen_fn: "RepeatCombinator"
     inner_trace: Trace
     args: Tuple
 
@@ -55,9 +59,32 @@ class RepeatTrace(Trace):
     def get_retval(self):
         return self.inner_trace.get_retval()
 
+    def get_gen_fn(self):
+        return self.gen_fn
+
     @typecheck
-    def project(self, selection: Selection):
-        return self.inner_trace.project(selection)
+    def project(
+        self,
+        key: PRNGKey,
+        selection: Selection,
+    ) -> FloatArray:
+        def idx_check(idx, inner_slice):
+            remaining = selection.step(idx)
+            sub_key = jax.random.fold_in(key, idx)
+            inner_weight = inner_slice.project(sub_key, remaining)
+            return inner_weight
+
+        idxs = jnp.arange(0, len(self.inner.get_score()))
+        ws = jax.vmap(idx_check)(idxs, self.inner)
+        return jnp.sum(ws, axis=0)
+
+
+    def __rich__(self):
+        tree = rich.tree.Tree('RepeatTrace')
+        tree.add('repeats').add(str(self.gen_fn.repeats))
+        tree.add('inner').add(self.inner_trace)
+        return tree
+
 
 
 class RepeatCombinator(
@@ -81,7 +108,7 @@ class RepeatCombinator(
             self.inner.simulate,
             in_axes=(0, None),
         )(sub_keys, args)
-        return RepeatTrace(repeated_inner_tr, args)
+        return RepeatTrace(self, repeated_inner_tr, args)
 
     @dispatch
     def importance(
@@ -95,7 +122,18 @@ class RepeatCombinator(
             self.inner.importance,
             in_axes=(0, None),
         )(sub_keys, choice, args)
-        return RepeatTrace(repeated_inner_tr, args), jnp.sum(w)
+        return RepeatTrace(self, repeated_inner_tr, args), jnp.sum(w)
+
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
+        choice: EmptyChoice,
+        args: Tuple
+    ) -> Tuple[RepeatTrace, FloatArray]:
+        tr = self.simulate(key, args)
+        w = jnp.array(0.0)
+        return (tr, w)
 
     @typecheck
     def update(
@@ -123,8 +161,8 @@ class RepeatCombinator(
 #############
 
 
-def repeat_combinator(*, repeats) -> Callable[[Callable], JAXGenerativeFunction]:
-    def decorator(f) -> JAXGenerativeFunction:
-        return RepeatCombinator(repeats, f)
+def repeat_combinator(*, repeats) -> Callable[[Callable], RepeatCombinator]:
+    def decorator(f) -> RepeatCombinator:
+        return RepeatCombinator(f, repeats)
 
     return decorator

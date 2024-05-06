@@ -21,6 +21,7 @@ import itertools
 from dataclasses import dataclass
 
 import jax
+import jax.numpy as jnp
 from beartype import beartype
 from equinox import module_update_wrapper
 
@@ -30,7 +31,7 @@ from genjax._src.core.datatypes.generative import (
     EmptyChoice,
     GenerativeFunction,
     HierarchicalChoiceMap,
-    HierarchicalSelection,
+    Selection,
     Trace,
 )
 from genjax._src.core.datatypes.trie import Trie
@@ -86,13 +87,12 @@ def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
 
     Arguments:
         addr: An address denoting the site of a generative function invocation.
-        gen_fn: A generative function invoked as a callee of [InterpretedGenerativeFunction].
+        gen_fn: A generative function invoked as a callee.
 
     Returns:
         callable: A callable which wraps the `trace_p` primitive, accepting arguments
         (`args`) and binding the primitive with them. This raises the primitive to be
-        handled by [`InterpretiveGenerativeFunction`][]
-        transformations.
+        handled by transformations.
     """
     assert _INTERPRETED_STACK
 
@@ -129,7 +129,7 @@ class AddressVisitor(Pytree):
 @dataclass
 class SimulateHandler(Handler):
     key: PRNGKey
-    score: FloatArray = 0.0
+    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     choice_state: Trie = Pytree.field(default_factory=Trie)
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
@@ -147,8 +147,8 @@ class SimulateHandler(Handler):
 class ImportanceHandler(Handler):
     key: PRNGKey
     constraints: ChoiceMap
-    score: FloatArray = 0.0
-    weight: FloatArray = 0.0
+    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     choice_state: Trie = Pytree.field(default_factory=Trie)
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
@@ -169,7 +169,7 @@ class UpdateHandler(Handler):
     key: PRNGKey
     previous_trace: Trace
     constraints: ChoiceMap
-    weight: FloatArray = 0.0
+    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     discard: Trie = Pytree.field(default_factory=Trie)
     choice_state: Trie = Pytree.field(default_factory=Trie)
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
@@ -202,7 +202,7 @@ class UpdateHandler(Handler):
 @dataclass
 class AssessHandler(Handler):
     constraints: ChoiceMap
-    score: FloatArray = 0.0
+    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
@@ -243,11 +243,15 @@ class InterpretedTrace(Trace):
     def get_args(self):
         return self.args
 
-    def project(self, selection: HierarchicalSelection) -> FloatArray:
-        weight = 0.0
+    def project(
+        self,
+        key: PRNGKey,
+        selection: Selection,
+    ) -> FloatArray:
+        weight = jnp.zeros(())
         for k, subtrace in self.choices.get_submaps_shallow():
-            if selection.has_addr(k):
-                weight += subtrace.project(selection.get_subselection(k))
+            key, sub_key = jax.random.split(key)
+            weight += subtrace.project(sub_key, selection.step(k))
         return weight
 
 

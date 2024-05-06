@@ -12,24 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from rich.tree import Tree
+import rich.console
+import rich.tree
 
-import genjax._src.core.pretty_printing as gpp
 from genjax._src.core.datatypes.generative import (
     Choice,
     ChoiceMap,
     EmptyChoice,
     GenerativeFunction,
-    HierarchicalSelection,
     Mask,
     Selection,
     Trace,
 )
-from genjax._src.core.typing import Any, FloatArray, IntArray, Sequence, Tuple, dispatch
+from genjax._src.core.typing import (
+    Any,
+    FloatArray,
+    IntArray,
+    PRNGKey,
+    Sequence,
+    Tuple,
+    dispatch,
+)
 
 ###############################
 # Switch combinator datatypes #
@@ -62,9 +68,9 @@ class SwitchChoiceMap(ChoiceMap):
 
     def filter(
         self,
-        selection: HierarchicalSelection,
+        selection: Selection,
     ) -> ChoiceMap:
-        filtered_submaps = map(lambda choice: choice.filter(selection), self.submaps)
+        filtered_submaps = map(lambda chm: chm.filter(selection), self.submaps)
         return SwitchChoiceMap(self.index, filtered_submaps)
 
     def has_submap(self, addr):
@@ -134,12 +140,10 @@ class SwitchChoiceMap(ChoiceMap):
     # Pretty printing #
     ###################
 
-    def __rich_tree__(self):
-        doc = gpp._pformat_array(self.index, short_arrays=True)
-        tree = Tree(f"[bold](Switch,{doc})")
-        for submap in self.submaps:
-            submap_tree = submap.__rich_tree__()
-            tree.add(submap_tree)
+    def __rich__(self):
+        tree = rich.tree.Tree(f"Switch[{self.index}]")
+        for ix, submap in enumerate(self.submaps):
+            tree.add(rich.console.Group(str(ix), rich.console.Pretty(submap)))
         return tree
 
 
@@ -170,8 +174,17 @@ class SwitchTrace(Trace):
     def get_score(self):
         return self.score
 
-    def project(self, selection: Selection) -> FloatArray:
-        weights = list(map(lambda v: v.project(selection), self.choice.submaps))
+    def project(
+        self,
+        key: PRNGKey,
+        selection: Selection,
+    ) -> FloatArray:
+        weights = list(
+            map(
+                lambda v: v.project(key, selection),
+                self.choice.submaps,
+            )
+        )
         return jnp.choose(self.choice.index, weights, mode="wrap")
 
     def get_subtrace(self, concrete_index):
