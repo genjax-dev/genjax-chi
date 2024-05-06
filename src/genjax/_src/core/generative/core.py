@@ -557,6 +557,7 @@ class GenerativeFunctionClosure(Pytree):
     # Support the interface with reduced syntax #
     #############################################
 
+    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,

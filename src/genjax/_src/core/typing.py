@@ -29,6 +29,10 @@ from beartype import BeartypeConf, beartype
 from beartype.vale import Is
 from plum import dispatch, parametric, CovariantMeta
 
+from genjax._src.core.traceback_util import register_exclusion
+
+register_exclusion(__file__)
+
 Any = btyping.Any
 PRNGKey = jtyping.PRNGKeyArray
 Array = jtyping.Array
