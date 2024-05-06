@@ -1,49 +1,22 @@
 # %%
-from pyobsplot import Plot, js
-import pyobsplot
-from ipywidgets import GridBox, Layout
-from timeit import default_timer as timer
 import json
 
-# Approach:
-# - a thin, pythonic layer on top of Observable.Plot, building on pyobsplot.
-#   See https://observablehq.com/plot/ and https://github.com/juba/pyobsplot
+import pyobsplot
+from ipywidgets import GridBox, Layout
+from pyobsplot import Plot, js
+import numpy as np 
+import jax.numpy as jnp
 
-
-# %%
-class benchmark(object):
-    """
-    A context manager for simple benchmarking.
-
-    Usage:
-        with benchmark("My benchmark"):
-            # Code to be benchmarked
-            ...
-
-    Args:
-        msg (str): The message to display with the benchmark result.
-        fmt (str, optional): The format string for the time display. Defaults to "%0.3g".
-
-    http://dabeaz.blogspot.com/2010/02/context-manager-for-timing-benchmarks.html
-    """
-
-    def __init__(self, msg, fmt="%0.3g"):
-        self.msg = msg
-        self.fmt = fmt
-
-    def __enter__(self):
-        self.start = timer()
-        return self
-
-    def __exit__(self, *args):
-        t = timer() - self.start
-        print(("%s : " + self.fmt + " seconds") % (self.msg, t))
-        self.time = t
-
-
-# model.simulate(key, data)
-# traces = jax.vmap(lambda k: model.simulate(k, (data,)))(jax.random.split(key, 10))
-
+# This module provides a convenient, composable way to create interactive plots using Observable Plot
+# using pyobsplot, https://github.com/juba/pyobsplot and AnyWidget https://github.com/manzt/anywidget)
+# See https://observablehq.com/plot/
+#
+# Key features:
+# - Create plot specifications declaratively by combining marks, options and transformations 
+# - Compose plot specs using + operator to layer marks and merge options
+# - Render specs to interactive plot widgets, with lazy evaluation and caching
+# - Easily create grids of small multiples 
+# - Includes shortcuts for common options like grid lines, color legends, margins
 
 def get_address(tr, address):
     """
@@ -62,8 +35,10 @@ def get_address(tr, address):
 def ensure_list(x):
     if isinstance(x, list):
         return x
-    else:
+    elif isinstance(x, (jnp.ndarray, np.ndarray)):
         return x.tolist()
+    else:
+        return [x]
 
 
 plot_options = {
@@ -86,8 +61,13 @@ class PlotSpec:
     """
 
     def __init__(self, marks=None, opts_dict=None, **opts):
-        self.opts = opts_dict or opts or {}
-        self.opts.setdefault('marks', marks or [])
+        self.opts = {'marks': []}
+        if marks is not None:
+            self._handle_list(self.opts, self.opts['marks'], marks)
+        if opts_dict is not None:
+            self._handle_dict(self.opts, self.opts['marks'], opts_dict)
+        if opts is not None:
+            self._handle_dict(self.opts, self.opts['marks'], opts)        
         self._plot = None
 
     def _handle_list(self, new_opts, new_marks, opts_list):
@@ -137,78 +117,31 @@ class PlotSpec:
     def _repr_mimebundle_(self, include=None, exclude=None):
         return self.plot()._repr_mimebundle_()
 
-# Tests
-def test_plotspec_init():
-    ps = PlotSpec()
-    assert ps.opts == {'marks': []}
 
-    ps = PlotSpec(marks=[Plot.dot()])
-    assert len(ps.opts['marks']) == 1
-    assert 'pyobsplot-type' in ps.opts['marks'][0]
-
-    ps = PlotSpec(width=100)
-    assert ps.opts == {'marks': [], 'width': 100}
-
-def test_plotspec_add():
-    ps1 = PlotSpec(marks=[Plot.dot()], width=100)
-    ps2 = PlotSpec(marks=[Plot.line()], height=200)
-    
-    ps3 = ps1 + ps2
-    assert len(ps3.opts['marks']) == 2
-    assert ps3.opts['width'] == 100
-    assert ps3.opts['height'] == 200
-
-    ps4 = ps1 + [Plot.text()]
-    assert len(ps4.opts['marks']) == 2
-
-    ps5 = ps1 + {'color': 'red'}
-    assert ps5.opts['color'] == 'red'
-
-    try:
-        ps1 + 'invalid'
-        assert False, "Expected TypeError"
-    except TypeError:
-        pass
-
-def test_plotspec_plot():
-    ps = PlotSpec(marks=[Plot.dot()], width=100) 
-    plot = ps.plot()
-    assert isinstance(plot, pyobsplot.Plot)
-    assert plot.opts['width'] == 100
-
-    # Check plot is cached
-    plot2 = ps.plot()
-    assert plot is plot2
-
-def run_tests():
-    test_plotspec_init()
-    test_plotspec_add()
-    test_plotspec_plot()
-    print("All tests passed!")
-
-# run_tests()
-ps1 = PlotSpec(marks=[Plot.dot()], width=100)
-ps2 = PlotSpec(marks=[Plot.line()], height=200)
-    
-ps3 = ps1 + ps2
-ps3.opts
 # %%
 
 def constantly(x):
+    """
+    Returns a javascript function which always returns `x` 
+    
+    Typically used to specify a constant property for all values passed to a mark, 
+    eg. plot.dot(values, fill=plot.constantly('My Label')). In this example, the 
+    fill color will be assigned (from a color scale) and show up in the color legend.
+    """
     x = json.dumps(x)
     return pyobsplot.js(f"()=>{x}")
 
 
 def scatter(xs, ys, opts={}, **kwargs):
     """
-    Wraps Plot.dot to accept lists of xs and ys as values
+    Wraps Plot.dot to accept lists of xs and ys as values, and plot filled dots by default.
     """
 
     return PlotSpec(
         [
             Plot.dot(
                 {"length": len(xs)},
-                {"x": ensure_list(xs), "y": ensure_list(ys), **opts, **kwargs},
+                {"x": ensure_list(xs), "y": ensure_list(ys), "fill": "currentColor", **opts, **kwargs},
             ),
         ]
     )
@@ -242,17 +175,19 @@ def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
 
 # %%
 def fetch_mark_names():
+    """
+    Used in dev to fetch _MARK_NAMES
+    """
     import requests
 
     response = requests.get(
-        "https://raw.githubusercontent.com/observablehq/plot/main/src/index.js"
+        "https://raw.githubusercontent.com/observablehq/plot/v0.6.14/src/index.js"
     )
-    index_js = response.text
 
     # Find all exported marks
     mark_lines = [
         line
-        for line in index_js.split("\n")
+        for line in response.text.split("\n")
         if line.startswith("export {") and "./marks/" in line
     ]
 
@@ -347,9 +282,21 @@ _MARK_NAMES = [
 
 
 def _mark_spec_fn(fn, fn_name):
-    def inner(values, opts={}, **kwargs):
-        mark = fn(values, {**opts, **kwargs})
+    """ 
+    Returns a wrapping function for an Observable.Plot mark, accepting a positional values argument
+    (where applicable) options, which may be a single dict and/or keyword arguments.
+    """
+    def innerWithValues(values, opts={}, **kwargs):
+        mark = fn(ensure_list(values), {**opts, **kwargs})
         return PlotSpec([mark])
+    def innerWithoutValues(opts={}, **kwargs):
+        mark = fn({**opts, **kwargs})
+        return PlotSpec([mark])
+    
+    if fn_name in ['hexgrid', 'grid', 'gridX', 'gridY', 'gridFx', 'gridFy', 'frame']:
+        inner = innerWithoutValues 
+    else:
+        inner = innerWithValues
 
     inner.__name__ = fn_name
     return inner
@@ -366,34 +313,36 @@ globals().update(_mark_spec_fns)
 # %%
 
 
-class CallableList(list):
+class MarkDefault(PlotSpec):
     """
-    A list subclass that wraps a mark function and provides a default value.
-
-    This class is used to create a default value for a specific mark type,
-    while still allowing customization by calling the wrapped function.
+    A class that wraps a mark function and serves as a default value.
+    
+    An instance of MarkDefault can be used directly as a PlotSpec or 
+    called as a function to customize the behaviour of the mark.
 
     Args:
-        fn (callable): The mark function to wrap.
-        *args: Arguments to pass to the list constructor for the mark function.
+        fn_name (str): The name of the mark function to wrap.
+        default (dict): The default options for the mark.
     """
 
-    def __init__(self, fn, *args):
-        super().__init__(*args)
+    def __init__(self, fn_name, default):
+        fn = _mark_spec_fns[fn_name]
+        super().__init__([fn(default)])
         self.fn = fn
 
     def __call__(self, *args, **kwargs):
         return self.fn(*args, **kwargs)
 
-
-frame = CallableList(_mark_spec_fns["frame"], [Plot.frame({"stroke": "#dddddd"})])
+frame = MarkDefault("frame", {"stroke": "#dddddd"})
 """Adds a frame, defaulting to a light gray stroke."""
 
-ruleY = CallableList(_mark_spec_fns["ruleY"], [Plot.ruleY([0])])
+ruleY = MarkDefault("ruleY", {"y": 0})  
 """Adds a horizontal rule, defaulting to y=0."""
 
-ruleX = CallableList(_mark_spec_fns["ruleX"], [Plot.ruleX([0])])
+ruleX = MarkDefault("ruleX", {"x": 0})
 """Adds a vertical rule, defaulting to x=0."""
+
+# The following convenience dicts can be added directly to PlotSpecs to declare additional behaviour.
 
 grid_y = {"y": {"grid": True}}
 """Enable grid lines for the y-axis."""
@@ -407,20 +356,8 @@ grid = {"grid": True}
 color_legend = {"color": {"legend": True}}
 """Show a color legend."""
 
-# line([[1, 2], [2, 4]]) + grid_x + grid_y + frame + ruleY + ruleX
-
-# TODO
-# maybe when passing a list [] the list should be able to contain
-# MarkSpecs, dicts, or marks.
-# opts = {**opts, 'marks': [*marks]}
-# for i in other:
-#   if MarkSpec, merge_BANG_(old_opts, i.opts)
-#   if mark, opts['marks'].append(i)
-#   if dict, merge_BANG_(old_opts, i)
-# in this way, a + b + c is equivalent to a + [b, c]
-
-frame
-
+# Example usage
+# line([[1, 2], [2, 4]]) + grid_x + frame + ruleY + ruleX([1.2])
 
 def margin(*args):
     """
@@ -461,18 +398,15 @@ def margin(*args):
 
 
 # For reference - other options supported by plots
-example_plot_options = {
-    "title": "TITLE",
-    "subtitle": "SUBTITLE",
-    "caption": "CAPTION",
-    "width": "100px",
-    "height": "100px",
-    "grid": True,
-    "inset": 10,
-    "aspectRatio": 1,
-    "style": {"font-size": "100px"},  # css string also works
-    "clip": True,
-}
-
-# %%
-scatter([1, 2], [2, 1]).opts["marks"][0]
+# example_plot_options = {
+#     "title": "TITLE",
+#     "subtitle": "SUBTITLE",
+#     "caption": "CAPTION",
+#     "width": "100px",
+#     "height": "100px",
+#     "grid": True,
+#     "inset": 10,
+#     "aspectRatio": 1,
+#     "style": {"font-size": "100px"},  # css string also works
+#     "clip": True,
+# }
