@@ -135,8 +135,8 @@ class InferenceAlgorithm(SampleDistribution):
         target: Target,
     ) -> FloatArray:
         """
-        Given a `key: PRNGKey`, `latent_choices: Sample` and a `target: Target`, returns a random value $\\log(w)$
-        such that $\\mathbb{E}[w] = P(\\texttt{latent_choices} \\mid \\texttt{target.constraints})$, where $P$
+        Given a `key: PRNGKey`, `latent_choices: Choice` and a `target: Target`, returns a random value $\\log(w)$
+        such that $\\mathbb{E}[w] = P(\texttt{latent_choices} \\mid \\texttt{target.constraints})$, where $P$
         is the distribution on choicemaps represented by `target.gen_fn`.
         """
         pass
