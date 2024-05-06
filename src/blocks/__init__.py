@@ -6,7 +6,6 @@ from .blocks import (
     Exponential,
     Periodic,
     Polynomial,
-    Run,
 )
 
 __all__ = [
@@ -17,5 +16,4 @@ __all__ = [
     'Periodic',
     'Polynomial',
     'Exponential',
-    'Run'
 ]

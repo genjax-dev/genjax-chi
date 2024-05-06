@@ -1,5 +1,5 @@
 import math
-from typing import Generator, override
+from typing import override
 
 import genjax
 import jax.numpy as jnp
@@ -19,15 +19,14 @@ class Block:
     gf: StaticGenerativeFunction
     jitted_sample: Callable
 
-    def sample(self, k: PRNGKey):
-        tr = self.jitted_sample(k, ())
-        return tr
+    def sample(self, n: int = 1, k: PRNGKey = jax.random.PRNGKey(0)):
+        return jax.vmap(self.jitted_sample, in_axes=(0, None))(jax.random.split(k, n), ())
 
     def __add__(self, b: "Block"):
-        return Pointwise(self, b, lambda a, b: a + b)
+        return Pointwise(self, b, lambda a, b: jnp.add(a, b))
 
     def __mul__(self, b: "Block"):
-        return Pointwise(self, b, lambda a, b: a * b)
+        return Pointwise(self, b, lambda a, b: jnp.multiply(a, b))
 
     def __matmul__(self, b: "Block"):
         return Compose(self, b)
@@ -65,17 +64,21 @@ class Polynomial(Block):
 
     class Function(BlockFunction):
         coefficients: FloatArray
-
         @override
         def __call__(self, x: FloatArray):
-            return jax.numpy.polyval(self.coefficients, x)
-
+            deg = self.coefficients.shape[-1]
+            powers = jnp.pow(jnp.broadcast_to(x, deg), jax.lax.iota(dtype=int, size=deg))
+            return jax.numpy.matmul(self.coefficients, powers)
 
 class Periodic(Block):
     def __init__(self, *, amplitude: Traceable, phase: Traceable, period: Traceable):
         @genjax.static_gen_fn
         def periodic_gf() -> BlockFunction:
-            return Periodic.Function(amplitude @ "a", phase @ "φ", period @ "T")
+            return Periodic.Function(
+                amplitude @ "a",
+                phase @ "φ",
+                period @ "T"
+            )
 
         self.gf = periodic_gf
         self.jitted_sample = jax.jit(self.gf.simulate)
@@ -84,7 +87,6 @@ class Periodic(Block):
         amplitude: FloatArray
         phase: FloatArray
         period: FloatArray
-
         @override
         def __call__(self, x: ArrayLike) -> FloatArray:
             return self.amplitude * jnp.sin(self.phase + 2 * x * math.pi / self.period)
@@ -102,7 +104,6 @@ class Exponential(Block):
     class Function(BlockFunction):
         a: FloatArray
         b: FloatArray
-
         @override
         def __call__(self, x: ArrayLike) -> FloatArray:
             return self.a * jnp.exp(self.b * x)
@@ -111,7 +112,7 @@ class Exponential(Block):
 class Pointwise(Block):
     # NB: These are not commutative, even if the underlying binary operation is,
     # due to the way randomness is threaded through the operands.
-    def __init__(self, f: Block, g: Block, op: Callable[[float, float], float]):
+    def __init__(self, f: Block, g: Block, op: Callable[[ArrayLike, ArrayLike], FloatArray]):
         self.f = f
         self.g = g
 
@@ -155,12 +156,6 @@ class CoinToss(Block):
 
         self.gf = coin_toss_gf
         self.jitted_sample = jax.jit(self.gf.simulate)
-
-
-def Run(b: Block, k0: PRNGKey = jax.random.PRNGKey(0)) -> Generator[genjax.Trace, None, None]:
-    while True:
-        k0, k1 = jax.random.split(k0)
-        yield b.sample(k1)
 
 
 class CurveFit:
@@ -213,4 +208,4 @@ class CurveFit:
         )
 
         curves = trs.get_subtrace('curve').get_retval()
-        return curves, ixs
+        return jax.tree.map(lambda x: x[ixs], curves)
