@@ -13,8 +13,5 @@
 # limitations under the License.
 
 
-from genjax.core.interpreters import incremental
-
-
 class TestDiff:
     pass

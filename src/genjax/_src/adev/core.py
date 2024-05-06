@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from abc import abstractmethod
-from functools import partial, wraps
+from functools import wraps
 
 import jax
 import jax.numpy as jnp
@@ -22,7 +22,6 @@ from jax import core as jc
 from jax import util as jax_util
 from jax.extend import source_info_util as src_util
 from jax.interpreters import ad as jax_autodiff
-from jax.interpreters.ad import Zero, instantiate_zeros
 
 from genjax._src.core.interpreters.forward import (
     Environment,

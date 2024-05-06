@@ -350,6 +350,50 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         args: Tuple,
     ) -> Trace:
+        """
+        Execute the generative function, which may include sampling random choices, and return a [`Trace`](core.md#genjax.core.Trace).
+
+        Examples:
+            ```python exec="yes" html="true" source="material-block" session="core"
+            import genjax
+            from jax.random import PRNGKey
+
+            @genjax.static_gen_fn
+            def model():
+                x = genjax.normal(0.0, 1.0) @ "x"
+                return x
+
+            key = PRNGKey(0)
+            tr = model.simulate(key, ())
+            print(tr.render_html())
+            ```
+
+        The trace returned by `simulate` has the arguments of the invocation ([`Trace.get_args`](core.md#genjax.core.Trace.get_args)), the return value of the generative function ([`Trace.get_retval`](core.md#genjax.core.Trace.get_retval)), the identity of the generative function which produced the trace ([`Trace.get_gen_fn`](core.md#genjax.core.Trace.get_gen_fn)), the sample of traced random choices produced during the invocation ([`Trace.get_sample`](core.md#genjax.core.Trace.get_sample)) and _the score_ of the sample ([`Trace.get_score`](core.md#genjax.core.Trace.get_score)).
+
+        The score must satisfy a particular mathematical specification.
+
+        Denote the sample by $t$ and the arguments by $a$: when the generative function contains no _untraced randomness_, the score (in logspace) is given by:
+
+        $$
+        s := \\log p(t; a)
+        $$
+
+        (**With untraced randomness**) Gen allows for the possibility of sources of randomness _which are not traced_. In GenJAX, this might look something like:
+        ```python
+        # notice how the key is explicit
+        @genjax.static_gen_fn
+        def model_with_untraced_randomness(key: PRNGKey):
+            x = genjax.normal(0.0, 1.0) "x"
+            v = some_random_process(key, x)
+            y = genjax.normal(v, 1.0) @ "y"
+        ```
+
+        In that case, the score is given by:
+
+        $$
+        s := \\log p(r, t; a) - \\log q(r; a)
+        $$
+        """
         raise NotImplementedError
 
     @abstractmethod
