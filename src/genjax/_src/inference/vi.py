@@ -60,54 +60,22 @@ tfd = tfp.distributions
 
 
 @typecheck
-def adev_distribution(adev_primitive: ADEVPrimitive, differentiable_logpdf: Callable):
-    def inner(*args):
-        def sampler(key: PRNGKey, *args: Any) -> Any:
-            return sample_primitive(adev_primitive, key, *args)
+def adev_distribution(
+    adev_primitive: ADEVPrimitive,
+    differentiable_logpdf: Callable,
+):
+    def sampler(key: PRNGKey, *args: Any) -> Any:
+        return sample_primitive(adev_primitive, key, *args)
 
-        def logpdf(v: Any, *args: Any) -> FloatArray:
-            lp = differentiable_logpdf(v, *args)
-            # Branching here is statically resolved.
-            if lp.shape:
-                return jnp.sum(lp)
-            else:
-                return lp
-
-        return ExactDensity(args, sampler, logpdf)
-
-    console = genjax.console()
-
-    flip_enum = ADEVDistribution(
-        flip_enum, lambda v, p: tfd.Bernoulli(probs=p).log_prob(v)
-    )
-    print(console.render(flip_enum))
-    ```
-
-    These objects can then be utilized in guide programs, and support unbiased gradient estimator automation via ADEV's gradient transformations.
-    ```
-    """
-
-    adev_primitive: ADEVPrimitive
-    differentiable_logpdf: Callable = Pytree.static()
-
-    def sample(
-        self,
-        key: PRNGKey,
-        *args: Any,
-    ) -> Any:
-        return sample_primitive(self.adev_primitive, *args, key=key)
-
-    def logpdf(
-        self,
-        v: Any,
-        *args: Any,
-    ) -> FloatArray:
-        lp = self.differentiable_logpdf(v, *args)
+    def logpdf(v: Any, *args: Any) -> FloatArray:
+        lp = differentiable_logpdf(v, *args)
         # Branching here is statically resolved.
         if lp.shape:
             return jnp.sum(lp)
         else:
             return lp
+
+    return ExactDensity(sampler, logpdf)
 
 
 # We import ADEV specific sampling primitives, but then wrap them in
@@ -156,7 +124,7 @@ geometric_reinforce = adev_distribution(
 
 
 def ELBO(
-    guide: ChoiceDistribution,
+    guide: SampleDistribution,
     make_target: Callable[[Any], Target],
 ):
     def grad_estimate(
@@ -177,7 +145,7 @@ def ELBO(
 
 
 def IWELBO(
-    proposal: ChoiceDistribution,
+    proposal: SampleDistribution,
     make_target: Callable[[Any], Target],
     N: Int,
 ):
@@ -199,7 +167,7 @@ def IWELBO(
 
 
 def PWake(
-    posterior_approx: ChoiceDistribution,
+    posterior_approx: SampleDistribution,
     make_target: Callable[[Any], Target],
 ):
     def grad_estimate(
@@ -222,8 +190,8 @@ def PWake(
 
 
 def QWake(
-    proposal: ChoiceDistribution,
-    posterior_approx: ChoiceDistribution,
+    proposal: SampleDistribution,
+    posterior_approx: SampleDistribution,
     make_target: Callable[[Any], Target],
 ):
     def grad_estimate(

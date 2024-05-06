@@ -98,6 +98,7 @@ def sample_primitive(adev_prim: ADEVPrimitive, *args, key=jax.random.PRNGKey(0))
 ####################
 
 
+@Pytree.dataclass
 class Dual(Pytree):
     primal: Any
     tangent: Any
@@ -148,6 +149,7 @@ class Dual(Pytree):
         return tuple(primals), tuple(tangents)
 
 
+@Pytree.dataclass
 class ADInterpreter(Pytree):
     """The `ADInterpreter` takes a `Jaxpr`,
     propagates dual numbers through it, while also performing a CPS transformation,
@@ -257,7 +259,7 @@ class ADInterpreter(Pytree):
                                 dual_leaves,
                             )
 
-                        branch_adev_functions = tuple(
+                        branch_adev_functions = list(
                             map(
                                 lambda fn: ADInterpreter.forward_mode(
                                     jc.jaxpr_as_fun(fn),
@@ -266,9 +268,13 @@ class ADInterpreter(Pytree):
                                 params["branches"],
                             )
                         )
+
+                        # NOTE: the branches are stored in the params
+                        # in reverse order, so we need to reverse them
+                        # This could totally be something which breaks in the future...
                         return jax.lax.cond(
                             Dual.tree_primal(in_vals[0]),
-                            *branch_adev_functions,
+                            *reversed(branch_adev_functions),
                             key,
                             in_vals[1:],
                         )
@@ -345,6 +351,7 @@ class ADInterpreter(Pytree):
 #################
 
 
+@Pytree.dataclass
 class ADEVProgram(Pytree):
     source: Callable = Pytree.static()
 
@@ -384,6 +391,7 @@ class ADEVProgram(Pytree):
 ###############
 
 
+@Pytree.dataclass
 class Expectation(Pytree):
     prog: ADEVProgram
 

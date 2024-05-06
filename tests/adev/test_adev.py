@@ -22,6 +22,7 @@ from genjax.adev import add_cost
 from genjax.adev import baseline
 from genjax.adev import flip_enum
 from genjax.adev import flip_reinforce
+from genjax.adev import Dual
 
 
 class TestADEVFlipCond:
@@ -38,8 +39,8 @@ class TestADEVFlipCond:
 
         key = jax.random.PRNGKey(314159)
         for p in [0.1, 0.3, 0.5, 0.7, 0.9]:
-            _, p_tangent = jax.jit(flip_exact_loss.jvp_estimate)(key, (p,), (1.0,))
-            assert p_tangent == pytest.approx(p - 0.5, rel=0.0001)
+            p_dual = jax.jit(flip_exact_loss.jvp_estimate)(key, Dual(p, 1.0))
+            assert p_dual.tangent == pytest.approx(p - 0.5, rel=0.0001)
 
     def test_flip_cond_exact_reverse_mode_correctness(self):
         @expectation
@@ -69,7 +70,7 @@ class TestADEVFlipCond:
             )
 
         key = jax.random.PRNGKey(314159)
-        _, p_tangent = jax.jit(flip_exact_loss.jvp_estimate)(key, (0.1,), (1.0,))
+        _, p_tangent = jax.jit(flip_exact_loss.jvp_estimate)(key, Dual(0.1, 1.0))
 
     def test_add_cost(self):
         @expectation
@@ -78,7 +79,7 @@ class TestADEVFlipCond:
             return 0.0
 
         key = jax.random.PRNGKey(314159)
-        _, p_tangent = jax.jit(flip_exact_loss.jvp_estimate)(key, (0.1,), (1.0,))
+        _, p_tangent = jax.jit(flip_exact_loss.jvp_estimate)(key, Dual(0.1, 1.0))
 
 
 class TestBaselineFlip:
@@ -98,8 +99,8 @@ class TestBaselineFlip:
         key = jax.random.PRNGKey(314159)
         _, p_tangent_no_baseline = jax.jit(
             flip_reinforce_loss_no_baseline.jvp_estimate
-        )(key, (0.1,), (1.0,))
+        )(key, Dual(0.1, 1.0))
 
-        _, p_tangent = jax.jit(flip_reinforce_loss.jvp_estimate)(key, (0.1,), (1.0,))
+        _, p_tangent = jax.jit(flip_reinforce_loss.jvp_estimate)(key, Dual(0.1, 1.0))
 
         assert p_tangent == pytest.approx(p_tangent_no_baseline, 1e-3)

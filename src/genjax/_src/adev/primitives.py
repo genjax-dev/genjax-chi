@@ -55,20 +55,23 @@ class REINFORCE(ADEVPrimitive):
     def jvp_estimate(
         self,
         key: PRNGKey,
-        primals: Tuple,
-        tangents: Tuple,
+        tree_duals: Any,
         konts: Tuple,
     ):
         (_, kdual) = konts
+        primals = Dual.tree_primal(tree_duals)
+        tangents = Dual.tree_tangent(tree_duals)
         key, sub_key = jax.random.split(key)
         v = self.sample(sub_key, *primals)
-        l_primal, l_tangent = kdual(key, (v,), (jnp.zeros_like(v),))
+        tree_dual = Dual.tree_pure(v)
+        out_dual = kdual(key, tree_dual)
+        (out_primal,), (out_tangent,) = Dual.tree_unzip(out_dual)
         _, lp_tangent = jax.jvp(
             self.differentiable_logpdf,
             (v, *primals),
             (zero(v), *tangents),
         )
-        return l_primal, l_tangent + (l_primal * lp_tangent)
+        return Dual(out_primal, out_tangent + (out_primal * lp_tangent))
 
 
 @typecheck
@@ -81,17 +84,27 @@ def reinforce(sample_func, logpdf_func):
 ###########################
 
 
+@Pytree.dataclass
 class FlipEnum(ADEVPrimitive):
     def sample(self, key, p):
         return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
 
-    def jvp_estimate(self, key: PRNGKey, tree_duals: Any, konts: Tuple):
+    def jvp_estimate(
+        self,
+        key: PRNGKey,
+        tree_duals: Any,
+        konts: Tuple,
+    ):
         (_, kdual) = konts
         (p_primal,) = Dual.tree_primal(tree_duals)
         (p_tangent,) = Dual.tree_tangent(tree_duals)
-        true_dual = kdual(key, Dual(jnp.array(True), jnp.zeros_like(jnp.array(True))))
+        true_dual = kdual(
+            key,
+            Dual(jnp.array(True), jnp.zeros_like(jnp.array(True))),
+        )
         false_dual = kdual(
-            key, Dual(jnp.array(False), jnp.zeros_like(jnp.array(False)))
+            key,
+            Dual(jnp.array(False), jnp.zeros_like(jnp.array(False))),
         )
         (true_primal,), (true_tangent,) = Dual.tree_unzip(true_dual)
         (false_primal,), (false_tangent,) = Dual.tree_unzip(false_dual)
@@ -137,6 +150,7 @@ class BernoulliMVD(ADEVPrimitive):
 flip_mvd = BernoulliMVD()
 
 
+@Pytree.dataclass
 class FlipEnumParallel(ADEVPrimitive):
     def sample(self, key, p):
         return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
