@@ -16,9 +16,11 @@ from typing import Callable
 
 import jax
 import jax.numpy as jnp
+import rich.tree
 
 from genjax._src.core.datatypes.generative import (
     Choice,
+    EmptyChoice,
     GenerativeFunction,
     JAXGenerativeFunction,
     Selection,
@@ -41,7 +43,7 @@ from genjax._src.generative_functions.static.static_gen_fn import SupportsCallee
 
 
 class RepeatTrace(Trace):
-    gen_fn: GenerativeFunction
+    gen_fn: "RepeatCombinator"
     inner_trace: Trace
     args: Tuple
 
@@ -75,6 +77,14 @@ class RepeatTrace(Trace):
         idxs = jnp.arange(0, len(self.inner.get_score()))
         ws = jax.vmap(idx_check)(idxs, self.inner)
         return jnp.sum(ws, axis=0)
+
+
+    def __rich__(self):
+        tree = rich.tree.Tree('RepeatTrace')
+        tree.add('repeats').add(str(self.gen_fn.repeats))
+        tree.add('inner').add(self.inner_trace)
+        return tree
+
 
 
 class RepeatCombinator(
@@ -114,6 +124,17 @@ class RepeatCombinator(
         )(sub_keys, choice, args)
         return RepeatTrace(self, repeated_inner_tr, args), jnp.sum(w)
 
+    @dispatch
+    def importance(
+        self,
+        key: PRNGKey,
+        choice: EmptyChoice,
+        args: Tuple
+    ) -> Tuple[RepeatTrace, FloatArray]:
+        tr = self.simulate(key, args)
+        w = jnp.array(0.0)
+        return (tr, w)
+
     @typecheck
     def update(
         self,
@@ -140,8 +161,8 @@ class RepeatCombinator(
 #############
 
 
-def repeat_combinator(*, repeats) -> Callable[[Callable], JAXGenerativeFunction]:
-    def decorator(f) -> JAXGenerativeFunction:
+def repeat_combinator(*, repeats) -> Callable[[Callable], RepeatCombinator]:
+    def decorator(f) -> RepeatCombinator:
         return RepeatCombinator(f, repeats)
 
     return decorator

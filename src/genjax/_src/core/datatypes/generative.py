@@ -1621,3 +1621,4 @@ class HierarchicalChoiceMap(ChoiceMap):
     def __rich__(self):
         tree = rich.tree.Tree("[bold](HierarchicalChoiceMap)")
         self.trie._append_to_rich_tree(tree)
+        return tree
