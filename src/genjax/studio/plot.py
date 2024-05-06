@@ -3,20 +3,23 @@ import json
 
 import pyobsplot
 from ipywidgets import GridBox, Layout
-from pyobsplot import Plot, js
-import numpy as np 
+from pyobsplot import Plot
+import numpy as np
 import jax.numpy as jnp
+import re
+
 
 # This module provides a convenient, composable way to create interactive plots using Observable Plot
 # using pyobsplot, https://github.com/juba/pyobsplot and AnyWidget https://github.com/manzt/anywidget)
 # See https://observablehq.com/plot/
 #
 # Key features:
-# - Create plot specifications declaratively by combining marks, options and transformations 
+# - Create plot specifications declaratively by combining marks, options and transformations
 # - Compose plot specs using + operator to layer marks and merge options
 # - Render specs to interactive plot widgets, with lazy evaluation and caching
-# - Easily create grids of small multiples 
+# - Easily create grids of small multiples
 # - Includes shortcuts for common options like grid lines, color legends, margins
+
 
 def get_address(tr, address):
     """
@@ -32,19 +35,30 @@ def get_address(tr, address):
     return result
 
 
-def ensure_list(x):
-    if isinstance(x, list):
-        return x
-    elif isinstance(x, (jnp.ndarray, np.ndarray)):
+def array_to_list(x):
+    if isinstance(x, (jnp.ndarray, np.ndarray)):
         return x.tolist()
-    else:
-        return [x]
+    return x
 
 
 plot_options = {
     "small": {"width": 250, "height": 175, "inset": 10},
     "default": {"width": 500, "height": 350, "inset": 20},
 }
+
+def _merge_dicts_recursively(dict1, dict2):
+    """
+    Recursively merge two dictionaries. 
+    Values in dict2 overwrite values in dict1. If both values are dictionaries, recursively merge them.
+    """
+    if not isinstance(dict1, dict) or not isinstance(dict2, dict):
+        return dict2
+    for k in dict2:
+        if k in dict1:
+            dict1[k] = _merge_dicts_recursively(dict1[k], dict2[k])
+        else:
+            dict1[k] = dict2[k]
+    return dict1
 
 
 class PlotSpec:
@@ -61,13 +75,13 @@ class PlotSpec:
     """
 
     def __init__(self, marks=None, opts_dict=None, **opts):
-        self.opts = {'marks': []}
+        self.opts = {"marks": []}
         if marks is not None:
-            self._handle_list(self.opts, self.opts['marks'], marks)
+            self._handle_list(self.opts, self.opts["marks"], marks)
         if opts_dict is not None:
-            self._handle_dict(self.opts, self.opts['marks'], opts_dict)
+            self._handle_dict(self.opts, self.opts["marks"], opts_dict)
         if opts is not None:
-            self._handle_dict(self.opts, self.opts['marks'], opts)        
+            self._handle_dict(self.opts, self.opts["marks"], opts)
         self._plot = None
 
     def _handle_list(self, new_opts, new_marks, opts_list):
@@ -83,7 +97,7 @@ class PlotSpec:
         if "pyobsplot-type" in opts_dict:
             marks.append(opts_dict)
         else:
-            opts.update(opts_dict)
+            opts = _merge_dicts_recursively(opts, opts_dict)
             new_marks = opts_dict.get("marks", None)
             if new_marks:
                 self._handle_list(opts, marks, new_marks)
@@ -101,8 +115,8 @@ class PlotSpec:
             raise TypeError(
                 f"Unsupported operand type(s) for +: 'PlotSpec' and '{type(opts).__name__}'"
             )
-        new_opts["marks"] = new_marks    
-        return PlotSpec(opts_dict=new_opts)    
+        new_opts["marks"] = new_marks
+        return PlotSpec(opts_dict=new_opts)
 
     def plot(self):
         if self._plot is None:
@@ -120,12 +134,13 @@ class PlotSpec:
 
 # %%
 
+
 def constantly(x):
     """
-    Returns a javascript function which always returns `x` 
-    
-    Typically used to specify a constant property for all values passed to a mark, 
-    eg. plot.dot(values, fill=plot.constantly('My Label')). In this example, the 
+    Returns a javascript function which always returns `x`
+
+    Typically used to specify a constant property for all values passed to a mark,
+    eg. plot.dot(values, fill=plot.constantly('My Label')). In this example, the
     fill color will be assigned (from a color scale) and show up in the color legend.
     """
     x = json.dumps(x)
@@ -141,7 +156,13 @@ def scatter(xs, ys, opts={}, **kwargs):
         [
             Plot.dot(
                 {"length": len(xs)},
-                {"x": ensure_list(xs), "y": ensure_list(ys), "fill": "currentColor", **opts, **kwargs},
+                {
+                    "x": array_to_list(xs),
+                    "y": array_to_list(ys),
+                    "fill": "currentColor",
+                    **opts,
+                    **kwargs,
+                },
             ),
         ]
     )
@@ -149,6 +170,10 @@ def scatter(xs, ys, opts={}, **kwargs):
 
 # %%
 def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
+     # TODO 
+     # replace this with a pyobsplot-style js stub which 
+     # implements all the children in the same js context,
+     # each widget has high overhead.
     """
     Create a grid of small multiple plots from the given list of mark sets.
 
@@ -172,11 +197,9 @@ def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
         layout=Layout(**layout_opts),
     )
 
-
-# %%
-def fetch_mark_names():
+def fetch_exports():
     """
-    Used in dev to fetch _MARK_NAMES
+    Used in dev to fetch exported names and types from Observable Plot
     """
     import requests
 
@@ -184,117 +207,178 @@ def fetch_mark_names():
         "https://raw.githubusercontent.com/observablehq/plot/v0.6.14/src/index.js"
     )
 
-    # Find all exported marks
-    mark_lines = [
-        line
-        for line in response.text.split("\n")
-        if line.startswith("export {") and "./marks/" in line
+    # Find all exported names
+    export_lines = [
+        line for line in response.text.split("\n") if line.startswith("export {")
     ]
 
-    # Extract the mark names
-    marks = []
-    for line in mark_lines:
-        mark_names = line.split("{")[1].split("}")[0].split(", ")
-        lowercase_marks = [name for name in mark_names if name[0].islower()]
-        marks.extend(lowercase_marks)
+    # Extract the names and types
+    exports = {}
+    for line in export_lines:
+        names = line.split("{")[1].split("}")[0].split(", ")
+        for name in names:
+            if name[0].islower() and name not in ("plot", "marks"):
+                match = re.search(r'from "\./(\w+)(?:/|\.js)?', line)
+                if match:
+                    type = match.group(1).rstrip("s")
+                    name = name.split(" as ")[
+                        -1
+                    ]  # Handle cases like 'basic as transform'
+                    if type not in exports:
+                        exports[type] = []
+                    exports[type].append(name)
 
-    return marks
-
+    return exports
 
 # fetch_mark_names()
 
-_MARK_NAMES = [
-    "area",
-    "areaX",
-    "areaY",
-    "arrow",
-    "auto",
-    "autoSpec",
-    "axisX",
-    "axisY",
-    "axisFx",
-    "axisFy",
-    "gridX",
-    "gridY",
-    "gridFx",
-    "gridFy",
-    "barX",
-    "barY",
-    "bollinger",
-    "bollingerX",
-    "bollingerY",
-    "boxX",
-    "boxY",
-    "cell",
-    "cellX",
-    "cellY",
-    "contour",
-    "crosshair",
-    "crosshairX",
-    "crosshairY",
-    "delaunayLink",
-    "delaunayMesh",
-    "hull",
-    "voronoi",
-    "voronoiMesh",
-    "density",
-    "differenceY",
-    "dot",
-    "dotX",
-    "dotY",
-    "circle",
-    "hexagon",
-    "frame",
-    "geo",
-    "sphere",
-    "graticule",
-    "hexgrid",
-    "image",
-    "line",
-    "lineX",
-    "lineY",
-    "linearRegressionX",
-    "linearRegressionY",
-    "link",
-    "raster",
-    "interpolateNone",
-    "interpolatorBarycentric",
-    "interpolateNearest",
-    "interpolatorRandomWalk",
-    "rect",
-    "rectX",
-    "rectY",
-    "ruleX",
-    "ruleY",
-    "text",
-    "textX",
-    "textY",
-    "tickX",
-    "tickY",
-    "tip",
-    "tree",
-    "cluster",
-    "vector",
-    "vectorX",
-    "vectorY",
-    "spike",
-]
+_PLOT_EXPORTS = {
+    "mark": [
+        "area",
+        "areaX",
+        "areaY",
+        "arrow",
+        "auto",
+        "autoSpec",
+        "axisX",
+        "axisY",
+        "axisFx",
+        "axisFy",
+        "gridX",
+        "gridY",
+        "gridFx",
+        "gridFy",
+        "barX",
+        "barY",
+        "bollinger",
+        "bollingerX",
+        "bollingerY",
+        "boxX",
+        "boxY",
+        "cell",
+        "cellX",
+        "cellY",
+        "contour",
+        "crosshair",
+        "crosshairX",
+        "crosshairY",
+        "delaunayLink",
+        "delaunayMesh",
+        "hull",
+        "voronoi",
+        "voronoiMesh",
+        "density",
+        "differenceY",
+        "dot",
+        "dotX",
+        "dotY",
+        "circle",
+        "hexagon",
+        "frame",
+        "geo",
+        "sphere",
+        "graticule",
+        "hexgrid",
+        "image",
+        "line",
+        "lineX",
+        "lineY",
+        "linearRegressionX",
+        "linearRegressionY",
+        "link",
+        "raster",
+        "interpolateNone",
+        "interpolatorBarycentric",
+        "interpolateNearest",
+        "interpolatorRandomWalk",
+        "rect",
+        "rectX",
+        "rectY",
+        "ruleX",
+        "ruleY",
+        "text",
+        "textX",
+        "textY",
+        "tickX",
+        "tickY",
+        "tip",
+        "tree",
+        "cluster",
+        "vector",
+        "vectorX",
+        "vectorY",
+        "spike",
+    ],
+    "option": ["valueof", "column", "identity", "indexOf"],
+    "transform": [
+        "filter",
+        "reverse",
+        "sort",
+        "shuffle",
+        "transform",
+        "initializer",
+        "bin",
+        "binX",
+        "binY",
+        "centroid",
+        "geoCentroid",
+        "dodgeX",
+        "dodgeY",
+        "find",
+        "group",
+        "groupX",
+        "groupY",
+        "groupZ",
+        "hexbin",
+        "normalize",
+        "normalizeX",
+        "normalizeY",
+        "map",
+        "mapX",
+        "mapY",
+        "shiftX",
+        "window",
+        "windowX",
+        "windowY",
+        "select",
+        "selectFirst",
+        "selectLast",
+        "selectMaxX",
+        "selectMaxY",
+        "selectMinX",
+        "selectMinY",
+        "stackX",
+        "stackX1",
+        "stackX2",
+        "stackY",
+        "stackY1",
+        "stackY2",
+        "treeNode",
+        "treeLink",
+    ],
+    "interaction": ["pointer", "pointerX", "pointerY"],
+    "format": ["formatIsoDate", "formatWeekday", "formatMonth"],
+    "scale": ["scale"],
+    "legend": ["legend"],
+}
 
 
-def _mark_spec_fn(fn, fn_name):
-    """ 
+def _wrap_mark_fn(fn, fn_name):
+    """
     Returns a wrapping function for an Observable.Plot mark, accepting a positional values argument
     (where applicable) options, which may be a single dict and/or keyword arguments.
     """
+
     def innerWithValues(values, opts={}, **kwargs):
-        mark = fn(ensure_list(values), {**opts, **kwargs})
+        mark = fn(array_to_list(values), {**opts, **kwargs})
         return PlotSpec([mark])
+
     def innerWithoutValues(opts={}, **kwargs):
         mark = fn({**opts, **kwargs})
         return PlotSpec([mark])
-    
-    if fn_name in ['hexgrid', 'grid', 'gridX', 'gridY', 'gridFx', 'gridFy', 'frame']:
-        inner = innerWithoutValues 
+
+    if fn_name in ["hexgrid", "grid", "gridX", "gridY", "gridFx", "gridFy", "frame"]:
+        inner = innerWithoutValues
     else:
         inner = innerWithValues
 
@@ -302,13 +386,14 @@ def _mark_spec_fn(fn, fn_name):
     return inner
 
 
-_mark_spec_fns = {
-    mark_name: _mark_spec_fn(getattr(Plot, mark_name), mark_name)
-    for mark_name in _MARK_NAMES
+_plot_fns = {
+    name: _wrap_mark_fn(getattr(Plot, name), name) if type == 'mark' else getattr(Plot, name)
+    for type, names in _PLOT_EXPORTS.items()
+    for name in names
 }
 
 # Re-export the dynamically constructed MarkSpec functions
-globals().update(_mark_spec_fns)
+globals().update(_plot_fns)
 
 # %%
 
@@ -316,8 +401,8 @@ globals().update(_mark_spec_fns)
 class MarkDefault(PlotSpec):
     """
     A class that wraps a mark function and serves as a default value.
-    
-    An instance of MarkDefault can be used directly as a PlotSpec or 
+
+    An instance of MarkDefault can be used directly as a PlotSpec or
     called as a function to customize the behaviour of the mark.
 
     Args:
@@ -326,17 +411,18 @@ class MarkDefault(PlotSpec):
     """
 
     def __init__(self, fn_name, default):
-        fn = _mark_spec_fns[fn_name]
+        fn = _plot_fns[fn_name]
         super().__init__([fn(default)])
         self.fn = fn
 
     def __call__(self, *args, **kwargs):
         return self.fn(*args, **kwargs)
 
+
 frame = MarkDefault("frame", {"stroke": "#dddddd"})
 """Adds a frame, defaulting to a light gray stroke."""
 
-ruleY = MarkDefault("ruleY", [0])  
+ruleY = MarkDefault("ruleY", [0])
 """Adds a horizontal rule, defaulting to y=0."""
 
 ruleX = MarkDefault("ruleX", [0])
@@ -357,8 +443,17 @@ grid = {"grid": True}
 color_legend = {"color": {"legend": True}}
 """Show a color legend."""
 
+def color_scheme(name):
+    """
+    See https://observablehq.com/plot/features/scales#color-scales
+    """
+    return {'color': {'scheme': name}}
+
+
+
 # Example usage
 # line([[1, 2], [2, 4]]) + grid_x + frame + ruleY + ruleX([1.2])
+
 
 def margin(*args):
     """
