@@ -137,6 +137,20 @@ class AddressBijectionCombinator(GenerativeFunction):
             case _:
                 raise ValueError(f"Unrecognized update spec: {update_spec}")
 
+    @GenerativeFunction.gfi_boundary
+    def assess(
+        self,
+        sample: Sample,
+        args: Tuple,
+    ) -> Tuple[Trace, Weight, UpdateSpec]:
+        match sample:
+            case ChoiceMap():
+                inner_sample = sample.addr_fn(self.get_inverse())
+                score, retval = self.gen_fn.assess(inner_sample, args)
+                return score, retval
+            case _:
+                raise ValueError(f"Not handled sample: {sample}")
+
 
 @typecheck
 def address_bijection_combinator(

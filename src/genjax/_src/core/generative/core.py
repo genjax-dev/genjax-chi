@@ -218,8 +218,8 @@ class Trace(Pytree):
     `Trace` is the abstract superclass for traces of generative functions.
 
     A trace is a data structure used to represent sampled executions of
-    generative functions. Traces track metadata associated with
-    log probabilities of choices, as well as other data associated with
+    generative functions. Traces track metadata associated with the probabilities
+    of choices, as well as other data associated with
     the invocation of a generative function, including the arguments it
     was invoked with, its return value, and the identity of the generative function itself.
     """
@@ -367,6 +367,28 @@ class GenerativeFunction(Pytree):
             tr = model.simulate(key, ())
             print(tr.render_html())
             ```
+
+            Another example, using the same model, composed into [`genjax.repeat_combinator`](generative_functions.md) - which creates a new generative function, which has the same interface:
+            ```python exec="yes" html="true" source="material-block" session="core"
+            @genjax.static_gen_fn
+            def model():
+                x = genjax.normal(0.0, 1.0) @ "x"
+                return x
+
+            key = PRNGKey(0)
+            tr = model.repeat(num_repeats=10).simulate(key, ())
+            print(tr.render_html())
+            ```
+
+            (**Fun, flirty, fast ... parallel?**) Feel free to use `jax.jit` and `jax.vmap`!
+            ```python exec="yes" html="true" source="material-block" session="core"
+            key = PRNGKey(0)
+            sub_keys = jax.random.split(key, 10)
+            sim = model.repeat(num_repeats=10).simulate
+            tr = jax.jit(jax.vmap(sim, in_axes=(0, None)))(sub_keys, ())
+            print(tr.render_html())
+            ```
+
 
         The trace returned by `simulate` has the arguments of the invocation ([`Trace.get_args`](core.md#genjax.core.Trace.get_args)), the return value of the generative function ([`Trace.get_retval`](core.md#genjax.core.Trace.get_retval)), the identity of the generative function which produced the trace ([`Trace.get_gen_fn`](core.md#genjax.core.Trace.get_gen_fn)), the sample of traced random choices produced during the invocation ([`Trace.get_sample`](core.md#genjax.core.Trace.get_sample)) and _the score_ of the sample ([`Trace.get_score`](core.md#genjax.core.Trace.get_score)).
 

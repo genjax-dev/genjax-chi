@@ -8,5 +8,3 @@
     Probabilistic programming with (parallel & differentiable) programmable inference.
   </strong>
 </p>
-
-GenJAX is a probabilistic programming system for Python that allows programmers to create probabilistic models using programs
