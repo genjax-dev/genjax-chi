@@ -35,6 +35,7 @@ from genjax._src.core.typing import (
     IntArray,
     Is,
     List,
+    Optional,
     PRNGKey,
     Tuple,
     static_check_is_concrete,
@@ -284,11 +285,17 @@ class Trace(Pytree):
         self,
         key: PRNGKey,
         spec: UpdateSpec,
+        argdiffs: Optional[Tuple | Argdiffs] = None,
     ) -> Tuple["Trace", Weight, Retdiff, UpdateSpec]:
         gen_fn = self.get_gen_fn()
-        old_args = self.get_args()
-        argdiffs = Diff.tree_diff_no_change(old_args)
-        return gen_fn.update(key, self, spec, argdiffs)
+        if argdiffs:
+            check = Diff.static_check_tree_diff(argdiffs)
+            argdiffs = argdiffs if check else Diff.tree_diff_unknown_change(argdiffs)
+            return gen_fn.update(key, self, spec, argdiffs)
+        else:
+            old_args = self.get_args()
+            argdiffs = Diff.tree_diff_no_change(old_args)
+            return gen_fn.update(key, self, spec, argdiffs)
 
     def project(
         self,

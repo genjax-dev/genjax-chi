@@ -236,7 +236,7 @@ class StaticGenerativeFunction(GenerativeFunction):
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: StaticTrace,
         update_spec: UpdateSpec,
         argdiffs: Tuple,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:

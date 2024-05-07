@@ -185,7 +185,11 @@ class SwitchCombinator(GenerativeFunction):
         )
         return branch_gen_fn(*branch_args)
 
-    def _empty_simulate_defs(self, args: Tuple):
+    @typecheck
+    def _empty_simulate_defs(
+        self,
+        args: Tuple,
+    ):
         trace_defs = []
         trace_leaves = []
         retval_defs = []
@@ -247,7 +251,12 @@ class SwitchCombinator(GenerativeFunction):
         retval = Sum.maybe_none(idx, retvals)
         return SwitchTrace(self, args, subtraces, retval, score)
 
-    def _empty_importance_defs(self, constraint: Constraint, args: Tuple):
+    @typecheck
+    def _empty_importance_defs(
+        self,
+        constraint: Constraint,
+        args: Tuple,
+    ):
         trace_defs = []
         trace_leaves = []
         retval_defs = []
@@ -312,7 +321,7 @@ class SwitchCombinator(GenerativeFunction):
         branch_functions = list(map(_inner, range(len(self.branches))))
 
         (trace_leaves, retval_leaves, bwd_spec_leaves), (score, w) = jax.lax.switch(
-            idx, branch_functions, key, constraint, branch_args
+            idx, branch_functions, key, constraint, tuple(branch_args)
         )
         (
             (_, trace_defs),
@@ -344,6 +353,7 @@ class SwitchCombinator(GenerativeFunction):
             SumUpdateSpec(idx, bwd_specs),
         )
 
+    @typecheck
     def _empty_update_defs(
         self,
         trace: SwitchTrace,
@@ -356,14 +366,14 @@ class SwitchCombinator(GenerativeFunction):
         bwd_spec_leaves = []
         retdiff_defs = []
         retdiff_leaves = []
-        primals = Diff.tree_primal(argdiffs)
         for static_idx in range(len(self.branches)):
-            gen_fn_closure = self.get_branch_gen_fn_closure(static_idx, primals)
             subtrace = trace.subtraces[static_idx]
+            gen_fn = self.branches[static_idx]
+            branch_argdiffs = argdiffs[static_idx]
             key = jax.random.PRNGKey(0)
             trace_shape, _, retdiff_shape, bwd_spec_shape = get_data_shape(
-                gen_fn_closure.update
-            )(key, subtrace, spec, argdiffs)
+                gen_fn.update
+            )(key, subtrace, spec, branch_argdiffs)
             empty_trace = jtu.tree_map(
                 lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
             )
@@ -389,17 +399,15 @@ class SwitchCombinator(GenerativeFunction):
         )
 
     def _update(self, key, static_idx, trace, spec, argdiffs):
-        primals = Diff.tree_primal(argdiffs)
         subtrace = trace.subtraces[static_idx]
-        branch_gen_fn_closure = self.get_branch_gen_fn_closure(static_idx, primals)
-        tr, w, rd, bwd_spec = branch_gen_fn_closure.importance(
-            key, subtrace, spec, argdiffs
-        )
+        gen_fn = self.branches[static_idx]
+        branch_argdiffs = argdiffs[static_idx]
+        tr, w, rd, bwd_spec = gen_fn.update(key, subtrace, spec, branch_argdiffs)
         (
             (trace_leaves, _),
             (retdiff_leaves, _),
             (bwd_spec_leaves, _),
-        ) = self._empty_update_defs(subtrace, spec, argdiffs)
+        ) = self._empty_update_defs(trace, spec, argdiffs)
         trace_leaves[static_idx] = jtu.tree_leaves(tr)
         retdiff_leaves[static_idx] = jtu.tree_leaves(rd)
         bwd_spec_leaves[static_idx] = jtu.tree_leaves(bwd_spec)
@@ -416,8 +424,8 @@ class SwitchCombinator(GenerativeFunction):
         argdiffs: Argdiffs,
     ) -> Tuple[SwitchTrace, Weight, Retdiff, UpdateSpec]:
         def _inner(static_idx: int):
-            return lambda key, trace, constraint, argdiffs: self._update(
-                key, static_idx, trace, constraint, argdiffs
+            return lambda key, trace, spec, argdiffs: self._update(
+                key, static_idx, trace, spec, argdiffs
             )
 
         primals = Diff.tree_primal(argdiffs)
@@ -426,7 +434,7 @@ class SwitchCombinator(GenerativeFunction):
         branch_functions = list(map(_inner, range(len(self.branches))))
 
         (trace_leaves, retdiff_leaves, bwd_spec_leaves), (score, w) = jax.lax.switch(
-            idx, branch_functions, key, spec, branch_argdiffs
+            idx, branch_functions, key, trace, spec, tuple(branch_argdiffs)
         )
         (
             (_, trace_defs),
@@ -451,7 +459,7 @@ class SwitchCombinator(GenerativeFunction):
                 range(len(bwd_spec_leaves)),
             )
         )
-        retdiff = Sum.maybe_none(idx, retdiffs)
+        retdiff = Sum.maybe_none(idx_argdiff, retdiffs)
         retval = Diff.tree_primal(retdiff)
 
         # This just checks if a branch switch has occurred,
@@ -462,8 +470,8 @@ class SwitchCombinator(GenerativeFunction):
             new_idx = idx
             w = jax.lax.cond(
                 new_idx == old_idx,
-                lambda _: w,
-                lambda _: w - (trace.get_score() - score),
+                lambda: w,
+                lambda: w - (trace.get_score() - score),
             )
 
         return (

@@ -170,12 +170,12 @@ class Distribution(GenerativeFunction):
         constraint: MaskedConstraint,
         args: Tuple,
     ) -> Tuple[Trace, Weight, UpdateSpec]:
-        def simulate_branch(key, constraint, args):
+        def simulate_branch(key, _, args):
             tr = self.simulate(key, args)
             return tr, jnp.array(0.0), MaskedUpdateSpec(False, RemoveSampleUpdateSpec())
 
         def importance_branch(key, constraint, args):
-            tr, w, fwd_spec = self.importance(key, constraint, args)
+            tr, w, _ = self.importance(key, constraint, args)
             return tr, w, MaskedUpdateSpec(True, RemoveSampleUpdateSpec())
 
         return jax.lax.cond(
@@ -296,9 +296,10 @@ class Distribution(GenerativeFunction):
 
             case ChoiceMap():
                 check = constraint.has_value()
-
-                if static_check_is_concrete(check) and check:
-                    v = constraint.get_value()
+                v = constraint.get_value()
+                if isinstance(v, UpdateSpec):
+                    return self.update(key, trace, v, argdiffs)
+                elif static_check_is_concrete(check) and check:
                     fwd = self.estimate_logpdf(key, v, *primals)
                     bwd = trace.get_score()
                     w = fwd - bwd
@@ -334,7 +335,12 @@ class Distribution(GenerativeFunction):
         primals = Diff.tree_primal(argdiffs)
         new_tr = gen_fn.simulate(key, primals)
         retdiff = Diff.tree_diff_unknown_change(new_tr.get_retval())
-        return new_tr, -original, retdiff, ChoiceMap.v(removed_value)
+        return (
+            new_tr,
+            -original,
+            retdiff,
+            ChoiceMap.v(removed_value),
+        )
 
     def update_masked_spec(
         self,

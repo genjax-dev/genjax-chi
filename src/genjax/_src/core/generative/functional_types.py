@@ -17,13 +17,13 @@ import jax.numpy as jnp
 from jax.experimental import checkify
 
 from genjax._src.checkify import optional_check
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import (
     staged_and,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    ArrayLike,
     Bool,
     BoolArray,
     Callable,
@@ -131,12 +131,12 @@ class Mask(Pytree):
 
 @Pytree.dataclass(match_args=True)
 class Sum(Pytree):
-    idx: IntArray
-    values: List[Any]
+    idx: IntArray | Diff
+    values: List
 
     @classmethod
     @typecheck
-    def maybe(cls, idx: Int | IntArray, vs: List[None | ArrayLike]):
+    def maybe(cls, idx: Int | IntArray | Diff, vs: List):
         return (
             vs[idx]
             if static_check_is_concrete(idx) and isinstance(idx, Int)
@@ -145,7 +145,7 @@ class Sum(Pytree):
 
     @classmethod
     @typecheck
-    def maybe_none(cls, idx: Int | IntArray, vs: List[None | ArrayLike]):
+    def maybe_none(cls, idx: Int | IntArray | Diff, vs: List):
         possibles = []
         for _idx, v in enumerate(vs):
             if v is not None:

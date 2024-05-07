@@ -349,8 +349,7 @@ class UpdateHandler(StaticHandler):
     def visit(self, addr):
         self.address_visitor.visit(addr)
 
-    def get_subspec(self, addr):
-        addr = Pytree.tree_unwrap_const(addr)
+    def get_subspec(self, addr: Address):
         match self.fwd_spec:
             case ChoiceMap():
                 return self.fwd_spec.get_submap(addr)
@@ -362,8 +361,7 @@ class UpdateHandler(StaticHandler):
             case _:
                 raise ValueError(f"Not implemented fwd_spec: {self.fwd_spec}")
 
-    def get_subtrace(self, addr):
-        addr = Pytree.tree_unwrap_const(addr)
+    def get_subtrace(self, addr: Address):
         return self.previous_trace.get_subtrace(addr)
 
     def handle_retval(self, v):

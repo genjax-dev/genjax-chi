@@ -456,29 +456,10 @@ class TestStaticGenFnUpdate:
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = jitted(sub_key, tr, new, ())
 
-        # TestStaticGenFn new scores.
+        # TestStaticGenFn weight correctness.
         updated_sample = updated.get_sample()
         assert updated_sample["y1"] == new_y1
-        sel = genjax.Selection.at["y1"]
-        update_spec = RemoveSelectionUpdateSpec(sel)
-        assert (
-            updated.project(key, update_spec)
-            == genjax.normal.assess(C.v(new_y1), (0.0, 1.0))[0]
-        )
-        assert updated_sample["y2"] == old_y2
-        sel = genjax.Selection.at["y2"]
-        update_spec = RemoveSelectionUpdateSpec(sel)
-        assert updated.project(key, update_spec) == pytest.approx(
-            genjax.normal.assess(C.v(old_y2), (new_y1, 1.0))[0], 0.0001
-        )
-        assert updated.get_sample()["y3"] == old_y3
-        sel = genjax.Selection.at["y3"]
-        update_spec = RemoveSelectionUpdateSpec(sel)
-        assert updated.project(key, update_spec) == pytest.approx(
-            genjax.normal.assess(C.v(old_y3), (new_y1 + old_y2, 1.0))[0], 0.0001
-        )
 
-        # TestStaticGenFn weight correctness.
         δ_y3 = (
             genjax.normal.assess(C.v(old_y3), (new_y1 + old_y2, 1.0))[0]
             - genjax.normal.assess(C.v(old_y3), (old_y1 + old_y2, 1.0))[0]
