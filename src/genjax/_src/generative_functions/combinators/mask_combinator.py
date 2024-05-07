@@ -12,23 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from jax.lax import select
+
 from genjax._src.core.generative import (
-    ChangeTargetUpdateSpec,
+    Argdiffs,
     Constraint,
     GenerativeFunction,
     Mask,
     MaskedSample,
+    MaskedUpdateSpec,
     Retdiff,
+    Sample,
+    Score,
     Trace,
     UpdateSpec,
     Weight,
 )
-from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.incremental import Diff, UnknownChange
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     BoolArray,
-    FloatArray,
     PRNGKey,
     Tuple,
     typecheck,
@@ -40,12 +44,11 @@ register_exclusion(__file__)
 @Pytree.dataclass
 class MaskTrace(Trace):
     mask_combinator: "MaskCombinator"
-    args: Tuple
     inner: Trace
     check: BoolArray
 
     def get_args(self):
-        return self.args
+        return (self.check, *self.inner.get_args())
 
     def get_gen_fn(self):
         return self.mask_combinator
@@ -81,17 +84,9 @@ class MaskCombinator(GenerativeFunction):
         key: PRNGKey,
         args: Tuple,
     ) -> MaskTrace:
-        tr = self.gen_fn.simulate(key, args)
-        return MaskTrace(self, tr, self.check)
-
-    @typecheck
-    def assess(
-        self,
-        constraint: Constraint,
-        args: Tuple,
-    ) -> Tuple[FloatArray, Mask]:
-        score, retval = self.gen_fn.assess(constraint, args)
-        return self.check * score, Mask(self.check, retval)
+        check, *inner_args = args
+        tr = self.gen_fn.simulate(key, tuple(inner_args))
+        return MaskTrace(self, tr, check)
 
     @typecheck
     def importance(
@@ -99,10 +94,15 @@ class MaskCombinator(GenerativeFunction):
         key: PRNGKey,
         constraint: Constraint,
         args: Tuple,
-    ) -> Tuple[MaskTrace, FloatArray]:
-        tr, w = self.gen_fn.importance(key, constraint, args)
-        w = self.check * w
-        return MaskTrace(self, tr, self.check), w
+    ) -> Tuple[MaskTrace, Weight, UpdateSpec]:
+        (check, *inner_args) = args
+        tr, w, bwd_spec = self.gen_fn.importance(key, constraint, tuple(inner_args))
+        w = check * w
+        return (
+            MaskTrace(self, tr, check),
+            w,
+            MaskedUpdateSpec(check, bwd_spec),
+        )
 
     @typecheck
     def update(
@@ -110,36 +110,37 @@ class MaskCombinator(GenerativeFunction):
         key: PRNGKey,
         trace: MaskTrace,
         update_spec: UpdateSpec,
+        argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
-        match update_spec:
-            case ChangeTargetUpdateSpec(argdiffs, constraint):
-                inner_gen_fn = self.inner(*self.inner_args)
-                (check, _) = Diff.tree_primal(argdiffs)
-                inner_spec = ChangeTargetUpdateSpec(argdiffs[1:], constraint)
-                inner_trace, w, retdiff, bwd_spec = inner_gen_fn.update(
-                    key, trace.inner, inner_spec
-                )
-                return (
-                    MaskTrace(self, inner_trace, check),
-                    w * check,
-                    Mask.maybe(check, retdiff),
-                    UpdateSpec.maybe(check, bwd_spec),
-                )
+        (check, *_) = Diff.tree_primal(argdiffs)
+        (_, *inner_argdiffs) = argdiffs
+        inner_trace, w, retdiff, bwd_spec = self.gen_fn.update(
+            key, trace.inner, update_spec, tuple(inner_argdiffs)
+        )
+        w = select(
+            check,
+            w + trace.get_score(),
+            -trace.get_score(),
+        )
+        return (
+            MaskTrace(self, inner_trace, check),
+            w,
+            Mask.maybe(check, retdiff),
+            MaskedUpdateSpec(check, bwd_spec),
+        )
 
-            case Constraint():
-                inner_gen_fn = self.inner(*self.inner_args)
-                inner_trace, w, retdiff, bwd_spec = inner_gen_fn.update(
-                    key, trace.inner, update_spec
-                )
-                return (
-                    MaskTrace(self, inner_trace, self.check),
-                    w * self.check,
-                    Mask.maybe(self.check, retdiff),
-                    UpdateSpec.maybe(self.check, bwd_spec),
-                )
-
-            case _:
-                raise ValueError(f"Unsupported update spec {update_spec}")
+    @typecheck
+    def assess(
+        self,
+        sample: Sample,
+        args: Tuple,
+    ) -> Tuple[Score, Mask]:
+        (check, *inner_args) = args
+        score, retval = self.gen_fn.assess(sample, tuple(inner_args))
+        return (
+            check * score,
+            Mask(check, retval),
+        )
 
 
 #############

@@ -16,11 +16,13 @@ import jax
 import jax.numpy as jnp
 
 from genjax._src.core.generative import (
+    Argdiffs,
     ChoiceMap,
     Constraint,
     GenerativeFunction,
     RemoveSelectionUpdateSpec,
     Retdiff,
+    Score,
     Trace,
     UpdateSpec,
     Weight,
@@ -104,7 +106,7 @@ class ScanCombinator(GenerativeFunction):
             x = genjax.normal(prev, 1.0) @ "x"
             return x
 
-        # You can apply the Scan combinator direclty like this:
+        # You can apply the Scan combinator directly like this:
 
         scan_gen_fned_random_walk = genjax.Scan(max_length=1000)(random_walk)
 
@@ -212,7 +214,7 @@ class ScanCombinator(GenerativeFunction):
             length=self.max_length,
         )
         return (
-            ScanTrace(self, tr, (carried_out, scanned_out), jnp.sum(scores)),
+            ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores)),
             jnp.sum(ws),
             bwd_specs,
         )
@@ -253,7 +255,7 @@ class ScanCombinator(GenerativeFunction):
         key: PRNGKey,
         trace: Trace,
         spec: UpdateSpec,
-        argdiffs: Tuple,
+        argdiffs: Argdiffs,
     ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateSpec]:
         carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(argdiffs)
 
@@ -261,9 +263,10 @@ class ScanCombinator(GenerativeFunction):
             (
                 new_subtrace,
                 w,
-                (carry_retdiff, scanned_out_retdiff),
+                kernel_retdiff,
                 bwd_spec,
             ) = self.kernel_gen_fn.update(key, subtrace, subspec, (carry, scanned_in))
+            (carry_retdiff, scanned_out_retdiff) = kernel_retdiff
             score = new_subtrace.get_score()
             return (carry_retdiff, score), (
                 new_subtrace,
@@ -304,7 +307,13 @@ class ScanCombinator(GenerativeFunction):
             (carried_out_diff, scanned_out_diff)
         )
         return (
-            ScanTrace(self, new_subtraces, (carried_out, scanned_out), jnp.sum(scores)),
+            ScanTrace(
+                self,
+                new_subtraces,
+                Diff.tree_primal(argdiffs),
+                (carried_out, scanned_out),
+                jnp.sum(scores),
+            ),
             jnp.sum(ws),
             (carried_out_diff, scanned_out_diff),
             bwd_specs,
@@ -322,11 +331,38 @@ class ScanCombinator(GenerativeFunction):
             case _:
                 return self.update_generic(key, trace, update_spec, argdiffs)
 
+    @typecheck
     def assess(
         self,
-        constraint: Constraint,
-    ) -> Tuple[FloatArray, Any]:
-        raise NotImplementedError
+        sample: ChoiceMap,
+        args: Tuple,
+    ) -> Tuple[Score, Any]:
+        (carry, scanned_in) = args
+
+        def _inner_assess(sample, carry, scanned_in):
+            score, retval = self.kernel_gen_fn.assess(sample, (carry, scanned_in))
+            (carry, scanned_out) = retval
+            return (carry, score), scanned_out
+
+        def _assess(carry, scanned_over):
+            idx, carried_value = carry
+            submap = sample.get_submap(idx)
+            (carry, score), scanned_out = _inner_assess(
+                submap, carried_value, scanned_over
+            )
+
+            return (idx + 1, carry), (scanned_out, score)
+
+        (_, carried_out), (scanned_out, scores) = jax.lax.scan(
+            _assess,
+            (0, carry),
+            scanned_in,
+            length=self.max_length,
+        )
+        return (
+            jnp.sum(scores),
+            (carried_out, scanned_out),
+        )
 
 
 #############
