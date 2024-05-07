@@ -15,7 +15,7 @@
 import genjax
 import jax
 from genjax import ChoiceMap as C
-from genjax import EmptyConstraint, Mask
+from genjax import EmptyConstraint, MaskedConstraint
 from genjax.incremental import Diff, NoChange, UnknownChange
 
 
@@ -23,37 +23,37 @@ class TestDistributions:
     def test_simulate(self):
         key = jax.random.PRNGKey(314159)
         tr = genjax.normal(0.0, 1.0).simulate(key)
-        assert tr.get_score() == genjax.normal(0.0, 1.0).assess(tr.get_sample())
+        assert tr.get_score() == genjax.normal(0.0, 1.0).assess(tr.get_sample())[0]
 
     def test_importance(self):
         key = jax.random.PRNGKey(314159)
 
         # No constraint.
-        (tr, w) = genjax.normal(0.0, 1.0).importance(key, EmptyConstraint())
+        (tr, w, _) = genjax.normal(0.0, 1.0).importance(key, EmptyConstraint())
         assert w == 0.0
 
         # Constraint, no mask.
-        (tr, w) = genjax.normal(0.0, 1.0).importance(key, C.v(1.0))
+        (tr, w, _) = genjax.normal(0.0, 1.0).importance(key, C.v(1.0))
         v = tr.get_sample()
-        assert w == genjax.normal(0.0, 1.0).logpdf(v())
+        assert w == genjax.normal(0.0, 1.0).assess(v)[0]
 
         # Constraint, mask with True flag.
-        (tr, w) = genjax.normal.importance(
+        (tr, w, _) = genjax.normal.importance(
             key,
-            MaskConstraint(True, C.v(1.0)),
+            MaskedConstraint(True, C.v(1.0)),
             (0.0, 1.0),
         )
-        v = tr.strip().get_value()
+        v = tr.get_sample().get_value()
         assert v == 1.0
-        assert w == genjax.normal.logpdf(v, 0.0, 1.0)
+        assert w == genjax.normal.assess(C.v(v), (0.0, 1.0))[0]
 
         # Constraint, mask with False flag.
-        (tr, w) = genjax.normal.importance(
+        (tr, w, _) = genjax.normal.importance(
             key,
-            Mask(False, C.v(1.0)),
+            MaskedConstraint(False, C.v(1.0)),
             (0.0, 1.0),
         )
-        v = tr.strip().get_value()
+        v = tr.get_sample().get_value()
         assert v != 1.0
         assert w == 0.0
 
@@ -64,13 +64,12 @@ class TestDistributions:
 
         # No constraint, no change to arguments.
         (new_tr, w, _, _) = genjax.normal.update(
-            sub_key,
-            tr,
-            EmptyChoice(),
-            (Diff(0.0, NoChange), Diff(1.0, NoChange)),
+            sub_key, tr, C.n, (Diff(0.0, NoChange), Diff(1.0, NoChange))
         )
-        assert new_tr.get_value() == tr.get_value()
-        assert new_tr.get_score() == genjax.normal.logpdf(tr.get_value(), 0.0, 1.0)
+        assert new_tr.get_sample().get_value() == tr.get_sample().get_value()
+        assert (
+            new_tr.get_score() == genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
+        )
         assert w == 0.0
 
         # Constraint, no change to arguments.
@@ -81,25 +80,28 @@ class TestDistributions:
             C.v(1.0),
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
-        assert new_tr.get_value() == 1.0
-        assert new_tr.get_score() == genjax.normal.logpdf(1.0, 0.0, 1.0)
-        assert w == genjax.normal.logpdf(1.0, 0.0, 1.0) - genjax.normal.logpdf(
-            tr.get_value(), 0.0, 1.0
+        assert new_tr.get_sample().get_value() == 1.0
+        assert new_tr.get_score() == genjax.normal.assess(C.v(1.0), (0.0, 1.0))[0]
+        assert (
+            w
+            == genjax.normal.assess(C.v(1.0), (0.0, 1.0))[0]
+            - genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
         )
 
         # No constraint, change to arguments.
         key, sub_key = jax.random.split(key)
         (new_tr, w, _, _) = genjax.normal.update(
-            sub_key,
-            tr,
-            EmptyChoice(),
-            (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
+            sub_key, tr, C.n, (Diff(1.0, UnknownChange), Diff(1.0, NoChange))
         )
-        assert new_tr.get_value() == tr.get_value()
-        assert new_tr.get_score() == genjax.normal.logpdf(tr.get_value(), 1.0, 1.0)
-        assert w == genjax.normal.logpdf(
-            tr.get_value(), 1.0, 1.0
-        ) - genjax.normal.logpdf(tr.get_value(), 0.0, 1.0)
+        assert new_tr.get_sample().get_value() == tr.get_sample().get_value()
+        assert (
+            new_tr.get_score() == genjax.normal.assess(tr.get_sample(), (1.0, 1.0))[0]
+        )
+        assert (
+            w
+            == genjax.normal.assess(tr.get_sample(), (1.0, 1.0))[0]
+            - genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
+        )
 
         # Constraint, change to arguments.
         key, sub_key = jax.random.split(key)
@@ -109,10 +111,12 @@ class TestDistributions:
             C.v(1.0),
             (Diff(1.0, UnknownChange), Diff(2.0, UnknownChange)),
         )
-        assert new_tr.get_value() == 1.0
-        assert new_tr.get_score() == genjax.normal.logpdf(1.0, 1.0, 2.0)
-        assert w == genjax.normal.logpdf(1.0, 1.0, 2.0) - genjax.normal.logpdf(
-            tr.get_value(), 0.0, 1.0
+        assert new_tr.get_sample().get_value() == 1.0
+        assert new_tr.get_score() == genjax.normal.assess(C.v(1.0), (1.0, 2.0))[0]
+        assert (
+            w
+            == genjax.normal.assess(C.v(1.0), (1.0, 2.0))[0]
+            - genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
         )
 
         # Constraint is masked (True), no change to arguments.
@@ -120,13 +124,15 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            Mask(True, C.v(1.0)),
+            MaskedConstraint(True, C.v(1.0)),
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
-        assert new_tr.get_value() == 1.0
-        assert new_tr.get_score() == genjax.normal.logpdf(1.0, 0.0, 1.0)
-        assert w == genjax.normal.logpdf(1.0, 0.0, 1.0) - genjax.normal.logpdf(
-            tr.get_value(), 0.0, 1.0
+        assert new_tr.get_sample().get_value() == 1.0
+        assert new_tr.get_score() == genjax.normal.assess(C.v(1.0), (0.0, 1.0))[0]
+        assert (
+            w
+            == genjax.normal.assess(C.v(1.0), (0.0, 1.0))[0]
+            - genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
         )
 
         # Constraint is masked (True), change to arguments.
@@ -134,13 +140,15 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            Mask(True, C.v(1.0)),
+            MaskedConstraint(True, C.v(1.0)),
             (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
         )
-        assert new_tr.get_value() == 1.0
-        assert new_tr.get_score() == genjax.normal.logpdf(1.0, 1.0, 1.0)
-        assert w == genjax.normal.logpdf(1.0, 1.0, 1.0) - genjax.normal.logpdf(
-            tr.get_value(), 0.0, 1.0
+        assert new_tr.get_sample().get_value() == 1.0
+        assert new_tr.get_score() == genjax.normal.assess(C.v(1.0), (1.0, 1.0))[0]
+        assert (
+            w
+            == genjax.normal.assess(C.v(1.0), (1.0, 1.0))[0]
+            - genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
         )
 
         # Constraint is masked (False), no change to arguments.
@@ -148,11 +156,13 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            Mask(False, C.v(1.0)),
+            MaskedConstraint(False, C.v(1.0)),
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
-        assert new_tr.get_value() == tr.get_value()
-        assert new_tr.get_score() == genjax.normal.logpdf(tr.get_value(), 0.0, 1.0)
+        assert new_tr.get_sample().get_value() == tr.get_sample().get_value()
+        assert (
+            new_tr.get_score() == genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
+        )
         assert w == 0.0
 
         # Constraint is masked (False), change to arguments.
@@ -160,11 +170,15 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            Mask(False, C.v(1.0)),
+            MaskedConstraint(False, C.v(1.0)),
             (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
         )
-        assert new_tr.get_value() == tr.get_value()
-        assert new_tr.get_score() == genjax.normal.logpdf(tr.get_value(), 1.0, 1.0)
-        assert w == genjax.normal.logpdf(
-            tr.get_value(), 1.0, 1.0
-        ) - genjax.normal.logpdf(tr.get_value(), 0.0, 1.0)
+        assert new_tr.get_sample().get_value() == tr.get_sample().get_value()
+        assert (
+            new_tr.get_score() == genjax.normal.assess(tr.get_sample(), (1.0, 1.0))[0]
+        )
+        assert (
+            w
+            == genjax.normal.assess(tr.get_sample(), (1.0, 1.0))[0]
+            - genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
+        )

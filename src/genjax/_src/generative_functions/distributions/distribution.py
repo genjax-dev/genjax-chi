@@ -20,12 +20,15 @@ import jax.numpy as jnp
 from jax.lax import cond
 
 from genjax._src.core.generative import (
+    Argdiffs,
     ChoiceMap,
     Constraint,
+    EmptyConstraint,
     EmptyUpdateSpec,
     GenerativeFunction,
     Mask,
-    MaskUpdateSpec,
+    MaskedConstraint,
+    MaskedUpdateSpec,
     RemoveSampleUpdateSpec,
     RemoveSelectionUpdateSpec,
     Retdiff,
@@ -36,6 +39,7 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.staging import staged_check
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
@@ -153,11 +157,35 @@ class Distribution(GenerativeFunction):
                         return (tr, w)
 
                     tr, w = cond(flag, _importance, _simulate, key, value)
-                    bwd_spec = MaskUpdateSpec(flag, RemoveSampleUpdateSpec())
+                    bwd_spec = MaskedUpdateSpec(flag, RemoveSampleUpdateSpec())
                     return tr, w, bwd_spec
 
                 case _:
                     raise Exception("Unhandled type.")
+
+    @typecheck
+    def importance_masked_constraint(
+        self,
+        key: PRNGKey,
+        constraint: MaskedConstraint,
+        args: Tuple,
+    ) -> Tuple[Trace, Weight, UpdateSpec]:
+        def simulate_branch(key, constraint, args):
+            tr = self.simulate(key, args)
+            return tr, jnp.array(0.0), MaskedUpdateSpec(False, RemoveSampleUpdateSpec())
+
+        def importance_branch(key, constraint, args):
+            tr, w, fwd_spec = self.importance(key, constraint, args)
+            return tr, w, MaskedUpdateSpec(True, RemoveSampleUpdateSpec())
+
+        return jax.lax.cond(
+            constraint.flag,
+            importance_branch,
+            simulate_branch,
+            key,
+            constraint.constraint,
+            args,
+        )
 
     @GenerativeFunction.gfi_boundary
     @typecheck
@@ -170,18 +198,69 @@ class Distribution(GenerativeFunction):
         match constraint:
             case ChoiceMap():
                 return self.importance_choice_map(key, constraint, args)
+            case MaskedConstraint(flag, inner_constraint):
+                if staged_check(flag):
+                    return self.importance(key, inner_constraint, args)
+                else:
+                    return self.importance_masked_constraint(key, constraint, args)
+            case EmptyConstraint():
+                tr = self.simulate(key, args)
+                return tr, jnp.array(0.0), EmptyUpdateSpec()
             case _:
                 raise Exception("Unhandled type.")
 
     def update_empty(
         self,
         trace: DistributionTrace,
+        argdiffs: Argdiffs,
     ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
+        sample = trace.get_sample()
+        primals = Diff.tree_primal(argdiffs)
+        new_score, _ = self.assess(sample, primals)
+        new_trace = DistributionTrace(self, primals, sample.get_value(), new_score)
         return (
-            trace,
-            jnp.array(0.0),
+            new_trace,
+            new_score - trace.get_score(),
             Diff.tree_diff_no_change(trace.get_retval()),
             EmptyUpdateSpec(),
+        )
+
+    def update_constraint_masked_constraint(
+        self,
+        key: PRNGKey,
+        trace: DistributionTrace,
+        constraint: MaskedConstraint,
+        argdiffs: Argdiffs,
+    ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
+        old_sample = trace.get_sample()
+        primals = Diff.tree_primal(argdiffs)
+
+        def update_branch(key, trace, constraint, argdiffs):
+            tr, w, rd, _ = self.update(key, trace, constraint, argdiffs)
+            return (
+                tr,
+                w,
+                rd,
+                MaskedUpdateSpec(True, old_sample),
+            )
+
+        def do_nothing_branch(key, trace, constraint, argdiffs):
+            tr, w, _, _ = self.update(key, trace, EmptyUpdateSpec(), argdiffs)
+            return (
+                tr,
+                w,
+                Diff.tree_diff_unknown_change(tr.get_retval()),
+                MaskedUpdateSpec(False, old_sample),
+            )
+
+        return jax.lax.cond(
+            constraint.flag,
+            update_branch,
+            do_nothing_branch,
+            key,
+            trace,
+            constraint.constraint,
+            argdiffs,
         )
 
     def update_constraint(
@@ -189,37 +268,65 @@ class Distribution(GenerativeFunction):
         key: PRNGKey,
         trace: DistributionTrace,
         constraint: Constraint,
-        argdiffs: Tuple,
+        argdiffs: Argdiffs,
     ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
-        check = constraint.has_value()
         primals = Diff.tree_primal(argdiffs)
-        if static_check_is_concrete(check) and check:
-            v = constraint.get_value()
-            fwd = self.estimate_logpdf(key, v, *primals)
-            bwd = trace.get_score()
-            w = fwd - bwd
-            new_tr = DistributionTrace(self, primals, v, fwd)
-            discard = trace.get_sample()
-            retval_diff = Diff.tree_diff_unknown_change(v)
-            return (new_tr, w, retval_diff, discard)
-        elif static_check_is_concrete(check):
-            value_chm = trace.get_sample()
-            v = value_chm.get_value()
-            fwd = self.estimate_logpdf(key, v, *primals)
-            bwd = trace.get_score()
-            w = fwd - bwd
-            new_tr = DistributionTrace(self, primals, v, fwd)
-            retval_diff = Diff.tree_diff_no_change(v)
-            return (new_tr, w, retval_diff, EmptyUpdateSpec())
-        else:
-            raise NotImplementedError
+        match constraint:
+            case EmptyConstraint():
+                old_sample = trace.get_sample()
+                old_retval = trace.get_retval()
+                new_score, _ = self.assess(old_sample, primals)
+                new_trace = DistributionTrace(
+                    self, primals, old_sample.get_value(), new_score
+                )
+                return (
+                    new_trace,
+                    new_score - trace.get_score(),
+                    Diff.tree_diff_no_change(old_retval),
+                    EmptyUpdateSpec(),
+                )
+
+            case MaskedConstraint(flag, spec):
+                if staged_check(flag):
+                    return self.update(key, trace, spec, argdiffs)
+                else:
+                    return self.update_constraint_masked_constraint(
+                        key, trace, constraint, argdiffs
+                    )
+
+            case ChoiceMap():
+                check = constraint.has_value()
+
+                if static_check_is_concrete(check) and check:
+                    v = constraint.get_value()
+                    fwd = self.estimate_logpdf(key, v, *primals)
+                    bwd = trace.get_score()
+                    w = fwd - bwd
+                    new_tr = DistributionTrace(self, primals, v, fwd)
+                    discard = trace.get_sample()
+                    retval_diff = Diff.tree_diff_unknown_change(v)
+                    return (new_tr, w, retval_diff, discard)
+                elif static_check_is_concrete(check):
+                    value_chm = trace.get_sample()
+                    v = value_chm.get_value()
+                    fwd = self.estimate_logpdf(key, v, *primals)
+                    bwd = trace.get_score()
+                    w = fwd - bwd
+                    new_tr = DistributionTrace(self, primals, v, fwd)
+                    retval_diff = Diff.tree_diff_no_change(v)
+                    return (new_tr, w, retval_diff, EmptyUpdateSpec())
+                else:
+                    raise Exception("Unhandled ChoiceMap in update.")
+
+            case _:
+                raise Exception("Unhandled constraint in update.")
 
     # TODO: check math.
     def update_remove_sample(
         self,
         key: PRNGKey,
         trace: DistributionTrace,
-        argdiffs: Tuple,
+        argdiffs: Argdiffs,
     ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
         gen_fn = trace.get_gen_fn()
         original = trace.get_score()
@@ -229,23 +336,23 @@ class Distribution(GenerativeFunction):
         retdiff = Diff.tree_diff_unknown_change(new_tr.get_retval())
         return new_tr, -original, retdiff, ChoiceMap.v(removed_value)
 
-    def update_mask_spec(
+    def update_masked_spec(
         self,
         key: PRNGKey,
         trace: DistributionTrace,
-        update_spec: MaskUpdateSpec,
-        argdiffs: Tuple,
+        update_spec: MaskedUpdateSpec,
+        argdiffs: Argdiffs,
     ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
         old_value = trace.get_retval()
         primals = Diff.tree_primal(argdiffs)
         match update_spec:
-            case MaskUpdateSpec(flag, spec):
+            case MaskedUpdateSpec(flag, spec):
                 possible_trace, w, retdiff, bwd_spec = self.update(
                     key, trace, spec, argdiffs
                 )
                 new_value = possible_trace.get_retval()
                 w = w * flag
-                bwd_spec = MaskUpdateSpec(flag, bwd_spec)
+                bwd_spec = MaskedUpdateSpec(flag, bwd_spec)
                 new_trace = DistributionTrace(
                     self,
                     primals,
@@ -260,11 +367,14 @@ class Distribution(GenerativeFunction):
         key: PRNGKey,
         trace: DistributionTrace,
         selection: Selection,
-        argdiffs: Tuple,
+        argdiffs: Argdiffs,
     ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
         check, _ = selection.has_addr(())
         return self.update(
-            key, trace, MaskUpdateSpec.maybe(check, RemoveSampleUpdateSpec()), argdiffs
+            key,
+            trace,
+            MaskedUpdateSpec.maybe(check, RemoveSampleUpdateSpec()),
+            argdiffs,
         )
 
     @GenerativeFunction.gfi_boundary
@@ -274,17 +384,17 @@ class Distribution(GenerativeFunction):
         key: PRNGKey,
         trace: Trace,
         update_spec: UpdateSpec,
-        argdiffs: Tuple,
+        argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
         match update_spec:
             case EmptyUpdateSpec():
-                return self.update_empty(trace)
+                return self.update_empty(trace, argdiffs)
 
             case Constraint():
                 return self.update_constraint(key, trace, update_spec, argdiffs)
 
-            case MaskUpdateSpec(flag, spec):
-                return self.update_mask_spec(key, trace, update_spec, argdiffs)
+            case MaskedUpdateSpec(flag, spec):
+                return self.update_masked_spec(key, trace, update_spec, argdiffs)
 
             case RemoveSampleUpdateSpec():
                 return self.update_remove_sample(key, trace, argdiffs)

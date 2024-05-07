@@ -43,11 +43,15 @@ from genjax._src.core.typing import (
 register_exclusion(__file__)
 
 Weight = Annotated[
-    FloatArray,
+    float | FloatArray,
     Is[lambda arr: arr.shape == ()],
 ]
 Retdiff = Annotated[
     object,
+    Is[lambda v: Diff.static_check_tree_diff(v)],
+]
+Argdiffs = Annotated[
+    Tuple,
     Is[lambda v: Diff.static_check_tree_diff(v)],
 ]
 
@@ -72,15 +76,15 @@ class ChangeTargetUpdateSpec(UpdateSpec):
 
 
 @Pytree.dataclass(match_args=True)
-class MaskUpdateSpec(UpdateSpec):
-    flag: BoolArray
+class MaskedUpdateSpec(UpdateSpec):
+    flag: Bool | BoolArray
     spec: UpdateSpec
 
     @classmethod
     def maybe(cls, f: BoolArray, spec: UpdateSpec):
         match spec:
-            case MaskUpdateSpec(flag, subspec):
-                return MaskUpdateSpec(staged_and(f, flag), subspec)
+            case MaskedUpdateSpec(flag, subspec):
+                return MaskedUpdateSpec(staged_and(f, flag), subspec)
             case _:
                 static_bool_check = static_check_is_concrete(f) and isinstance(f, Bool)
                 return (
@@ -88,7 +92,7 @@ class MaskUpdateSpec(UpdateSpec):
                     if static_bool_check and f
                     else EmptyUpdateSpec()
                     if static_bool_check
-                    else MaskUpdateSpec(f, spec)
+                    else MaskedUpdateSpec(f, spec)
                 )
 
 
@@ -129,16 +133,16 @@ class EqualityConstraint(Constraint):
     x: Any
 
 
-@Pytree.dataclass
-class MaskConstraint(Constraint):
+@Pytree.dataclass(match_args=True)
+class MaskedConstraint(Constraint):
     """
-    A `MaskConstraint` encodes a possible constraint.
+    A `MaskedConstraint` encodes a possible constraint.
 
-    Formally, `MaskConstraint(f: Bool, c: Constraint)` represents the constraint `Option((x $\\mapsto$ x, x))`,
+    Formally, `MaskedConstraint(f: Bool, c: Constraint)` represents the constraint `Option((x $\\mapsto$ x, x))`,
     where the None case is represented by `EmptyConstraint`.
     """
 
-    flag: BoolArray
+    flag: Bool | BoolArray
     constraint: Constraint
 
 
@@ -199,13 +203,13 @@ class EmptySample(Sample):
         return EmptyConstraint()
 
 
-@Pytree.dataclass
-class MaskSample(Sample):
-    flag: BoolArray
+@Pytree.dataclass(match_args=True)
+class MaskedSample(Sample):
+    flag: Bool | BoolArray
     sample: Sample
 
     def get_constraint(self) -> Constraint:
-        return MaskConstraint(self.flag, self.sample.get_constraint())
+        return MaskedConstraint(self.flag, self.sample.get_constraint())
 
 
 #########
@@ -433,7 +437,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         trace: Trace,
         update_spec: UpdateSpec,
-        argdiffs: Tuple,
+        argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
         raise NotImplementedError
 

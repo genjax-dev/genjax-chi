@@ -17,7 +17,7 @@ from genjax._src.core.generative import (
     Constraint,
     GenerativeFunction,
     Mask,
-    MaskSample,
+    MaskedSample,
     Retdiff,
     Trace,
     UpdateSpec,
@@ -51,7 +51,7 @@ class MaskTrace(Trace):
         return self.mask_combinator
 
     def get_sample(self):
-        return MaskSample(self.check, self.inner.get_sample())
+        return MaskedSample(self.check, self.inner.get_sample())
 
     def get_retval(self):
         return Mask(self.check, self.inner.get_retval())

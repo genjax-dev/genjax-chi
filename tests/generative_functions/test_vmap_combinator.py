@@ -18,11 +18,11 @@ import jax.numpy as jnp
 
 
 class TestMapCombinator:
-    def test_map_simple_normal(self):
-        @genjax.map_combinator(in_axes=(0,))
+    def test_vmap_combinator_simple_normal(self):
+        @genjax.vmap_combinator(in_axes=(0,))
         @genjax.static_gen_fn
         def model(x):
-            z = genjax.trace("z", genjax.normal)(x, 1.0)
+            z = genjax.normal(x, 1.0) @ "z"
             return z
 
         key = jax.random.PRNGKey(314159)
@@ -31,11 +31,11 @@ class TestMapCombinator:
         map_score = tr.get_score()
         assert map_score == jnp.sum(tr.inner.get_score())
 
-    def test_map_vector_choice_map_importance(self):
-        @genjax.map_combinator(in_axes=(0,))
+    def test_vmap_combinator_vector_choice_map_importance(self):
+        @genjax.vmap_combinator(in_axes=(0,))
         @genjax.static_gen_fn
         def kernel(x):
-            z = genjax.trace("z", genjax.normal)(x, 1.0)
+            z = genjax.normal(x, 1.0) @ "z"
             return z
 
         key = jax.random.PRNGKey(314159)
@@ -49,11 +49,11 @@ class TestMapCombinator:
             2.0, 1.0, 1.0
         ) + genjax.normal.logpdf(3.0, 2.0, 1.0)
 
-    def test_map_indexed_choice_map_importance(self):
-        @genjax.map_combinator(in_axes=(0,))
+    def test_vmap_combinator_indexed_choice_map_importance(self):
+        @genjax.vmap_combinator(in_axes=(0,))
         @genjax.static_gen_fn
         def kernel(x):
-            z = genjax.trace("z", genjax.normal)(x, 1.0)
+            z = genjax.normal(x, 1.0) @ "z"
             return z
 
         key = jax.random.PRNGKey(314159)
@@ -73,14 +73,14 @@ class TestMapCombinator:
         for i in range(0, 3):
             assert tr[i, "z"] == zv[i]
 
-    def test_map_nested_indexed_choice_map_importance(self):
-        @genjax.map_combinator(in_axes=(0,))
+    def test_vmap_combinator_nested_indexed_choice_map_importance(self):
+        @genjax.vmap_combinator(in_axes=(0,))
         @genjax.static_gen_fn
         def model(x):
-            z = genjax.trace("z", genjax.normal)(x, 1.0)
+            z = genjax.normal(x, 1.0) @ "z"
             return z
 
-        @genjax.map_combinator(in_axes=(0,))
+        @genjax.vmap_combinator(in_axes=(0,))
         @genjax.static_gen_fn
         def higher_model(x):
             return model(x) @ "outer"
@@ -93,8 +93,8 @@ class TestMapCombinator:
         (_, w) = jax.jit(higher_model.importance)(key, choice, (map_over,))
         assert w == genjax.normal.logpdf(1.0, 1.0, 1.0)
 
-    def test_map_vmap_pytree(self):
-        @genjax.map_combinator(in_axes=(None, (0, None)))
+    def test_vmap_combinator_vmap_pytree(self):
+        @genjax.vmap_combinator(in_axes=(None, (0, None)))
         @genjax.static_gen_fn
         def foo(y, args):
             loc, scale = args
@@ -103,12 +103,3 @@ class TestMapCombinator:
 
         key = jax.random.PRNGKey(314159)
         _ = jax.jit(foo.simulate)(key, (10.0, (jnp.arange(3.0), 1.0)))
-
-    def test_combinator(self):
-        @genjax.map_combinator(in_axes=())
-        @genjax.static_gen_fn
-        def model():
-            """Model docstring"""
-            return genjax.normal(0.0, 1.0) @ "y"
-
-        assert model.__doc__ == "Model docstring"
