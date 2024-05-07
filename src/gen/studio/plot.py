@@ -48,7 +48,7 @@ plot_options = {
 }
 
 
-def _merge_dicts_recursively(dict1, dict2):
+def _deep_merge(dict1, dict2):
     """
     Recursively merge two dictionaries.
     Values in dict2 overwrite values in dict1. If both values are dictionaries, recursively merge them.
@@ -57,42 +57,43 @@ def _merge_dicts_recursively(dict1, dict2):
         return dict2
     for k in dict2:
         if k in dict1:
-            dict1[k] = _merge_dicts_recursively(dict1[k], dict2[k])
+            dict1[k] = _deep_merge(dict1[k], dict2[k])
         else:
             dict1[k] = dict2[k]
     return dict1
 
 
-def _add_list(opts, marks, to_add):
-    # mutates opts & marks, returns nothing
-    for opt in to_add:
-        if isinstance(opt, dict):
-            _add_dict(opts, marks, opt)
-        elif isinstance(opt, PlotSpec):
-            _add_dict(opts, marks, opt.opts)
-        elif isinstance(opt, list):
-            _add_list(opts, marks, opt)
+def _add_list(spec, marks, to_add):
+    # mutates spec & marks, returns nothing
+    for new_spec in to_add:
+        if isinstance(new_spec, dict):
+            _add_dict(spec, marks, new_spec)
+        elif isinstance(new_spec, PlotSpec):
+            _add_dict(spec, marks, new_spec.spec)
+        elif isinstance(new_spec, (list, tuple)):
+            _add_list(spec, marks, new_spec)
+        else:
+            raise ValueError(f"Invalid plot specification: {new_spec}")
 
-
-def _add_dict(opts, marks, to_add):
-    # mutates opts & marks, returns nothing
+def _add_dict(spec, marks, to_add):
+    # mutates spec & marks, returns nothing
     if "pyobsplot-type" in to_add:
         marks.append(to_add)
     else:
-        opts = _merge_dicts_recursively(opts, to_add)
+        spec = _deep_merge(spec, to_add)
         new_marks = to_add.get("marks", None)
         if new_marks:
-            _add_list(opts, marks, new_marks)
+            _add_list(spec, marks, new_marks)
 
 
-def _add(opts, marks, to_add):
-    # mutates opts & marks, returns nothing
+def _add(spec, marks, to_add):
+    # mutates spec & marks, returns nothing
     if isinstance(to_add, (list, tuple)):
-        _add_list(opts, marks, to_add)
+        _add_list(spec, marks, to_add)
     elif isinstance(to_add, dict):
-        _add_dict(opts, marks, to_add)
+        _add_dict(spec, marks, to_add)
     elif isinstance(to_add, PlotSpec):
-        _add_dict(opts, marks, to_add.opts)
+        _add_dict(spec, marks, to_add.spec)
     else:
         raise TypeError(
             f"Unsupported operand type(s) for +: 'PlotSpec' and '{type(to_add).__name__}'"
@@ -101,65 +102,108 @@ def _add(opts, marks, to_add):
 
 class PlotSpec:
     """
-    A class for specifying and composing plot options for Observable.Plot
-    using pyobsplot. PlotSpecs can be composed using +; marks accumulate and
-    plot options are merged. A list of marks or dict of plot options can also be added
-    directly to a PlotSpec.
+    Represents a specification for a plot using pyobsplot.
+
+    PlotSpecs can be composed using the + operator. When combined, marks accumulate
+    and plot options are merged. Lists of marks or dicts of plot options can also be
+    added directly to a PlotSpec.
 
     IPython plot widgets are created lazily when the spec is viewed in a notebook,
-    and then cached. PlotSpecs are cheap to create and combine.
+    and then cached for efficiency.
 
-    In addition to adding PlotSpecs, you can add a list of marks or a dict of plot options.
+    Args:
+        *specs: PlotSpecs, lists of marks, or dicts of plot options to initialize with.
+        **kwargs: Additional plot options passed as keyword arguments.
     """
 
-    def __init__(self, marks=None, opts_dict=None, **opts):
-        new_marks = []
-        self.opts = opts = {"marks": []}
-
-        if marks is not None:
-            _add_list(opts, new_marks, marks)
-        if opts_dict is not None:
-            _add_dict(opts, new_marks, opts_dict)
-        if opts is not None:
-            _add_dict(opts, new_marks, opts)
-        opts["marks"] = new_marks
+    def __init__(self, *specs, **kwargs):
+        marks = []
+        self.spec = spec = {"marks": []}
+        if specs:
+            _add_list(spec, marks, specs)
+        if kwargs:
+            _add_dict(spec, marks, kwargs)
+        spec["marks"] = marks
         self._plot = None
 
     def __add__(self, to_add):
-        opts = self.opts.copy()
-        marks = opts["marks"].copy()
-        _add(opts, marks, to_add)
-        opts["marks"] = marks
-        return PlotSpec(opts_dict=opts)
+        """
+        Combine this PlotSpec with another PlotSpec, list of marks, or dict of options.
+
+        Args:
+            to_add: The PlotSpec, list of marks, or dict of options to add.
+
+        Returns:
+            A new PlotSpec with the combined marks and options.
+        """
+        spec = self.spec.copy()
+        marks = spec["marks"].copy()
+        _add(spec, marks, to_add)
+        spec["marks"] = marks
+        return PlotSpec(spec)
 
     def plot(self):
+        """
+        Generate the pyobsplot widget for this PlotSpec.
+
+        The plot widget is created lazily on first call and cached for subsequent calls.
+
+        Returns:
+            The pyobsplot widget representing this plot.
+        """
         if self._plot is None:
             self._plot = Plot.plot(
                 {
                     **plot_options["default"],
-                    **self.opts,
+                    **self.spec,
                 }
             )
         return self._plot
 
-    def reset(self, *specs):
-        # Resets plot in-place (re-uses the existing widget)
-        self.opts = PlotSpec(specs).opts
-        self.plot().spec = {
+    def reset(self, *specs, **kwargs):
+        """
+        Reset this PlotSpec's options and marks to those from the given specs.
+
+        Reuses the existing plot widget.
+
+        Args:
+            *specs: PlotSpecs, lists of marks, or dicts of plot options to reset to.
+            **kwargs: Additional options to reset.
+        """
+        self.spec = PlotSpec(*specs, **kwargs).spec
+
+        plot_spec = {
             **plot_options["default"],
-            **self.opts,
+            **self.spec,
         }
-    def update(self, *specs):
-        # Updates plot in-place (reuses existing widget)
-        self.opts = (self.__add__(specs)).opts 
-        self.plot().spec = self.opts    
+        self.plot().spec = plot_spec
+
+    def update(self, *specs, marks=None, **kwargs):
+        """
+        Update this PlotSpec's options and marks in-place.
+
+        Reuses the existing plot widget.
+
+        Args:
+            *specs: PlotSpecs, lists of marks, or dicts of plot options to update with.
+            marks (list, optional): List of marks to replace existing marks with.
+                If provided, overwrites rather than adds to existing marks.
+            **kwargs: Additional options to update.
+        """
+        if specs:
+            self.spec = (self + specs).spec
+        if marks is not None:
+            self.spec["marks"] = marks
+        self.spec.update(kwargs)
+        self.plot().spec = self.spec
 
     def _repr_mimebundle_(self, include=None, exclude=None):
         return self.plot()._repr_mimebundle_()
 
 
-def new(*specs):
-    return PlotSpec(specs)
+def new(*specs, **kwargs):
+    return PlotSpec(specs, **kwargs)
+
 
 # %%
 
@@ -379,13 +423,13 @@ def _wrap_mark_fn(fn, fn_name):
     (where applicable) options, which may be a single dict and/or keyword arguments.
     """
 
-    def innerWithValues(values, opts={}, **kwargs):
-        mark = fn(array_to_list(values), {**opts, **kwargs})
-        return PlotSpec([mark])
+    def innerWithValues(values, spec={}, **kwargs):
+        mark = fn(array_to_list(values), {**spec, **kwargs})
+        return PlotSpec(mark)
 
-    def innerWithoutValues(opts={}, **kwargs):
-        mark = fn({**opts, **kwargs})
-        return PlotSpec([mark])
+    def innerWithoutValues(spec={}, **kwargs):
+        mark = fn({**spec, **kwargs})
+        return PlotSpec(mark)
 
     if fn_name in ["hexgrid", "grid", "gridX", "gridY", "gridFx", "gridFy", "frame"]:
         inner = innerWithoutValues
@@ -410,30 +454,30 @@ globals().update(_plot_fns)
 # %%
 
 
-def accept_xs_ys(plot_fn, default_opts=None):
+def accept_xs_ys(plot_fn, default_spec=None):
     def inner(*args, **kwargs):
         if len(args) == 1:
             values = args[0]
         elif len(args) == 2:
             if isinstance(args[-1], dict):
-                values, opts = args[0], args[1]
+                values, spec = args[0], args[1]
             else:
                 xs, ys = args
         elif len(args) == 3:
-            xs, ys, opts = args
+            xs, ys, spec = args
         else:
             raise ValueError(f"Invalid number of arguments: {len(args)}")
 
         kwargs = (
-            {**(default_opts or {}), **opts, **kwargs}
-            if "opts" in locals()
-            else {**(default_opts or {}), **kwargs}
+            {**(default_spec or {}), **spec, **kwargs}
+            if "spec" in locals()
+            else {**(default_spec or {}), **kwargs}
         )
 
         if "values" in locals():
-            return new(plot_fn(array_to_list(values), kwargs))
+            return PlotSpec(plot_fn(array_to_list(values), kwargs))
         else:
-            return new(
+            return PlotSpec(
                 plot_fn(
                     {"length": len(xs)},
                     {"x": array_to_list(xs), "y": array_to_list(ys), **kwargs},
@@ -443,8 +487,8 @@ def accept_xs_ys(plot_fn, default_opts=None):
     return inner
 
 
-scatter = accept_xs_ys(Plot.dot, {"fill": "currentColor"})
 line = accept_xs_ys(Plot.line)
+dot = accept_xs_ys(Plot.dot, {"fill": "currentColor"})
 
 
 class MarkDefault(PlotSpec):
@@ -563,4 +607,3 @@ def margin(*args):
 #     "style": {"font-size": "100px"},  # css string also works
 #     "clip": True,
 # }
-

@@ -29,11 +29,11 @@ Plot.rectY(normal_100(), Plot.binX({"y": "count"})) + Plot.ruleY
 
 # %% [markdown]
 # ### Scatter and Line plots
-# Unlike other mark types which expect a single values argument, `scatter` and `line`
+# Unlike other mark types which expect a single values argument, `dot` and `line`
 # also accept separate `xs` and `ys` for passing in columnar data (usually the case
 # when working with jax.)
 
-Plot.scatter(normal_100(), normal_100()) + Plot.frame
+Plot.dot(normal_100(), normal_100()) + Plot.frame
 
 # %% [markdown]
 # ### One-dimensional heatmap
