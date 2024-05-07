@@ -1,4 +1,4 @@
-import gen.studio.plot as plot
+import gen.studio.plot as Plot
 import pyobsplot
 from gen.studio.plot import MarkDefault, Plot, PlotSpec
 
@@ -58,16 +58,16 @@ def test_mark_default():
 
 
 def test_sugar():
-    ps = PlotSpec() + plot.grid_x
+    ps = PlotSpec() + Plot.grid_x
     assert ps.opts["x"]["grid"] == True
 
-    ps = PlotSpec() + plot.grid_y
+    ps = PlotSpec() + Plot.grid_y
     assert ps.opts["y"]["grid"] == True
 
-    ps = PlotSpec() + plot.grid
+    ps = PlotSpec() + Plot.grid
     assert ps.opts["grid"] == True
 
-    ps = PlotSpec() + plot.color_legend
+    ps = PlotSpec() + Plot.color_legend
     assert ps.opts["color"]["legend"] == True
 
 def run_tests():
