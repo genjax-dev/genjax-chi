@@ -317,7 +317,39 @@ class Distribution(GenerativeFunction):
                     retval_diff = Diff.tree_diff_no_change(v)
                     return (new_tr, w, retval_diff, EmptyUpdateSpec())
                 else:
-                    raise Exception("Unhandled ChoiceMap in update.")
+                    # Whether or not the choice map has a value is dynamic...
+                    # We must handled with a cond.
+                    def _true_branch(key, new_value, old_value):
+                        fwd = self.estimate_logpdf(key, new_value, *primals)
+                        bwd = trace.get_score()
+                        w = fwd - bwd
+                        return (new_value, w, fwd)
+
+                    def _false_branch(key, new_value, old_value):
+                        fwd = self.estimate_logpdf(key, old_value, *primals)
+                        bwd = trace.get_score()
+                        w = fwd - bwd
+                        return (old_value, w, fwd)
+
+                    masked_value: Mask = v
+                    flag = masked_value.flag
+                    new_value = masked_value.value
+                    old_value = trace.get_sample().get_value()
+
+                    new_value, w, score = jax.lax.cond(
+                        flag,
+                        _true_branch,
+                        _false_branch,
+                        key,
+                        new_value,
+                        old_value,
+                    )
+                    return (
+                        DistributionTrace(self, primals, new_value, score),
+                        w,
+                        Diff.tree_diff_unknown_change(new_value),
+                        MaskedUpdateSpec(flag, old_value),
+                    )
 
             case _:
                 raise Exception("Unhandled constraint in update.")

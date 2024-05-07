@@ -43,6 +43,7 @@ from genjax._src.core.typing import (
     Callable,
     IntArray,
     List,
+    Optional,
     Tuple,
     Value,
     static_check_is_concrete,
@@ -264,7 +265,7 @@ class IncrementalInterpreter(Pytree):
             ]
             subfuns, _params = _eqn.primitive.get_bind_params(_eqn.params)
             args = subfuns + induals
-            if _stateful_handler.handles(_eqn.primitive):
+            if _stateful_handler and _stateful_handler.handles(_eqn.primitive):
                 outduals = _stateful_handler.dispatch(_eqn.primitive, *args, **_params)
             else:
                 outduals = default_propagation_rule(_eqn.primitive, *args, **_params)
@@ -298,7 +299,7 @@ def incremental(f: Callable):
     @functools.wraps(f)
     @typecheck
     def wrapped(
-        _stateful_handler: StatefulHandler,
+        _stateful_handler: Optional[StatefulHandler],
         primals: Tuple,
         tangents: Tuple,
     ):

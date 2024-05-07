@@ -148,5 +148,8 @@ class MaskCombinator(GenerativeFunction):
 #############
 
 
-def mask_combinator(f) -> MaskCombinator:
+@typecheck
+def mask_combinator(
+    f: GenerativeFunction,
+) -> MaskCombinator:
     return MaskCombinator(f)

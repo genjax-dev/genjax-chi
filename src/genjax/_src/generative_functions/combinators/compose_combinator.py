@@ -14,11 +14,12 @@
 
 
 from genjax._src.core.generative import (
-    ChangeTargetUpdateSpec,
-    ChoiceMap,
+    Argdiffs,
     Constraint,
     GenerativeFunction,
     Retdiff,
+    Sample,
+    Score,
     Trace,
     UpdateSpec,
     Weight,
@@ -29,7 +30,6 @@ from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
-    FloatArray,
     Optional,
     PRNGKey,
     String,
@@ -89,7 +89,7 @@ class ComposeCombinator(GenerativeFunction):
         key: PRNGKey,
         constraint: Constraint,
         args: Tuple,
-    ) -> Tuple[ComposeTrace, FloatArray, UpdateSpec]:
+    ) -> Tuple[ComposeTrace, Weight, UpdateSpec]:
         inner_args = self.argument_pushforward(*args)
         tr, w, bwd_spec = self.inner.importance(key, constraint, inner_args)
         inner_retval = tr.get_retval()
@@ -97,23 +97,34 @@ class ComposeCombinator(GenerativeFunction):
         return ComposeTrace(self, tr, args, retval), w, bwd_spec
 
     @typecheck
-    def update_fallback(
+    def update(
         self,
         key: PRNGKey,
         trace: ComposeTrace,
         update_spec: UpdateSpec,
-        argdiffs: Tuple,
-    ) -> Tuple[ComposeTrace, FloatArray, Any, Any]:
+        argdiffs: Argdiffs,
+    ) -> Tuple[ComposeTrace, Weight, Retdiff, UpdateSpec]:
         primals = Diff.tree_primal(argdiffs)
-        inner_argdiffs = self.argument_pushforward(*primals)
+        tangents = Diff.tree_tangent(argdiffs)
+        inner_argdiffs = incremental(self.argument_pushforward)(
+            None,
+            primals,
+            tangents,
+        )
         inner_trace = trace.inner
         tr, w, inner_retdiff, bwd_spec = self.inner.update(
             key, inner_trace, update_spec, inner_argdiffs
         )
-        inner_retval_primals = Diff.tree_primal(inner_retdiff)
-        inner_retval_tangents = Diff.tree_tangent(inner_retdiff)
-        retval_diff = incremental(self.retval_pushforward)(
-            None, inner_retval_primals, inner_retval_tangents
+        inner_retval_primals = Diff.tree_primal((inner_retdiff,))
+        inner_retval_tangents = Diff.tree_tangent((inner_retdiff,))
+
+        def closed_pushforward(args, retval):
+            return self.retval_pushforward(args, retval)
+
+        retval_diff = incremental(closed_pushforward)(
+            None,
+            (primals, inner_retval_primals),
+            (tangents, inner_retval_tangents),
         )
         retval_primal = Diff.tree_primal(retval_diff)
         return (
@@ -124,56 +135,13 @@ class ComposeCombinator(GenerativeFunction):
         )
 
     @typecheck
-    def update_change_target(
-        self,
-        key: PRNGKey,
-        trace: ComposeTrace,
-        argdiffs: Tuple,
-        subspec: UpdateSpec,
-    ) -> Tuple[ComposeTrace, FloatArray, Any, Any]:
-        diff_primals = Diff.tree_primal(argdiffs)
-        diff_tangents = Diff.tree_tangent(argdiffs)
-        inner_argdiffs = incremental(self.argument_pushforward)(
-            None, diff_primals, diff_tangents
-        )
-        tr, w, inner_retdiff, bwd_spec = self.inner.update(
-            key,
-            trace.inner,
-            ChangeTargetUpdateSpec(inner_argdiffs, subspec),
-        )
-        inner_retval_primals = Diff.tree_primal(inner_retdiff)
-        inner_retval_tangents = Diff.tree_tangent(inner_retdiff)
-        retval_diff = incremental(self.retval_pushforward)(
-            None, inner_retval_primals, inner_retval_tangents
-        )
-        retval_primal = Diff.tree_primal(retval_diff)
-        return (
-            ComposeTrace(self, tr, diff_primals, retval_primal),
-            w,
-            retval_diff,
-            bwd_spec,
-        )
-
-    @typecheck
-    def update(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        update_spec: UpdateSpec,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
-        match update_spec:
-            case ChangeTargetUpdateSpec(argdiffs, subspec):
-                return self.update_change_target(key, trace, argdiffs, subspec)
-            case _:
-                return self.update_fallback(key, trace, update_spec)
-
-    @typecheck
     def assess(
         self,
-        constraints: ChoiceMap,
-    ) -> Tuple[FloatArray, Any]:
+        sample: Sample,
+        args: Tuple,
+    ) -> Tuple[Score, Any]:
         inner_args = self.argument_pushforward(*args)
-        w, inner_retval = self.inner.assess(constraints, inner_args)
+        w, inner_retval = self.inner.assess(sample, inner_args)
         retval = self.retval_pushforward(args, inner_retval)
         return w, retval
 
@@ -188,7 +156,7 @@ def compose_combinator(
     /,
     *,
     pre: Callable = lambda *args: args,
-    post: Callable = lambda args, sample, retval: retval,
+    post: Callable = lambda args, retval: retval,
     info: Optional[String] = None,
 ) -> Callable | ComposeCombinator:
     def decorator(f) -> ComposeCombinator:

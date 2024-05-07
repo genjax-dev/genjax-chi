@@ -14,9 +14,11 @@
 
 import jax.numpy as jnp
 
-from genjax._src.core.generative import GenerativeFunctionClosure
+from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.traceback_util import register_exclusion
+from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.combinators.compose_combinator import (
+    ComposeCombinator,
     compose_combinator,
 )
 from genjax._src.generative_functions.combinators.switch_combinator import (
@@ -26,22 +28,19 @@ from genjax._src.generative_functions.combinators.switch_combinator import (
 register_exclusion(__file__)
 
 
+@typecheck
 def cond_combinator(
-    if_gen_fn: GenerativeFunctionClosure,
-    else_gen_fn: GenerativeFunctionClosure,
-) -> GenerativeFunctionClosure:
+    if_gen_fn: GenerativeFunction,
+    else_gen_fn: GenerativeFunction,
+) -> ComposeCombinator:
     def argument_pushforward(b, *args):
         idx = jnp.array(b, dtype=int)
         return (idx, *args)
 
-    inner_combinator_closure = switch_combinator(if_gen_fn, else_gen_fn)
-
-    def retval_pushforward(args, sample, retval):
-        return retval
+    inner_combinator = switch_combinator(if_gen_fn, else_gen_fn)
 
     return compose_combinator(
-        inner_combinator_closure,
-        argument_pushforward,
-        retval_pushforward,
+        inner_combinator,
+        pre=argument_pushforward,
         info="Derived combinator (Cond)",
     )
