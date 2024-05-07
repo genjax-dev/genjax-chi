@@ -23,6 +23,7 @@ from genjax._src.core.interpreters.staging import (
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    ArrayLike,
     Bool,
     BoolArray,
     Callable,
@@ -30,6 +31,7 @@ from genjax._src.core.typing import (
     IntArray,
     List,
     static_check_is_concrete,
+    static_check_shape_dtype_equivalence,
     typecheck,
 )
 
@@ -133,19 +135,31 @@ class Sum(Pytree):
     values: List[Any]
 
     @classmethod
-    def maybe(cls, idx: BoolArray, v1: Any, v2: Any):
+    @typecheck
+    def maybe(cls, idx: Int | IntArray, vs: List[None | ArrayLike]):
         return (
-            [v1, v2][idx]
+            vs[idx]
             if static_check_is_concrete(idx) and isinstance(idx, Int)
-            else Sum(idx, [v1, v2])
+            else Sum(idx, list(vs))
         )
 
     @classmethod
-    def maybe_none_or_mask(cls, idx: BoolArray, v1: Any, v2: Any):
-        if v1 is None and v2 is None:
+    @typecheck
+    def maybe_none(cls, idx: Int | IntArray, vs: List[None | ArrayLike]):
+        possibles = []
+        for _idx, v in enumerate(vs):
+            if v is not None:
+                possibles.append(Mask.maybe(idx == _idx, v))
+        if not possibles:
             return None
-        elif v1 is None:
-            return Mask.maybe_none(idx == 1, v2)
-        elif v2 is None:
-            return Mask.maybe_none(idx == 0, v1)
-        return Sum.maybe(idx, v1, v2)
+        if len(possibles) == 1:
+            return possibles[0]
+        else:
+            return Sum.maybe(idx, vs)
+
+    def maybe_collapse(self):
+        val_arrs = [jnp.array(v, copy=False) for v in self.values if v is not None]
+        if static_check_shape_dtype_equivalence(val_arrs):
+            return jax.lax.select(self.idx, *self.values)
+        else:
+            return self

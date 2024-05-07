@@ -128,41 +128,36 @@ def stage(f):
     return wrapped
 
 
-def trees(f):
-    """Returns a function that determines input and output pytrees from inputs, and also
-    returns the flattened input arguments."""
+def get_data_shape(callable):
+    """
+    Returns a function that stages a function and returns the abstract
+    Pytree shapes of its return value.
+    """
 
-    def wrapped(*args, **kwargs):
-        return stage(f)(*args, **kwargs)[1]
+    def wrapped(*args):
+        _, data_shape = make_jaxpr(callable, return_shape=True)(*args)
+        return data_shape
 
     return wrapped
 
 
-def get_trace_data_shape(gen_fn, *args):
-    def _apply(key, *args):
-        tr = gen_fn.simulate(key, args)
-        return tr
-
-    # Value doesn't matter, where just using types for staging.
+def get_trace_shape(gen_fn, args):
     key = jax.random.PRNGKey(0)
-
-    (_, trace_shape) = make_jaxpr(_apply, return_shape=True)(key, *args)
-    return trace_shape
+    return get_data_shape(gen_fn.simulate)(key, args)
 
 
-def get_discard_data_shape(gen_fn, key, tr, constraints, argdiffs):
-    def _apply(key, tr, constraints, argdiffs):
-        _, _, _, discard = gen_fn.update(key, tr, constraints, argdiffs)
-        return discard
+def get_importance_shape(gen_fn, constraint, args):
+    key = jax.random.PRNGKey(0)
+    return get_data_shape(gen_fn.importance)(key, constraint, args)
 
-    (_, discard_shape) = make_jaxpr(_apply, return_shape=True)(
-        key, tr, constraints, argdiffs
-    )
-    return discard_shape
+
+def get_update_shape(gen_fn, tr, spec, argdiffs):
+    key = jax.random.PRNGKey(0)
+    return get_data_shape(gen_fn.update)(key, tr, spec, argdiffs)
 
 
 def make_zero_trace(gen_fn, *args):
-    out_tree = get_trace_data_shape(gen_fn, *args)
+    out_tree = get_trace_shape(gen_fn, *args)
     return jtu.tree_map(
         lambda v: jnp.zeros(v.shape, v.dtype),
         out_tree,

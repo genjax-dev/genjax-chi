@@ -175,6 +175,9 @@ class Pytree(pz.Struct):
     def partial(*args):
         return lambda fn: Closure(args, fn)
 
+    def treedef(self):
+        return jtu.tree_structure(self)
+
     #################
     # Static checks #
     #################

@@ -57,7 +57,7 @@ GenJAX exposes a set of core abstract classes which build on JAX's `Pytree` inte
         - field
         - __getitem__
 
-### Dynamism and masking
+### Dynamism, masking, and sum types
 
 The semantics of Gen are defined independently of any particular computational substrate or implementation - but JAX (and XLA through JAX) is a unique substrate, offering high performance, the ability to transformation code ahead-of-time via program transformations, and ... _a rather unique set of restrictions_.
 
@@ -86,5 +86,11 @@ GenJAX contains a system for tagging data with flags, to indicate if the data is
         members:
           - unmask
           - match
+
+Another mechanism to encode runtime uncertainty (again, inspired by functional programming) is the `Sum` type. This type encodes the possibility that the value inhabiting this type may actually be one of several options, and we can't statically determine which one it is. This type pairs an `idx: IntArray` with a list of values.
+
+::: genjax.core.Sum
+    options:
+        show_root_heading: true
 
 ## Static typing with `genjax.typing` a.k.a 🐻`beartype`🐻

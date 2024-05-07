@@ -18,7 +18,7 @@ import jax.numpy as jnp
 from genjax import ChoiceMap as C
 
 
-class TestMapCombinator:
+class TestVmapCombinator:
     def test_vmap_combinator_simple_normal(self):
         @genjax.vmap_combinator(in_axes=(0,))
         @genjax.static_gen_fn
@@ -72,9 +72,8 @@ class TestMapCombinator:
         chm = jax.vmap(lambda idx, v: C.n.at[idx, "z"].set(v))(jnp.arange(3), zv)
         (tr, _, _) = kernel.importance(sub_key, chm, (map_over,))
         for i in range(0, 3):
-            mask = tr.get_sample()[i, "z"]
-            assert mask.flag
-            assert mask.value == zv[i]
+            v = tr.get_sample()[i, "z"]
+            assert v == zv[i]
 
     def test_vmap_combinator_nested_indexed_choice_map_importance(self):
         @genjax.vmap_combinator(in_axes=(0,))

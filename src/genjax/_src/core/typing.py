@@ -101,6 +101,13 @@ def static_check_supports_grad(v):
     return static_check_is_array(v) and v.dtype == np.float32
 
 
+@typecheck
+def static_check_shape_dtype_equivalence(vs: List[ArrayLike]) -> Bool:
+    shape_dtypes = [(v.shape, v.dtype) for v in vs]
+    num_unique = set(shape_dtypes)
+    return len(num_unique) == 1
+
+
 __all__ = [
     "PRNGKey",
     "FloatArray",
@@ -126,6 +133,7 @@ __all__ = [
     "static_check_is_concrete",
     "static_check_is_array",
     "static_check_supports_grad",
+    "static_check_shape_dtype_equivalence",
     "typecheck",
     "dispatch",
     "parametric",

@@ -14,7 +14,8 @@
 
 import jax._src.traceback_util as traceback_util
 
-register_exclusion = traceback_util.register_exclusion
+# register_exclusion = traceback_util.register_exclusion
+register_exclusion = lambda v: v
 
 
 def gfi_boundary(c):

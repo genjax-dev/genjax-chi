@@ -486,6 +486,15 @@ class ChoiceMap(Sample, Constraint):
         else:
             v = submap()
             if v:
+                # Aggressively unwrap functional types.
+                # This _can_ throw an error, but the user
+                # is asking for it.
+                # TODO: providing error handling here
+                # to make what is happening transparent.
+                if isinstance(v, Mask):
+                    v = v.unmask()
+                if isinstance(v, Sum):
+                    v = jax.lax.select(v.idx, *v.values)
                 return v
             else:
                 raise ChoiceMapNoValueAtAddress(addr)
@@ -691,7 +700,7 @@ def choice_map_xor(c1: ChoiceMap, c2: ChoiceMap):
                     return (1 * bool1 + 2 * bool2 - 3 * (bool1 & bool2)) - 1
 
                 idx = pair_bool_to_idx(check1, check2)
-                v = Sum.maybe_none_or_mask(idx, v1, v2)
+                v = Sum.maybe_none(idx, [v1, v2])
                 return v, check, choice_map_empty
             case _:
                 remaining_1 = c1.get_submap(head)
@@ -718,7 +727,7 @@ def choice_map_or(c1: ChoiceMap, c2: ChoiceMap):
                     return output
 
                 idx = pair_bool_to_idx(check1, check2)
-                v = Sum.maybe_none_or_mask(idx, v1, v2)
+                v = Sum.maybe_none(idx, [v1, v2])
                 return v, check, choice_map_empty
             case _:
                 remaining_1 = c1.get_submap(head)

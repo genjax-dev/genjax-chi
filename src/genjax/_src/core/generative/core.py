@@ -20,7 +20,7 @@ import jax.tree_util as jtu
 from penzai.core import formatting_util
 
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import get_trace_data_shape, staged_and
+from genjax._src.core.interpreters.staging import get_trace_shape, staged_and
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import gfi_boundary, register_exclusion
 from genjax._src.core.typing import (
@@ -105,6 +105,12 @@ class MaskedUpdateSpec(UpdateSpec):
 
 
 @Pytree.dataclass
+class SumUpdateSpec(UpdateSpec):
+    idx: Int | IntArray
+    specs: List[UpdateSpec]
+
+
+@Pytree.dataclass
 class RemoveSampleUpdateSpec(UpdateSpec):
     pass
 
@@ -155,11 +161,11 @@ class MaskedConstraint(Constraint):
 
 
 @Pytree.dataclass
-class SwitchConstraint(Constraint):
+class SumConstraint(Constraint):
     """
-    A `SwitchConstraint` encodes that one of a set of possible constraints is active _at runtime_, using a provided index.
+    A `SumConstraint` encodes that one of a set of possible constraints is active _at runtime_, using a provided index.
 
-    Formally, `SwitchConstraint(idx: IntArray, cs: List[Constraint])` represents the constraint (`x` $\\mapsto$ `xs[idx]`, `ys[idx]`).
+    Formally, `SumConstraint(idx: IntArray, cs: List[Constraint])` represents the constraint (`x` $\\mapsto$ `xs[idx]`, `ys[idx]`).
     """
 
     idx: IntArray
@@ -347,11 +353,11 @@ class GenerativeFunction(Pytree):
     def handle_kwargs(self) -> "GenerativeFunction":
         return IgnoreKwargs(self)
 
-    def get_trace_data_shape(self, *args) -> Any:
-        return get_trace_data_shape(self, *args)
+    def get_trace_shape(self, *args) -> Any:
+        return get_trace_shape(self, args)
 
     def get_empty_trace(self, *args) -> Trace:
-        data_shape = self.get_trace_data_shape(*args)
+        data_shape = self.get_trace_shape(*args)
         return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), data_shape)
 
     @classmethod
@@ -600,12 +606,12 @@ class GenerativeFunctionClosure(Pytree):
     def get_gen_fn_with_kwargs(self):
         return self.gen_fn.handle_kwargs()
 
-    def get_trace_data_shape(self) -> Any:
+    def get_trace_shape(self) -> Any:
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-            return maybe_kwarged_gen_fn.get_trace_data_shape(self.args, self.kwargs)
+            return maybe_kwarged_gen_fn.get_trace_shape(self.args, self.kwargs)
         else:
-            return self.gen_fn.get_trace_data_shape(*self.args)
+            return self.gen_fn.get_trace_shape(*self.args)
 
     def get_empty_trace(self) -> Trace:
         if self.kwargs:

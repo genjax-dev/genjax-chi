@@ -14,13 +14,14 @@
 
 import genjax
 import jax
+from genjax import ChoiceMap as C
 from genjax import Mask
 from genjax.incremental import Diff, NoChange, UnknownChange
 from jax import numpy as jnp
 
 
-class TestSwitch:
-    def test_switch_simulate_in_gen_fn(self):
+class TestSwitchCombinator:
+    def test_switch_combinator_simulate_in_gen_fn(self):
         @genjax.static_gen_fn
         def f():
             x = genjax.normal(0.0, 1.0) @ "x"
@@ -29,7 +30,7 @@ class TestSwitch:
         @genjax.static_gen_fn
         def model():
             b = genjax.bernoulli(0.5) @ "b"
-            s = genjax.switch_combinator(f, f)(jnp.int32(b)) @ "s"
+            s = genjax.switch_combinator(f, f)(jnp.int32(b), (), ()) @ "s"
             return s
 
         key = jax.random.PRNGKey(314159)
@@ -37,57 +38,41 @@ class TestSwitch:
         _tr = model.simulate(sub_key, ())
         assert True
 
-    def test_switch_simulate(self):
+    def test_switch_combinator_simulate(self):
         @genjax.static_gen_fn
         def simple_normal():
-            _y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-            _y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            _y1 = genjax.normal(0.0, 1.0) @ "y1"
+            _y2 = genjax.normal(0.0, 1.0) @ "y2"
 
         @genjax.static_gen_fn
         def simple_bernoulli():
-            _y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
+            _y3 = genjax.bernoulli(0.3) @ "y3"
 
         switch = genjax.switch_combinator(simple_normal, simple_bernoulli)
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
         key, sub_key = jax.random.split(key)
-        tr = jitted(sub_key, (0,))
-        v1 = tr.get_choices().get_submap("y1")
-        v2 = tr.get_choices().get_submap("y2")
+        tr = jitted(sub_key, (0, (), ()))
+        v1 = tr.get_sample()["y1"]
+        v2 = tr.get_sample()["y2"]
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (_, v1_score) = genjax.normal.importance(sub_key, v1, (0.0, 1.0))
+        v1_score, _ = genjax.normal.assess(C.v(v1), (0.0, 1.0))
         key, sub_key = jax.random.split(key)
-        (_, v2_score) = genjax.normal.importance(sub_key, v2, (0.0, 1.0))
+        v2_score, _ = genjax.normal.assess(C.v(v2), (0.0, 1.0))
         assert score == v1_score + v2_score
-        assert tr.get_args() == (0,)
+        assert tr.get_args() == (0, (), ())
         key, sub_key = jax.random.split(key)
         tr = jitted(sub_key, (1,))
-        flip = tr.get_choices().get_submap("y3")
+        flip = tr.get_sample().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (_, flip_score) = genjax.bernoulli.importance(sub_key, flip, (0.3,))
         assert score == flip_score
         assert tr.get_args() == (1,)
 
-    def test_switch_simulate_in_gen_fn(self):
-        @genjax.static_gen_fn
-        def f():
-            x = genjax.normal(0.0, 1.0) @ "x"
-            return x
-
-        @genjax.static_gen_fn
-        def model():
-            b = genjax.bernoulli(0.5) @ "b"
-            s = genjax.switch_combinator(f, f)(jnp.int32(b)) @ "s"
-            return s
-
-        key = jax.random.PRNGKey(314159)
-        _tr = model.simulate(key, ())
-        assert True
-
-    def test_switch_choice_map_behavior(self):
+    def test_switch_combinator_choice_map_behavior(self):
         @genjax.static_gen_fn
         def simple_normal():
             _y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
@@ -102,11 +87,11 @@ class TestSwitch:
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
         tr = jitted(key, (0,))
-        assert isinstance(tr.get_choices().get_submap("y1"), Mask)
-        assert isinstance(tr.get_choices().get_submap("y2"), Mask)
-        assert isinstance(tr.get_choices().get_submap("y3"), Mask)
+        assert isinstance(tr.get_sample().get_submap("y1"), Mask)
+        assert isinstance(tr.get_sample().get_submap("y2"), Mask)
+        assert isinstance(tr.get_sample().get_submap("y3"), Mask)
 
-    def test_switch_importance(self):
+    def test_switch_combinator_importance(self):
         @genjax.static_gen_fn
         def simple_normal():
             _y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
@@ -119,30 +104,22 @@ class TestSwitch:
         switch = genjax.switch_combinator(simple_normal, simple_bernoulli)
 
         key = jax.random.PRNGKey(314159)
-        choice = genjax.EmptyChoice()
+        chm = C.n
         jitted = jax.jit(switch.importance)
         key, sub_key = jax.random.split(key)
-        (tr, w) = jitted(sub_key, choice, (0,))
-        v1 = tr.get_choices().get_submap("y1")
-        v2 = tr.get_choices().get_submap("y2")
+        (tr, w, _) = jitted(sub_key, chm, (0, (), ()))
+        v1 = tr.get_sample().get_submap("y1")
+        v2 = tr.get_sample().get_submap("y2")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (_, v1_score) = genjax.normal.importance(
-            sub_key,
-            v1,
-            (0.0, 1.0),
-        )
+        v1_score, _ = genjax.normal.assess(C.v(v1), (0.0, 1.0))
         key, sub_key = jax.random.split(key)
-        (_, v2_score) = genjax.normal.importance(
-            sub_key,
-            v2,
-            (0.0, 1.0),
-        )
+        v2_score, _ = genjax.normal.assess(C.v(v2), (0.0, 1.0))
         assert score == v1_score + v2_score
         assert w == 0.0
         key, sub_key = jax.random.split(key)
-        (tr, w) = jitted(sub_key, choice, (1,))
-        flip = tr.get_choices().get_submap("y3")
+        (tr, w, _) = jitted(sub_key, chm, (1, (), ()))
+        flip = tr.get_sample().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (_, flip_score) = genjax.bernoulli.importance(
@@ -152,10 +129,10 @@ class TestSwitch:
         )
         assert score == flip_score
         assert w == 0.0
-        choice = genjax.choice_map({"y3": 1})
+        chm = genjax.C.n.at["y3"].set(1)
         key, sub_key = jax.random.split(key)
-        (tr, w) = jitted(sub_key, choice, (1,))
-        flip = tr.get_choices().get_submap("y3")
+        (tr, w) = jitted(sub_key, chm, (1,))
+        flip = tr.get_sample().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (_, flip_score) = genjax.bernoulli.importance(
@@ -166,7 +143,7 @@ class TestSwitch:
         assert score == flip_score
         assert w == score
 
-    def test_switch_update_single_branch_no_change(self):
+    def test_switch_combinator_update_single_branch_no_change(self):
         @genjax.static_gen_fn
         def simple_normal():
             _y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
@@ -187,7 +164,7 @@ class TestSwitch:
         assert v1 == tr["y1"]
         assert v2 == tr["y2"]
 
-    def test_switch_update_with_masking(self):
+    def test_switch_combinator_update_with_masking(self):
         @genjax.static_gen_fn
         def branch_1(v):
             return genjax.normal(v, 1.0) @ "v"
@@ -216,7 +193,7 @@ class TestSwitch:
         assert isinstance(d, genjax.EmptyChoice)
         assert w == 0.0
 
-    def test_switch_update_updates_score(self):
+    def test_switch_combinator_update_updates_score(self):
         regular_stddev = 1.0
         outlier_stddev = 10.0
         sample_value = 2.0
@@ -255,7 +232,7 @@ class TestSwitch:
             sample_value, 0.0, outlier_stddev
         )
 
-    def test_switch_vectorized_access(self):
+    def test_switch_combinator_vectorized_access(self):
         @genjax.static_gen_fn
         def f1():
             return genjax.normal(0.0, 1.0) @ "y"
@@ -268,11 +245,11 @@ class TestSwitch:
 
         keys = jax.random.split(jax.random.PRNGKey(17), 3)
         # Just select 0 in all branches for simplicity:
-        tr = jax.vmap(s.simulate, in_axes=(0, None))(keys, (0,))
-        y = tr["y"]
+        tr = jax.vmap(s.simulate, in_axes=(0, None))(keys, (0, (), ()))
+        y = tr.get_sample()["y"]
         assert y.shape == (3,)
 
-    def test_switch_with_empty_gen_fn(self):
+    def test_switch_combinator_with_empty_gen_fn(self):
         @genjax.static_gen_fn
         def f():
             x = genjax.normal(0.0, 1.0) @ "x"
@@ -285,7 +262,7 @@ class TestSwitch:
         @genjax.static_gen_fn
         def model():
             b = genjax.bernoulli(0.5) @ "b"
-            s = genjax.switch_combinator(f, empty)(jnp.int32(b)) @ "s"
+            s = genjax.switch_combinator(f, empty)(jnp.int32(b), (), ()) @ "s"
             return s
 
         key = jax.random.PRNGKey(314159)
