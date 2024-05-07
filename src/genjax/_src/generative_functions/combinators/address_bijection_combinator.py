@@ -80,6 +80,7 @@ class AddressBijectionCombinator(GenerativeFunction):
     ##################################
 
     @GenerativeFunction.gfi_boundary
+    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -89,6 +90,7 @@ class AddressBijectionCombinator(GenerativeFunction):
         return AddressBijectionTrace(self, tr)
 
     @GenerativeFunction.gfi_boundary
+    @typecheck
     def importance(
         self,
         key: PRNGKey,
@@ -120,9 +122,10 @@ class AddressBijectionCombinator(GenerativeFunction):
         )
         assert isinstance(inner_bwd_spec, ChoiceMap)
         bwd_spec = inner_bwd_spec.addr_fn(self.address_bijection)
-        return tr, w, retdiff, bwd_spec
+        return AddressBijectionTrace(self, tr), w, retdiff, bwd_spec
 
     @GenerativeFunction.gfi_boundary
+    @typecheck
     def update(
         self,
         key: PRNGKey,
@@ -138,6 +141,7 @@ class AddressBijectionCombinator(GenerativeFunction):
                 raise ValueError(f"Unrecognized update spec: {update_spec}")
 
     @GenerativeFunction.gfi_boundary
+    @typecheck
     def assess(
         self,
         sample: Sample,
@@ -146,8 +150,7 @@ class AddressBijectionCombinator(GenerativeFunction):
         match sample:
             case ChoiceMap():
                 inner_sample = sample.addr_fn(self.get_inverse())
-                score, retval = self.gen_fn.assess(inner_sample, args)
-                return score, retval
+                return self.gen_fn.assess(inner_sample, args)
             case _:
                 raise ValueError(f"Not handled sample: {sample}")
 

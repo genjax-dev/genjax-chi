@@ -80,7 +80,7 @@ class ComposeCombinator(GenerativeFunction):
         inner_args = self.argument_pushforward(*args)
         tr = self.inner.simulate(key, inner_args)
         inner_retval = tr.get_retval()
-        retval = self.retval_pushforward(inner_args, tr.get_sample(), inner_retval)
+        retval = self.retval_pushforward(inner_args, inner_retval)
         return ComposeTrace(self, tr, args, retval)
 
     @typecheck
@@ -93,7 +93,7 @@ class ComposeCombinator(GenerativeFunction):
         inner_args = self.argument_pushforward(*args)
         tr, w, bwd_spec = self.inner.importance(key, constraint, inner_args)
         inner_retval = tr.get_retval()
-        retval = self.retval_pushforward(inner_args, tr.get_sample(), inner_retval)
+        retval = self.retval_pushforward(inner_args, inner_retval)
         return ComposeTrace(self, tr, args, retval), w, bwd_spec
 
     @typecheck
