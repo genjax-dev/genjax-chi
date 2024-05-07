@@ -6,13 +6,12 @@ from ipywidgets import GridBox, Layout
 from pyobsplot import Plot, js
 import numpy as np
 import jax.numpy as jnp
-import re
 from gen.studio.util import benchmark
 
 
-# This module provides a convenient, composable way to create interactive plots using Observable Plot
-# using pyobsplot, https://github.com/juba/pyobsplot and AnyWidget https://github.com/manzt/anywidget)
-# See https://observablehq.com/plot/
+# This module provides a composable way to create interactive plots using Observable Plot
+# via pyobsplot (https://github.com/juba/pyobsplot) and AnyWidget (https://github.com/manzt/anywidget).
+# See https://observablehq.com/plot/ for more on Observable Plot.
 #
 # Key features:
 # - Create plot specifications declaratively by combining marks, options and transformations
@@ -37,6 +36,7 @@ def get_address(tr, address):
 
 
 def array_to_list(x):
+    """Convert a NumPy or JAX array to a Python list."""
     if isinstance(x, (jnp.ndarray, np.ndarray)):
         return x.tolist()
     return x
@@ -171,12 +171,7 @@ class PlotSpec:
             **kwargs: Additional options to reset.
         """
         self.spec = PlotSpec(*specs, **kwargs).spec
-
-        plot_spec = {
-            **plot_options["default"],
-            **self.spec,
-        }
-        self.plot().spec = plot_spec
+        self.plot().spec = {**plot_options["default"], **self.spec}
 
     def update(self, *specs, marks=None, **kwargs):
         """
@@ -202,6 +197,7 @@ class PlotSpec:
 
 
 def new(*specs, **kwargs):
+    """Create a new PlotSpec from the given specs and options."""
     return PlotSpec(specs, **kwargs)
 
 
@@ -210,7 +206,7 @@ def new(*specs, **kwargs):
 
 def constantly(x):
     """
-    Returns a javascript function which always returns `x`
+    Returns a javascript function which always returns `x`.
 
     Typically used to specify a constant property for all values passed to a mark,
     eg. plot.dot(values, fill=plot.constantly('My Label')). In this example, the
@@ -227,10 +223,10 @@ def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
     # implements all the children in the same js context,
     # each widget has high overhead.
     """
-    Create a grid of small multiple plots from the given list of mark sets.
+    Create a grid of small multiple plots from the given list of plot specifications.
 
     Args:
-        marksets (list): A list of plot mark sets to render as small multiples.
+        plotspecs (list): A list of PlotSpecs to render as small multiples.
         plot_opts (dict, optional): Options to apply to each individual plot.
             Defaults to the 'small' preset if not provided.
         layout_opts (dict, optional): Options to pass to the Layout of the GridBox.
@@ -249,43 +245,7 @@ def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
         layout=Layout(**layout_opts),
     )
 
-
-def fetch_exports():
-    """
-    Used in dev to fetch exported names and types from Observable Plot
-    """
-    import requests
-
-    response = requests.get(
-        "https://raw.githubusercontent.com/observablehq/plot/v0.6.14/src/index.js"
-    )
-
-    # Find all exported names
-    export_lines = [
-        line for line in response.text.split("\n") if line.startswith("export {")
-    ]
-
-    # Extract the names and types
-    exports = {}
-    for line in export_lines:
-        names = line.split("{")[1].split("}")[0].split(", ")
-        for name in names:
-            if name[0].islower() and name not in ("plot", "marks"):
-                match = re.search(r'from "\./(\w+)(?:/|\.js)?', line)
-                if match:
-                    type = match.group(1).rstrip("s")
-                    name = name.split(" as ")[
-                        -1
-                    ]  # Handle cases like 'basic as transform'
-                    if type not in exports:
-                        exports[type] = []
-                    exports[type].append(name)
-
-    return exports
-
-
-# fetch_mark_names()
-
+# fetched (dev time) using gen.studio.util.fetch_exports
 _PLOT_EXPORTS = {
     "mark": [
         "area",
@@ -455,6 +415,17 @@ globals().update(_plot_fns)
 
 
 def accept_xs_ys(plot_fn, default_spec=None):
+    """
+    Wraps a plot function to accept xs and ys arrays in addition to a values array.
+    
+    The wrapped function supports the following argument patterns:
+    - values
+    - values, spec
+    - xs, ys  
+    - xs, ys, spec
+    
+    Where spec is a dictionary of plot options.
+    """
     def inner(*args, **kwargs):
         if len(args) == 1:
             values = args[0]
