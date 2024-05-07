@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from genjax import static_gen_fn
-import genjax.studio.plot as plot
+import gen.studio.plot as plot
 
 key = jax.random.PRNGKey(314159)
 
@@ -57,7 +57,7 @@ def model(xs):
 
 
 # %%
-import genjax.studio.plot as plot
+import gen.studio.plot as plot
 
 data = jnp.arange(0, 10, 0.5)
 key, sub_key = jax.random.split(key)

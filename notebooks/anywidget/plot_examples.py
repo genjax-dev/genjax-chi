@@ -1,5 +1,5 @@
 # %%
-import genjax.studio.plot as plot
+import gen.studio.plot as plot
 import numpy as np
 
 

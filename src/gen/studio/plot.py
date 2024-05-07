@@ -3,10 +3,11 @@ import json
 
 import pyobsplot
 from ipywidgets import GridBox, Layout
-from pyobsplot import Plot
+from pyobsplot import Plot, js
 import numpy as np
 import jax.numpy as jnp
 import re
+from gen.studio.util import benchmark
 
 
 # This module provides a convenient, composable way to create interactive plots using Observable Plot
@@ -61,6 +62,41 @@ def _merge_dicts_recursively(dict1, dict2):
             dict1[k] = dict2[k]
     return dict1
 
+def _add_list(opts, marks, to_add):
+    # mutates opts & marks, returns nothing
+    for opt in to_add:
+        if isinstance(opt, dict):
+            _add_dict(opts, marks, opt)
+        elif isinstance(opt, PlotSpec):
+            _add_dict(opts, marks, opt.opts)
+        elif isinstance(opt, list):
+            _add_list(opts, marks, opt)
+
+
+def _add_dict(opts, marks, to_add):
+    # mutates opts & marks, returns nothing
+    if "pyobsplot-type" in to_add:
+        marks.append(to_add)
+    else:
+        opts = _merge_dicts_recursively(opts, to_add)
+        new_marks = to_add.get("marks", None)
+        if new_marks:
+            _add_list(opts, marks, new_marks)
+
+
+def _add(opts, marks, to_add):
+    # mutates opts & marks, returns nothing
+    if isinstance(to_add, list):
+        _add_list(opts, marks, to_add)
+    elif isinstance(to_add, dict):
+        _add_dict(opts, marks, to_add)
+    elif isinstance(to_add, PlotSpec):
+        _add_dict(opts, marks, to_add.opts)
+    else:
+        raise TypeError(
+            f"Unsupported operand type(s) for +: 'PlotSpec' and '{type(to_add).__name__}'"
+        )
+
 
 class PlotSpec:
     """
@@ -76,48 +112,24 @@ class PlotSpec:
     """
 
     def __init__(self, marks=None, opts_dict=None, **opts):
-        self.opts = {"marks": []}
+        new_marks = []
+        self.opts = opts = {"marks": []}
+
         if marks is not None:
-            self._handle_list(self.opts, self.opts["marks"], marks)
+            _add_list(opts, new_marks, marks)
         if opts_dict is not None:
-            self._handle_dict(self.opts, self.opts["marks"], opts_dict)
+            _add_dict(opts, new_marks, opts_dict)
         if opts is not None:
-            self._handle_dict(self.opts, self.opts["marks"], opts)
+            _add_dict(opts, new_marks, opts)
+        opts["marks"] = new_marks
         self._plot = None
 
-    def _handle_list(self, new_opts, new_marks, opts_list):
-        for opt in opts_list:
-            if isinstance(opt, dict):
-                self._handle_dict(new_opts, new_marks, opt)
-            elif isinstance(opt, PlotSpec):
-                self._handle_dict(new_opts, new_marks, opt.opts)
-            elif isinstance(opt, list):
-                self._handle_list(new_opts, new_marks, opt)
-
-    def _handle_dict(self, opts, marks, opts_dict):
-        if "pyobsplot-type" in opts_dict:
-            marks.append(opts_dict)
-        else:
-            opts = _merge_dicts_recursively(opts, opts_dict)
-            new_marks = opts_dict.get("marks", None)
-            if new_marks:
-                self._handle_list(opts, marks, new_marks)
-
-    def __add__(self, opts):
-        new_opts = self.opts.copy()
-        new_marks = new_opts["marks"].copy()
-        if isinstance(opts, list):
-            self._handle_list(new_opts, new_marks, opts)
-        elif isinstance(opts, dict):
-            self._handle_dict(new_opts, new_marks, opts)
-        elif isinstance(opts, PlotSpec):
-            self._handle_dict(new_opts, new_marks, opts.opts)
-        else:
-            raise TypeError(
-                f"Unsupported operand type(s) for +: 'PlotSpec' and '{type(opts).__name__}'"
-            )
-        new_opts["marks"] = new_marks
-        return PlotSpec(opts_dict=new_opts)
+    def __add__(self, to_add):
+        opts = self.opts.copy()
+        marks = opts["marks"].copy()
+        _add(opts, marks, to_add)
+        opts["marks"] = marks
+        return PlotSpec(opts_dict=opts)
 
     def plot(self):
         if self._plot is None:
@@ -133,6 +145,10 @@ class PlotSpec:
         return self.plot()._repr_mimebundle_()
 
 
+def new(*specs):
+    return PlotSpec(specs)
+
+
 # %%
 
 
@@ -146,27 +162,6 @@ def constantly(x):
     """
     x = json.dumps(x)
     return pyobsplot.js(f"()=>{x}")
-
-
-def scatter(xs, ys, opts={}, **kwargs):
-    """
-    Wraps Plot.dot to accept lists of xs and ys as values, and plot filled dots by default.
-    """
-
-    return PlotSpec(
-        [
-            Plot.dot(
-                {"length": len(xs)},
-                {
-                    "x": array_to_list(xs),
-                    "y": array_to_list(ys),
-                    "fill": "currentColor",
-                    **opts,
-                    **kwargs,
-                },
-            ),
-        ]
-    )
 
 
 # %%
@@ -403,6 +398,43 @@ globals().update(_plot_fns)
 # %%
 
 
+def accept_xs_ys(plot_fn, default_opts=None):
+    def inner(*args, **kwargs):
+        if len(args) == 1:
+            values = args[0]
+        elif len(args) == 2:
+            if isinstance(args[-1], dict):
+                values, opts = args[0], args[1]
+            else:
+                xs, ys = args
+        elif len(args) == 3:
+            xs, ys, opts = args
+        else:
+            raise ValueError(f"Invalid number of arguments: {len(args)}")
+
+        kwargs = (
+            {**(default_opts or {}), **opts, **kwargs}
+            if "opts" in locals()
+            else {**(default_opts or {}), **kwargs}
+        )
+
+        if "values" in locals():
+            return new(plot_fn(array_to_list(values), kwargs))
+        else:
+            return new(
+                plot_fn(
+                    {"length": len(xs)},
+                    {"x": array_to_list(xs), "y": array_to_list(ys), **kwargs},
+                )
+            )
+
+    return inner
+
+
+scatter = accept_xs_ys(Plot.dot, {"fill": "currentColor"})
+line = accept_xs_ys(Plot.line)
+
+
 class MarkDefault(PlotSpec):
     """
     A class that wraps a mark function and serves as a default value.
@@ -437,24 +469,26 @@ ruleX = MarkDefault("ruleX", [0])
 # The following convenience dicts can be added directly to PlotSpecs to declare additional behaviour.
 
 grid_y = {"y": {"grid": True}}
-"""Enable grid lines for the y-axis."""
-
 grid_x = {"x": {"grid": True}}
-"""Enable grid lines for the x-axis."""
-
 grid = {"grid": True}
-"""Enable grid lines for both axes."""
-
 color_legend = {"color": {"legend": True}}
-"""Show a color legend."""
+clip = {"clip": True}
 
+def aspect_ratio(r):
+    return {"aspectRatio": r}
 
 def color_scheme(name):
-    """
-    See https://observablehq.com/plot/features/scales#color-scales
-    """
+    # See https://observablehq.com/plot/features/scales#color-scales
     return {"color": {"scheme": name}}
 
+def domainX(d):
+    return {"x": {"domain": d}}
+
+def domainY(d):
+    return {"y": {"domain": d}}
+
+def domain(xd, yd=None):
+    return {"x": {"domain": xd}, "y": {"domain": yd or xd}}
 
 # Example usage
 # line([[1, 2], [2, 4]]) + grid_x + frame + ruleY + ruleX([1.2])
@@ -511,3 +545,6 @@ def margin(*args):
 #     "style": {"font-size": "100px"},  # css string also works
 #     "clip": True,
 # }
+
+
+# %%

@@ -1,6 +1,6 @@
-import genjax.studio.plot as plot
+import gen.studio.plot as plot
 import pyobsplot
-from genjax.studio.plot import MarkDefault, Plot, PlotSpec
+from gen.studio.plot import MarkDefault, Plot, PlotSpec
 
 
 def test_plotspec_init():
@@ -69,7 +69,6 @@ def test_sugar():
 
     ps = PlotSpec() + plot.color_legend
     assert ps.opts["color"]["legend"] == True
-
 
 def run_tests():
     test_plotspec_init()
