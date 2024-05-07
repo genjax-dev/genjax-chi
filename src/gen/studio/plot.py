@@ -62,6 +62,7 @@ def _merge_dicts_recursively(dict1, dict2):
             dict1[k] = dict2[k]
     return dict1
 
+
 def _add_list(opts, marks, to_add):
     # mutates opts & marks, returns nothing
     for opt in to_add:
@@ -86,7 +87,7 @@ def _add_dict(opts, marks, to_add):
 
 def _add(opts, marks, to_add):
     # mutates opts & marks, returns nothing
-    if isinstance(to_add, list):
+    if isinstance(to_add, (list, tuple)):
         _add_list(opts, marks, to_add)
     elif isinstance(to_add, dict):
         _add_dict(opts, marks, to_add)
@@ -141,13 +142,24 @@ class PlotSpec:
             )
         return self._plot
 
+    def reset(self, *specs):
+        # Resets plot in-place (re-uses the existing widget)
+        self.opts = PlotSpec(specs).opts
+        self.plot().spec = {
+            **plot_options["default"],
+            **self.opts,
+        }
+    def update(self, *specs):
+        # Updates plot in-place (reuses existing widget)
+        self.opts = (self.__add__(specs)).opts 
+        self.plot().spec = self.opts    
+
     def _repr_mimebundle_(self, include=None, exclude=None):
         return self.plot()._repr_mimebundle_()
 
 
 def new(*specs):
     return PlotSpec(specs)
-
 
 # %%
 
@@ -474,21 +486,27 @@ grid = {"grid": True}
 color_legend = {"color": {"legend": True}}
 clip = {"clip": True}
 
+
 def aspect_ratio(r):
     return {"aspectRatio": r}
+
 
 def color_scheme(name):
     # See https://observablehq.com/plot/features/scales#color-scales
     return {"color": {"scheme": name}}
 
+
 def domainX(d):
     return {"x": {"domain": d}}
+
 
 def domainY(d):
     return {"y": {"domain": d}}
 
+
 def domain(xd, yd=None):
     return {"x": {"domain": xd}, "y": {"domain": yd or xd}}
+
 
 # Example usage
 # line([[1, 2], [2, 4]]) + grid_x + frame + ruleY + ruleX([1.2])
@@ -546,5 +564,3 @@ def margin(*args):
 #     "clip": True,
 # }
 
-
-# %%
