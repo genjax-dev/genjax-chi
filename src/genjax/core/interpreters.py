@@ -14,13 +14,21 @@
 
 from genjax._src.core.interpreters.forward import StatefulHandler, forward
 from genjax._src.core.interpreters.incremental import incremental
-from genjax._src.core.interpreters.staging import concrete, get_shaped_aval, stage
+from genjax._src.core.interpreters.staging import (
+    get_shaped_aval,
+    stage,
+    staged_and,
+    staged_not,
+    staged_or,
+)
 
 __all__ = [
     "forward",
     "StatefulHandler",
     "incremental",
     "stage",
-    "concrete",
+    "staged_and",
+    "staged_or",
+    "staged_not",
     "get_shaped_aval",
 ]

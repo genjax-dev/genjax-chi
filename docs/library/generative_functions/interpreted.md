@@ -97,4 +97,3 @@ The `trace` primitive is a critical element of structuring hierarchical generati
 ::: genjax._src.generative_functions.interpreted.interpreted_gen_fn
     options:
       show_root_heading: true
-

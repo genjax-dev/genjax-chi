@@ -27,12 +27,13 @@ from genjax._src.core.datatypes.generative import (
     ChoiceMap,
     EmptyChoice,
     GenerativeFunction,
-    HierarchicalSelection,
     JAXGenerativeFunction,
     Mask,
+    Selection,
     Trace,
 )
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.staging import make_zero_trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -43,10 +44,8 @@ from genjax._src.core.typing import (
     dispatch,
     typecheck,
 )
-from genjax._src.generative_functions.combinators.staging_utils import make_zero_trace
 from genjax._src.generative_functions.combinators.vector.vector_datatypes import (
     IndexedChoiceMap,
-    IndexedSelection,
     VectorChoiceMap,
 )
 from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
@@ -83,32 +82,24 @@ class UnfoldTrace(Trace):
     def get_score(self):
         return self.score
 
-    @dispatch
     def project(
         self,
-        selection: IndexedSelection,
+        key: PRNGKey,
+        selection: Selection,
     ) -> FloatArray:
-        inner_project = self.inner.project(selection.inner)
-        return jnp.sum(
-            jnp.where(
-                selection.indices < self.dynamic_length + 1,
-                jnp.take(inner_project, selection.indices, mode="fill", fill_value=0.0),
-                0.0,
-            )
+        length_checks = (
+            jnp.arange(0, len(self.inner.get_score())) < self.dynamic_length + 1
         )
 
-    @dispatch
-    def project(
-        self,
-        selection: HierarchicalSelection,
-    ) -> FloatArray:
-        return jnp.sum(
-            jnp.where(
-                jnp.arange(0, len(self.inner.get_score())) < self.dynamic_length + 1,
-                self.inner.project(selection),
-                0.0,
-            )
-        )
+        def idx_check(idx, length_check, inner_slice):
+            remaining = selection.step(idx)
+            sub_key = jax.random.fold_in(key, idx)
+            inner_weight = inner_slice.project(sub_key, remaining)
+            return length_check * inner_weight
+
+        idxs = jnp.arange(0, len(self.inner.get_score()))
+        ws = jax.vmap(idx_check)(idxs, length_checks, self.inner)
+        return jnp.sum(ws, axis=0)
 
 
 #####
@@ -467,50 +458,84 @@ class UnfoldCombinator(JAXGenerativeFunction, SupportsCalleeSugar):
         key: PRNGKey,
         prev: UnfoldTrace,
         choice: EmptyChoice,
-        length: Diff,
+        new_length: Diff,
         state: Any,
         *static_args: Any,
     ):
-        length, state, static_args = Diff.tree_primal((length, state, static_args))
+        new_length, state, static_args = Diff.tree_primal(
+            (new_length, state, static_args)
+        )
+        og_state = state
+        prev_length = prev.get_args()[0]
 
+        # To scan over time
         def _inner(carry, slice):
             count, key, state = carry
             (prev,) = slice
             key, sub_key = jax.random.split(key)
 
-            (tr, w, retval_diff, discard) = self.kernel.update(
-                sub_key,
-                prev,
-                choice,
-                Diff.tree_diff_no_change((state, *static_args)),
-            )
+            ## branch for if count <= new_length
+            def handle_timestep_present_in_new_trace(*args):
+                # new timestep to generate
+                def _importance_branch(*args):
+                    (newtr, w) = self.kernel.importance(
+                        sub_key, EmptyChoice(), (state, *static_args)
+                    )
+                    return (newtr, w, newtr.get_retval())
 
-            check = jnp.less(count, length + 1)
-            count, state, score, weight = jax.lax.cond(
-                check,
-                lambda *args: (count + 1, retval_diff, tr.get_score(), w),
-                lambda *args: (count, state, 0.0, 0.0),
+                # existing timestep to update (with no change)
+                def _update_branch(*args):
+                    return (prev, 0.0, prev.get_retval())
+
+                (tr, w, retval) = jax.lax.cond(
+                    count <= prev_length, _update_branch, _importance_branch
+                )
+                return (tr, count + 1, retval, tr.get_score(), w)
+
+            ## branch for if count > new_length
+            def handle_timestep_not_present_in_new_trace(*args):
+                # score contribution: 0
+                # weight contribution: 0 if this timestep
+                #     never existed, -prev.get_score() if we're removing it
+                w = jax.lax.select(count <= prev_length, -prev.get_score(), 0.0)
+                tr = make_zero_trace(
+                    self.kernel,
+                    key,
+                    (state, *static_args),
+                )
+                return (tr, count, state, 0.0, w)
+
+            ## Final return
+            tr, count, state, score, weight = jax.lax.cond(
+                jnp.less(count, new_length + 1),
+                handle_timestep_present_in_new_trace,
+                handle_timestep_not_present_in_new_trace,
             )
-            return (count, key, state), (state, score, weight, tr, discard)
+            return (count, key, state), (state, score, weight, tr)
 
         prev_inner_trace = prev.inner
-        (_, _, state), (retval_diff, score, w, tr, discard) = jax.lax.scan(
+        (_, _, state), (retval, score, w, newtr) = jax.lax.scan(
             _inner,
             (0, key, state),
             (prev_inner_trace,),
             length=self.max_length,
         )
+        retval_diff = Diff.tree_diff_unknown_change(retval)
 
         unfold_tr = UnfoldTrace(
             self,
-            tr,
-            length,
-            (length, state, *static_args),
-            Diff.tree_primal(retval_diff),
+            newtr,
+            new_length,
+            (new_length, og_state, *static_args),
+            retval,
             jnp.sum(score),
         )
 
         w = jnp.sum(w)
+
+        # TODO: this is wrong when we shrink the length!
+        discard = EmptyChoice()
+
         return (unfold_tr, w, retval_diff, discard)
 
     # TODO: this does not handle when the new length

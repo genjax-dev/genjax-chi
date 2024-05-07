@@ -16,7 +16,6 @@
 The Pytree interface determines how data classes behave across JAX-transformed function boundaries - it provides a user with the freedom to declare subfields of a class as "static" (meaning, the value of the field cannot be a JAX traced value, it must be a Python literal, or a constant array - and the value is embedded in the `PyTreeDef` of any instance) or "dynamic" (meaning, the value may be a JAX traced value).
 """
 
-
 import equinox as eqx
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -129,8 +128,8 @@ class Pytree(eqx.Module):
         )
 
     @staticmethod
-    def dynamic_closure(fn, *args):
-        return DynamicClosure(args, fn)
+    def partial(*args):
+        return lambda fn: PytreeDynamicClosure(args, fn)
 
     #################
     # Static checks #
@@ -252,9 +251,12 @@ class Pytree(eqx.Module):
 ##############################
 
 
-# Wrapper for static values.
+# Wrapper for static values (can include callables).
 class PytreeConst(Pytree):
     const: Any = Pytree.static()
+
+    def __call__(self, *args):
+        return self.const(*args)
 
     def __rich_tree__(self):
         return rich_tree.Tree(f"[bold](PytreeConst) {self.const}")
@@ -262,7 +264,7 @@ class PytreeConst(Pytree):
 
 # Construct for a type of closure which closes over dynamic values.
 # NOTE: experimental.
-class DynamicClosure(Pytree):
+class PytreeDynamicClosure(Pytree):
     dyn_args: Tuple
     fn: Callable = Pytree.static()
 

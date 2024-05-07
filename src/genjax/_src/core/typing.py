@@ -17,7 +17,8 @@ codebase.
 Type annotations in the codebase are exported out of this module for consistency.
 """
 
-from typing import Annotated  # noqa: F401
+from typing import Annotated  # noqa: F401, I001
+from types import EllipsisType
 
 import beartype.typing as btyping
 import jax
@@ -58,7 +59,18 @@ Float = float
 Bool = bool
 String = str
 
-Address = Union[String, Int, Tuple["Address"]]
+StaticAddressComponent = String
+DynamicAddressComponent = ArrayLike
+AddressComponent = Union[
+    Tuple[()],
+    EllipsisType,
+    StaticAddressComponent,
+    DynamicAddressComponent,
+]
+Address = Union[
+    AddressComponent,
+    Tuple[AddressComponent, ...],
+]
 Value = Any
 
 ############
@@ -72,7 +84,11 @@ TypeVar = btyping.TypeVar
 # Static typechecking from annotations #
 ########################################
 
-conf = BeartypeConf(is_color=False)
+conf = BeartypeConf(
+    is_color=False,
+    is_debug=False,
+    is_pep484_tower=True,
+)
 typecheck = beartype(conf=conf)
 
 
@@ -127,6 +143,9 @@ __all__ = [
     "static_check_is_concrete",
     "static_check_is_array",
     "static_check_supports_grad",
+    "StaticAddressComponent",
+    "DynamicAddressComponent",
+    "Address",
     "typecheck",
     "dispatch",
     "parametric",

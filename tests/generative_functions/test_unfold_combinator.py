@@ -31,7 +31,8 @@ class TestUnfoldSimpleNormal:
         key, sub_key = jax.random.split(key)
         tr = jax.jit(kernel.simulate)(sub_key, (5, 0.1))
         unfold_score = tr.get_score()
-        assert jnp.sum(tr.project(genjax.select("z"))) == unfold_score
+        sel = genjax.Selection.at[..., "z"]
+        assert tr.project(key, sel) == unfold_score
 
     def test_unfold_index_importance(self):
         @genjax.unfold_combinator(max_length=10)
@@ -54,8 +55,8 @@ class TestUnfoldSimpleNormal:
         for t in range(0, 10):
             key, sub_key = jax.random.split(key)
             (tr, _) = chain.importance(sub_key, choice, (t, 0.3))
-            sel = genjax.select("z")
-            assert tr.get_score() == tr.project(sel)
+            sel = genjax.Selection.a >> genjax.Selection.at["z"]
+            assert tr.get_score() == tr.project(key, sel)
 
         @genjax.static_gen_fn
         def f(x):
@@ -108,16 +109,20 @@ class TestUnfoldSimpleNormal:
         for t in range(0, 10):
             key, sub_key = jax.random.split(key)
             (tr, _) = two_layer_chain.importance(sub_key, choice, (t, 0.3))
-            sel = genjax.select("z1", "z2")
-            assert tr.get_score() == pytest.approx(tr.project(sel), 1e-4)
+            sel = genjax.Selection.a >> (
+                genjax.Selection.at["z1"] | genjax.Selection.at["z2"]
+            )
+            assert tr.get_score() == pytest.approx(tr.project(key, sel), 1e-4)
 
         # No constraints
         choice = genjax.EmptyChoice()
         for t in range(0, 10):
             key, sub_key = jax.random.split(key)
             (tr, _) = two_layer_chain.importance(sub_key, choice, (t, 0.3))
-            sel = genjax.select("z1", "z2")
-            assert tr.get_score() == pytest.approx(tr.project(sel), 1e-4)
+            sel = genjax.Selection.a >> (
+                genjax.Selection.at["z1"] | genjax.Selection.at["z2"]
+            )
+            assert tr.get_score() == pytest.approx(tr.project(key, sel), 1e-4)
 
     def test_unfold_index_update(self):
         @genjax.unfold_combinator(max_length=10)
@@ -139,13 +144,66 @@ class TestUnfoldSimpleNormal:
             choice,
             (Diff.tree_diff(6, UnknownChange), Diff.tree_diff(0.1, NoChange)),
         )
-        newly_introduced_choice = genjax.indexed_select(
-            jnp.array([6]), genjax.select("z")
-        )
-        newly_introduced_score = new_tr.project(newly_introduced_choice)
+        newly_introduced_choice = genjax.Selection.at[6, "z"]
+        newly_introduced_score = new_tr.project(key, newly_introduced_choice)
         assert new_tr.get_score() == pytest.approx(
             w + tr.get_score() + newly_introduced_score, 0.001
         )
+
+        # Test update with EmptyChoice
+        key, sub_key = jax.random.split(key)
+        tr2, w, retval_diff, discard = kernel.update(
+            sub_key,
+            tr,
+            genjax.EmptyChoice(),
+            (Diff.tree_diff(6, UnknownChange), Diff.tree_diff(0.1, NoChange)),
+        )
+        assert (
+            tr.get_retval()[5] == tr.get_retval()[6]
+        )  # before, was all repeats at the end
+        assert (
+            tr2.get_retval()[5] != tr2.get_retval()[6]
+        )  # now, we have a new value at 6
+        assert tr2.get_retval()[6] == tr2.get_retval()[7]  # and then repeats after that
+        assert tr2.get_score() < tr.get_score() + 0.001  # should have more randomness
+        # should have w = p(new)/[p(old)q(new stuff)] = p(6)/q(6) = 1
+        assert pytest.approx(w, 0.001) == 0.0
+        assert tr2.get_score() == pytest.approx(
+            tr.get_score() + tr2.project(key, genjax.Selection.at[6, "z"]),
+            0.001,
+        )
+        assert discard.is_empty()
+        assert retval_diff == Diff.tree_diff_unknown_change(tr2.get_retval())
+
+        key, sub_key = jax.random.split(key)
+        tr3, w, retval_diff, discard = kernel.update(
+            sub_key,
+            tr2,
+            genjax.EmptyChoice(),
+            (Diff.tree_diff(4, UnknownChange), Diff.tree_diff(0.1, NoChange)),
+        )
+        assert tr3.get_retval()[4] == tr3.get_retval()[5]
+        assert tr3.get_retval()[3] != tr3.get_retval()[4]
+        assert tr3.get_retval()[6] == tr3.get_retval()[4]
+
+        # These 2 tests currently fail -- we need to fix this
+        # assert not discard.get_submap(5).is_empty()
+        # assert not discard.get_submap(6).is_empty()
+
+        assert retval_diff == Diff.tree_diff_unknown_change(tr3.get_retval())
+        assert tr2.get_score() - tr3.get_score() == pytest.approx(
+            tr2.project(
+                key,
+                genjax.Selection.at[5, "z"],
+            )
+            + tr2.project(
+                key,
+                genjax.Selection.at[6, "z"],
+            ),
+            0.001,
+        )
+        # should have w = p(new)/p(old) = 1/p(5, 6)
+        assert pytest.approx(w, 0.001) == tr3.get_score() - tr2.get_score()
 
     def test_off_by_one_issue_415(self):
         @genjax.unfold_combinator(max_length=5)
@@ -218,7 +276,7 @@ class TestUnfoldSimpleNormal:
         (tr, _) = model.importance(sub_key, obs_choice(_y, 0), (0, model_args))
 
         for t in range(1, 10):
-            y_sel = genjax.indexed_select(jnp.array([t]), genjax.select("y"))
+            y_sel = genjax.Selection.at[t, "y"]
             diffs = (
                 Diff.tree_diff(t, UnknownChange),
                 Diff.tree_diff_no_change(model_args),
@@ -226,14 +284,14 @@ class TestUnfoldSimpleNormal:
 
             # Score underneath the selection should be 0.0
             # before the extension.
-            assert tr.project(y_sel) == 0.0
+            assert tr.project(key, y_sel) == 0.0
 
             key, sub_key = jax.random.split(key)
             (tr, w, _, _) = model.update(sub_key, tr, obs_choice(_y, t), diffs)
 
             # The weight should be equal to the new score
             # plus any newly sampled choices.
-            assert w == pytest.approx(tr.project(y_sel), 0.0001)
+            assert w == pytest.approx(tr.project(key, y_sel), 0.0001)
 
     ####################################################
     #          Remember: the update weight math        #
@@ -262,21 +320,21 @@ class TestUnfoldSimpleNormal:
         # Ensure that update is computed correctly.
         new_tr = tr
         for t in range(0, 5):
-            z_sel = genjax.indexed_select(jnp.array([t]), genjax.select("z"))
-            x_sel = genjax.indexed_select(jnp.array([t]), genjax.select("x"))
+            z_sel = genjax.Selection.at[t, "z"]
+            x_sel = genjax.Selection.at[t, "x"]
             obs = genjax.indexed_choice_map(
                 jnp.array([t]),
                 genjax.choice_map({"x": jnp.array([1.0])}),
             )
             diffs = (Diff.tree_diff(5, NoChange), Diff.tree_diff(0.0, NoChange))
-            old_score = new_tr.project(x_sel)
+            old_score = new_tr.project(key, x_sel)
             old_x = new_tr.filter(x_sel)[t, "x"]
             old_z = new_tr.filter(z_sel)[t, "z"]
             key, sub_key = jax.random.split(key)
             (new_tr, w, _, _) = chain.update(sub_key, new_tr, obs, diffs)
             new_z = new_tr.filter(z_sel)[t, "z"]
             assert old_z == new_z
-            assert new_tr.project(x_sel) == pytest.approx(
+            assert new_tr.project(key, x_sel) == pytest.approx(
                 genjax.normal.logpdf(1.0, new_z, 1.0), 0.0001
             )
             assert w == pytest.approx(
@@ -288,7 +346,7 @@ class TestUnfoldSimpleNormal:
         # Check that all prior updates are preserved
         # over subsequent calls.
         for t in range(0, 5):
-            x_sel = genjax.indexed_select(jnp.array([t]), genjax.select("x"))
+            x_sel = genjax.Selection.at[t, "x"]
             assert new_tr.filter(x_sel)[t, "x"] == 1.0
 
         # Now, update `z`.
@@ -299,9 +357,9 @@ class TestUnfoldSimpleNormal:
         diffs = (Diff.tree_diff(5, NoChange), Diff.tree_diff(0.0, NoChange))
 
         # This should be the Markov blanket of the update.
-        vzsel = genjax.indexed_select(jnp.array([0, 1]), genjax.select("z"))
-        xsel = genjax.indexed_select(jnp.array([0]), genjax.select("x"))
-        old_score = new_tr.project(vzsel) + new_tr.project(xsel)
+        vzsel = jax.vmap(lambda v: genjax.Selection.at[v, "z"])(jnp.array([0, 1]))
+        xsel = genjax.Selection.at[0, "x"]
+        old_score = new_tr.project(key, vzsel) + new_tr.project(key, xsel)
 
         # Update just `z`
         key, sub_key = jax.random.split(key)
@@ -309,25 +367,25 @@ class TestUnfoldSimpleNormal:
 
         # Check that all prior updates are preserved.
         for t in range(0, 5):
-            x_sel = genjax.indexed_select(jnp.array([t]), genjax.select("x"))
+            x_sel = genjax.Selection.at[t, "x"]
             assert new_tr.filter(x_sel)[t, "x"] == 1.0
 
         # Check that update succeeded.
-        zsel = genjax.indexed_select(jnp.array([0]), genjax.select("z"))
+        zsel = genjax.Selection.at[0, "z"]
         assert new_tr.filter(zsel)[0, "z"] == 1.0
-        assert new_tr.project(zsel) == pytest.approx(
+        assert new_tr.project(key, zsel) == pytest.approx(
             genjax.normal.logpdf(1.0, 0.0, 1.0), 0.0001
         )
 
         # Check new score at (0, "x")
-        xsel = genjax.indexed_select(jnp.array([0]), genjax.select("x"))
+        xsel = genjax.Selection.at[0, "x"]
         assert new_tr.filter(xsel)[0, "x"] == 1.0
-        assert new_tr.project(xsel) == pytest.approx(
+        assert new_tr.project(key, xsel) == pytest.approx(
             genjax.normal.logpdf(1.0, 1.0, 1.0), 0.0001
         )  # the mean (z) should be 1.0
 
         # Check the scores and weights.
-        new_score = new_tr.project(vzsel) + new_tr.project(xsel)
+        new_score = new_tr.project(key, vzsel) + new_tr.project(key, xsel)
         assert w == pytest.approx(new_score - old_score, 0.0001)
 
     def test_update_check_score_correctness(self):
@@ -392,9 +450,11 @@ class TestUnfoldSimpleNormal:
         assert tr.get_score() == pytest.approx(full_score, 0.0001)
 
         # Check that the projected score is equal to the returned score.
-        sel = genjax.select("x", "z")
-        assert tr.project(sel) == pytest.approx(tr.get_score(), 0.0001)
-        assert tr.project(sel) == pytest.approx(full_score, 0.0001)
+        sel = genjax.Selection.a >> (
+            genjax.Selection.at["x"] | genjax.Selection.at["z"]
+        )
+        assert tr.project(key, sel) == pytest.approx(tr.get_score(), 0.0001)
+        assert tr.project(key, sel) == pytest.approx(full_score, 0.0001)
 
         # Re-run the above process (importance followed by update).
         # Check that, if we only generate length < max_length,
@@ -414,24 +474,34 @@ class TestUnfoldSimpleNormal:
             key, sub_key = jax.random.split(key)
             (tr, w, _, _) = chain.update(sub_key, tr, choice, diffs)
 
-        sel = genjax.select("x", "z")
-        assert tr.project(sel) == tr.get_score()
-        sel = genjax.indexed_select(jnp.array([0, 1, 2]), genjax.select("x", "z"))
-        assert tr.project(sel) == tr.get_score()
-        sel = genjax.indexed_select(jnp.array([0, 1, 2, 3, 4]), genjax.select("x", "z"))
-        assert tr.project(sel) == tr.get_score()
+        sel = genjax.Selection.a >> (
+            genjax.Selection.at["x"] | genjax.Selection.at["z"]
+        )
+        assert tr.project(key, sel) == tr.get_score()
+        sel = jax.vmap(
+            lambda v: genjax.Selection.at[v]
+            >> (genjax.Selection.at["x"] | genjax.Selection.at["z"])
+        )(jnp.array([0, 1, 2]))
+        assert tr.project(key, sel) == tr.get_score()
+        sel = jax.vmap(
+            lambda v: genjax.Selection.at[v]
+            >> (genjax.Selection.at["x"] | genjax.Selection.at["z"])
+        )(jnp.array([0, 1, 2, 3, 4]))
+        assert tr.project(key, sel) == tr.get_score()
 
         # Re-run the above process (importance followed by update)
         # but without constraints on `z`.
         # Check that, if we only generate length < max_length,
         # the projected score is equal to the returned score.
-        sel = genjax.select("x", "z")
+        sel = genjax.Selection.a >> (
+            genjax.Selection.at["x"] | genjax.Selection.at["z"]
+        )
         choice = genjax.indexed_choice_map(
             jnp.array([0]), genjax.choice_map({"x": jnp.array([0.0])})
         )
         key, sub_key = jax.random.split(key)
         (tr, _) = chain.importance(sub_key, choice, (0, 0.0))
-        assert tr.project(sel) == tr.get_score()
+        assert tr.project(key, sel) == tr.get_score()
         for t in range(1, 3):
             choice = genjax.indexed_choice_map(
                 jnp.array([t]), genjax.choice_map({"x": jnp.array([0.0])})
@@ -440,11 +510,18 @@ class TestUnfoldSimpleNormal:
             key, sub_key = jax.random.split(key)
             (tr, w, _, _) = chain.update(sub_key, tr, choice, diffs)
 
-        assert tr.project(sel) == tr.get_score()
-        sel = genjax.indexed_select(jnp.array([0, 1, 2]), genjax.select("x", "z"))
-        assert tr.project(sel) == tr.get_score()
-        sel = genjax.indexed_select(jnp.array([0, 1, 2, 3, 4]), genjax.select("x", "z"))
-        assert tr.project(sel) == tr.get_score()
+        assert tr.project(key, sel) == tr.get_score()
+        sel = jax.vmap(
+            lambda v: genjax.Selection.at[v]
+            >> (genjax.Selection.at["x"] | genjax.Selection.at["z"])
+        )(jnp.array([0, 1, 2]))
+        assert tr.project(key, sel) == tr.get_score()
+        sel = jax.vmap(
+            lambda v: genjax.Selection.at[v]
+            >> (genjax.Selection.at["x"] | genjax.Selection.at["z"])
+        )(jnp.array([0, 1, 2, 3, 4]))
+
+        assert tr.project(key, sel) == tr.get_score()
 
     def test_combinator(self):
         @genjax.unfold_combinator(max_length=10)
