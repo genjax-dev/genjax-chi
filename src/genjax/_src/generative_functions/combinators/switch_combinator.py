@@ -234,7 +234,7 @@ class SwitchCombinator(GenerativeFunction):
             tuple(branch_args)
         )
         (trace_leaves, retval_leaves), score = jax.lax.switch(
-            idx, branch_functions, key, branch_args
+            idx, branch_functions, key, tuple(branch_args)
         )
         subtraces = list(
             map(
