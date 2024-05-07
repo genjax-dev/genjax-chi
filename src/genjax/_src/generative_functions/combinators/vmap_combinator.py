@@ -21,11 +21,14 @@ import jax
 import jax.numpy as jnp
 
 from genjax._src.core.generative import (
+    Argdiffs,
+    Sample,
     ChoiceMap,
     Constraint,
     GenerativeFunction,
     GenerativeFunctionClosure,
     Retdiff,
+    Score,
     Selection,
     Trace,
     UpdateSpec,
@@ -36,7 +39,6 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
-    ArrayLike,
     Callable,
     FloatArray,
     Optional,
@@ -206,11 +208,12 @@ class VmapCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: Constraint,
+        args: Tuple,
     ) -> Tuple[Trace, Weight, UpdateSpec]:
         match constraint:
             case ChoiceMap():
                 choice_map: ChoiceMap = constraint
-                return self.importance_choice_map(key, choice_map)
+                return self.importance_choice_map(key, choice_map, args)
 
             case _:
                 raise NotImplementedError
@@ -220,6 +223,7 @@ class VmapCombinator(GenerativeFunction):
         key: PRNGKey,
         prev: VmapTrace,
         choice: ChoiceMap,
+        argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, ChoiceMap]:
         pass
 
@@ -228,6 +232,7 @@ class VmapCombinator(GenerativeFunction):
         key: PRNGKey,
         trace: VmapTrace,
         selection: Selection,
+        argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, ChoiceMap]:
         self._static_check_broadcastable()
         broadcast_dim_length = self._static_broadcast_dim_length()
@@ -256,13 +261,14 @@ class VmapCombinator(GenerativeFunction):
         key: PRNGKey,
         trace: Trace,
         update_spec: UpdateSpec,
+        argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
         match update_spec:
             case ChoiceMap():
-                return self.update_choice_map(key, trace, update_spec)
+                return self.update_choice_map(key, trace, update_spec, argdiffs)
 
             case RemoveSelectionUpdateSpec(selection):
-                return self.update_remove_selection(key, trace, selection)
+                return self.update_remove_selection(key, trace, selection, argdiffs)
 
             case _:
                 raise Exception(f"Not implemented spec: {update_spec}")
@@ -270,9 +276,9 @@ class VmapCombinator(GenerativeFunction):
     @typecheck
     def assess(
         self,
-        choice: ChoiceMap,
+        sample: Sample,
         args: Tuple,
-    ) -> Tuple[ArrayLike, Any]:
+    ) -> Tuple[Score, Any]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         choice_dim = Pytree.static_check_tree_leaves_have_matching_leading_dim(choice)

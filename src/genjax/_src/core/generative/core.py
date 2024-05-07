@@ -42,7 +42,15 @@ from genjax._src.core.typing import (
 
 register_exclusion(__file__)
 
+#####################################
+# Special generative function types #
+#####################################
+
 Weight = Annotated[
+    float | FloatArray,
+    Is[lambda arr: arr.shape == ()],
+]
+Score = Annotated[
     float | FloatArray,
     Is[lambda arr: arr.shape == ()],
 ]
@@ -245,7 +253,7 @@ class Trace(Pytree):
         """
 
     @abstractmethod
-    def get_score(self) -> FloatArray:
+    def get_score(self) -> Score:
         """Return the score of the `Trace`.
 
         Examples:
@@ -272,7 +280,9 @@ class Trace(Pytree):
         spec: UpdateSpec,
     ) -> Tuple["Trace", Weight, Retdiff, UpdateSpec]:
         gen_fn = self.get_gen_fn()
-        return gen_fn.update(key, self, spec)
+        old_args = self.get_args()
+        argdiffs = Diff.tree_diff_no_change(old_args)
+        return gen_fn.update(key, self, spec, argdiffs)
 
     def project(
         self,
@@ -446,7 +456,7 @@ class GenerativeFunction(Pytree):
         self,
         sample: Sample,
         args: Tuple,
-    ) -> Tuple[Weight, Any]:
+    ) -> Tuple[Score, Any]:
         raise NotImplementedError
 
     # TODO: check the math.
