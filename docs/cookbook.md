@@ -5,7 +5,7 @@
 
 This is a recipe book for _common patterns_. It also acts as a Rosetta stone of sorts for translating between programming constructs (like `if`, `for`, etc.) into the world of GenJAX (and JAX, more broadly).
 
-## Your first model
+## Authoring generative functions
 
 ```python exec="yes" html="true" source="material-block" session="cookbook"
 import genjax
@@ -16,7 +16,7 @@ def your_first_model():
   f = genjax.flip(p) @ "f"
   return f
 
-print(your_first_model().render_html())
+print(your_first_model.render_html())
 ```
 
 Here's the first creature -- a `GenerativeFunction`! The powers of these creatures are numerous, and each power has a special name. The first name we will learn is [`simulate`][genjax.core.GenerativeFunction.simulate].

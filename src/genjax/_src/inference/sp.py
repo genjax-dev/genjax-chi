@@ -45,11 +45,28 @@ from genjax._src.generative_functions.distributions.distribution import Distribu
 @Pytree.dataclass
 class Target(Pytree):
     """
-    Instances of `Target` represent unnormalized target distributions. A `Target` is created by pairing a generative function and its arguments with a `Sample` object.
-    The target represents the unnormalized distribution on the unconstrained choices in the generative function, fixing the constraints.
+    A `Target` represents an unnormalized target distribution induced by conditioning a generative function on a [`Constraint`](core.md#genjax.core.Constraint).
+
+    Targets are created by providing a generative function, arguments to the generative function, and a constraint.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="core"
+        import genjax
+        from genjax import ChoiceMap as C
+        from genjax.inference import Target
+
+        @genjax.static_gen_fn
+        def model():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = genjax.normal(x, 1.0) @ "y"
+            return x
+
+        target = Target(model, (), C.n.at["y"].set(3.0))
+        print(target.render_html())
+        ```
     """
 
-    p: GenerativeFunctionClosure
+    p: GenerativeFunction
     args: Tuple
     constraint: Constraint
 
@@ -89,18 +106,24 @@ class SampleDistribution(Distribution):
 
 
 class InferenceAlgorithm(SampleDistribution):
-    """The abstract class `InferenceAlgorithm` represents the type of inference
-    algorithms, programs which implement interfaces for sampling from approximate
-    posterior representations, and estimating the density of the approximate posterior.
+    """The abstract class `InferenceAlgorithm` is the type of inference
+    algorithms: programs which provide interfaces for sampling from
+    posterior approximations, and estimating the density of these samplers.
 
-    An InferenceAlgorithm is a genjax `Distribution`.
-    It accepts a `Target` as input, representing the unnormalized
-    distribution $R$, and samples from an approximation to
-    the normalized distribution $R / R(X)$,
-    where $X$ is the space of all choicemaps.
-    The `InferenceAlgorithm` object is semantically equivalent as a genjax `Distribution`
-    to the normalized distribution $R / R(X)$, in the sense
-    defined by the stochastic probability interface.  (See `Distribution`.)
+    Inference algorithms expose two key interfaces:
+    [`InferenceAlgorithm.random_weighted`](inference.md#genjax.inference.InferenceAlgorithm.random_weighted)
+    and [`InferenceAlgorithm.estimate_logpdf`](inference.md#genjax.inference.InferenceAlgorithm.estimate_logpdf).
+
+    `InferenceAlgorithm.random_weighted` exposes sampling from the approximation
+    which the algorithm represents: it accepts a `Target` as input, representing the
+    unnormalized distribution $\\pi$, and samples from an approximation to
+    the normalized distribution $\\pi / Z$.
+
+    `InferenceAlgorithm.estimate_logpdf` exposes density _estimation_ for the
+    approximation which `InferenceAlgorithm.random_weighted` samples from:
+    it accepts a value sampled from this approximation, and the `Target` which
+    induced the approximation as input, and returns an estimate of the density of
+    the approximation.
 
     Subclasses of type `InferenceAlgorithm` can also implement two optional methods
     designed to support effective gradient estimators for variational objectives
@@ -118,12 +141,20 @@ class InferenceAlgorithm(SampleDistribution):
         target: Target,
     ) -> Tuple[FloatArray, Sample]:
         """
-        Given a `key: PRNGKey`, and a `target: Target`, returns a pair `(log_w, choice)`.
-        `choice : Sample` is a choicemap on the addresses sampled at in `target.gen_fn` not in `target.constraints`;
-        it is sampled by running the inference algorithm represented by `self`.
-        `log_w` is a random weight such that $w = \\exp(\\texttt{log_w})$ satisfies
-        $\\mathbb{E}[1 / w \\mid \\texttt{choice}] = 1 / P(\\texttt{choice} \\mid \\texttt{target.constraints})`, where `P` is the
-        distribution on choicemaps represented by `target.gen_fn`.
+        Given a `key: PRNGKey`, and a `target: Target`, returns a pair `(log(w), sample)`.
+
+        The sample from the approximation `sample : Sample` is a sample on the support
+        of `target.gen_fn` which _are not in_ `target.constraints`.
+        The sample is produced by running the inference algorithm represented by `self`.
+
+        Let `T` denote the target and `S` denote the sample. The weight `log(w)`
+        is a random weight such that $w$ satisfies:
+
+        $$
+        \\mathbb{E}\\big[\\frac{1}{w} \\mid \\texttt{S}\\big] = \\frac{1}{P(\\texttt{S} \\mid \\texttt{T.constraints}; \\texttt{T.args})}
+        $$
+
+        where `P` is the distribution on samples represented by `target.gen_fn`.
         """
         pass
 
@@ -131,13 +162,20 @@ class InferenceAlgorithm(SampleDistribution):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: Sample,
+        sample: Sample,
         target: Target,
     ) -> FloatArray:
         """
-        Given a `key: PRNGKey`, `latent_choices: Choice` and a `target: Target`, returns a random value $\\log(w)$
-        such that $\\mathbb{E}[w] = P(\texttt{latent_choices} \\mid \\texttt{target.constraints})$, where $P$
-        is the distribution on choicemaps represented by `target.gen_fn`.
+        Given a `key: PRNGKey`, `sample: Sample` and a `target: Target`, returns a random value $\\log(w)$.
+
+        Let `T` denote the target and `S` denote the sample. The weight $\\log(w)$
+        is a random weight such that $w$ satisfies:
+
+        $$
+        \\mathbb{E}[w] = P(\\texttt{S} \\mid \\texttt{T.constraints})
+        $$
+
+        where $P$ is the distribution on samples provided by `T.gen_fn`.
         """
         pass
 

@@ -17,6 +17,7 @@ from genjax._src.inference.smc import (
     ChangeTarget,
     Importance,
     ImportanceK,
+    SMCAlgorithm,
     SMCMove,
     SMCP3Move,
     attach_combinator,
@@ -28,6 +29,7 @@ __all__ = [
     "ImportanceK",
     "SMCMove",
     "SMCP3Move",
+    "SMCAlgorithm",
     "AttachCombinator",
     "attach_combinator",
 ]
