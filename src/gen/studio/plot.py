@@ -1,13 +1,16 @@
 # %%
+
 import json
+import re
 
-import pyobsplot
-from ipywidgets import GridBox, Layout
-from pyobsplot import Plot, js
-import numpy as np
+import gen.studio.util as util
 import jax.numpy as jnp
+import markdown
+import numpy as np
+import pyobsplot
 from gen.studio.util import benchmark
-
+from ipywidgets import HTML, GridBox, Layout
+from pyobsplot import Plot, js
 
 # This module provides a composable way to create interactive plots using Observable Plot
 # via pyobsplot (https://github.com/juba/pyobsplot) and AnyWidget (https://github.com/manzt/anywidget).
@@ -201,9 +204,6 @@ def new(*specs, **kwargs):
     return PlotSpec(specs, **kwargs)
 
 
-# %%
-
-
 def constantly(x):
     """
     Returns a javascript function which always returns `x`.
@@ -215,8 +215,6 @@ def constantly(x):
     x = json.dumps(x)
     return pyobsplot.js(f"()=>{x}")
 
-
-# %%
 def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
     # TODO
     # replace this with a pyobsplot-style js stub which
@@ -245,144 +243,17 @@ def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
         layout=Layout(**layout_opts),
     )
 
-# fetched (dev time) using gen.studio.util.fetch_exports
-_PLOT_EXPORTS = {
-    "mark": [
-        "area",
-        "areaX",
-        "areaY",
-        "arrow",
-        "auto",
-        "autoSpec",
-        "axisX",
-        "axisY",
-        "axisFx",
-        "axisFy",
-        "gridX",
-        "gridY",
-        "gridFx",
-        "gridFy",
-        "barX",
-        "barY",
-        "bollinger",
-        "bollingerX",
-        "bollingerY",
-        "boxX",
-        "boxY",
-        "cell",
-        "cellX",
-        "cellY",
-        "contour",
-        "crosshair",
-        "crosshairX",
-        "crosshairY",
-        "delaunayLink",
-        "delaunayMesh",
-        "hull",
-        "voronoi",
-        "voronoiMesh",
-        "density",
-        "differenceY",
-        "dot",
-        "dotX",
-        "dotY",
-        "circle",
-        "hexagon",
-        "frame",
-        "geo",
-        "sphere",
-        "graticule",
-        "hexgrid",
-        "image",
-        "line",
-        "lineX",
-        "lineY",
-        "linearRegressionX",
-        "linearRegressionY",
-        "link",
-        "raster",
-        "interpolateNone",
-        "interpolatorBarycentric",
-        "interpolateNearest",
-        "interpolatorRandomWalk",
-        "rect",
-        "rectX",
-        "rectY",
-        "ruleX",
-        "ruleY",
-        "text",
-        "textX",
-        "textY",
-        "tickX",
-        "tickY",
-        "tip",
-        "tree",
-        "cluster",
-        "vector",
-        "vectorX",
-        "vectorY",
-        "spike",
-    ],
-    "option": ["valueof", "column", "identity", "indexOf"],
-    "transform": [
-        "filter",
-        "reverse",
-        "sort",
-        "shuffle",
-        "transform",
-        "initializer",
-        "bin",
-        "binX",
-        "binY",
-        "centroid",
-        "geoCentroid",
-        "dodgeX",
-        "dodgeY",
-        "find",
-        "group",
-        "groupX",
-        "groupY",
-        "groupZ",
-        "hexbin",
-        "normalize",
-        "normalizeX",
-        "normalizeY",
-        "map",
-        "mapX",
-        "mapY",
-        "shiftX",
-        "window",
-        "windowX",
-        "windowY",
-        "select",
-        "selectFirst",
-        "selectLast",
-        "selectMaxX",
-        "selectMaxY",
-        "selectMinX",
-        "selectMinY",
-        "stackX",
-        "stackX1",
-        "stackX2",
-        "stackY",
-        "stackY1",
-        "stackY2",
-        "treeNode",
-        "treeLink",
-    ],
-    "interaction": ["pointer", "pointerX", "pointerY"],
-    "format": ["formatIsoDate", "formatWeekday", "formatMonth"],
-    "scale": ["scale"],
-    "legend": ["legend"],
-}
-
-
-def _wrap_mark_fn(fn, fn_name):
+def _wrap_plot_fn(fn, fn_name):
     """
     Returns a wrapping function for an Observable.Plot mark, accepting a positional values argument
     (where applicable) options, which may be a single dict and/or keyword arguments.
     """
-
+    meta = util.OBSERVABLE_PLOT_METADATA[fn_name]
+    if meta['kind'] != 'marks':
+        fn.__doc__ = meta.get('doc', None)
+        fn.__name__ = fn_name
+        return fn
+    
     def innerWithValues(values, spec={}, **kwargs):
         mark = fn(array_to_list(values), {**spec, **kwargs})
         return PlotSpec(mark)
@@ -397,24 +268,20 @@ def _wrap_mark_fn(fn, fn_name):
         inner = innerWithValues
 
     inner.__name__ = fn_name
+    inner.__doc__ = meta.get('doc', None)
     return inner
 
 
 _plot_fns = {
-    name: _wrap_mark_fn(getattr(Plot, name), name)
-    if type == "mark"
-    else getattr(Plot, name)
-    for type, names in _PLOT_EXPORTS.items()
-    for name in names
+    name: _wrap_plot_fn(getattr(Plot, name), name)
+    for name in util.OBSERVABLE_PLOT_METADATA.keys()
 }
 
 # Re-export the dynamically constructed MarkSpec functions
 globals().update(_plot_fns)
 
-# %%
 
-
-def accept_xs_ys(plot_fn, default_spec=None):
+def accept_xs_ys(name, default_spec=None):
     """
     Wraps a plot function to accept xs and ys arrays in addition to a values array.
     
@@ -426,6 +293,8 @@ def accept_xs_ys(plot_fn, default_spec=None):
     
     Where spec is a dictionary of plot options.
     """
+    meta = util.OBSERVABLE_PLOT_METADATA[name]
+    plot_fn = getattr(Plot, name)
     def inner(*args, **kwargs):
         if len(args) == 1:
             values = args[0]
@@ -454,13 +323,13 @@ def accept_xs_ys(plot_fn, default_spec=None):
                     {"x": array_to_list(xs), "y": array_to_list(ys), **kwargs},
                 )
             )
-
+    inner.__doc__ = meta['doc']
+    inner.__name__ = name
     return inner
 
 
-line = accept_xs_ys(Plot.line)
-dot = accept_xs_ys(Plot.dot, {"fill": "currentColor"})
-
+line = accept_xs_ys('line')
+dot = accept_xs_ys('dot', {"fill": "currentColor"})
 
 class MarkDefault(PlotSpec):
     """
@@ -476,11 +345,14 @@ class MarkDefault(PlotSpec):
 
     def __init__(self, fn_name, default):
         fn = _plot_fns[fn_name]
+        self.__name__ = fn_name
+        self.__doc__ = fn.__doc__
         super().__init__([fn(default)])
         self.fn = fn
 
     def __call__(self, *args, **kwargs):
         return self.fn(*args, **kwargs)
+
 
 
 frame = MarkDefault("frame", {"stroke": "#dddddd"})
@@ -512,20 +384,18 @@ def color_scheme(name):
 
 
 def domainX(d):
+    "Sets the domain for the x-axis"
     return {"x": {"domain": d}}
 
 
 def domainY(d):
+    "Sets the domain for the y-axis"
     return {"y": {"domain": d}}
 
 
 def domain(xd, yd=None):
+    "Sets the domains for both axes (if one argument is passed, it is used for both axes)"
     return {"x": {"domain": xd}, "y": {"domain": yd or xd}}
-
-
-# Example usage
-# line([[1, 2], [2, 4]]) + grid_x + frame + ruleY + ruleX([1.2])
-
 
 def margin(*args):
     """
@@ -565,6 +435,32 @@ def margin(*args):
         raise ValueError(f"Invalid number of arguments: {len(args)}")
 
 
+def doc(plot_fn):
+    """
+    Decorator to display the docstring of a plot function nicely formatted as Markdown.
+    
+    Args:
+        plot_fn: The plot function whose docstring to display.
+        
+    Returns: 
+        An ipywidgets.HTML widget rendering the docstring as Markdown.
+    """
+    
+    if plot_fn.__doc__:
+        name = plot_fn.__name__
+        doc = plot_fn.__doc__
+        meta = util.OBSERVABLE_PLOT_METADATA.get(name, None)
+        title = f"<span style='font-size: 20px; padding-right: 10px;'>Plot.{name}</span>"
+        url = f"https://observablehq.com/plot/{meta['kind']}/{re.search(r'([a-z]+)', name).group(1)}" if meta else None
+        return HTML(f"""
+                    <div style="display: flex; justify-content:space-between; border-bottom: 1px solid #ddd; padding: 5px 0 10px;">
+                    {title} 
+                    <a href="{url}">Examples &#8599;</a></div>
+                    """ + markdown.markdown(doc))
+    else:
+        return HTML("No docstring available.")
+
+doc(barX)
 # For reference - other options supported by plots
 # example_plot_options = {
 #     "title": "TITLE",

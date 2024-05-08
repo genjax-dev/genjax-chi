@@ -1,12 +1,12 @@
 # %%
 
 import gen.studio.plot as Plot
+import pyobsplot
+
+# Always reload (for dev)
 import importlib 
 importlib.reload(Plot)
-import pyobsplot
-from gen.studio.plot import MarkDefault, PlotSpec
 
-#%%
 
 xs = [1, 2, 3, 4, 5]
 ys = [2, 3, 2, 1, 8]
@@ -57,7 +57,7 @@ def test_plotspec_plot():
 
 
 def test_mark_default():
-    md = MarkDefault("frame", {"stroke": "red"})
+    md = Plot.MarkDefault("frame", {"stroke": "red"})
     assert len(md.spec["marks"]) == 1
     assert md.spec["marks"][0]["args"][0]["stroke"] == "red"
 
@@ -117,7 +117,7 @@ def test_sugar():
 
 def test_plot_new():
     ps = Plot.new(Plot.dot(xs, ys))
-    assert isinstance(ps, PlotSpec)
+    assert isinstance(ps, Plot.PlotSpec)
     assert len(ps.spec["marks"]) == 1
     assert ps.spec["marks"][0]["method"] == "dot"
 
@@ -144,6 +144,10 @@ def test_plotspec_update():
     assert ps.spec["marks"][0]["method"] == "dot"
     assert ps.spec["marks"][1]["method"] == "rectY"
 
+def test_plot_function_docs():
+    for mark in ['dot', 'line', 'rectY']:
+        assert getattr(Plot, mark).__doc__ == util.OBSERVABLE_PLOT_METADATA[mark]['doc']
+
 def run_tests():
     test_plotspec_init()
     test_plotspec_add()
@@ -153,6 +157,7 @@ def run_tests():
     test_plot_new()
     test_plotspec_reset()
     test_plotspec_update()
+    test_plot_function_docs()
     print("All tests passed!")
 
 

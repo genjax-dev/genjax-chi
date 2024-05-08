@@ -1,6 +1,7 @@
 from timeit import default_timer as timer
 import requests
 import re
+import json
 
 
 class benchmark(object):
@@ -32,32 +33,10 @@ class benchmark(object):
         print(("%s : " + self.fmt + " seconds") % (self.msg, t))
         self.time = t
 
-def fetch_exports():
-    """
-    Used in dev to fetch exported names and types from Observable Plot
-    """
-
-    response = requests.get(
-        "https://raw.githubusercontent.com/observablehq/plot/v0.6.14/src/index.js"
-    )
-
-    # Find all exported names
-    export_lines = [
-        line for line in response.text.split("\n") if line.startswith("export {")
-    ]
-
-    # Extract the names and types
-    exports = {}
-    for line in export_lines:
-        names = line.split("{")[1].split("}")[0].split(", ")
-        for name in names:
-            if name[0].islower() and name not in ("plot", "marks"):
-                match = re.search(r'from "\./(\w+)(?:/|\.js)?', line)
-                if match:
-                    type = match.group(1).rstrip("s")
-                    name = name.split(" as ")[-1]  
-                    if type not in exports:
-                        exports[type] = []
-                    exports[type].append(name)
-
-    return exports
+OBSERVABLE_PLOT_METADATA = json.load(open("scripts/observable_plot_metadata.json"))
+def doc(functionName):
+    return OBSERVABLE_PLOT_METADATA[functionName]['doc']
+    
+# %%    
+doc('area')    
+# %%

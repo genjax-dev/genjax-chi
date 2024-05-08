@@ -1,0 +1,514 @@
+{
+  "legend": {
+    "kind": "legends",
+    "doc": "Generates a standalone legend for the scale defined by the given *options*,\nreturning either an SVG or HTML element depending on the scale and the\ndesired legend type. Currently supports only *color*, *opacity*, and *symbol*\nscales."
+  },
+  "text": {
+    "kind": "marks",
+    "doc": "Returns a new text mark for the given *data* and *options*. The **text**\nchannel specifies the textual contents of the mark, which may be preformatted\nwith line breaks (\\n, \\r\\n, or \\r), or wrapped or clipped using the\n**lineWidth** and **textOverflow** options.\n\nIf **text** contains numbers or dates, a default formatter will be applied,\nand the **fontVariant** will default to *tabular-nums* instead of *normal*.\nFor more control, consider [*number*.toLocaleString][1],\n[*date*.toLocaleString][2], [d3-format][3], or [d3-time-format][4]. If\n**text** is not specified, it defaults to the identity function for primitive\ndata (such as numbers, dates, and strings), and to the zero-based index [0,\n1, 2, …] for objects (so that something identifying is visible by default).\n\nIf either **x** or **y** is not specified, the default is determined by the\n**frameAnchor** option. If none of **x**, **y**, and **frameAnchor** are\nspecified, *data* is assumed to be an array of pairs [[*x₀*, *y₀*], [*x₁*,\n*y₁*], [*x₂*, *y₂*], …] such that **x** = [*x₀*, *x₁*, *x₂*, …] and **y** =\n[*y₀*, *y₁*, *y₂*, …].\n\n[1]: https://observablehq.com/@mbostock/number-formatting\n[2]: https://observablehq.com/@mbostock/date-formatting\n[3]: https://d3js.org/d3-format\n[4]: https://d3js.org/d3-time-format"
+  },
+  "textX": {
+    "kind": "marks",
+    "doc": "Like text, but **x** defaults to the identity function, assuming that *data*\n= [*x₀*, *x₁*, *x₂*, …]. For example to display tick label-like marks at the\ntop of the frame:\n\n```js\nPlot.textX([10, 15, 20, 25, 30], {frameAnchor: \"top\"})\n```\n\nIf an **interval** is specified, such as *day*, **y** is transformed to the\nmiddle of the interval."
+  },
+  "textY": {
+    "kind": "marks",
+    "doc": "Like text, but **y** defaults to the identity function, assuming that *data*\n= [*y₀*, *y₁*, *y₂*, …]. For example to display tick label-like marks on the\nright of the frame:\n\n```js\nPlot.textY([10, 15, 20, 25, 30], {frameAnchor: \"right\"})\n```\n\nIf an **interval** is specified, such as *day*, **x** is transformed to the\nmiddle of the interval."
+  },
+  "tip": {
+    "kind": "marks",
+    "doc": "Returns a new tip mark for the given *data* and *options*.\n\nIf either **x** or **y** is not specified, the default is determined by the\n**frameAnchor** option. If none of **x**, **y**, and **frameAnchor** are\nspecified, *data* is assumed to be an array of pairs [[*x₀*, *y₀*], [*x₁*,\n*y₁*], [*x₂*, *y₂*], …] such that **x** = [*x₀*, *x₁*, *x₂*, …] and **y** =\n[*y₀*, *y₁*, *y₂*, …]."
+  },
+  "plot": {
+    "kind": "plot",
+    "doc": "Renders a new plot given the specified *options* and returns the\ncorresponding SVG element, or an HTML figure element if a caption or legend\nis requested."
+  },
+  "transform": {
+    "kind": "transforms",
+    "doc": "Given an *options* object that may specify some basic transforms (**filter**,\n**sort**, or **reverse**) or a custom **transform**, composes those\ntransforms with the given *transform* function, returning a new *options*\nobject.\n\nIf a custom **transform** is present on the given *options*, any basic\ntransforms are ignored. Any additional input *options* are passed through in\nthe returned *options* object. This method facilitates applying basic\ntransforms prior to applying the given *transform* and is used internally by\nPlot’s built-in transforms.\n\nThe given *transform* runs after the existing transforms in *options*. Throws\nan error if the given *options* define an **initializer**, since mark\ntransforms must run before mark initializers."
+  },
+  "initializer": {
+    "kind": "transforms",
+    "doc": "Given an *options* object that may specify some basic initializers\n(**filter**, **sort**, or **reverse**) or a custom **initializer**, composes\nthose initializers with the given *initializer* function, returning a new\n*options* object.\n\nIf a custom **initializer** is present on the given *options*, any basic\ninitializers are ignored. Any additional input *options* are passed through\nin the returned *options* object. This method facilitates applying basic\ninitializers prior to applying the given *initializer* and is used internally\nby Plot’s built-in initializers.\n\nIf the given *initializer* does not need to operate in screen space (after\nscale application), it should instead be implemented as a mark transform for\nsimplicity; see Plot.transform."
+  },
+  "filter": {
+    "kind": "transforms",
+    "doc": "Applies a transform to *options* to filter the mark’s index according to the\ngiven *test*, which can be a function (receiving the datum *d* and index *i*)\nor a channel value definition such as a field name; only truthy values are\nretained in the index. For example, to show only data whose body mass is\ngreater than 3,000g:\n\n```js\nPlot.filter((d) => d.body_mass_g > 3000, options)\n```\n\nNote that filtering only affects the rendered mark index, not the associated\nchannel values, and thus has no effect on imputed scale domains."
+  },
+  "reverse": {
+    "kind": "transforms",
+    "doc": "Applies a transform to *options* to reverse the order of the mark’s index,\nsay for reverse input order."
+  },
+  "shuffle": {
+    "kind": "transforms",
+    "doc": "Applies a transform to *options* to randomly shuffles the mark’s index. If a\n**seed** is specified, a linear congruential generator with the given seed is\nused to generate random numbers deterministically; otherwise, Math.random is\nused."
+  },
+  "sort": {
+    "kind": "transforms",
+    "doc": "Applies a transform to *options* to sort the mark’s index by the specified\n*order*. The *order* is one of:\n\n- a function for comparing data, returning a signed number\n- a channel value definition for sorting given values in ascending order\n- a {value, order} object for sorting given values\n- a {channel, order} object for sorting the named channel’s values\n\nFor example, to render marks in order of ascending body mass:\n\n```js\nPlot.sort(\"body_mass_g\", options)\n```"
+  },
+  "marks": {
+    "kind": "mark",
+    "doc": "Given an array of marks, returns a compound mark; supports *mark*.plot shorthand."
+  },
+  "ruleX": {
+    "kind": "marks",
+    "doc": "Returns a new horizontally-positioned ruleX mark (a vertical line, |) for the\ngiven *data* and *options*. The **x** channel specifies the rule’s horizontal\nposition and defaults to identity, assuming that *data* = [*x₀*, *x₁*, *x₂*,\n…]; the optional **y1** and **y2** channels specify its vertical extent. For\nexample, for a candlestick chart of Apple’s daily stock price:\n\n```js\nPlot.ruleX(aapl, {x: \"Date\", y1: \"Open\", y2: \"Close\"})\n```\n\nThe ruleX mark is often used to highlight specific *x* values. For example,\nto draw a rule at *x* = 0:\n\n```js\nPlot.ruleX([0])\n```\n\nIf *y* represents ordinal values, use a tickX mark instead."
+  },
+  "ruleY": {
+    "kind": "marks",
+    "doc": "Returns a new vertically-positioned ruleY mark (a horizontal line, —) for the\ngiven *data* and *options*. The **y** channel specifies the vertical position\nof the rule and defaults to identity, assuming that *data* = [*y₀*, *y₁*,\n*y₂*, …]; the optional **x1** and **x2** channels specify its horizontal\nextent. For example, to bin Apple’s daily stock price by month, plotting a\nsequence of barcodes showing monthly distributions:\n\n```js\nPlot.ruleY(aapl, {x: \"Date\", y: \"Close\", interval: \"month\"})\n```\n\nThe ruleY mark is often used to highlight specific *y* values. For example,\nto draw a rule at *y* = 0:\n\n```js\nPlot.ruleY([0])\n```\n\nIf *x* represents ordinal values, use a tickY mark instead."
+  },
+  "tickX": {
+    "kind": "marks",
+    "doc": "Returns a new horizontally-positioned tickX mark (a vertical line, |) for the\ngiven *data* and *options*. The **x** channel specifies the tick’s horizontal\nposition and defaults to identity, assuming that *data* = [*x₀*, *x₁*, *x₂*,\n…]; the optional **y** ordinal channel specifies its vertical position. For\nexample, for a horizontal barcode plot of penguins’ weights:\n\n```js\nPlot.tickX(penguins, {x: \"body_mass_g\", y: \"sex\", stroke: \"species\"})\n```\n\nIf *y* represents quantitative or temporal values, use a ruleX mark instead."
+  },
+  "tickY": {
+    "kind": "marks",
+    "doc": "Returns a new vertically-positioned tickY mark (a horizontal line, —) for the\ngiven *data* and *options*. The **y** channel specifies the vertical position\nof the tick and defaults to identity, assuming that *data* = [*y₀*, *y₁*,\n*y₂*, …]; the optional **x** ordinal channel specifies its horizontal\nposition. For example, for a vertical barcode plot of penguins’ weights:\n\n```js\nPlot.tickY(penguins, {y: \"body_mass_g\", x: \"sex\", stroke: \"species\"})\n```\n\nIf *x* represents quantitative or temporal values, use a ruleY mark instead."
+  },
+  "axisY": {
+    "kind": "marks",
+    "doc": "Returns a new compound axis mark to document the visual encoding of the\nvertical position *y* scale, comprised of (up to) three marks: a vector for\nticks, a text for tick labels, and another text for an axis label. The *data*\ndefaults to tick values sampled from the *y* scale’s domain; if desired,\nspecify the axis mark’s *data* explicitly, or use one of the **ticks**,\n**tickSpacing**, or **interval** options.\n\nThe **facetAnchor** option defaults to *right-empty* if **anchor** is\n*right*, and *left-empty* if **anchor** is *left*. The default margins\nlikewise depend on **anchor** as follows; in order of **marginTop**,\n**marginRight**, **marginBottom**, and **marginLeft**, in pixels:\n\n- *right* - 20, 40, 20, 0\n- *left* - 20, 0, 20, 40\n\nFor simplicity, and for consistent layout across plots, default axis margins\nare not affected by tick labels. If tick labels are too long, either increase\nthe margin or shorten the labels: use the *k* SI-prefix tick format; use the\n**transform** *y*-scale option to show thousands or millions; or use the\n**textOverflow** and **lineWidth** options to clip."
+  },
+  "axisFy": {
+    "kind": "marks",
+    "doc": "Returns a new compound axis mark to document the visual encoding of the\nvertical facet position *fy* scale, comprised of (up to) three marks: a\nvector for ticks, a text for tick labels, and another text for an axis label.\nThe *data* defaults to the *fy* scale’s domain; if desired, specify the axis\nmark’s *data* explicitly, or use one of the **ticks**, **tickSpacing**, or\n**interval** options.\n\nThe **facetAnchor** option defaults to *right-empty* if **anchor** is\n*right*, and *left-empty* if **anchor** is *left*. The default margins\nlikewise depend on **anchor** as follows; in order of **marginTop**,\n**marginRight**, **marginBottom**, and **marginLeft**, in pixels:\n\n- *right* - 20, 40, 20, 0\n- *left* - 20, 0, 20, 40\n\nFor simplicity, and for consistent layout across plots, default axis margins\nare not affected by tick labels. If tick labels are too long, either increase\nthe margin or shorten the labels, say by using the **textOverflow** and\n**lineWidth** options to clip."
+  },
+  "axisX": {
+    "kind": "marks",
+    "doc": "Returns a new compound axis mark to document the visual encoding of the\nhorizontal position *x* scale, comprised of (up to) three marks: a vector for\nticks, a text for tick labels, and another text for an axis label. The *data*\ndefaults to tick values sampled from the *x* scale’s domain; if desired,\nspecify the axis mark’s *data* explicitly, or use one of the **ticks**,\n**tickSpacing**, or **interval** options.\n\nThe **facetAnchor** option defaults to *bottom-empty* if **anchor** is\n*bottom*, and *top-empty* if **anchor** is *top*. The default margins\nlikewise depend on **anchor** as follows; in order of **marginTop**,\n**marginRight**, **marginBottom**, and **marginLeft**, in pixels:\n\n- *top* - 30, 20, 0, 20\n- *bottom* - 0, 20, 30, 20\n\nFor simplicity, and for consistent layout across plots, default axis margins\nare not affected by tick labels. If tick labels are too long, either increase\nthe margin or shorten the labels: use the *k* SI-prefix tick format; use the\n**transform** *x*-scale option to show thousands or millions; or use the\n**textOverflow** and **lineWidth** options to clip; or use the **tickRotate**\noption to rotate."
+  },
+  "axisFx": {
+    "kind": "marks",
+    "doc": "Returns a new compound axis mark to document the visual encoding of the\nhorizontal facet position *fx* scale, comprised of (up to) three marks: a\nvector for ticks, a text for tick labels, and another text for an axis label.\nThe *data* defaults to the *fx* scale’s domain; if desired, specify the axis\nmark’s *data* explicitly, or use one of the **ticks**, **tickSpacing**, or\n**interval** options.\n\nThe **facetAnchor** and **frameAnchor** options defaults to **anchor**. The\ndefault margins likewise depend on **anchor** as follows; in order of\n**marginTop**, **marginRight**, **marginBottom**, and **marginLeft**, in\npixels:\n\n- *top* - 30, 20, 0, 20\n- *bottom* - 0, 20, 30, 20\n\nFor simplicity, and for consistent layout across plots, default axis margins\nare not affected by tick labels. If tick labels are too long, either increase\nthe margin or shorten the labels, say by using the **textOverflow** and\n**lineWidth** options to clip, or using the **tickRotate** option to rotate."
+  },
+  "gridX": {
+    "kind": "marks",
+    "doc": "Returns a new horizontally-positioned ruleX mark (a vertical line, |) that\nrenders a grid for the *x* scale. The *data* defaults to tick values sampled\nfrom the *x* scale’s domain; if desired, specify the *data* explicitly, or\nuse one of the **ticks**, **tickSpacing**, or **interval** options."
+  },
+  "gridFx": {
+    "kind": "marks",
+    "doc": "Returns a new horizontally-positioned ruleX mark (a vertical line, |) that\nrenders a grid for the *fx* scale. The *data* defaults to the *fx* scale’s\ndomain; if desired, specify the *data* explicitly, or use the **ticks**\noption."
+  },
+  "gridY": {
+    "kind": "marks",
+    "doc": "Returns a new vertically-positioned ruleY mark (a horizontal line, —) that\nrenders a grid for the *y* scale. The *data* defaults to tick values sampled\nfrom the *y* scale’s domain; if desired, specify the *data* explicitly, or\nuse one of the **ticks**, **tickSpacing**, or **interval** options."
+  },
+  "gridFy": {
+    "kind": "marks",
+    "doc": "Returns a new vertically-positioned ruleY mark (a horizontal line, —) that\nrenders a grid for the *fy* scale. The *data* defaults to the *fy* scale’s\ndomain; if desired, specify the *data* explicitly, or use the **ticks**\noption."
+  },
+  "scale": {
+    "kind": "scales",
+    "doc": "Returns a standalone scale given the specified scale *options*, which must\ndefine exactly one named scale. For example, for a default *linear* *color*\nscale:\n\n```js\nconst color = Plot.scale({color: {type: \"linear\"}});\n```"
+  },
+  "groupZ": {
+    "kind": "transforms",
+    "doc": "Groups on the first channel of **z**, **fill**, or **stroke**, if any, and\nthen for each channel in the specified *outputs*, applies the corresponding\n*reduce* method to produce new channel values from the grouped input channel\nvalues. Each *reduce* method may be one of:\n\n- a named reducer implementation such as *count* or *sum*\n- a function that takes an array of values and returns the reduced value\n- an object that implements the *reduceIndex* method\n\nFor example, for a horizontal stacked bar chart:\n\n```js\nPlot.barX(penguins, Plot.groupZ({x: \"proportion\"}, {fill: \"species\"}))\n```"
+  },
+  "groupX": {
+    "kind": "transforms",
+    "doc": "Groups on the **x** channel; then subdivides groups on the first channel of\n**z**, **fill**, or **stroke**, if any; and then for each channel in the\nspecified *outputs*, applies the corresponding *reduce* method to produce new\nchannel values from the grouped input channel values. Each *reduce* method\nmay be one of:\n\n- a named reducer implementation such as *count* or *sum*\n- a function that takes an array of values and returns the reduced value\n- an object that implements the *reduceIndex* method\n\nFor example, for a vertical bar chart of species by total mass:\n\n```js\nPlot.barY(penguins, Plot.groupX({y: \"sum\"}, {x: \"species\", y: \"body_mass_g\"}))\n```\n\nThe groupX transform is often used with the barY mark to make bar charts; it\nis intended for aggregating ordinal or categorical data, such as names. See\nthe binX transform for continuous data.\n\nIf **x** is not in *options*, it defaults to identity. If **x** is not in\n*outputs*, it defaults to *first*, and the **x1** and **x2** channels, if\nany, will be dropped from the returned *options*."
+  },
+  "groupY": {
+    "kind": "transforms",
+    "doc": "Groups on the **y** channel; then subdivides groups on the first channel of\n**z**, **fill**, or **stroke**, if any; and then for each channel in the\nspecified *outputs*, applies the corresponding *reduce* method to produce new\nchannel values from the grouped input channel values. Each *reduce* method\nmay be one of:\n\n- a named reducer implementation such as *count* or *sum*\n- a function that takes an array of values and returns the reduced value\n- an object that implements the *reduceIndex* method\n\nFor example, for a horizontal bar chart of species by total mass:\n\n```js\nPlot.barX(penguins, Plot.groupY({x: \"sum\"}, {y: \"species\", x: \"body_mass_g\"}))\n```\n\nThe groupY transform is often used with the barX mark to make bar charts; it\nis intended for aggregating ordinal or categorical data, such as names. See\nthe binY transform for continuous data.\n\nIf **y** is not in *options*, it defaults to identity. If **y** is not in\n*outputs*, it defaults to *first*, and the **y1** and **y2** channels, if\nany, will be dropped from the returned *options*."
+  },
+  "group": {
+    "kind": "transforms",
+    "doc": "Groups on the **x** and **y** channels; then subdivides groups on the first\nchannel of **z**, **fill**, or **stroke**, if any; and then for each channel\nin the specified *outputs*, applies the corresponding *reduce* method to\nproduce new channel values from the grouped input channel values. Each\n*reduce* method may be one of:\n\n- a named reducer implementation such as *count* or *sum*\n- a function that takes an array of values and returns the reduced value\n- an object that implements the *reduceIndex* method\n\nFor example, for a heatmap of penguins by species and island:\n\n```js\nPlot.cell(penguins, Plot.group({fill: \"count\"}, {x: \"island\", y: \"species\"}))\n```\n\nThe group transform is often used with the cell mark to make heatmaps; it is\nintended for aggregating ordinal or categorical data, such as names. See the\nbin transform for continuous data.\n\nIf neither **x** nor **y** are in *options*, then **x** and **y** default to\naccessors assuming that *data* contains tuples [[*x₀*, *y₀*], [*x₁*, *y₁*],\n[*x₂*, *y₂*], …]. If **x** is not in *outputs*, it defaults to *first*, and\nthe **x1** and **x2** channels, if any, will be dropped from the returned\n*options*. Likewise if **y** is not in *outputs*, it defaults to *first*, and\nthe **y1** and **y2** channels, if any, will be dropped from the returned\n*options*."
+  },
+  "find": {
+    "kind": "transforms",
+    "doc": "Given the specified *test* function, returns a corresponding reducer\nimplementation for use with the group or bin transform. The reducer returns\nthe first channel value for which the *test* function returns a truthy value."
+  },
+  "binX": {
+    "kind": "transforms",
+    "doc": "Bins on the **x** channel; then subdivides bins on the first channel of\n**z**, **fill**, or **stroke**, if any; then further subdivides bins on the\n**y** channel, if any and if none of **y**, **y1**, and **y2** are in\n*outputs*; and lastly for each channel in the specified *outputs*, applies\nthe corresponding *reduce* method to produce new channel values from the\nbinned input channel values. Each *reduce* method may be one of:\n\n- a named reducer implementation such as *count* or *sum*\n- a function that takes an array of values and returns the reduced value\n- an object that implements the *reduceIndex* method\n\nFor example, for a histogram of observed culmen lengths:\n\n```js\nPlot.rectY(penguins, Plot.binX({y: \"count\"}, {x: \"culmen_length_mm\"}))\n```\n\nThe binX transform is often used with the rectY mark to make histograms; it\nis intended for aggregating continuous quantitative or temporal data, such as\ntemperatures or times, into discrete bins. See the groupX transform for\nordinal or categorical data.\n\nIf **x** is not in *options*, it defaults to identity. If **x** is not in\n*outputs*, by default produces **x1** and **x2** output channels representing\nthe extent of each bin and an **x** output channel representing the bin\nmidpoint, say for for labels. If **y** is not in outputs, **y1** and **y2**\nwill be dropped from the returned *options*. The **insetLeft** and\n**insetRight** options default to 0.5."
+  },
+  "binY": {
+    "kind": "transforms",
+    "doc": "Bins on the **y** channel; then subdivides bins on the first channel of\n**z**, **fill**, or **stroke**, if any; then further subdivides bins on the\n**x** channel, if any and if none of **x**, **x1**, and **x2** are in\n*outputs*; and lastly for each channel in the specified *outputs*, applies\nthe corresponding *reduce* method to produce new channel values from the\nbinned input channel values. Each *reduce* method may be one of:\n\n- a named reducer implementation such as *count* or *sum*\n- a function that takes an array of values and returns the reduced value\n- an object that implements the *reduceIndex* method\n\nFor example, for a histogram of observed culmen lengths:\n\n```js\nPlot.rectX(penguins, Plot.binY({x: \"count\"}, {y: \"culmen_length_mm\"}))\n```\n\nThe binY transform is often used with the rectX mark to make histograms; it\nis intended for aggregating continuous quantitative or temporal data, such as\ntemperatures or times, into discrete bins. See the groupY transform for\nordinal or categorical data.\n\nIf **y** is not in *options*, it defaults to identity. If **y** is not in\n*outputs*, by default produces **y1** and **y2** output channels representing\nthe extent of each bin and a **y** output channel representing the bin\nmidpoint, say for for labels. If **x** is not in outputs, **x1** and **x2**\nwill be dropped from the returned *options*. The **insetTop** and\n**insetBottom** options default to 0.5."
+  },
+  "bin": {
+    "kind": "transforms",
+    "doc": "Bins on the **x** and **y** channels; then subdivides bins on the first\nchannel of **z**, **fill**, or **stroke**, if any; and lastly for each\nchannel in the specified *outputs*, applies the corresponding *reduce* method\nto produce new channel values from the binned input channel values. Each\n*reduce* method may be one of:\n\n- a named reducer implementation such as *count* or *sum*\n- a function that takes an array of values and returns the reduced value\n- an object that implements the *reduceIndex* method\n\nFor example, for a heatmap of observed culmen lengths and depths:\n\n```js\nPlot.rect(penguins, Plot.bin({fill: \"count\"}, {x: \"culmen_depth_mm\", y: \"culmen_length_mm\"}))\n```\n\nThe bin transform is often used with the rect mark to make heatmaps; it is\nintended for aggregating continuous quantitative or temporal data, such as\ntemperatures or times, into discrete bins. See the group transform for\nordinal or categorical data.\n\nIf neither **x** nor **y** are in *options*, then **x** and **y** default to\naccessors assuming that *data* contains tuples [[*x₀*, *y₀*], [*x₁*, *y₁*],\n[*x₂*, *y₂*], …]. If **x** is not in *outputs*, by default produces **x1**\nand **x2** output channels representing the horizontal extent of each bin and\na **x** output channel representing the horizontal midpoint, say for for\nlabels. Likewise if **y** is not in *outputs*, by default produces **y1** and\n**y2** output channels representing the vertical extent of each bin and a\n**y** output channel representing the vertical midpoint. The **insetTop**,\n**insetRight**, **insetBottom**, and **insetLeft** options default to 0.5."
+  },
+  "formatMonth": {
+    "kind": "format",
+    "doc": "Returns a function that formats a given month number (from 0 = January to 11\n= December) according to the specified *locale* and *format*.\n\n[1]: https://tools.ietf.org/html/bcp47\n[2]: https://tc39.es/ecma402/#datetimeformat-objects"
+  },
+  "formatWeekday": {
+    "kind": "format",
+    "doc": "Returns a function that formats a given week day number (from 0 = Sunday to 6\n= Saturday) according to the specified *locale* and *format*.\n\n[1]: https://tools.ietf.org/html/bcp47\n[2]: https://tc39.es/ecma402/#datetimeformat-objects"
+  },
+  "formatIsoDate": {
+    "kind": "format",
+    "doc": "Given a *date*, returns the shortest equivalent ISO 8601 UTC string. If the\ngiven *date* is not valid, returns `\"Invalid Date\"`."
+  },
+  "pointer": {
+    "kind": "interactions",
+    "doc": "Applies a render transform to the specified *options* to filter the mark\nindex such that only the point closest to the pointer is rendered; the mark\nwill re-render interactively in response to pointer events."
+  },
+  "pointerX": {
+    "kind": "interactions",
+    "doc": "Like the pointer transform, except the determination of the closest point\nconsiders mostly the *x* (horizontal↔︎) position; this should be used for\nplots where *x* is the dominant dimension, such as time in a time-series\nchart, the binned quantitative dimension in a histogram, or the categorical\ndimension of a bar chart."
+  },
+  "pointerY": {
+    "kind": "interactions",
+    "doc": "Like the pointer transform, except the determination of the closest point\nconsiders mostly the *y* (vertical↕︎) position; this should be used for plots\nwhere *y* is the dominant dimension, such as time in a time-series chart, the\nbinned quantitative dimension in a histogram, or the categorical dimension of\na bar chart."
+  },
+  "stackX": {
+    "kind": "transforms",
+    "doc": "Transforms a length channel **x** into starting and ending position channels\n**x1** and **x2** by “stacking” elements that share a given **y** position.\nThe starting position of each element equals the ending position of the\npreceding element in the stack. Non-positive values are stacked to the left\nof zero, with **x2** to the left of **x1**. A new **x** channel is derived\nthat represents the midpoint between **x1** and **x2**, for example to place\na label. If not specified, the input channel **x** defaults to the constant\none."
+  },
+  "stackX1": {
+    "kind": "transforms",
+    "doc": "Like **stackX**, but returns the starting position **x1** as the **x**\nchannel, for example to position a dot on the left-hand side of each element\nof a stack."
+  },
+  "stackX2": {
+    "kind": "transforms",
+    "doc": "Like **stackX**, but returns the starting position **x2** as the **x**\nchannel, for example to position a dot on the right-hand side of each element\nof a stack."
+  },
+  "stackY": {
+    "kind": "transforms",
+    "doc": "Transforms a length channel **y** into starting and ending position channels\n**y1** and **y2** by “stacking” elements that share a given **x** position.\nThe starting position of each element equals the ending position of the\npreceding element in the stack. Non-positive values are stacked below zero,\nwith **y2** below **y1**. A new **y** channel is derived that represents the\nmidpoint between **y1** and **y2**, for example to place a label. If not\nspecified, the input channel **y** defaults to the constant one."
+  },
+  "stackY1": {
+    "kind": "transforms",
+    "doc": "Like **stackY**, but returns the starting position **y1** as the **y**\nchannel, for example to position a dot at the bottom of each element of a\nstack."
+  },
+  "stackY2": {
+    "kind": "transforms",
+    "doc": "Like **stackY**, but returns the ending position **y2** as the **y** channel,\nfor example to position a dot at the top of each element of a stack."
+  },
+  "area": {
+    "kind": "marks",
+    "doc": "Returns a new area mark with the given *data* and *options*. The area mark is\nrarely used directly; it is only needed when the baseline and topline have\nneither *x* nor *y* values in common. Use areaY for a horizontal orientation\nwhere the baseline and topline share *x* values, or areaX for a vertical\norientation where the baseline and topline share *y* values."
+  },
+  "areaX": {
+    "kind": "marks",
+    "doc": "Returns a new vertically-oriented area mark for the given *data* and\n*options*, where the baseline and topline share **y** values, as in a\ntime-series area chart where time goes up↑. For example, to plot Apple’s\ndaily stock price:\n\n```js\nPlot.areaX(aapl, {y: \"Date\", x: \"Close\"})\n```\n\nIf neither **x1** nor **x2** is specified, an implicit stackX transform is\napplied and **x** defaults to the identity function, assuming that *data* =\n[*x₀*, *x₁*, *x₂*, …]. Otherwise, if only one of **x1** or **x2** is\nspecified, the other defaults to **x**, which defaults to zero.\n\nIf an **interval** is specified, **y** values are binned accordingly,\nallowing zeroes for empty bins instead of interpolating across gaps. This is\nrecommended to “regularize” sampled data; for example, if your data\nrepresents timestamped observations and you expect one observation per day,\nuse *day* as the **interval**.\n\nVariable aesthetic channels are supported: if the **fill** is defined as a\nchannel, the area will be broken into contiguous overlapping sections when\nthe fill color changes; the fill color will apply to the interval spanning\nthe current data point and the following data point. This behavior also\napplies to the **fillOpacity**, **stroke**, **strokeOpacity**,\n**strokeWidth**, **opacity**, **href**, **title**, and **ariaLabel**\nchannels. When any of these channels are used, setting an explicit **z**\nchannel (possibly to null) is strongly recommended."
+  },
+  "areaY": {
+    "kind": "marks",
+    "doc": "Returns a new horizontally-oriented area mark for the given *data* and\n*options*, where the baseline and topline share **x** values, as in a\ntime-series area chart where time goes right→. For example, to plot Apple’s\ndaily stock price:\n\n```js\nPlot.areaY(aapl, {x: \"Date\", y: \"Close\"})\n```\n\nIf neither **y1** nor **y2** is specified, an implicit stackY transform is\napplied and **y** defaults to the identity function, assuming that *data* =\n[*y₀*, *y₁*, *y₂*, …]. Otherwise, if only one of **y1** or **y2** is\nspecified, the other defaults to **y**, which defaults to zero.\n\nIf an **interval** is specified, **x** values are binned accordingly,\nallowing zeroes for empty bins instead of interpolating across gaps. This is\nrecommended to “regularize” sampled data; for example, if your data\nrepresents timestamped observations and you expect one observation per day,\nuse *day* as the **interval**.\n\nVariable aesthetic channels are supported: if the **fill** is defined as a\nchannel, the area will be broken into contiguous overlapping sections when\nthe fill color changes; the fill color will apply to the interval spanning\nthe current data point and the following data point. This behavior also\napplies to the **fillOpacity**, **stroke**, **strokeOpacity**,\n**strokeWidth**, **opacity**, **href**, **title**, and **ariaLabel**\nchannels. When any of these channels are used, setting an explicit **z**\nchannel (possibly to null) is strongly recommended."
+  },
+  "arrow": {
+    "kind": "marks",
+    "doc": "Returns a new arrow mark for the given *data* and *options*, drawing\n(possibly swoopy) arrows connecting pairs of points. For example, to draw an\narrow connecting an observation from 1980 with an observation from 2015 in a\nscatterplot of population and revenue inequality of U.S. cities:\n\n```js\nPlot.arrow(inequality, {x1: \"POP_1980\", y1: \"R90_10_1980\", x2: \"POP_2015\", y2: \"R90_10_2015\", bend: true})\n```"
+  },
+  "autoSpec": {
+    "kind": "marks",
+    "doc": "Returns a fully-specified *options* object for the auto mark, with nothing\nleft undefined. This is mostly for internal use, but can be used to “lock\ndown” the specification of an auto mark or to interrogate its behavior. For\nexample, if you say\n\n```js\nPlot.autoSpec(penguins, {x: \"body_mass_g\"})\n```\n\nthe returned object will have **y** set to {value: null, reduce: *count*} and\n**mark** set to *bar*, telling you that a histogram will be rendered."
+  },
+  "auto": {
+    "kind": "marks",
+    "doc": "Returns a new mark whose implementation is chosen dynamically to best\nrepresent the dimensions of the given *data* specified in *options*,\naccording to a few simple heuristics. The auto mark seeks to provide a useful\ninitial plot as quickly as possible through opinionated defaults, and to\naccelerate exploratory analysis by letting you refine views with minimal\nchanges to code. For example, for a histogram of penguins binned by weight:\n\n```js\nPlot.auto(penguins, {x: \"body_mass_g\"})\n```"
+  },
+  "rect": {
+    "kind": "marks",
+    "doc": "Returns a rect mark for the given *data* and *options*. The rectangle extends\nhorizontally from **x1** to **x2**, and vertically from **y1** to **y2**. The\nposition channels are often derived with a transform. For example, for a\nheatmap of athletes, binned by weight and height:\n\n```js\nPlot.rect(athletes, Plot.bin({fill: \"proportion\"}, {x: \"weight\", y: \"height\"}))\n```\n\nWhen **y** extends from zero, for example for a histogram where the height of\neach rect reflects a count of values, use the rectY mark for an implicit\nstackY transform; similarly, if **x** extends from zero, use the rectX mark\nfor an implicit stackX transform.\n\nIf an **interval** is specified, then **x1** and **x2** are derived from\n**x**, and **y1** and **y2** are derived from **y**, each representing the\nlower and upper bound of the containing interval, respectively.\n\nBoth *x* and *y* should be quantitative or temporal; otherwise, use a bar or\ncell mark."
+  },
+  "rectX": {
+    "kind": "marks",
+    "doc": "Like rect, but if neither **x1** nor **x2** is specified, an implicit stackX\ntransform is applied to **x**, and if **x** is not specified, it defaults to\nthe identity function, assuming that *data* is an array of numbers [*x₀*,\n*x₁*, *x₂*, …]. For example, for a vertical histogram of athletes by height\nwith rects aligned at *x* = 0:\n\n```js\nPlot.rectX(olympians, Plot.binY({x: \"count\"}, {y: \"height\"}))\n```"
+  },
+  "rectY": {
+    "kind": "marks",
+    "doc": "Like rect, but if neither **y1** nor **y2** is specified, apply an implicit\nstackY transform is applied to **y**, and if **y** is not specified, it\ndefaults to the identity function, assuming that *data* is an array of\nnumbers [*y₀*, *y₁*, *y₂*, …]. For example, for a horizontal histogram of\nathletes by weight with rects aligned at *y* = 0:\n\n```js\nPlot.rectY(olympians, Plot.binX({y: \"count\"}, {x: \"weight\"}))\n```"
+  },
+  "barX": {
+    "kind": "marks",
+    "doc": "Returns a new horizontal bar mark for the given *data* and *options*; the\nrequired *x* values should be quantitative or temporal, and the optional *y*\nvalues should be ordinal. For example, for a horizontal bar chart of English\nletter frequency:\n\n```js\nPlot.barX(alphabet, {x: \"frequency\", y: \"letter\"})\n```\n\nIf neither **x1** nor **x2** nor **interval** is specified, an implicit\nstackX transform is applied and **x** defaults to the identity function,\nassuming that *data* = [*x₀*, *x₁*, *x₂*, …]. Otherwise if an **interval** is\nspecified, then **x1** and **x2** are derived from **x**, representing the\nlower and upper bound of the containing interval, respectively. Otherwise, if\nonly one of **x1** or **x2** is specified, the other defaults to **x**, which\ndefaults to zero.\n\nThe optional **y** ordinal channel specifies the vertical position; it is\ntypically bound to the *y* scale, which must be a *band* scale. If the **y**\nchannel is not specified, the bar will span the vertical extent of the plot’s\nframe. The barX mark is often used in conjunction with the groupY transform.\nFor a stacked histogram of penguins by species, colored by sex:\n\n```js\nPlot.barX(penguins, Plot.groupY({x: \"count\"}, {y: \"species\", fill: \"sex\"}))\n```\n\nIf *y* is quantitative, use the rectX mark instead, possibly with a binY\ntransform. If *x* is ordinal, use the cell mark instead, possibly with a\ngroup transform.\n\nIf *options* is undefined, then **y** defaults to the zero-based index of\n*data* [0, 1, 2, …], allowing a quick bar chart from an array of numbers:\n\n```js\nPlot.barX([4, 9, 24, 46, 66, 7])\n```"
+  },
+  "barY": {
+    "kind": "marks",
+    "doc": "Returns a new vertical bar mark for the given *data* and *options*; the\nrequired *y* values should be quantitative or temporal, and the optional *x*\nvalues should be ordinal. For example, for a vertical bar chart of English\nletter frequency:\n\n```js\nPlot.barY(alphabet, {y: \"frequency\", x: \"letter\"})\n```\nIf neither **y1** nor **y2** nor **interval** is specified, an implicit\nstackY transform is applied and **y** defaults to the identity function,\nassuming that *data* = [*y₀*, *y₁*, *y₂*, …]. Otherwise if an **interval** is\nspecified, then **y1** and **y2** are derived from **y**, representing the\nlower and upper bound of the containing interval, respectively. Otherwise, if\nonly one of **y1** or **y2** is specified, the other defaults to **y**, which\ndefaults to zero.\n\nThe optional **x** ordinal channel specifies the horizontal position; it is\ntypically bound to the *x* scale, which must be a *band* scale. If the **x**\nchannel is not specified, the bar will span the horizontal extent of the\nplot’s frame. The barY mark is often used in conjunction with the groupX\ntransform. For a stacked histogram of penguins by species, colored by sex:\n\n```js\nPlot.barY(penguins, Plot.groupX({y: \"count\"}, {x: \"species\", fill: \"sex\"}))\n```\n\nIf *x* is quantitative, use the rectY mark instead, possibly with a binX\ntransform. If *y* is ordinal, use the cell mark instead, possibly with a\ngroup transform.\n\nIf *options* is undefined, then **x** defaults to the zero-based index of\n*data* [0, 1, 2, …], allowing a quick bar chart from an array of numbers:\n\n```js\nPlot.barY([4, 9, 24, 46, 66, 7])\n```"
+  },
+  "mapX": {
+    "kind": "transforms",
+    "doc": "Groups on the first channel of **z**, **fill**, or **stroke**, if any, and\nthen applies the specified *map* method to each of the **x**, **x1**, and\n**x2** channels in the specified *options* to produce new channel values for\neach series. The *map* method may be one of:\n\n- a named map implementation such as *cumsum* or *rank*\n- a function to be passed an array of values, returning new values\n- an object that implements the *mapIndex* method\n\nFor example, to produce a cumulative sum of random numbers on the **x**\nchannel:\n\n```js\nPlot.mapX(\"cumsum\", {x: d3.randomNormal()})\n```"
+  },
+  "mapY": {
+    "kind": "transforms",
+    "doc": "Groups on the first channel of **z**, **fill**, or **stroke**, if any, and\nthen applies the specified map method to each of the **y**, **y1**, and\n**y2** channels in the specified *options* to produce new channel values for\neach series. The *map* method may be one of:\n\n- a named map implementation such as *cumsum* or *rank*\n- a function to be passed an array of values, returning new values\n- an object that implements the *mapIndex* method\n\nFor example, to produce a cumulative sum of random numbers on the **y**\nchannel:\n\n```js\nPlot.mapY(\"cumsum\", {y: d3.randomNormal()})\n```"
+  },
+  "map": {
+    "kind": "transforms",
+    "doc": "Groups on the first channel of **z**, **fill**, or **stroke**, if any, and\nthen for each channel in the specified *outputs*, applies the corresponding\n*map* method to produce new channel values for each series. Each *map* method\nmay be one of:\n\n- a named map implementation such as *cumsum* or *rank*\n- a function to be passed an array of values, returning new values\n- an object that implements the *mapIndex* method\n\nFor example, to produce a cumulative sum of random numbers on the **y**\nchannel:\n\n```js\nPlot.map({y: \"cumsum\"}, {y: d3.randomNormal()})\n```"
+  },
+  "windowX": {
+    "kind": "transforms",
+    "doc": "Groups data into series using the first channel of *z*, *fill*, or *stroke*\n(if any), then derives new *x*, *x1*, and *x2* channels by computing a moving\nwindow of channel values and deriving reduced values from the window. For\nexample, to compute a rolling average in *x*:\n\n```js\nPlot.windowX(24, {x: \"Anomaly\", y: \"Date\"});\n```\n\nIf *windowOptions* is a number, it is shorthand for the window size **k**."
+  },
+  "windowY": {
+    "kind": "transforms",
+    "doc": "Groups data into series using the first channel of *z*, *fill*, or *stroke*\n(if any), then derives new *y*, *y1*, and *y2* channels by computing a moving\nwindow of channel values and deriving reduced values from the window. For\nexample, to compute a rolling average in *y*:\n\n```js\nPlot.windowY(24, {x: \"Date\", y: \"Anomaly\"});\n```\n\nIf *windowOptions* is a number, it is shorthand for the window size **k**."
+  },
+  "window": {
+    "kind": "transforms",
+    "doc": "Given the specified window *options*, returns a corresponding map\nimplementation for use with the map transform, allowing the window transform\nto be applied to arbitrary channels instead of only *x* and *y*. For example,\nto compute a rolling average for the *title* channel:\n\n```js\nPlot.map({title: Plot.window(24)}, {x: \"Date\", title: \"Anomaly\"})\n```\n\nIf *options* is a number, it is shorthand for the window size **k**."
+  },
+  "line": {
+    "kind": "marks",
+    "doc": "Returns a new line mark for the given *data* and *options* by connecting\ncontrol points. If neither the **x** nor **y** options are specified, *data*\nis assumed to be an array of pairs [[*x₀*, *y₀*], [*x₁*, *y₁*], [*x₂*, *y₂*],\n…] such that **x** = [*x₀*, *x₁*, *x₂*, …] and **y** = [*y₀*, *y₁*, *y₂*, …].\n\nPoints along the line are connected in input order. If there are multiple\nseries via the **z**, **fill**, or **stroke** channel, series are drawn in\ninput order such that the last series is drawn on top. Typically *data* is\nalready in sorted order, such as chronological for time series; if needed,\nconsider a **sort** transform.\n\nIf any **x** or **y** values are invalid (undefined, null, or NaN), the line\nwill be interrupted, resulting in a break that divides the line shape into\nmultiple segments. If a line segment consists of only a single point, it may\nappear invisible unless rendered with rounded or square line caps. In\naddition, some curves such as *cardinal-open* only render a visible segment\nif it contains multiple points.\n\nVariable aesthetic channels are supported: if the **stroke** is defined as a\nchannel, the line will be broken into contiguous overlapping segments when\nthe stroke color changes; the stroke color will apply to the interval\nspanning the current data point and the following data point. This behavior\nalso applies to the **fill**, **fillOpacity**, **strokeOpacity**,\n**strokeWidth**, **opacity**, **href**, **title**, and **ariaLabel**\nchannels. When any of these channels are used, setting an explicit **z**\nchannel (possibly to null) is strongly recommended."
+  },
+  "lineX": {
+    "kind": "marks",
+    "doc": "Like line, except that **x** defaults to the identity function assuming that\n*data* = [*x₀*, *x₁*, *x₂*, …] and **y** defaults to the zero-based index [0,\n1, 2, …]. For example, to draw a vertical line chart of a temperature series:\n\n```js\nPlot.lineX(observations, {x: \"temperature\"})\n```\n\nThe **interval** option is recommended to “regularize” sampled data via an\nimplicit binY transform. For example, if your data represents timestamped\ntemperature measurements and you expect one sample per day, use *day* as the\ninterval:\n\n```js\nPlot.lineX(observations, {y: \"date\", x: \"temperature\", interval: \"day\"})\n```"
+  },
+  "lineY": {
+    "kind": "marks",
+    "doc": "Like line, except **y** defaults to the identity function and assumes that\n*data* = [*y₀*, *y₁*, *y₂*, …] and **x** defaults to the zero-based index [0,\n1, 2, …]. For example, to draw a horizontal line chart of a temperature\nseries:\n\n```js\nPlot.lineY(observations, {y: \"temperature\"})\n```\n\nThe **interval** option is recommended to “regularize” sampled data via an\nimplicit binX transform. For example, if your data represents timestamped\ntemperature measurements and you expect one sample per day, use *day* as the\ninterval:\n\n```js\nPlot.lineY(observations, {x: \"date\", y: \"temperature\", interval: \"day\"})\n```"
+  },
+  "bollingerX": {
+    "kind": "marks",
+    "doc": "Returns a new vertically-oriented bollinger mark for the given *data* and\n*options*, as in a time-series area chart where time goes up↑ (or down↓).\n\nIf the *x* option is not specified, it defaults to the identity function, as\nwhen data is an array of numbers [*x*₀, *x*₁, *x*₂, …]. If the *y* option is\nnot specified, it defaults to [0, 1, 2, …]."
+  },
+  "bollingerY": {
+    "kind": "marks",
+    "doc": "Returns a new horizontally-oriented bollinger mark for the given *data* and\n*options*, as in a time-series area chart where time goes right→ (or ←left).\n\nIf the *y* option is not specified, it defaults to the identity function, as\nwhen data is an array of numbers [*y*₀, *y*₁, *y*₂, …]. If the *x* option is\nnot specified, it defaults to [0, 1, 2, …]."
+  },
+  "bollinger": {
+    "kind": "marks",
+    "doc": "Given the specified bollinger *options*, returns a corresponding map\nimplementation for use with the map transform, allowing the bollinger\ntransform to be applied to arbitrary channels instead of only *x* and *y*.\nFor example, to compute the upper volatility band:\n\n```js\nPlot.map({y: Plot.bollinger({n: 20, k: 2})}, {x: \"Date\", y: \"Close\"})\n```\n\nHere the *k* option defaults to zero instead of two."
+  },
+  "dot": {
+    "kind": "marks",
+    "doc": "Returns a new dot mark for the given *data* and *options* that draws circles,\nor other symbols, as in a scatterplot. For example, a scatterplot of sales by\nfruit type (category) and units sold (quantitative):\n\n```js\nPlot.dot(sales, {x: \"units\", y: \"fruit\"})\n```\n\nIf either **x** or **y** is not specified, the default is determined by the\n**frameAnchor** option. If none of **x**, **y**, and **frameAnchor** are\nspecified, *data* is assumed to be an array of pairs [[*x₀*, *y₀*], [*x₁*,\n*y₁*], [*x₂*, *y₂*], …] such that **x** = [*x₀*, *x₁*, *x₂*, …] and **y** =\n[*y₀*, *y₁*, *y₂*, …].\n\nDots are sorted by descending radius **r** by default to mitigate\noverplotting; set the **sort** option to null to draw them in input order."
+  },
+  "dotX": {
+    "kind": "marks",
+    "doc": "Like dot, except that **x** defaults to the identity function, assuming that\n*data* = [*x₀*, *x₁*, *x₂*, …].\n\n```js\nPlot.dotX(cars.map(d => d[\"economy (mpg)\"]))\n```\n\nIf an **interval** is specified, such as *day*, **y** is transformed to the\nmiddle of the interval."
+  },
+  "dotY": {
+    "kind": "marks",
+    "doc": "Like dot, except that **y** defaults to the identity function, assuming that\n*data* = [*y₀*, *y₁*, *y₂*, …].\n\n```js\nPlot.dotY(cars.map(d => d[\"economy (mpg)\"]))\n```\n\nIf an **interval** is specified, such as *day*, **x** is transformed to the\nmiddle of the interval."
+  },
+  "circle": {
+    "kind": "marks",
+    "doc": "Like dot, except that the **symbol** option is set to *circle*."
+  },
+  "hexagon": {
+    "kind": "marks",
+    "doc": "Like dot, except that the **symbol** option is set to *hexagon*."
+  },
+  "boxX": {
+    "kind": "marks",
+    "doc": "Returns a box mark that draws horizontal boxplots where **x** is quantitative\nor temporal and **y**, if present, is ordinal. The box mark is a compound\nmark consisting of four marks:\n\n- a rule representing the extreme values (not including outliers),\n- a bar representing the interquartile range (trimmed to the data),\n- a tick representing the median value, and\n- a dot representing outliers, if any.\n\nThe given *options* are passed through to these underlying marks, with the\nexception of the following options:\n\n- **fill** - the fill color of the bar; defaults to gray\n- **fillOpacity** - the fill opacity of the bar; defaults to 1\n- **stroke** - the stroke color of the rule, tick, and dot; defaults to *currentColor*\n- **strokeOpacity** - the stroke opacity of the rule, tick, and dot; defaults to 1\n- **strokeWidth** - the stroke width of the tick; defaults to 2"
+  },
+  "boxY": {
+    "kind": "marks",
+    "doc": "Returns a box mark that draws vertical boxplots where **y** is quantitative\nor temporal and **x**, if present, is ordinal. The box mark is a compound\nmark consisting of four marks:\n\n- a rule representing the extreme values (not including outliers),\n- a bar representing the interquartile range (trimmed to the data),\n- a tick representing the median value, and\n- a dot representing outliers, if any.\n\nThe given *options* are passed through to these underlying marks, with the\nexception of the following options:\n\n- **fill** - the fill color of the bar; defaults to gray\n- **fillOpacity** - the fill opacity of the bar; defaults to 1\n- **stroke** - the stroke color of the rule, tick, and dot; defaults to *currentColor*\n- **strokeOpacity** - the stroke opacity of the rule, tick, and dot; defaults to 1\n- **strokeWidth** - the stroke width of the tick; defaults to 2"
+  },
+  "cell": {
+    "kind": "marks",
+    "doc": "Returns a rectangular cell mark for the given *data* and *options*. Along\nwith **x** and/or **y**, a **fill** channel is typically specified to encode\nvalue as color. For example, for a heatmap of the IMDb ratings of Simpons\nepisodes by season:\n\n```js\nPlot.cell(simpsons, {x: \"number_in_season\", y: \"season\", fill: \"imdb_rating\"})\n```\n\nIf neither **x** nor **y** are specified, *data* is assumed to be an array of\npairs [[*x₀*, *y₀*], [*x₁*, *y₁*], [*x₂*, *y₂*], …] such that **x** = [*x₀*,\n*x₁*, *x₂*, …] and **y** = [*y₀*, *y₁*, *y₂*, …].\n\nBoth **x** and **y** should be ordinal; if only **x** is quantitative (or\ntemporal), use a barX mark; if only **y** is quantitative, use a barY mark;\nif both are quantitative, use a rect mark."
+  },
+  "cellX": {
+    "kind": "marks",
+    "doc": "Like cell, but **x** defaults to the zero-based index [0, 1, 2, …], and if\n**stroke** is not a channel, **fill** defaults to the identity function,\nassuming that *data* = [*x₀*, *x₁*, *x₂*, …]. For a quick horizontal stripe\nmap visualizating an array of numbers:\n\n```js\nPlot.cellX(values)\n```"
+  },
+  "cellY": {
+    "kind": "marks",
+    "doc": "Like cell, but **y** defaults to the zero-based index [0, 1, 2, …], and if\n**stroke** is not a channel, **fill** defaults to the identity function,\nassuming that *data* = [*y₀*, *y₁*, *y₂*, …]. For a quick vertical stripe map\nvisualizating an array of numbers:\n\n```js\nPlot.cellY(values)\n```"
+  },
+  "raster": {
+    "kind": "marks",
+    "doc": "Returns a raster mark which renders a raster image from spatial samples. If\n*data* is provided, it represents discrete samples in abstract coordinates\n**x** and **y**; the **fill** and **fillOpacity** channels specify further\nabstract values (_e.g._, height in a topographic map) to be spatially\ninterpolated to produce an image.\n\n```js\nPlot.raster(volcano.values, {width: volcano.width, height: volcano.height})\n```\n\nThe **fill** and **fillOpacity** channels may alternatively be specified as\nfunctions *f*(*x*, *y*) to be evaluated at each pixel centroid of the raster\ngrid (without interpolation).\n\n```js\nPlot.raster({x1: -1, x2: 1, y1: -1, y2: 1, fill: (x, y) => Math.atan2(y, x)})\n```\n\nIf **width** is specified, **x1** defaults to 0 and **x2** defaults to\n**width**; likewise, if **height** is specified, **y1** defaults to 0 and\n**y2** defaults to **height**. Otherwise, if *data* is specified, **x1**,\n**y1**, **x2**, and **y2** respectively default to the frame’s left, top,\nright, and bottom coordinates. Lastly, if *data* is not specified (as when\n**value** is a function of *x* and *y*), you must specify all of **x1**,\n**x2**, **y1**, and **y2** to define the raster domain."
+  },
+  "interpolatorBarycentric": {
+    "kind": "marks",
+    "doc": "Constructs a Delaunay triangulation of the samples, and then for each pixel\nin the raster grid, determines the triangle that covers the pixel’s centroid\nand interpolates the values associated with the triangle’s vertices using\n[barycentric coordinates][1]. If the interpolated values are ordinal or\ncategorical (_i.e._, anything other than numbers or dates), then one of the\nthree values will be picked randomly weighted by the barycentric coordinates;\nthe given *random* number generator will be used, which defaults to a [linear\ncongruential generator][2] with a fixed seed (for deterministic results).\n\n[1]: https://en.wikipedia.org/wiki/Barycentric_coordinate_system\n[2]: https://d3js.org/d3-random#randomLcg"
+  },
+  "interpolatorRandomWalk": {
+    "kind": "marks",
+    "doc": "For each pixel in the raster grid, initiates a random walk, stopping when\neither the walk is within a given distance (**minDistance**) of a sample or\nthe maximum allowable number of steps (**maxSteps**) have been taken, and\nthen assigning the current pixel the closest sample’s value. The random walk\nuses the “walk on spheres” algorithm in two dimensions described by [Sawhney\nand Crane][1], SIGGRAPH 2020.\n\n[1]: https://www.cs.cmu.edu/~kmcrane/Projects/MonteCarloGeometryProcessing/index.html"
+  },
+  "contour": {
+    "kind": "marks",
+    "doc": "Returns a new contour mark, which creates contour polygons from spatial\nsamples. If *data* is provided, it represents discrete samples in abstract\ncoordinates **x** and **y**; the **value** channel specifies further abstract\nvalues (_e.g._, height in a topographic map) to be spatially interpolated to\nproduce a raster grid of quantitative values (like in the raster mark), and\nlastly contours via marching squares, which are rendered as vector polygons.\nFor example, to generate filled contours from a topographic map, where the\ncolor corresponds to the contour threshold value:\n\n```js\nPlot.contour(volcano.values, {width: volcano.width, height: volcano.height, fill: Plot.identity})\n```\n\nThe **fill** and **fillOpacity** channels may alternatively be specified as\nfunctions *f*(*x*, *y*) to be evaluated at each pixel centroid of the\nunderlying raster grid (without interpolation). For example, to draw a\ncontour plot of a two-dimensional function:\n\n```js\nPlot.contour({x1: -1, x2: 1, y1: -1, y2: 1, fill: (x, y) => Math.atan2(y, x)})\n```\n\nWith the exception of the **x**, **y**, and **value** channels, the contour\nmark’s channels are not evaluated on the initial *data* but rather on the\ngenerated contour multipolygons."
+  },
+  "crosshair": {
+    "kind": "marks",
+    "doc": "Returns a new crosshair mark for the given *data* and *options*, drawing\nhorizontal and vertical rules centered at the point closest to the pointer.\nThe corresponding **x** and **y** values are also drawn just outside the\nbottom and left sides of the frame, respectively, typically on top of the\naxes. If either **x** or **y** is not specified, the crosshair will be\none-dimensional."
+  },
+  "crosshairX": {
+    "kind": "marks",
+    "doc": "Like crosshair, but uses the pointerX transform: the determination of the\nclosest point is heavily weighted by the *x* (horizontal↔︎) position; this\nshould be used for plots where *x* represents the independent variable, such\nas time in a time-series chart, or the aggregated dimension when grouping or\nbinning."
+  },
+  "crosshairY": {
+    "kind": "marks",
+    "doc": "Like crosshair, but uses the pointerY transform: the determination of the\nclosest point is heavily weighted by the *y* (vertical↕︎) position; this\nshould be used for plots where *y* represents the independent variable, such\nas time in a time-series chart, or the aggregated dimension when grouping or\nbinning."
+  },
+  "delaunayLink": {
+    "kind": "marks",
+    "doc": "Returns a mark that draws links for each edge of the Delaunay triangulation\nof the points given by the **x** and **y** channels. Like the link mark,\nexcept that **x1**, **y1**, **x2**, and **y2** are derived automatically from\n**x** and **y**. When an aesthetic channel is specified (such as **stroke**\nor **strokeWidth**), the link inherits the corresponding channel value from\none of its two endpoints arbitrarily.\n\nIf **z** is specified, the input points are grouped by *z*, producing a\nseparate Delaunay triangulation for each group."
+  },
+  "delaunayMesh": {
+    "kind": "marks",
+    "doc": "Returns a mark that draws a mesh of the Delaunay triangulation of the points\ngiven by the **x** and **y** channels. The **stroke** option defaults to\n_currentColor_, and the **strokeOpacity** defaults to 0.2; the **fill**\noption is not supported. When an aesthetic channel is specified (such as\n**stroke** or **strokeWidth**), the mesh inherits the corresponding channel\nvalue from one of its constituent points arbitrarily.\n\nIf **z** is specified, the input points are grouped by *z*, producing a\nseparate Delaunay triangulation for each group."
+  },
+  "hull": {
+    "kind": "marks",
+    "doc": "Returns a mark that draws a convex hull around the points given by the **x**\nand **y** channels. The **stroke** option defaults to _currentColor_ and the\n**fill** option defaults to _none_. When an aesthetic channel is specified\n(such as **stroke** or **strokeWidth**), the hull inherits the corresponding\nchannel value from one of its constituent points arbitrarily.\n\nIf **z** is specified, the input points are grouped by *z*, producing a\nseparate hull for each group. If **z** is not specified, it defaults to the\n**fill** channel, if any, or the **stroke** channel, if any."
+  },
+  "voronoi": {
+    "kind": "marks",
+    "doc": "Returns a mark that draws polygons for each cell of the Voronoi tesselation\nof the points given by the **x** and **y** channels.\n\nIf **z** is specified, the input points are grouped by *z*, producing a\nseparate Voronoi tesselation for each group."
+  },
+  "voronoiMesh": {
+    "kind": "marks",
+    "doc": "Returns a mark that draws a mesh for the cell boundaries of the Voronoi\ntesselation of the points given by the **x** and **y** channels. The\n**stroke** option defaults to _currentColor_, and the **strokeOpacity**\ndefaults to 0.2. The **fill** option is not supported. When an aesthetic\nchannel is specified (such as **stroke** or **strokeWidth**), the mesh\ninherits the corresponding channel value from one of its constituent points\narbitrarily.\n\nIf **z** is specified, the input points are grouped by *z*, producing a\nseparate Voronoi tesselation for each group."
+  },
+  "density": {
+    "kind": "marks",
+    "doc": "Returns a mark that draws contours representing the estimated density of the\ntwo-dimensional points given by **x** and **y**, and possibly weighted by\n**weight**. If either **x** or **y** is not specified, it defaults to the\nrespective middle of the plot’s frame.\n\nIf the **stroke** or **fill** is specified as *density*, a color channel is\nconstructed with values representing the density threshold value of each\ncontour."
+  },
+  "differenceY": {
+    "kind": "marks",
+    "doc": "Returns a new vertical difference mark for the given the specified *data* and\n*options*, as in a time-series chart where time goes right→ (or ←left).\n\nThe mark is a composite of a positive area, negative area, and line. The\npositive area extends from the bottom of the frame to the line, and is\nclipped by the area extending from the comparison to the top of the frame.\nThe negative area conversely extends from the top of the frame to the line,\nand is clipped by the area extending from the comparison to the bottom of the\nframe."
+  },
+  "frame": {
+    "kind": "marks",
+    "doc": "Draws a rectangle around the plot’s frame, or if an **anchor** is given, a\nline on the given side. Useful for visual separation of facets, or in\nconjunction with axes and grids to fill the frame’s background."
+  },
+  "geo": {
+    "kind": "marks",
+    "doc": "Returns a new geo mark with the given *data* and *options*. The **geometry**\nchannel, which defaults to the identity function assuming that *data* is a\nGeoJSON object or an iterable of GeoJSON objects, is projected to the plane\nusing the plot’s top-level **projection**. For example, for a choropleth map\nof county polygons with a *rate* property:\n\n```js\nPlot.geo(counties, {fill: (d) => d.properties.rate})\n```\n\nIf *data* is a GeoJSON feature collection, then the mark’s data is\n*data*.features; if *data* is a GeoJSON geometry collection, then the mark’s\ndata is *data*.geometries; if *data* is some other GeoJSON object, then the\nmark’s data is the single-element array [*data*]."
+  },
+  "sphere": {
+    "kind": "marks",
+    "doc": "Returns a new geo mark whose *data* is the outline of the sphere on the\nprojection’s plane. (For use with a spherical **projection** only.)"
+  },
+  "graticule": {
+    "kind": "marks",
+    "doc": "Returns a new geo mark whose *data* is a 10° global graticule. (For use with\na spherical **projection** only.) For more control, use [d3.geoGraticule][1]\nwith the geo mark.\n\n[1]: https://d3js.org/d3-geo/shape#geoGraticule"
+  },
+  "hexgrid": {
+    "kind": "marks",
+    "doc": "The hexgrid decoration mark complements the hexbin transform, showing the\noutlines of all hexagons spanning the frame with a default **stroke** of\n*currentColor* and a default **strokeOpacity** of 0.1, similar to the the\ndefault axis grids. For example:\n\n```js\nPlot.plot({\n  marks: [\n    Plot.hexagon(Plot.hexbin({fill: \"count\"}, {binWidth: 12, x: \"weight\", y: \"economy\"})),\n    Plot.hexgrid({binWidth: 12})\n  ]\n})\n```\n\nNote that the **binWidth** option of the hexgrid mark should match that of\nthe hexbin transform. The grid is clipped by the frame. This is a stroke-only\nmark, and **fill** is not supported; to fill the frame, use the frame mark."
+  },
+  "image": {
+    "kind": "marks",
+    "doc": "Returns a new image mark for the given *data* and *options* that draws images\nas in a scatterplot. For example, portraits of U.S. presidents by date of\ninauguration and favorability:\n\n```js\nPlot.image(presidents, {x: \"inauguration\", y: \"favorability\", src: \"portrait\"})\n```\n\nIf either **x** or **y** is not specified, the default is determined by the\n**frameAnchor** option. If none of **x**, **y**, and **frameAnchor** are\nspecified, *data* is assumed to be an array of pairs [[*x₀*, *y₀*], [*x₁*,\n*y₁*], [*x₂*, *y₂*], …] such that **x** = [*x₀*, *x₁*, *x₂*, …] and **y** =\n[*y₀*, *y₁*, *y₂*, …]."
+  },
+  "linearRegressionX": {
+    "kind": "marks",
+    "doc": "Like linearRegressionY, but where *x* is the dependent variable and *y* is\nthe independent variable. This orientation is infrequently used, but suitable\nfor example when visualizing a time-series where time goes up↑; use\nlinearRegressionY instead if time goes right→."
+  },
+  "linearRegressionY": {
+    "kind": "marks",
+    "doc": "Returns a mark that draws [linear regression][1] lines with confidence bands,\nrepresenting the estimated relation of a dependent variable (*y*) on an\nindependent variable (*x*). For example to estimate the linear dependence of\nhorsepower (*hp*) on weight (*wt*):\n\n```js\nPlot.linearRegressionY(mtcars, {x: \"wt\", y: \"hp\"})\n```\n\nThe linear regression line is fit using the [least squares][2] approach. See\nTorben Jansen’s [“Linear regression with confidence bands”][3] and [this\nStatExchange question][4] for details on the confidence interval calculation.\n\nMultiple regressions can be produced by specifying a **z**, **fill**, or\n**stroke** channel.\n\n[1]: https://en.wikipedia.org/wiki/Linear_regression\n[2]: https://en.wikipedia.org/wiki/Least_squares\n[3]: https://observablehq.com/@toja/linear-regression-with-confidence-bands\n[4]: https://stats.stackexchange.com/questions/101318/understanding-shape-and-calculation-of-confidence-bands-in-linear-regression"
+  },
+  "link": {
+    "kind": "marks",
+    "doc": "Returns a new link mark for the given *data* and *options*, drawing line\nsegments (curves) connecting pairs of points. For example, to draw a link\nconnecting an observation from 1980 with an observation from 2015 in a\nscatterplot of population and revenue inequality of U.S. cities:\n\n```js\nPlot.link(inequality, {x1: \"POP_1980\", y1: \"R90_10_1980\", x2: \"POP_2015\", y2: \"R90_10_2015\"})\n```\n\nIf the plot uses a spherical **projection**, the default *auto* **curve**\nwill render links as geodesics; to draw a straight line instead, use the\n*linear* **curve**."
+  },
+  "treeNode": {
+    "kind": "transforms",
+    "doc": "Populates the *x* and *y* channels with the positions for each node, and\napplies a default **frameAnchor** based on the specified **treeAnchor**. This\ntransform is intended to be used with dot, text, and other point-based marks.\nThis transform is rarely used directly; see the tree mark.\n\nThe treeNode transform will derive output columns for any *options* that have\none of the following named node values:\n\n* *node:name* - the node’s name (the last part of its path)\n* *node:path* - the node’s full, normalized, slash-separated path\n* *node:internal* - true if the node is internal, or false for leaves\n* *node:external* - true if the node is a leaf, or false for internal nodes\n* *node:depth* - the distance from the node to the root\n* *node:height* - the distance from the node to its deepest descendant\n\nIn addition, if any option value is specified as an object with a **node**\nmethod, a derived output column will be generated by invoking the **node**\nmethod for each node in the tree."
+  },
+  "treeLink": {
+    "kind": "transforms",
+    "doc": "Populates the *x1*, *y1*, *x2*, and *y2* channels, and applies the following\ndefaults: **curve** is *bump-x*, **stroke** is #555, **strokeWidth** is 1.5,\nand **strokeOpacity** is 0.5. This transform is intended to be used with\nlink, arrow, and other two-point-based marks. This transform is rarely used\ndirectly; see the tree mark.\n\nThe treeLink transform will derive output columns for any *options* that have\none of the following named link values:\n\n* *node:name* - the child node’s name (the last part of its path)\n* *node:path* - the child node’s full, normalized, slash-separated path\n* *node:internal* - true if the child node is internal, or false for leaves\n* *node:external* - true if the child node is a leaf, or false for external nodes\n* *node:depth* - the distance from the child node to the root\n* *node:height* - the distance from the child node to its deepest descendant\n* *parent:name* - the parent node’s name (the last part of its path)\n* *parent:path* - the parent node’s full, normalized, slash-separated path\n* *parent:depth* - the distance from the parent node to the root\n* *parent:height* - the distance from the parent node to its deepest descendant\n\nIn addition, if any option value is specified as an object with a **node**\nmethod, a derived output column will be generated by invoking the **node**\nmethod for each child node in the tree; likewise if any option value is\nspecified as an object with a **link** method, a derived output column will\nbe generated by invoking the **link** method for each link in the tree, being\npassed two node arguments, the child and the parent."
+  },
+  "tree": {
+    "kind": "marks",
+    "doc": "Returns a compound tree mark, with a link to display edges from parent to\nchild, a dot to display nodes, and a text to display node labels.\n\nThe tree layout is computed via the treeLink and treeNode transforms, which\ntransform a tabular dataset into a hierarchy according to the given **path**\ninput channel, which must contain **delimiter**-separated strings (forward\nslash by default); then executes a tree layout algorithm, by default\n[Reingold–Tilford’s “tidy” algorithm][1].\n\n[1]: https://d3js.org/d3-hierarchy/tree"
+  },
+  "cluster": {
+    "kind": "marks",
+    "doc": "Shorthand for the tree mark using [d3.cluster][1] as the **treeLayout**\noption, placing leaf nodes of the tree at the same depth. Equivalent to:\n\n```js\nPlot.tree(data, {...options, treeLayout: d3.cluster, textLayout: \"mirrored\"})\n```\n\n[1]: https://d3js.org/d3-hierarchy/cluster"
+  },
+  "vector": {
+    "kind": "marks",
+    "doc": "Returns a new vector mark for the given *data* and *options*. For example, to\ncreate a vector field from spatial samples of wind observations:\n\n```js\nPlot.vector(wind, {x: \"longitude\", y: \"latitude\", length: \"speed\", rotate: \"direction\"})\n```\n\nIf none of **frameAnchor**, **x**, and **y** are specified, then **x** and\n**y** default to accessors assuming that *data* contains tuples [[*x₀*,\n*y₀*], [*x₁*, *y₁*], [*x₂*, *y₂*], …]"
+  },
+  "vectorX": {
+    "kind": "marks",
+    "doc": "Like vector, but **x** instead defaults to the identity function and **y**\ndefaults to null, assuming that *data* is an array of numbers [*x₀*, *x₁*,\n*x₂*, …]."
+  },
+  "vectorY": {
+    "kind": "marks",
+    "doc": "Like vector, but **y** instead defaults to the identity function and **x**\ndefaults to null, assuming that *data* is an array of numbers [*y₀*, *y₁*,\n*y₂*, …]."
+  },
+  "spike": {
+    "kind": "marks",
+    "doc": "Like vector, but with default *options* suitable for drawing a spike map. For\nexample, to show city populations:\n\n```js\nPlot.spike(cities, {x: \"longitude\", y: \"latitude\", stroke: \"red\", length: \"population\"})\n```"
+  },
+  "valueof": {
+    "kind": "options",
+    "doc": "Given some *data* and a channel *value* definition (such as a field name or\nfunction accessor), returns an array of the specified *type* containing the\ncorresponding values derived from *data*. If *type* is not specified, it\ndefaults to Array; otherwise it must be an Array or TypedArray subclass.\n\nThe returned array is not guaranteed to be new; when the *value* is a channel\ntransform or an array that is an instance of the given *type*, the array may\nbe returned as-is without making a copy."
+  },
+  "column": {
+    "kind": "options",
+    "doc": "Returns a [*column*, *setColumn*] helper for deriving columns; *column* is a\nchannel transform that returns whatever value was most recently passed to\n*setColumn*. If *setColumn* is not called, then the channel transform returns\nundefined.\n\nIf a *source* is specified, then *column*.label exposes the given *source*’s\nlabel, if any: if *source* is a string as when representing a named field of\ndata, then *column*.label is *source*; otherwise *column*.label propagates\n*source*.label. This allows derived columns to propagate a human-readable\naxis or legend label."
+  },
+  "centroid": {
+    "kind": "transforms",
+    "doc": "Given a **geometry** input channel of GeoJSON geometry, derives **x** and\n**y** output channels representing the planar (projected) centroids of the\ngeometry. The centroids are computed in screen coordinates according to the\nplot’s associated **projection** (or *x* and *y* scales), if any.\n\nFor centroids of spherical geometry, see Plot.geoCentroid."
+  },
+  "geoCentroid": {
+    "kind": "transforms",
+    "doc": "Given a **geometry** input channel of spherical GeoJSON geometry, derives\n**x** and **y** output channels representing the spherical centroids of the\ngeometry.\n\nFor planar (projected) centroids, see Plot.centroid."
+  },
+  "dodgeX": {
+    "kind": "transforms",
+    "doc": "Given a **y** position channel, derives a new **x** position channel that\nplaces circles of the given radius **r** to avoid overlap. The order in which\ncircles are placed, which defaults to descending radius **r** to place the\nlargest circles first, significantly affects the overall layout; use the\n**sort** or **reverse** mark options to change the order.\n\nIf *dodgeOptions* is a string, it is shorthand for the dodge **anchor**."
+  },
+  "dodgeY": {
+    "kind": "transforms",
+    "doc": "Given an **x** position channel, derives a new **y** position channel that\nplaces circles of the given radius **r** to avoid overlap. The order in which\ncircles are placed, which defaults to descending radius **r** to place the\nlargest circles first, significantly affects the overall layout; use the\n**sort** or **reverse** mark options to change the order.\n\nIf *dodgeOptions* is a string, it is shorthand for the dodge **anchor**."
+  },
+  "hexbin": {
+    "kind": "transforms",
+    "doc": "Bins hexagonally on the scaled **x** and **y** channels; then subdivides bins\non the first channel of **z**, **fill**, or **stroke**, if any; and lastly\nfor each channel in the specified *outputs*, applies the corresponding\n*reduce* method to produce new channel values from the binned input channel\nvalues. Each *reduce* method may be one of:\n\n- a named reducer implementation such as *count* or *sum*\n- a function that takes an array of values and returns the reduced value\n- an object that implements the *reduceIndex* method\n\nFor example, for a heatmap of observed culmen lengths and depths:\n\n```js\nPlot.dot(penguins, Plot.hexbin({fill: \"count\"}, {x: \"culmen_depth_mm\", y: \"culmen_length_mm\"}))\n```\n\nThe hexbin transform can be applied to any mark that consumes **x** and\n**y**, such as the dot, image, text, and vector marks; it is intended for\naggregating continuous quantitative or temporal data, such as temperatures or\ntimes, into discrete hexagonal bins. For the dot mark, the **symbol** option\ndefaults to *hexagon*, and the *r* option defaults to half the **binWidth**.\nIf a **fill** output channel is declared, the **stroke** option defaults to\n*none*.\n\nTo draw empty hexagons, see the hexgrid mark."
+  },
+  "normalizeX": {
+    "kind": "transforms",
+    "doc": "Groups data into series using the first channel of **z**, **fill**, or\n**stroke** (if any), then derives new **x**, **x1**, and **x2** channels for\neach corresponding input channel by normalizing to the given *basis*. For\nexample, if the series values are [*x₀*, *x₁*, *x₂*, …] and the *first* basis\nis used, the derived series values would be [*x₀* / *x₀*, *x₁* / *x₀*, *x₂* /\n*x₀*, …] as in an index chart."
+  },
+  "normalizeY": {
+    "kind": "transforms",
+    "doc": "Groups data into series using the first channel of **z**, **fill**, or\n**stroke** (if any), then derives new **y**, **y1**, and **y2** channels for\neach corresponding input channel by normalizing to the given *basis*. For\nexample, if the series values are [*y₀*, *y₁*, *y₂*, …] and the *first* basis\nis used, the derived series values would be [*y₀* / *y₀*, *y₁* / *y₀*, *y₂* /\n*y₀*, …] as in an index chart."
+  },
+  "normalize": {
+    "kind": "transforms",
+    "doc": "Given a normalize *basis*, returns a corresponding map implementation for use\nwith the map transform, allowing the normalization of arbitrary channels\ninstead of only **x** and **y**. For example, to normalize the **title**\nchannel:\n\n```js\nPlot.map({title: Plot.normalize(\"first\")}, {x: \"Date\", title: \"Close\", stroke: \"Symbol\"})\n```"
+  },
+  "select": {
+    "kind": "transforms",
+    "doc": "Groups on the first channel of **z**, **fill**, or **stroke**, if any, and\nthen selects points from each series based on the given *selector*. For\nexample to select the maximum point of the **y** channel, as selectMaxY:\n\n```js\nPlot.text(data, Plot.select({y: \"max\"}, options))\n```"
+  },
+  "selectFirst": {
+    "kind": "transforms",
+    "doc": "Groups on the first channel of **z**, **fill**, or **stroke**, if any, and\nthen selects the first point from each series in input order."
+  },
+  "selectLast": {
+    "kind": "transforms",
+    "doc": "Groups on the first channel of **z**, **fill**, or **stroke**, if any, and\nthen selects the last point from each series in input order."
+  },
+  "selectMinX": {
+    "kind": "transforms",
+    "doc": "Groups on the first channel of **z**, **fill**, or **stroke**, if any, and\nthen selects the minimum point from each series based on **x** channel value."
+  },
+  "selectMinY": {
+    "kind": "transforms",
+    "doc": "Groups on the first channel of **z**, **fill**, or **stroke**, if any, and\nthen selects the minimum point from each series based on **y** channel value."
+  },
+  "selectMaxX": {
+    "kind": "transforms",
+    "doc": "Groups on the first channel of **z**, **fill**, or **stroke**, if any, and\nthen selects the maximum point from each series based on **x** channel value."
+  },
+  "selectMaxY": {
+    "kind": "transforms",
+    "doc": "Groups on the first channel of **z**, **fill**, or **stroke**, if any, and\nthen selects the maximum point from each series based on **y** channel value."
+  },
+  "shiftX": {
+    "kind": "transforms",
+    "doc": "Groups data into series using the first channel of *z*, *fill*, or *stroke*\n(if any), then derives *x1* and *x2* output channels by shifting the input\n*x* channel according to the specified *interval*."
+  }
+}
