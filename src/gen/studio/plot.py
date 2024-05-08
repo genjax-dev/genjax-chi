@@ -453,14 +453,14 @@ def doc(plot_fn):
         title = f"<span style='font-size: 20px; padding-right: 10px;'>Plot.{name}</span>"
         url = f"https://observablehq.com/plot/{meta['kind']}/{re.search(r'([a-z]+)', name).group(1)}" if meta else None
         return HTML(f"""
-                    <div style="display: flex; justify-content:space-between; border-bottom: 1px solid #ddd; padding: 5px 0 10px;">
+                    <div style="display: block; gap: 10px; border-bottom: 1px solid #ddd; padding: 10px 0;">
                     {title} 
-                    <a href="{url}">Examples &#8599;</a></div>
+                    <a style='color: #777; text-decoration: none;' href="{url}">Examples &#8599;</a></div>
                     """ + markdown.markdown(doc))
     else:
         return HTML("No docstring available.")
 
-doc(barX)
+# doc(barX)
 # For reference - other options supported by plots
 # example_plot_options = {
 #     "title": "TITLE",

@@ -2,7 +2,7 @@ from timeit import default_timer as timer
 import requests
 import re
 import json
-
+import os
 
 class benchmark(object):
     """
@@ -33,7 +33,11 @@ class benchmark(object):
         print(("%s : " + self.fmt + " seconds") % (self.msg, t))
         self.time = t
 
-OBSERVABLE_PLOT_METADATA = json.load(open("scripts/observable_plot_metadata.json"))
+
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+metadata_path = os.path.join(script_dir, "scripts/observable_plot_metadata.json")
+OBSERVABLE_PLOT_METADATA = json.load(open(metadata_path))
 def doc(functionName):
     return OBSERVABLE_PLOT_METADATA[functionName]['doc']
     
