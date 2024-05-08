@@ -25,7 +25,7 @@ def normal_100():
 # %% [markdown]
 # ### Histogram
 
-Plot.rectY(normal_100(), Plot.binX({"y": "count"})) + Plot.ruleY
+Plot.rectY(normal_100(), Plot.binX({"y": "count"})) + Plot.ruleY()
 
 # %% [markdown]
 # ### Scatter and Line plots
@@ -33,7 +33,7 @@ Plot.rectY(normal_100(), Plot.binX({"y": "count"})) + Plot.ruleY
 # also accept separate `xs` and `ys` for passing in columnar data (usually the case
 # when working with jax.)
 
-Plot.dot(normal_100(), normal_100()) + Plot.frame
+Plot.dot(normal_100(), normal_100()) + Plot.frame()
 
 # %% [markdown]
 # ### One-dimensional heatmap
@@ -43,3 +43,34 @@ Plot.dot(normal_100(), normal_100()) + Plot.frame
     + Plot.color_scheme("YlGnBu")
     + {"height": 75}
 )
+
+ # %% [markdown]
+ # ### Built-in docs
+ # Evaluating a Plot function in a notebook will render its docstring as markdown.
+ 
+ Plot.line
+ 
+ # %% [markdown]
+ # ### Plot composition 
+ # 
+ # Marks and options can be composed by including them as arguments to `Plot.new(...)`,
+ # or by adding them to a plot. Adding marks or options does not change the underlying plot,
+ # so you can re-use plots in different combinations.
+ 
+gray_box = Plot.line([[0, 0], [0, 2], [2, 2], [2, 0]], fill='#e0e0e0')
+gray_box
+
+#%%
+framed_titled = gray_box + Plot.frame() + Plot.title("Foo")
+framed_titled
+
+#%%
+
+def random_dots(fill):
+    return Plot.dot(np.random.uniform(0, 2, 100), np.random.uniform(0, 2, 100), fill=fill)
+
+framed_titled + random_dots('black') + random_dots('magenta')
+ 
+ 
+ 
+ 

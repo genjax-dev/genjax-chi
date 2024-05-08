@@ -57,13 +57,12 @@ def test_plotspec_plot():
 
 
 def test_mark_default():
-    md = Plot.MarkDefault("frame", {"stroke": "red"})
-    assert len(md.spec["marks"]) == 1
-    assert md.spec["marks"][0]["args"][0]["stroke"] == "red"
+    md = Plot.PlotSpecWithDefault("frame", {"stroke": "red"})
+    assert len(md().spec["marks"]) == 1
+    assert md().spec["marks"][0]["args"][0]["stroke"] == "red"
 
     md2 = md(stroke="blue")
     assert md2.spec["marks"][0]["args"][0]["stroke"] == "blue"
-
 
 def test_sugar():
     ps = Plot.new() + Plot.grid_x

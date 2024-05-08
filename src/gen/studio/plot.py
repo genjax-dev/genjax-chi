@@ -10,7 +10,7 @@ import numpy as np
 import pyobsplot
 from gen.studio.util import benchmark
 from ipywidgets import HTML, GridBox, Layout
-from pyobsplot import Plot, js
+from pyobsplot import Plot, d3, js
 
 # This module provides a composable way to create interactive plots using Observable Plot
 # via pyobsplot (https://github.com/juba/pyobsplot) and AnyWidget (https://github.com/manzt/anywidget).
@@ -77,6 +77,7 @@ def _add_list(spec, marks, to_add):
             _add_list(spec, marks, new_spec)
         else:
             raise ValueError(f"Invalid plot specification: {new_spec}")
+
 
 def _add_dict(spec, marks, to_add):
     # mutates spec & marks, returns nothing
@@ -215,6 +216,7 @@ def constantly(x):
     x = json.dumps(x)
     return pyobsplot.js(f"()=>{x}")
 
+
 def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
     # TODO
     # replace this with a pyobsplot-style js stub which
@@ -243,23 +245,62 @@ def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
         layout=Layout(**layout_opts),
     )
 
+
+def doc(plot_fn):
+    """
+    Decorator to display the docstring of a plot function nicely formatted as Markdown.
+
+    Args:
+        plot_fn: The plot function whose docstring to display.
+
+    Returns:
+        An ipywidgets.HTML widget rendering the docstring as Markdown.
+    """
+
+    if plot_fn.__doc__:
+        name = plot_fn.__name__
+        doc = plot_fn.__doc__
+        meta = util.OBSERVABLE_PLOT_METADATA.get(name, None)
+        title = (
+            f"<span style='font-size: 20px; padding-right: 10px;'>Plot.{name}</span>"
+        )
+        url = (
+            f"https://observablehq.com/plot/{meta['kind']}/{re.search(r'([a-z]+)', name).group(1)}"
+            if meta
+            else None
+        )
+        return HTML(
+            f"""
+                    <div style="display: block; gap: 10px; border-bottom: 1px solid #ddd; padding: 10px 0;">
+                    {title} 
+                    <a style='color: #777; text-decoration: none;' href="{url}">Examples &#8599;</a></div>
+                    """
+            + markdown.markdown(doc)
+        )
+    else:
+        return HTML("No docstring available.")
+
+
 def _wrap_plot_fn(fn, fn_name):
     """
     Returns a wrapping function for an Observable.Plot mark, accepting a positional values argument
     (where applicable) options, which may be a single dict and/or keyword arguments.
     """
     meta = util.OBSERVABLE_PLOT_METADATA[fn_name]
-    if meta['kind'] != 'marks':
-        fn.__doc__ = meta.get('doc', None)
+    kind = meta['kind']
+    if kind != "marks":
+        fn.__doc__ = meta.get("doc", None)
         fn.__name__ = fn_name
         return fn
-    
+
     def innerWithValues(values, spec={}, **kwargs):
         mark = fn(array_to_list(values), {**spec, **kwargs})
+        mark['kind'] = kind
         return PlotSpec(mark)
 
     def innerWithoutValues(spec={}, **kwargs):
         mark = fn({**spec, **kwargs})
+        mark['kind'] = kind
         return PlotSpec(mark)
 
     if fn_name in ["hexgrid", "grid", "gridX", "gridY", "gridFx", "gridFy", "frame"]:
@@ -267,10 +308,10 @@ def _wrap_plot_fn(fn, fn_name):
     else:
         inner = innerWithValues
 
+    inner._repr_mimebundle_ = lambda **kwargs: doc(inner)._repr_mimebundle_(**kwargs)
     inner.__name__ = fn_name
-    inner.__doc__ = meta.get('doc', None)
+    inner.__doc__ = meta.get("doc", None)
     return inner
-
 
 _plot_fns = {
     name: _wrap_plot_fn(getattr(Plot, name), name)
@@ -280,21 +321,19 @@ _plot_fns = {
 # Re-export the dynamically constructed MarkSpec functions
 globals().update(_plot_fns)
 
-
-def accept_xs_ys(name, default_spec=None):
+def accept_xs_ys(plot_fn, default_spec=None):
     """
     Wraps a plot function to accept xs and ys arrays in addition to a values array.
-    
+
     The wrapped function supports the following argument patterns:
     - values
     - values, spec
-    - xs, ys  
+    - xs, ys
     - xs, ys, spec
-    
+
     Where spec is a dictionary of plot options.
     """
-    meta = util.OBSERVABLE_PLOT_METADATA[name]
-    plot_fn = getattr(Plot, name)
+
     def inner(*args, **kwargs):
         if len(args) == 1:
             values = args[0]
@@ -323,17 +362,20 @@ def accept_xs_ys(name, default_spec=None):
                     {"x": array_to_list(xs), "y": array_to_list(ys), **kwargs},
                 )
             )
-    inner.__doc__ = meta['doc']
-    inner.__name__ = name
+
+    inner.__doc__ = plot_fn.__doc__
+    inner.__name__ = plot_fn.__name__
+    inner._repr_mimebundle_ = plot_fn._repr_mimebundle_
     return inner
 
 
-line = accept_xs_ys('line')
-dot = accept_xs_ys('dot', {"fill": "currentColor"})
+line = accept_xs_ys(_plot_fns["line"])
+dot = accept_xs_ys(_plot_fns["dot"], {"fill": "currentColor"})
 
-class MarkDefault(PlotSpec):
+
+class PlotSpecWithDefault:
     """
-    A class that wraps a mark function and serves as a default value.
+    A class that wraps a mark function with defaults when called with no arguments.
 
     An instance of MarkDefault can be used directly as a PlotSpec or
     called as a function to customize the behaviour of the mark.
@@ -343,28 +385,27 @@ class MarkDefault(PlotSpec):
         default (dict): The default options for the mark.
     """
 
-    def __init__(self, fn_name, default):
+    def __init__(self, fn_name, *default_args):
         fn = _plot_fns[fn_name]
-        self.__name__ = fn_name
+        self.__name__ = fn.__name__
         self.__doc__ = fn.__doc__
-        super().__init__([fn(default)])
+        self.default_args = default_args
         self.fn = fn
 
     def __call__(self, *args, **kwargs):
+        if not args and not kwargs:
+            return new(self.fn(*self.default_args))
         return self.fn(*args, **kwargs)
 
+    def _repr_mimebundle_(self, **kwargs):
+        return self.fn._repr_mimebundle_(**kwargs)
 
 
-frame = MarkDefault("frame", {"stroke": "#dddddd"})
-"""Adds a frame, defaulting to a light gray stroke."""
+frame = PlotSpecWithDefault("frame", {"stroke": "#dddddd"})
+ruleY = PlotSpecWithDefault("ruleY", [0])
+ruleX = PlotSpecWithDefault("ruleX", [0])
 
-ruleY = MarkDefault("ruleY", [0])
-"""Adds a horizontal rule, defaulting to y=0."""
-
-ruleX = MarkDefault("ruleX", [0])
-"""Adds a vertical rule, defaulting to x=0."""
-
-
+# %%
 # The following convenience dicts can be added directly to PlotSpecs to declare additional behaviour.
 
 grid_y = {"y": {"grid": True}}
@@ -374,8 +415,36 @@ color_legend = {"color": {"legend": True}}
 clip = {"clip": True}
 
 
+def title(title):
+    return {"title": title}
+
+
+def subtitle(subtitle):
+    return {"subtitle": subtitle}
+
+
+def caption(caption):
+    return {"caption": caption}
+
+
+def width(width):
+    return {"width": width}
+
+
+def height(height):
+    return {"height": height}
+
+
+def size(size, height=None):
+    return {"width": size, "height": height or size}
+
+
 def aspect_ratio(r):
     return {"aspectRatio": r}
+
+
+def inset(i):
+    return {"inset": i}
 
 
 def color_scheme(name):
@@ -384,18 +453,19 @@ def color_scheme(name):
 
 
 def domainX(d):
-    "Sets the domain for the x-axis"
     return {"x": {"domain": d}}
 
 
 def domainY(d):
-    "Sets the domain for the y-axis"
     return {"y": {"domain": d}}
 
 
 def domain(xd, yd=None):
-    "Sets the domains for both axes (if one argument is passed, it is used for both axes)"
     return {"x": {"domain": xd}, "y": {"domain": yd or xd}}
+
+def color_map(mappings):
+    return {'color': {'domain': mappings.keys(),
+                      'range': mappings.values()}}
 
 def margin(*args):
     """
@@ -434,31 +504,6 @@ def margin(*args):
     else:
         raise ValueError(f"Invalid number of arguments: {len(args)}")
 
-
-def doc(plot_fn):
-    """
-    Decorator to display the docstring of a plot function nicely formatted as Markdown.
-    
-    Args:
-        plot_fn: The plot function whose docstring to display.
-        
-    Returns: 
-        An ipywidgets.HTML widget rendering the docstring as Markdown.
-    """
-    
-    if plot_fn.__doc__:
-        name = plot_fn.__name__
-        doc = plot_fn.__doc__
-        meta = util.OBSERVABLE_PLOT_METADATA.get(name, None)
-        title = f"<span style='font-size: 20px; padding-right: 10px;'>Plot.{name}</span>"
-        url = f"https://observablehq.com/plot/{meta['kind']}/{re.search(r'([a-z]+)', name).group(1)}" if meta else None
-        return HTML(f"""
-                    <div style="display: block; gap: 10px; border-bottom: 1px solid #ddd; padding: 10px 0;">
-                    {title} 
-                    <a style='color: #777; text-decoration: none;' href="{url}">Examples &#8599;</a></div>
-                    """ + markdown.markdown(doc))
-    else:
-        return HTML("No docstring available.")
 
 # doc(barX)
 # For reference - other options supported by plots
