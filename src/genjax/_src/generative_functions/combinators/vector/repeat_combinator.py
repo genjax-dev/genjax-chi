@@ -117,10 +117,7 @@ class RepeatCombinator(
 
     @dispatch
     def importance(
-        self,
-        key: PRNGKey,
-        choice: EmptyChoice,
-        args: Tuple
+        self, key: PRNGKey, choice: EmptyChoice, args: Tuple
     ) -> Tuple[RepeatTrace, FloatArray]:
         tr = self.simulate(key, args)
         w = jnp.array(0.0)
