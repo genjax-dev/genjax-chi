@@ -489,9 +489,13 @@ class GenerativeFunction(Pytree):
         type_string = str(type(self))
         return formatting_util.color_from_string(type_string)
 
-    ###############################################
-    # Convenience: postfix syntax for combinators #
-    ###############################################
+    ######################################################
+    # Convenience: postfix syntax for combinators / DSLs #
+    ######################################################
+
+    ###############
+    # Combinators #
+    ###############
 
     def vmap(self, /, *, in_axes=0) -> "GenerativeFunction":
         from genjax import vmap_combinator
@@ -540,6 +544,40 @@ class GenerativeFunction(Pytree):
         from genjax.inference.smc import attach_combinator
 
         return attach_combinator(self, **kwargs)
+
+    #####################
+    # GenSP / inference #
+    #####################
+
+    def target(
+        self,
+        /,
+        *,
+        constraint: Constraint,
+        args: Tuple,
+    ):
+        from genjax import Target
+
+        return Target(
+            self,
+            args,
+            constraint,
+        )
+
+    def marginal(
+        self,
+        /,
+        *,
+        select_or_addr: Optional[Any] = None,
+        algorithm: Optional[Any] = None,
+    ) -> "GenerativeFunction":
+        from genjax import marginal
+
+        return marginal(
+            self,
+            select_or_addr=select_or_addr,
+            algorithm=algorithm,
+        )
 
 
 # NOTE: Setup a global handler stack for the `trace` callee sugar.

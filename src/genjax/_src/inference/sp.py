@@ -17,12 +17,14 @@ from abc import abstractmethod
 import jax
 
 from genjax._src.core.generative import (
+    Address,
+    ChoiceMap,
     Constraint,
     GenerativeFunction,
-    GenerativeFunctionClosure,
     RemoveSelectionUpdateSpec,
     Sample,
     Selection,
+    Weight,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -188,7 +190,7 @@ class InferenceAlgorithm(SampleDistribution):
         self,
         key: PRNGKey,
         target: Target,
-    ) -> FloatArray:
+    ) -> Weight:
         pass
 
     @abstractmethod
@@ -197,8 +199,8 @@ class InferenceAlgorithm(SampleDistribution):
         key: PRNGKey,
         target: Target,
         latent_choices: Sample,
-        w: FloatArray,
-    ) -> FloatArray:
+        w: Weight,
+    ) -> Weight:
         pass
 
 
@@ -214,8 +216,7 @@ class Marginal(SampleDistribution):
     a selection of addresses. The return value type is a subtype of `Sample`.
     """
 
-    args: Tuple
-    gen_fn: GenerativeFunctionClosure
+    gen_fn: GenerativeFunction
     selection: Selection = Pytree.field(default=Selection.a)
     algorithm: Optional[InferenceAlgorithm] = Pytree.field(default=None)
 
@@ -223,11 +224,11 @@ class Marginal(SampleDistribution):
     def random_weighted(
         self,
         key: PRNGKey,
-    ) -> Tuple[FloatArray, Sample]:
+        *args,
+    ) -> Tuple[Weight, Sample]:
         key, sub_key = jax.random.split(key)
-        gen_fn = self.gen_fn(*self.args)
-        tr = gen_fn.simulate(sub_key)
-        choices = tr.get_sample()
+        tr = self.gen_fn.simulate(sub_key, args)
+        choices: ChoiceMap = tr.get_sample()
         latent_choices = choices.filter(self.selection)
         key, sub_key = jax.random.split(key)
         bwd_spec = RemoveSelectionUpdateSpec(~self.selection)
@@ -235,7 +236,7 @@ class Marginal(SampleDistribution):
         if self.algorithm is None:
             return weight, latent_choices
         else:
-            target = Target(self.gen_fn, self.args, latent_choices)
+            target = Target(self.gen_fn, args, latent_choices)
             other_choices = choices.filter(~self.selection)
             Z = self.algorithm.estimate_reciprocal_normalizing_constant(
                 key, target, other_choices, weight
@@ -248,13 +249,13 @@ class Marginal(SampleDistribution):
         self,
         key: PRNGKey,
         constraint: Constraint,
-    ) -> FloatArray:
-        gen_fn = self.gen_fn(*self.args)
+        *args,
+    ) -> Weight:
         if self.algorithm is None:
-            _, weight = gen_fn.importance(key, constraint)
+            _, weight = self.gen_fn.importance(key, constraint, args)
             return weight
         else:
-            target = Target(gen_fn, self.args, constraint)
+            target = Target(self.gen_fn, args, constraint)
             Z = self.algorithm.estimate_normalizing_constant(key, target)
             return Z
 
@@ -266,8 +267,7 @@ class ValueMarginal(Distribution):
     a single address `addr: Any`. The return value type is the type of the value at that address.
     """
 
-    args: Tuple
-    p: GenerativeFunctionClosure
+    p: GenerativeFunction
     addr: Any
     algorithm: Optional[InferenceAlgorithm] = Pytree.field(default=None)
 
@@ -275,14 +275,14 @@ class ValueMarginal(Distribution):
     def random_weighted(
         self,
         key: PRNGKey,
-    ) -> Tuple[FloatArray, Any]:
+        *args,
+    ) -> Tuple[Weight, Any]:
         marginal = Marginal(
-            self.args,
             self.p,
             Selection.at[self.addr],
             self.algorithm,
         )
-        Z, choice = marginal.random_weighted(key)
+        Z, choice = marginal.random_weighted(key, *args)
         return Z, choice[self.addr]
 
     @typecheck
@@ -290,19 +290,15 @@ class ValueMarginal(Distribution):
         self,
         key: PRNGKey,
         v: Any,
-    ) -> FloatArray:
+        *args,
+    ) -> Weight:
         marginal = Marginal(
-            self.args,
             self.p,
             Selection.at[self.addr],
             self.algorithm,
         )
-        latent_choice = Sample.a(self.addr, v)
-        return marginal.estimate_logpdf(key, latent_choice)
-
-    @property
-    def __wrapped__(self):
-        return self.p
+        latent_choice: Sample = ChoiceMap.a(self.addr, v)
+        return marginal.estimate_logpdf(key, latent_choice, *args)
 
 
 ################################
@@ -312,43 +308,40 @@ class ValueMarginal(Distribution):
 
 @typecheck
 def marginal(
-    gen_fn_closure: Optional[GenerativeFunctionClosure] = None,
+    gen_fn: Optional[GenerativeFunction] = None,
     /,
     *,
-    select_or_addr: Union[Selection, Any] = Selection.a,
+    select_or_addr: Optional[Selection | Address] = None,
     algorithm: Optional[InferenceAlgorithm] = None,
-) -> (
-    Callable[[GenerativeFunctionClosure], GenerativeFunctionClosure]
-    | GenerativeFunctionClosure
-):
+) -> Callable | GenerativeFunction:
     """If `select_or_addr` is a `Selection`, this constructs a `Marginal` distribution
     which samples `Sample` objects with addresses given in the selection.
     If `select_or_addr` is an address, this constructs a `ValueMarginal` distribution
     which samples values of the type stored at the given address in `gen_fn`.
     """
 
-    def decorator(gen_fn_closure):
-        @GenerativeFunction.closure
-        def marginal_closure(*args) -> Union[Marginal, ValueMarginal]:
-            if isinstance(select_or_addr, Selection):
-                marginal = Marginal(
-                    args,
-                    gen_fn_closure,
-                    select_or_addr,
-                    algorithm,
-                )
-            else:
-                marginal = ValueMarginal(
-                    args,
-                    gen_fn_closure,
-                    select_or_addr,
-                    algorithm,
-                )
-            return marginal
+    @Pytree.partial(select_or_addr)
+    def decorator(
+        select_or_addr: Optional[Selection | Address],
+        gen_fn: GenerativeFunction,
+    ) -> Marginal | ValueMarginal:
+        if not select_or_addr:
+            select_or_addr = Selection.a
+        if isinstance(select_or_addr, Selection):
+            marginal = Marginal(
+                gen_fn,
+                select_or_addr,
+                algorithm,
+            )
+        else:
+            marginal = ValueMarginal(
+                gen_fn,
+                select_or_addr,
+                algorithm,
+            )
+        return marginal
 
-        return marginal_closure
-
-    if gen_fn_closure is not None:
-        return decorator(gen_fn_closure)
+    if gen_fn is not None:
+        return decorator(gen_fn)
     else:
         return decorator

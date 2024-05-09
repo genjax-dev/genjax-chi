@@ -394,7 +394,8 @@ class ChoiceMap(Sample, Constraint):
         return self()
 
     def has_value(self) -> Bool | BoolArray:
-        return self.has_submap(())
+        _, ch, _ = self.call(())
+        return ch
 
     @typecheck
     def filter(self, selection: Selection) -> "ChoiceMap":
@@ -639,20 +640,33 @@ def _extract_keys(data, search_value):
 
 @typecheck
 def choice_map_address_function(addr_fn: dict, c: ChoiceMap):
-    @ChoiceMap.with_info(f"AddressFunction({addr_fn}, {c.info})")
+    @ChoiceMap.with_info(f"AddressMapped({addr_fn}, {c.info})")
     @Pytree.partial(c)
     def inner(c, head: StaticAddressComponent):
         sub_fn = _extract_keys(addr_fn, head)
         if sub_fn:
             return None, True, choice_map_address_function(sub_fn, c)
         else:
-            new_head = addr_fn.get(head, head)
-            if new_head == ():
-                return None, True, c
-            elif head == ():
-                return c.call_recurse((new_head, ()))
+            if isinstance(head, tuple) and head == ():
+                new_head = addr_fn.get(head, None)
+                submap = c
+                if new_head:
+                    submap = c.get_submap(new_head)
+                return submap.call_recurse(())
             else:
-                return c.call_recurse(new_head)
+                new_head = addr_fn.get(head, None)
+                if new_head:
+                    return c.call_recurse(new_head)
+                else:
+                    # Special behavior for ():
+                    # If () is in the address function,
+                    # it denotes a collapsed address.
+                    if () in addr_fn:
+                        collapsed_addr = addr_fn[()]
+                        collapsed_submap = c.get_submap(collapsed_addr)
+                        return collapsed_submap.call_recurse(head)
+                    else:
+                        return c.call_recurse(head)
 
     return inner
 
