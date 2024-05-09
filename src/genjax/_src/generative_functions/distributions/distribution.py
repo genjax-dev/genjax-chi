@@ -134,16 +134,16 @@ class Distribution(GenerativeFunction):
             case Mask(flag, value):
 
                 def _simulate(key, v):
-                    score, _ = self.random_weighted(key, *args)
+                    score, new_v = self.random_weighted(key, *args)
                     w = 0.0
-                    return (score, w)
+                    return (score, w, new_v)
 
                 def _importance(key, v):
                     w = self.estimate_logpdf(key, v, *args)
-                    return (w, w)
+                    return (w, w, v)
 
-                score, w = cond(flag, _importance, _simulate, key, value)
-                tr = DistributionTrace(self, args, v, score)
+                score, w, new_v = cond(flag, _importance, _simulate, key, value)
+                tr = DistributionTrace(self, args, new_v, score)
                 bwd_spec = MaskedUpdateSpec(flag, RemoveSampleUpdateSpec())
                 return tr, w, bwd_spec
 
