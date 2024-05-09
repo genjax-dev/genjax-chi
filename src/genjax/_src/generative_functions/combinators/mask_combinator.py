@@ -16,6 +16,7 @@ from jax.lax import select
 
 from genjax._src.core.generative import (
     Argdiffs,
+    ChoiceMap,
     Constraint,
     GenerativeFunction,
     Mask,
@@ -54,7 +55,11 @@ class MaskTrace(Trace):
         return self.mask_combinator
 
     def get_sample(self):
-        return MaskedSample(self.check, self.inner.get_sample())
+        inner_sample = self.inner.get_sample()
+        if isinstance(inner_sample, ChoiceMap):
+            return ChoiceMap.m(self.check, inner_sample)
+        else:
+            return MaskedSample(self.check, self.inner.get_sample())
 
     def get_retval(self):
         return Mask(self.check, self.inner.get_retval())

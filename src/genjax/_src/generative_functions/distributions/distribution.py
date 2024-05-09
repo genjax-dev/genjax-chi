@@ -17,8 +17,10 @@ import abc
 
 import jax
 import jax.numpy as jnp
+from jax.experimental import checkify
 from jax.lax import cond
 
+from genjax._src.checkify import optional_check
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
@@ -132,16 +134,16 @@ class Distribution(GenerativeFunction):
             case Mask(flag, value):
 
                 def _simulate(key, v):
-                    tr = self.simulate(key, args)
+                    score, _ = self.random_weighted(key, *args)
                     w = 0.0
-                    return (tr, w)
+                    return (score, w)
 
                 def _importance(key, v):
                     w = self.estimate_logpdf(key, v, *args)
-                    tr = DistributionTrace(self, args, v, w)
-                    return (tr, w)
+                    return (w, w)
 
-                tr, w = cond(flag, _importance, _simulate, key, value)
+                score, w = cond(flag, _importance, _simulate, key, value)
+                tr = DistributionTrace(self, args, v, score)
                 bwd_spec = MaskedUpdateSpec(flag, RemoveSampleUpdateSpec())
                 return tr, w, bwd_spec
 
@@ -494,12 +496,27 @@ class ExactDensity(Distribution):
     @typecheck
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: Tuple,
     ):
         key = jax.random.PRNGKey(0)
-        tr, w, _ = self.importance(key, sample, args)
-        return w, tr.get_retval()
+        v = sample.get_value()
+        match v:
+            case Mask(flag, value):
+
+                def _check():
+                    check_flag = jnp.all(flag)
+                    checkify.check(
+                        check_flag,
+                        "Attempted to unmask when a mask flag is False: the masked value is invalid.\n",
+                    )
+
+                optional_check(_check)
+                w = self.estimate_logpdf(key, value, *args)
+                return w, value
+            case _:
+                w = self.estimate_logpdf(key, v, *args)
+                return w, v
 
 
 @typecheck
