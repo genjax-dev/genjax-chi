@@ -19,6 +19,7 @@ import jax.numpy as jnp
 
 from genjax._src.core.datatypes.generative import (
     Choice,
+    EmptyChoice,
     GenerativeFunction,
     JAXGenerativeFunction,
     Selection,
@@ -114,6 +115,14 @@ class RepeatCombinator(
         )(sub_keys, choice, args)
         return RepeatTrace(self, repeated_inner_tr, args), jnp.sum(w)
 
+    @dispatch
+    def importance(
+        self, key: PRNGKey, choice: EmptyChoice, args: Tuple
+    ) -> Tuple[RepeatTrace, FloatArray]:
+        tr = self.simulate(key, args)
+        w = jnp.array(0.0)
+        return (tr, w)
+
     @typecheck
     def update(
         self,
@@ -140,8 +149,8 @@ class RepeatCombinator(
 #############
 
 
-def repeat_combinator(*, repeats) -> Callable[[Callable], JAXGenerativeFunction]:
-    def decorator(f) -> JAXGenerativeFunction:
+def repeat_combinator(*, repeats) -> Callable[[Callable], RepeatCombinator]:
+    def decorator(f) -> RepeatCombinator:
         return RepeatCombinator(f, repeats)
 
     return decorator
