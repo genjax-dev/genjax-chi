@@ -34,7 +34,7 @@ register_exclusion(__file__)
 def mixture_combinator(
     *gen_fns: GenerativeFunction,
 ) -> GenerativeFunction:
-    def argument_pushforward(mixture_logits, *args):
+    def argument_mapping(mixture_logits, *args):
         return (mixture_logits, *args)
 
     inner_combinator_closure = switch_combinator(*gen_fns)
@@ -47,6 +47,6 @@ def mixture_combinator(
 
     return compose_combinator(
         mixture_model,
-        pre=argument_pushforward,
+        pre=argument_mapping,
         info="Derived combinator (Mixture)",
     )

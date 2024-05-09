@@ -33,7 +33,7 @@ def cond_combinator(
     if_gen_fn: GenerativeFunction,
     else_gen_fn: GenerativeFunction,
 ) -> ComposeCombinator:
-    def argument_pushforward(b, *args):
+    def argument_mapping(b, *args):
         idx = jnp.array(b, dtype=int)
         return (idx, *args)
 
@@ -41,6 +41,6 @@ def cond_combinator(
 
     return compose_combinator(
         inner_combinator,
-        pre=argument_pushforward,
+        pre=argument_mapping,
         info="Derived combinator (Cond)",
     )

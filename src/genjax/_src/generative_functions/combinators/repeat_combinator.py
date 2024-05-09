@@ -41,7 +41,7 @@ def repeat_combinator(
     num_repeats: Int,
 ) -> Callable | GenerativeFunction:
     def decorator(gen_fn):
-        def argument_pushforward(*args):
+        def argument_mapping(*args):
             return (jnp.zeros(num_repeats), args)
 
         # This is a static generative function which an attached
@@ -57,7 +57,7 @@ def repeat_combinator(
 
         return compose_combinator(
             inner_combinator_closure,
-            pre=argument_pushforward,
+            pre=argument_mapping,
             info="Derived combinator (Repeat)",
         )
 

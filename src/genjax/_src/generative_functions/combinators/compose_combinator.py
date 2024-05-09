@@ -66,8 +66,8 @@ class ComposeTrace(Trace):
 @Pytree.dataclass
 class ComposeCombinator(GenerativeFunction):
     inner: GenerativeFunction
-    argument_pushforward: Callable = Pytree.static()
-    retval_pushforward: Callable = Pytree.static()
+    argument_mapping: Callable = Pytree.static()
+    retval_mapping: Callable = Pytree.static()
     info: Optional[String] = Pytree.static(default=None)
 
     @GenerativeFunction.gfi_boundary
@@ -77,10 +77,10 @@ class ComposeCombinator(GenerativeFunction):
         key: PRNGKey,
         args: Tuple,
     ) -> ComposeTrace:
-        inner_args = self.argument_pushforward(*args)
+        inner_args = self.argument_mapping(*args)
         tr = self.inner.simulate(key, inner_args)
         inner_retval = tr.get_retval()
-        retval = self.retval_pushforward(inner_args, inner_retval)
+        retval = self.retval_mapping(inner_args, inner_retval)
         return ComposeTrace(self, tr, args, retval)
 
     @typecheck
@@ -90,10 +90,10 @@ class ComposeCombinator(GenerativeFunction):
         constraint: Constraint,
         args: Tuple,
     ) -> Tuple[ComposeTrace, Weight, UpdateSpec]:
-        inner_args = self.argument_pushforward(*args)
+        inner_args = self.argument_mapping(*args)
         tr, w, bwd_spec = self.inner.importance(key, constraint, inner_args)
         inner_retval = tr.get_retval()
-        retval = self.retval_pushforward(inner_args, inner_retval)
+        retval = self.retval_mapping(inner_args, inner_retval)
         return ComposeTrace(self, tr, args, retval), w, bwd_spec
 
     @typecheck
@@ -106,7 +106,7 @@ class ComposeCombinator(GenerativeFunction):
     ) -> Tuple[ComposeTrace, Weight, Retdiff, UpdateSpec]:
         primals = Diff.tree_primal(argdiffs)
         tangents = Diff.tree_tangent(argdiffs)
-        inner_argdiffs = incremental(self.argument_pushforward)(
+        inner_argdiffs = incremental(self.argument_mapping)(
             None,
             primals,
             tangents,
@@ -118,10 +118,10 @@ class ComposeCombinator(GenerativeFunction):
         inner_retval_primals = Diff.tree_primal((inner_retdiff,))
         inner_retval_tangents = Diff.tree_tangent((inner_retdiff,))
 
-        def closed_pushforward(args, retval):
-            return self.retval_pushforward(args, retval)
+        def closed_mapping(args, retval):
+            return self.retval_mapping(args, retval)
 
-        retval_diff = incremental(closed_pushforward)(
+        retval_diff = incremental(closed_mapping)(
             None,
             (primals, inner_retval_primals),
             (tangents, inner_retval_tangents),
@@ -140,9 +140,9 @@ class ComposeCombinator(GenerativeFunction):
         sample: Sample,
         args: Tuple,
     ) -> Tuple[Score, Any]:
-        inner_args = self.argument_pushforward(*args)
+        inner_args = self.argument_mapping(*args)
         w, inner_retval = self.inner.assess(sample, inner_args)
-        retval = self.retval_pushforward(args, inner_retval)
+        retval = self.retval_mapping(args, inner_retval)
         return w, retval
 
 
