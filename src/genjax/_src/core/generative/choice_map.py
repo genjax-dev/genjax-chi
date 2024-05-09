@@ -495,7 +495,8 @@ class ChoiceMap(Sample, Constraint):
                 if isinstance(v, Mask):
                     v = v.unmask()
                 if isinstance(v, Sum):
-                    v = jax.lax.select(v.idx, *v.values)
+                    v = v.maybe_collapse()
+                    v = v.unmask() if isinstance(v, Mask) else v
                 return v
             else:
                 raise ChoiceMapNoValueAtAddress(addr)

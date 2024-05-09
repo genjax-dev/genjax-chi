@@ -15,6 +15,7 @@
 import jax
 import jax.numpy as jnp
 from jax.experimental import checkify
+from jax.tree_util import tree_map
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.interpreters.incremental import Diff
@@ -24,6 +25,7 @@ from genjax._src.core.interpreters.staging import (
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    ArrayLike,
     Bool,
     BoolArray,
     Callable,
@@ -31,7 +33,6 @@ from genjax._src.core.typing import (
     IntArray,
     List,
     static_check_is_concrete,
-    static_check_shape_dtype_equivalence,
     typecheck,
 )
 
@@ -103,7 +104,7 @@ class Mask(Pytree):
             check_flag = jnp.all(self.flag)
             checkify.check(
                 check_flag,
-                "Attempted to unmask when the mask flag is False: the masked value is invalid.\n",
+                "Attempted to unmask when a mask flag is False: the masked value is invalid.\n",
             )
 
         optional_check(_check)
@@ -136,7 +137,11 @@ class Sum(Pytree):
 
     @classmethod
     @typecheck
-    def maybe(cls, idx: Int | IntArray | Diff, vs: List):
+    def maybe(
+        cls,
+        idx: Int | IntArray | Diff,
+        vs: List[ArrayLike | Pytree],
+    ):
         return (
             vs[idx]
             if static_check_is_concrete(idx) and isinstance(idx, Int)
@@ -145,7 +150,11 @@ class Sum(Pytree):
 
     @classmethod
     @typecheck
-    def maybe_none(cls, idx: Int | IntArray | Diff, vs: List):
+    def maybe_none(
+        cls,
+        idx: Int | IntArray | Diff,
+        vs: List[None | ArrayLike | Pytree],
+    ):
         possibles = []
         for _idx, v in enumerate(vs):
             if v is not None:
@@ -158,8 +167,8 @@ class Sum(Pytree):
             return Sum.maybe(idx, vs)
 
     def maybe_collapse(self):
-        val_arrs = [jnp.array(v, copy=False) for v in self.values if v is not None]
-        if static_check_shape_dtype_equivalence(val_arrs):
-            return jax.lax.select(self.idx, *self.values)
+        if Pytree.static_check_tree_structure_equivalence(self.values):
+            idx = Diff.tree_primal(self.idx)
+            return tree_map(lambda *vs: jnp.choose(idx, vs, mode="wrap"), *self.values)
         else:
             return self

@@ -21,6 +21,7 @@ from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
 from genjax._src.generative_functions.distributions.distribution import (
     Distribution,
     ExactDensity,
+    exact_density,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     bates,
@@ -60,6 +61,7 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 __all__ = [
     "Distribution",
     "ExactDensity",
+    "exact_density",
     "beta",
     "bates",
     "bernoulli",

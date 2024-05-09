@@ -257,7 +257,9 @@ class ScanCombinator(GenerativeFunction):
         spec: UpdateSpec,
         argdiffs: Argdiffs,
     ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateSpec]:
-        carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(argdiffs)
+        carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(
+            Diff.tree_primal(argdiffs)
+        )
 
         def _inner_update(key, subtrace, subspec, carry, scanned_in):
             (

@@ -19,7 +19,7 @@ import jax
 import jax.numpy as jnp
 import pytest
 from genjax import ChoiceMap as C
-from genjax import Diff, Pytree, RemoveSelectionUpdateSpec
+from genjax import Diff, Pytree
 from genjax.generative_functions.static import AddressReuse, StaticAddressJAX
 from genjax.typing import FloatArray
 from jax._src.interpreters.partial_eval import DynamicJaxprTracer

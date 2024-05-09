@@ -34,7 +34,6 @@ from genjax._src.core.typing import (
     Optional,
     PRNGKey,
     Tuple,
-    Union,
     typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution

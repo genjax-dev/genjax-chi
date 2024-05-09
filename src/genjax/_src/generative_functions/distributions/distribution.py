@@ -123,45 +123,33 @@ class Distribution(GenerativeFunction):
         chm: ChoiceMap,
         args: Tuple,
     ):
-        check = chm.has_value()
-        if static_check_is_concrete(check) and check:
-            v = chm.get_value()
-            w = self.estimate_logpdf(key, v, *args)
-            score = w
-            bwd_spec = RemoveSampleUpdateSpec()
-            return (DistributionTrace(self, args, v, score), w, bwd_spec)
-        elif static_check_is_concrete(check):
-            score, v = self.random_weighted(key, *args)
-            return (
-                DistributionTrace(self, args, v, score),
-                jnp.array(0.0),
-                EmptyUpdateSpec(),
-            )
-        else:
-            v = chm.get_value()
-            match v:
-                case None:
+        v = chm.get_value()
+        match v:
+            case None:
+                tr = self.simulate(key, args)
+                return tr, jnp.array(0.0), EmptyUpdateSpec()
+
+            case Mask(flag, value):
+
+                def _simulate(key, v):
                     tr = self.simulate(key, args)
-                    return tr, jnp.array(0.0), EmptyUpdateSpec()
+                    w = 0.0
+                    return (tr, w)
 
-                case Mask(flag, value):
+                def _importance(key, v):
+                    w = self.estimate_logpdf(key, v, *args)
+                    tr = DistributionTrace(self, args, v, w)
+                    return (tr, w)
 
-                    def _simulate(key, v):
-                        tr = self.simulate(key, args)
-                        w = 0.0
-                        return (tr, w)
+                tr, w = cond(flag, _importance, _simulate, key, value)
+                bwd_spec = MaskedUpdateSpec(flag, RemoveSampleUpdateSpec())
+                return tr, w, bwd_spec
 
-                    def _importance(key, v):
-                        w = self.estimate_logpdf(key, v, *args)
-                        tr = DistributionTrace(self, args, v, w)
-                        return (tr, w)
-
-                    tr, w = cond(flag, _importance, _simulate, key, value)
-                    bwd_spec = MaskedUpdateSpec(flag, RemoveSampleUpdateSpec())
-                    return tr, w, bwd_spec
-
-                case _:
-                    raise Exception("Unhandled type.")
+            case _:
+                w = self.estimate_logpdf(key, v, *args)
+                bwd_spec = RemoveSampleUpdateSpec()
+                tr = DistributionTrace(self, args, v, w)
+                return tr, w, bwd_spec
 
     @typecheck
     def importance_masked_constraint(
@@ -519,4 +507,10 @@ def exact_density(
     sampler: Callable,
     logpdf: Callable,
 ):
+    if not isinstance(sampler, Closure):
+        sampler = Pytree.partial()(sampler)
+
+    if not isinstance(logpdf, Closure):
+        logpdf = Pytree.partial()(logpdf)
+
     return ExactDensity(sampler, logpdf)

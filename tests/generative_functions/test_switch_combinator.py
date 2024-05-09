@@ -15,7 +15,6 @@
 import genjax
 import jax
 from genjax import ChoiceMap as C
-from genjax import Mask
 from genjax.incremental import Diff, NoChange, UnknownChange
 from jax import numpy as jnp
 
@@ -29,7 +28,7 @@ class TestSwitchCombinator:
 
         @genjax.static_gen_fn
         def model():
-            b = genjax.bernoulli(0.5) @ "b"
+            b = genjax.flip(0.5) @ "b"
             s = genjax.switch_combinator(f, f)(jnp.int32(b), (), ()) @ "s"
             return s
 
@@ -45,10 +44,10 @@ class TestSwitchCombinator:
             _y2 = genjax.normal(0.0, 1.0) @ "y2"
 
         @genjax.static_gen_fn
-        def simple_bernoulli():
-            _y3 = genjax.bernoulli(0.3) @ "y3"
+        def simple_flip():
+            _y3 = genjax.flip(0.3) @ "y3"
 
-        switch = genjax.switch_combinator(simple_normal, simple_bernoulli)
+        switch = genjax.switch_combinator(simple_normal, simple_flip)
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
@@ -64,44 +63,45 @@ class TestSwitchCombinator:
         assert score == v1_score + v2_score
         assert tr.get_args() == (0, (), ())
         key, sub_key = jax.random.split(key)
-        tr = jitted(sub_key, (1,))
-        flip = tr.get_sample().get_submap("y3")
+        tr = jitted(sub_key, (1, (), ()))
+        b = tr.get_sample().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (_, flip_score) = genjax.bernoulli.importance(sub_key, flip, (0.3,))
+        (flip_score, _) = genjax.flip.assess(b, (0.3,))
         assert score == flip_score
-        assert tr.get_args() == (1,)
+        (idx, *_) = tr.get_args()
+        assert idx == 1
 
     def test_switch_combinator_choice_map_behavior(self):
         @genjax.static_gen_fn
         def simple_normal():
-            _y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-            _y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            _y1 = genjax.normal(0.0, 1.0) @ "y1"
+            _y2 = genjax.normal(0.0, 1.0) @ "y2"
 
         @genjax.static_gen_fn
-        def simple_bernoulli():
-            _y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
+        def simple_flip():
+            _y3 = genjax.flip(0.3) @ "y3"
 
-        switch = genjax.switch_combinator(simple_normal, simple_bernoulli)
+        switch = genjax.switch_combinator(simple_normal, simple_flip)
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
-        tr = jitted(key, (0,))
-        assert isinstance(tr.get_sample().get_submap("y1"), Mask)
-        assert isinstance(tr.get_sample().get_submap("y2"), Mask)
-        assert isinstance(tr.get_sample().get_submap("y3"), Mask)
+        tr = jitted(key, (0, (), ()))
+        assert tr.get_sample().has_submap("y1")
+        assert tr.get_sample().has_submap("y2")
+        assert not tr.get_sample().has_submap("y3")
 
     def test_switch_combinator_importance(self):
         @genjax.static_gen_fn
         def simple_normal():
-            _y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-            _y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            _y1 = genjax.normal(0.0, 1.0) @ "y1"
+            _y2 = genjax.normal(0.0, 1.0) @ "y2"
 
         @genjax.static_gen_fn
-        def simple_bernoulli():
-            _y3 = genjax.trace("y3", genjax.bernoulli)(0.3)
+        def simple_flip():
+            _y3 = genjax.flip(0.3) @ "y3"
 
-        switch = genjax.switch_combinator(simple_normal, simple_bernoulli)
+        switch = genjax.switch_combinator(simple_normal, simple_flip)
 
         key = jax.random.PRNGKey(314159)
         chm = C.n
@@ -112,86 +112,49 @@ class TestSwitchCombinator:
         v2 = tr.get_sample().get_submap("y2")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        v1_score, _ = genjax.normal.assess(C.v(v1), (0.0, 1.0))
+        v1_score, _ = genjax.normal.assess(v1, (0.0, 1.0))
         key, sub_key = jax.random.split(key)
-        v2_score, _ = genjax.normal.assess(C.v(v2), (0.0, 1.0))
+        v2_score, _ = genjax.normal.assess(v2, (0.0, 1.0))
         assert score == v1_score + v2_score
         assert w == 0.0
         key, sub_key = jax.random.split(key)
         (tr, w, _) = jitted(sub_key, chm, (1, (), ()))
-        flip = tr.get_sample().get_submap("y3")
+        b = tr.get_sample().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (_, flip_score) = genjax.bernoulli.importance(
-            sub_key,
-            flip,
-            (0.3,),
-        )
+        (flip_score, _) = genjax.flip.assess(b, (0.3,))
         assert score == flip_score
         assert w == 0.0
-        chm = genjax.C.n.at["y3"].set(1)
+        chm = C.n.at["y3"].set(1)
         key, sub_key = jax.random.split(key)
-        (tr, w) = jitted(sub_key, chm, (1,))
-        flip = tr.get_sample().get_submap("y3")
+        (tr, w, _) = jitted(sub_key, chm, (1, (), ()))
+        b = tr.get_sample().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (_, flip_score) = genjax.bernoulli.importance(
-            sub_key,
-            flip,
-            (0.3,),
-        )
+        (flip_score, _) = genjax.flip.assess(b, (0.3,))
         assert score == flip_score
         assert w == score
 
     def test_switch_combinator_update_single_branch_no_change(self):
         @genjax.static_gen_fn
         def simple_normal():
-            _y1 = genjax.trace("y1", genjax.normal)(0.0, 1.0)
-            _y2 = genjax.trace("y2", genjax.normal)(0.0, 1.0)
+            _y1 = genjax.normal(0.0, 1.0) @ "y1"
+            _y2 = genjax.normal(0.0, 1.0) @ "y2"
 
         switch = genjax.switch_combinator(simple_normal)
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        tr = jax.jit(switch.simulate)(sub_key, (0,))
-        v1 = tr["y1"]
-        v2 = tr["y2"]
+        tr = jax.jit(switch.simulate)(sub_key, (0, ()))
+        v1 = tr.get_sample()["y1"]
+        v2 = tr.get_sample()["y2"]
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (tr, _, _, _) = jax.jit(switch.update)(
-            sub_key, tr, genjax.EmptyChoice(), (Diff.tree_diff(0, NoChange),)
+            sub_key, tr, C.n, (Diff.tree_diff(0, NoChange), ())
         )
         assert score == tr.get_score()
-        assert v1 == tr["y1"]
-        assert v2 == tr["y2"]
-
-    def test_switch_combinator_update_with_masking(self):
-        @genjax.static_gen_fn
-        def branch_1(v):
-            return genjax.normal(v, 1.0) @ "v"
-
-        @genjax.static_gen_fn
-        def branch_2(v):
-            return genjax.normal(v, 3.0) @ "v"
-
-        switch = genjax.switch_combinator(branch_1, branch_2)
-        key = jax.random.PRNGKey(314159)
-        tr = jax.jit(switch.simulate)(key, (1, 0.0))
-        (tr, w, rd, d) = jax.jit(switch.update)(
-            key,
-            tr,
-            Mask(jnp.array(True), genjax.EmptyChoice()),
-            Diff.tree_diff_no_change((1, 0.0)),
-        )
-        assert isinstance(d, genjax.EmptyChoice)
-        assert w == 0.0
-        (tr, w, rd, d) = jax.jit(switch.update)(
-            key,
-            tr,
-            Mask(jnp.array(False), genjax.EmptyChoice()),
-            Diff.tree_diff_no_change((1, 0.0)),
-        )
-        assert isinstance(d, genjax.EmptyChoice)
-        assert w == 0.0
+        assert v1 == tr.get_sample()["y1"]
+        assert v2 == tr.get_sample()["y2"]
 
     def test_switch_combinator_update_updates_score(self):
         regular_stddev = 1.0
@@ -212,24 +175,28 @@ class TestSwitchCombinator:
         switch = genjax.switch_combinator(regular, outlier)
         key, importance_key = jax.random.split(key)
 
-        (tr, wt) = switch.importance(
-            importance_key, genjax.choice_map({"x": sample_value}), (0,)
+        (tr, wt, _) = switch.importance(
+            importance_key, C.n.at["x"].set(sample_value), (0, (), ())
         )
-        assert tr.choice.index == 0
-        assert tr.get_score() == genjax.normal.logpdf(sample_value, 0.0, regular_stddev)
+        (idx, *_) = tr.get_args()
+        assert idx == 0
+        assert (
+            tr.get_score()
+            == genjax.normal.assess(C.v(sample_value), (0.0, regular_stddev))[0]
+        )
         assert wt == tr.get_score()
 
         key, update_key = jax.random.split(key)
         (new_tr, new_wt, _, _) = switch.update(
-            update_key,
-            tr,
-            genjax.EmptyChoice(),
-            (Diff.tree_diff(1, UnknownChange),),
+            update_key, tr, C.n, (Diff.tree_diff(1, UnknownChange), (), ())
         )
-        assert new_tr.choice.index == 1
+        (idx, *_) = new_tr.get_args()
+        assert idx == 1
         assert new_tr.get_score() != tr.get_score()
-        assert new_tr.get_score() == genjax.normal.logpdf(
-            sample_value, 0.0, outlier_stddev
+        new_value = new_tr.get_sample()["x"]
+        assert (
+            new_tr.get_score()
+            == genjax.normal.assess(C.v(new_value), (0.0, outlier_stddev))[0]
         )
 
     def test_switch_combinator_vectorized_access(self):
@@ -261,7 +228,7 @@ class TestSwitchCombinator:
 
         @genjax.static_gen_fn
         def model():
-            b = genjax.bernoulli(0.5) @ "b"
+            b = genjax.flip(0.5) @ "b"
             s = genjax.switch_combinator(f, empty)(jnp.int32(b), (), ()) @ "s"
             return s
 

@@ -158,9 +158,18 @@ class Diff(Pytree):
         return Diff.tree_diff(tree, tangent_tree)
 
     @staticmethod
+    def no_change(tree):
+        return Diff.tree_diff_no_change(tree)
+
+    @staticmethod
     def tree_diff_unknown_change(tree):
-        tangent_tree = jtu.tree_map(lambda _: UnknownChange, tree)
-        return Diff.tree_diff(tree, tangent_tree)
+        primal_tree = Diff.tree_primal(tree)
+        tangent_tree = jtu.tree_map(lambda _: UnknownChange, primal_tree)
+        return Diff.tree_diff(primal_tree, tangent_tree)
+
+    @staticmethod
+    def unknown_change(tree):
+        return Diff.tree_diff_unknown_change(tree)
 
     @staticmethod
     def tree_primal(v):
