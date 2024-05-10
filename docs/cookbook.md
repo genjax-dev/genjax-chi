@@ -7,11 +7,11 @@ This is a recipe book for _common patterns_. It also acts as a Rosetta stone of 
 
 ## A self-contained tour through combinators
 
-The central programmable object of GenJAX is [_the generative function_](core.md#genjax.core.GenerativeFunction): these are the infamous _probabilistic programs_ which you write with Gen. Here's one of them now:
+The central programmable object of GenJAX is [_the generative function_](library/core.md#genjax.core.GenerativeFunction): these are the infamous _probabilistic programs_ which you write with Gen. Here's one of them now:
 
 ```python exec="yes" html="true" source="material-block" session="genfn"
 import genjax
-from genjax import flip, beta, static_gen_fn
+from genjax import flip, beta, gen
 import jax
 import jax.numpy as jnp
 
@@ -21,7 +21,7 @@ print(flip.render_html())
 Admittedly, not too fabulous - _almost every language has a distributions library_, and most PPLs have a way to sample from distributions. But in GenJAX, when we call _something_ a generative function - we mean something stronger: it supports a compositional interface, implying that it can be used to build up _even larger_ probabilistic computations.
 
 ```python exec="yes" html="true" source="material-block" session="genfn"
-@static_gen_fn
+@gen
 def biased_coin_flipper():
     p = beta(1.0, 1.0) @ "p"
     f = flip(p) @ "f"
@@ -39,7 +39,7 @@ print(biased_coin_flipper.repeat(num_repeats=10).render_html())
 What about a mixture of two models where one of the models has a fixed `p` value for the coin flips, ..._and then we repeat that_? The mixture component is telling us _whether we're in a fair or biased coin flipping setting_...
 
 ```python exec="yes" html="true" source="material-block" session="genfn"
-@static_gen_fn
+@gen
 def fixed_coin_flipper(p):
     f = flip(p) @ "f"
 
@@ -53,7 +53,7 @@ from genjax import scan_combinator
 
 # scan(gen_fn) : ((a, b) -> G (a, c)) -> (a, [b]) -> G (a, [c])
 @scan_combinator(max_length = 10) # (a, [b]) -> G (a, [c])
-@static_gen_fn # (a, b) -> G (a, c)
+@gen # (a, b) -> G (a, c)
 def v0_dependent_coin_flipper(carry, _):
     last_flip, p = carry
     p = p * (1 - 0.1 * last_flip)
@@ -68,7 +68,7 @@ Ah - what if we had a mixture of our first model, and _this model_. I think that
 Oh, but first - I want to draw `p` in the dependent flipper from a `beta` too..
 
 ```python exec="yes" html="true" source="material-block" session="genfn"
-@static_gen_fn
+@gen
 def dependent_coin_flipper():
     p = beta(1.0, 1.0) @ "p"
     f = v0_dependent_coin_flipper.scan(max_length=10)((False, p), None) @ "f"
@@ -79,7 +79,7 @@ print(dependent_coin_flipper.render_html())
 Okay, now obviously we want to mix everything together ... duh
 
 ```python exec="yes" html="true" source="material-block" session="genfn"
-@static_gen_fn
+@gen
 def dependent_coin_flipper():
     p = beta(1.0, 1.0) @ "p"
     f = v0_dependent_coin_flipper.scan(max_length=10)((0, p), None) @ "f"
