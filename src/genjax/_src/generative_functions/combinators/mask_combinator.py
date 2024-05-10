@@ -118,7 +118,7 @@ class MaskCombinator(GenerativeFunction):
         argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
         (check, *_) = Diff.tree_primal(argdiffs)
-        (_, *inner_argdiffs) = argdiffs
+        (check_diff, *inner_argdiffs) = argdiffs
         inner_trace, w, retdiff, bwd_spec = self.gen_fn.update(
             key, trace.inner, update_spec, tuple(inner_argdiffs)
         )
@@ -130,7 +130,7 @@ class MaskCombinator(GenerativeFunction):
         return (
             MaskTrace(self, inner_trace, check),
             w,
-            Mask.maybe(check, retdiff),
+            Mask.maybe(check_diff, retdiff),
             MaskedUpdateSpec(check, bwd_spec),
         )
 

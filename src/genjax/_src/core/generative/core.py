@@ -305,6 +305,49 @@ class Trace(Pytree):
         gen_fn = self.get_gen_fn()
         return gen_fn.project(key, self, spec)
 
+    ##########################
+    # UpdateCompiler interface #
+    ##########################
+
+    def create_update_spec(self, addr, v) -> UpdateSpec:
+        raise NotImplementedError
+
+    @Pytree.dataclass
+    class UpdateCompiler(Pytree):
+        trace: "Trace"
+        addr: Any
+        updates: List[UpdateSpec]
+
+        def __getitem__(self, addr) -> "Trace.UpdateCompiler":
+            return Trace.UpdateCompiler(
+                self.trace,
+                addr,
+                self.updates,
+            )
+
+        def set(self, v) -> "Trace.UpdateCompiler":
+            new_spec = self.trace.create_update_spec(self.addr, v)
+            return Trace.UpdateCompiler(self.trace, [], [*self.updates, new_spec])
+
+        @property
+        def at(self) -> "Trace.UpdateCompiler":
+            return self
+
+        def update(self, key) -> Tuple["Trace", Weight, List[UpdateSpec]]:
+            trace = self.trace
+            w = 0.0
+            bwd_specs = []
+            for update in self.updates:
+                trace, inc_w, _, bwd_spec = trace.update(key, update)
+                w += inc_w
+                bwd_specs.append(bwd_spec)
+
+            return trace, w, list(reversed(bwd_specs))
+
+    @property
+    def at(self) -> UpdateCompiler:
+        return Trace.UpdateCompiler(self, [], [])
+
     ###################
     # Pretty printing #
     ###################

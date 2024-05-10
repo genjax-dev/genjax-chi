@@ -14,11 +14,14 @@
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
+    Address,
     Argdiffs,
     ChoiceMap,
     Constraint,
+    EmptyUpdateSpec,
     GenerativeFunction,
     RemoveSelectionUpdateSpec,
     Retdiff,
@@ -69,16 +72,29 @@ class ScanTrace(Trace):
     def get_score(self):
         return self.score
 
+    def index_update(self, key: PRNGKey, spec: UpdateSpec):
+        return self.update(key, spec)
+
+    def create_update_spec(self, addr: Address, v) -> UpdateSpec:
+        (idx, *rest) = addr
+        return IndexUpdateSpec(idx, self.inner.create_update_spec(tuple(rest), v))
+
 
 #######################
 # Custom update specs #
 #######################
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class StaticResizeUpdateSpec(UpdateSpec):
     subspec: UpdateSpec
     resized_length: Int = Pytree.static()
+
+
+@Pytree.dataclass(match_args=True)
+class IndexUpdateSpec(UpdateSpec):
+    index: IntArray
+    subspec: UpdateSpec
 
 
 ###################
@@ -321,6 +337,47 @@ class ScanCombinator(GenerativeFunction):
             bwd_specs,
         )
 
+    def update_index(
+        self,
+        key: PRNGKey,
+        trace: ScanTrace,
+        index: IntArray,
+        update_spec: UpdateSpec,
+    ):
+        starting_subslice = jtu.tree_map(lambda v: v[index], trace.inner)
+        affected_subslice = jtu.tree_map(lambda v: v[index + 1], trace.inner)
+        argdiffs = Diff.no_change(starting_subslice.get_args())
+        updated_start, start_w, starting_retdiff, bwd_spec = self.kernel_gen_fn.update(
+            key, starting_subslice, update_spec, argdiffs
+        )
+        updated_end, end_w, ending_retdiff, bwd_spec = self.kernel_gen_fn.update(
+            key, affected_subslice, EmptyUpdateSpec(), starting_retdiff
+        )
+
+        # Must be true for this type of update to be valid.
+        assert Diff.static_check_no_change(ending_retdiff)
+
+        def _mutate_in_place(arr, updated_start, updated_end):
+            arr = arr.at[index].set(updated_start)
+            arr = arr.at[index + 1].set(updated_end)
+
+        new_inner = jtu.tree_map(
+            _mutate_in_place, trace.inner, updated_start, updated_end
+        )
+        new_retvals = new_inner.get_retval()
+        return (
+            ScanTrace(
+                self,
+                new_inner,
+                new_inner.get_args(),
+                new_retvals,
+                jnp.sum(new_inner.get_score()),
+            ),
+            start_w + end_w,
+            Diff.unknown_change(new_retvals),
+            ChoiceMap.a(index, bwd_spec),
+        )
+
     @typecheck
     def update(
         self,
@@ -330,6 +387,13 @@ class ScanCombinator(GenerativeFunction):
         argdiffs: Tuple,
     ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateSpec]:
         match update_spec:
+            case IndexUpdateSpec(index, subspec):
+                if Diff.static_check_no_change(argdiffs):
+                    return self.update_index(key, trace, index, subspec)
+                else:
+                    return self.update_generic(
+                        key, trace, ChoiceMap.a(index, subspec), argdiffs
+                    )
             case _:
                 return self.update_generic(key, trace, update_spec, argdiffs)
 

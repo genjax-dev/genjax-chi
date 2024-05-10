@@ -86,6 +86,9 @@ class StaticTrace(Trace):
         idx = addresses.index(addr)
         return self.subtraces[idx]
 
+    def create_update_spec(self, addr, v) -> UpdateSpec:
+        return ChoiceMap.a(addr, v)
+
 
 #######################
 # Generative function #
