@@ -70,7 +70,7 @@ class TestADEVFlipCond:
             )
 
         key = jax.random.PRNGKey(314159)
-        p_dual = jax.jit(flip_exact_loss.jvp_estimate)(key, Dual(0.1, 1.0))
+        _ = jax.jit(flip_exact_loss.jvp_estimate)(key, Dual(0.1, 1.0))
 
     def test_add_cost(self):
         @expectation
@@ -79,7 +79,7 @@ class TestADEVFlipCond:
             return 0.0
 
         key = jax.random.PRNGKey(314159)
-        p_dual = jax.jit(flip_exact_loss.jvp_estimate)(key, Dual(0.1, 1.0))
+        _ = jax.jit(flip_exact_loss.jvp_estimate)(key, Dual(0.1, 1.0))
 
 
 class TestBaselineFlip:

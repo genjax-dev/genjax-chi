@@ -465,7 +465,6 @@ class SwitchCombinator(GenerativeFunction):
         idx: IntArray,
         argdiffs: Argdiffs,
     ):
-        subtrace = trace.subtraces[static_idx]
         gen_fn = self.branches[static_idx]
         branch_argdiffs = argdiffs[static_idx]
         check = static_idx == idx

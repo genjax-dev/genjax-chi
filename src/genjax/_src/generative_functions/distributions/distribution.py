@@ -223,7 +223,6 @@ class Distribution(GenerativeFunction):
         argdiffs: Argdiffs,
     ) -> Tuple[DistributionTrace, Weight, Retdiff, UpdateSpec]:
         old_sample = trace.get_sample()
-        primals = Diff.tree_primal(argdiffs)
 
         def update_branch(key, trace, constraint, argdiffs):
             tr, w, rd, _ = self.update(key, trace, constraint, argdiffs)
@@ -421,7 +420,7 @@ class Distribution(GenerativeFunction):
             case Constraint():
                 return self.update_constraint(key, trace, update_spec, argdiffs)
 
-            case MaskedUpdateSpec(flag, spec):
+            case MaskedUpdateSpec(_, _):
                 return self.update_masked_spec(key, trace, update_spec, argdiffs)
 
             case RemoveSampleUpdateSpec():

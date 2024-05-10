@@ -95,6 +95,7 @@ class Pytree(pz.Struct):
             print(MyClass(10, jnp.array(5.0)).render_html())
             ```
         """
+
         return pz.pytree_dataclass(
             incoming,
             **kwargs,

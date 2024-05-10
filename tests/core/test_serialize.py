@@ -17,7 +17,12 @@ import io
 import genjax
 import jax
 import jax.numpy as jnp
-from genjax._src.core.serialization.msgpack import msgpack_serialize
+import jax.tree_util as jtu
+from genjax.serialization import msgpack_serialize
+
+
+def eq(tr, other):
+    return jtu.tree_all(jtu.tree_map(lambda v1, v2: jnp.all(v1 == v2), tr, other))
 
 
 class TestMsgPackSerialize:
@@ -31,8 +36,8 @@ class TestMsgPackSerialize:
         tr = model.simulate(key, (0.5,))
         bytes = msgpack_serialize.serialize(tr)
 
-        restored_tr = msgpack_serialize.deserialize(bytes, model)
-        assert restored_tr == tr
+        restored_tr = msgpack_serialize.deserialize(bytes, model, (0.5,))
+        assert eq(restored_tr, tr)
 
         # Test round-trip
         @genjax.gen
@@ -40,7 +45,7 @@ class TestMsgPackSerialize:
             x = genjax.flip(p) @ "x"
             return x
 
-        restored_tr = msgpack_serialize.deserialize(bytes, model_copy)
+        restored_tr = msgpack_serialize.deserialize(bytes, model_copy, (0.5,))
 
         expected, _ = jax.tree_util.tree_flatten(tr)
         soln, _ = jax.tree_util.tree_flatten(restored_tr)
@@ -68,8 +73,20 @@ class TestMsgPackSerialize:
         )
         bytes = msgpack_serialize.serialize(tr)
 
-        restored_tr = msgpack_serialize.deserialize(bytes, model)
-        assert tr == restored_tr
+        restored_tr = msgpack_serialize.deserialize(
+            bytes,
+            model,
+            (
+                jnp.array(
+                    [
+                        1.0,
+                        2.0,
+                        3.0,
+                    ]
+                ),
+            ),
+        )
+        assert eq(tr, restored_tr)
 
     def test_msgpack_auxilliary_methods(self):
         @genjax.gen
@@ -81,13 +98,16 @@ class TestMsgPackSerialize:
         tr = model.simulate(key, (0.5,))
 
         # Raw bytes
-        assert tr == msgpack_serialize.deserialize(msgpack_serialize.dumps(tr), model)
+        assert eq(
+            tr,
+            msgpack_serialize.deserialize(msgpack_serialize.dumps(tr), model, (0.5,)),
+        )
 
         # IO
         f = io.BytesIO()
         msgpack_serialize.dump(tr, f)
         f.seek(0)
-        assert tr == msgpack_serialize.load(f, model)
+        assert eq(tr, msgpack_serialize.load(f, model, (0.5,)))
 
     def test_msgpack_default_extras(self):
         @genjax.gen
@@ -98,5 +118,5 @@ class TestMsgPackSerialize:
         tr = model.simulate(key, ())
         bytes = msgpack_serialize.serialize(tr)
 
-        restored_tr = msgpack_serialize.deserialize(bytes, model)
-        assert tr == restored_tr
+        restored_tr = msgpack_serialize.deserialize(bytes, model, ())
+        assert eq(tr, restored_tr)
