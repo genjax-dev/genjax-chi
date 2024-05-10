@@ -27,7 +27,6 @@ import jaxtyping as jtyping
 import numpy as np
 from beartype import BeartypeConf, beartype
 from beartype.vale import Is
-from plum import dispatch, parametric, CovariantMeta
 
 from genjax._src.core.traceback_util import register_exclusion
 
@@ -135,9 +134,6 @@ __all__ = [
     "static_check_supports_grad",
     "static_check_shape_dtype_equivalence",
     "typecheck",
-    "dispatch",
-    "parametric",
     "Is",
     "Annotated",
-    "CovariantMeta",
 ]

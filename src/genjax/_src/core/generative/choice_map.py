@@ -591,7 +591,7 @@ def choice_map_empty(head: AddressComponent):
 
 @typecheck
 def choice_map_value(v: Any):
-    @ChoiceMap.with_info("Value")
+    @ChoiceMap.with_info(f"Value({v})")
     @Pytree.partial(v)
     def inner(v, head: AddressComponent) -> Any:
         match head:

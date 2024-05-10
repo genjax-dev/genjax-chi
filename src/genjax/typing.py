@@ -28,7 +28,6 @@ from genjax._src.core.typing import (
     Tuple,
     Type,
     Union,
-    dispatch,
     typecheck,
 )
 
@@ -49,5 +48,4 @@ __all__ = [
     "Float",
     "Type",
     "typecheck",
-    "dispatch",
 ]
