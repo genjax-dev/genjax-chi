@@ -17,18 +17,27 @@
 # implementation (c.f. Pyro's [`poutine`](https://docs.pyro.ai/en/stable/poutine.html)
 # for instance, although the code in this module is quite readable and localized).
 
-import itertools
+from abc import abstractmethod
 from dataclasses import dataclass
 
 import jax
 import jax.numpy as jnp
-from beartype import beartype
+import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
+    Address,
+    Argdiffs,
     ChoiceMap,
+    Constraint,
     GenerativeFunction,
+    RemoveSelectionUpdateSpec,
+    Retdiff,
+    Sample,
+    Score,
     Selection,
     Trace,
+    UpdateSpec,
+    Weight,
 )
 from genjax._src.core.generative.core import push_trace_overload_stack
 from genjax._src.core.interpreters.incremental import Diff
@@ -40,6 +49,7 @@ from genjax._src.core.typing import (
     List,
     PRNGKey,
     Tuple,
+    typecheck,
 )
 
 
@@ -74,7 +84,8 @@ class Handler(object):
             except ValueError:
                 pass
 
-    def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
+    @abstractmethod
+    def handle(self, addr: Address, gen_fn: GenerativeFunction, args: Tuple):
         raise NotImplementedError
 
 
@@ -99,15 +110,16 @@ def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
     def invoke(*args: Tuple):
         assert _INTERPRETED_STACK
         handler = _INTERPRETED_STACK[-1]
-        return handler.handle(gen_fn, args, addr)
+        return handler.handle(addr, gen_fn, args)
 
     # Defer the behavior of this call to the handler.
     return invoke
 
 
 # Usage: checks for duplicate addresses, which violates Gen's rules.
+@Pytree.dataclass
 class AddressVisitor(Pytree):
-    visited: List = Pytree.field(default_factory=list)
+    visited: List = Pytree.static(default_factory=list)
 
     def visit(self, addr):
         if addr in self.visited:
@@ -115,10 +127,8 @@ class AddressVisitor(Pytree):
         else:
             self.visited.append(addr)
 
-    def merge(self, other):
-        new = AddressVisitor()
-        for addr in itertools.chain(self.visited, other.visited):
-            new.visit(addr)
+    def get_visited(self):
+        return self.visited
 
 
 #####################################
@@ -130,87 +140,133 @@ class AddressVisitor(Pytree):
 class SimulateHandler(Handler):
     key: PRNGKey
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    choice_state: Trie = Pytree.field(default_factory=Trie)
-    trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    address_traces: List[Trace] = Pytree.field(default_factory=list)
 
-    def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
-        self.trace_visitor.visit(addr)
+    def visit(self, addr):
+        self.address_visitor.visit(addr)
+
+    @typecheck
+    def handle(self, addr: Address, gen_fn: GenerativeFunction, args: Tuple):
+        self.visit(addr)
         self.key, sub_key = jax.random.split(self.key)
         tr = gen_fn.simulate(sub_key, args)
-        retval = tr.get_retval()
-        self.choice_state = self.choice_state.trie_insert(addr, tr)
+        self.address_traces.append(tr)
         self.score += tr.get_score()
-        return retval
+        v = tr.get_retval()
+        return v
 
 
 @dataclass
 class ImportanceHandler(Handler):
     key: PRNGKey
-    constraints: ChoiceMap
+    constraint: Constraint
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    choice_state: Trie = Pytree.field(default_factory=Trie)
-    trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    address_traces: List[Trace] = Pytree.field(default_factory=list)
+    bwd_specs: List[UpdateSpec] = Pytree.field(default_factory=list)
 
-    def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
-        self.trace_visitor.visit(addr)
-        sub_map = self.constraints.get_submap(addr)
+    def visit(self, addr):
+        self.address_visitor.visit(addr)
+
+    def get_subconstraint(self, addr):
+        addr = Pytree.tree_unwrap_const(addr)
+        match self.constraint:
+            case ChoiceMap():
+                return self.constraint.get_submap(addr)
+
+            case _:
+                raise ValueError(f"Not implemented fwd_spec: {self.constraint}")
+
+    @typecheck
+    def handle(self, addr: Address, gen_fn: GenerativeFunction, args: Tuple):
+        self.visit(addr)
+        sub_map = self.get_subconstraint(addr)
         self.key, sub_key = jax.random.split(self.key)
-        (tr, w) = gen_fn.importance(sub_key, sub_map, args)
-        retval = tr.get_retval()
-        self.choice_state = self.choice_state.trie_insert(addr, tr)
+        tr, w, bwd_spec = gen_fn.importance(sub_key, sub_map, args)
+        self.address_traces.append(tr)
+        self.bwd_specs.append(bwd_spec)
         self.score += tr.get_score()
         self.weight += w
-        return retval
+        v = tr.get_retval()
+        return v
 
 
 @dataclass
 class UpdateHandler(Handler):
     key: PRNGKey
     previous_trace: Trace
-    constraints: ChoiceMap
+    fwd_spec: UpdateSpec
+    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    discard: Trie = Pytree.field(default_factory=Trie)
-    choice_state: Trie = Pytree.field(default_factory=Trie)
-    trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    address_traces: List[Trace] = Pytree.field(default_factory=list)
+    bwd_specs: List[UpdateSpec] = Pytree.field(default_factory=list)
 
-    def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
-        self.trace_visitor.visit(addr)
-        sub_map = self.constraints.get_submap(addr)
-        # sub_trace = self.previous_trace.get_choices().get_submap(addr)
-        # TODO(colin): think about this with McCoy. Having get_choices() implicitly
-        # call strip() makes a _lot_ of interpreted code the same as the static code,
-        # and it seems good not to ask people to add or remove strip() as they move
-        # from one to another, and also means the type of thing you get from get_choices()
-        # is more stable. Maybe we can move get_subtrace higher in the stack?
-        if st := getattr(self.previous_trace, "get_subtrace", None):
-            sub_trace = st(addr)
-        else:
-            sub_trace = self.previous_trace.get_choices().get_submap(addr)
-        argdiffs = Diff.tree_diff_unknown_change(args)
+    def visit(self, addr):
+        self.address_visitor.visit(addr)
+
+    def get_subspec(self, addr: Address):
+        match self.fwd_spec:
+            case ChoiceMap():
+                return self.fwd_spec.get_submap(addr)
+
+            case RemoveSelectionUpdateSpec(selection):
+                subselection = selection.step(addr)
+                return RemoveSelectionUpdateSpec(subselection)
+
+            case _:
+                raise ValueError(f"Not implemented fwd_spec: {self.fwd_spec}")
+
+    def get_subtrace(self, addr: Address):
+        return self.previous_trace.get_subtrace(addr)
+
+    def handle_retval(self, v):
+        return jtu.tree_leaves(v, is_leaf=lambda v: isinstance(v, Diff))
+
+    @typecheck
+    def handle(
+        self,
+        addr: Address,
+        gen_fn: GenerativeFunction,
+        argdiffs: Tuple,
+    ):
+        self.visit(addr)
+        subtrace = self.get_subtrace(addr)
+        subspec = self.get_subspec(addr)
         self.key, sub_key = jax.random.split(self.key)
-        # if isinstance(sub_map, EmptyChoice):
-        #     sub_map = HierarchicalChoiceMap.new({})
-        (tr, w, rd, d) = gen_fn.update(sub_key, sub_trace, sub_map, argdiffs)
-        retval = tr.get_retval()
+        (tr, w, retval_diff, bwd_spec) = gen_fn.update(
+            sub_key, subtrace, subspec, argdiffs
+        )
+        self.score += tr.get_score()
         self.weight += w
-        self.choice_state = self.choice_state.trie_insert(addr, tr)
-        self.discard = self.discard.trie_insert(addr, d)
-        return retval
+        self.address_traces.append(tr)
+        self.bwd_specs.append(bwd_spec)
+
+        return retval_diff
 
 
 @dataclass
 class AssessHandler(Handler):
-    constraints: ChoiceMap
+    sample: Sample
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    trace_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
-    def handle(self, gen_fn: GenerativeFunction, args: Tuple, addr: Any):
-        self.trace_visitor.visit(addr)
-        sub_map = self.constraints.get_submap(addr)
-        (score, retval) = gen_fn.assess(sub_map, args)
+    def get_subsample(self, addr: Address):
+        match self.sample:
+            case ChoiceMap():
+                return self.sample.get_submap(addr)
+
+            case _:
+                raise ValueError(f"Not implemented: {self.sample}")
+
+    @typecheck
+    def handle(self, addr: Address, gen_fn: GenerativeFunction, args: Tuple):
+        submap = self.get_subsample(addr)
+        (score, v) = gen_fn.assess(submap, args)
         self.score += score
-        return retval
+        return v
 
 
 ########################
@@ -218,18 +274,25 @@ class AssessHandler(Handler):
 ########################
 
 
+@Pytree.dataclass
 class InterpretedTrace(Trace):
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
-    choices: Trie
+    addresses: AddressVisitor
+    subtraces: List[Trace]
     score: FloatArray
 
     def get_gen_fn(self):
         return self.gen_fn
 
-    def get_choices(self):
-        return HierarchicalChoiceMap(self.choices).strip()
+    def get_sample(self) -> ChoiceMap:
+        addresses = self.addresses.get_visited()
+        chm = ChoiceMap.n
+        for addr, subtrace in zip(addresses, self.subtraces):
+            chm = chm ^ ChoiceMap.a(addr, subtrace.get_sample())
+
+        return chm
 
     def get_subtrace(self, addr):
         return self.choices[addr]
@@ -256,14 +319,19 @@ class InterpretedTrace(Trace):
 
 
 # Callee syntactic sugar handler.
-@beartype
-def handler_trace_with_interpreted(addr, gen_fn: GenerativeFunction, args: Tuple):
-    return trace(addr, gen_fn)(*args)
+@typecheck
+def handler_trace_with_interpreted(
+    addr: Address,
+    gen_fn: GenerativeFunction,
+    args: Tuple,
+):
+    return trace(addr, gen_fn)(args)
 
 
 # Our generative function type - simply wraps a `source: Callable`
 # which can invoke our `trace` primitive.
-class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
+@Pytree.dataclass
+class InterpretedGenerativeFunction(GenerativeFunction):
     """An `InterpretedGenerativeFunction` is a generative function which supports a permissive subset of Python for its modeling language. Permissive here is in contrast to the `StaticGenerativeFunction` language, which supports similar modeling abstractions, but requires that users write within the JAX compatible subset of Python -
     designed to enable [JAX acceleration](https://jax.readthedocs.io/en/latest/)
     for the inference computations.
@@ -303,6 +371,8 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
 
     source: Callable = Pytree.static()
 
+    @GenerativeFunction.gfi_boundary
+    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -315,62 +385,91 @@ class InterpretedGenerativeFunction(GenerativeFunction, SupportsCalleeSugar):
         with SimulateHandler(key) as handler:
             retval = syntax_sugar_handled(*args)
             score = handler.score
-            choices = handler.choice_state
-            return InterpretedTrace(self, args, retval, choices, score)
+            visitor = handler.address_visitor
+            traces = handler.address_traces
+            return InterpretedTrace(self, args, retval, visitor, traces, score)
 
+    @GenerativeFunction.gfi_boundary
+    @typecheck
     def importance(
         self,
         key: PRNGKey,
-        choice_map: ChoiceMap,
+        constraint: Constraint,
         args: Tuple,
-    ) -> Tuple[InterpretedTrace, FloatArray]:
+    ) -> Tuple[InterpretedTrace, Weight, UpdateSpec]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
-        with ImportanceHandler(key, choice_map) as handler:
+
+        def make_bwd_spec(visitor, subspecs):
+            addresses = visitor.get_visited()
+            addresses = Pytree.tree_unwrap_const(addresses)
+            chm = ChoiceMap.n
+            for addr, subspec in zip(addresses, subspecs):
+                chm = chm ^ ChoiceMap.a(addr, subspec)
+            return chm
+
+        with ImportanceHandler(key, constraint) as handler:
             retval = syntax_sugar_handled(*args)
             score = handler.score
-            choices = handler.choice_state
+            visitor = handler.address_visitor
+            traces = handler.address_traces
             weight = handler.weight
+            bwd_spec = make_bwd_spec(visitor, handler.bwd_specs)
             return (
-                InterpretedTrace(self, args, retval, choices, score),
+                InterpretedTrace(self, args, retval, visitor, traces, score),
                 weight,
+                bwd_spec,
             )
 
+    @GenerativeFunction.gfi_boundary
+    @typecheck
     def update(
         self,
         key: PRNGKey,
-        prev_trace: Trace,
-        choice_map: ChoiceMap,
-        argdiffs: Tuple,
-    ) -> Tuple[InterpretedTrace, FloatArray, Any, ChoiceMap]:
+        trace: Trace,
+        update_spec: UpdateSpec,
+        argdiffs: Argdiffs,
+    ) -> Tuple[InterpretedTrace, Weight, Retdiff, ChoiceMap]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
-        with UpdateHandler(key, prev_trace, choice_map) as handler:
+
+        def make_bwd_spec(visitor, subspecs):
+            addresses = visitor.get_visited()
+            addresses = Pytree.tree_unwrap_const(addresses)
+            chm = ChoiceMap.n
+            for addr, subspec in zip(addresses, subspecs):
+                chm = chm ^ ChoiceMap.a(addr, subspec)
+            return chm
+
+        with UpdateHandler(key, trace, update_spec) as handler:
             args = Diff.tree_primal(argdiffs)
             retval = syntax_sugar_handled(*args)
-            choices = handler.choice_state
+            visitor = handler.address_visitor
+            traces = handler.address_traces
             weight = handler.weight
-            discard = handler.discard
+            score = handler.score
             retdiff = Diff.tree_diff_unknown_change(retval)
-            score = prev_trace.get_score() + weight
+            bwd_spec = make_bwd_spec(visitor, handler.bwd_specs)
             return (
-                InterpretedTrace(self, args, retval, choices, score),
+                InterpretedTrace(self, args, retval, visitor, traces, score),
                 weight,
                 retdiff,
-                HierarchicalChoiceMap(discard),
+                bwd_spec,
             )
 
+    @GenerativeFunction.gfi_boundary
+    @typecheck
     def assess(
         self,
-        choice_map: ChoiceMap,
+        sample: Sample,
         args: Tuple,
-    ) -> Tuple[FloatArray, Any]:
+    ) -> Tuple[Score, Any]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
-        with AssessHandler(choice_map) as handler:
+        with AssessHandler(sample) as handler:
             retval = syntax_sugar_handled(*args)
             score = handler.score
             return score, retval

@@ -258,7 +258,7 @@ class ImportanceHandler(StaticHandler):
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     address_traces: List[Trace] = Pytree.field(default_factory=list)
-    bwd_specs: List[ChoiceMap] = Pytree.field(default_factory=list)
+    bwd_specs: List[UpdateSpec] = Pytree.field(default_factory=list)
 
     def yield_state(self):
         return (
@@ -279,7 +279,7 @@ class ImportanceHandler(StaticHandler):
                 return self.constraint.get_submap(addr)
 
             case _:
-                raise ValueError(f"Not implemented fwd_spec: {self.fwd_spec}")
+                raise ValueError(f"Not implemented fwd_spec: {self.constraint}")
 
     def handle_trace(self, addr, gen_fn, args):
         self.visit(addr)
@@ -335,7 +335,7 @@ class UpdateHandler(StaticHandler):
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: List[Trace] = Pytree.field(default_factory=list)
-    bwd_specs: List[ChoiceMap] = Pytree.field(default_factory=list)
+    bwd_specs: List[UpdateSpec] = Pytree.field(default_factory=list)
 
     def yield_state(self):
         return (
@@ -447,7 +447,7 @@ class AssessHandler(StaticHandler):
                 return self.sample.get_submap(addr)
 
             case _:
-                raise ValueError(f"Not implemented: {self.fwd_spec}")
+                raise ValueError(f"Not implemented: {self.sample}")
 
     @typecheck
     def handle_trace(
