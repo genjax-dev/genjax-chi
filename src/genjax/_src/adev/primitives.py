@@ -55,12 +55,12 @@ class REINFORCE(ADEVPrimitive):
     def jvp_estimate(
         self,
         key: PRNGKey,
-        tree_duals: Any,
+        tree_dual: Any,
         konts: Tuple,
     ):
         (_, kdual) = konts
-        primals = Dual.tree_primal(tree_duals)
-        tangents = Dual.tree_tangent(tree_duals)
+        primals = Dual.tree_primal(tree_dual)
+        tangents = Dual.tree_tangent(tree_dual)
         key, sub_key = jax.random.split(key)
         v = self.sample(sub_key, *primals)
         tree_dual = Dual.tree_pure(v)
@@ -92,12 +92,12 @@ class FlipEnum(ADEVPrimitive):
     def jvp_estimate(
         self,
         key: PRNGKey,
-        tree_duals: Any,
+        tree_dual: Any,
         konts: Tuple,
     ):
         (_, kdual) = konts
-        (p_primal,) = Dual.tree_primal(tree_duals)
-        (p_tangent,) = Dual.tree_tangent(tree_duals)
+        (p_primal,) = Dual.tree_primal(tree_dual)
+        (p_tangent,) = Dual.tree_tangent(tree_dual)
         true_dual = kdual(
             key,
             Dual(jnp.array(True), jnp.zeros_like(jnp.array(True))),
@@ -242,13 +242,12 @@ class NormalREPARAM(ADEVPrimitive):
     def jvp_estimate(
         self,
         key: PRNGKey,
-        primals: Tuple,
-        tangents: Tuple,
+        tree_dual: Any,
         konts: Tuple,
     ):
         (kpure, kdual) = konts
-        (mu_primal, sigma_primal) = primals
-        (mu_tangent, sigma_tangent) = tangents
+        (mu_primal, sigma_primal) = Dual.tree_primal(tree_dual)
+        (mu_tangent, sigma_tangent) = Dual.tree_tangent(tree_dual)
         key, sub_key = jax.random.split(key)
         eps = tfd.Normal(loc=0.0, scale=1.0).sample(seed=sub_key)
 
@@ -260,7 +259,7 @@ class NormalREPARAM(ADEVPrimitive):
             (mu_primal, sigma_primal),
             (mu_tangent, sigma_tangent),
         )
-        return kdual(key, (primal_out,), (tangent_out,))
+        return kdual(key, Dual(primal_out, tangent_out))
 
 
 normal_reparam = NormalREPARAM()
@@ -378,41 +377,41 @@ class Baseline(ADEVPrimitive):
     def jvp_estimate(
         self,
         key: PRNGKey,
-        primals: Tuple,
-        tangents: Tuple,
+        tree_dual: Any,
         konts: Tuple,
     ):
         (kpure, kdual) = konts
-        (b_primal, *prim_primals) = primals
-        (b_tangent, *prim_tangents) = tangents
+        (b_primal, *prim_primals) = Dual.tree_primal(tree_dual)
+        (b_tangent, *prim_tangents) = Dual.tree_tangent(tree_dual)
 
-        def new_kdual(key, v: Tuple, t: Tuple):
-            ret_primal, ret_tangent = kdual(key, v, t)
+        def new_kdual(key, dual: Dual):
+            ret_dual = kdual(key, dual)
 
             def _inner(ret, b):
                 return ret - b
 
-            return jax.jvp(
+            primal, tangent = jax.jvp(
                 _inner,
-                (ret_primal, b_primal),
-                (ret_tangent, b_tangent),
+                (ret_dual.primal, b_primal),
+                (ret_dual.tangent, b_tangent),
             )
+            return Dual(primal, tangent)
 
-        l_primal, l_tangent = self.prim.jvp_estimate(
+        l_dual = self.prim.jvp_estimate(
             key,
-            tuple(prim_primals),
-            tuple(prim_tangents),
+            Dual.tree_dual(prim_primals, prim_tangents),
             (kpure, new_kdual),
         )
 
         def _inner(left, right):
             return left + right
 
-        return jax.jvp(
+        primal, tangent = jax.jvp(
             _inner,
-            (l_primal, b_primal),
-            (l_tangent, b_tangent),
+            (l_dual.primal, b_primal),
+            (l_dual.tangent, b_tangent),
         )
+        return Dual(primal, tangent)
 
 
 @typecheck
@@ -427,21 +426,20 @@ def baseline(prim):
 
 @Pytree.dataclass
 class AddCost(ADEVPrimitive):
-    def sample(self, *args):
-        pass
+    def sample(self, key, w):
+        return w
 
     def jvp_estimate(
         self,
         key: PRNGKey,
-        primals: Tuple,
-        tangents: Tuple,
+        tree_dual: Any,
         konts: Tuple,
-    ):
+    ) -> Dual:
         (kpure, kdual) = konts
-        (w,) = primals
-        (w_tangent,) = tangents
-        l_primal, l_tangent = kdual(key, (), ())
-        return l_primal + w, l_tangent + w_tangent
+        (w,) = Dual.tree_primal(tree_dual)
+        (w_tangent,) = Dual.tree_tangent(tree_dual)
+        l_dual = kdual(key, Dual(None, None))
+        return Dual(w + l_dual.primal, w_tangent + l_dual.tangent)
 
 
 def add_cost(w):

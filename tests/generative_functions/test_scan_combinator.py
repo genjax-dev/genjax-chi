@@ -22,7 +22,7 @@ from genjax import Diff, RemoveSelectionUpdateSpec
 class TestScanSimpleNormal:
     def test_scan_simple_normal(self):
         @genjax.scan_combinator(max_length=10)
-        @genjax.static_gen_fn
+        @genjax.gen
         def scanner(x, c):
             z = genjax.normal(x, 1.0) @ "z"
             return z, None
@@ -36,7 +36,7 @@ class TestScanSimpleNormal:
 
     def test_scan_simple_normal_importance(self):
         @genjax.scan_combinator(max_length=10)
-        @genjax.static_gen_fn
+        @genjax.gen
         def scanner(x, c):
             z = genjax.normal(x, 1.0) @ "z"
             return z, None
@@ -54,7 +54,7 @@ class TestScanSimpleNormal:
 
     def test_scan_simple_normal_update(self):
         @genjax.scan_combinator(max_length=10)
-        @genjax.static_gen_fn
+        @genjax.gen
         def scanner(x, c):
             z = genjax.normal(x, 1.0) @ "z"
             return z, None

@@ -22,7 +22,7 @@ from genjax._src.core.serialization.msgpack import msgpack_serialize
 
 class TestMsgPackSerialize:
     def test_msgpack_round_trip(self):
-        @genjax.static_gen_fn
+        @genjax.gen
         def model(p):
             x = genjax.flip(p) @ "x"
             return x
@@ -35,7 +35,7 @@ class TestMsgPackSerialize:
         assert restored_tr == tr
 
         # Test round-trip
-        @genjax.static_gen_fn
+        @genjax.gen
         def model_copy(p):
             x = genjax.flip(p) @ "x"
             return x
@@ -48,7 +48,7 @@ class TestMsgPackSerialize:
             assert e == s
 
     def test_msgpack_tensors(self):
-        @genjax.static_gen_fn
+        @genjax.gen
         def model(obs):
             x = genjax.flip(jnp.sum(obs) / len(obs)) @ "x"
             return x
@@ -72,7 +72,7 @@ class TestMsgPackSerialize:
         assert tr == restored_tr
 
     def test_msgpack_auxilliary_methods(self):
-        @genjax.static_gen_fn
+        @genjax.gen
         def model(p):
             x = genjax.flip(p) @ "x"
             return x
@@ -90,7 +90,7 @@ class TestMsgPackSerialize:
         assert tr == msgpack_serialize.load(f, model)
 
     def test_msgpack_default_extras(self):
-        @genjax.static_gen_fn
+        @genjax.gen
         def model():
             return jnp.array([1, 2, 3], dtype=jnp.bfloat16)
 

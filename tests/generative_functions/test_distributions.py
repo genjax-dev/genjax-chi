@@ -22,20 +22,20 @@ from genjax.incremental import Diff, NoChange, UnknownChange
 class TestDistributions:
     def test_simulate(self):
         key = jax.random.PRNGKey(314159)
-        tr = genjax.normal(0.0, 1.0).simulate(key)
-        assert tr.get_score() == genjax.normal(0.0, 1.0).assess(tr.get_sample())[0]
+        tr = genjax.normal(0.0, 1.0).simulate(key, ())
+        assert tr.get_score() == genjax.normal(0.0, 1.0).assess(tr.get_sample(), ())[0]
 
     def test_importance(self):
         key = jax.random.PRNGKey(314159)
 
         # No constraint.
-        (tr, w, _) = genjax.normal(0.0, 1.0).importance(key, EmptyConstraint())
+        (tr, w, _) = genjax.normal(0.0, 1.0).importance(key, EmptyConstraint(), ())
         assert w == 0.0
 
         # Constraint, no mask.
-        (tr, w, _) = genjax.normal(0.0, 1.0).importance(key, C.v(1.0))
+        (tr, w, _) = genjax.normal(0.0, 1.0).importance(key, C.v(1.0), ())
         v = tr.get_sample()
-        assert w == genjax.normal(0.0, 1.0).assess(v)[0]
+        assert w == genjax.normal(0.0, 1.0).assess(v, ())[0]
 
         # Constraint, mask with True flag.
         (tr, w, _) = genjax.normal.importance(

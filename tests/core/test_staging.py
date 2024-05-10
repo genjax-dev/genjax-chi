@@ -13,14 +13,14 @@
 # limitations under the License.
 
 from genjax import ChoiceMap as C
-from genjax import normal, static_gen_fn
+from genjax import gen, normal
 from genjax.core.interpreters import get_importance_shape, get_update_shape
 from jax.random import PRNGKey
 
 
 class TestStaging:
     def test_static_importance_shape(self):
-        @static_gen_fn
+        @gen
         def model():
             x = normal(0.0, 1.0) @ "x"
             return x
@@ -30,7 +30,7 @@ class TestStaging:
         assert isinstance(bwd_spec, C)
 
     def test_static_update_shape(self):
-        @static_gen_fn
+        @gen
         def model():
             x = normal(0.0, 1.0) @ "x"
             return x

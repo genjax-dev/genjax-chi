@@ -20,8 +20,7 @@ from genjax import Selection as S
 class TestChoiceMap:
     def test_value_map(self):
         value_chm = C.v(3.0)
-        assert 3.0 == value_chm()
-        assert 3.0 == value_chm.get_submap(())
+        assert 3.0 == value_chm.get_value()
         assert () in value_chm
 
     def test_address_map(self):

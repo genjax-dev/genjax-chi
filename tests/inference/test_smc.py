@@ -16,24 +16,27 @@ import genjax
 import jax
 import jax.numpy as jnp
 import pytest
+from genjax import ChoiceMap as C
 from jax.scipy.special import logsumexp
+
+
+def logpdf(v):
+    return lambda c, *args: v.assess(C.v(c), args)[0]
 
 
 class TestSMC:
     def test_exact_flip_flip_trivial(self):
-        @genjax.static_gen_fn
+        @genjax.gen
         def flip_flip_trivial():
             _ = genjax.flip(0.5) @ "x"
             _ = genjax.flip(0.7) @ "y"
 
         def flip_flip_exact_log_marginal_density(target: genjax.Target):
-            y = target["y"]
-            return genjax.flip.logpdf(y, 0.7)
+            y = target.constraint.get_submap("y")
+            return genjax.flip.assess(y, (0.7,))[0]
 
         key = jax.random.PRNGKey(314159)
-        inference_problem = genjax.Target(
-            flip_flip_trivial, (), genjax.choice_map({"y": True})
-        )
+        inference_problem = genjax.Target(flip_flip_trivial, (), C.n.at["y"].set(True))
 
         # Single sample IS.
         Z_est = genjax.inference.smc.Importance(
@@ -50,7 +53,7 @@ class TestSMC:
         assert Z_est == pytest.approx(Z_exact, 1e-3)
 
     def test_exact_flip_flip(self):
-        @genjax.static_gen_fn
+        @genjax.gen
         def flip_flip():
             v1 = genjax.flip(0.5) @ "x"
             p = jax.lax.cond(v1, lambda: 0.9, lambda: 0.3)
@@ -60,21 +63,21 @@ class TestSMC:
             y = target["y"]
             x_prior = jnp.array(
                 [
-                    genjax.flip.logpdf(True, 0.5),
-                    genjax.flip.logpdf(False, 0.5),
+                    logpdf(genjax.flip)(True, 0.5),
+                    logpdf(genjax.flip)(False, 0.5),
                 ]
             )
             y_likelihood = jnp.array(
                 [
-                    genjax.flip.logpdf(y, 0.9),
-                    genjax.flip.logpdf(y, 0.3),
+                    logpdf(genjax.flip)(y, 0.9),
+                    logpdf(genjax.flip)(y, 0.3),
                 ]
             )
             y_marginal = logsumexp(x_prior + y_likelihood)
             return y_marginal
 
         key = jax.random.PRNGKey(314159)
-        inference_problem = genjax.Target(flip_flip, (), genjax.choice_map({"y": True}))
+        inference_problem = genjax.Target(flip_flip, (), C.n.at["y"].set(True))
 
         # K-sample IS.
         Z_est = genjax.inference.smc.ImportanceK(

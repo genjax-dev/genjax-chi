@@ -331,9 +331,13 @@ class Pytree(pz.Struct):
                 wrap_bottomline = common_styles.ColoredBottomLineSpanGroup
 
             else:
-                wrap_block = lambda rendering: rendering
-                wrap_topline = lambda rendering: rendering
-                wrap_bottomline = lambda rendering: rendering
+
+                def id(rendering):
+                    return rendering
+
+                wrap_block = id
+                wrap_topline = id
+                wrap_bottomline = id
 
             children = builtin_structure_handler.build_field_children(
                 node,

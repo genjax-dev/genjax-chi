@@ -126,7 +126,7 @@ class StaticGenerativeFunction(GenerativeFunction):
     * Source programs are allowed to utilize untraced randomness, with the usual Gen restrictions. In addition, it is highly recommended (meaning, for correctness, you absolutely should) to use [`jax.random`](https://jax.readthedocs.io/en/latest/jax.random.html) and JAX's PRNG capabilities. To utilize untraced randomness, you'll need to pass in an extra key as an argument to your model.
 
         ```python
-        @static_gen_fn
+        @gen
         def model(key: PRNGKey):
             v = some_untraced_call(key)
             x = trace("x", genjax.normal)(v, 1.0)
@@ -308,7 +308,7 @@ class StaticGenerativeFunction(GenerativeFunction):
 
 
 @typecheck
-def static_gen_fn(f: Callable) -> GenerativeFunction:
+def gen(f: Callable) -> GenerativeFunction:
     if isinstance(f, Closure):
         return StaticGenerativeFunction(f)
     else:

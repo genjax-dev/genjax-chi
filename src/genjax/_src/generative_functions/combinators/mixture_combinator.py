@@ -25,7 +25,7 @@ from genjax._src.generative_functions.combinators.switch_combinator import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
 )
-from genjax._src.generative_functions.static.static_gen_fn import static_gen_fn
+from genjax._src.generative_functions.static.static_gen_fn import gen
 
 register_exclusion(__file__)
 
@@ -39,7 +39,7 @@ def mixture_combinator(
 
     inner_combinator_closure = switch_combinator(*gen_fns)
 
-    @static_gen_fn
+    @gen
     def mixture_model(mixture_logits, *args):
         mix_idx = categorical(logits=mixture_logits) @ "mixture_component"
         v = inner_combinator_closure(mix_idx, *args) @ "component_sample"

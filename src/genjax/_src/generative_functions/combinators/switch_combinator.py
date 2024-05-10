@@ -137,12 +137,12 @@ class SwitchCombinator(GenerativeFunction):
         console = genjax.console()
 
 
-        @genjax.static_gen_fn
+        @genjax.gen
         def branch_1():
             x = genjax.normal(0.0, 1.0) @ "x1"
 
 
-        @genjax.static_gen_fn
+        @genjax.gen
         def branch_2():
             x = genjax.bernoulli(0.3) @ "x2"
 
@@ -200,7 +200,7 @@ class SwitchCombinator(GenerativeFunction):
         for static_idx in range(len(self.branches)):
             gen_fn_closure = self.get_branch_gen_fn_closure(static_idx, args)
             key = jax.random.PRNGKey(0)
-            trace_shape = get_data_shape(gen_fn_closure.simulate)(key)
+            trace_shape = get_data_shape(gen_fn_closure.simulate)(key, ())
             empty_trace = jtu.tree_map(
                 lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
             )
@@ -214,7 +214,7 @@ class SwitchCombinator(GenerativeFunction):
 
     def _simulate(self, trace_leaves, retval_leaves, key, static_idx, args):
         branch_gen_fn_closure = self.get_branch_gen_fn_closure(static_idx, args)
-        tr = branch_gen_fn_closure.simulate(key)
+        tr = branch_gen_fn_closure.simulate(key, ())
         trace_leaves[static_idx] = jtu.tree_leaves(tr)
         retval_leaves[static_idx] = jtu.tree_leaves(tr.get_retval())
         score = tr.get_score()
@@ -274,7 +274,7 @@ class SwitchCombinator(GenerativeFunction):
             gen_fn_closure = self.get_branch_gen_fn_closure(static_idx, args)
             key = jax.random.PRNGKey(0)
             trace_shape, _, bwd_spec_shape = get_data_shape(gen_fn_closure.importance)(
-                key, constraint
+                key, constraint, ()
             )
             empty_trace = jtu.tree_map(
                 lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
@@ -308,7 +308,7 @@ class SwitchCombinator(GenerativeFunction):
         args,
     ):
         branch_gen_fn_closure = self.get_branch_gen_fn_closure(static_idx, args)
-        tr, w, bwd_spec = branch_gen_fn_closure.importance(key, constraint)
+        tr, w, bwd_spec = branch_gen_fn_closure.importance(key, constraint, ())
         trace_leaves[static_idx] = jtu.tree_leaves(tr)
         retval_leaves[static_idx] = jtu.tree_leaves(tr.get_retval())
         bwd_spec_leaves[static_idx] = jtu.tree_leaves(bwd_spec)
@@ -595,7 +595,7 @@ class SwitchCombinator(GenerativeFunction):
         retval_leaves = []
         for static_idx in range(len(self.branches)):
             gen_fn_closure = self.get_branch_gen_fn_closure(static_idx, args)
-            _, retval_shape = get_data_shape(gen_fn_closure.assess)(sample)
+            _, retval_shape = get_data_shape(gen_fn_closure.assess)(sample, ())
             empty_retval = jtu.tree_map(
                 lambda v: jnp.zeros(v.shape, v.dtype), retval_shape
             )

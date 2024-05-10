@@ -14,19 +14,20 @@
 
 import genjax
 import jax
+import pytest
 from genjax import ChoiceMap as C
-from genjax.incremental import Diff, NoChange, UnknownChange
+from genjax import Diff
 from jax import numpy as jnp
 
 
 class TestSwitchCombinator:
     def test_switch_combinator_simulate_in_gen_fn(self):
-        @genjax.static_gen_fn
+        @genjax.gen
         def f():
             x = genjax.normal(0.0, 1.0) @ "x"
             return x
 
-        @genjax.static_gen_fn
+        @genjax.gen
         def model():
             b = genjax.flip(0.5) @ "b"
             s = genjax.switch_combinator(f, f)(jnp.int32(b), (), ()) @ "s"
@@ -38,12 +39,12 @@ class TestSwitchCombinator:
         assert True
 
     def test_switch_combinator_simulate(self):
-        @genjax.static_gen_fn
+        @genjax.gen
         def simple_normal():
             _y1 = genjax.normal(0.0, 1.0) @ "y1"
             _y2 = genjax.normal(0.0, 1.0) @ "y2"
 
-        @genjax.static_gen_fn
+        @genjax.gen
         def simple_flip():
             _y3 = genjax.flip(0.3) @ "y3"
 
@@ -73,12 +74,12 @@ class TestSwitchCombinator:
         assert idx == 1
 
     def test_switch_combinator_choice_map_behavior(self):
-        @genjax.static_gen_fn
+        @genjax.gen
         def simple_normal():
             _y1 = genjax.normal(0.0, 1.0) @ "y1"
             _y2 = genjax.normal(0.0, 1.0) @ "y2"
 
-        @genjax.static_gen_fn
+        @genjax.gen
         def simple_flip():
             _y3 = genjax.flip(0.3) @ "y3"
 
@@ -92,12 +93,12 @@ class TestSwitchCombinator:
         assert not tr.get_sample().has_submap("y3")
 
     def test_switch_combinator_importance(self):
-        @genjax.static_gen_fn
+        @genjax.gen
         def simple_normal():
             _y1 = genjax.normal(0.0, 1.0) @ "y1"
             _y2 = genjax.normal(0.0, 1.0) @ "y2"
 
-        @genjax.static_gen_fn
+        @genjax.gen
         def simple_flip():
             _y3 = genjax.flip(0.3) @ "y3"
 
@@ -136,7 +137,7 @@ class TestSwitchCombinator:
         assert w == score
 
     def test_switch_combinator_update_single_branch_no_change(self):
-        @genjax.static_gen_fn
+        @genjax.gen
         def simple_normal():
             _y1 = genjax.normal(0.0, 1.0) @ "y1"
             _y2 = genjax.normal(0.0, 1.0) @ "y2"
@@ -150,7 +151,7 @@ class TestSwitchCombinator:
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (tr, _, _, _) = jax.jit(switch.update)(
-            sub_key, tr, C.n, (Diff.tree_diff(0, NoChange), ())
+            sub_key, tr, C.n, (Diff.no_change(0), ())
         )
         assert score == tr.get_score()
         assert v1 == tr.get_sample()["y1"]
@@ -161,12 +162,12 @@ class TestSwitchCombinator:
         outlier_stddev = 10.0
         sample_value = 2.0
 
-        @genjax.static_gen_fn
+        @genjax.gen
         def regular():
             x = genjax.normal(0.0, regular_stddev) @ "x"
             return x
 
-        @genjax.static_gen_fn
+        @genjax.gen
         def outlier():
             x = genjax.normal(0.0, outlier_stddev) @ "x"
             return x
@@ -188,23 +189,19 @@ class TestSwitchCombinator:
 
         key, update_key = jax.random.split(key)
         (new_tr, new_wt, _, _) = switch.update(
-            update_key, tr, C.n, (Diff.tree_diff(1, UnknownChange), (), ())
+            update_key, tr, C.n, (Diff.unknown_change(1), (), ())
         )
         (idx, *_) = new_tr.get_args()
         assert idx == 1
         assert new_tr.get_score() != tr.get_score()
-        new_value = new_tr.get_sample()["x"]
-        assert (
-            new_tr.get_score()
-            == genjax.normal.assess(C.v(new_value), (0.0, outlier_stddev))[0]
-        )
+        assert tr.get_score() + new_wt == pytest.approx(new_tr.get_score(), 1e-5)
 
     def test_switch_combinator_vectorized_access(self):
-        @genjax.static_gen_fn
+        @genjax.gen
         def f1():
             return genjax.normal(0.0, 1.0) @ "y"
 
-        @genjax.static_gen_fn
+        @genjax.gen
         def f2():
             return genjax.normal(0.0, 2.0) @ "y"
 
@@ -217,16 +214,16 @@ class TestSwitchCombinator:
         assert y.shape == (3,)
 
     def test_switch_combinator_with_empty_gen_fn(self):
-        @genjax.static_gen_fn
+        @genjax.gen
         def f():
             x = genjax.normal(0.0, 1.0) @ "x"
             return x
 
-        @genjax.static_gen_fn
+        @genjax.gen
         def empty():
             return 0.0
 
-        @genjax.static_gen_fn
+        @genjax.gen
         def model():
             b = genjax.flip(0.5) @ "b"
             s = genjax.switch_combinator(f, empty)(jnp.int32(b), (), ()) @ "s"

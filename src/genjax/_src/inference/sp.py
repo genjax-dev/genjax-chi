@@ -56,7 +56,7 @@ class Target(Pytree):
         from genjax import ChoiceMap as C
         from genjax.inference import Target
 
-        @genjax.static_gen_fn
+        @genjax.gen
         def model():
             x = genjax.normal(0.0, 1.0) @ "x"
             y = genjax.normal(x, 1.0) @ "y"
@@ -69,7 +69,18 @@ class Target(Pytree):
 
     p: GenerativeFunction
     args: Tuple
-    constraint: Constraint
+    constraint: ChoiceMap
+
+    def importance(self, key: PRNGKey, constraint: ChoiceMap):
+        merged = self.constraint.merge(constraint)
+        return self.p.importance(key, merged, self.args)
+
+    def filter_to_unconstrained(self, choice_map):
+        selection = self.constraint.get_selection().complement()
+        return choice_map.filter(selection)
+
+    def __getitem__(self, addr):
+        return self.constraint[addr]
 
 
 #######################

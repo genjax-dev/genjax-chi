@@ -407,7 +407,7 @@ class ChoiceMap(Sample, Constraint):
             import genjax
             from genjax import bernoulli, Selection
 
-            @genjax.static_gen_fn
+            @genjax.gen
             def model():
                 x = bernoulli(0.3) @ "x"
                 y = bernoulli(0.3) @ "y"
@@ -702,14 +702,16 @@ def choice_map_xor(c1: ChoiceMap, c2: ChoiceMap):
     def inner(c1, c2, head: AddressComponent):
         match head:
             case ():
-                v1, check1, _ = c1.call(head)
-                v2, check2, _ = c2.call(head)
+                check1 = c1.has_value()
+                check2 = c2.has_value()
                 check = staged_or(check1, check2)
                 err_check = staged_and(check1, check2)
                 staged_err(
                     err_check,
-                    "The disjoint union of two choice maps have a value with the same address.",
+                    f"The disjoint union of two choice maps have a value collision:\nc1 = {c1}\nc2 = {c2}",
                 )
+                v1 = c1.get_value()
+                v2 = c2.get_value()
 
                 def pair_bool_to_idx(bool1, bool2):
                     return (1 * bool1 + 2 * bool2 - 3 * (bool1 & bool2)) - 1
@@ -768,7 +770,7 @@ def choice_map_masked(flag: Bool | BoolArray, c: ChoiceMap):
                     return None, False, choice_map_empty
             else:
                 return_map = choice_map_masked(and_check, submap)
-            return (Mask.maybe_none(and_check, v), and_check, return_map)
+            return Mask.maybe_none(and_check, v), and_check, return_map
 
     else:
 
@@ -791,8 +793,13 @@ def choice_map_filtered(selection: Selection, c: ChoiceMap):
         check = head in selection
         match head:
             case ():
-                return Mask.maybe_none(check, c()), check, choice_map_empty
+                chm_check = c.has_value()
+                v = c.get_value()
+                check = staged_and(check, chm_check)
+                return Mask.maybe_none(check, v), check, choice_map_empty
             case _:
+                chm_check = c.has_submap(head)
+                check = staged_and(check, chm_check)
                 return (
                     None,
                     check,

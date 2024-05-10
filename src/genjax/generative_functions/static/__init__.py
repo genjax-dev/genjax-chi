@@ -16,7 +16,7 @@ from genjax._src.generative_functions.static import (
     AddressReuse,
     StaticAddressJAX,
     StaticGenerativeFunction,
-    static_gen_fn,
+    gen,
     trace,
     trace_p,
 )
@@ -26,6 +26,6 @@ __all__ = [
     "StaticAddressJAX",
     "trace_p",
     "trace",
-    "static_gen_fn",
+    "gen",
     "StaticGenerativeFunction",
 ]

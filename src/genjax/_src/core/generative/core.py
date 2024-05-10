@@ -39,6 +39,7 @@ from genjax._src.core.typing import (
     PRNGKey,
     Tuple,
     static_check_is_concrete,
+    typecheck,
 )
 
 register_exclusion(__file__)
@@ -428,7 +429,7 @@ class GenerativeFunction(Pytree):
             import genjax
             from jax.random import PRNGKey
 
-            @genjax.static_gen_fn
+            @genjax.gen
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 return x
@@ -440,7 +441,7 @@ class GenerativeFunction(Pytree):
 
             Another example, using the same model, composed into [`genjax.repeat_combinator`](generative_functions.md) - which creates a new generative function, which has the same interface:
             ```python exec="yes" html="true" source="material-block" session="core"
-            @genjax.static_gen_fn
+            @genjax.gen
             def model():
                 x = genjax.normal(0.0, 1.0) @ "x"
                 return x
@@ -473,7 +474,7 @@ class GenerativeFunction(Pytree):
         (**With untraced randomness**) Gen allows for the possibility of sources of randomness _which are not traced_. In GenJAX, this might look something like:
         ```python
         # notice how the key is explicit
-        @genjax.static_gen_fn
+        @genjax.gen
         def model_with_untraced_randomness(key: PRNGKey):
             x = genjax.normal(0.0, 1.0) "x"
             v = some_random_process(key, x)
@@ -540,57 +541,137 @@ class GenerativeFunction(Pytree):
     # Combinators #
     ###############
 
-    def vmap(self, /, *, in_axes=0) -> "GenerativeFunction":
+    def vmap(
+        self,
+        *args,
+        in_axes=0,
+    ) -> "GenerativeFunction | GenerativeFunctionClosure":
         from genjax import vmap_combinator
 
-        return vmap_combinator(self, in_axes=in_axes)
+        return (
+            vmap_combinator(self, in_axes=in_axes)(*args)
+            if args
+            else vmap_combinator(self, in_axes=in_axes)
+        )
 
-    def repeat(self, /, *, num_repeats: Int) -> "GenerativeFunction":
+    def repeat(
+        self,
+        *args,
+        num_repeats: Int,
+    ) -> "GenerativeFunction | GenerativeFunctionClosure":
         from genjax import repeat_combinator
 
-        return repeat_combinator(self, num_repeats=num_repeats)
+        return (
+            repeat_combinator(self, num_repeats=num_repeats)(*args)
+            if args
+            else repeat_combinator(self, num_repeats=num_repeats)
+        )
 
-    def scan(self, /, *, max_length: Int) -> "GenerativeFunction":
+    def scan(
+        self,
+        *args,
+        max_length: Int,
+    ) -> "GenerativeFunction | GenerativeFunctionClosure":
         from genjax import scan_combinator
 
-        return scan_combinator(self, max_length=max_length)
+        return (
+            scan_combinator(self, max_length=max_length)(*args)
+            if args
+            else scan_combinator(self, max_length=max_length)(*args)
+        )
 
-    def mask(self) -> "GenerativeFunction":
+    def mask(
+        self,
+        *args,
+    ) -> "GenerativeFunction | GenerativeFunctionClosure":
         from genjax import mask_combinator
 
-        return mask_combinator(self)
+        return mask_combinator(self)(*args) if args else mask_combinator(self)
 
-    def or_else(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
+    def or_else(
+        self,
+        gen_fn: "GenerativeFunction",
+        *args,
+    ) -> "GenerativeFunction | GenerativeFunctionClosure":
         from genjax import cond_combinator
 
-        return cond_combinator(self, gen_fn)
+        return (
+            cond_combinator(self, gen_fn)(*args)
+            if args
+            else cond_combinator(self, gen_fn)
+        )
 
     def addr_bij(
         self,
         address_bijection: dict,
-    ) -> "GenerativeFunction":
+        *args,
+    ) -> "GenerativeFunction | GenerativeFunctionClosure":
         from genjax import address_bijection_combinator
 
-        return address_bijection_combinator(self, address_bijection=address_bijection)
+        return (
+            address_bijection_combinator(self, address_bijection=address_bijection)(
+                *args
+            )
+            if args
+            else address_bijection_combinator(self, address_bijection=address_bijection)
+        )
 
-    def switch(self, *gen_fn: "GenerativeFunction") -> "GenerativeFunction":
+    def switch(
+        self,
+        branches: List["GenerativeFunction"],
+        *args,
+    ) -> "GenerativeFunction | GenerativeFunctionClosure":
         from genjax import switch_combinator
 
-        return switch_combinator(self, *gen_fn)
+        return (
+            switch_combinator(self, *branches)(*args)
+            if args
+            else switch_combinator(self, *branches)
+        )
 
-    def mix(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
+    def mix(
+        self,
+        gen_fn: "GenerativeFunction",
+        *args,
+    ) -> "GenerativeFunction | GenerativeFunctionClosure":
         from genjax import mixture_combinator
 
-        return mixture_combinator(self, gen_fn)
+        return (
+            mixture_combinator(self, gen_fn)(*args)
+            if args
+            else mixture_combinator(self, gen_fn)
+        )
 
-    def attach(self, **kwargs) -> "GenerativeFunction":
+    def attach(
+        self,
+        *args,
+        **kwargs,
+    ) -> "GenerativeFunction | GenerativeFunctionClosure":
         from genjax.inference.smc import attach_combinator
 
-        return attach_combinator(self, **kwargs)
+        return (
+            attach_combinator(self, **kwargs)(*args)
+            if args
+            else attach_combinator(self, **kwargs)
+        )
 
     #####################
     # GenSP / inference #
     #####################
+
+    def marginal(
+        self,
+        *args,
+        select_or_addr: Optional[Any] = None,
+        algorithm: Optional[Any] = None,
+    ) -> "GenerativeFunction | GenerativeFunctionClosure":
+        from genjax import marginal
+
+        return (
+            marginal(self, select_or_addr=select_or_addr, algorithm=algorithm)(*args)
+            if args
+            else marginal(self, select_or_addr=select_or_addr, algorithm=algorithm)
+        )
 
     def target(
         self,
@@ -605,21 +686,6 @@ class GenerativeFunction(Pytree):
             self,
             args,
             constraint,
-        )
-
-    def marginal(
-        self,
-        /,
-        *,
-        select_or_addr: Optional[Any] = None,
-        algorithm: Optional[Any] = None,
-    ) -> "GenerativeFunction":
-        from genjax import marginal
-
-        return marginal(
-            self,
-            select_or_addr=select_or_addr,
-            algorithm=algorithm,
         )
 
 
@@ -686,27 +752,13 @@ class IgnoreKwargs(GenerativeFunction):
 
 
 @Pytree.dataclass
-class GenerativeFunctionClosure(Pytree):
+class GenerativeFunctionClosure(GenerativeFunction):
     gen_fn: GenerativeFunction
     args: Tuple
     kwargs: Dict
 
     def get_gen_fn_with_kwargs(self):
         return self.gen_fn.handle_kwargs()
-
-    def get_trace_shape(self) -> Any:
-        if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-            return maybe_kwarged_gen_fn.get_trace_shape(self.args, self.kwargs)
-        else:
-            return self.gen_fn.get_trace_shape(*self.args)
-
-    def get_empty_trace(self) -> Trace:
-        if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-            return maybe_kwarged_gen_fn.get_empty_trace(self.args, self.kwargs)
-        else:
-            return self.gen_fn.get_empty_trace(*self.args)
 
     # NOTE: Supports callee syntax, and the ability to overload it in callers.
     def __matmul__(self, addr):
@@ -724,81 +776,98 @@ class GenerativeFunctionClosure(Pytree):
                 self.args,
             )
 
-    def __call__(self, key: PRNGKey) -> Any:
+    def __call__(self, key: PRNGKey, *args) -> Any:
+        full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.simulate(
-                key, (self.args, self.kwargs)
+                key, (full_args, self.kwargs)
             ).get_retval()
         else:
             return self.gen_fn.simulate(key, self.args).get_retval()
 
-    def __abstract_call__(self) -> Any:
+    def __abstract_call__(self, *args) -> Any:
+        full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-            return maybe_kwarged_gen_fn.__abstract_call__(*self.args, **self.kwargs)
+            return maybe_kwarged_gen_fn.__abstract_call__(*full_args, **self.kwargs)
         else:
-            return self.gen_fn.__abstract_call__(*self.args)
+            return self.gen_fn.__abstract_call__(*full_args)
 
     #############################################
     # Support the interface with reduced syntax #
     #############################################
 
     @GenerativeFunction.gfi_boundary
+    @typecheck
     def simulate(
         self,
         key: PRNGKey,
-    ):
+        args: Tuple,
+    ) -> Trace:
+        full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.simulate(
                 key,
-                (self.args, self.kwargs),
+                (full_args, self.kwargs),
             )
         else:
-            return self.gen_fn.simulate(key, self.args)
+            return self.gen_fn.simulate(key, full_args)
 
+    @GenerativeFunction.gfi_boundary
+    @typecheck
     def importance(
         self,
         key: PRNGKey,
         constraint: Constraint,
-    ):
+        args: Tuple,
+    ) -> Tuple[Trace, Weight, UpdateSpec]:
+        full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.importance(
                 key,
                 constraint,
-                (self.args, self.kwargs),
+                (full_args, self.kwargs),
             )
         else:
-            return self.gen_fn.importance(key, constraint, self.args)
+            return self.gen_fn.importance(key, constraint, full_args)
 
+    @GenerativeFunction.gfi_boundary
+    @typecheck
     def update(
         self,
         key: PRNGKey,
         trace: Trace,
         spec: UpdateSpec,
-    ):
+        argdiffs: Argdiffs,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
+        full_argdiffs = (*self.args, *argdiffs)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.update(
                 key,
                 trace,
                 spec,
-                (self.args, self.kwargs),
+                (full_argdiffs, self.kwargs),
             )
         else:
-            return self.gen_fn.update(key, trace, spec, self.args)
+            return self.gen_fn.update(key, trace, spec, full_argdiffs)
 
+    @GenerativeFunction.gfi_boundary
+    @typecheck
     def assess(
         self,
         sample: Sample,
-    ):
+        args: Tuple,
+    ) -> Tuple[Score, Any]:
+        full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.assess(
                 sample,
-                (self.args, self.kwargs),
+                (full_args, self.kwargs),
             )
         else:
-            return self.gen_fn.assess(sample, self.args)
+            return self.gen_fn.assess(sample, full_args)

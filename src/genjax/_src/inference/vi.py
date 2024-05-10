@@ -31,6 +31,7 @@ from genjax._src.adev.primitives import (
     normal_reinforce,
     normal_reparam,
 )
+from genjax._src.core.generative import ChoiceMap
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -41,9 +42,10 @@ from genjax._src.core.typing import (
     typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import (
-    ExactDensity,
+    exact_density,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    flip,
     geometric,
     normal,
 )
@@ -64,7 +66,7 @@ def adev_distribution(
     differentiable_logpdf: Callable,
 ):
     def sampler(key: PRNGKey, *args: Any) -> Any:
-        return sample_primitive(adev_primitive, key, *args)
+        return sample_primitive(adev_primitive, *args, key=key)
 
     def logpdf(v: Any, *args: Any) -> FloatArray:
         lp = differentiable_logpdf(v, *args)
@@ -74,19 +76,23 @@ def adev_distribution(
         else:
             return lp
 
-    return ExactDensity(sampler, logpdf)
+    return exact_density(sampler, logpdf)
+
+
+def logpdf(gen_fn):
+    return lambda v, *args: gen_fn.assess(ChoiceMap.v(v), args)[0]
 
 
 # We import ADEV specific sampling primitives, but then wrap them in
 # adev_distribution, for usage inside of generative functions.
 flip_enum = adev_distribution(
     flip_enum,
-    lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
+    logpdf(flip),
 )
 
 flip_mvd = adev_distribution(
     flip_mvd,
-    lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
+    logpdf(flip),
 )
 
 categorical_enum = adev_distribution(
@@ -96,12 +102,12 @@ categorical_enum = adev_distribution(
 
 normal_reinforce = adev_distribution(
     normal_reinforce,
-    lambda *args: normal(*args).logpdf,
+    logpdf(normal),
 )
 
 normal_reparam = adev_distribution(
     normal_reparam,
-    lambda *args: normal(*args).logpdf,
+    logpdf(normal),
 )
 
 mv_normal_diag_reparam = adev_distribution(
@@ -113,7 +119,7 @@ mv_normal_diag_reparam = adev_distribution(
 
 geometric_reinforce = adev_distribution(
     geometric_reinforce,
-    lambda v, *args: geometric.logpdf(v, *args),
+    logpdf(geometric),
 )
 
 

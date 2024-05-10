@@ -93,7 +93,7 @@ class VmapCombinator(GenerativeFunction):
         ##############################################################
 
         @genjax.vmap_combinator(in_axes=(0,))
-        @genjax.static_gen_fn
+        @genjax.gen
         def mapped(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"
@@ -103,7 +103,7 @@ class VmapCombinator(GenerativeFunction):
         # The other way: use `vmap_combinator` directly #
         #################################################
 
-        @genjax.static_gen_fn
+        @genjax.gen
         def add_normal_noise(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
             noise2 = genjax.normal(0.0, 1.0) @ "noise2"

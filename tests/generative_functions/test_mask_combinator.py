@@ -21,7 +21,7 @@ from genjax import ChoiceMap as C
 class TestMapCombinator:
     def test_mask_simple_normal_true(self):
         @genjax.mask_combinator
-        @genjax.static_gen_fn
+        @genjax.gen
         def model(x):
             z = genjax.normal(x, 1.0) @ "z"
             return z
@@ -36,7 +36,7 @@ class TestMapCombinator:
 
     def test_mask_simple_normal_false(self):
         @genjax.mask_combinator
-        @genjax.static_gen_fn
+        @genjax.gen
         def model(x):
             z = genjax.normal(x, 1.0) @ "z"
             return z

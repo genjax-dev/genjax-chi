@@ -21,7 +21,7 @@ from genjax import ChoiceMap as C
 class TestVmapCombinator:
     def test_vmap_combinator_simple_normal(self):
         @genjax.vmap_combinator(in_axes=(0,))
-        @genjax.static_gen_fn
+        @genjax.gen
         def model(x):
             z = genjax.normal(x, 1.0) @ "z"
             return z
@@ -34,7 +34,7 @@ class TestVmapCombinator:
 
     def test_vmap_combinator_vector_choice_map_importance(self):
         @genjax.vmap_combinator(in_axes=(0,))
-        @genjax.static_gen_fn
+        @genjax.gen
         def kernel(x):
             z = genjax.normal(x, 1.0) @ "z"
             return z
@@ -55,7 +55,7 @@ class TestVmapCombinator:
 
     def test_vmap_combinator_indexed_choice_map_importance(self):
         @genjax.vmap_combinator(in_axes=(0,))
-        @genjax.static_gen_fn
+        @genjax.gen
         def kernel(x):
             z = genjax.normal(x, 1.0) @ "z"
             return z
@@ -77,13 +77,13 @@ class TestVmapCombinator:
 
     def test_vmap_combinator_nested_indexed_choice_map_importance(self):
         @genjax.vmap_combinator(in_axes=(0,))
-        @genjax.static_gen_fn
+        @genjax.gen
         def model(x):
             z = genjax.normal(x, 1.0) @ "z"
             return z
 
         @genjax.vmap_combinator(in_axes=(0,))
-        @genjax.static_gen_fn
+        @genjax.gen
         def higher_model(x):
             return model(x) @ "outer"
 
@@ -95,7 +95,7 @@ class TestVmapCombinator:
 
     def test_vmap_combinator_vmap_pytree(self):
         @genjax.vmap_combinator(in_axes=(None, (0, None)))
-        @genjax.static_gen_fn
+        @genjax.gen
         def foo(y, args):
             loc, scale = args
             x = genjax.normal(loc, scale) @ "x"

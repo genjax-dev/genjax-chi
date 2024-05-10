@@ -19,14 +19,14 @@ To support sequencing of probabilistic computations as a capability in the model
 utilize other generative functions using the exposed `trace` (or the syntactic sugared version) to create hierarchical patterns of generative computation.
 """
 
-from .static_gen_fn import StaticGenerativeFunction, static_gen_fn
+from .static_gen_fn import StaticGenerativeFunction, gen
 from .static_transforms import AddressReuse, StaticAddressJAX, trace, trace_p
 
 __all__ = [
     "StaticAddressJAX",
     "AddressReuse",
     "StaticGenerativeFunction",
-    "static_gen_fn",
+    "gen",
     "trace_p",
     "trace",
 ]

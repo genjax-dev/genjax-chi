@@ -28,7 +28,7 @@ from genjax._src.generative_functions.combinators.compose_combinator import (
 from genjax._src.generative_functions.combinators.vmap_combinator import (
     vmap_combinator,
 )
-from genjax._src.generative_functions.static.static_gen_fn import static_gen_fn
+from genjax._src.generative_functions.static.static_gen_fn import gen
 
 register_exclusion(__file__)
 
@@ -49,7 +49,7 @@ def repeat_combinator(
         # address hierarchy below.
         # (as part of StaticGenerativeFunction.Trace interfaces)
         @address_bijection_combinator(address_bijection={(): "_internal"})
-        @static_gen_fn
+        @gen
         def expanded_gen_fn(idx: IntArray, args: Tuple):
             return gen_fn(*args) @ "_internal"
 

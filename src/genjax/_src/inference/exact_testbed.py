@@ -30,7 +30,7 @@ from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
 )
-from genjax._src.generative_functions.static.static_gen_fn import static_gen_fn
+from genjax._src.generative_functions.static.static_gen_fn import gen
 
 
 @Pytree.dataclass
@@ -74,7 +74,7 @@ def build_test_against_exact_inference(
     )
 
     @scan_combinator(max_length=max_length)
-    @static_gen_fn
+    @gen
     def markov_chain(state: IntArray, config: DiscreteHMMConfiguration):
         transition = config.transition_tensor()
         observation = config.observation_tensor()

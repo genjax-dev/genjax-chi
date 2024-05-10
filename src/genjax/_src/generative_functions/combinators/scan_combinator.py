@@ -117,7 +117,7 @@ class ScanCombinator(GenerativeFunction):
         console = genjax.console()
 
         # A kernel_gen_fn generative function.
-        @genjax.static_gen_fn
+        @genjax.gen
         def random_walk(prev):
             x = genjax.normal(prev, 1.0) @ "x"
             return x
@@ -130,7 +130,7 @@ class ScanCombinator(GenerativeFunction):
         # when declaring the function:
 
         @genjax.scan_combinator(max_length=1000)
-        @genjax.static_gen_fn
+        @genjax.gen
         def random_walk(prev):
             x = genjax.normal(prev, 1.0) @ "x"
             return x
