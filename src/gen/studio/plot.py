@@ -1,28 +1,28 @@
 # %%
-
+import importlib
 import json
-import re
+from functools import partial
 
 import gen.studio.util as util
-import jax.numpy as jnp
-import markdown
-import numpy as np
-import pyobsplot
-from gen.studio.util import benchmark
-from ipywidgets import HTML, GridBox, Layout
-from pyobsplot import Plot, d3, js
+import gen.studio.js_modules as js_modules
+importlib.reload(js_modules)
+from gen.studio.js_modules import JSRef, hiccup, js
+from gen.studio.util import Widget
 
 # This module provides a composable way to create interactive plots using Observable Plot
 # via pyobsplot (https://github.com/juba/pyobsplot) and AnyWidget (https://github.com/manzt/anywidget).
 # See https://observablehq.com/plot/ for more on Observable Plot.
 #
 # Key features:
-# - Create plot specifications declaratively by combining marks, options and transformations
+# - Create plot specifications declaratively by combining marks, options and transformations 
 # - Compose plot specs using + operator to layer marks and merge options
 # - Render specs to interactive plot widgets, with lazy evaluation and caching
 # - Easily create grids of small multiples
 # - Includes shortcuts for common options like grid lines, color legends, margins
 
+d3 = JSRef("d3")
+Math = JSRef("Math")
+View = JSRef("View")
 
 def get_address(tr, address):
     """
@@ -38,13 +38,41 @@ def get_address(tr, address):
     return result
 
 
-def array_to_list(x):
-    """Convert a NumPy or JAX array to a Python list."""
-    if isinstance(x, (jnp.ndarray, np.ndarray)):
-        return x.tolist()
-    return x
+def _fn_wrapper(fn_name, meta):
+    """
+    Returns a wrapping function for an Observable.Plot mark, accepting a positional values argument
+    (where applicable) options, which may be a single dict and/or keyword arguments.
+    """
+    kind = meta["kind"]
+    if fn_name in ["hexgrid", "grid", "gridX", "gridY", "gridFx", "gridFy", "frame"]:
+        # no values argument
+        def inner(fn, spec={}, **kwargs):
+            return PlotSpec(fn({**spec, **kwargs}))
+    elif kind == "marks":
+        # values argument
+        def inner(fn, values, spec={}, **kwargs):
+            return PlotSpec(fn(values, {**spec, **kwargs}))
+    else:
+
+        def inner(fn, *args, **kwargs):
+            if kwargs:
+                raise ValueError(
+                    f"kwargs must not be passed to {fn_name}.{meta['module']} : {kwargs}"
+                )
+            return fn(*args)
+
+    return inner
 
 
+_plot_fns = {
+    name: JSRef("Plot", name, inner=_fn_wrapper(name, meta), doc=meta["doc"])
+    for name, meta in util.OBSERVABLE_PLOT_METADATA.items()
+}
+
+# Re-export the dynamically constructed MarkSpec functions
+globals().update(_plot_fns)
+
+#%%
 plot_options = {
     "small": {"width": 250, "height": 175, "inset": 10},
     "default": {"width": 500, "height": 350, "inset": 20},
@@ -109,7 +137,7 @@ class PlotSpec:
     Represents a specification for a plot using pyobsplot.
 
     PlotSpecs can be composed using the + operator. When combined, marks accumulate
-    and plot options are merged. Lists of marks or dicts of plot options can also be
+    and plot options are merged. Lists of marks or dicts of plot options can also be 
     added directly to a PlotSpec.
 
     IPython plot widgets are created lazily when the spec is viewed in a notebook,
@@ -156,11 +184,13 @@ class PlotSpec:
             The pyobsplot widget representing this plot.
         """
         if self._plot is None:
-            self._plot = Plot.plot(
-                {
-                    **plot_options["default"],
-                    **self.spec,
-                }
+            self._plot = Widget(
+                View.Plot(
+                    {
+                        **plot_options["default"],
+                        **self.spec,
+                    }
+                )
             )
         return self._plot
 
@@ -175,7 +205,7 @@ class PlotSpec:
             **kwargs: Additional options to reset.
         """
         self.spec = PlotSpec(*specs, **kwargs).spec
-        self.plot().spec = {**plot_options["default"], **self.spec}
+        self.plot().data = {**plot_options["default"], **self.spec}
 
     def update(self, *specs, marks=None, **kwargs):
         """
@@ -194,10 +224,13 @@ class PlotSpec:
         if marks is not None:
             self.spec["marks"] = marks
         self.spec.update(kwargs)
-        self.plot().spec = self.spec
+        self.plot().data = self.spec
 
     def _repr_mimebundle_(self, include=None, exclude=None):
         return self.plot()._repr_mimebundle_()
+
+    def to_json(self):
+        return View.Plot({**plot_options["default"], **self.spec})
 
 
 def new(*specs, **kwargs):
@@ -214,14 +247,10 @@ def constantly(x):
     fill color will be assigned (from a color scale) and show up in the color legend.
     """
     x = json.dumps(x)
-    return pyobsplot.js(f"()=>{x}")
+    return js(f"()=>{x}")
 
 
 def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
-    # TODO
-    # replace this with a pyobsplot-style js stub which
-    # implements all the children in the same js context,
-    # each widget has high overhead.
     """
     Create a grid of small multiple plots from the given list of plot specifications.
 
@@ -240,86 +269,19 @@ def small_multiples(plotspecs, plot_opts={}, layout_opts={}):
         **layout_opts,
     }
 
-    return GridBox(
-        [(plotspec + plot_opts).plot() for plotspec in plotspecs],
-        layout=Layout(**layout_opts),
+    return hiccup(
+        [
+            "div.grid.black",
+            {
+                "style": {
+                    "display": "grid",
+                    "grid-template-columns": "repeat(auto-fit, minmax(200px, 1fr))",
+                }
+            },
+            *[(plotspec + plot_opts) for plotspec in plotspecs]
+        ]
     )
 
-
-def doc(plot_fn):
-    """
-    Decorator to display the docstring of a plot function nicely formatted as Markdown.
-
-    Args:
-        plot_fn: The plot function whose docstring to display.
-
-    Returns:
-        An ipywidgets.HTML widget rendering the docstring as Markdown.
-    """
-
-    if plot_fn.__doc__:
-        name = plot_fn.__name__
-        doc = plot_fn.__doc__
-        meta = util.OBSERVABLE_PLOT_METADATA.get(name, None)
-        title = (
-            f"<span style='font-size: 20px; padding-right: 10px;'>Plot.{name}</span>"
-        )
-        url = (
-            f"https://observablehq.com/plot/{meta['kind']}/{re.search(r'([a-z]+)', name).group(1)}"
-            if meta
-            else None
-        )
-        return HTML(
-            f"""
-                    <div style="display: block; gap: 10px; border-bottom: 1px solid #ddd; padding: 10px 0;">
-                    {title} 
-                    <a style='color: #777; text-decoration: none;' href="{url}">Examples &#8599;</a></div>
-                    """
-            + markdown.markdown(doc)
-        )
-    else:
-        return HTML("No docstring available.")
-
-
-def _wrap_plot_fn(fn, fn_name):
-    """
-    Returns a wrapping function for an Observable.Plot mark, accepting a positional values argument
-    (where applicable) options, which may be a single dict and/or keyword arguments.
-    """
-    meta = util.OBSERVABLE_PLOT_METADATA[fn_name]
-    kind = meta['kind']
-    if kind != "marks":
-        fn.__doc__ = meta.get("doc", None)
-        fn.__name__ = fn_name
-        return fn
-
-    def innerWithValues(values, spec={}, **kwargs):
-        mark = fn(array_to_list(values), {**spec, **kwargs})
-        mark['kind'] = kind
-        return PlotSpec(mark)
-
-    def innerWithoutValues(spec={}, **kwargs):
-        mark = fn({**spec, **kwargs})
-        mark['kind'] = kind
-        return PlotSpec(mark)
-
-    if fn_name in ["hexgrid", "grid", "gridX", "gridY", "gridFx", "gridFy", "frame"]:
-        inner = innerWithoutValues
-    else:
-        inner = innerWithValues
-
-    inner._repr_mimebundle_ = lambda **kwargs: doc(inner)._repr_mimebundle_(**kwargs)
-    inner.__name__ = fn_name
-    inner.__doc__ = meta.get("doc", None)
-    return inner
-
-_plot_fns = {
-    name: _wrap_plot_fn(getattr(Plot, name), name)
-    for name in util.OBSERVABLE_PLOT_METADATA.keys()
-}
-
-# Re-export the dynamically constructed MarkSpec functions
-globals().update(_plot_fns)
 
 def accept_xs_ys(plot_fn, default_spec=None):
     """
@@ -354,12 +316,12 @@ def accept_xs_ys(plot_fn, default_spec=None):
         )
 
         if "values" in locals():
-            return PlotSpec(plot_fn(array_to_list(values), kwargs))
+            return PlotSpec(plot_fn(values, kwargs))
         else:
             return PlotSpec(
                 plot_fn(
                     {"length": len(xs)},
-                    {"x": array_to_list(xs), "y": array_to_list(ys), **kwargs},
+                    {"x": xs, "y": ys, **kwargs},
                 )
             )
 
@@ -405,7 +367,6 @@ frame = PlotSpecWithDefault("frame", {"stroke": "#dddddd"})
 ruleY = PlotSpecWithDefault("ruleY", [0])
 ruleX = PlotSpecWithDefault("ruleX", [0])
 
-# %%
 # The following convenience dicts can be added directly to PlotSpecs to declare additional behaviour.
 
 grid_y = {"y": {"grid": True}}
@@ -463,9 +424,10 @@ def domainY(d):
 def domain(xd, yd=None):
     return {"x": {"domain": xd}, "y": {"domain": yd or xd}}
 
+
 def color_map(mappings):
-    return {'color': {'domain': mappings.keys(),
-                      'range': mappings.values()}}
+    return {"color": {"domain": mappings.keys(), "range": mappings.values()}}
+
 
 def margin(*args):
     """
@@ -505,17 +467,17 @@ def margin(*args):
         raise ValueError(f"Invalid number of arguments: {len(args)}")
 
 
-# doc(barX)
+# barX
 # For reference - other options supported by plots
-# example_plot_options = {
-#     "title": "TITLE",
-#     "subtitle": "SUBTITLE",
-#     "caption": "CAPTION",
-#     "width": "100px",
-#     "height": "100px",
-#     "grid": True,
-#     "inset": 10,
-#     "aspectRatio": 1,
-#     "style": {"font-size": "100px"},  # css string also works
-#     "clip": True,
-# }
+example_plot_options = {
+    "title": "TITLE",
+    "subtitle": "SUBTITLE",
+    "caption": "CAPTION",
+    "width": "100px",
+    "height": "100px",
+    "grid": True,
+    "inset": 10,
+    "aspectRatio": 1,
+    "style": {"font-size": "100px"},  # css string also works
+    "clip": True,
+}
