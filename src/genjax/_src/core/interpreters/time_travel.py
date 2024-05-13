@@ -66,8 +66,10 @@ def brk(callable: Callable):
     return inner
 
 
-def tag(v):
-    return brk(lambda id: id)(v)
+def tag(*args):
+    return brk(
+        lambda *args: args,
+    )(*args)
 
 
 ##########################
