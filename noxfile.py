@@ -66,14 +66,6 @@ def prepare(session):
     )
     install_jaxlib(session)
 
-    jax_specifier = None
-    if session.posargs and (session.posargs[0] in get_args(JAXSpecifier)):
-        jax_specifier = session.posargs[0]
-    else:
-        jax_specifier = "cpu"
-
-    install_jaxlib(session, jax_specifier)
-
 
 @session(python=python_version)
 def tests(session):
