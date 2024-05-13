@@ -17,6 +17,7 @@ import shutil
 import sys
 from pathlib import Path
 from textwrap import dedent
+from typing import Literal, get_args
 
 import nox
 
@@ -36,12 +37,35 @@ python_version = "3.11"
 nox.needs_version = ">= 2021.6.6"
 nox.options.sessions = ("tests", "lint", "build")
 
+JAXSpecifier = Literal["cpu", "cuda12", "tpu"]
+
+
+def install_jaxlib(session, specifier: JAXSpecifier = "cpu"):
+    requirements = session.poetry.export_requirements()
+    session.run(
+        "poetry",
+        "run",
+        "pip",
+        "install",
+        f"--constraint={requirements}",
+        f"jax[{specifier}]",
+        external=True,
+    )
+
 
 @session(python=python_version)
 def prepare(session):
     session.run_always(
         "poetry", "install", "--with", "dev", "--all-extras", external=True
     )
+
+    jax_specifier = None
+    if session.posargs and (session.posargs[0] in get_args(JAXSpecifier)):
+        jax_specifier = session.posargs[0]
+    else:
+        jax_specifier = "cpu"
+
+    install_jaxlib(session, jax_specifier)
 
 
 @session(python=python_version)
