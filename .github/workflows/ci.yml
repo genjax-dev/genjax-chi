@@ -39,8 +39,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .nox
-          key: ${{ runner.os }}-nox-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: ${{ runner.os }}-nox
+          key: ${{ runner.os }}-${{ matrix.runner }}-nox-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: ${{ runner.os }}-${{ matrix.runner }}-nox
 
       - name: Run Tests
         run: nox -r -s tests -- ${{ matrix.runner == 'ParallelHoss' && 'cuda12' || 'cpu' }}
