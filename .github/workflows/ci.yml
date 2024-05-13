@@ -10,6 +10,9 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+env:
+  XLA_FLAGS: --xla_gpu_enable_command_buffer=
+
 jobs:
   test:
     strategy:
