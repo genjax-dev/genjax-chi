@@ -13,11 +13,6 @@
 # limitations under the License.
 
 from genjax._src.core.interpreters.forward import StatefulHandler, forward
-from genjax._src.core.interpreters.hybrid_cps import (
-    CPSPrimitive,
-    HybridCPSInterpreter,
-    interactive,
-)
 from genjax._src.core.interpreters.incremental import incremental
 from genjax._src.core.interpreters.staging import (
     get_data_shape,
@@ -33,9 +28,6 @@ from genjax._src.core.interpreters.staging import (
 __all__ = [
     "forward",
     "StatefulHandler",
-    "HybridCPSInterpreter",
-    "CPSPrimitive",
-    "interactive",
     "incremental",
     "stage",
     "staged_and",

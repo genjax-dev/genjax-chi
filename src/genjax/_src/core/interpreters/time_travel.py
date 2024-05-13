@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import abstractmethod
 
 import jax
 import jax.core as jc
@@ -26,36 +25,45 @@ from genjax._src.core.interpreters.forward import (
     initial_style_bind,
 )
 from genjax._src.core.interpreters.staging import stage
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import ArrayLike, Callable, List, typecheck
 
 register_exclusion(__file__)
 
 
-class CPSPrimitive(Pytree):
-    @abstractmethod
-    def default_call(self, *args):
-        raise NotImplementedError
-
-    @abstractmethod
-    def handle(self, kont: Callable, *args):
-        raise NotImplementedError
-
-    @typecheck
-    def __call__(self, *args):
-        return cont_primitive(self, *args)
-
-
 break_p = InitialStylePrimitive("cps_breakpoint")
 
 
-@typecheck
-def cont_primitive(cont_prim: CPSPrimitive, *args):
-    def _cont_prim_call(cont_prim: CPSPrimitive, *args):
-        return cont_prim.default_call(*args)
+@Pytree.dataclass
+class Breakpoint(Pytree):
+    callable: Closure
 
-    return initial_style_bind(break_p)(_cont_prim_call)(cont_prim, *args)
+    def default_call(self, *args):
+        return self.callable(*args)
+
+    def handle(self, kont: Callable, *args):
+        ret = self.callable(*args)
+        final_ret = kont(ret)
+        return final_ret
+
+    @typecheck
+    def __call__(self, *args):
+        def _cont_prim_call(brk_pt, *args):
+            return brk_pt.default_call(*args)
+
+        return initial_style_bind(break_p)(_cont_prim_call)(self, *args)
+
+
+@typecheck
+def brk(callable: Callable):
+    if not isinstance(callable, Closure):
+        callable = Pytree.partial()(callable)
+
+    def inner(*args):
+        return Breakpoint(callable)(*args)
+
+    return inner
 
 
 ##########################
@@ -82,6 +90,7 @@ class HybridCPSInterpreter(Pytree):
             env: Environment,
             invars,
             flat_args,
+            rebind=False,
         ):
             jax_util.safe_map(env.write, invars, flat_args)
 
@@ -94,7 +103,7 @@ class HybridCPSInterpreter(Pytree):
                     if eqn.primitive == break_p:
                         env = env.copy()
 
-                        # Create dual continuation.
+                        @Pytree.partial()
                         def _kont(*args):
                             leaves = jtu.tree_leaves(args)
                             return eval_jaxpr_iterate_cps(
@@ -102,16 +111,21 @@ class HybridCPSInterpreter(Pytree):
                                 env,
                                 eqn.outvars,
                                 leaves,
+                                rebind=True,
                             )
 
                         in_tree = params["in_tree"]
                         num_consts = params["num_consts"]
                         cps_prim, *args = jtu.tree_unflatten(in_tree, args[num_consts:])
+                        if rebind:
+                            return _kont(cps_prim(*args))
 
-                        return cps_prim.handle(
-                            _kont,
-                            *args,
-                        )
+                        else:
+                            default_retval = cps_prim.default_call(*args)
+                            return cps_prim.handle(_kont, *args), (
+                                default_retval,
+                                _kont,
+                            )
 
                     else:
                         outs = eqn.primitive.bind(*args, **params)
@@ -153,5 +167,5 @@ class HybridCPSInterpreter(Pytree):
         return _inner
 
 
-def interactive(f):
+def time_travel(f):
     return HybridCPSInterpreter.interactive(f)

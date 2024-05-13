@@ -11,23 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""GenJAX is a probabilistic programming system constructed by combining the concepts of
-Gen with the program transformation and hardware accelerator compilation capabilities of
-JAX."""
 
-# This __init__ file exports GenJAX's public API.
-# For the internals, see _src.
+from genjax._src.core.interpreters.time_travel import (
+    brk,
+    time_travel,
+)
 
-from importlib import metadata
-
-# Closed modules.
-from .checkify import *
-from .core import *
-from .experimental import *
-from .generative_functions import *
-from .incremental import *
-from .inference import *
-from .information import *
-from .shortcuts import *
-
-__version__ = metadata.version("genjax")
+__all__ = [
+    "brk",
+    "time_travel",
+]
