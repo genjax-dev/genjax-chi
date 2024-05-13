@@ -29,5 +29,12 @@ jobs:
       - name: Install nox-poetry
         run: pip install nox-poetry
 
+      - name: Cache Nox environments
+        uses: actions/cache@v4
+        with:
+          path: .nox
+          key: ${{ runner.os }}-nox-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: ${{ runner.os }}-nox
+
       - name: Validate Notebooks
         run: nox -r -s nbmake
