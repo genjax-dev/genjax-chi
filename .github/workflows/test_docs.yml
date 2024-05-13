@@ -42,4 +42,4 @@ jobs:
         run: pip install nox-poetry
 
       - name: Run Docs Build
-        run: nox -s mkdocs
+        run: nox -r -s mkdocs

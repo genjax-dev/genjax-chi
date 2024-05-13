@@ -30,4 +30,4 @@ jobs:
         run: pip install nox-poetry
 
       - name: Validate Notebooks
-        run: nox -s nbmake
+        run: nox -r -s nbmake

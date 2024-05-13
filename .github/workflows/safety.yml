@@ -25,4 +25,4 @@ jobs:
         run: pip install poetry nox-poetry
 
       - name: Run Nox
-        run: nox -s safety
+        run: nox -r -s safety

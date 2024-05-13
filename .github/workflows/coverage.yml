@@ -27,7 +27,7 @@ jobs:
         run: pip install nox-poetry
 
       - name: Generate coverage report
-        run: nox -s coverage
+        run: nox -r -s coverage
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4

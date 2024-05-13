@@ -47,7 +47,7 @@ jobs:
         run: pip install nox-poetry
 
       - name: Run Docs Build
-        run: nox -s docs-build
+        run: nox -r -s docs-build
 
       - name: Deploy to GH Pages
         uses: peaceiris/actions-gh-pages@v4

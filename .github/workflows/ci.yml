@@ -36,4 +36,4 @@ jobs:
         run: pip install nox-poetry
 
       - name: Run Tests
-        run: nox -s tests -- ${{ matrix.runner == 'ParallelHoss' && 'cuda12' || 'cpu' }}
+        run: nox -r -s tests -- ${{ matrix.runner == 'ParallelHoss' && 'cuda12' || 'cpu' }}
