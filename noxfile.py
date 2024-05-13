@@ -40,7 +40,13 @@ nox.options.sessions = ("tests", "lint", "build")
 JAXSpecifier = Literal["cpu", "cuda12", "tpu"]
 
 
-def install_jaxlib(session, specifier: JAXSpecifier = "cpu"):
+def install_jaxlib(session):
+    jax_specifier = None
+    if session.posargs and (session.posargs[0] in get_args(JAXSpecifier)):
+        jax_specifier = session.posargs[0]
+    else:
+        jax_specifier = "cpu"
+
     requirements = session.poetry.export_requirements()
     session.run(
         "poetry",
@@ -48,7 +54,7 @@ def install_jaxlib(session, specifier: JAXSpecifier = "cpu"):
         "pip",
         "install",
         f"--constraint={requirements}",
-        f"jax[{specifier}]",
+        f"jax[{jax_specifier}]",
         external=True,
     )
 
@@ -58,6 +64,7 @@ def prepare(session):
     session.run_always(
         "poetry", "install", "--with", "dev", "--all-extras", external=True
     )
+    install_jaxlib(session)
 
     jax_specifier = None
     if session.posargs and (session.posargs[0] in get_args(JAXSpecifier)):
@@ -179,39 +186,24 @@ def build(session):
 @session(name="mkdocs", python=python_version)
 def mkdocs(session: Session) -> None:
     """Run the mkdocs-only portion of the docs build."""
+    prepare(session)
     session.run_always(
         "poetry",
         "install",
         "--with",
         "docs",
-        "--with",
-        "dev",
-        "--all-extras",
         external=True,
     )
     build_dir = Path("site")
     if build_dir.exists():
         shutil.rmtree(build_dir)
-    session.run("poetry", "run", "mkdocs", "build", "--strict")
+    session.run("poetry", "run", "mkdocs", "build", "--strict", external=True)
 
 
 @session(name="docs-build", python=python_version)
 def docs_build(session: Session) -> None:
     """Build the documentation."""
-    session.run_always(
-        "poetry",
-        "install",
-        "--with",
-        "docs",
-        "--with",
-        "dev",
-        "--all-extras",
-        external=True,
-    )
-    build_dir = Path("site")
-    if build_dir.exists():
-        shutil.rmtree(build_dir)
-    session.run("poetry", "run", "mkdocs", "build", "--strict")
+    mkdocs(session)
     session.run(
         "poetry", "run", "quarto", "render", "notebooks", "--execute", external=True
     )

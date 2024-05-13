@@ -25,8 +25,8 @@ jobs:
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: |
-            ${{ secrets.INSIDER_SSH_KEY }}
             ${{ secrets.MKDOCSTRINGS_PYTHON_SSH_KEY }}
+            ${{ secrets.INSIDER_SSH_KEY }}
 
       - uses: actions/setup-python@v4
         with:
@@ -40,6 +40,13 @@ jobs:
 
       - name: Install nox-poetry
         run: pip install nox-poetry
+
+      - name: Cache Nox environments
+        uses: actions/cache@v4
+        with:
+          path: .nox
+          key: ${{ runner.os }}-nox-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: ${{ runner.os }}-nox
 
       - name: Run Docs Build
         run: nox -s mkdocs
