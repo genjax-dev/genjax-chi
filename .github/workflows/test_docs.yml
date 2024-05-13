@@ -11,7 +11,7 @@ permissions:
   pages: write
 
 jobs:
-  build-deploy:
+  build-docs:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +24,9 @@ jobs:
       - name: Configure SSH key for mkdocs-material-insiders
         uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: ${{ secrets.INSIDER_SSH_KEY }}
+          ssh-private-key: |
+            ${{ secrets.MKDOCSTRINGS_PYTHON_SSH_KEY }}
+            ${{ secrets.INSIDER_SSH_KEY }}
 
       - uses: actions/setup-python@v4
         with:
@@ -40,4 +42,4 @@ jobs:
         run: pip install nox-poetry
 
       - name: Run Docs Build
-        run: nox -r -s mkdocs
+        run: nox -s mkdocs

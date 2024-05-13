@@ -75,15 +75,13 @@ command for the architecture you're targeting. To run GenJAX without GPU
 support:
 
 ```sh
-pip install jax[cpu]==0.4.25
+pip install jax[cpu]==0.4.28
 ```
 
-On a Linux machine with a GPU, run either of the following commands, depending
-on which CUDA version (11 or 12) you have installed:
+On a Linux machine with a GPU, run the following command:
 
 ```sh
-pip install jax[cuda11_pip]==0.4.25
-pip install jax[cuda12_pip]==0.4.25
+pip install jax[cuda12]==0.4.28
 ```
 
 ### Quick example
