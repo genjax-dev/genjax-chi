@@ -12,7 +12,10 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        runner: [ubuntu-latest, ParallelHoss]
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
@@ -30,4 +33,4 @@ jobs:
         run: pip install nox-poetry
 
       - name: Run Tests
-        run: nox -s tests
+        run: nox -s tests -- ${{ matrix.runner == 'ParallelHoss' && 'cuda12' || 'cpu' }}
