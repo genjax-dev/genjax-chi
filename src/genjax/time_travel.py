@@ -14,10 +14,12 @@
 
 from genjax._src.core.interpreters.time_travel import (
     brk,
+    tag,
     time_travel,
 )
 
 __all__ = [
     "brk",
+    "tag",
     "time_travel",
 ]

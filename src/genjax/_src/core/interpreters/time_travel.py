@@ -66,6 +66,10 @@ def brk(callable: Callable):
     return inner
 
 
+def tag(v):
+    return brk(lambda id: id)(v)
+
+
 ##########################
 # Hybrid CPS interpreter #
 ##########################

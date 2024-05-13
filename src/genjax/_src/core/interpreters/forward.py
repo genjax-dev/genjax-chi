@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import abc
-import copy
 import functools
 import itertools as it
 
@@ -189,7 +188,8 @@ class Environment(Pytree):
         return var.count in self.env
 
     def copy(self):
-        return copy.deepcopy(self)
+        keys = list(self.env.keys())
+        return Environment({k: self.env[k] for k in keys})
 
 
 class StatefulHandler:
