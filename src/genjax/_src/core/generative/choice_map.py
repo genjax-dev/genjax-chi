@@ -740,7 +740,7 @@ def choice_map_or(c1: ChoiceMap, c2: ChoiceMap):
                 check = staged_or(check1, check2)
 
                 def pair_bool_to_idx(first, second):
-                    output = -1 + first + 2 * (~first & second)
+                    output = -1 + first + 2 * (staged_not(first) & second)
                     return output
 
                 idx = pair_bool_to_idx(check1, check2)

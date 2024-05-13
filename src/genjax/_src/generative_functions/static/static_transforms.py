@@ -24,6 +24,7 @@ from genjax._src.core.generative import (
     Address,
     ChoiceMap,
     Constraint,
+    EmptyUpdateSpec,
     GenerativeFunction,
     RemoveSelectionUpdateSpec,
     Sample,
@@ -357,6 +358,9 @@ class UpdateHandler(StaticHandler):
             case RemoveSelectionUpdateSpec(selection):
                 subselection = selection.step(addr)
                 return RemoveSelectionUpdateSpec(subselection)
+
+            case EmptyUpdateSpec():
+                return EmptyUpdateSpec()
 
             case _:
                 raise ValueError(f"Not implemented fwd_spec: {self.fwd_spec}")

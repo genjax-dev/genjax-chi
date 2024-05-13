@@ -72,8 +72,18 @@ class ScanTrace(Trace):
     def get_score(self):
         return self.score
 
-    def index_update(self, key: PRNGKey, spec: UpdateSpec):
-        return self.update(key, spec)
+    def index_update(
+        self,
+        idx: IntArray,
+        spec: UpdateSpec,
+    ) -> UpdateSpec:
+        return IndexUpdateSpec(idx, spec)
+
+    def checkerboard_update(
+        self,
+        spec: UpdateSpec,
+    ) -> UpdateSpec:
+        return CheckerboardUpdateSpec(spec)
 
     def create_update_spec(self, addr: Address, v) -> UpdateSpec:
         (idx, *rest) = addr
@@ -94,6 +104,11 @@ class StaticResizeUpdateSpec(UpdateSpec):
 @Pytree.dataclass(match_args=True)
 class IndexUpdateSpec(UpdateSpec):
     index: IntArray
+    subspec: UpdateSpec
+
+
+@Pytree.dataclass(match_args=True)
+class CheckerboardUpdateSpec(UpdateSpec):
     subspec: UpdateSpec
 
 
@@ -346,12 +361,18 @@ class ScanCombinator(GenerativeFunction):
     ):
         starting_subslice = jtu.tree_map(lambda v: v[index], trace.inner)
         affected_subslice = jtu.tree_map(lambda v: v[index + 1], trace.inner)
-        argdiffs = Diff.no_change(starting_subslice.get_args())
+        starting_argdiffs = Diff.no_change(starting_subslice.get_args())
         updated_start, start_w, starting_retdiff, bwd_spec = self.kernel_gen_fn.update(
-            key, starting_subslice, update_spec, argdiffs
+            key,
+            starting_subslice,
+            update_spec,
+            starting_argdiffs,
         )
-        updated_end, end_w, ending_retdiff, bwd_spec = self.kernel_gen_fn.update(
-            key, affected_subslice, EmptyUpdateSpec(), starting_retdiff
+        updated_end, end_w, ending_retdiff, _ = self.kernel_gen_fn.update(
+            key,
+            affected_subslice,
+            EmptyUpdateSpec(),
+            starting_retdiff,
         )
 
         # Must be true for this type of update to be valid.
@@ -360,6 +381,7 @@ class ScanCombinator(GenerativeFunction):
         def _mutate_in_place(arr, updated_start, updated_end):
             arr = arr.at[index].set(updated_start)
             arr = arr.at[index + 1].set(updated_end)
+            return arr
 
         new_inner = jtu.tree_map(
             _mutate_in_place, trace.inner, updated_start, updated_end
@@ -375,7 +397,7 @@ class ScanCombinator(GenerativeFunction):
             ),
             start_w + end_w,
             Diff.unknown_change(new_retvals),
-            ChoiceMap.a(index, bwd_spec),
+            IndexUpdateSpec(index, bwd_spec),
         )
 
     @typecheck

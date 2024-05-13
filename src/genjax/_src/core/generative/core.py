@@ -50,11 +50,11 @@ register_exclusion(__file__)
 
 Weight = Annotated[
     float | FloatArray,
-    Is[lambda arr: arr.shape == ()],
+    Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
 ]
 Score = Annotated[
     float | FloatArray,
-    Is[lambda arr: arr.shape == ()],
+    Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
 ]
 Retdiff = Annotated[
     object,
@@ -71,7 +71,13 @@ Argdiffs = Annotated[
 
 
 class UpdateSpec(Pytree):
-    pass
+    @classmethod
+    def n(cls):
+        return EmptyUpdateSpec()
+
+    @classmethod
+    def m(cls, flag: Bool | BoolArray, spec: "UpdateSpec"):
+        return MaskedUpdateSpec(flag, spec)
 
 
 @Pytree.dataclass
@@ -577,7 +583,7 @@ class GenerativeFunction(Pytree):
         return (
             scan_combinator(self, max_length=max_length)(*args)
             if args
-            else scan_combinator(self, max_length=max_length)(*args)
+            else scan_combinator(self, max_length=max_length)
         )
 
     def mask(
@@ -781,10 +787,10 @@ class GenerativeFunctionClosure(GenerativeFunction):
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.simulate(
-                key, (full_args, self.kwargs)
+                key, (*full_args, self.kwargs)
             ).get_retval()
         else:
-            return self.gen_fn.simulate(key, self.args).get_retval()
+            return self.gen_fn.simulate(key, full_args).get_retval()
 
     def __abstract_call__(self, *args) -> Any:
         full_args = (*self.args, *args)
