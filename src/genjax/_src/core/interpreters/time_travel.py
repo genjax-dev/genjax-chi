@@ -206,8 +206,8 @@ def time_travel(f):
 @Pytree.dataclass
 class TimeTravelingDebugger(Pytree):
     final_retval: Any
-    jump_points: dict
     sequence: List[FrameRecording]
+    jump_points: dict = Pytree.static()
     ptr: Int = Pytree.static()
 
     def frame(self) -> Tuple[Optional[String], FrameRecording]:
@@ -220,8 +220,8 @@ class TimeTravelingDebugger(Pytree):
         jump_pt = self.jump_points[debug_tag]
         return TimeTravelingDebugger(
             self.final_retval,
-            self.jump_points,
             self.sequence,
+            self.jump_points,
             jump_pt,
         )
 
@@ -232,8 +232,8 @@ class TimeTravelingDebugger(Pytree):
         else:
             return TimeTravelingDebugger(
                 self.final_retval,
-                self.jump_points,
                 self.sequence,
+                self.jump_points,
                 self.ptr + 1,
             )
 
@@ -244,8 +244,8 @@ class TimeTravelingDebugger(Pytree):
         else:
             return TimeTravelingDebugger(
                 self.final_retval,
-                self.jump_points,
                 self.sequence,
+                self.jump_points,
                 new_ptr,
             )
 
@@ -257,8 +257,8 @@ class TimeTravelingDebugger(Pytree):
         new_frame = FrameRecording(f, args, local_retval, cont)
         return TimeTravelingDebugger(
             _debugger.final_retval,
-            self.jump_points,
             [*self.sequence[: self.ptr], new_frame, *_debugger.sequence],
+            self.jump_points,
             self.ptr,
         )
 
@@ -279,7 +279,7 @@ def _record(source: Callable):
                 jump_points[debug_tag] = len(sequence) - 1
             args, cont = frame.args, frame.cont
             retval, next = time_travel(cont)(*args)
-        return retval, TimeTravelingDebugger(retval, jump_points, sequence, 0)
+        return retval, TimeTravelingDebugger(retval, sequence, jump_points, 0)
 
     return inner
 
