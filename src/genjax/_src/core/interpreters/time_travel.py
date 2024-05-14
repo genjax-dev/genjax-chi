@@ -27,49 +27,78 @@ from genjax._src.core.interpreters.forward import (
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import ArrayLike, Callable, List, typecheck
+from genjax._src.core.typing import (
+    Any,
+    ArrayLike,
+    Callable,
+    Int,
+    List,
+    Optional,
+    String,
+    Tuple,
+    typecheck,
+)
 
 register_exclusion(__file__)
 
 
-break_p = InitialStylePrimitive("cps_breakpoint")
+record_p = InitialStylePrimitive("record_p")
 
 
 @Pytree.dataclass
-class Breakpoint(Pytree):
+class FrameRecording(Pytree):
+    f: Callable
+    args: Tuple
+    local_retval: Any
+    cont: Callable
+
+
+@Pytree.dataclass
+class RecordPoint(Pytree):
     callable: Closure
+    debug_tag: Optional[String] = Pytree.static()
 
     def default_call(self, *args):
         return self.callable(*args)
 
-    def handle(self, kont: Callable, *args):
+    def handle(self, cont: Callable, *args):
+        @Pytree.partial()
+        def _cont(*args):
+            final_ret, _ = cont(self.callable(*args))
+            return final_ret
+
+        # Normal execution.
         ret = self.callable(*args)
-        final_ret = kont(ret)
-        return final_ret
+        final_ret = _cont(*args)
+        return final_ret, (
+            self.debug_tag,
+            FrameRecording(self.callable, args, ret, _cont),
+        )
 
     @typecheck
     def __call__(self, *args):
         def _cont_prim_call(brk_pt, *args):
             return brk_pt.default_call(*args)
 
-        return initial_style_bind(break_p)(_cont_prim_call)(self, *args)
+        return initial_style_bind(record_p)(_cont_prim_call)(self, *args)
 
 
 @typecheck
-def brk(callable: Callable):
+def rec(
+    callable: Callable,
+    debug_tag: Optional[String] = None,
+):
     if not isinstance(callable, Closure):
         callable = Pytree.partial()(callable)
 
     def inner(*args):
-        return Breakpoint(callable)(*args)
+        return RecordPoint(callable, debug_tag)(*args)
 
     return inner
 
 
-def tag(*args):
-    return brk(
-        lambda *args: args,
-    )(*args)
+def tag(v, name=None):
+    return rec(lambda v: v, name)(v)
 
 
 ##########################
@@ -78,7 +107,7 @@ def tag(*args):
 
 
 @Pytree.dataclass
-class HybridCPSInterpreter(Pytree):
+class TimeTravelCPSInterpreter(Pytree):
     @staticmethod
     def _eval_jaxpr_hybrid_cps(
         jaxpr: jc.Jaxpr,
@@ -106,7 +135,7 @@ class HybridCPSInterpreter(Pytree):
                     subfuns, params = eqn.primitive.get_bind_params(eqn.params)
                     args = subfuns + invals
 
-                    if eqn.primitive == break_p:
+                    if eqn.primitive == record_p:
                         env = env.copy()
 
                         @Pytree.partial()
@@ -127,11 +156,7 @@ class HybridCPSInterpreter(Pytree):
                             return _kont(cps_prim(*args))
 
                         else:
-                            default_retval = cps_prim.default_call(*args)
-                            return cps_prim.handle(_kont, *args), (
-                                default_retval,
-                                _kont,
-                            )
+                            return cps_prim.handle(_kont, *args)
 
                     else:
                         outs = eqn.primitive.bind(*args, **params)
@@ -149,7 +174,8 @@ class HybridCPSInterpreter(Pytree):
                 env.read,
                 jaxpr.outvars,
             )
-            return jtu.tree_unflatten(out_tree(), out_values)
+            retval = jtu.tree_unflatten(out_tree(), out_values)
+            return retval, None
 
         return eval_jaxpr_iterate_cps(
             jaxpr.eqns,
@@ -159,11 +185,11 @@ class HybridCPSInterpreter(Pytree):
         )
 
     @staticmethod
-    def interactive(f):
+    def time_travel(f):
         def _inner(*args):
             closed_jaxpr, (flat_args, _, out_tree) = stage(f)(*args)
             jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-            return HybridCPSInterpreter._eval_jaxpr_hybrid_cps(
+            return TimeTravelCPSInterpreter._eval_jaxpr_hybrid_cps(
                 jaxpr,
                 consts,
                 flat_args,
@@ -174,4 +200,97 @@ class HybridCPSInterpreter(Pytree):
 
 
 def time_travel(f):
-    return HybridCPSInterpreter.interactive(f)
+    return TimeTravelCPSInterpreter.time_travel(f)
+
+
+@Pytree.dataclass
+class TimeTravelingDebugger(Pytree):
+    final_retval: Any
+    jump_points: dict
+    sequence: List[FrameRecording]
+    ptr: Int = Pytree.static()
+
+    def frame(self) -> Tuple[Optional[String], FrameRecording]:
+        frame = self.sequence[self.ptr]
+        reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
+        jump_tag = reverse_jump_points.get(self.ptr, None)
+        return jump_tag, frame
+
+    def jump(self, debug_tag: String) -> "TimeTravelingDebugger":
+        jump_pt = self.jump_points[debug_tag]
+        return TimeTravelingDebugger(
+            self.final_retval,
+            self.jump_points,
+            self.sequence,
+            jump_pt,
+        )
+
+    def fwd(self) -> "TimeTravelingDebugger":
+        new_ptr = self.ptr + 1
+        if new_ptr >= len(self.sequence):
+            return self
+        else:
+            return TimeTravelingDebugger(
+                self.final_retval,
+                self.jump_points,
+                self.sequence,
+                self.ptr + 1,
+            )
+
+    def bwd(self) -> "TimeTravelingDebugger":
+        new_ptr = self.ptr - 1
+        if new_ptr >= len(self.sequence) or new_ptr <= 0:
+            return self
+        else:
+            return TimeTravelingDebugger(
+                self.final_retval,
+                self.jump_points,
+                self.sequence,
+                new_ptr,
+            )
+
+    def remix(self, *args) -> "TimeTravelingDebugger":
+        frame = self.sequence[self.ptr]
+        f, cont = frame.f, frame.cont
+        local_retval = f(*args)
+        _, _debugger = _record(cont)(*args)
+        new_frame = FrameRecording(f, args, local_retval, cont)
+        return TimeTravelingDebugger(
+            _debugger.final_retval,
+            self.jump_points,
+            [*self.sequence[: self.ptr], new_frame, *_debugger.sequence],
+            self.ptr,
+        )
+
+    def __call__(self, *args):
+        return self.remix(*args)
+
+
+@typecheck
+def _record(source: Callable):
+    def inner(*args) -> Tuple[Any, TimeTravelingDebugger]:
+        retval, next = time_travel(source)(*args)
+        sequence = []
+        jump_points = {}
+        while next:
+            (debug_tag, frame) = next
+            sequence.append(frame)
+            if debug_tag:
+                jump_points[debug_tag] = len(sequence) - 1
+            args, cont = frame.args, frame.cont
+            retval, next = time_travel(cont)(*args)
+        return retval, TimeTravelingDebugger(retval, jump_points, sequence, 0)
+
+    return inner
+
+
+@typecheck
+def time_machine(source: Callable):
+    def instrumented(*args):
+        return tag(rec(source, "_enter")(*args), "exit")
+
+    def inner(*args) -> TimeTravelingDebugger:
+        _, debugger = _record(instrumented)(*args)
+        return debugger
+
+    return inner
