@@ -78,6 +78,11 @@ mkdocstrings-python = { git = "git@github.com:probcomp/mkdocstrings-python.git" 
 msgpack = ["msgpack"]
 all = ["msgpack"]
 
+[[tool.poetry.source]]
+name = "gcp"
+url = "https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/"
+priority = "explicit"
+
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
 tests = ["tests", "*/tests"]

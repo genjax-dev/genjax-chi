@@ -486,7 +486,7 @@ class ChoiceMap(Sample, Constraint):
                 raise ChoiceMapNoValueAtAddress((head, *e.subaddr)) from e
         else:
             v = submap()
-            if v:
+            if v is not None:
                 # Aggressively unwrap functional types.
                 # This _can_ throw an error, but the user
                 # is asking for it.
