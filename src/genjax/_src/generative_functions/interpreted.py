@@ -28,15 +28,13 @@ from genjax._src.core.generative import (
     Address,
     Argdiffs,
     ChoiceMap,
-    Constraint,
     GenerativeFunction,
-    RemoveSelectionUpdateSpec,
     Retdiff,
     Sample,
     Score,
     Selection,
     Trace,
-    UpdateSpec,
+    UpdateProblem,
     Weight,
 )
 from genjax._src.core.generative.core import push_trace_overload_stack
@@ -158,66 +156,30 @@ class SimulateHandler(Handler):
 
 
 @dataclass
-class ImportanceHandler(Handler):
-    key: PRNGKey
-    constraint: Constraint
-    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    address_traces: List[Trace] = Pytree.field(default_factory=list)
-    bwd_specs: List[UpdateSpec] = Pytree.field(default_factory=list)
-
-    def visit(self, addr):
-        self.address_visitor.visit(addr)
-
-    def get_subconstraint(self, addr):
-        addr = Pytree.tree_unwrap_const(addr)
-        match self.constraint:
-            case ChoiceMap():
-                return self.constraint.get_submap(addr)
-
-            case _:
-                raise ValueError(f"Not implemented fwd_spec: {self.constraint}")
-
-    @typecheck
-    def handle(self, addr: Address, gen_fn: GenerativeFunction, args: Tuple):
-        self.visit(addr)
-        sub_map = self.get_subconstraint(addr)
-        self.key, sub_key = jax.random.split(self.key)
-        tr, w, bwd_spec = gen_fn.importance(sub_key, sub_map, args)
-        self.address_traces.append(tr)
-        self.bwd_specs.append(bwd_spec)
-        self.score += tr.get_score()
-        self.weight += w
-        v = tr.get_retval()
-        return v
-
-
-@dataclass
 class UpdateHandler(Handler):
     key: PRNGKey
     previous_trace: Trace
-    fwd_spec: UpdateSpec
+    fwd_problem: UpdateProblem
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: List[Trace] = Pytree.field(default_factory=list)
-    bwd_specs: List[UpdateSpec] = Pytree.field(default_factory=list)
+    bwd_problems: List[UpdateProblem] = Pytree.field(default_factory=list)
 
     def visit(self, addr):
         self.address_visitor.visit(addr)
 
-    def get_subspec(self, addr: Address):
-        match self.fwd_spec:
+    def get_subproblem(self, addr: Address):
+        match self.fwd_problem:
             case ChoiceMap():
-                return self.fwd_spec.get_submap(addr)
+                return self.fwd_problem.get_submap(addr)
 
-            case RemoveSelectionUpdateSpec(selection):
-                subselection = selection.step(addr)
-                return RemoveSelectionUpdateSpec(subselection)
+            case Selection():
+                subproblem = self.fwd_problem.step(addr)
+                return subproblem
 
             case _:
-                raise ValueError(f"Not implemented fwd_spec: {self.fwd_spec}")
+                raise ValueError(f"Not implemented fwd_problem: {self.fwd_problem}")
 
     def get_subtrace(self, addr: Address):
         return self.previous_trace.get_subtrace(addr)
@@ -234,15 +196,15 @@ class UpdateHandler(Handler):
     ):
         self.visit(addr)
         subtrace = self.get_subtrace(addr)
-        subspec = self.get_subspec(addr)
+        subproblem = self.get_subproblem(addr)
         self.key, sub_key = jax.random.split(self.key)
-        (tr, w, retval_diff, bwd_spec) = gen_fn.update(
-            sub_key, subtrace, subspec, argdiffs
+        (tr, w, retval_diff, bwd_problem) = gen_fn.update(
+            sub_key, subtrace, subproblem, argdiffs
         )
         self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
-        self.bwd_specs.append(bwd_spec)
+        self.bwd_problems.append(bwd_problem)
 
         return retval_diff
 
@@ -391,59 +353,26 @@ class InterpretedGenerativeFunction(GenerativeFunction):
 
     @GenerativeFunction.gfi_boundary
     @typecheck
-    def importance(
-        self,
-        key: PRNGKey,
-        constraint: Constraint,
-        args: Tuple,
-    ) -> Tuple[InterpretedTrace, Weight, UpdateSpec]:
-        syntax_sugar_handled = push_trace_overload_stack(
-            handler_trace_with_interpreted, self.source
-        )
-
-        def make_bwd_spec(visitor, subspecs):
-            addresses = visitor.get_visited()
-            addresses = Pytree.tree_unwrap_const(addresses)
-            chm = ChoiceMap.n
-            for addr, subspec in zip(addresses, subspecs):
-                chm = chm ^ ChoiceMap.a(addr, subspec)
-            return chm
-
-        with ImportanceHandler(key, constraint) as handler:
-            retval = syntax_sugar_handled(*args)
-            score = handler.score
-            visitor = handler.address_visitor
-            traces = handler.address_traces
-            weight = handler.weight
-            bwd_spec = make_bwd_spec(visitor, handler.bwd_specs)
-            return (
-                InterpretedTrace(self, args, retval, visitor, traces, score),
-                weight,
-                bwd_spec,
-            )
-
-    @GenerativeFunction.gfi_boundary
-    @typecheck
     def update(
         self,
         key: PRNGKey,
         trace: Trace,
-        update_spec: UpdateSpec,
+        update_problem: UpdateProblem,
         argdiffs: Argdiffs,
     ) -> Tuple[InterpretedTrace, Weight, Retdiff, ChoiceMap]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
 
-        def make_bwd_spec(visitor, subspecs):
+        def make_bwd_problem(visitor, subproblems):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_unwrap_const(addresses)
             chm = ChoiceMap.n
-            for addr, subspec in zip(addresses, subspecs):
-                chm = chm ^ ChoiceMap.a(addr, subspec)
+            for addr, subproblem in zip(addresses, subproblems):
+                chm = chm ^ ChoiceMap.a(addr, subproblem)
             return chm
 
-        with UpdateHandler(key, trace, update_spec) as handler:
+        with UpdateHandler(key, trace, update_problem) as handler:
             args = Diff.tree_primal(argdiffs)
             retval = syntax_sugar_handled(*args)
             visitor = handler.address_visitor
@@ -451,12 +380,12 @@ class InterpretedGenerativeFunction(GenerativeFunction):
             weight = handler.weight
             score = handler.score
             retdiff = Diff.tree_diff_unknown_change(retval)
-            bwd_spec = make_bwd_spec(visitor, handler.bwd_specs)
+            bwd_problem = make_bwd_problem(visitor, handler.bwd_problems)
             return (
                 InterpretedTrace(self, args, retval, visitor, traces, score),
                 weight,
                 retdiff,
-                bwd_spec,
+                bwd_problem,
             )
 
     @GenerativeFunction.gfi_boundary

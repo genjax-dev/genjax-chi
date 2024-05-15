@@ -25,9 +25,8 @@ class TestStaging:
             x = normal(0.0, 1.0) @ "x"
             return x
 
-        tr, w, bwd_spec = get_importance_shape(model, C.n, ())
+        tr, _ = get_importance_shape(model, C.n, ())
         assert isinstance(tr.get_sample(), C)
-        assert isinstance(bwd_spec, C)
 
     def test_static_update_shape(self):
         @gen
@@ -37,6 +36,6 @@ class TestStaging:
 
         key = PRNGKey(0)
         trace = model.simulate(key, ())
-        new_trace, w, rd, bwd_spec = get_update_shape(model, trace, C.n, ())
+        new_trace, _w, _rd, bwd_spec = get_update_shape(model, trace, C.n, ())
         assert isinstance(new_trace.get_sample(), C)
         assert isinstance(bwd_spec, C)

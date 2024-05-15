@@ -138,7 +138,7 @@ def forward_filtering_backward_sampling(
         forward_filter = alpha - jax.scipy.special.logsumexp(alpha)
         return (index + 1, alpha), (alpha, forward_filter)
 
-    _, (alpha, forward_filters) = jax.lax.scan(
+    _, (_alpha, forward_filters) = jax.lax.scan(
         forward_pass, (0, prior), observation_sequence
     )
 

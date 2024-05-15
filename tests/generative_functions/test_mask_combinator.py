@@ -50,5 +50,5 @@ class TestMapCombinator:
         assert score == 0.0
         assert not retval.flag
 
-        _, w, _ = jax.jit(model.importance)(key, C.n.at["z"].set(-2.0), tr.get_args())
+        _, w = jax.jit(model.importance)(key, C.n.at["z"].set(-2.0), tr.get_args())
         assert w == 0.0

@@ -23,17 +23,17 @@ import jax.numpy as jnp
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    Constraint,
+    EmptyTrace,
     GenerativeFunction,
     GenerativeFunctionClosure,
+    ImportanceProblem,
     Retdiff,
     Score,
     Selection,
     Trace,
-    UpdateSpec,
+    UpdateProblem,
     Weight,
 )
-from genjax._src.core.generative.choice_map import RemoveSelectionUpdateSpec
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
@@ -167,12 +167,12 @@ class VmapCombinator(GenerativeFunction):
         map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
         return map_tr
 
-    def importance_choice_map(
+    def update_importance(
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[VmapTrace, FloatArray, UpdateSpec]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         idx_array = jnp.arange(0, broadcast_dim_length)
@@ -180,37 +180,25 @@ class VmapCombinator(GenerativeFunction):
 
         def _importance(key, idx, choice_map, args):
             submap = choice_map.get_submap(idx)
-            tr, w, bwd_spec = self.gen_fn.importance(key, submap, args)
-            return tr, w, ChoiceMap.a(idx, bwd_spec)
+            tr, w, rd, bwd_problem = self.gen_fn.update(
+                key, EmptyTrace(self.gen_fn), ImportanceProblem(submap), args
+            )
+            return tr, w, rd, ChoiceMap.a(idx, bwd_problem)
 
-        (tr, w, bwd_spec) = jax.vmap(_importance, in_axes=(0, 0, None, self.in_axes))(
-            sub_keys, idx_array, choice_map, args
-        )
+        (tr, w, rd, bwd_problem) = jax.vmap(
+            _importance, in_axes=(0, 0, None, self.in_axes)
+        )(sub_keys, idx_array, choice_map, args)
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
         map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
-        return map_tr, w, bwd_spec
-
-    def importance(
-        self,
-        key: PRNGKey,
-        constraint: Constraint,
-        args: Tuple,
-    ) -> Tuple[Trace, Weight, UpdateSpec]:
-        match constraint:
-            case ChoiceMap():
-                choice_map: ChoiceMap = constraint
-                return self.importance_choice_map(key, choice_map, args)
-
-            case _:
-                raise NotImplementedError
+        return map_tr, w, rd, bwd_problem
 
     def update_choice_map(
         self,
         key: PRNGKey,
         prev: VmapTrace,
-        update_spec: ChoiceMap,
+        update_problem: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, ChoiceMap]:
         primals = Diff.tree_primal(argdiffs)
@@ -220,20 +208,20 @@ class VmapCombinator(GenerativeFunction):
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
         def _update(key, idx, subtrace, argdiffs):
-            subspec = update_spec.get_submap(idx)
-            new_subtrace, w, retdiff, bwd_spec = self.gen_fn.update(
-                key, subtrace, subspec, argdiffs
+            subproblem = update_problem.get_submap(idx)
+            new_subtrace, w, retdiff, bwd_problem = self.gen_fn.update(
+                key, subtrace, subproblem, argdiffs
             )
-            return new_subtrace, w, retdiff, ChoiceMap.a(idx, bwd_spec)
+            return new_subtrace, w, retdiff, ChoiceMap.a(idx, bwd_problem)
 
-        new_subtraces, w, retdiff, bwd_specs = jax.vmap(
+        new_subtraces, w, retdiff, bwd_problems = jax.vmap(
             _update, in_axes=(0, 0, 0, self.in_axes)
         )(sub_keys, idx_array, prev.inner, argdiffs)
         w = jnp.sum(w)
         retval = new_subtraces.get_retval()
         scores = new_subtraces.get_score()
         map_tr = VmapTrace(self, new_subtraces, primals, retval, jnp.sum(scores))
-        return map_tr, w, retdiff, bwd_specs
+        return map_tr, w, retdiff, bwd_problems
 
     def update_remove_selection(
         self,
@@ -249,39 +237,40 @@ class VmapCombinator(GenerativeFunction):
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
         def _update(key, idx, subtrace, argdiffs):
-            subselection = selection.step(idx)
-            sub_spec = RemoveSelectionUpdateSpec(subselection)
-            new_subtrace, w, retdiff, bwd_spec = self.gen_fn.update(
-                key, subtrace, sub_spec, argdiffs
+            subproblem = selection.step(idx)
+            new_subtrace, w, retdiff, bwd_problem = self.gen_fn.update(
+                key, subtrace, subproblem, argdiffs
             )
-            return new_subtrace, w, retdiff, ChoiceMap.a(idx, bwd_spec)
+            return new_subtrace, w, retdiff, ChoiceMap.a(idx, bwd_problem)
 
-        new_subtraces, w, retdiff, bwd_specs = jax.vmap(
+        new_subtraces, w, retdiff, bwd_problems = jax.vmap(
             _update, in_axes=(0, 0, 0, self.in_axes)
         )(sub_keys, idx_array, trace.inner, argdiffs)
         w = jnp.sum(w)
         retval = new_subtraces.get_retval()
         scores = new_subtraces.get_score()
         map_tr = VmapTrace(self, new_subtraces, primals, retval, jnp.sum(scores))
-        return map_tr, w, retdiff, bwd_specs
+        return map_tr, w, retdiff, bwd_problems
 
     @typecheck
     def update(
         self,
         key: PRNGKey,
         trace: Trace,
-        update_spec: UpdateSpec,
+        update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
-        match update_spec:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        match update_problem:
             case ChoiceMap():
-                return self.update_choice_map(key, trace, update_spec, argdiffs)
+                return self.update_choice_map(key, trace, update_problem, argdiffs)
 
-            case RemoveSelectionUpdateSpec(selection):
-                return self.update_remove_selection(key, trace, selection, argdiffs)
+            case ImportanceProblem(constraint) if isinstance(
+                constraint, ChoiceMap
+            ) and isinstance(trace, EmptyTrace):
+                return self.update_importance(key, constraint, argdiffs)
 
             case _:
-                raise Exception(f"Not implemented spec: {update_spec}")
+                raise Exception(f"Not implemented problem: {update_problem}")
 
     @typecheck
     def assess(
@@ -293,11 +282,11 @@ class VmapCombinator(GenerativeFunction):
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         idx_array = jnp.arange(0, broadcast_dim_length)
 
-        def _importance(idx, args):
+        def _assess(idx, args):
             submap = sample.get_submap(idx)
             return self.gen_fn.assess(submap, args)
 
-        scores, retvals = jax.vmap(_importance, in_axes=(0, 0, None, self.in_axes))(
+        scores, retvals = jax.vmap(_assess, in_axes=(0, 0, None, self.in_axes))(
             idx_array, args
         )
         return jnp.sum(scores), retvals

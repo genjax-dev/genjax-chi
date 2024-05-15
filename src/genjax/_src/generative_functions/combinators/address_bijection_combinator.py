@@ -19,8 +19,9 @@ from genjax._src.core.generative import (
     GenerativeFunction,
     Retdiff,
     Sample,
+    Score,
     Trace,
-    UpdateSpec,
+    UpdateProblem,
     Weight,
 )
 from genjax._src.core.pytree import Pytree
@@ -96,16 +97,16 @@ class AddressBijectionCombinator(GenerativeFunction):
         key: PRNGKey,
         constraint: Constraint,
         args: Tuple,
-    ) -> Tuple[Trace, Weight, UpdateSpec]:
+    ) -> Tuple[Trace, Weight, UpdateProblem]:
         match constraint:
             case ChoiceMap():
                 inner_constraint = constraint.addr_fn(self.get_inverse())
-                tr, w, inner_bwd_spec = self.gen_fn.importance(
+                tr, w, inner_bwd_problem = self.gen_fn.importance(
                     key, inner_constraint, args
                 )
-                assert isinstance(inner_bwd_spec, ChoiceMap)
-                bwd_spec = inner_bwd_spec.addr_fn(self.address_bijection)
-                return AddressBijectionTrace(self, tr), w, bwd_spec
+                assert isinstance(inner_bwd_problem, ChoiceMap)
+                bwd_problem = inner_bwd_problem.addr_fn(self.address_bijection)
+                return AddressBijectionTrace(self, tr), w, bwd_problem
             case _:
                 raise ValueError(f"Not handled constraint: {constraint}")
 
@@ -115,14 +116,14 @@ class AddressBijectionCombinator(GenerativeFunction):
         trace: AddressBijectionTrace,
         chm: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
-        inner_spec = chm.addr_fn(self.get_inverse())
-        tr, w, retdiff, inner_bwd_spec = self.gen_fn.update(
-            key, trace.inner, inner_spec, argdiffs
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        inner_problem = chm.addr_fn(self.get_inverse())
+        tr, w, retdiff, inner_bwd_problem = self.gen_fn.update(
+            key, trace.inner, inner_problem, argdiffs
         )
-        assert isinstance(inner_bwd_spec, ChoiceMap)
-        bwd_spec = inner_bwd_spec.addr_fn(self.address_bijection)
-        return AddressBijectionTrace(self, tr), w, retdiff, bwd_spec
+        assert isinstance(inner_bwd_problem, ChoiceMap)
+        bwd_problem = inner_bwd_problem.addr_fn(self.address_bijection)
+        return AddressBijectionTrace(self, tr), w, retdiff, bwd_problem
 
     @GenerativeFunction.gfi_boundary
     @typecheck
@@ -130,15 +131,15 @@ class AddressBijectionCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_spec: UpdateSpec,
+        update_problem: UpdateProblem,
         argdiffs: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
-        match update_spec:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        match update_problem:
             case ChoiceMap():
-                return self.update_choice_map(key, trace, update_spec, argdiffs)
+                return self.update_choice_map(key, trace, update_problem, argdiffs)
 
             case _:
-                raise ValueError(f"Unrecognized update spec: {update_spec}")
+                raise ValueError(f"Unrecognized update problem: {update_problem}")
 
     @GenerativeFunction.gfi_boundary
     @typecheck
@@ -146,7 +147,7 @@ class AddressBijectionCombinator(GenerativeFunction):
         self,
         sample: Sample,
         args: Tuple,
-    ) -> Tuple[Trace, Weight, UpdateSpec]:
+    ) -> Tuple[Score, Any]:
         match sample:
             case ChoiceMap():
                 inner_sample = sample.addr_fn(self.get_inverse())

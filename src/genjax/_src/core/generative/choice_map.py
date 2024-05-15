@@ -22,7 +22,7 @@ import jax.tree_util as jtu
 from jax import vmap
 from penzai import pz
 
-from genjax._src.core.generative.core import Constraint, Sample, UpdateSpec
+from genjax._src.core.generative.core import Constraint, ProjectProblem, Sample
 from genjax._src.core.generative.functional_types import Mask, Sum
 from genjax._src.core.interpreters.staging import (
     staged_and,
@@ -124,7 +124,7 @@ class SelectionBuilder(Pytree):
 
 
 @Pytree.dataclass
-class Selection(Pytree):
+class Selection(ProjectProblem):
     has_addr: SelectionFunction
     info: String = Pytree.static()
 
@@ -552,6 +552,17 @@ class ChoiceMap(Sample, Constraint):
             return choice_map_with_dyn_addr(head, c)
         else:
             return choice_map_with_static_addr(head, c)
+
+    @classmethod
+    def d(cls, d: dict) -> "ChoiceMap":
+        start = ChoiceMap.n
+        for k, v in d.items():
+            start = start ^ ChoiceMap.a(k, v)
+        return start
+
+    @classmethod
+    def kw(cls, **kwargs) -> "ChoiceMap":
+        return ChoiceMap.d(kwargs)
 
     # NOTE: this only allows dictionaries with static keys
     # a.k.a. strings -- not jax.arrays -- for now.
@@ -984,13 +995,3 @@ def select_and_then(s1: Selection, s2: Selection) -> Selection:
         return check1, remaining
 
     return inner
-
-
-##################################
-# Custom choice map update specs #
-##################################
-
-
-@Pytree.dataclass(match_args=True)
-class RemoveSelectionUpdateSpec(UpdateSpec):
-    selection: Selection

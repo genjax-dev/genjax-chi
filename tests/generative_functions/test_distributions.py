@@ -29,16 +29,16 @@ class TestDistributions:
         key = jax.random.PRNGKey(314159)
 
         # No constraint.
-        (tr, w, _) = genjax.normal(0.0, 1.0).importance(key, EmptyConstraint(), ())
+        (tr, w) = genjax.normal.importance(key, EmptyConstraint(), (0.0, 1.0))
         assert w == 0.0
 
         # Constraint, no mask.
-        (tr, w, _) = genjax.normal(0.0, 1.0).importance(key, C.v(1.0), ())
+        (tr, w) = genjax.normal.importance(key, C.v(1.0), (0.0, 1.0))
         v = tr.get_sample()
         assert w == genjax.normal(0.0, 1.0).assess(v, ())[0]
 
         # Constraint, mask with True flag.
-        (tr, w, _) = genjax.normal.importance(
+        (tr, w) = genjax.normal.importance(
             key,
             MaskedConstraint(True, C.v(1.0)),
             (0.0, 1.0),
@@ -48,7 +48,7 @@ class TestDistributions:
         assert w == genjax.normal.assess(C.v(v), (0.0, 1.0))[0]
 
         # Constraint, mask with False flag.
-        (tr, w, _) = genjax.normal.importance(
+        (tr, w) = genjax.normal.importance(
             key,
             MaskedConstraint(False, C.v(1.0)),
             (0.0, 1.0),

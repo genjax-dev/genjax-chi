@@ -17,16 +17,16 @@ from jax.lax import select
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    Constraint,
+    EmptyTrace,
     GenerativeFunction,
     Mask,
+    MaskedProblem,
     MaskedSample,
-    MaskedUpdateSpec,
     Retdiff,
     Sample,
     Score,
     Trace,
-    UpdateSpec,
+    UpdateProblem,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -94,33 +94,23 @@ class MaskCombinator(GenerativeFunction):
         return MaskTrace(self, tr, check)
 
     @typecheck
-    def importance(
-        self,
-        key: PRNGKey,
-        constraint: Constraint,
-        args: Tuple,
-    ) -> Tuple[MaskTrace, Weight, UpdateSpec]:
-        (check, *inner_args) = args
-        tr, w, bwd_spec = self.gen_fn.importance(key, constraint, tuple(inner_args))
-        w = check * w
-        return (
-            MaskTrace(self, tr, check),
-            w,
-            MaskedUpdateSpec(check, bwd_spec),
-        )
-
-    @typecheck
     def update(
         self,
         key: PRNGKey,
-        trace: MaskTrace,
-        update_spec: UpdateSpec,
+        trace: Trace,
+        update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
         (check, *_) = Diff.tree_primal(argdiffs)
         (check_diff, *inner_argdiffs) = argdiffs
-        inner_trace, w, retdiff, bwd_spec = self.gen_fn.update(
-            key, trace.inner, update_spec, tuple(inner_argdiffs)
+        match trace:
+            case MaskTrace():
+                inner_trace = trace.inner
+            case EmptyTrace():
+                inner_trace = EmptyTrace(self.gen_fn)
+
+        premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
+            key, inner_trace, update_problem, tuple(inner_argdiffs)
         )
         w = select(
             check,
@@ -128,10 +118,10 @@ class MaskCombinator(GenerativeFunction):
             -trace.get_score(),
         )
         return (
-            MaskTrace(self, inner_trace, check),
+            MaskTrace(self, premasked_trace, check),
             w,
             Mask.maybe(check_diff, retdiff),
-            MaskedUpdateSpec(check, bwd_spec),
+            MaskedProblem(check, bwd_problem),
         )
 
     @typecheck

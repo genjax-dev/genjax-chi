@@ -15,13 +15,13 @@
 
 from genjax._src.core.generative import (
     Argdiffs,
-    Constraint,
+    EmptyTrace,
     GenerativeFunction,
     Retdiff,
     Sample,
     Score,
     Trace,
-    UpdateSpec,
+    UpdateProblem,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff, incremental
@@ -84,26 +84,14 @@ class ComposeCombinator(GenerativeFunction):
         return ComposeTrace(self, tr, args, retval)
 
     @typecheck
-    def importance(
-        self,
-        key: PRNGKey,
-        constraint: Constraint,
-        args: Tuple,
-    ) -> Tuple[ComposeTrace, Weight, UpdateSpec]:
-        inner_args = self.argument_mapping(*args)
-        tr, w, bwd_spec = self.inner.importance(key, constraint, inner_args)
-        inner_retval = tr.get_retval()
-        retval = self.retval_mapping(inner_args, inner_retval)
-        return ComposeTrace(self, tr, args, retval), w, bwd_spec
-
-    @typecheck
     def update(
         self,
         key: PRNGKey,
-        trace: ComposeTrace,
-        update_spec: UpdateSpec,
+        trace: Trace,
+        update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[ComposeTrace, Weight, Retdiff, UpdateSpec]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        assert isinstance(trace, EmptyTrace | ComposeTrace)
         primals = Diff.tree_primal(argdiffs)
         tangents = Diff.tree_tangent(argdiffs)
         inner_argdiffs = incremental(self.argument_mapping)(
@@ -111,9 +99,13 @@ class ComposeCombinator(GenerativeFunction):
             primals,
             tangents,
         )
-        inner_trace = trace.inner
-        tr, w, inner_retdiff, bwd_spec = self.inner.update(
-            key, inner_trace, update_spec, inner_argdiffs
+        match trace:
+            case ComposeTrace():
+                inner_trace = trace.inner
+            case EmptyTrace():
+                inner_trace = EmptyTrace(self.inner)
+        tr, w, inner_retdiff, bwd_problem = self.inner.update(
+            key, inner_trace, update_problem, inner_argdiffs
         )
         inner_retval_primals = Diff.tree_primal((inner_retdiff,))
         inner_retval_tangents = Diff.tree_tangent((inner_retdiff,))
@@ -131,7 +123,7 @@ class ComposeCombinator(GenerativeFunction):
             ComposeTrace(self, tr, primals, retval_primal),
             w,
             retval_diff,
-            bwd_spec,
+            bwd_problem,
         )
 
     @typecheck
@@ -156,7 +148,7 @@ def compose_combinator(
     /,
     *,
     pre: Callable = lambda *args: args,
-    post: Callable = lambda args, retval: retval,
+    post: Callable = lambda _, retval: retval,
     info: Optional[String] = None,
 ) -> Callable | ComposeCombinator:
     def decorator(f) -> ComposeCombinator:

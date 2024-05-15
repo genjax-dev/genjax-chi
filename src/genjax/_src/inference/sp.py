@@ -21,7 +21,6 @@ from genjax._src.core.generative import (
     ChoiceMap,
     Constraint,
     GenerativeFunction,
-    RemoveSelectionUpdateSpec,
     Sample,
     Selection,
     Weight,
@@ -241,8 +240,8 @@ class Marginal(SampleDistribution):
         choices: ChoiceMap = tr.get_sample()
         latent_choices = choices.filter(self.selection)
         key, sub_key = jax.random.split(key)
-        bwd_spec = RemoveSelectionUpdateSpec(~self.selection)
-        weight = tr.project(sub_key, bwd_spec)
+        bwd_problem = ~self.selection
+        weight = tr.project(sub_key, bwd_problem)
         if self.algorithm is None:
             return weight, latent_choices
         else:

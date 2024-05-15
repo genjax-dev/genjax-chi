@@ -17,10 +17,8 @@ import pytest
 
 from genjax.adev import expectation
 from genjax.adev import flip_enum
-from genjax.adev import expectation
 from genjax.adev import add_cost
 from genjax.adev import baseline
-from genjax.adev import flip_enum
 from genjax.adev import flip_reinforce
 from genjax.adev import Dual
 

@@ -32,7 +32,7 @@ from genjax._src.core.generative import (
     Retdiff,
     Sample,
     Trace,
-    UpdateSpec,
+    UpdateProblem,
     Weight,
 )
 from genjax._src.core.pytree import Pytree
@@ -51,7 +51,7 @@ from genjax._src.core.typing import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
 )
-from genjax._src.generative_functions.static.static_gen_fn import (
+from genjax._src.generative_functions.static import (
     StaticGenerativeFunction,
     gen,
 )
@@ -263,10 +263,10 @@ class Importance(SMCAlgorithm):
         key, sub_key = jrandom.split(key)
         if not Pytree.static_check_none(self.q):
             log_weight, choice = self.q.random_weighted(sub_key, self.target)
-            tr, target_score, _ = self.target.importance(key, choice)
+            tr, target_score = self.target.importance(key, choice)
         else:
             log_weight = 0.0
-            tr, target_score, _ = self.target.importance(key, ChoiceMap.n)
+            tr, target_score = self.target.importance(key, ChoiceMap.n)
         return ParticleCollection(
             jtu.tree_map(lambda v: jnp.expand_dims(v, axis=0), tr),
             jnp.array([target_score - log_weight]),
@@ -279,7 +279,7 @@ class Importance(SMCAlgorithm):
             q_score = self.q.estimate_logpdf(sub_key, retained, self.target)
         else:
             q_score = 0.0
-        target_trace, target_score, _ = self.target.importance(key, retained)
+        target_trace, target_score = self.target.importance(key, retained)
         return ParticleCollection(
             jtu.tree_map(lambda v: jnp.expand_dims(v, axis=0), target_trace),
             jnp.array([target_score - q_score]),
@@ -310,10 +310,10 @@ class ImportanceK(SMCAlgorithm):
             log_weights, choices = vmap(self.q.random_weighted, in_axes=(0, None))(
                 sub_keys, self.target
             )
-            trs, target_scores, _ = vmap(self.target.importance)(sub_keys, choices)
+            trs, target_scores = vmap(self.target.importance)(sub_keys, choices)
         else:
             log_weights = 0.0
-            trs, target_scores, _ = vmap(self.target.importance, in_axes=(0, None))(
+            trs, target_scores = vmap(self.target.importance, in_axes=(0, None))(
                 sub_keys, ChoiceMap.n
             )
         return ParticleCollection(
@@ -335,14 +335,14 @@ class ImportanceK(SMCAlgorithm):
                 stack_to_first_dim, log_scores, retained_choice_score
             )
             sub_keys = jrandom.split(key, self.get_num_particles())
-            target_traces, target_scores, _ = vmap(self.target.importance)(
+            target_traces, target_scores = vmap(self.target.importance)(
                 sub_keys, stacked_choices
             )
         else:
-            ignored_traces, ignored_scores, _ = vmap(
+            ignored_traces, ignored_scores = vmap(
                 self.target.importance, in_axes=(0, None)
             )(sub_keys, ChoiceMap.n)
-            retained_trace, retained_choice_score, _ = self.target.importance(
+            retained_trace, retained_choice_score = self.target.importance(
                 key, retained
             )
             target_scores = jtu.tree_map(
@@ -418,7 +418,7 @@ class ChangeTarget(SMCAlgorithm):
             latents = self.prev.get_final_target().filter_to_unconstrained(
                 particle.get_sample()
             )
-            new_trace, new_weight, _ = self.target.importance(key, latents)
+            new_trace, new_weight = self.target.importance(key, latents)
             this_weight = new_weight - particle.get_score() + weight
             return (new_trace, this_weight)
 
@@ -447,7 +447,7 @@ class ChangeTarget(SMCAlgorithm):
             latents = self.prev.get_final_target().filter_to_unconstrained(
                 particle.get_sample()
             )
-            new_trace, new_score, _ = self.target.importance(key, latents)
+            new_trace, new_score = self.target.importance(key, latents)
             this_weight = new_score - particle.get_score() + weight
             return (new_trace, this_weight)
 
@@ -483,7 +483,7 @@ class ChangeTarget(SMCAlgorithm):
             latents = self.prev.get_final_target().filter_to_unconstrained(
                 particle.get_sample()
             )
-            _, new_score, _ = self.target.importance(key, latents)
+            _, new_score = self.target.importance(key, latents)
             this_weight = new_score - particle.get_score() + weight
             return this_weight
 
@@ -548,16 +548,16 @@ class KernelGenerativeFunction(GenerativeFunction):
         key: PRNGKey,
         constraint: Constraint,
         args: Tuple,
-    ) -> Tuple[Trace, Weight, UpdateSpec]:
+    ) -> Tuple[Trace, Weight, UpdateProblem]:
         raise NotImplementedError
 
     def update(
         self,
         key: PRNGKey,
         trace: KernelTrace,
-        update_spec: UpdateSpec,
+        update_problem: UpdateProblem,
         args: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
         raise NotImplementedError
 
 
@@ -565,7 +565,7 @@ class KernelGenerativeFunction(GenerativeFunction):
 def kernel_gen_fn(
     source: Callable[
         [Sample, Target],
-        Tuple[UpdateSpec, Sample],
+        Tuple[UpdateProblem, Sample],
     ],
 ) -> KernelGenerativeFunction:
     return KernelGenerativeFunction(gen(source))
@@ -666,7 +666,7 @@ class AttachCombinator(GenerativeFunction):
         key: PRNGKey,
         constraint: Constraint,
         args: Tuple,
-    ) -> Tuple[Trace, Weight, UpdateSpec]:
+    ) -> Tuple[Trace, Weight, UpdateProblem]:
         move = self.importance_move(constraint)
         match move:
             case SMCP3Move(K, _):
@@ -697,11 +697,11 @@ class AttachCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: AttachTrace,
-        update_spec: UpdateSpec,
+        update_problem: UpdateProblem,
         argdiffs: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
         gen_fn_trace = trace.inner
-        move = self.update_move(update_spec)
+        move = self.update_move(update_problem)
         previous_latents = move.get_previous_latents()
         new_constraint = move.get_new_constraint()
         match move:
@@ -716,13 +716,13 @@ class AttachCombinator(GenerativeFunction):
                     K_aux,  # aux from K
                     K_aux_score,
                 )
-                tr, w, retdiff, bwd_spec = self.gen_fn.update(
+                tr, w, retdiff, bwd_problem = self.gen_fn.update(
                     key,
                     gen_fn_trace,
                     new_latents,
                     argdiffs,
                 )
-                return tr, w + w_smc, retdiff, bwd_spec
+                return tr, w + w_smc, retdiff, bwd_problem
 
             case DirectOverload(update_impl):
                 return update_impl(key)
@@ -731,7 +731,7 @@ class AttachCombinator(GenerativeFunction):
                 return self.gen_fn.update(
                     key,
                     gen_fn_trace,
-                    update_spec,
+                    update_problem,
                     argdiffs,
                 )
 

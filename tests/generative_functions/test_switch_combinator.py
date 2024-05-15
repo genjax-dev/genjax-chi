@@ -108,7 +108,7 @@ class TestSwitchCombinator:
         chm = C.n
         jitted = jax.jit(switch.importance)
         key, sub_key = jax.random.split(key)
-        (tr, w, _) = jitted(sub_key, chm, (0, (), ()))
+        (tr, w) = jitted(sub_key, chm, (0, (), ()))
         v1 = tr.get_sample().get_submap("y1")
         v2 = tr.get_sample().get_submap("y2")
         score = tr.get_score()
@@ -119,7 +119,7 @@ class TestSwitchCombinator:
         assert score == v1_score + v2_score
         assert w == 0.0
         key, sub_key = jax.random.split(key)
-        (tr, w, _) = jitted(sub_key, chm, (1, (), ()))
+        (tr, w) = jitted(sub_key, chm, (1, (), ()))
         b = tr.get_sample().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
@@ -128,7 +128,7 @@ class TestSwitchCombinator:
         assert w == 0.0
         chm = C.n.at["y3"].set(1)
         key, sub_key = jax.random.split(key)
-        (tr, w, _) = jitted(sub_key, chm, (1, (), ()))
+        (tr, w) = jitted(sub_key, chm, (1, (), ()))
         b = tr.get_sample().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
@@ -176,7 +176,7 @@ class TestSwitchCombinator:
         switch = genjax.switch_combinator(regular, outlier)
         key, importance_key = jax.random.split(key)
 
-        (tr, wt, _) = switch.importance(
+        (tr, wt) = switch.importance(
             importance_key, C.n.at["x"].set(sample_value), (0, (), ())
         )
         (idx, *_) = tr.get_args()

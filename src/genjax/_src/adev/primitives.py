@@ -162,7 +162,7 @@ class FlipEnumParallel(ADEVPrimitive):
         tangents: Tuple,
         konts: Tuple,
     ):
-        (kpure, kdual) = konts
+        (_kpure, kdual) = konts
         (p_primal,) = primals
         (p_tangent,) = tangents
         sub_keys = jax.random.split(key, 2)
@@ -197,7 +197,7 @@ class CategoricalEnumParallel(ADEVPrimitive):
         tangents: Tuple,
         konts: Tuple,
     ):
-        (kpure, kdual) = konts
+        (_kpure, kdual) = konts
         (probs_primal,) = primals
         (probs_tangent,) = tangents
         idxs = jnp.arange(len(probs_primal))
@@ -245,7 +245,7 @@ class NormalREPARAM(ADEVPrimitive):
         tree_dual: Any,
         konts: Tuple,
     ):
-        (kpure, kdual) = konts
+        (_kpure, kdual) = konts
         (mu_primal, sigma_primal) = Dual.tree_primal(tree_dual)
         (mu_tangent, sigma_tangent) = Dual.tree_tangent(tree_dual)
         key, sub_key = jax.random.split(key)
@@ -279,7 +279,7 @@ class MvNormalDiagREPARAM(ADEVPrimitive):
         tangents: Tuple,
         konts: Tuple,
     ):
-        (kpure, kdual) = konts
+        (_kpure, kdual) = konts
         (loc_primal, diag_scale_primal) = primals
         (loc_tangent, diag_scale_tangent) = tangents
         key, sub_key = jax.random.split(key)
@@ -320,7 +320,7 @@ class MvNormalREPARAM(ADEVPrimitive):
         tangents: Tuple,
         konts: Tuple,
     ):
-        (kpure, kdual) = konts
+        (_kpure, kdual) = konts
         (mu_primal, cov_primal) = primals
         (mu_tangent, cov_tangent) = tangents
         key, sub_key = jax.random.split(key)
@@ -358,7 +358,7 @@ class Uniform(ADEVPrimitive):
         tangents: Tuple,
         konts: Tuple,
     ):
-        (kpure, kdual) = konts
+        (_kpure, kdual) = konts
         key, sub_key = jax.random.split(key)
         x = tfd.Uniform(low=0.0, high=1.0).sample(seed=sub_key)
         return kdual(key, (x,), (0.0,))
@@ -435,7 +435,7 @@ class AddCost(ADEVPrimitive):
         tree_dual: Any,
         konts: Tuple,
     ) -> Dual:
-        (kpure, kdual) = konts
+        (_kpure, kdual) = konts
         (w,) = Dual.tree_primal(tree_dual)
         (w_tangent,) = Dual.tree_tangent(tree_dual)
         l_dual = kdual(key, Dual(None, None))

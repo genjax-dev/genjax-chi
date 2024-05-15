@@ -16,7 +16,7 @@ import genjax
 import jax
 import pytest
 from genjax import ChoiceMap as C
-from genjax import Diff, RemoveSelectionUpdateSpec
+from genjax import Diff
 
 
 class TestScanSimpleNormal:
@@ -32,7 +32,7 @@ class TestScanSimpleNormal:
         tr = jax.jit(scanner.simulate)(sub_key, (0.01, None))
         scan_score = tr.get_score()
         sel = genjax.Selection.at[..., "z"]
-        assert tr.project(key, RemoveSelectionUpdateSpec(sel)) == scan_score
+        assert tr.project(key, sel) == scan_score
 
     def test_scan_simple_normal_importance(self):
         @genjax.scan_combinator(max_length=10)
@@ -44,7 +44,7 @@ class TestScanSimpleNormal:
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         for i in range(1, 5):
-            tr, w, bwd_spec = jax.jit(scanner.importance)(
+            tr, w = jax.jit(scanner.importance)(
                 sub_key, C.n.at[i, "z"].set(0.5), (0.01, None)
             )
             assert tr.get_sample()[i, "z"] == 0.5
@@ -62,10 +62,10 @@ class TestScanSimpleNormal:
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         for i in range(1, 5):
-            tr, w, bwd_spec = jax.jit(scanner.importance)(
+            tr, w = jax.jit(scanner.importance)(
                 sub_key, C.n.at[i, "z"].set(0.5), (0.01, None)
             )
-            new_tr, w, rd, bwd_spec = jax.jit(scanner.update)(
+            new_tr, w, _rd, _bwd_spec = jax.jit(scanner.update)(
                 sub_key,
                 tr,
                 C.n.at[i, "z"].set(1.0),

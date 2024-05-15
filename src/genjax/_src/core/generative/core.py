@@ -38,6 +38,7 @@ from genjax._src.core.typing import (
     Optional,
     PRNGKey,
     Tuple,
+    TypeVar,
     static_check_is_concrete,
     typecheck,
 )
@@ -70,56 +71,61 @@ Argdiffs = Annotated[
 #########################
 
 
-class UpdateSpec(Pytree):
+class UpdateProblem(Pytree):
     @classmethod
     def n(cls):
-        return EmptyUpdateSpec()
+        return EmptyProblem()
 
     @classmethod
-    def m(cls, flag: Bool | BoolArray, spec: "UpdateSpec"):
-        return MaskedUpdateSpec(flag, spec)
+    def m(cls, flag: Bool | BoolArray, problem: "UpdateProblem"):
+        return MaskedProblem(flag, problem)
+
+
+@Pytree.dataclass(match_args=True)
+class ImportanceProblem(UpdateProblem):
+    constraint: "Constraint"
 
 
 @Pytree.dataclass
-class EmptyUpdateSpec(UpdateSpec):
+class EmptyProblem(UpdateProblem):
     pass
 
 
 @Pytree.dataclass(match_args=True)
-class ChangeTargetUpdateSpec(UpdateSpec):
+class ChangeTargetProblem(UpdateProblem):
     argdiffs: Tuple
-    update_spec: UpdateSpec
+    update_problem: UpdateProblem
 
 
 @Pytree.dataclass(match_args=True)
-class MaskedUpdateSpec(UpdateSpec):
+class MaskedProblem(UpdateProblem):
     flag: Bool | BoolArray
-    spec: UpdateSpec
+    problem: UpdateProblem
 
     @classmethod
-    def maybe(cls, f: BoolArray, spec: UpdateSpec):
-        match spec:
-            case MaskedUpdateSpec(flag, subspec):
-                return MaskedUpdateSpec(staged_and(f, flag), subspec)
+    def maybe(cls, f: BoolArray, problem: UpdateProblem):
+        match problem:
+            case MaskedProblem(flag, subproblem):
+                return MaskedProblem(staged_and(f, flag), subproblem)
             case _:
                 static_bool_check = static_check_is_concrete(f) and isinstance(f, Bool)
                 return (
-                    spec
+                    problem
                     if static_bool_check and f
-                    else EmptyUpdateSpec()
+                    else EmptyProblem()
                     if static_bool_check
-                    else MaskedUpdateSpec(f, spec)
+                    else MaskedProblem(f, problem)
                 )
 
 
 @Pytree.dataclass
-class SumUpdateSpec(UpdateSpec):
+class SumProblem(UpdateProblem):
     idx: Int | IntArray
-    specs: List[UpdateSpec]
+    problems: List[UpdateProblem]
 
 
 @Pytree.dataclass
-class RemoveSampleUpdateSpec(UpdateSpec):
+class ProjectProblem(UpdateProblem):
     pass
 
 
@@ -128,7 +134,7 @@ class RemoveSampleUpdateSpec(UpdateSpec):
 ###############
 
 
-class Constraint(UpdateSpec):
+class Constraint(UpdateProblem):
     pass
 
 
@@ -238,6 +244,8 @@ class MaskedSample(Sample):
 # Trace #
 #########
 
+T = TypeVar("T", bound=Sample)
+
 
 class Trace(Pytree):
     """
@@ -274,11 +282,15 @@ class Trace(Pytree):
         """
 
     @abstractmethod
-    def get_sample(self) -> Sample:
+    def get_sample(self) -> T:
         """Return a `Sample`, a representation of the sample from the measure denoted by the generative function.
 
         Examples:
         """
+
+    # TODO: deprecated.
+    def get_choices(self) -> Sample:
+        return self.get_sample()
 
     @abstractmethod
     def get_gen_fn(self) -> "GenerativeFunction":
@@ -291,69 +303,28 @@ class Trace(Pytree):
     def update(
         self,
         key: PRNGKey,
-        spec: UpdateSpec,
+        problem: UpdateProblem,
         argdiffs: Optional[Tuple | Argdiffs] = None,
-    ) -> Tuple["Trace", Weight, Retdiff, UpdateSpec]:
+    ) -> Tuple["Trace", Weight, Retdiff, UpdateProblem]:
         gen_fn = self.get_gen_fn()
         if argdiffs:
             check = Diff.static_check_tree_diff(argdiffs)
             argdiffs = argdiffs if check else Diff.tree_diff_unknown_change(argdiffs)
-            return gen_fn.update(key, self, spec, argdiffs)
+            return gen_fn.update(key, self, problem, argdiffs)
         else:
             old_args = self.get_args()
             argdiffs = Diff.tree_diff_no_change(old_args)
-            return gen_fn.update(key, self, spec, argdiffs)
+            return gen_fn.update(key, self, problem, argdiffs)
 
+    @typecheck
     def project(
         self,
         key: PRNGKey,
-        spec: UpdateSpec,
+        problem: ProjectProblem,
     ) -> Weight:
         gen_fn = self.get_gen_fn()
-        return gen_fn.project(key, self, spec)
-
-    ##########################
-    # UpdateCompiler interface #
-    ##########################
-
-    def create_update_spec(self, addr, v) -> UpdateSpec:
-        raise NotImplementedError
-
-    @Pytree.dataclass
-    class UpdateCompiler(Pytree):
-        trace: "Trace"
-        addr: Any
-        updates: List[UpdateSpec]
-
-        def __getitem__(self, addr) -> "Trace.UpdateCompiler":
-            return Trace.UpdateCompiler(
-                self.trace,
-                addr,
-                self.updates,
-            )
-
-        def set(self, v) -> "Trace.UpdateCompiler":
-            new_spec = self.trace.create_update_spec(self.addr, v)
-            return Trace.UpdateCompiler(self.trace, [], [*self.updates, new_spec])
-
-        @property
-        def at(self) -> "Trace.UpdateCompiler":
-            return self
-
-        def update(self, key) -> Tuple["Trace", Weight, List[UpdateSpec]]:
-            trace = self.trace
-            w = 0.0
-            bwd_specs = []
-            for update in self.updates:
-                trace, inc_w, _, bwd_spec = trace.update(key, update)
-                w += inc_w
-                bwd_specs.append(bwd_spec)
-
-            return trace, w, list(reversed(bwd_specs))
-
-    @property
-    def at(self) -> UpdateCompiler:
-        return Trace.UpdateCompiler(self, [], [])
+        _, w, _, _ = gen_fn.update(key, self, problem, Diff.no_change(self.get_args()))
+        return -w
 
     ###################
     # Pretty printing #
@@ -370,24 +341,35 @@ class Trace(Pytree):
     def batch_shape(self):
         return len(self.get_score())
 
-    def summary(self):
-        return TraceSummary(
-            self.get_gen_fn(),
-            self.get_sample(),
-            self.get_score(),
-            self.get_retval(),
-        )
+
+@Pytree.dataclass
+class EmptyTraceArg(Pytree):
+    pass
 
 
 @Pytree.dataclass
-class TraceSummary(Pytree):
-    gen_fn: "GenerativeFunction"
-    sample: Sample
-    score: FloatArray
-    retval: Any
+class EmptyTraceRetval(Pytree):
+    pass
 
-    def treescope_color(self):
-        return self.gen_fn.treescope_color()
+
+@Pytree.dataclass
+class EmptyTrace(Trace):
+    gen_fn: "GenerativeFunction"
+
+    def get_args(self) -> Tuple:
+        return (EmptyTraceArg(),)
+
+    def get_retval(self) -> Any:
+        return EmptyTraceRetval()
+
+    def get_score(self) -> Score:
+        return 0.0
+
+    def get_sample(self) -> Sample:
+        return EmptySample()
+
+    def get_gen_fn(self) -> "GenerativeFunction":
+        return self.gen_fn
 
 
 #######################
@@ -496,22 +478,13 @@ class GenerativeFunction(Pytree):
         raise NotImplementedError
 
     @abstractmethod
-    def importance(
-        self,
-        key: PRNGKey,
-        constraint: Constraint,
-        args: Tuple,
-    ) -> Tuple[Trace, Weight, UpdateSpec]:
-        raise NotImplementedError
-
-    @abstractmethod
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
-        update_spec: UpdateSpec,
+        trace: EmptyTrace | Trace,
+        update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
         raise NotImplementedError
 
     @abstractmethod
@@ -522,17 +495,17 @@ class GenerativeFunction(Pytree):
     ) -> Tuple[Score, Any]:
         raise NotImplementedError
 
-    # TODO: check the math.
-    def project(
+    def importance(
         self,
         key: PRNGKey,
-        trace: Trace,
-        spec: UpdateSpec,
-    ) -> Weight:
-        args = trace.get_args()
-        argdiffs = Diff.tree_diff_no_change(args)
-        _, w, _, _ = self.update(key, trace, spec, argdiffs)
-        return -w
+        constraint: Constraint,
+        args: Tuple,
+    ) -> Tuple[Trace, Weight]:
+        importance_problem = ImportanceProblem(constraint)
+        tr, w, _, _ = self.update(
+            key, EmptyTrace(self), importance_problem, Diff.unknown_change(args)
+        )
+        return tr, w
 
     # NOTE: Supports pretty printing in penzai.
     def treescope_color(self):
@@ -734,27 +707,18 @@ class IgnoreKwargs(GenerativeFunction):
         key: PRNGKey,
         args: Tuple,
     ):
-        (args, kwargs) = args
+        (args, _kwargs) = args
         return self.wrapped.simulate(key, args)
-
-    def importance(
-        self,
-        key: PRNGKey,
-        constraint: Constraint,
-        args: Tuple,
-    ):
-        (args, kwargs) = args
-        return self.wrapped.importance(key, constraint, args)
 
     def update(
         self,
         key: PRNGKey,
         trace: Trace,
-        update_spec: Constraint,
+        update_problem: Constraint,
         argdiffs: Tuple,
     ):
-        (argdiffs, kwargdiffs) = argdiffs
-        return self.wrapped.update(key, trace, update_spec, argdiffs)
+        (argdiffs, _kwargdiffs) = argdiffs
+        return self.wrapped.update(key, trace, update_problem, argdiffs)
 
 
 @Pytree.dataclass
@@ -823,43 +787,24 @@ class GenerativeFunctionClosure(GenerativeFunction):
 
     @GenerativeFunction.gfi_boundary
     @typecheck
-    def importance(
-        self,
-        key: PRNGKey,
-        constraint: Constraint,
-        args: Tuple,
-    ) -> Tuple[Trace, Weight, UpdateSpec]:
-        full_args = (*self.args, *args)
-        if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-            return maybe_kwarged_gen_fn.importance(
-                key,
-                constraint,
-                (full_args, self.kwargs),
-            )
-        else:
-            return self.gen_fn.importance(key, constraint, full_args)
-
-    @GenerativeFunction.gfi_boundary
-    @typecheck
     def update(
         self,
         key: PRNGKey,
         trace: Trace,
-        spec: UpdateSpec,
+        problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateSpec]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
         full_argdiffs = (*self.args, *argdiffs)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.update(
                 key,
                 trace,
-                spec,
+                problem,
                 (full_argdiffs, self.kwargs),
             )
         else:
-            return self.gen_fn.update(key, trace, spec, full_argdiffs)
+            return self.gen_fn.update(key, trace, problem, full_argdiffs)
 
     @GenerativeFunction.gfi_boundary
     @typecheck

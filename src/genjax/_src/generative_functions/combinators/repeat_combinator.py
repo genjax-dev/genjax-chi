@@ -28,7 +28,7 @@ from genjax._src.generative_functions.combinators.compose_combinator import (
 from genjax._src.generative_functions.combinators.vmap_combinator import (
     vmap_combinator,
 )
-from genjax._src.generative_functions.static.static_gen_fn import gen
+from genjax._src.generative_functions.static import gen
 
 register_exclusion(__file__)
 
