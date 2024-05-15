@@ -216,6 +216,12 @@ class TimeTravelingDebugger(Pytree):
         jump_tag = reverse_jump_points.get(self.ptr, None)
         return jump_tag, frame
 
+    def summary(self) -> Tuple[Any, Tuple[Optional[String], FrameRecording]]:
+        frame = self.sequence[self.ptr]
+        reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
+        jump_tag = reverse_jump_points.get(self.ptr, None)
+        return self.final_retval, (jump_tag, frame)
+
     def jump(self, debug_tag: String) -> "TimeTravelingDebugger":
         jump_pt = self.jump_points[debug_tag]
         return TimeTravelingDebugger(
