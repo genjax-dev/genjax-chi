@@ -331,9 +331,10 @@ class ScanCombinator(GenerativeFunction):
             (trace.inner, *scanned_in_diff),
             length=self.max_length,
         )
-        carried_out, scanned_out = Diff.tree_primal(
-            (carried_out_diff, scanned_out_diff)
-        )
+        carried_out, scanned_out = Diff.tree_primal((
+            carried_out_diff,
+            scanned_out_diff,
+        ))
         return (
             ScanTrace(
                 self,

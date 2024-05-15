@@ -24,12 +24,12 @@ from genjax._src.inference.smc import (
 )
 
 __all__ = [
+    "AttachCombinator",
     "ChangeTarget",
     "Importance",
     "ImportanceK",
+    "SMCAlgorithm",
     "SMCMove",
     "SMCP3Move",
-    "SMCAlgorithm",
-    "AttachCombinator",
     "attach_combinator",
 ]

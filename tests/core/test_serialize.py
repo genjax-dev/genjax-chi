@@ -62,13 +62,11 @@ class TestMsgPackSerialize:
         tr = model.simulate(
             key,
             (
-                jnp.array(
-                    [
-                        1.0,
-                        2.0,
-                        3.0,
-                    ]
-                ),
+                jnp.array([
+                    1.0,
+                    2.0,
+                    3.0,
+                ]),
             ),
         )
         bytes = msgpack_serialize.serialize(tr)
@@ -77,13 +75,11 @@ class TestMsgPackSerialize:
             bytes,
             model,
             (
-                jnp.array(
-                    [
-                        1.0,
-                        2.0,
-                        3.0,
-                    ]
-                ),
+                jnp.array([
+                    1.0,
+                    2.0,
+                    3.0,
+                ]),
             ),
         )
         assert eq(tr, restored_tr)

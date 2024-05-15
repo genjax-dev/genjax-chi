@@ -26,15 +26,15 @@ from genjax._src.core.interpreters.staging import (
 )
 
 __all__ = [
-    "forward",
     "StatefulHandler",
+    "forward",
+    "get_data_shape",
+    "get_importance_shape",
+    "get_shaped_aval",
+    "get_update_shape",
     "incremental",
     "stage",
     "staged_and",
-    "staged_or",
     "staged_not",
-    "get_shaped_aval",
-    "get_data_shape",
-    "get_importance_shape",
-    "get_update_shape",
+    "staged_or",
 ]

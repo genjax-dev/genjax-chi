@@ -27,13 +27,13 @@ from genjax.inference import (
 )
 
 __all__ = [
-    "SampleDistribution",
     "InferenceAlgorithm",
     "Marginal",
+    "SampleDistribution",
     "Target",
     "ValueMarginal",
-    "marginal",
     "exact_testbed",
+    "marginal",
     "smc",
     "vi",
 ]

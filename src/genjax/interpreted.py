@@ -19,7 +19,7 @@ from genjax._src.generative_functions.interpreted import (
 )
 
 __all__ = [
-    "gen",
     "InterpretedGenerativeFunction",
+    "gen",
     "trace",
 ]

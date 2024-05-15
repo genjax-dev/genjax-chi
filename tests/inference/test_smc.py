@@ -61,18 +61,14 @@ class TestSMC:
 
         def flip_flip_exact_log_marginal_density(target: genjax.Target):
             y = target["y"]
-            x_prior = jnp.array(
-                [
-                    logpdf(genjax.flip)(True, 0.5),
-                    logpdf(genjax.flip)(False, 0.5),
-                ]
-            )
-            y_likelihood = jnp.array(
-                [
-                    logpdf(genjax.flip)(y, 0.9),
-                    logpdf(genjax.flip)(y, 0.3),
-                ]
-            )
+            x_prior = jnp.array([
+                logpdf(genjax.flip)(True, 0.5),
+                logpdf(genjax.flip)(False, 0.5),
+            ])
+            y_likelihood = jnp.array([
+                logpdf(genjax.flip)(y, 0.9),
+                logpdf(genjax.flip)(y, 0.3),
+            ])
             y_marginal = logsumexp(x_prior + y_likelihood)
             return y_marginal
 

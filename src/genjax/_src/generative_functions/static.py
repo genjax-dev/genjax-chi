@@ -631,10 +631,10 @@ def gen(f: Callable) -> GenerativeFunction:
 ###########
 
 __all__ = [
-    "StaticAddressJAX",
     "AddressReuse",
+    "StaticAddressJAX",
     "StaticGenerativeFunction",
     "gen",
-    "trace_p",
     "trace",
+    "trace_p",
 ]

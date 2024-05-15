@@ -19,7 +19,7 @@ from genjax._src.core.serialization.msgpack import (
 )
 
 __all__ = [
-    "SerializationBackend",
     "MsgPackSerializeBackend",
+    "SerializationBackend",
     "msgpack_serialize",
 ]

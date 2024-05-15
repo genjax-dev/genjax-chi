@@ -31,19 +31,19 @@ from genjax._src.core.generative import (
 )
 
 __all__ = [
+    "ChoiceMap",
     "Constraint",
     "EmptyConstraint",
-    "MaskedConstraint",
-    "UpdateProblem",
     "EmptyProblem",
-    "MaskedProblem",
-    "MaskedSample",
-    "Sample",
-    "ChoiceMap",
-    "Trace",
-    "Selection",
     "GenerativeFunction",
     "GenerativeFunctionClosure",
     "Mask",
+    "MaskedConstraint",
+    "MaskedProblem",
+    "MaskedSample",
+    "Sample",
+    "Selection",
     "Sum",
+    "Trace",
+    "UpdateProblem",
 ]

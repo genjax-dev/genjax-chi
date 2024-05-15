@@ -28,16 +28,16 @@ from genjax._src.inference.vi import (
 )
 
 __all__ = [
-    "adev_distribution",
-    "flip_enum",
-    "flip_mvd",
-    "normal_reinforce",
-    "normal_reparam",
-    "mv_normal_diag_reparam",
-    "geometric_reinforce",
-    "categorical_enum",
     "ELBO",
     "IWELBO",
-    "QWake",
     "PWake",
+    "QWake",
+    "adev_distribution",
+    "categorical_enum",
+    "flip_enum",
+    "flip_mvd",
+    "geometric_reinforce",
+    "mv_normal_diag_reparam",
+    "normal_reinforce",
+    "normal_reparam",
 ]
