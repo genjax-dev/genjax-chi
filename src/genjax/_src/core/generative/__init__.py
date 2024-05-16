@@ -51,8 +51,6 @@ from .functional_types import Mask, Sum
 __all__ = [
     "Address",
     "AddressComponent",
-    "StaticAddress",
-    "StaticAddressComponent",
     "Argdiffs",
     "ChoiceMap",
     "ChoiceMapBuilder",
@@ -76,6 +74,8 @@ __all__ = [
     "Score",
     "Selection",
     "SelectionBuilder",
+    "StaticAddress",
+    "StaticAddressComponent",
     "Sum",
     "SumConstraint",
     "SumProblem",
