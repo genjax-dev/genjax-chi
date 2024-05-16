@@ -10,16 +10,16 @@ book:
   repo-url: https://github.com/probcomp/genjax/
   repo-branch: main
   repo-subdir: notebooks
-  repo-actions: [edit, issue, source]
+  repo-actions: [issue, source]
   sidebar:
     background: "#F5F5F5"
     logo: small_logo.png
     search: true
     style: 'floating'
   chapters:
-    - index.qmd
-    - intro.qmd
-    - inference_libraries.qmd
+    - index.ipynb
+    - intro.ipynb
+    - inference_libraries.ipynb
 
 bibliography: references.bib
 
@@ -27,9 +27,10 @@ format:
   html:
     css: custom.css
     theme: cosmo
+    title-block-banner: true
     code-copy: true
     cold-fold: false
     code-overflow: wrap
-    highlight-style: kate
+    highlight-style: ayu
     backgroundcolor: "#F5F5F5"
     logo: ../docs/assets/img/logo.png

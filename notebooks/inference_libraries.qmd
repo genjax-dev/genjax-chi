@@ -1,7 +1,0 @@
----
-subtitle: "Midday sun & confronting the probabilistic icefall"
----
-
-# Standard inference libraries
-
-GenJAX a set of inference libraries designed to encapsulate several state-of-the-art inference paradigms.
