@@ -21,7 +21,6 @@ copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 
 nav:
   - Home: index.md
-  - The cookbook: cookbook.md
   - Library reference:
       - Core: library/core.md
       - Generative functions: library/generative_functions.md

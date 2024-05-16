@@ -1,0 +1,5 @@
+# Getting started 
+
+This is a recipe book for _getting started with GenJAX_. It is **not** an exhaustive reference on the concepts and implementation of GenJAX ([you can find that in the documentation]).
+
+It also acts as a Rosetta stone of sorts for translating between programming constructs (like `if`, `for`, etc.) into the world of GenJAX (and JAX, more broadly).

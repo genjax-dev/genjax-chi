@@ -1,0 +1,52 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "The GenJAX cookbook",
+    "section": "",
+    "text": "1 Getting started\nThis is a recipe book for getting started with GenJAX. It is not an exhaustive reference on the concepts and implementation of GenJAX ([you can find that in the documentation]).\nIt also acts as a Rosetta stone of sorts for translating between programming constructs (like if, for, etc.) into the world of GenJAX (and JAX, more broadly).",
+    "crumbs": [
+      "<span class='chapter-number'>1</span>  <span class='chapter-title'>Getting started</span>"
+    ]
+  },
+  {
+    "objectID": "intro.html",
+    "href": "intro.html",
+    "title": "2  Generative functions",
+    "section": "",
+    "text": "2.1 Generative functions\n@gen\ndef model():\n  x = normal(0.0, 1.0) @ \"x\"\n  y = normal(x, 1.0) @ \"y\"\n\nmodel\n\n(Loading...)\nIn Gen, probabilistic models are represented by a computational object called a generative function. Once we create one of these objects, we can use one of several interfaces to gain access to probabilistic effects.\nHere’s one interface: simulate – this samples from the probability distribution which the program represents, and stores the result, along with other data about the invocation of the function, in a data structure called a Trace.\nkey = jrand.PRNGKey(0)\ntr = model.simulate(key, ())\ntr\n\n(Loading...)\nWe can dig around in this object uses its interfaces:\nchm = tr.get_sample()\nchm\n\n(Loading...)\nA ChoiceMap is a representation of the sample from the probability distribution which the generative function represents. We can ask what values were sampled at the addresses (the \"x\" and \"y\" syntax in our model):\n(chm[\"x\"], chm[\"y\"])\n\n(Loading...)\nNeat – all of our interfaces are JAX compatible, so we could sample 1000 times just by using jax.vmap:\nsub_keys = jrand.split(jrand.PRNGKey(0), 1000)\ntr = jit(vmap(model.simulate, in_axes=(0, None)))(sub_keys, ())\ntr\n\n(Loading...)\nLet’s plot our samples to get a sense of the distribution we wrote down.\nchm = tr.get_sample()\nplt.scatter(chm[\"x\"], chm[\"y\"], marker=\".\")\n\n(Loading...)\nTraces also keep track of other data, like the score of the execution (which is a value which estimates the joint probability of the random choices under the distribution):\ntr.get_score()\n\n(Loading...)",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Generative functions</span>"
+    ]
+  },
+  {
+    "objectID": "intro.html#composition-of-generative-functions",
+    "href": "intro.html#composition-of-generative-functions",
+    "title": "2  Generative functions",
+    "section": "2.2 Composition of generative functions",
+    "text": "2.2 Composition of generative functions\nGenerative functions are probabilistic building blocks. You can combine them into larger probability distributions:\n\n# A regression distribution. \n@gen\ndef regression(x, coefficients, sigma):\n    basis_value = jnp.array([1.0, x, x**2])\n    polynomial_value = jnp.sum(basis_value * coefficients)\n    y = genjax.normal(polynomial_value, sigma) @ \"value\"\n    return y\n\n# Regression, with an outlier random variable.\n@gen\ndef regression_with_outlier(x, coefficients):\n    is_outlier = genjax.flip(0.1) @ \"outlier\"\n    sigma = jnp.select(is_outlier, 0.3, 30.0)\n    is_outlier = jnp.array(is_outlier, dtype=int)\n    return regression(x, coefficients, sigma) @ \"y\"\n\n\n# The full model, sample coefficients for a curve, and then use\n# them in independent draws from the regression submodel.\n@gen\ndef model(xs):\n    coefficients = (\n        genjax.mv_normal(np.zeros(3, dtype=float), \n                         2.0 * np.identity(3)) @ \"alpha\",\n    )\n    ys = regression_with_outlier(in_axes=(0, None))(xs, coefficients) @ \"ys\"\n    return ys",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Generative functions</span>"
+    ]
+  },
+  {
+    "objectID": "intro.html#inference-in-generative-functions",
+    "href": "intro.html#inference-in-generative-functions",
+    "title": "2  Generative functions",
+    "section": "2.3 Inference in generative functions",
+    "text": "2.3 Inference in generative functions\nNow that we’ve seen a few ways to build up larger generative functions from smaller ones, we should tackle…",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Generative functions</span>"
+    ]
+  },
+  {
+    "objectID": "inference_libraries.html",
+    "href": "inference_libraries.html",
+    "title": "3  Standard inference libraries",
+    "section": "",
+    "text": "GenJAX a set of inference libraries designed to encapsulate several state-of-the-art inference paradigms.",
+    "crumbs": [
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Standard inference libraries</span>"
+    ]
+  }
+]
