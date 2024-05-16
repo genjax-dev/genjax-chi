@@ -58,21 +58,10 @@ DynamicAddressComponent = Int | IntArray
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
 Address = Tuple[()] | Tuple[AddressComponent, ...]
 StaticAddress = Tuple[()] | Tuple[StaticAddressComponent, ...]
-AddressSyntax = EllipsisType | Address
-
-
-def get_address_head(addr: Address) -> AddressComponent:
-    if isinstance(addr, tuple) and addr:
-        return addr[0]
-    else:
-        return addr
-
-
-def get_address_tail(addr: Address) -> Address:
-    if isinstance(addr, tuple):
-        return addr[1:]
-    else:
-        return ()
+ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
+ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
+ExtendedStaticAddress = Tuple[()] | Tuple[ExtendedStaticAddressComponent, ...]
+ExtendedAddress = Tuple[()] | Tuple[ExtendedAddressComponent, ...]
 
 
 ##############
@@ -116,18 +105,30 @@ class Selection(ProjectProblem):
     def __invert__(self) -> "Selection":
         return select_complement(self)
 
-    def __call__(self, addr: Address):
+    @typecheck
+    def __call__(
+        self,
+        addr: ExtendedAddressComponent | ExtendedAddress,
+    ):
         addr = addr if isinstance(addr, tuple) else (addr,)
         subselection = self
         for comp in addr:
             subselection = subselection.selection_function.get_subselection(comp)
         return subselection
 
-    def __getitem__(self, addr: Address) -> Bool | BoolArray:
+    @typecheck
+    def __getitem__(
+        self,
+        addr: ExtendedAddressComponent | ExtendedAddress,
+    ) -> Bool | BoolArray:
         subselection = self(addr)
         return subselection.selection_function.check()
 
-    def __contains__(self, addr: Address) -> Bool | BoolArray:
+    @typecheck
+    def __contains__(
+        self,
+        addr: ExtendedAddressComponent | ExtendedAddress,
+    ) -> Bool | BoolArray:
         return self[addr]
 
     def check(self) -> Bool | BoolArray:
@@ -144,9 +145,7 @@ class Selection(ProjectProblem):
 
     @classmethod
     @typecheck
-    def str(
-        cls, comp: EllipsisType | StaticAddressComponent, sel: "Selection"
-    ) -> "Selection":
+    def str(cls, comp: ExtendedStaticAddressComponent, sel: "Selection") -> "Selection":
         return select_static(comp, sel)
 
     @classmethod
@@ -180,7 +179,7 @@ class SelectionFunction(Pytree):
         pass
 
     @abstractmethod
-    def get_subselection(self, addr) -> Selection:
+    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         pass
 
 
@@ -189,7 +188,7 @@ class AllSelFn(SelectionFunction):
     def check(self) -> Bool | BoolArray:
         return True
 
-    def get_subselection(self, addr: AddressComponent) -> Selection:
+    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         return Selection(AllSelFn())
 
 
@@ -206,7 +205,7 @@ class DeferSelFn(SelectionFunction):
         ch = self.s.check()
         return staged_and(self.flag, ch)
 
-    def get_subselection(self, addr: AddressComponent) -> Selection:
+    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining = self.s(addr)
         return select_defer(self.flag, remaining)
 
@@ -251,7 +250,7 @@ class StaticSelFn(SelectionFunction):
     def check(self) -> Bool | BoolArray:
         return False
 
-    def get_subselection(self, addr: AddressComponent) -> Selection:
+    def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
         check = addr == self.addr or isinstance(addr, EllipsisType)
         return select_defer(check, self.s)
 
@@ -272,7 +271,7 @@ class IdxSelFn(SelectionFunction):
     def check(self) -> Bool | BoolArray:
         return False
 
-    def get_subselection(self, addr: AddressComponent) -> Selection:
+    def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
         if isinstance(addr, EllipsisType):
             return self.s
 
@@ -385,7 +384,9 @@ class _ChoiceMapBuilder(Pytree):
     addr: Optional[Address]
 
     @typecheck
-    def __getitem__(self, addr: AddressComponent | Address) -> "_ChoiceMapBuilder":
+    def __getitem__(
+        self, addr: ExtendedAddressComponent | ExtendedAddress
+    ) -> "_ChoiceMapBuilder":
         addr = addr if isinstance(addr, tuple) else (addr,)
         return _ChoiceMapBuilder(
             addr,
@@ -409,10 +410,11 @@ class _ChoiceMapBuilder(Pytree):
     def kw(self, **kwargs) -> "ChoiceMap":
         return ChoiceMap.kw(**kwargs)
 
-    def a(self, addr: Address, v: Any) -> "ChoiceMap":
+    @typecheck
+    def a(self, addr: ExtendedAddress, v: Any) -> "ChoiceMap":
         new = ChoiceMap.value(v) if not isinstance(v, ChoiceMap) else v
         for comp in reversed(addr):
-            if isinstance(comp, StaticAddressComponent):
+            if isinstance(comp, ExtendedStaticAddressComponent):
                 new = ChoiceMap.str(comp, new)
             else:
                 new = ChoiceMap.idx(comp, new)
@@ -455,7 +457,10 @@ class ChoiceMap(Sample, Constraint):
         return check_none(self.choice_map_fn.get_value())
 
     @typecheck
-    def get_submap(self, addr: AddressComponent) -> "ChoiceMap":
+    def get_submap(
+        self,
+        addr: ExtendedAddressComponent,
+    ) -> "ChoiceMap":
         return self.choice_map_fn.get_submap(addr)
 
     @typecheck
@@ -502,7 +507,10 @@ class ChoiceMap(Sample, Constraint):
         return choice_map_or(self, other)
 
     @typecheck
-    def __call__(self, addr: AddressComponent | Address):
+    def __call__(
+        self,
+        addr: ExtendedAddressComponent | ExtendedAddress,
+    ):
         addr = addr if isinstance(addr, tuple) else (addr,)
         submap = self
         for comp in addr:
@@ -510,7 +518,10 @@ class ChoiceMap(Sample, Constraint):
         return submap
 
     @typecheck
-    def __getitem__(self, addr: AddressComponent | Address):
+    def __getitem__(
+        self,
+        addr: ExtendedAddressComponent | ExtendedAddress,
+    ):
         addr = addr if isinstance(addr, tuple) else (addr,)
         submap = self(addr)
         v = submap.get_value()
@@ -530,7 +541,10 @@ class ChoiceMap(Sample, Constraint):
             return v
 
     @typecheck
-    def __contains__(self, addr: AddressComponent | Address):
+    def __contains__(
+        self,
+        addr: ExtendedAddressComponent | ExtendedAddress,
+    ):
         addr = addr if isinstance(addr, tuple) else (addr,)
         submap = self
         for comp in addr:
@@ -684,7 +698,10 @@ class IdxChmFn(ChoiceMapFunction):
         return None
 
     def get_submap(self, addr: AddressComponent) -> ChoiceMap:
-        if not isinstance(addr, DynamicAddressComponent):
+        if addr is Ellipsis:
+            return self.c
+
+        elif not isinstance(addr, DynamicAddressComponent):
             return choice_map_empty
 
         else:
