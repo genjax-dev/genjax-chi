@@ -14,6 +14,7 @@
 
 from genjax._src.core.generative import (
     ChoiceMap,
+    ChoiceMapBuilder,
     Constraint,
     EmptyConstraint,
     EmptyProblem,
@@ -25,6 +26,7 @@ from genjax._src.core.generative import (
     MaskedSample,
     Sample,
     Selection,
+    SelectionBuilder,
     Sum,
     Trace,
     UpdateProblem,
@@ -32,6 +34,7 @@ from genjax._src.core.generative import (
 
 __all__ = [
     "ChoiceMap",
+    "ChoiceMapBuilder",
     "Constraint",
     "EmptyConstraint",
     "EmptyProblem",
@@ -43,6 +46,7 @@ __all__ = [
     "MaskedSample",
     "Sample",
     "Selection",
+    "SelectionBuilder",
     "Sum",
     "Trace",
     "UpdateProblem",

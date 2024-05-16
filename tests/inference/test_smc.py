@@ -16,7 +16,7 @@ import genjax
 import jax
 import jax.numpy as jnp
 import pytest
-from genjax import ChoiceMap as C
+from genjax import ChoiceMapBuilder as C
 from jax.scipy.special import logsumexp
 
 
@@ -36,7 +36,7 @@ class TestSMC:
             return genjax.flip.assess(y, (0.7,))[0]
 
         key = jax.random.PRNGKey(314159)
-        inference_problem = genjax.Target(flip_flip_trivial, (), C.n.at["y"].set(True))
+        inference_problem = genjax.Target(flip_flip_trivial, (), C["y"].set(True))
 
         # Single sample IS.
         Z_est = genjax.inference.smc.Importance(
@@ -73,7 +73,7 @@ class TestSMC:
             return y_marginal
 
         key = jax.random.PRNGKey(314159)
-        inference_problem = genjax.Target(flip_flip, (), C.n.at["y"].set(True))
+        inference_problem = genjax.Target(flip_flip, (), C["y"].set(True))
 
         # K-sample IS.
         Z_est = genjax.inference.smc.ImportanceK(

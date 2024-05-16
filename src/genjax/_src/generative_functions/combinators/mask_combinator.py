@@ -57,7 +57,7 @@ class MaskTrace(Trace):
     def get_sample(self):
         inner_sample = self.inner.get_sample()
         if isinstance(inner_sample, ChoiceMap):
-            return ChoiceMap.m(self.check, inner_sample)
+            return ChoiceMap.maybe(self.check, inner_sample)
         else:
             return MaskedSample(self.check, self.inner.get_sample())
 

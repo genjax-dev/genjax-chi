@@ -73,17 +73,12 @@ Argdiffs = Annotated[
 
 class UpdateProblem(Pytree):
     @classmethod
-    def n(cls):
+    def empty(cls):
         return EmptyProblem()
 
     @classmethod
-    def m(cls, flag: Bool | BoolArray, problem: "UpdateProblem"):
-        return MaskedProblem(flag, problem)
-
-
-@Pytree.dataclass(match_args=True)
-class ImportanceProblem(UpdateProblem):
-    constraint: "Constraint"
+    def maybe(cls, flag: Bool | BoolArray, problem: "UpdateProblem"):
+        return MaskedProblem.maybe_empty(flag, problem)
 
 
 @Pytree.dataclass
@@ -92,18 +87,12 @@ class EmptyProblem(UpdateProblem):
 
 
 @Pytree.dataclass(match_args=True)
-class ChangeTargetProblem(UpdateProblem):
-    argdiffs: Tuple
-    update_problem: UpdateProblem
-
-
-@Pytree.dataclass(match_args=True)
 class MaskedProblem(UpdateProblem):
     flag: Bool | BoolArray
     problem: UpdateProblem
 
     @classmethod
-    def maybe(cls, f: BoolArray, problem: UpdateProblem):
+    def maybe_empty(cls, f: BoolArray, problem: UpdateProblem):
         match problem:
             case MaskedProblem(flag, subproblem):
                 return MaskedProblem(staged_and(f, flag), subproblem)
@@ -122,6 +111,11 @@ class MaskedProblem(UpdateProblem):
 class SumProblem(UpdateProblem):
     idx: Int | IntArray
     problems: List[UpdateProblem]
+
+
+@Pytree.dataclass(match_args=True)
+class ImportanceProblem(UpdateProblem):
+    constraint: "Constraint"
 
 
 @Pytree.dataclass
@@ -220,24 +214,16 @@ class BijectiveConstraint(Constraint):
 class Sample(Pytree):
     """`Sample` is the abstract base class of the type of values which can be sampled from generative functions."""
 
-    @abstractmethod
-    def get_constraint(self) -> Constraint:
-        pass
-
 
 @Pytree.dataclass
 class EmptySample(Sample):
-    def get_constraint(self) -> Constraint:
-        return EmptyConstraint()
+    pass
 
 
 @Pytree.dataclass(match_args=True)
 class MaskedSample(Sample):
     flag: Bool | BoolArray
     sample: Sample
-
-    def get_constraint(self) -> Constraint:
-        return MaskedConstraint(self.flag, self.sample.get_constraint())
 
 
 #########

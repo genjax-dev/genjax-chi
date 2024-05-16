@@ -12,10 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .choice_map import Address, ChoiceMap, Selection
+from .choice_map import (
+    Address,
+    AddressComponent,
+    ChoiceMap,
+    ChoiceMapBuilder,
+    Selection,
+    SelectionBuilder,
+    StaticAddress,
+    StaticAddressComponent,
+)
 from .core import (
     Argdiffs,
-    ChangeTargetProblem,
     Constraint,
     EmptyConstraint,
     EmptyProblem,
@@ -42,9 +50,12 @@ from .functional_types import Mask, Sum
 
 __all__ = [
     "Address",
+    "AddressComponent",
+    "StaticAddress",
+    "StaticAddressComponent",
     "Argdiffs",
-    "ChangeTargetProblem",
     "ChoiceMap",
+    "ChoiceMapBuilder",
     "Constraint",
     "EmptyConstraint",
     "EmptyProblem",
@@ -64,6 +75,7 @@ __all__ = [
     "Sample",
     "Score",
     "Selection",
+    "SelectionBuilder",
     "Sum",
     "SumConstraint",
     "SumProblem",

@@ -15,7 +15,7 @@
 import genjax
 import jax
 import jax.numpy as jnp
-from genjax import ChoiceMap as C
+from genjax import ChoiceMapBuilder as C
 
 
 class TestVmapCombinator:
@@ -41,7 +41,7 @@ class TestVmapCombinator:
 
         key = jax.random.PRNGKey(314159)
         map_over = jnp.arange(0, 3, dtype=float)
-        chm = jax.vmap(lambda idx, v: C.n.at[idx, "z"].set(v))(
+        chm = jax.vmap(lambda idx, v: C[idx, "z"].set(v))(
             jnp.arange(3), jnp.array([3.0, 2.0, 3.0])
         )
 
@@ -62,14 +62,14 @@ class TestVmapCombinator:
 
         key = jax.random.PRNGKey(314159)
         map_over = jnp.arange(0, 3, dtype=float)
-        chm = C.n.at[0, "z"].set(3.0)
+        chm = C[0, "z"].set(3.0)
         key, sub_key = jax.random.split(key)
         (_, w) = jax.jit(kernel.importance)(sub_key, chm, (map_over,))
         assert w == genjax.normal.assess(C.v(3.0), (0.0, 1.0))[0]
 
         key, sub_key = jax.random.split(key)
         zv = jnp.array([3.0, -1.0, 2.0])
-        chm = jax.vmap(lambda idx, v: C.n.at[idx, "z"].set(v))(jnp.arange(3), zv)
+        chm = jax.vmap(lambda idx, v: C[idx, "z"].set(v))(jnp.arange(3), zv)
         (tr, _) = kernel.importance(sub_key, chm, (map_over,))
         for i in range(0, 3):
             v = tr.get_sample()[i, "z"]
@@ -89,7 +89,7 @@ class TestVmapCombinator:
 
         key = jax.random.PRNGKey(314159)
         map_over = jnp.ones((3, 3), dtype=float)
-        chm = C.n.at[0, "outer", 1, "z"].set(1.0)
+        chm = C[0, "outer", 1, "z"].set(1.0)
         (_, w) = jax.jit(higher_model.importance)(key, chm, (map_over,))
         assert w == genjax.normal.assess(C.v(1.0), (1.0, 1.0))[0]
 

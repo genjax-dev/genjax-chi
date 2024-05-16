@@ -266,7 +266,7 @@ class Importance(SMCAlgorithm):
             tr, target_score = self.target.importance(key, choice)
         else:
             log_weight = 0.0
-            tr, target_score = self.target.importance(key, ChoiceMap.n)
+            tr, target_score = self.target.importance(key, ChoiceMap.empty())
         return ParticleCollection(
             jtu.tree_map(lambda v: jnp.expand_dims(v, axis=0), tr),
             jnp.array([target_score - log_weight]),
@@ -314,7 +314,7 @@ class ImportanceK(SMCAlgorithm):
         else:
             log_weights = 0.0
             trs, target_scores = vmap(self.target.importance, in_axes=(0, None))(
-                sub_keys, ChoiceMap.n
+                sub_keys, ChoiceMap.empty()
             )
         return ParticleCollection(
             trs,
@@ -341,7 +341,7 @@ class ImportanceK(SMCAlgorithm):
         else:
             ignored_traces, ignored_scores = vmap(
                 self.target.importance, in_axes=(0, None)
-            )(sub_keys, ChoiceMap.n)
+            )(sub_keys, ChoiceMap.empty())
             retained_trace, retained_choice_score = self.target.importance(
                 key, retained
             )

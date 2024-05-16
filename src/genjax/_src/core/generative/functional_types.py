@@ -26,12 +26,12 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
-    Bool,
     BoolArray,
     Callable,
     Int,
     IntArray,
     List,
+    static_check_bool,
     static_check_is_concrete,
     typecheck,
 )
@@ -71,15 +71,11 @@ class Mask(Pytree):
             case Mask(flag, value):
                 return Mask(staged_and(f, flag), value)
             case _:
-                return (
-                    v
-                    if static_check_is_concrete(f) and isinstance(f, Bool) and f
-                    else Mask(f, v)
-                )
+                return v if static_check_bool(f) and f else Mask(f, v)
 
     @classmethod
     def maybe_none(cls, f: BoolArray, v: Any):
-        if v is None or (static_check_is_concrete(f) and isinstance(f, Bool) and not f):
+        if v is None or (static_check_bool(f) and not f):
             return None
         return Mask.maybe(f, v)
 
@@ -145,7 +141,7 @@ class Sum(Pytree):
         return (
             vs[idx]
             if static_check_is_concrete(idx) and isinstance(idx, Int)
-            else Sum(idx, list(vs))
+            else Sum(idx, list(vs)).maybe_collapse()
         )
 
     @classmethod

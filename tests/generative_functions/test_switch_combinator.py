@@ -15,7 +15,7 @@
 import genjax
 import jax
 import pytest
-from genjax import ChoiceMap as C
+from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from jax import numpy as jnp
 
@@ -88,9 +88,9 @@ class TestSwitchCombinator:
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
         tr = jitted(key, (0, (), ()))
-        assert tr.get_sample().has_submap("y1")
-        assert tr.get_sample().has_submap("y2")
-        assert not tr.get_sample().has_submap("y3")
+        assert "y1" in tr.get_sample()
+        assert "y2" in tr.get_sample()
+        assert "y3" not in tr.get_sample()
 
     def test_switch_combinator_importance(self):
         @genjax.gen
@@ -105,7 +105,7 @@ class TestSwitchCombinator:
         switch = genjax.switch_combinator(simple_normal, simple_flip)
 
         key = jax.random.PRNGKey(314159)
-        chm = C.n
+        chm = C.n()
         jitted = jax.jit(switch.importance)
         key, sub_key = jax.random.split(key)
         (tr, w) = jitted(sub_key, chm, (0, (), ()))
@@ -126,7 +126,7 @@ class TestSwitchCombinator:
         (flip_score, _) = genjax.flip.assess(b, (0.3,))
         assert score == flip_score
         assert w == 0.0
-        chm = C.n.at["y3"].set(1)
+        chm = C["y3"].set(1)
         key, sub_key = jax.random.split(key)
         (tr, w) = jitted(sub_key, chm, (1, (), ()))
         b = tr.get_sample().get_submap("y3")
@@ -151,7 +151,7 @@ class TestSwitchCombinator:
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (tr, _, _, _) = jax.jit(switch.update)(
-            sub_key, tr, C.n, (Diff.no_change(0), ())
+            sub_key, tr, C.n(), (Diff.no_change(0), ())
         )
         assert score == tr.get_score()
         assert v1 == tr.get_sample()["y1"]
@@ -177,7 +177,7 @@ class TestSwitchCombinator:
         key, importance_key = jax.random.split(key)
 
         (tr, wt) = switch.importance(
-            importance_key, C.n.at["x"].set(sample_value), (0, (), ())
+            importance_key, C["x"].set(sample_value), (0, (), ())
         )
         (idx, *_) = tr.get_args()
         assert idx == 0
@@ -189,7 +189,7 @@ class TestSwitchCombinator:
 
         key, update_key = jax.random.split(key)
         (new_tr, new_wt, _, _) = switch.update(
-            update_key, tr, C.n, (Diff.unknown_change(1), (), ())
+            update_key, tr, C.n(), (Diff.unknown_change(1), (), ())
         )
         (idx, *_) = new_tr.get_args()
         assert idx == 1

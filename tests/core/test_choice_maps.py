@@ -13,8 +13,8 @@
 # limitations under the License.
 
 
-from genjax import ChoiceMap as C
-from genjax import Selection as S
+from genjax import ChoiceMapBuilder as C
+from genjax import SelectionBuilder as S
 
 
 class TestChoiceMap:
@@ -24,20 +24,20 @@ class TestChoiceMap:
         assert () in value_chm
 
     def test_address_map(self):
-        chm = C.a("x", 3.0)
+        chm = C.a(("x",), 3.0)
         assert chm["x"] == 3.0
 
 
 class TestSelections:
     def test_selection(self):
-        new = S.s("x") | (S.s("z") >> S.s("y"))
+        new = S["x"] | S["z", "y"]
         assert new["x"]
         assert new["z", "y"]
-        new = S.at["x"]
+        new = S["x"]
         assert new["x"]
         assert new["x", "y"]
         assert new["x", "y", "z"]
-        new = S.at["x", "y", "z"]
+        new = S["x", "y", "z"]
         assert new["x", "y", "z"]
         assert not new["x"]
         assert not new["x", "y"]

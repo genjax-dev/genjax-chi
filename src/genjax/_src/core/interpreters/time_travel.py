@@ -245,7 +245,7 @@ class TimeTravelingDebugger(Pytree):
 
     def bwd(self) -> "TimeTravelingDebugger":
         new_ptr = self.ptr - 1
-        if new_ptr >= len(self.sequence) or new_ptr <= 0:
+        if new_ptr >= len(self.sequence) or new_ptr < 0:
             return self
         else:
             return TimeTravelingDebugger(

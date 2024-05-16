@@ -19,10 +19,12 @@ import jax
 from genjax._src.core.generative import (
     Address,
     ChoiceMap,
+    ChoiceMapBuilder,
     Constraint,
     GenerativeFunction,
     Sample,
     Selection,
+    SelectionBuilder,
     Weight,
 )
 from genjax._src.core.pytree import Pytree
@@ -75,7 +77,7 @@ class Target(Pytree):
         return self.p.importance(key, merged, self.args)
 
     def filter_to_unconstrained(self, choice_map):
-        selection = self.constraint.get_selection().complement()
+        selection = ~self.constraint.get_selection()
         return choice_map.filter(selection)
 
     def __getitem__(self, addr):
@@ -226,7 +228,7 @@ class Marginal(SampleDistribution):
     """
 
     gen_fn: GenerativeFunction
-    selection: Selection = Pytree.field(default=Selection.a)
+    selection: Selection = Pytree.field(default=Selection.all())
     algorithm: Optional[InferenceAlgorithm] = Pytree.field(default=None)
 
     @typecheck
@@ -288,7 +290,7 @@ class ValueMarginal(Distribution):
     ) -> Tuple[Weight, Any]:
         marginal = Marginal(
             self.p,
-            Selection.at[self.addr],
+            SelectionBuilder[self.addr],
             self.algorithm,
         )
         Z, choice = marginal.random_weighted(key, *args)
@@ -303,10 +305,10 @@ class ValueMarginal(Distribution):
     ) -> Weight:
         marginal = Marginal(
             self.p,
-            Selection.at[self.addr],
+            SelectionBuilder[self.addr],
             self.algorithm,
         )
-        latent_choice: Sample = ChoiceMap.a(self.addr, v)
+        latent_choice: Sample = ChoiceMapBuilder.a(self.addr, v)
         return marginal.estimate_logpdf(key, latent_choice, *args)
 
 
@@ -335,7 +337,7 @@ def marginal(
         gen_fn: GenerativeFunction,
     ) -> Marginal | ValueMarginal:
         if not select_or_addr:
-            select_or_addr = Selection.a
+            select_or_addr = Selection.all()
         if isinstance(select_or_addr, Selection):
             marginal = Marginal(
                 gen_fn,

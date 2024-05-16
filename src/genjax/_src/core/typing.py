@@ -94,6 +94,10 @@ def static_check_is_concrete(x):
     return not isinstance(x, jc.Tracer)
 
 
+def static_check_bool(x):
+    return static_check_is_concrete(x) and isinstance(x, Bool)
+
+
 # TODO: the dtype comparison needs to be replaced with something
 # more robust.
 def static_check_supports_grad(v):

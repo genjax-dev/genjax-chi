@@ -15,10 +15,10 @@
 import genjax
 import jax
 import jax.numpy as jnp
-from genjax import ChoiceMap as C
+from genjax import ChoiceMapBuilder as C
 
 
-class TestMapCombinator:
+class TestMaskCombinator:
     def test_mask_simple_normal_true(self):
         @genjax.mask_combinator
         @genjax.gen
@@ -50,5 +50,5 @@ class TestMapCombinator:
         assert score == 0.0
         assert not retval.flag
 
-        _, w = jax.jit(model.importance)(key, C.n.at["z"].set(-2.0), tr.get_args())
+        _, w = jax.jit(model.importance)(key, C["z"].set(-2.0), tr.get_args())
         assert w == 0.0

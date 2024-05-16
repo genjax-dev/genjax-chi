@@ -83,7 +83,7 @@ class DistributionTrace(
         return self.score
 
     def get_sample(self) -> ChoiceMap:
-        return ChoiceMap.v(self.value)
+        return ChoiceMap.value(self.value)
 
 
 ################
@@ -393,7 +393,7 @@ class Distribution(GenerativeFunction):
             EmptyTrace(self),
             -original,
             retdiff,
-            ChoiceMap.v(removed_value),
+            ChoiceMap.value(removed_value),
         )
 
     def update_selection_project(
@@ -403,7 +403,7 @@ class Distribution(GenerativeFunction):
         selection: Selection,
         argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        check, _ = selection.has_addr(())
+        check = () in selection
 
         return self.update(
             key,

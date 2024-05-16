@@ -14,7 +14,7 @@
 
 import genjax
 import jax
-from genjax import ChoiceMap as C
+from genjax import ChoiceMapBuilder as C
 from genjax import EmptyConstraint, MaskedConstraint
 from genjax.incremental import Diff, NoChange, UnknownChange
 
@@ -64,7 +64,7 @@ class TestDistributions:
 
         # No constraint, no change to arguments.
         (new_tr, w, _, _) = genjax.normal.update(
-            sub_key, tr, C.n, (Diff(0.0, NoChange), Diff(1.0, NoChange))
+            sub_key, tr, C.n(), (Diff(0.0, NoChange), Diff(1.0, NoChange))
         )
         assert new_tr.get_sample().get_value() == tr.get_sample().get_value()
         assert (
@@ -91,7 +91,7 @@ class TestDistributions:
         # No constraint, change to arguments.
         key, sub_key = jax.random.split(key)
         (new_tr, w, _, _) = genjax.normal.update(
-            sub_key, tr, C.n, (Diff(1.0, UnknownChange), Diff(1.0, NoChange))
+            sub_key, tr, C.n(), (Diff(1.0, UnknownChange), Diff(1.0, NoChange))
         )
         assert new_tr.get_sample().get_value() == tr.get_sample().get_value()
         assert (

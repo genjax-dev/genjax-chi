@@ -68,7 +68,9 @@ class VmapTrace(Trace):
         return self.gen_fn
 
     def get_sample(self):
-        return jax.vmap(lambda idx, subtrace: ChoiceMap.a(idx, subtrace.get_sample()))(
+        return jax.vmap(
+            lambda idx, subtrace: ChoiceMap.idx(idx, subtrace.get_sample())
+        )(
             jnp.arange(len(self.inner.get_score())),
             self.inner,
         )
@@ -179,11 +181,11 @@ class VmapCombinator(GenerativeFunction):
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
         def _importance(key, idx, choice_map, args):
-            submap = choice_map.get_submap(idx)
+            submap = choice_map(idx)
             tr, w, rd, bwd_problem = self.gen_fn.update(
                 key, EmptyTrace(self.gen_fn), ImportanceProblem(submap), args
             )
-            return tr, w, rd, ChoiceMap.a(idx, bwd_problem)
+            return tr, w, rd, ChoiceMap.idx(idx, bwd_problem)
 
         (tr, w, rd, bwd_problem) = jax.vmap(
             _importance, in_axes=(0, 0, None, self.in_axes)
@@ -208,11 +210,11 @@ class VmapCombinator(GenerativeFunction):
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
         def _update(key, idx, subtrace, argdiffs):
-            subproblem = update_problem.get_submap(idx)
+            subproblem = update_problem(idx)
             new_subtrace, w, retdiff, bwd_problem = self.gen_fn.update(
                 key, subtrace, subproblem, argdiffs
             )
-            return new_subtrace, w, retdiff, ChoiceMap.a(idx, bwd_problem)
+            return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_problem)
 
         new_subtraces, w, retdiff, bwd_problems = jax.vmap(
             _update, in_axes=(0, 0, 0, self.in_axes)
@@ -237,11 +239,11 @@ class VmapCombinator(GenerativeFunction):
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
         def _update(key, idx, subtrace, argdiffs):
-            subproblem = selection.step(idx)
+            subproblem = selection(idx)
             new_subtrace, w, retdiff, bwd_problem = self.gen_fn.update(
                 key, subtrace, subproblem, argdiffs
             )
-            return new_subtrace, w, retdiff, ChoiceMap.a(idx, bwd_problem)
+            return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_problem)
 
         new_subtraces, w, retdiff, bwd_problems = jax.vmap(
             _update, in_axes=(0, 0, 0, self.in_axes)
@@ -283,7 +285,7 @@ class VmapCombinator(GenerativeFunction):
         idx_array = jnp.arange(0, broadcast_dim_length)
 
         def _assess(idx, args):
-            submap = sample.get_submap(idx)
+            submap = sample(idx)
             return self.gen_fn.assess(submap, args)
 
         scores, retvals = jax.vmap(_assess, in_axes=(0, 0, None, self.in_axes))(

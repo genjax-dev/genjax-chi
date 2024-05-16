@@ -1,6 +1,6 @@
 # Journey to the center of `genjax.core`
 
-GenJAX consists of a _core_ set of functionality and datatypes, used to enforce consistent interfaces, build up generative functions, and ensure JAX compatibility. This page describes the set of core datatypes in GenJAX, including the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree]), and the key Gen generative datatypes ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`UpdateSpec`][genjax.core.UpdateSpec]).
+GenJAX consists of a _core_ set of functionality and datatypes, used to enforce consistent interfaces, build up generative functions, and ensure JAX compatibility. This page describes the set of core datatypes in GenJAX, including the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree]), and the key Gen generative datatypes ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`UpdateProblem`][genjax.core.UpdateProblem]).
 
 This page also describes GenJAX's approach to [full JAX compatibility](core.md#we-jax-everything-is-jax-compatible-by-default).
 
@@ -29,9 +29,9 @@ Traces are data structures which record (execution and inference) data about the
 
 ::: genjax.core.Sample
 ::: genjax.core.Constraint
-::: genjax.core.UpdateSpec
+::: genjax.core.UpdateProblem
 
-## Frequently used types of (`Sample`, `Constraint`, `UpdateSpec`)
+## Frequently used types of (`Sample`, `Constraint`, `UpdateProblem`)
 
 ::: genjax.core.ChoiceMap
     options:

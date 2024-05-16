@@ -18,11 +18,10 @@ import genjax
 import jax
 import jax.numpy as jnp
 import pytest
-from genjax import ChoiceMap as C
+from genjax import ChoiceMapBuilder as C
 from genjax import Diff, Pytree
-from genjax.generative_functions.static import AddressReuse, StaticAddressJAX
+from genjax.generative_functions.static import AddressReuse
 from genjax.typing import FloatArray
-from jax._src.interpreters.partial_eval import DynamicJaxprTracer
 
 #############
 # Datatypes #
@@ -203,7 +202,7 @@ class TestStaticGenFnCustomPytree:
     def test_simple_normal_importance(self):
         key = jax.random.PRNGKey(314159)
         init_tree = CustomTree(3.0, 5.0)
-        choice = C.n.at["y1"].set(5.0)
+        choice = C["y1"].set(5.0)
         fn = jax.jit(simple_normal.importance)
         (tr, w) = fn(key, choice, (init_tree,))
         choice = tr.get_sample()
@@ -244,7 +243,7 @@ class TestStaticGenFnImportance:
 
         key = jax.random.PRNGKey(314159)
         fn = simple_normal.importance
-        choice = C.n.at["y1"].set(0.5).at["y2"].set(0.5)
+        choice = C["y1"].set(0.5).at["y2"].set(0.5)
         key, sub_key = jax.random.split(key)
         (out, _) = fn(sub_key, choice, ())
         (_, score_1) = genjax.normal.importance(
@@ -267,7 +266,7 @@ class TestStaticGenFnImportance:
 
         # Full constraints.
         key = jax.random.PRNGKey(314159)
-        choice = C.n.at["y1"].set(0.5).at["y2"].set(0.5)
+        choice = C["y1"].set(0.5).at["y2"].set(0.5)
         (tr, w) = simple_normal.importance(key, choice, ())
         y1 = tr.get_sample()["y1"]
         y2 = tr.get_sample()["y2"]
@@ -284,7 +283,7 @@ class TestStaticGenFnImportance:
         assert w == pytest.approx(test_score, 0.0001)
 
         # Partial constraints.
-        choice = C.n.at["y2"].set(0.5)
+        choice = C["y2"].set(0.5)
         (tr, w) = simple_normal.importance(key, choice, ())
         tr_chm = tr.get_sample()
         y1 = tr_chm.get_submap("y1")
@@ -297,7 +296,7 @@ class TestStaticGenFnImportance:
         assert w == pytest.approx(score_2, 0.0001)
 
         # No constraints.
-        choice = C.n
+        choice = C.n()
         (tr, w) = simple_normal.importance(key, choice, ())
         tr_chm = tr.get_sample()
         y1 = tr_chm.get_submap("y1")
@@ -331,7 +330,7 @@ class TestStaticGenFnUpdate:
         tr = jax.jit(simple_normal.simulate)(sub_key, ())
         jitted = jax.jit(simple_normal.update)
 
-        new = C.n.at["y1"].set(2.0)
+        new = C["y1"].set(2.0)
         original_choice = tr.get_sample()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
@@ -350,7 +349,7 @@ class TestStaticGenFnUpdate:
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-        new = C.n.at["y1"].set(2.0).at["y2"].set(3.0)
+        new = C["y1"].set(2.0).at["y2"].set(3.0)
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
@@ -376,7 +375,7 @@ class TestStaticGenFnUpdate:
         tr = jax.jit(simple_linked_normal.simulate)(sub_key, ())
         jitted = jax.jit(simple_linked_normal.update)
 
-        new = C.n.at["y1"].set(2.0)
+        new = C["y1"].set(2.0)
         original_choice = tr.get_sample()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
@@ -411,7 +410,7 @@ class TestStaticGenFnUpdate:
         tr = jax.jit(simple_hierarchical_normal.simulate)(sub_key, ())
         jitted = jax.jit(simple_hierarchical_normal.update)
 
-        new = C.n.at["y1"].set(2.0)
+        new = C["y1"].set(2.0)
         original_choice = tr.get_sample()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
@@ -448,7 +447,7 @@ class TestStaticGenFnUpdate:
         old_y2 = tr.get_sample()["y2"]
         old_y3 = tr.get_sample()["y3"]
         new_y1 = 2.0
-        new = C.n.at["y1"].set(new_y1)
+        new = C["y1"].set(new_y1)
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = jitted(sub_key, tr, new, ())
 
@@ -472,7 +471,7 @@ class TestStaticGenFnUpdate:
 
         # TestStaticGenFn composition of update calls.
         new_y3 = 2.0
-        new = C.n.at["y3"].set(new_y3)
+        new = C["y3"].set(new_y3)
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = jitted(sub_key, updated, new, ())
         assert updated.get_sample()["y3"] == 2.0
@@ -501,7 +500,7 @@ class TestStaticGenFnUpdate:
         )
         jitted = jax.jit(simple_linked_normal_with_tree_argument.update)
         new_y1 = 2.0
-        constraints = C.n.at["y1"].set(new_y1)
+        constraints = C["y1"].set(new_y1)
         key, sub_key = jax.random.split(key)
         (updated, _w, _, _) = jitted(
             sub_key, tr, constraints, (Diff.tree_diff_no_change(init_tree),)
@@ -531,7 +530,7 @@ class TestStaticGenFnStaticAddressChecks:
         key = jax.random.PRNGKey(314159)
         with pytest.raises(AddressReuse) as exc_info:
             _ = simple_normal_addr_dup.simulate(key, ())
-        assert exc_info.value.args == ("y1",)
+        assert exc_info.value.args[0] == ("y1",)
 
     def test_simple_normal_addr_tracer(self):
         @genjax.gen
@@ -541,9 +540,8 @@ class TestStaticGenFnStaticAddressChecks:
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
-        with pytest.raises(StaticAddressJAX) as exc_info:
+        with pytest.raises(TypeError) as _:
             _ = simple_normal_addr_tracer.simulate(key, ())
-        assert isinstance(exc_info.value.args[0], DynamicJaxprTracer)
 
 
 class TestStaticGenFnForwardRef:
@@ -589,12 +587,12 @@ class TestStaticGenFnInline:
         key, sub_key = jax.random.split(key)
         tr = jax.jit(higher_model.simulate)(sub_key, ())
         choices = tr.get_sample()
-        assert choices.has_submap("y1")
-        assert choices.has_submap("y2")
+        assert "y1" in choices
+        assert "y2" in choices
         tr = jax.jit(higher_higher_model.simulate)(key, ())
         choices = tr.get_sample()
-        assert choices.has_submap("y1")
-        assert choices.has_submap("y2")
+        assert "y1" in choices
+        assert "y2" in choices
 
     def test_inline_importance(self):
         @genjax.gen
@@ -614,7 +612,7 @@ class TestStaticGenFnInline:
             return y
 
         key = jax.random.PRNGKey(314159)
-        choice = C.n.at["y1"].set(3.0)
+        choice = C["y1"].set(3.0)
         key, sub_key = jax.random.split(key)
         (tr, w) = jax.jit(higher_model.importance)(sub_key, choice, ())
         choices = tr.get_sample()
@@ -642,7 +640,7 @@ class TestStaticGenFnInline:
 
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        choice = C.n.at["y1"].set(3.0)
+        choice = C["y1"].set(3.0)
         tr = jax.jit(higher_model.simulate)(sub_key, ())
         old_value = tr.get_sample().get_submap("y1")
         key, sub_key = jax.random.split(key)
@@ -682,7 +680,7 @@ class TestStaticGenFnInline:
             return y
 
         _key = jax.random.PRNGKey(314159)
-        choice = C.n.at["y1"].set(3.0).at["y2"].set(3.0)
+        choice = C["y1"].set(3.0).at["y2"].set(3.0)
         (score, _ret) = jax.jit(higher_model.assess)(choice, ())
         assert (
             score

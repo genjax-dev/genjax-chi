@@ -24,6 +24,7 @@ from genjax._src.core.generative import (
     Address,
     Argdiffs,
     ChoiceMap,
+    ChoiceMapBuilder,
     EmptyProblem,
     EmptyTrace,
     GenerativeFunction,
@@ -32,6 +33,8 @@ from genjax._src.core.generative import (
     Sample,
     Score,
     Selection,
+    StaticAddress,
+    StaticAddressComponent,
     Trace,
     UpdateProblem,
     Weight,
@@ -57,7 +60,6 @@ from genjax._src.core.typing import (
     List,
     PRNGKey,
     Tuple,
-    static_check_is_concrete,
     typecheck,
 )
 
@@ -67,9 +69,10 @@ register_exclusion(__file__)
 # Usage in transforms: checks for duplicate addresses.
 @Pytree.dataclass
 class AddressVisitor(Pytree):
-    visited: List = Pytree.static(default_factory=list)
+    visited: List[StaticAddress] = Pytree.static(default_factory=list)
 
-    def visit(self, addr):
+    @typecheck
+    def visit(self, addr: StaticAddress):
         if addr in self.visited:
             raise AddressReuse(addr)
         else:
@@ -104,22 +107,20 @@ class StaticTrace(Trace):
 
     def get_sample(self) -> ChoiceMap:
         addresses = self.addresses.get_visited()
-        chm = ChoiceMap.n
+        chm = ChoiceMap.empty()
         for addr, subtrace in zip(addresses, self.subtraces):
-            chm = chm ^ ChoiceMap.a(addr, subtrace.get_sample())
+            chm = chm ^ ChoiceMapBuilder.a(addr, subtrace.get_sample())
 
         return chm
 
     def get_score(self) -> Score:
         return self.score
 
-    def get_subtrace(self, addr: Address):
+    @typecheck
+    def get_subtrace(self, addr: StaticAddress):
         addresses = self.addresses.get_visited()
         idx = addresses.index(addr)
         return self.subtraces[idx]
-
-    def create_update_problem(self, addr, v) -> UpdateProblem:
-        return ChoiceMap.a(addr, v)
 
 
 ##############################
@@ -135,28 +136,12 @@ class AddressReuse(Exception):
     """
 
 
-class StaticAddressJAX(Exception):
-    """Static addresses must not contain JAX traced values."""
-
-
 ##############
 # Primitives #
 ##############
 
 # Generative function trace intrinsic.
 trace_p = InitialStylePrimitive("trace")
-
-
-##################
-# Address checks #
-##################
-
-
-# Usage in intrinsics: ensure that addresses do not contain JAX traced values.
-def static_check_address_type(addr):
-    check = all(jtu.tree_leaves(jtu.tree_map(static_check_is_concrete, addr)))
-    if not check:
-        raise StaticAddressJAX(addr)
 
 
 ############################################################
@@ -177,7 +162,7 @@ def _abstract_gen_fn_call(
 
 @typecheck
 def trace(
-    addr: Address,
+    addr: StaticAddress,
     gen_fn: GenerativeFunction,
     args: Tuple,
 ):
@@ -188,7 +173,6 @@ def trace(
         addr: An address denoting the site of a generative function invocation.
         gen_fn: A generative function invoked as a callee of `StaticGenerativeFunction`.
     """
-    static_check_address_type(addr)
     addr = Pytree.tree_const(addr)
     return initial_style_bind(trace_p)(_abstract_gen_fn_call)(
         addr,
@@ -215,7 +199,7 @@ class StaticHandler(StatefulHandler):
     @abstractmethod
     def handle_trace(
         self,
-        addr: Address,
+        addr: StaticAddress,
         gen_fn: GenerativeFunction,
         args: Tuple,
     ):
@@ -268,7 +252,7 @@ class SimulateHandler(StaticHandler):
     @typecheck
     def handle_trace(
         self,
-        addr: Address,
+        addr: StaticAddress,
         gen_fn: GenerativeFunction,
         args: Tuple,
     ):
@@ -331,16 +315,17 @@ class UpdateHandler(StaticHandler):
     def visit(self, addr):
         self.address_visitor.visit(addr)
 
-    def get_subproblem(self, addr: Address):
+    @typecheck
+    def get_subproblem(self, addr: StaticAddress):
         match self.fwd_problem:
             case ChoiceMap():
-                return self.fwd_problem.get_submap(addr)
+                return self.fwd_problem(addr)
 
             case ImportanceProblem(constraint) if isinstance(constraint, ChoiceMap):
-                return ImportanceProblem(constraint.get_submap(addr))
+                return ImportanceProblem(constraint(addr))
 
             case Selection():
-                subproblem = self.fwd_problem.step(addr)
+                subproblem = self.fwd_problem(addr)
                 return subproblem
 
             case EmptyProblem():
@@ -349,7 +334,7 @@ class UpdateHandler(StaticHandler):
             case _:
                 raise ValueError(f"Not implemented fwd_problem: {self.fwd_problem}")
 
-    def get_subtrace(self, sub_gen_fn: GenerativeFunction, addr: Address):
+    def get_subtrace(self, sub_gen_fn: GenerativeFunction, addr: StaticAddress):
         if isinstance(self.previous_trace, EmptyTrace):
             return EmptyTrace(sub_gen_fn)
         else:
@@ -361,7 +346,7 @@ class UpdateHandler(StaticHandler):
     @typecheck
     def handle_trace(
         self,
-        addr: Address,
+        addr: StaticAddress,
         gen_fn: GenerativeFunction,
         args: Tuple,
     ):
@@ -433,10 +418,11 @@ class AssessHandler(StaticHandler):
     def yield_state(self):
         return (self.score,)
 
-    def get_subsample(self, addr: Address):
+    @typecheck
+    def get_subsample(self, addr: StaticAddress):
         match self.sample:
             case ChoiceMap():
-                return self.sample.get_submap(addr)
+                return self.sample(addr)
 
             case _:
                 raise ValueError(f"Not implemented: {self.sample}")
@@ -444,7 +430,7 @@ class AssessHandler(StaticHandler):
     @typecheck
     def handle_trace(
         self,
-        addr: Address,
+        addr: StaticAddress,
         gen_fn: GenerativeFunction,
         args: Tuple,
     ):
@@ -473,11 +459,11 @@ def assess_transform(source_fn):
 # Callee syntactic sugar handler.
 @typecheck
 def handler_trace_with_static(
-    addr: Address,
+    addr: StaticAddressComponent | StaticAddress,
     gen_fn: GenerativeFunction,
     args: Tuple,
 ):
-    return trace(addr, gen_fn, args)
+    return trace(addr if isinstance(addr, tuple) else (addr,), gen_fn, args)
 
 
 @Pytree.dataclass
@@ -575,9 +561,9 @@ class StaticGenerativeFunction(GenerativeFunction):
         def make_bwd_problem(visitor, subproblems):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_unwrap_const(addresses)
-            chm = ChoiceMap.n
+            chm = ChoiceMap.empty()
             for addr, subproblem in zip(addresses, subproblems):
-                chm = chm ^ ChoiceMap.a(addr, subproblem)
+                chm = chm ^ ChoiceMapBuilder.a(addr, subproblem)
             return chm
 
         bwd_problem = make_bwd_problem(address_visitor, bwd_problems)
@@ -632,7 +618,6 @@ def gen(f: Callable) -> GenerativeFunction:
 
 __all__ = [
     "AddressReuse",
-    "StaticAddressJAX",
     "StaticGenerativeFunction",
     "gen",
     "trace",
