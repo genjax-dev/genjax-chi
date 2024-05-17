@@ -54,7 +54,7 @@ class Target(Pytree):
     Examples:
         ```python exec="yes" html="true" source="material-block" session="core"
         import genjax
-        from genjax import ChoiceMap as C
+        from genjax import ChoiceMapBuilder as C
         from genjax.inference import Target
 
         @genjax.gen
@@ -63,7 +63,7 @@ class Target(Pytree):
             y = genjax.normal(x, 1.0) @ "y"
             return x
 
-        target = Target(model, (), C.n.at["y"].set(3.0))
+        target = Target(model, (), C["y"].set(3.0))
         print(target.render_html())
         ```
     """

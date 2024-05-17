@@ -401,7 +401,9 @@ class GenerativeFunction(Pytree):
         Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
             import genjax
+            from jax import vmap, jit
             from jax.random import PRNGKey
+            from jax.random import split
 
             @genjax.gen
             def model():
@@ -428,9 +430,9 @@ class GenerativeFunction(Pytree):
             (**Fun, flirty, fast ... parallel?**) Feel free to use `jax.jit` and `jax.vmap`!
             ```python exec="yes" html="true" source="material-block" session="core"
             key = PRNGKey(0)
-            sub_keys = jax.random.split(key, 10)
+            sub_keys = split(key, 10)
             sim = model.repeat(num_repeats=10).simulate
-            tr = jax.jit(jax.vmap(sim, in_axes=(0, None)))(sub_keys, ())
+            tr = jit(vmap(sim, in_axes=(0, None)))(sub_keys, ())
             print(tr.render_html())
             ```
 

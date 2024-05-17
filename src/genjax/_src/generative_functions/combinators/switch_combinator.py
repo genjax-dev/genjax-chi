@@ -135,9 +135,6 @@ class SwitchCombinator(GenerativeFunction):
         import jax
         import genjax
 
-        console = genjax.console()
-
-
         @genjax.gen
         def branch_1():
             x = genjax.normal(0.0, 1.0) @ "x1"
@@ -156,10 +153,10 @@ class SwitchCombinator(GenerativeFunction):
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
-        _ = jitted(key, (0,))
-        tr = jitted(key, (1,))
+        _ = jitted(key, (0, (), ()))
+        tr = jitted(key, (1, (), ()))
 
-        print(console.render(tr))
+        print(tr.render_html())
         ```
     """
 

@@ -471,7 +471,8 @@ class ChoiceMap(Sample, Constraint):
             ```python exec="yes" source="material-block" session="core"
             import jax
             import genjax
-            from genjax import bernoulli, Selection
+            from genjax import bernoulli
+            from genjax import SelectionBuilder as S
 
             @genjax.gen
             def model():
@@ -482,7 +483,7 @@ class ChoiceMap(Sample, Constraint):
             key = jax.random.PRNGKey(314159)
             tr = model.simulate(key, ())
             chm = tr.get_sample()
-            selection = Selection.at["x"]
+            selection = S["x"]
             filtered = chm.filter(selection)
             print("y" in filtered)
             ```
