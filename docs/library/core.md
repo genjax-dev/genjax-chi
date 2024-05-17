@@ -31,7 +31,11 @@ Traces are data structures which record (execution and inference) data about the
 ::: genjax.core.Constraint
 ::: genjax.core.UpdateProblem
 
-## Frequently used types of (`Sample`, `Constraint`, `UpdateProblem`)
+## Generative functions with addressed random choices
+
+Generative functions will often include _addressed_ random choices. These are random choices which are given a name via an addressing syntax, and can be accessed by name via extended interfaces on the `Sample` type which supports the addressing.
+
+The standard `Sample` type for this type of generative function is the `ChoiceMap` type.
 
 ::: genjax.core.ChoiceMap
     options:

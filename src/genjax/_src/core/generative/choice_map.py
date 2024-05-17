@@ -94,6 +94,47 @@ SelectionBuilder = _SelectionBuilder()
 
 @Pytree.dataclass
 class Selection(ProjectProblem):
+    """
+    The type `Selection` provides a lens-like interface for filtering the random choices in a `ChoiceMap`.
+
+    Examples:
+        (**Making selections**) Selections can be constructed using the `SelectionBuilder` interface
+        ```python exec="yes" source="material-block" session="core"
+        from genjax import SelectionBuilder as S
+        sel = S["x", "y"]
+        print(sel.render_html())
+        ```
+
+        (**Getting subselections**) Hierarchical selections support `__call__`, which allows for the retrieval of _subselections_ at addresses:
+        ```python exec="yes" source="material-block" session="core"
+        sel = S["x", "y"]
+        subsel = sel("x")
+        print(subsel.render_html())
+        ```
+
+        (**Check for inclusion**) Selections support `__getitem__`, which provides a way to check if an address is included in the selection:
+        ```python exec="yes" source="material-block" session="core"
+        sel = S["x", "y"]
+        not_included = sel["x"]
+        included = sel["x", "y"]
+        print(not_included, included)
+        ```
+
+        (**Complement selections**) Selections can be complemented:
+        ```python exec="yes" source="material-block" session="core"
+        sel = ~S["x", "y"]
+        included = sel["x"]
+        not_included = sel["x", "y"]
+        print(included, not_included)
+        ```
+
+        (**Combining selections**) Selections can be combined, via the `|` syntax:
+        ```python exec="yes" source="material-block" session="core"
+        sel = S["x", "y"] | S["z"]
+        print(sel["x", "y"], sel["z", "y"])
+        ```
+    """
+
     selection_function: "SelectionFunction"
 
     def __or__(self, other: "Selection") -> "Selection":
@@ -439,11 +480,40 @@ def check_none(v):
 @Pytree.dataclass
 class ChoiceMap(Sample, Constraint):
     """
-    The type `ChoiceMap` denotes a map-like value which can be sampled from a generative function.
+    The type `ChoiceMap` denotes a map-like value which can be sampled from generative functions.
 
-    Generative functions which utilize map-like representations often support a notion of _addressing_,
-    allowing the invocation of generative function callees, whose choices become addressed random choices
-    in the caller's choice map.
+    Generative functions which utilize `ChoiceMap` as their sample representation typically support a notion of _addressing_ for the random choices they make. `ChoiceMap` stores addressed random choices, and provides a data language for querying and manipulating these choices.
+
+    Examples:
+        (**Making choice maps**) Choice maps can be constructed using the `ChoiceMapBuilder` interface
+        ```python exec="yes" source="material-block" session="core"
+        from genjax import ChoiceMapBuilder as C
+        chm = C["x"].set(3.0)
+        print(chm.render_html())
+        ```
+
+        (**Getting submaps**) Hierarchical choice maps support `__call__`, which allows for the retrieval of _submaps_ at addresses:
+        ```python exec="yes" source="material-block" session="core"
+        from genjax import ChoiceMapBuilder as C
+        chm = C["x", "y"].set(3.0)
+        submap = chm("x")
+        print(submap.render_html())
+        ```
+
+        (**Getting values**) Choice maps support `__getitem__`, which allows for the retrieval of _values_ at addresses:
+        ```python exec="yes" source="material-block" session="core"
+        from genjax import ChoiceMapBuilder as C
+        chm = C["x", "y"].set(3.0)
+        value = chm["x", "y"]
+        print(value)
+        ```
+
+        (**Making vectorized choice maps**) Choice maps can be constructed using `jax.vmap`:
+        ```python exec="yes" source="material-block" session="core"
+        from genjax import ChoiceMapBuilder as C
+        vec_chm = jax.vmap(lambda idx, v: C["x", idx].set(v))(jnp.arange(10), jnp.ones(10))
+        print(vec_chm.render_html())
+        ```
     """
 
     choice_map_fn: "ChoiceMapFunction"
@@ -635,6 +705,17 @@ class ChoiceMap(Sample, Constraint):
 
     @property
     def at(self) -> AddressIndex:
+        """
+        Access the `ChoiceMap.AddressIndex` mutation interface. This allows users to take an existing choice map, and mutate it _functionally_.
+
+        Examples:
+        ```python exec="yes" source="material-block" session="core"
+        chm = C["x", "y"].set(3.0)
+        chm = chm.at["x", "y"].set(4.0)
+        print(chm["x", "y"])
+        ```
+
+        """
         return ChoiceMap.AddressIndex(self, [])
 
 
