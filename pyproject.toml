@@ -73,6 +73,7 @@ mkdocs-git-committers-plugin-2 = "^1.1.1"
 markdown-exec = {version="^1.6.0", extras=["ansi"]}
 mkdocs-material = { git = "git@github.com:probcomp/mkdocs-material-insiders.git" }
 mkdocstrings-python = { git = "git@github.com:probcomp/mkdocstrings-python.git" }
+black = "^24.4.2"
 
 [tool.poetry.extras]
 msgpack = ["msgpack"]
