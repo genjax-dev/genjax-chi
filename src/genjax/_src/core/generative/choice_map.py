@@ -511,7 +511,10 @@ class ChoiceMap(Sample, Constraint):
         (**Making vectorized choice maps**) Choice maps can be constructed using `jax.vmap`:
         ```python exec="yes" source="material-block" session="core"
         from genjax import ChoiceMapBuilder as C
-        vec_chm = jax.vmap(lambda idx, v: C["x", idx].set(v))(jnp.arange(10), jnp.ones(10))
+        from jax import vmap
+        import jax.numpy as jnp
+
+        vec_chm = vmap(lambda idx, v: C["x", idx].set(v))(jnp.arange(10), jnp.ones(10))
         print(vec_chm.render_html())
         ```
     """
