@@ -852,7 +852,7 @@ class FilteredChmFn(ChoiceMapFunction):
 
     def get_value(self) -> Optional[Any]:
         v = self.c.get_value()
-        sel_check = () in self.selection
+        sel_check = self.selection[()]
         return Mask.maybe(sel_check, v)
 
     def get_submap(self, addr: AddressComponent) -> ChoiceMap:

@@ -18,8 +18,10 @@ book:
     style: 'floating'
   chapters:
     - index.ipynb
+    - jax_primer.ipynb
     - intro.ipynb
-    - inference_libraries.ipynb
+    # - combinators.ipynb
+    # - inference_libraries.ipynb
 
 bibliography: references.bib
 
@@ -27,7 +29,7 @@ format:
   html:
     css: custom.css
     theme: cosmo
-    title-block-banner: true
+    title-block-banner: false
     code-copy: true
     cold-fold: false
     code-overflow: wrap

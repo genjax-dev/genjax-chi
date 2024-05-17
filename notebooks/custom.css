@@ -56,6 +56,10 @@ div.treescope_root {
   margin-bottom: 10px;
 }
 
+div.quarto-title-banner {
+  background: #F5F5F5;
+}
+
 .sidebar-title {
   display: none;
 }

@@ -119,7 +119,7 @@ class ParticleCollection(Pytree):
         """
         log_weights = self.get_log_weights()
         logits = log_weights - logsumexp(log_weights)
-        idx = categorical.sample(key, logits)
+        _, idx = categorical.random_weighted(key, logits)
         return self.get_particle(idx)
 
 
