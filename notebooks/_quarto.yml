@@ -19,7 +19,7 @@ book:
   chapters:
     - index.ipynb
     # - jax_primer.ipynb
-    - intro.ipynb
+    - active/intro.ipynb
     # - combinators.ipynb
     # - inference_libraries.ipynb
 

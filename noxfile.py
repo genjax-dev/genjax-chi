@@ -150,7 +150,7 @@ def nbmake(session) -> None:
         "-n",
         "auto",
         "--nbmake",
-        "notebooks",
+        "notebooks/active",
     )
 
 
