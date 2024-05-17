@@ -4,7 +4,6 @@ project:
 
 book:
   title: "The GenJAX cookbook"
-  author: "The GenJAX authors"
   favicon: small_logo.png
   image: small_logo.png
   repo-url: https://github.com/probcomp/genjax/
@@ -29,7 +28,7 @@ format:
   html:
     css: custom.css
     theme: cosmo
-    title-block-banner: false
+    title-block-banner: true
     code-copy: true
     cold-fold: false
     code-overflow: wrap

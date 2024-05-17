@@ -411,7 +411,10 @@ class _ChoiceMapBuilder(Pytree):
         return ChoiceMap.kw(**kwargs)
 
     @typecheck
-    def a(self, addr: ExtendedAddress, v: Any) -> "ChoiceMap":
+    def a(
+        self, addr: ExtendedAddressComponent | ExtendedAddress, v: Any
+    ) -> "ChoiceMap":
+        addr = addr if isinstance(addr, tuple) else (addr,)
         new = ChoiceMap.value(v) if not isinstance(v, ChoiceMap) else v
         for comp in reversed(addr):
             if isinstance(comp, ExtendedStaticAddressComponent):
