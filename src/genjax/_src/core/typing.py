@@ -21,17 +21,18 @@ from typing import Annotated  # noqa: F401, I001
 from types import EllipsisType
 
 import beartype.typing as btyping
-import jax
+from jax import core as jc
 import jax.numpy as jnp
 import jaxtyping as jtyping
 import numpy as np
 from beartype import BeartypeConf, beartype
 from beartype.vale import Is
-from plum import dispatch, parametric
+
+from genjax._src.core.traceback_util import register_exclusion
+
+register_exclusion(__file__)
 
 Any = btyping.Any
-Dataclass = btyping.Any
-PrettyPrintable = btyping.Any
 PRNGKey = jtyping.PRNGKeyArray
 Array = jtyping.Array
 ArrayLike = jtyping.ArrayLike
@@ -44,13 +45,8 @@ Sequence = btyping.Sequence
 Tuple = btyping.Tuple
 Dict = btyping.Dict
 List = btyping.List
-Iterable = btyping.Iterable
-Generator = btyping.Generator
-Hashable = btyping.Hashable
-FrozenSet = btyping.FrozenSet
 Optional = btyping.Optional
 Type = btyping.Type
-Protocol = btyping.Protocol
 
 
 # Types of Python literals.
@@ -59,18 +55,6 @@ Float = float
 Bool = bool
 String = str
 
-StaticAddressComponent = String
-DynamicAddressComponent = ArrayLike
-AddressComponent = Union[
-    Tuple[()],
-    EllipsisType,
-    StaticAddressComponent,
-    DynamicAddressComponent,
-]
-Address = Union[
-    AddressComponent,
-    Tuple[AddressComponent, ...],
-]
 Value = Any
 
 ############
@@ -85,9 +69,10 @@ TypeVar = btyping.TypeVar
 ########################################
 
 conf = BeartypeConf(
-    is_color=False,
+    is_color=True,
     is_debug=False,
     is_pep484_tower=True,
+    violation_type=TypeError,
 )
 typecheck = beartype(conf=conf)
 
@@ -101,12 +86,16 @@ def static_check_is_array(v):
     return (
         isinstance(v, jnp.ndarray)
         or isinstance(v, np.ndarray)
-        or isinstance(v, jax.core.Tracer)
+        or isinstance(v, jc.Tracer)
     )
 
 
 def static_check_is_concrete(x):
-    return not isinstance(x, jax.core.Tracer)
+    return not isinstance(x, jc.Tracer)
+
+
+def static_check_bool(x):
+    return static_check_is_concrete(x) and isinstance(x, Bool)
 
 
 # TODO: the dtype comparison needs to be replaced with something
@@ -115,40 +104,40 @@ def static_check_supports_grad(v):
     return static_check_is_array(v) and v.dtype == np.float32
 
 
+@typecheck
+def static_check_shape_dtype_equivalence(vs: List[ArrayLike]) -> Bool:
+    shape_dtypes = [(v.shape, v.dtype) for v in vs]
+    num_unique = set(shape_dtypes)
+    return len(num_unique) == 1
+
+
 __all__ = [
-    "PrettyPrintable",
-    "Dataclass",
-    "PRNGKey",
-    "FloatArray",
-    "BoolArray",
-    "IntArray",
-    "Value",
-    "Tuple",
+    "Annotated",
+    "Any",
     "Array",
     "ArrayLike",
-    "Any",
-    "Union",
-    "Callable",
-    "Sequence",
-    "Dict",
-    "List",
-    "Int",
     "Bool",
+    "BoolArray",
+    "Callable",
+    "Dict",
+    "EllipsisType",
     "Float",
-    "Generator",
-    "Iterable",
-    "Type",
+    "FloatArray",
     "Generic",
-    "TypeVar",
-    "static_check_is_concrete",
-    "static_check_is_array",
-    "static_check_supports_grad",
-    "StaticAddressComponent",
-    "DynamicAddressComponent",
-    "Address",
-    "typecheck",
-    "dispatch",
-    "parametric",
+    "Int",
+    "IntArray",
     "Is",
-    "Annotated",
+    "List",
+    "PRNGKey",
+    "Sequence",
+    "Tuple",
+    "Type",
+    "TypeVar",
+    "Union",
+    "Value",
+    "static_check_is_array",
+    "static_check_is_concrete",
+    "static_check_shape_dtype_equivalence",
+    "static_check_supports_grad",
+    "typecheck",
 ]

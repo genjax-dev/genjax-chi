@@ -12,15 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import abstractmethod
 
+import jax
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.adev.core import (
     ADEVPrimitive,
     expectation,
-    reap_key,
     sample_primitive,
 )
 from genjax._src.adev.primitives import (
@@ -32,8 +31,7 @@ from genjax._src.adev.primitives import (
     normal_reinforce,
     normal_reparam,
 )
-from genjax._src.core.datatypes.generative import JAXGenerativeFunction
-from genjax._src.core.pytree import Pytree
+from genjax._src.core.generative import ChoiceMap
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -41,16 +39,18 @@ from genjax._src.core.typing import (
     Int,
     PRNGKey,
     Tuple,
+    typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import (
-    ExactDensity,
+    exact_density,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    flip,
     geometric,
     normal,
 )
-from genjax._src.inference.core import ChoiceDistribution, Target
 from genjax._src.inference.smc import Importance, ImportanceK
+from genjax._src.inference.sp import SampleDistribution, Target
 
 tfd = tfp.distributions
 
@@ -60,90 +60,66 @@ tfd = tfp.distributions
 ##########################################
 
 
-class ADEVDistribution(JAXGenerativeFunction, ExactDensity):
-    """The class `ADEVDistribution` is a distribution wrapper class which exposes `sample` and
-    `logpdf` interfaces, where `sample` is expected to utilize an ADEV differentiable sampling
-    primitive, and `logpdf` is a differentiable logpdf function.
+@typecheck
+def adev_distribution(
+    adev_primitive: ADEVPrimitive,
+    differentiable_logpdf: Callable,
+):
+    def sampler(key: PRNGKey, *args: Any) -> Any:
+        return sample_primitive(adev_primitive, *args, key=key)
 
-    Given a `prim: ADEVPrimitive`, a user can readily construct an `ADEVDistribution`:
-
-    ```python exec="yes" source="tabbed-left"
-    import genjax
-    from genjax.adev import flip_enum
-    from genjax.inference.vi import ADEVDistribution
-
-    console = genjax.console()
-
-    flip_enum = ADEVDistribution(
-        flip_enum, lambda v, p: tfd.Bernoulli(probs=p).log_prob(v)
-    )
-    print(console.render(flip_enum))
-    ```
-
-    These objects can then be utilized in guide programs, and support unbiased gradient estimator automation via ADEV's gradient transformations.
-    ```
-    """
-
-    adev_primitive: ADEVPrimitive
-    differentiable_logpdf: Callable = Pytree.static()
-
-    def sample(
-        self,
-        key: PRNGKey,
-        *args: Any,
-    ) -> Any:
-        return sample_primitive(self.adev_primitive, key, *args)
-
-    def logpdf(
-        self,
-        v: Any,
-        *args: Any,
-    ) -> FloatArray:
-        lp = self.differentiable_logpdf(v, *args)
+    def logpdf(v: Any, *args: Any) -> FloatArray:
+        lp = differentiable_logpdf(v, *args)
         # Branching here is statically resolved.
         if lp.shape:
             return jnp.sum(lp)
         else:
             return lp
 
+    return exact_density(sampler, logpdf)
+
+
+def logpdf(gen_fn):
+    return lambda v, *args: gen_fn.assess(ChoiceMap.value(v), args)[0]
+
 
 # We import ADEV specific sampling primitives, but then wrap them in
-# ADEVDistribution, for usage inside of generative functions.
-flip_enum = ADEVDistribution(
+# adev_distribution, for usage inside of generative functions.
+flip_enum = adev_distribution(
     flip_enum,
-    lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
+    logpdf(flip),
 )
 
-flip_mvd = ADEVDistribution(
+flip_mvd = adev_distribution(
     flip_mvd,
-    lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
+    logpdf(flip),
 )
 
-categorical_enum = ADEVDistribution(
+categorical_enum = adev_distribution(
     categorical_enum_parallel,
     lambda v, probs: tfd.Categorical(probs=probs).log_prob(v),
 )
 
-normal_reinforce = ADEVDistribution(
+normal_reinforce = adev_distribution(
     normal_reinforce,
-    normal.logpdf,
+    logpdf(normal),
 )
 
-normal_reparam = ADEVDistribution(
+normal_reparam = adev_distribution(
     normal_reparam,
-    normal.logpdf,
+    logpdf(normal),
 )
 
-mv_normal_diag_reparam = ADEVDistribution(
+mv_normal_diag_reparam = adev_distribution(
     mv_normal_diag_reparam,
     lambda v, loc, scale_diag: tfd.MultivariateNormalDiag(
         loc=loc, scale_diag=scale_diag
     ).log_prob(v),
 )
 
-geometric_reinforce = ADEVDistribution(
+geometric_reinforce = adev_distribution(
     geometric_reinforce,
-    lambda v, *args: geometric.logpdf(v, *args),
+    logpdf(geometric),
 )
 
 
@@ -152,59 +128,91 @@ geometric_reinforce = ADEVDistribution(
 ##############
 
 
-class ExpectedValueLoss(Pytree):
-    """Base class for expected value loss functions.
-
-    Exposes a `grad_estimate` interface, which takes a PRNGKey and a tuple of arguments (which are allowed to be `Pytree` instances), and returns a tuple of gradient estimates (a tuple, with values which are the same shape as the primal `Pytree` instances).
-    """
-
-    @abstractmethod
+def ELBO(
+    guide: SampleDistribution,
+    make_target: Callable[[Any], Target],
+):
     def grad_estimate(
-        self,
-        key: PRNGKey,
-        args: Tuple,
-    ) -> Tuple:
-        pass
-
-
-class ELBO(ExpectedValueLoss):
-    guide: ChoiceDistribution
-    make_target: Callable[[Any], Target] = Pytree.static()
-
-    def grad_estimate(
-        self,
         key: PRNGKey,
         args: Tuple,
     ) -> Tuple:
         # In the source language of ADEV.
         @expectation
         def _loss(*target_args):
-            target = self.make_target(*target_args)
-            guide = Importance(target, self.guide)
-            key = reap_key()
-            w = guide.estimate_normalizing_constant(key, target)
+            target = make_target(*target_args)
+            guide_alg = Importance(target, guide)
+            w = guide_alg.estimate_normalizing_constant(key, target)
             return -w
 
         return _loss.grad_estimate(key, args)
 
+    return grad_estimate
 
-class IWELBO(ExpectedValueLoss):
-    proposal: ChoiceDistribution
-    make_target: Callable[[Any], Target] = Pytree.static()
-    N: Int = Pytree.static()
 
+def IWELBO(
+    proposal: SampleDistribution,
+    make_target: Callable[[Any], Target],
+    N: Int,
+):
     def grad_estimate(
-        self,
         key: PRNGKey,
         args: Tuple,
     ) -> Tuple:
         # In the source language of ADEV.
         @expectation
         def _loss(*target_args):
-            target = self.make_target(*target_args)
-            guide = ImportanceK(target, self.proposal, self.N)
-            key = reap_key()
+            target = make_target(*target_args)
+            guide = ImportanceK(target, proposal, N)
             w = guide.estimate_normalizing_constant(key, target)
             return -w
 
         return _loss.grad_estimate(key, args)
+
+    return grad_estimate
+
+
+def PWake(
+    posterior_approx: SampleDistribution,
+    make_target: Callable[[Any], Target],
+):
+    def grad_estimate(
+        key: PRNGKey,
+        args: Tuple,
+    ) -> Tuple:
+        key, sub_key1, sub_key2 = jax.random.split(key, 3)
+
+        # In the source language of ADEV.
+        @expectation
+        def _loss(*target_args):
+            target = make_target(*target_args)
+            _, sample = posterior_approx.random_weighted(sub_key1, target)
+            tr, _ = target.importance(sub_key2, sample)
+            return -tr.get_score()
+
+        return _loss.grad_estimate(key, args)
+
+    return grad_estimate
+
+
+def QWake(
+    proposal: SampleDistribution,
+    posterior_approx: SampleDistribution,
+    make_target: Callable[[Any], Target],
+):
+    def grad_estimate(
+        key: PRNGKey,
+        args: Tuple,
+    ) -> Tuple:
+        key, sub_key1, sub_key2 = jax.random.split(key, 3)
+
+        # In the source language of ADEV.
+        @expectation
+        def _loss(*target_args):
+            target = make_target(*target_args)
+            _, sample = posterior_approx.random_weighted(sub_key1, target)
+            w = proposal.estimate_logpdf(sub_key2, sample, target)
+            return -w
+
+        return _loss.grad_estimate(key, args)
+
+    return grad_estimate

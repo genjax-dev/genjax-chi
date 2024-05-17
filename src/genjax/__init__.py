@@ -20,17 +20,13 @@ JAX."""
 
 from importlib import metadata
 
-# Closed modules.
-from genjax import adev  # noqa: F401
-
-from .console import *
+from .checkify import *
 from .core import *
 from .experimental import *
-from .extras import *
 from .generative_functions import *
 from .incremental import *
 from .inference import *
 from .information import *
-from .shortcuts import *
+from .pretty import *
 
 __version__ = metadata.version("genjax")

@@ -13,19 +13,30 @@
 # limitations under the License.
 
 
+import jax
 import jax.numpy as jnp
 from jax import api_util, make_jaxpr
 from jax import core as jc
 from jax import tree_util as jtu
+from jax.experimental import checkify
 from jax.extend import linear_util as lu
 from jax.interpreters import partial_eval as pe
+from jax.lax import cond
 from jax.util import safe_map
 
-from genjax._src.core.typing import Bool, static_check_is_concrete
+from genjax._src.checkify import optional_check
+from genjax._src.core.traceback_util import register_exclusion
+from genjax._src.core.typing import Bool, Int, static_check_is_concrete
+
+register_exclusion(__file__)
 
 ###############################
 # Concrete Boolean arithmetic #
 ###############################
+
+
+def staged_check(v):
+    return static_check_is_concrete(v) and v
 
 
 def staged_and(x, y):
@@ -41,22 +52,55 @@ def staged_and(x, y):
 
 
 def staged_or(x, y):
-    if static_check_is_concrete(x) and static_check_is_concrete(y):
+    # Static scalar land.
+    if (
+        static_check_is_concrete(x)
+        and static_check_is_concrete(y)
+        and isinstance(x, Bool)
+        and isinstance(y, Bool)
+    ):
         return x or y
+    # Array land.
     else:
         return jnp.logical_or(x, y)
 
 
 def staged_not(x):
-    if static_check_is_concrete(x):
+    if static_check_is_concrete(x) and isinstance(x, Bool):
         return not x
     else:
         return jnp.logical_not(x)
 
 
-###########
-# Staging #
-###########
+def staged_switch(idx, v1, v2):
+    if static_check_is_concrete(idx) and isinstance(idx, Int):
+        return [v1, v2][idx]
+    else:
+        return cond(idx, lambda: v1, lambda: v2)
+
+
+#########################
+# Staged error handling #
+#########################
+
+
+def staged_err(check, msg, **kwargs):
+    if static_check_is_concrete(check) and isinstance(check, Bool):
+        if check:
+            raise Exception(msg)
+        else:
+            return None
+    else:
+
+        def _check():
+            checkify.check(check, msg, **kwargs)
+
+        optional_check(_check)
+
+
+#######################################
+# Staging utilities for type analysis #
+#######################################
 
 
 def get_shaped_aval(x):
@@ -84,38 +128,36 @@ def stage(f):
     return wrapped
 
 
-def trees(f):
-    """Returns a function that determines input and output pytrees from inputs, and also
-    returns the flattened input arguments."""
+def get_data_shape(callable):
+    """
+    Returns a function that stages a function and returns the abstract
+    Pytree shapes of its return value.
+    """
 
-    def wrapped(*args, **kwargs):
-        return stage(f)(*args, **kwargs)[1]
+    def wrapped(*args):
+        _, data_shape = make_jaxpr(callable, return_shape=True)(*args)
+        return data_shape
 
     return wrapped
 
 
-def get_trace_data_shape(gen_fn, key, args):
-    def _apply(key, args):
-        tr = gen_fn.simulate(key, args)
-        return tr
-
-    (_, trace_shape) = make_jaxpr(_apply, return_shape=True)(key, args)
-    return trace_shape
+def get_trace_shape(gen_fn, args):
+    key = jax.random.PRNGKey(0)
+    return get_data_shape(gen_fn.simulate)(key, args)
 
 
-def get_discard_data_shape(gen_fn, key, tr, constraints, argdiffs):
-    def _apply(key, tr, constraints, argdiffs):
-        _, _, _, discard = gen_fn.update(key, tr, constraints, argdiffs)
-        return discard
+def get_importance_shape(gen_fn, constraint, args):
+    key = jax.random.PRNGKey(0)
+    return get_data_shape(gen_fn.importance)(key, constraint, args)
 
-    (_, discard_shape) = make_jaxpr(_apply, return_shape=True)(
-        key, tr, constraints, argdiffs
-    )
-    return discard_shape
+
+def get_update_shape(gen_fn, tr, problem, argdiffs):
+    key = jax.random.PRNGKey(0)
+    return get_data_shape(gen_fn.update)(key, tr, problem, argdiffs)
 
 
 def make_zero_trace(gen_fn, *args):
-    out_tree = get_trace_data_shape(gen_fn, *args)
+    out_tree = get_trace_shape(gen_fn, *args)
     return jtu.tree_map(
         lambda v: jnp.zeros(v.shape, v.dtype),
         out_tree,

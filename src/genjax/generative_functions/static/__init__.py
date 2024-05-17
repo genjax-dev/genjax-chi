@@ -12,29 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from deprecated import deprecated  # noqa: I001
-from genjax._src.generative_functions.static.static_gen_fn import (
-    static_gen_fn,
+from genjax._src.generative_functions.static import (
+    AddressReuse,
     StaticGenerativeFunction,
-)
-from genjax._src.generative_functions.static.static_transforms import (
-    cache,
-    save,
+    gen,
     trace,
     trace_p,
 )
 
-
-@deprecated(version="0.2.0", reason="now called @static_gen_fn")
-def static(f) -> StaticGenerativeFunction:
-    return static_gen_fn(f)
-
-
 __all__ = [
-    "trace_p",
+    "AddressReuse",
+    "StaticGenerativeFunction",
+    "gen",
     "trace",
-    "cache",
-    "save",
-    "static",
-    "static_gen_fn",
+    "trace_p",
 ]

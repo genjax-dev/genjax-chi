@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import abc
-import copy
 import functools
 import itertools as it
 
@@ -27,7 +26,11 @@ from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
+from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import Bool, Callable, List, Union, Value, typecheck
+
+register_exclusion(__file__)
+
 
 #########################
 # Custom JAX primitives #
@@ -138,6 +141,7 @@ def initial_style_bind(prim, **params):
 VarOrLiteral = Union[jc.Var, jc.Literal]
 
 
+@Pytree.dataclass
 class Environment(Pytree):
     """Keeps track of variables and their values during propagation."""
 
@@ -184,7 +188,8 @@ class Environment(Pytree):
         return var.count in self.env
 
     def copy(self):
-        return copy.deepcopy(self)
+        keys = list(self.env.keys())
+        return Environment({k: self.env[k] for k in keys})
 
 
 class StatefulHandler:
@@ -202,6 +207,7 @@ class StatefulHandler:
         pass
 
 
+@Pytree.dataclass
 class ForwardInterpreter(Pytree):
     def _eval_jaxpr_forward(
         self,

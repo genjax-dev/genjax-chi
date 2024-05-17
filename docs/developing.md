@@ -76,12 +76,27 @@ nox -r
 GenJAX does not manage the version of `jaxlib` that you use in your execution
 environment. The exact version of `jaxlib` can change depending upon the target
 deployment hardware (CUDA, CPU, Metal). It is your responsibility to install a
-version of `jaxlib` which is compatible with the JAX bounds (`jax = "^0.4.20"`
+version of `jaxlib` which is compatible with the JAX bounds (`jax = "^0.4.28"`
 currently) in GenJAX (as specified in `pyproject.toml`).
 
 [For further information, see this discussion.](https://github.com/google/jax/discussions/16380)
 
 [You can likely install CUDA compatible versions by following environment setup above with a `pip` installation of the CUDA-enabled JAX.](https://github.com/google/jax#pip-installation-gpu-cuda-installed-via-pip-easier)
+
+When running any of the `nox` commands, append `-- <jax_specifier>` to install
+the proper `jaxlib` into the session. For example,
+
+```sh
+nox -s tests -- cpu
+```
+
+will run the tests with the CPU `jaxlib` installed, while
+
+```sh
+nox -s tests -- cuda12
+```
+
+will install the CUDA bindings. By default, the CPU bindings will be installed.
 
 ### (Option 2): Self-managed development environment with `requirements.txt`
 

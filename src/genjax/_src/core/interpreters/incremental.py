@@ -43,6 +43,7 @@ from genjax._src.core.typing import (
     Callable,
     IntArray,
     List,
+    Optional,
     Tuple,
     Value,
     static_check_is_concrete,
@@ -75,6 +76,7 @@ class ChangeTangent(Pytree):
 # (namely, that it is has not changed).
 
 
+@Pytree.dataclass
 class _UnknownChange(ChangeTangent):
     def should_flatten(self):
         return False
@@ -83,6 +85,7 @@ class _UnknownChange(ChangeTangent):
 UnknownChange = _UnknownChange()
 
 
+@Pytree.dataclass
 class _NoChange(ChangeTangent):
     def should_flatten(self):
         return False
@@ -91,6 +94,7 @@ class _NoChange(ChangeTangent):
 NoChange = _NoChange()
 
 
+@Pytree.dataclass
 class IntChange(ChangeTangent):
     dv: IntArray
 
@@ -98,6 +102,7 @@ class IntChange(ChangeTangent):
         return True
 
 
+@Pytree.dataclass
 class StaticIntChange(ChangeTangent):
     dv: IntArray = Pytree.static()
 
@@ -117,6 +122,7 @@ def static_check_is_change_tangent(v):
 #############################
 
 
+@Pytree.dataclass
 class Diff(Pytree):
     primal: Any
     tangent: Any
@@ -152,9 +158,18 @@ class Diff(Pytree):
         return Diff.tree_diff(tree, tangent_tree)
 
     @staticmethod
+    def no_change(tree):
+        return Diff.tree_diff_no_change(tree)
+
+    @staticmethod
     def tree_diff_unknown_change(tree):
-        tangent_tree = jtu.tree_map(lambda _: UnknownChange, tree)
-        return Diff.tree_diff(tree, tangent_tree)
+        primal_tree = Diff.tree_primal(tree)
+        tangent_tree = jtu.tree_map(lambda _: UnknownChange, primal_tree)
+        return Diff.tree_diff(primal_tree, tangent_tree)
+
+    @staticmethod
+    def unknown_change(tree):
+        return Diff.tree_diff_unknown_change(tree)
 
     @staticmethod
     def tree_primal(v):
@@ -231,6 +246,7 @@ def default_propagation_rule(prim, *args, **_params):
         return Diff.tree_diff_unknown_change(outval)
 
 
+@Pytree.dataclass
 class IncrementalInterpreter(Pytree):
     custom_rules: dict[jc.Primitive, Callable] = Pytree.static(default_factory=dict)
 
@@ -258,7 +274,7 @@ class IncrementalInterpreter(Pytree):
             ]
             subfuns, _params = _eqn.primitive.get_bind_params(_eqn.params)
             args = subfuns + induals
-            if _stateful_handler.handles(_eqn.primitive):
+            if _stateful_handler and _stateful_handler.handles(_eqn.primitive):
                 outduals = _stateful_handler.dispatch(_eqn.primitive, *args, **_params)
             else:
                 outduals = default_propagation_rule(_eqn.primitive, *args, **_params)
@@ -292,7 +308,7 @@ def incremental(f: Callable):
     @functools.wraps(f)
     @typecheck
     def wrapped(
-        _stateful_handler: StatefulHandler,
+        _stateful_handler: Optional[StatefulHandler],
         primals: Tuple,
         tangents: Tuple,
     ):

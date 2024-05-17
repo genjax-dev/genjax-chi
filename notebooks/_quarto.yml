@@ -1,62 +1,37 @@
 project:
-  title: 'GenJAX Jupyter notebooks'
-  output-dir: ../site/notebooks
-  type: website
+  type: book
+  output-dir: ../site/cookbook
 
-author: McCoy Reynolds Becker
-
-website:
-  title: 'Gen ⊗ JAX'
-  search:
-    location: sidebar
-    type: textbox
-  open-graph: true
-  page-navigation: true
-  repo-url: https://github.com/probcomp/genjax
-  repo-actions: [edit, issue]
-
+book:
+  title: "The GenJAX cookbook"
+  favicon: small_logo.png
+  image: small_logo.png
+  repo-url: https://github.com/probcomp/genjax/
+  repo-branch: main
+  repo-subdir: notebooks
+  repo-actions: [issue, source]
   sidebar:
-    logo: logo.png
+    background: "#F5F5F5"
+    logo: small_logo.png
+    search: true
     style: 'floating'
-    border: true
-    pinned: true
-    align: center
-    collapse-level: 1
-    tools:
-      - icon: house-heart
-        href: /
-        text: 'Home'
-      - icon: building
-        href: http://probcomp.csail.mit.edu/
-        text: 'MIT Probabilistic Computing Project'
-      - icon: github
-        href: https://github.com/probcomp/genjax
-        text: 'GitHub repository'
-    contents:
-      - section: 'Getting started'
-        contents:
-          - href: introduction/intro_to_genjax.ipynb
-            text: Introduction
+  chapters:
+    - index.ipynb
+    # - jax_primer.ipynb
+    - active/intro.ipynb
+    # - combinators.ipynb
+    # - inference_libraries.ipynb
 
-          - href: introduction/intro_interpreted.ipynb
-            text: Introduction (interpreted dialect)
-
-          - href: introduction/saving_traces.ipynb
-            text: Saving Traces to Disk
-
-  page-footer:
-    center: © Copyright 2022-2024 [MIT Probabilistic Computing Project](http://probcomp.csail.mit.edu/)
-
-toc: true
-toc-location: right
-reference-location: margin
-citation-location: margin
+bibliography: references.bib
 
 format:
   html:
-    theme:
-      light: [cosmo, custom.scss]
-    toc: true
+    css: custom.css
+    theme: cosmo
+    title-block-banner: true
     code-copy: true
+    cold-fold: false
     code-overflow: wrap
-    highlight-style: breeze
+    highlight-style: ayu
+    backgroundcolor: "#F5F5F5"
+    logo: ../docs/assets/img/logo.png

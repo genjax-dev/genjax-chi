@@ -15,98 +15,83 @@
 
 import abc
 
-from genjax._src.core.datatypes.generative import (
-    ChoiceValue,
-    EmptyChoice,
+import jax
+import jax.numpy as jnp
+from jax.experimental import checkify
+from jax.lax import cond
+
+from genjax._src.checkify import optional_check
+from genjax._src.core.generative import (
+    Argdiffs,
+    ChoiceMap,
+    Constraint,
+    EmptyConstraint,
+    EmptyProblem,
+    EmptyTrace,
     GenerativeFunction,
+    ImportanceProblem,
     Mask,
+    MaskedConstraint,
+    MaskedProblem,
+    ProjectProblem,
+    Retdiff,
+    Sample,
     Selection,
-    SelectionChoiceMap,
     Trace,
+    UpdateProblem,
+    Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.serialization.pickle import (
-    PickleDataFormat,
-    PickleSerializationBackend,
-    SupportsPickleSerialization,
-)
+from genjax._src.core.interpreters.staging import staged_check
+from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
+    Bool,
+    BoolArray,
+    Callable,
     FloatArray,
     PRNGKey,
     Tuple,
-    dispatch,
+    static_check_is_concrete,
     typecheck,
 )
-from genjax._src.generative_functions.static.static_gen_fn import SupportsCalleeSugar
 
 #####
 # DistributionTrace
 #####
 
 
+@Pytree.dataclass
 class DistributionTrace(
     Trace,
-    SupportsPickleSerialization,
 ):
     gen_fn: GenerativeFunction
     args: Tuple
     value: Any
     score: FloatArray
 
-    def get_gen_fn(self):
-        return self.gen_fn
-
-    def get_retval(self):
-        return self.value
-
-    def get_args(self):
+    def get_args(self) -> Tuple:
         return self.args
 
-    def get_score(self):
-        return self.score
-
-    def get_choices(self):
-        return ChoiceValue(self.value)
-
-    def project(
-        self,
-        key: PRNGKey,
-        selection: Selection,
-    ) -> FloatArray:
-        check = selection[...]
-        return check * self.get_score()
-
-    def get_value(self):
+    def get_retval(self) -> Any:
         return self.value
 
-    def set_leaf_value(self, v):
-        return DistributionTrace(self.gen_fn, self.args, v, self.score)
+    def get_gen_fn(self) -> GenerativeFunction:
+        return self.gen_fn
 
-    #################
-    # Serialization #
-    #################
+    def get_score(self) -> FloatArray:
+        return self.score
 
-    @dispatch
-    def dumps(
-        self,
-        backend: PickleSerializationBackend,
-    ) -> PickleDataFormat:
-        args, value, score = self.args, self.value, self.score
-        payload = [
-            backend.dumps(args),
-            backend.dumps(value),
-            backend.dumps(score),
-        ]
-        return PickleDataFormat(payload)
+    def get_sample(self) -> ChoiceMap:
+        return ChoiceMap.value(self.value)
 
 
-#####
-# Distribution
-#####
+################
+# Distribution #
+################
 
 
-class Distribution(GenerativeFunction, SupportsCalleeSugar):
+class Distribution(GenerativeFunction):
     @abc.abstractmethod
     def random_weighted(
         self,
@@ -124,206 +109,439 @@ class Distribution(GenerativeFunction, SupportsCalleeSugar):
     ) -> FloatArray:
         pass
 
+    @GenerativeFunction.gfi_boundary
     @typecheck
     def simulate(
         self,
         key: PRNGKey,
         args: Tuple,
-    ) -> DistributionTrace:
+    ) -> Trace:
         (w, v) = self.random_weighted(key, *args)
         tr = DistributionTrace(self, args, v, w)
         return tr
 
-    @dispatch
-    def importance(
+    @typecheck
+    def importance_choice_map(
         self,
         key: PRNGKey,
-        choice: EmptyChoice,
+        chm: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[DistributionTrace, FloatArray]:
-        tr = self.simulate(key, args)
-        return (tr, 0.0)
+    ):
+        v = chm.get_value()
+        match v:
+            case None:
+                tr = self.simulate(key, args)
+                return tr, jnp.array(0.0), EmptyProblem()
 
-    @dispatch
-    def importance(
+            case Mask(flag, value):
+
+                def _simulate(key, v):
+                    score, new_v = self.random_weighted(key, *args)
+                    w = 0.0
+                    return (score, w, new_v)
+
+                def _importance(key, v):
+                    w = self.estimate_logpdf(key, v, *args)
+                    return (w, w, v)
+
+                score, w, new_v = cond(flag, _importance, _simulate, key, value)
+                tr = DistributionTrace(self, args, new_v, score)
+                bwd_problem = MaskedProblem(flag, ProjectProblem())
+                return tr, w, bwd_problem
+
+            case _:
+                w = self.estimate_logpdf(key, v, *args)
+                bwd_problem = ProjectProblem()
+                tr = DistributionTrace(self, args, v, w)
+                return tr, w, bwd_problem
+
+    @typecheck
+    def importance_masked_constraint(
         self,
         key: PRNGKey,
-        choice: ChoiceValue,
+        constraint: MaskedConstraint,
         args: Tuple,
-    ) -> Tuple[DistributionTrace, FloatArray]:
-        v = choice.get_value()
-        w = self.estimate_logpdf(key, v, *args)
-        score = w
-        return (DistributionTrace(self, args, v, score), w)
+    ) -> Tuple[Trace, Weight, UpdateProblem]:
+        def simulate_branch(key, _, args):
+            tr = self.simulate(key, args)
+            return (
+                tr,
+                jnp.array(0.0),
+                MaskedProblem(False, ProjectProblem()),
+            )
 
-    @dispatch
-    def update(
-        self,
-        key: PRNGKey,
-        prev: DistributionTrace,
-        constraints: EmptyChoice,
-        argdiffs: Tuple,
-    ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
-        Diff.static_check_tree_diff(argdiffs)
-        v = prev.get_retval()
-        retval_diff = Diff.tree_diff_no_change(v)
+        def importance_branch(key, constraint, args):
+            tr, w = self.importance(key, constraint, args)
+            return tr, w, MaskedProblem(True, ProjectProblem())
 
-        # If no change to arguments, no need to update.
-        if Diff.static_check_no_change(argdiffs):
-            return (prev, 0.0, retval_diff, EmptyChoice())
-
-        # Otherwise, we must compute an incremental weight.
-        else:
-            args = Diff.tree_primal(argdiffs)
-            fwd = self.estimate_logpdf(key, v, *args)
-            bwd = prev.get_score()
-            new_tr = DistributionTrace(self, args, v, fwd)
-            return (new_tr, fwd - bwd, retval_diff, EmptyChoice())
-
-    @dispatch
-    def update(
-        self,
-        key: PRNGKey,
-        prev: DistributionTrace,
-        constraints: ChoiceValue,
-        argdiffs: Tuple,
-    ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
-        Diff.static_check_tree_diff(argdiffs)
-        args = Diff.tree_primal(argdiffs)
-        v = constraints.get_value()
-        fwd = self.estimate_logpdf(key, v, *args)
-        bwd = prev.get_score()
-        w = fwd - bwd
-        new_tr = DistributionTrace(self, args, v, fwd)
-        discard = prev.get_choices()
-        retval_diff = Diff.tree_diff_unknown_change(v)
-        return (new_tr, w, retval_diff, discard)
-
-    @dispatch
-    def update(
-        self,
-        key: PRNGKey,
-        prev: DistributionTrace,
-        constraints: SelectionChoiceMap,
-        argdiffs: Tuple,
-    ) -> Tuple[DistributionTrace, FloatArray, Any, Any]:
-        Diff.static_check_tree_diff(argdiffs)
-        args = Diff.tree_primal(argdiffs)
-        v = constraints.get_value()
-        v = (
-            v.safe_match(lambda: prev.get_choices().get_value(), lambda v: v)
-            if isinstance(v, Mask)
-            else v
+        return jax.lax.cond(
+            constraint.flag,
+            importance_branch,
+            simulate_branch,
+            key,
+            constraint.constraint,
+            args,
         )
-        fwd = self.estimate_logpdf(key, v, *args)
-        bwd = prev.get_score()
-        w = fwd - bwd
-        new_tr = DistributionTrace(self, args, v, fwd)
-        discard = prev.get_choices()
-        retval_diff = Diff.tree_diff_unknown_change(v)
-        return (new_tr, w, retval_diff, discard)
 
-    ###################
-    # Deserialization #
-    ###################
-
-    @dispatch
-    def loads(
+    @typecheck
+    def update_importance(
         self,
-        data: PickleDataFormat,
-        backend: PickleSerializationBackend,
-    ) -> DistributionTrace:
-        args, value, score = backend.loads(data.payload)
-        return DistributionTrace(self, args, value, score)
+        key: PRNGKey,
+        constraint: Constraint,
+        args: Tuple,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        match constraint:
+            case ChoiceMap():
+                tr, w, bwd_problem = self.importance_choice_map(key, constraint, args)
+            case MaskedConstraint(flag, inner_constraint):
+                if staged_check(flag):
+                    return self.update_importance(key, inner_constraint, args)
+                else:
+                    tr, w, bwd_problem = self.importance_masked_constraint(
+                        key, constraint, args
+                    )
+            case EmptyConstraint():
+                tr = self.simulate(key, args)
+                w = jnp.array(0.0)
+                bwd_problem = EmptyProblem()
+            case _:
+                raise Exception("Unhandled type.")
+        return tr, w, Diff.unknown_change(tr.get_retval()), bwd_problem
 
+    def update_empty(
+        self,
+        trace: Trace,
+        argdiffs: Argdiffs,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        sample = trace.get_sample()
+        primals = Diff.tree_primal(argdiffs)
+        new_score, _ = self.assess(sample, primals)
+        new_trace = DistributionTrace(self, primals, sample.get_value(), new_score)
+        return (
+            new_trace,
+            new_score - trace.get_score(),
+            Diff.tree_diff_no_change(trace.get_retval()),
+            EmptyProblem(),
+        )
 
-#####
-# ExactDensity
-#####
+    def update_constraint_masked_constraint(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        constraint: MaskedConstraint,
+        argdiffs: Argdiffs,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        old_sample = trace.get_sample()
 
+        def update_branch(key, trace, constraint, argdiffs):
+            tr, w, rd, _ = self.update(key, trace, constraint, argdiffs)
+            return (
+                tr,
+                w,
+                rd,
+                MaskedProblem(True, old_sample),
+            )
 
-class ExactDensity(Distribution):
-    """> Abstract base class which extends Distribution and assumes that the implementor
-    provides an exact logpdf method (compared to one which returns _an estimate of the
-    logpdf_).
+        def do_nothing_branch(key, trace, constraint, argdiffs):
+            tr, w, _, _ = self.update(key, trace, EmptyProblem(), argdiffs)
+            return (
+                tr,
+                w,
+                Diff.tree_diff_unknown_change(tr.get_retval()),
+                MaskedProblem(False, old_sample),
+            )
 
-    All of the standard distributions inherit from `ExactDensity`, and
-    if you are looking to implement your own distribution, you should
-    likely use this class.
+        return jax.lax.cond(
+            constraint.flag,
+            update_branch,
+            do_nothing_branch,
+            key,
+            trace,
+            constraint.constraint,
+            argdiffs,
+        )
 
-    !!! info "`Distribution` implementors are `Pytree` implementors"
+    def update_constraint(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        constraint: Constraint,
+        argdiffs: Argdiffs,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        primals = Diff.tree_primal(argdiffs)
+        match constraint:
+            case EmptyConstraint():
+                old_sample = trace.get_sample()
+                old_retval = trace.get_retval()
+                new_score, _ = self.assess(old_sample, primals)
+                new_trace = DistributionTrace(
+                    self, primals, old_sample.get_value(), new_score
+                )
+                return (
+                    new_trace,
+                    new_score - trace.get_score(),
+                    Diff.tree_diff_no_change(old_retval),
+                    EmptyProblem(),
+                )
 
-        As `Distribution` extends `Pytree`, if you use this class, you must implement `flatten` as part of your class declaration.
-    """
+            case MaskedConstraint(flag, spec):
+                if staged_check(flag):
+                    return self.update(key, trace, spec, argdiffs)
+                else:
+                    return self.update_constraint_masked_constraint(
+                        key, trace, constraint, argdiffs
+                    )
 
-    @abc.abstractmethod
-    def sample(self, key: PRNGKey, *args: Any) -> Any:
-        """> Sample from the distribution, returning a value from the event space.
+            case ChoiceMap():
+                check = constraint.has_value()
+                v = constraint.get_value()
+                if isinstance(v, UpdateProblem):
+                    return self.update(key, trace, v, argdiffs)
+                elif static_check_is_concrete(check) and check:
+                    fwd = self.estimate_logpdf(key, v, *primals)
+                    bwd = trace.get_score()
+                    w = fwd - bwd
+                    new_tr = DistributionTrace(self, primals, v, fwd)
+                    discard = trace.get_sample()
+                    retval_diff = Diff.tree_diff_unknown_change(v)
+                    return (
+                        new_tr,
+                        w,
+                        retval_diff,
+                        discard,
+                    )
+                elif static_check_is_concrete(check):
+                    value_chm = trace.get_sample()
+                    v = value_chm.get_value()
+                    fwd = self.estimate_logpdf(key, v, *primals)
+                    bwd = trace.get_score()
+                    w = fwd - bwd
+                    new_tr = DistributionTrace(self, primals, v, fwd)
+                    retval_diff = Diff.tree_diff_no_change(v)
+                    return (new_tr, w, retval_diff, EmptyProblem())
+                else:
+                    # Whether or not the choice map has a value is dynamic...
+                    # We must handled with a cond.
+                    def _true_branch(key, new_value, old_value):
+                        fwd = self.estimate_logpdf(key, new_value, *primals)
+                        bwd = trace.get_score()
+                        w = fwd - bwd
+                        return (new_value, w, fwd)
 
-        Arguments:
-            key: A `PRNGKey`.
-            *args: The arguments to the distribution invocation.
+                    def _false_branch(key, new_value, old_value):
+                        fwd = self.estimate_logpdf(key, old_value, *primals)
+                        bwd = trace.get_score()
+                        w = fwd - bwd
+                        return (old_value, w, fwd)
 
-        Returns:
-            v: A value from the support of the distribution.
+                    masked_value: Mask = v
+                    flag = masked_value.flag
+                    new_value = masked_value.value
+                    old_value = trace.get_sample().get_value()
 
-        Examples:
-            `genjax.normal` is a distribution with an exact density, which supports the `sample` interface. Here's an example of invoking `sample`.
+                    new_value, w, score = jax.lax.cond(
+                        flag,
+                        _true_branch,
+                        _false_branch,
+                        key,
+                        new_value,
+                        old_value,
+                    )
+                    return (
+                        DistributionTrace(self, primals, new_value, score),
+                        w,
+                        Diff.tree_diff_unknown_change(new_value),
+                        MaskedProblem(flag, old_value),
+                    )
 
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import genjax
+            case _:
+                raise Exception("Unhandled constraint in update.")
 
-            console = genjax.console()
+    def update_masked(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        flag: Bool | BoolArray,
+        problem: UpdateProblem,
+        argdiffs: Argdiffs,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        old_value = trace.get_retval()
+        primals = Diff.tree_primal(argdiffs)
+        possible_trace, w, retdiff, bwd_problem = self.update(
+            key, trace, problem, argdiffs
+        )
+        new_value = possible_trace.get_retval()
+        w = w * flag
+        bwd_problem = MaskedProblem(flag, bwd_problem)
+        new_trace = DistributionTrace(
+            self,
+            primals,
+            jax.lax.select(flag, new_value, old_value),
+            jax.lax.select(flag, possible_trace.get_score(), trace.get_score()),
+        )
 
-            key = jax.random.PRNGKey(314159)
-            v = genjax.normal.sample(key, 0.0, 1.0)
-            print(console.render(v))
-            ```
+        return new_trace, w, retdiff, bwd_problem
 
-            Note that you often do want or need to invoke `sample` directly - you'll likely want to use the generative function interface methods instead:
+    def update_project(
+        self,
+        trace: Trace,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        original = trace.get_score()
+        removed_value = trace.get_retval()
+        retdiff = Diff.tree_diff_unknown_change(trace.get_retval())
+        return (
+            EmptyTrace(self),
+            -original,
+            retdiff,
+            ChoiceMap.value(removed_value),
+        )
 
-            ```python exec="yes" source="tabbed-left"
-            import jax
-            import genjax
+    def update_selection_project(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        selection: Selection,
+        argdiffs: Argdiffs,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        check = () in selection
 
-            console = genjax.console()
+        return self.update(
+            key,
+            trace,
+            MaskedProblem.maybe(check, ProjectProblem()),
+            argdiffs,
+        )
 
-            key = jax.random.PRNGKey(314159)
-            tr = genjax.normal.simulate(key, (0.0, 1.0))
-            print(console.render(tr))
-            ```
-        """
+    @GenerativeFunction.gfi_boundary
+    @typecheck
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        update_problem: UpdateProblem,
+        argdiffs: Argdiffs,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        match update_problem:
+            case EmptyProblem():
+                return self.update_empty(trace, argdiffs)
 
-    @abc.abstractmethod
-    def logpdf(self, v: Any, *args: Any) -> FloatArray:
-        """> Given a value from the support of the distribution, compute the log
-        probability of that value under the density (with respect to the standard base
-        measure).
+            case Constraint():
+                return self.update_constraint(key, trace, update_problem, argdiffs)
 
-        Arguments:
-            v: A value from the support of the distribution.
-            *args: The arguments to the distribution invocation.
+            case MaskedProblem(flag, subproblem):
+                return self.update_masked(key, trace, flag, subproblem, argdiffs)
 
-        Returns:
-            logpdf: The log density evaluated at `v`, with density configured by `args`.
-        """
+            case ProjectProblem():
+                return self.update_project(trace)
 
-    def random_weighted(self, key, *args):
-        v = self.sample(key, *args)
-        w = self.logpdf(v, *args)
-        return (w, v)
+            case Selection():
+                return self.update_selection_project(
+                    key, trace, update_problem, argdiffs
+                )
 
-    def estimate_logpdf(self, _, v, *args):
-        w = self.logpdf(v, *args)
-        return w
+            case ImportanceProblem(constraint) if isinstance(trace, EmptyTrace):
+                return self.update_importance(
+                    key, constraint, Diff.tree_primal(argdiffs)
+                )
 
+            case _:
+                raise Exception(f"Not implement fwd problem: {update_problem}.")
+
+    @GenerativeFunction.gfi_boundary
     @typecheck
     def assess(
         self,
-        evaluation_point: ChoiceValue,
+        sample: Sample,
         args: Tuple,
+    ):
+        raise NotImplementedError
+
+
+################
+# ExactDensity #
+################
+
+
+@Pytree.dataclass
+class ExactDensity(Distribution):
+    sampler: Closure
+    logpdf_evaluator: Closure
+
+    def __abstract_call__(self, *args):
+        key = jax.random.PRNGKey(0)
+        return self.sampler(key, *args)
+
+    def handle_kwargs(self) -> GenerativeFunction:
+        @Pytree.partial(self)
+        def sampler_with_kwargs(self, key, args, kwargs):
+            return self.sampler(key, *args, **kwargs)
+
+        @Pytree.partial(self)
+        def logpdf_with_kwargs(self, v, args, kwargs):
+            return self.logpdf_evaluator(v, *args, **kwargs)
+
+        return ExactDensity(
+            sampler_with_kwargs,
+            logpdf_with_kwargs,
+        )
+
+    def random_weighted(
+        self,
+        key: PRNGKey,
+        *args,
     ) -> Tuple[FloatArray, Any]:
-        v = evaluation_point.get_value()
-        score = self.logpdf(v, *args)
-        return (score, v)
+        v = self.sampler(key, *args)
+        w = self.logpdf_evaluator(v, *args)
+        return (w, v)
+
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        v: Any,
+        *args,
+    ) -> FloatArray:
+        w = self.logpdf_evaluator(v, *args)
+        if w.shape:
+            return jnp.sum(w)
+        else:
+            return w
+
+    @GenerativeFunction.gfi_boundary
+    @typecheck
+    def assess(
+        self,
+        sample: ChoiceMap,
+        args: Tuple,
+    ):
+        key = jax.random.PRNGKey(0)
+        v = sample.get_value()
+        match v:
+            case Mask(flag, value):
+
+                def _check():
+                    check_flag = jnp.all(flag)
+                    checkify.check(
+                        check_flag,
+                        "Attempted to unmask when a mask flag is False: the masked value is invalid.\n",
+                    )
+
+                optional_check(_check)
+                w = self.estimate_logpdf(key, value, *args)
+                return w, value
+            case _:
+                w = self.estimate_logpdf(key, v, *args)
+                return w, v
+
+
+@typecheck
+def exact_density(
+    sampler: Callable,
+    logpdf: Callable,
+):
+    if not isinstance(sampler, Closure):
+        sampler = Pytree.partial()(sampler)
+
+    if not isinstance(logpdf, Closure):
+        logpdf = Pytree.partial()(logpdf)
+
+    return ExactDensity(sampler, logpdf)

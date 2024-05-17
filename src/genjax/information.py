@@ -28,6 +28,6 @@ from genjax._src.information.sdos import SymmetricDivergenceOverDatasets
 
 __all__ = [
     "AuxiliaryInferenceDivergenceEstimator",
-    "SymmetricDivergenceOverDatasets",
     "EntropyEstimatorsViaInference",
+    "SymmetricDivergenceOverDatasets",
 ]

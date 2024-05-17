@@ -17,6 +17,7 @@ import shutil
 import sys
 from pathlib import Path
 from textwrap import dedent
+from typing import Literal, get_args
 
 import nox
 
@@ -36,12 +37,34 @@ python_version = "3.11"
 nox.needs_version = ">= 2021.6.6"
 nox.options.sessions = ("tests", "lint", "build")
 
+JAXSpecifier = Literal["cpu", "cuda12", "tpu"]
+
+
+def install_jaxlib(session):
+    jax_specifier = None
+    if session.posargs and (session.posargs[0] in get_args(JAXSpecifier)):
+        jax_specifier = session.posargs[0]
+    else:
+        jax_specifier = "cpu"
+
+    requirements = session.poetry.export_requirements()
+    session.run(
+        "poetry",
+        "run",
+        "pip",
+        "install",
+        f"--constraint={requirements}",
+        f"jax[{jax_specifier}]",
+        external=True,
+    )
+
 
 @session(python=python_version)
 def prepare(session):
     session.run_always(
         "poetry", "install", "--with", "dev", "--all-extras", external=True
     )
+    install_jaxlib(session)
 
 
 @session(python=python_version)
@@ -56,8 +79,6 @@ def tests(session):
         "scratch",
         "--ignore",
         "notebooks",
-        "--ignore",
-        "benchmarks",
         "-n",
         "auto",
         external=True,
@@ -77,8 +98,6 @@ def coverage(session):
         "--benchmark-disable",
         "--ignore",
         "scratch",
-        "--ignore",
-        "benchmarks",
         external=True,
     )
     session.run("poetry", "run", "coverage", "json", "--omit", "*/test*", external=True)
@@ -122,7 +141,7 @@ def xdoctests(session) -> None:
 
 @session(python=python_version)
 def nbmake(session) -> None:
-    """Execute jupyter notebooks as tests"""
+    """Execute Jupyter notebooks as tests"""
     prepare(session)
     session.run(
         "poetry",
@@ -131,7 +150,7 @@ def nbmake(session) -> None:
         "-n",
         "auto",
         "--nbmake",
-        "notebooks",
+        "notebooks/active",
     )
 
 
@@ -159,39 +178,24 @@ def build(session):
 @session(name="mkdocs", python=python_version)
 def mkdocs(session: Session) -> None:
     """Run the mkdocs-only portion of the docs build."""
+    prepare(session)
     session.run_always(
         "poetry",
         "install",
         "--with",
         "docs",
-        "--with",
-        "dev",
-        "--all-extras",
         external=True,
     )
     build_dir = Path("site")
     if build_dir.exists():
         shutil.rmtree(build_dir)
-    session.run("poetry", "run", "mkdocs", "build", "--strict")
+    session.run("poetry", "run", "mkdocs", "build", external=True)
 
 
 @session(name="docs-build", python=python_version)
 def docs_build(session: Session) -> None:
     """Build the documentation."""
-    session.run_always(
-        "poetry",
-        "install",
-        "--with",
-        "docs",
-        "--with",
-        "dev",
-        "--all-extras",
-        external=True,
-    )
-    build_dir = Path("site")
-    if build_dir.exists():
-        shutil.rmtree(build_dir)
-    session.run("poetry", "run", "mkdocs", "build", "--strict")
+    mkdocs(session)
     session.run(
         "poetry", "run", "quarto", "render", "notebooks", "--execute", external=True
     )

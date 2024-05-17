@@ -17,11 +17,9 @@ import jax.numpy as jnp
 import msgpack
 import numpy as np
 
-from genjax._src.core.datatypes.generative import GenerativeFunction, Trace
-from genjax._src.core.interpreters.staging import (
-    get_trace_data_shape,
-)
+from genjax._src.core.generative import GenerativeFunction, Trace
 from genjax._src.core.serialization.backend import SerializationBackend
+from genjax._src.core.typing import Tuple
 
 
 class MsgPackSerializeBackend(SerializationBackend):
@@ -39,12 +37,9 @@ class MsgPackSerializeBackend(SerializationBackend):
           msgpack-encoded bytes of the trace
         """
         data, _ = jax.tree_util.tree_flatten(trace)
-        arg_len = len(trace.args)
-        return msgpack.packb(
-            [arg_len, data], default=_msgpack_ext_pack, strict_types=True
-        )
+        return msgpack.packb(data, default=_msgpack_ext_pack, strict_types=True)
 
-    def deserialize(self, encoded_trace, gen_fn: GenerativeFunction):
+    def deserialize(self, encoded_trace, gen_fn: GenerativeFunction, args: Tuple):
         """Deserialize an object using MsgPack
 
         The function decodes the MsgPack object and restructures the trace using its Pytree definition. The tree definition is retrieved by tracing the generative function using the stored arguments.
@@ -57,10 +52,9 @@ class MsgPackSerializeBackend(SerializationBackend):
         Returns:
           `Trace` object
         """
-        key = jax.random.PRNGKey(0)
-        arg_len, payload = msgpack.unpackb(encoded_trace, ext_hook=_msgpack_ext_unpack)
-        args = tuple(payload[:arg_len])  # arg numbers
-        treedef = jax.tree_util.tree_structure(get_trace_data_shape(gen_fn, key, args))
+        payload = msgpack.unpackb(encoded_trace, ext_hook=_msgpack_ext_unpack)
+        trace_data_shape = gen_fn.get_trace_shape(*args)
+        treedef = jax.tree_util.tree_structure(trace_data_shape)
         return jax.tree_util.tree_unflatten(treedef, payload)
 
 

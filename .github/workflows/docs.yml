@@ -26,7 +26,9 @@ jobs:
       - name: Configure SSH key for mkdocs-material-insiders
         uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: ${{ secrets.INSIDER_SSH_KEY }}
+          ssh-private-key: |
+            ${{ secrets.INSIDER_SSH_KEY }}
+            ${{ secrets.MKDOCSTRINGS_PYTHON_SSH_KEY }}
 
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
@@ -44,8 +46,15 @@ jobs:
       - name: Install nox-poetry
         run: pip install nox-poetry
 
+      - name: Cache Nox environments
+        uses: actions/cache@v4
+        with:
+          path: .nox
+          key: ${{ runner.os }}-nox-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: ${{ runner.os }}-nox
+
       - name: Run Docs Build
-        run: nox -r -s docs-build
+        run: nox -s docs-build
 
       - name: Deploy to GH Pages
         uses: peaceiris/actions-gh-pages@v4
