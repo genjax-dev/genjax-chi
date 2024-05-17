@@ -18,7 +18,7 @@ book:
     style: 'floating'
   chapters:
     - index.ipynb
-    - jax_primer.ipynb
+    # - jax_primer.ipynb
     - intro.ipynb
     # - combinators.ipynb
     # - inference_libraries.ipynb
