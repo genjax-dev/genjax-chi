@@ -53,19 +53,49 @@ Weight = Annotated[
     float | FloatArray,
     Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
 ]
+"""
+A _weight_ is a specific density ratio, an importance weight, described fully in [`update`][genjax.core.GenerativeFunction.update].
+
+The type `Weight` does not enforce any meaningful mathematical invariants, but is used to denote the type of the score in the GenJAX system, to improve readability and parsing of interface specifications.
+"""
 Score = Annotated[
     float | FloatArray,
     Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
 ]
-Retdiff = Annotated[
-    object,
-    Is[lambda v: Diff.static_check_tree_diff(v)],
-]
+"""
+A _score_ is a specific density ratio, described fully in [`simulate`][genjax.core.GenerativeFunction.simulate].
+
+The type `Score` does not enforce any meaningful mathematical invariants, but is used to denote the type of the score in the GenJAX system, to improve readability and parsing of interface specifications.
+
+Under type checking, the type `Score` enforces that the value must be a scalar floating point number.
+"""
+
+Retval = Any
+"""
+`Retval` is the type of return values from the return value function of a generative function. It is a type alias for `Any`, and is used to improve readability and parsing of interface specifications.
+"""
+
 Argdiffs = Annotated[
     Tuple,
     Is[lambda v: Diff.static_check_tree_diff(v)],
 ]
-Retval = Any
+"""
+`Argdiffs` is the type of argument values with an attached `ChangeType` (c.f. [`update`][genjax.core.GenerativeFunction.update]).
+
+When used under type checking, `Retdiff` assumes that the argument values are `Pytree` (either, defined via GenJAX's `Pytree` interface or registered with JAX's system). For each argument, it checks that _the leaves_ are `Diff` type with attached `ChangeType`.
+"""
+
+
+Retdiff = Annotated[
+    Retval,
+    Is[lambda v: Diff.static_check_tree_diff(v)],
+]
+"""
+`Retdiff` is the type of return values with an attached `ChangeType` (c.f. [`update`][genjax.core.GenerativeFunction.update]).
+
+When used under type checking, `Retdiff` assumes that the return value is a `Pytree` (either, defined via GenJAX's `Pytree` interface or registered with JAX's system). It checks that _the leaves_ are `Diff` type with attached `ChangeType`.
+"""
+
 
 #########################
 # Update specifications #
@@ -279,6 +309,38 @@ class Trace(Pytree):
     def get_score(self) -> Score:
         """Return the score of the `Trace`.
 
+        The score must satisfy a particular mathematical specification: it's either an exact density evaluation at the sample returned by `Trace.get_sample` for the distribution over samples which the generative function represents, or _a sample from an estimator_ if the generative function contains _untraced randomness_.
+
+        Denote the sample by $t$ and the arguments by $a$: when the generative function contains no _untraced randomness_, the score (in logspace) is given by:
+
+        $$
+        s := \\log p(t; a)
+        $$
+
+        (**With untraced randomness**) Gen allows for the possibility of sources of randomness _which are not traced_. When these sources are included in generative computations, the score is defined so that the following property holds:
+
+        $$
+        \\mathbb{E}_{r\\sim~P(r | t; a)}\\big[\\frac{1}{s}\\big] = \\frac{1}{p(t; a)}
+        $$
+
+        This property is the one you'd want to be true if you were using a generative function with untraced randomness _as a proposal_ in a routine which uses importance sampling, for instance.
+
+        In GenJAX, one way you might encounter this is by using pseudo-random routines in your modeling code:
+        ```python
+        # notice how the key is explicit
+        @genjax.gen
+        def model_with_untraced_randomness(key: PRNGKey):
+            x = genjax.normal(0.0, 1.0) "x"
+            v = some_random_process(key, x)
+            y = genjax.normal(v, 1.0) @ "y"
+        ```
+
+        In this case, the score is given by:
+
+        $$
+        s := \\log p(r, t; a) - \\log q(r; a)
+        $$
+
         Examples:
         """
 
@@ -454,29 +516,6 @@ class GenerativeFunction(Pytree):
 
         The trace returned by `simulate` has the arguments of the invocation ([`Trace.get_args`](core.md#genjax.core.Trace.get_args)), the return value of the generative function ([`Trace.get_retval`](core.md#genjax.core.Trace.get_retval)), the identity of the generative function which produced the trace ([`Trace.get_gen_fn`](core.md#genjax.core.Trace.get_gen_fn)), the sample of traced random choices produced during the invocation ([`Trace.get_sample`](core.md#genjax.core.Trace.get_sample)) and _the score_ of the sample ([`Trace.get_score`](core.md#genjax.core.Trace.get_score)).
 
-        The score must satisfy a particular mathematical specification.
-
-        Denote the sample by $t$ and the arguments by $a$: when the generative function contains no _untraced randomness_, the score (in logspace) is given by:
-
-        $$
-        s := \\log p(t; a)
-        $$
-
-        (**With untraced randomness**) Gen allows for the possibility of sources of randomness _which are not traced_. In GenJAX, this might look something like:
-        ```python
-        # notice how the key is explicit
-        @genjax.gen
-        def model_with_untraced_randomness(key: PRNGKey):
-            x = genjax.normal(0.0, 1.0) "x"
-            v = some_random_process(key, x)
-            y = genjax.normal(v, 1.0) @ "y"
-        ```
-
-        In that case, the score is given by:
-
-        $$
-        s := \\log p(r, t; a) - \\log q(r; a)
-        $$
         """
         raise NotImplementedError
 

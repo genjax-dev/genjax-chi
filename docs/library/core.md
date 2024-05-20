@@ -12,9 +12,9 @@ The main computational objects in Gen are _generative functions_. These objects 
     options:
       members:
         - simulate
-        - importance
         - assess
         - update
+        - importance
 
 Traces are data structures which record (execution and inference) data about the invocation of generative functions. Traces are often specialized to a generative function language, to take advantage of data locality, and other representation optimizations. Traces support a _trace interface_: a set of accessor methods designed to provide convenient manipulation when handling traces in inference algorithms. We document this interface below for the `Trace` data type.
 
@@ -49,9 +49,11 @@ The standard `Sample` type for this type of generative function is the `ChoiceMa
         - at
         - filter
 
-## We ♥ JAX: everything is JAX compatible by default
+## JAX compatible data via `Pytree`
 
-GenJAX exposes a set of core abstract classes which build on JAX's `Pytree` interface. These datatypes are used as abstract base mixins for many of the key dataclasses in GenJAX.
+JAX natively works with arrays, and with instances of Python classes which can be broken down into lists of arrays. JAX's [`Pytree`](https://jax.readthedocs.io/en/latest/pytrees.html) system provides a way to register a class with methods that can break instances of the class down into a list of arrays (canonically referred to as _flattening_), and build an instance back up given a list of arrays (canonically referred to as _unflattening_).
+
+GenJAX provides an abstract class called `Pytree` which automates the implementation of the `flatten` / `unflatten` methods for a class. GenJAX's `Pytree` inherits from [`penzai.Struct`](https://penzai.readthedocs.io/en/stable/_autosummary/leaf/penzai.core.struct.Struct.html), to support pretty printing, and some convenient methods to annotate what data should be part of the `Pytree` _type_ (static fields, won't be broken down into a JAX array) and what data should be considered dynamic.
 
 ::: genjax.core.Pytree
     options:
@@ -59,9 +61,8 @@ GenJAX exposes a set of core abstract classes which build on JAX's `Pytree` inte
         - dataclass
         - static
         - field
-        - __getitem__
 
-### Dynamism, masking, and sum types
+## Dynamism in JAX: masks and sum types
 
 The semantics of Gen are defined independently of any particular computational substrate or implementation - but JAX (and XLA through JAX) is a unique substrate, offering high performance, the ability to transformation code ahead-of-time via program transformations, and ... _a rather unique set of restrictions_.
 
@@ -100,8 +101,6 @@ Another mechanism to encode runtime uncertainty (again, inspired by functional p
 ## Static typing with `genjax.typing` a.k.a 🐻`beartype`🐻
 
 GenJAX uses [`beartype`](https://github.com/beartype/beartype) to perform type checking _during JAX tracing / compile time_. This means that `beartype`, normally a fast _runtime_ type checker, operates _at JAX tracing time_ to ensure that the arguments and return values are correct, with zero runtime cost.
-
-When you trip over `beartype`, you should expect to see errors of the following form:
 
 ::: genjax.typing.typecheck
 

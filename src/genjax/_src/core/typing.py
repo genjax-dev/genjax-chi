@@ -68,17 +68,56 @@ TypeVar = btyping.TypeVar
 # Static typechecking from annotations #
 ########################################
 
-conf = BeartypeConf(
+global_conf = BeartypeConf(
     is_color=True,
     is_debug=False,
     is_pep484_tower=True,
     violation_type=TypeError,
 )
 
-"""
-Use `beartype` to perform type checking on the decorated function.
-"""
-typecheck = beartype(conf=conf)
+
+def typecheck(
+    fn: Optional[Callable] = None,
+    /,
+    **kwargs,
+):
+    """
+    Accepts a function, and returns a function which uses `beartype` to perform type checking.
+
+    Examples:
+        The below examples are roughly what you should expect to see if you trip over `beartype` via `genjax.typing.typecheck`.
+
+        ```python exec="yes" source="material-block" session="core"
+        from genjax.typing import typecheck, Int
+
+        @typecheck(is_color=False)
+        def f(x: Int) -> Int:
+            return x + 1.0
+
+        try:
+            f(1.0)
+        except TypeError as e:
+            print("TypeError: ", e)
+        ```
+
+        This also works for the return values:
+
+        ```python exec="yes" source="material-block" session="core"
+        @typecheck(is_color=False)
+        def f(x: Int) -> Int:
+            return x + 1.0
+
+        try:
+            f(1)
+        except TypeError as e:
+            print("TypeError: ", e)
+        ```
+    """
+    if fn is None and kwargs:
+        conf = BeartypeConf(**kwargs, violation_type=TypeError)
+        return beartype(conf=conf)
+    else:
+        return beartype(conf=global_conf)(fn)
 
 
 #################
