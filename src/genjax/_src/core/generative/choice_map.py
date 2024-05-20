@@ -971,8 +971,12 @@ class AddrFnChmFn(ChoiceMapFunction):
             return self.c.get_value()
 
     def get_submap(self, addr: AddressComponent) -> ChoiceMap:
-        mapped = self.addr_fn.get(addr, addr)
-        return self.c.get_submap(mapped)
+        if ... in self.addr_fn:
+            mapped = self.addr_fn[...]
+            return self.c.get_submap(mapped).get_submap(addr)
+        else:
+            mapped = self.addr_fn.get(addr, addr)
+            return self.c.get_submap(mapped)
 
 
 @typecheck

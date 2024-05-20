@@ -48,7 +48,7 @@ def repeat_combinator(
         # choice map address bijection, to collapse the `_internal`
         # address hierarchy below.
         # (as part of StaticGenerativeFunction.Trace interfaces)
-        @address_bijection_combinator(address_bijection={(): "_internal"})
+        @address_bijection_combinator(address_bijection={...: "_internal"})
         @gen
         def expanded_gen_fn(idx: IntArray, args: Tuple):
             return gen_fn(*args) @ "_internal"
