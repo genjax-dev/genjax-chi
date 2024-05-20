@@ -80,7 +80,7 @@ class Pytree(pz.Struct):
 
         All `Pytree` dataclasses support pretty printing, as well as rendering to HTML.
 
-        Example:
+        Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
             from genjax import Pytree
             from genjax.typing import FloatArray, typecheck
@@ -107,7 +107,7 @@ class Pytree(pz.Struct):
         like `default` or `default_factory`, to customize how the field is instantiated when an instance of
         the dataclass is instantiated.` Fields which are provided with default values must come after required fields in the dataclass declaration.
 
-        Example:
+        Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
             @Pytree.dataclass
             @typecheck # Enforces type annotations on instantiation.
