@@ -123,7 +123,7 @@ class ScanCombinator(GenerativeFunction):
         A kernel_gen_fn generative function is one which accepts and returns the same signature of arguments. Under the hood, `ScanCombinator` is implemented using `jax.lax.scan` - which has the same requirements.
 
     Examples:
-        ```python exec="yes" source="tabbed-left"
+        ```python exec="yes" html="true" source="material-block" session="gen-fn"
         import jax
         import genjax
 

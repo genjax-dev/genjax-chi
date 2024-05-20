@@ -131,7 +131,7 @@ class SwitchCombinator(GenerativeFunction):
         This pattern allows `GenJAX` to express existence uncertainty over random choices -- as different generative function branches need not share addresses.
 
     Examples:
-        ```python exec="yes" source="tabbed-left"
+        ```python exec="yes" html="true" source="material-block" session="gen-fn"
         import jax
         import genjax
 

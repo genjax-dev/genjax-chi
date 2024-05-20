@@ -21,6 +21,7 @@ Traces are data structures which record (execution and inference) data about the
 ::: genjax.core.Trace
     options:
       members:
+        - update
         - get_args
         - get_retval
         - get_gen_fn
@@ -104,7 +105,7 @@ GenJAX uses [`beartype`](https://github.com/beartype/beartype) to perform type c
 
 ::: genjax.typing.typecheck
 
-### Special generative types
+###  Generative interface types
 ::: genjax.core.Score
 ::: genjax.core.Weight
 ::: genjax.core.Retval

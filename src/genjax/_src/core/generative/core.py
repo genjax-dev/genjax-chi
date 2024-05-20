@@ -104,11 +104,10 @@ When used under type checking, `Retdiff` assumes that the return value is a `Pyt
 
 class UpdateProblem(Pytree):
     """
-    An `UpdateProblem` is a request to update a trace of a generative function.
+    An `UpdateProblem` is a request to update a trace of a generative function. Generative functions respond to `UpdateProblem` instances by providing an [`update`][genjax.core.GenerativeFunction.update] implementation.
 
-    Updating a trace is a common operation in inference processes, but naively mutating the trace will invalidate the mathematical invariants that Gen retains. `UpdateProblem` instances denote _SMC moves_ in the framework of [SMCP3](https://proceedings.mlr.press/v206/lew23a.html), which preserves these invariants.
+    Updating a trace is a common operation in inference processes, but naively mutating the trace will invalidate the mathematical invariants that Gen retains. `UpdateProblem` instances denote requests for _SMC moves_ in the framework of [SMCP3](https://proceedings.mlr.press/v206/lew23a.html), which preserve these invariants.
 
-    An `UpdateProblem` denotes a function $Tr \\rightarrow (T, T')$ from the type $Tr$ of traces to a pair of targets (the previous target $T$, and the final target $T'$). The generative function is responsible for providing an [`update`][genjax.core.GenerativeFunction.update] implementation which responds to the problem, by implementing an SMCP3 move that transforms the trace to satisfy the specification.
     """
 
     @classmethod
@@ -173,7 +172,7 @@ class Constraint(UpdateProblem):
 
     Just like all `UpdateProblem` instances, the generative function must respond to the request to update a trace to satisfy the constraint by providing an [`update`][genjax.core.GenerativeFunction.update] implementation which implements an SMCP3 move that transforms the provided trace to satisfy the specification.
 
-    Constraint can also be used to construct [`ImportanceProblem`](genjax.core.ImportanceProblem) instances, which are used to implement the [`importance`][genjax.core.GenerativeFunction.importance] interface. This interface implements a restricted SMCP3 move, from the empty target, to the target induced by the constraint.
+    Constraints can also be used to construct [`ImportanceProblem`](genjax.core.ImportanceProblem) instances, which are used to implement the [`importance`][genjax.core.GenerativeFunction.importance] interface. This interface implements a restricted SMCP3 move, from the empty target, to the target induced by the constraint.
     """
 
 
@@ -369,6 +368,9 @@ class Trace(Pytree):
         problem: UpdateProblem,
         argdiffs: Optional[Tuple | Argdiffs] = None,
     ) -> Tuple["Trace", Weight, Retdiff, UpdateProblem]:
+        """
+        Update a trace in response to an `UpdateProblem`. This method calls out to the underlying `GenerativeFunction.update` method - see [`UpdateProblem`][genjax.core.UpdateProblem] and [`update`][genjax.core.GenerativeFunction.update] for more information.
+        """
         gen_fn = self.get_gen_fn()
         if argdiffs:
             check = Diff.static_check_tree_diff(argdiffs)
@@ -529,6 +531,36 @@ class GenerativeFunction(Pytree):
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
         """
         Update a trace of the generative function, in response to an `UpdateProblem`.
+
+        The specification of this interface is parametric over the kind of `UpdateProblem` -- responding to an `UpdateProblem` instance requires that the generative function provides an implementation of a sequential Monte Carlo move in the [SMCP3](https://proceedings.mlr.press/v206/lew23a.html) framework.
+
+        **Mathematical specification of an SMCP3 move**
+
+        Here, we omit the measure theoretic formalization, and refer interested readers to [the paper](https://proceedings.mlr.press/v206/lew23a.html). The ingredients of such a move are:
+
+        * The previous target $T$.
+        * The new target $T'$.
+        * A pair of kernel probabilistic programs, called $K$ and $L$:
+            * The K kernel is a kernel probabilistic program which accepts a previous sample $x_{t-1}$ from $T$ as an argument, may sample auxiliary randomness $u_K$, and returns a new sample $x_t$ approximately distributed according to $T'$, along with transformed randomness $u_L$.
+            * The L kernel is a kernel probabilistic program which accepts the new sample $x_t$, and provides a density evaluator for the auxiliary randomness $u_L$ which K returns, and an inverter $x_t \\mapsto x_{t-1}$ which is _almost everywhere_ the identity function.
+
+        These ingredients are encapsulated in the types of the `update` interface:
+
+        **What are `Argdiffs`?**
+
+        The `Argdiffs` type denotes the type of values attached with a _change type_, a piece of data which indicates how the value has changed from the arguments which created the trace.
+
+        Changing the value of the arguments is part of specifying the previous and new targets in the update request: `Argdiffs` are a way to inform Gen about specific changes to the arguments as part of the `update` request, and (when combined with `UpdateProblem`) can be used to support update optimizations.
+
+        **Specifying an SMCP3 move via `UpdateProblem` and `Argdiffs`**
+
+        An `UpdateProblem`, along with the new arguments (the _primals_ of `Argdiffs` -- primals meaning the values without change type information) denotes a function $Tr \\rightarrow (T, T')$ from the type $Tr$ of traces to a pair of targets (the previous target $T$, and the final target $T'$).
+
+        The generative function is responsible for providing an [`update`][genjax.core.GenerativeFunction.update] implementation which responds to the request, by implementing an SMCP3 move which satisfies the specification.
+
+        **Common types of `UpdateProblem`**
+
+        Constraints are a simple type of `UpdateProblem` which specify a move from ... A common type of constraint / problem is [`ChoiceMap`][genjax.core.ChoiceMap].
         """
         raise NotImplementedError
 
@@ -538,6 +570,13 @@ class GenerativeFunction(Pytree):
         sample: Sample,
         args: Tuple,
     ) -> Tuple[Score, Retval]:
+        """
+        Return [the score][genjax.core.Trace.get_score] and [the return value][genjax.core.Trace.get_retval] when the generative function is invoked with the provided arguments, and constrained to take the provided sample as the sampled value.
+
+        It is an error if the provided sample value is off the support of the distribution over the `Sample` type, or otherwise induces a partial constraint on the execution of the generative function (which would require the generative function to provide an `update` implementation which responds to the `UpdateProblem` induced by the [`importance`][genjax.core.GenerativeFunction.importance] interface).
+
+        This method is similar to density evaluation interfaces for distributions.
+        """
         raise NotImplementedError
 
     def importance(
@@ -546,6 +585,11 @@ class GenerativeFunction(Pytree):
         constraint: Constraint,
         args: Tuple,
     ) -> Tuple[Trace, Weight]:
+        """
+        Generates a properly weighted sample from the target $T$ induced by the generative function for the provided constraint and arguments.
+
+        Formally, creates an `UpdateProblem` which requests that the generative function respond with a move from the _empty_ trace (the only possible value for _empty_ target $\\delta_\\emptyset$) to the target induced by the generative function for constraint $C$ with arguments $a$.
+        """
         importance_problem = ImportanceProblem(constraint)
         tr, w, _, _ = self.update(
             key, EmptyTrace(self), importance_problem, Diff.unknown_change(args)
