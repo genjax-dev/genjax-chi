@@ -65,6 +65,7 @@ Argdiffs = Annotated[
     Tuple,
     Is[lambda v: Diff.static_check_tree_diff(v)],
 ]
+Retval = Any
 
 #########################
 # Update specifications #
@@ -72,6 +73,14 @@ Argdiffs = Annotated[
 
 
 class UpdateProblem(Pytree):
+    """
+    An `UpdateProblem` is a request to update a trace of a generative function.
+
+    Updating a trace is a common operation in inference processes, but naively mutating the trace will invalidate the mathematical invariants that Gen retains. `UpdateProblem` instances denote _SMC moves_ in the framework of [SMCP3](https://proceedings.mlr.press/v206/lew23a.html), which preserves these invariants.
+
+    An `UpdateProblem` denotes a function $Tr \\rightarrow (T, T')$ from the type $Tr$ of traces to a pair of targets (the previous target $T$, and the final target $T'$). The generative function is responsible for providing an [`update`][genjax.core.GenerativeFunction.update] implementation which responds to the problem, by implementing an SMCP3 move that transforms the trace to satisfy the specification.
+    """
+
     @classmethod
     def empty(cls):
         return EmptyProblem()
@@ -129,7 +138,13 @@ class ProjectProblem(UpdateProblem):
 
 
 class Constraint(UpdateProblem):
-    pass
+    """
+    An `Constraint` is a type of `UpdateProblem` specified by a function from the [`Sample`][genjax.core.Sample] space of the generative function to a value space `Y`, and a target value `v` in `Y`. In other words, the tuple $(S \\mapsto Y, v \\in Y)$.
+
+    Just like all `UpdateProblem` instances, the generative function must respond to the request to update a trace to satisfy the constraint by providing an [`update`][genjax.core.GenerativeFunction.update] implementation which implements an SMCP3 move that transforms the provided trace to satisfy the specification.
+
+    Constraint can also be used to construct [`ImportanceProblem`](genjax.core.ImportanceProblem) instances, which are used to implement the [`importance`][genjax.core.GenerativeFunction.importance] interface. This interface implements a restricted SMCP3 move, from the empty target, to the target induced by the constraint.
+    """
 
 
 @Pytree.dataclass
@@ -212,7 +227,7 @@ class BijectiveConstraint(Constraint):
 
 
 class Sample(Pytree):
-    """`Sample` is the abstract base class of the type of values which can be sampled from generative functions."""
+    """A `Sample` is a value which can be sampled from generative functions. Samples can be scalar values, or map-like values ([`ChoiceMap`][genjax.core.ChoiceMap]). Different sample types can induce different interfaces: `ChoiceMap`, for instance, supports interfaces for accessing sub-maps and values."""
 
 
 @Pytree.dataclass
@@ -251,7 +266,7 @@ class Trace(Pytree):
         """
 
     @abstractmethod
-    def get_retval(self) -> Any:
+    def get_retval(self) -> Retval:
         """Returns the return value from the generative function invocation which
         created the `Trace`.
 
@@ -345,7 +360,7 @@ class EmptyTrace(Trace):
     def get_args(self) -> Tuple:
         return (EmptyTraceArg(),)
 
-    def get_retval(self) -> Any:
+    def get_retval(self) -> Retval:
         return EmptyTraceRetval()
 
     def get_score(self) -> Score:
@@ -367,7 +382,7 @@ class GenerativeFunction(Pytree):
     def __call__(self, *args, **kwargs) -> "GenerativeFunctionClosure":
         return GenerativeFunctionClosure(self, args, kwargs)
 
-    def __abstract_call__(self, *args) -> Any:
+    def __abstract_call__(self, *args) -> Retval:
         """Used to support JAX tracing, although this default implementation involves no
         JAX operations (it takes a fixed-key sample from the return value).
 
@@ -473,6 +488,9 @@ class GenerativeFunction(Pytree):
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        """
+        Update a trace of the generative function, in response to an `UpdateProblem`.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -480,7 +498,7 @@ class GenerativeFunction(Pytree):
         self,
         sample: Sample,
         args: Tuple,
-    ) -> Tuple[Score, Any]:
+    ) -> Tuple[Score, Retval]:
         raise NotImplementedError
 
     def importance(
@@ -800,7 +818,7 @@ class GenerativeFunctionClosure(GenerativeFunction):
         self,
         sample: Sample,
         args: Tuple,
-    ) -> Tuple[Score, Any]:
+    ) -> Tuple[Score, Retval]:
         full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()

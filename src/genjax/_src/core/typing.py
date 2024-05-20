@@ -74,6 +74,10 @@ conf = BeartypeConf(
     is_pep484_tower=True,
     violation_type=TypeError,
 )
+
+"""
+Use `beartype` to perform type checking on the decorated function.
+"""
 typecheck = beartype(conf=conf)
 
 

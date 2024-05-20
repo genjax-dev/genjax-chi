@@ -28,8 +28,8 @@ Traces are data structures which record (execution and inference) data about the
         - get_score
 
 ::: genjax.core.Sample
-::: genjax.core.Constraint
 ::: genjax.core.UpdateProblem
+::: genjax.core.Constraint
 
 ## Generative functions with addressed random choices
 
@@ -98,3 +98,16 @@ Another mechanism to encode runtime uncertainty (again, inspired by functional p
         show_root_heading: true
 
 ## Static typing with `genjax.typing` a.k.a 🐻`beartype`🐻
+
+GenJAX uses [`beartype`](https://github.com/beartype/beartype) to perform type checking _during JAX tracing / compile time_. This means that `beartype`, normally a fast _runtime_ type checker, operates _at JAX tracing time_ to ensure that the arguments and return values are correct, with zero runtime cost.
+
+When you trip over `beartype`, you should expect to see errors of the following form:
+
+::: genjax.typing.typecheck
+
+### Special generative types
+::: genjax.core.Score
+::: genjax.core.Weight
+::: genjax.core.Retval
+::: genjax.core.Retdiff
+::: genjax.core.Argdiffs

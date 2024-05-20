@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from genjax._src.core.generative import (
+    Argdiffs,
     ChoiceMap,
     ChoiceMapBuilder,
     Constraint,
@@ -24,12 +25,16 @@ from genjax._src.core.generative import (
     MaskedConstraint,
     MaskedProblem,
     MaskedSample,
+    Retdiff,
+    Retval,
     Sample,
+    Score,
     Selection,
     SelectionBuilder,
     Sum,
     Trace,
     UpdateProblem,
+    Weight,
 )
 
 __all__ = [
@@ -50,4 +55,9 @@ __all__ = [
     "Sum",
     "Trace",
     "UpdateProblem",
+    "Score",
+    "Weight",
+    "Retdiff",
+    "Argdiffs",
+    "Retval",
 ]
