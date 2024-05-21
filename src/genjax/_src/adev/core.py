@@ -114,18 +114,17 @@ class TailCallADEVPrimitive(ADEVPrimitive):
 @Pytree.dataclass
 class TailCallBatchedADEVPrimitive(TailCallADEVPrimitive):
     original_prim: TailCallADEVPrimitive
-    in_dims: Tuple = Pytree.static()
+    dims: Tuple = Pytree.static()
 
     def sample(self, key, *args):
-        return jax.vmap(self.original_prim.sample, in_axes=(None, *self.in_dims))(
-            key, *args
-        )
+        return jax.vmap(self.original_prim.sample, in_axes=self.dims)(key, *args)
 
     def before_tail_call(
         self,
         key: PRNGKey,
         dual_tree: DualTree,  # Pytree with Dual leaves.
     ) -> "Dual":
+        key_dim, tree_dim = jax_util.split_list(self.dims, [1])
         tree_primals = Dual.tree_primal(dual_tree)
         tree_tangents = Dual.tree_tangent(dual_tree)
 
@@ -135,7 +134,7 @@ class TailCallBatchedADEVPrimitive(TailCallADEVPrimitive):
 
         return jax.vmap(
             _before_tail_call,
-            in_axes=(None, list(self.in_dims), list(self.in_dims)),
+            in_axes=(key_dim, tree_dim, tree_dim),
         )(key, tree_primals, tree_tangents)
 
 
@@ -178,9 +177,8 @@ def batch_primitive(args, dims, **params):
     # into the IR by binding it via `sample_primitive`.
     in_tree = params["in_tree"]
     key, *rest = args
-    _, *rest_dims = dims
     adev_prim, *primals = jtu.tree_unflatten(in_tree, rest)
-    batched_prim = adev_prim.get_batched_prim(tuple(rest_dims))
+    batched_prim = adev_prim.get_batched_prim(dims)
 
     # Insert into the IR.
     v = sample_primitive(
