@@ -3,7 +3,7 @@ name: Render and Publish Docs
 on:
   push:
     branches:
-      - nightly
+      - main
 
 env:
   POETRY_EXPERIMENTAL_SYSTEM_GIT_CLIENT: true
