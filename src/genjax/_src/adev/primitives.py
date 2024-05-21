@@ -358,6 +358,36 @@ uniform = Uniform()
 
 
 @Pytree.dataclass
+class BetaIMPLICIT(TailCallADEVPrimitive):
+    def sample(self, key, alpha, beta):
+        v = tfd.Beta(concentration1=alpha, concentration0=beta).sample(seed=key)
+        return v
+
+    def before_tail_call(
+        self,
+        key: PRNGKey,
+        dual_tree: DualTree,
+    ):
+        # Because TFP already overloads their Beta sampler with implicit
+        # differentiation rules for JVP, we directly utilize their rules.
+        def _inner(alpha, beta):
+            # Invoking TFP's Implicit reparametrization:
+            # https://github.com/tensorflow/probability/blob/v0.23.0/tensorflow_probability/python/distributions/beta.py#L292-L306
+            x = tfd.Beta(concentration1=alpha, concentration0=beta).sample(seed=key)
+            return x
+
+        # We invoke JAX's JVP (which utilizes TFP's registered implicit differentiation
+        # rule for Beta) to get a primal and tangent out.
+        primals = Dual.tree_primal(dual_tree)
+        tangents = Dual.tree_tangent(dual_tree)
+        primal_out, tangent_out = jax.jvp(_inner, primals, tangents)
+        return Dual(primal_out, tangent_out)
+
+
+beta_implicit = BetaIMPLICIT()
+
+
+@Pytree.dataclass
 class Baseline(ADEVPrimitive):
     prim: ADEVPrimitive
 

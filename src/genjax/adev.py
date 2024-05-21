@@ -28,6 +28,7 @@ from genjax._src.adev.primitives import mv_normal_diag_reparam
 from genjax._src.adev.primitives import mv_normal_reparam
 from genjax._src.adev.primitives import normal_reinforce
 from genjax._src.adev.primitives import normal_reparam
+from genjax._src.adev.primitives import beta_implicit
 from genjax._src.adev.primitives import reinforce
 from genjax._src.adev.primitives import uniform
 
@@ -37,6 +38,7 @@ __all__ = [
     "Dual",
     "add_cost",
     "baseline",
+    "beta_implicit",
     "categorical_enum_parallel",
     "expectation",
     # Primitives.
