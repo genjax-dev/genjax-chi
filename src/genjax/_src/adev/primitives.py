@@ -21,11 +21,11 @@ from tensorflow_probability.substrates import jax as tfp
 from genjax._src.adev.core import (
     ADEVPrimitive,
     Dual,
+    DualTree,
     TailCallADEVPrimitive,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
-    Any,
     Callable,
     PRNGKey,
     Tuple,
@@ -56,16 +56,16 @@ class REINFORCE(ADEVPrimitive):
     def jvp_estimate(
         self,
         key: PRNGKey,
-        tree_dual: Any,
+        dual_tree: DualTree,
         konts: Tuple,
     ):
         (_, kdual) = konts
-        primals = Dual.tree_primal(tree_dual)
-        tangents = Dual.tree_tangent(tree_dual)
+        primals = Dual.tree_primal(dual_tree)
+        tangents = Dual.tree_tangent(dual_tree)
         key, sub_key = jax.random.split(key)
         v = self.sample(sub_key, *primals)
-        tree_dual = Dual.tree_pure(v)
-        out_dual = kdual(key, tree_dual)
+        dual_tree = Dual.tree_pure(v)
+        out_dual = kdual(key, dual_tree)
         (out_primal,), (out_tangent,) = Dual.tree_unzip(out_dual)
         _, lp_tangent = jax.jvp(
             self.differentiable_logpdf,
@@ -93,12 +93,12 @@ class FlipEnum(ADEVPrimitive):
     def jvp_estimate(
         self,
         key: PRNGKey,
-        tree_dual: Any,
+        dual_tree: DualTree,
         konts: Tuple,
     ):
         (_, kdual) = konts
-        (p_primal,) = Dual.tree_primal(tree_dual)
-        (p_tangent,) = Dual.tree_tangent(tree_dual)
+        (p_primal,) = Dual.tree_primal(dual_tree)
+        (p_tangent,) = Dual.tree_tangent(dual_tree)
         true_dual = kdual(
             key,
             Dual(jnp.array(True), jnp.zeros_like(jnp.array(True))),
@@ -132,20 +132,19 @@ class FlipMVD(ADEVPrimitive):
     def jvp_estimate(
         self,
         key: PRNGKey,
-        primals: Tuple,
-        tangents: Tuple,
+        dual_tree: DualTree,
         konts: Tuple,
     ):
         (kpure, kdual) = konts
-        (p_primal,) = primals
-        (p_tangent,) = tangents
+        (p_primal,) = Dual.tree_primal(dual_tree)
+        (p_tangent,) = Dual.tree_primal(dual_tree)
         key, sub_key = jax.random.split(key)
         v = tfd.Bernoulli(probs=p_primal).sample(seed=sub_key)
         b = v == 1
         b_primal, b_tangent = kdual(key, (b,), (jnp.zeros_like(b),))
         other = kpure(key, jnp.logical_not(b))
         est = ((-1) ** v) * (other - b_primal)
-        return b_primal, b_tangent + est * p_tangent
+        return Dual(b_primal, b_tangent + est * p_tangent)
 
 
 flip_mvd = FlipMVD()
@@ -159,13 +158,12 @@ class FlipEnumParallel(ADEVPrimitive):
     def jvp_estimate(
         self,
         key: PRNGKey,
-        primals: Tuple,
-        tangents: Tuple,
+        dual_tree: DualTree,
         konts: Tuple,
     ):
-        (_kpure, kdual) = konts
-        (p_primal,) = primals
-        (p_tangent,) = tangents
+        (_, kdual) = konts
+        (p_primal,) = Dual.tree_primal(dual_tree)
+        (p_tangent,) = Dual.tree_tangent(dual_tree)
         sub_keys = jax.random.split(key, 2)
         ret_primals, ret_tangents = jax.vmap(kdual)(
             sub_keys,
@@ -176,10 +174,12 @@ class FlipEnumParallel(ADEVPrimitive):
         def _inner(p, ret):
             return jnp.sum(jnp.array([p, 1 - p]) * ret)
 
-        return jax.jvp(
-            _inner,
-            (p_primal, ret_primals),
-            (p_tangent, ret_tangents),
+        return Dual(
+            *jax.jvp(
+                _inner,
+                (p_primal, ret_primals),
+                (p_tangent, ret_tangents),
+            )
         )
 
 
@@ -194,13 +194,12 @@ class CategoricalEnumParallel(ADEVPrimitive):
     def jvp_estimate(
         self,
         key: PRNGKey,
-        primals: Tuple,
-        tangents: Tuple,
+        dual_tree: DualTree,
         konts: Tuple,
     ):
-        (_kpure, kdual) = konts
-        (probs_primal,) = primals
-        (probs_tangent,) = tangents
+        (_, kdual) = konts
+        (probs_primal,) = Dual.tree_primal(dual_tree)
+        (probs_tangent,) = Dual.tree_tangent(dual_tree)
         idxs = jnp.arange(len(probs_primal))
         sub_keys = jax.random.split(key, len(probs_primal))
         ret_primals, ret_tangents = jax.vmap(kdual)(
@@ -210,10 +209,12 @@ class CategoricalEnumParallel(ADEVPrimitive):
         def _inner(probs, primals):
             return jnp.sum(jax.nn.softmax(probs) * primals)
 
-        return jax.jvp(
-            _inner,
-            (probs_primal, ret_primals),
-            (probs_tangent, ret_tangents),
+        return Dual(
+            *jax.jvp(
+                _inner,
+                (probs_primal, ret_primals),
+                (probs_tangent, ret_tangents),
+            )
         )
 
 
@@ -243,10 +244,10 @@ class NormalREPARAM(TailCallADEVPrimitive):
     def before_tail_call(
         self,
         key: PRNGKey,
-        tree_dual: Any,
+        dual_tree: DualTree,
     ) -> Dual:
-        (mu_primal, sigma_primal) = Dual.tree_primal(tree_dual)
-        (mu_tangent, sigma_tangent) = Dual.tree_tangent(tree_dual)
+        (mu_primal, sigma_primal) = Dual.tree_primal(dual_tree)
+        (mu_tangent, sigma_tangent) = Dual.tree_tangent(dual_tree)
         key, sub_key = jax.random.split(key)
         eps = tfd.Normal(loc=0.0, scale=1.0).sample(seed=sub_key)
 
@@ -274,10 +275,10 @@ class MvNormalDiagREPARAM(TailCallADEVPrimitive):
     def before_tail_call(
         self,
         key: PRNGKey,
-        tree_dual: Any,
+        dual_tree: DualTree,
     ):
-        (loc_primal, diag_scale_primal) = Dual.tree_primal(tree_dual)
-        (loc_tangent, diag_scale_tangent) = Dual.tree_tangent(tree_dual)
+        (loc_primal, diag_scale_primal) = Dual.tree_primal(dual_tree)
+        (loc_tangent, diag_scale_tangent) = Dual.tree_tangent(dual_tree)
         key, sub_key = jax.random.split(key)
 
         eps = tfd.Normal(loc=0.0, scale=1.0).sample(
@@ -301,23 +302,20 @@ mv_normal_diag_reparam = MvNormalDiagREPARAM()
 
 
 @Pytree.dataclass
-class MvNormalREPARAM(ADEVPrimitive):
+class MvNormalREPARAM(TailCallADEVPrimitive):
     def sample(self, key, mu, sigma):
         v = tfd.MultivariateNormalFullCovariance(
             loc=mu, covariance_matrix=sigma
         ).sample(seed=key)
         return v
 
-    def jvp_estimate(
+    def before_tail_call(
         self,
         key: PRNGKey,
-        primals: Tuple,
-        tangents: Tuple,
-        konts: Tuple,
+        dual_tree: DualTree,
     ):
-        (_kpure, kdual) = konts
-        (mu_primal, cov_primal) = primals
-        (mu_tangent, cov_tangent) = tangents
+        (mu_primal, cov_primal) = Dual.tree_primal(dual_tree)
+        (mu_tangent, cov_tangent) = Dual.tree_primal(dual_tree)
         key, sub_key = jax.random.split(key)
 
         eps = tfd.Normal(loc=0.0, scale=1.0).sample(len(mu_primal), seed=sub_key)
@@ -331,14 +329,14 @@ class MvNormalREPARAM(ADEVPrimitive):
             (eps, mu_primal, cov_primal),
             (jnp.zeros_like(eps), mu_tangent, cov_tangent),
         )
-        return kdual(key, (primal_out,), (tangent_out,))
+        return Dual(primal_out, tangent_out)
 
 
 mv_normal_reparam = MvNormalREPARAM()
 
 
 @Pytree.dataclass
-class Uniform(ADEVPrimitive):
+class Uniform(TailCallADEVPrimitive):
     def sample(
         self,
         key: PRNGKey,
@@ -346,17 +344,14 @@ class Uniform(ADEVPrimitive):
         v = tfd.Uniform(low=0.0, high=1.0).sample(seed=key)
         return v
 
-    def jvp_estimate(
+    def before_tail_call(
         self,
         key: PRNGKey,
-        primals: Tuple,
-        tangents: Tuple,
-        konts: Tuple,
+        dual_tree: Tuple,
     ):
-        (_kpure, kdual) = konts
         key, sub_key = jax.random.split(key)
         x = tfd.Uniform(low=0.0, high=1.0).sample(seed=sub_key)
-        return kdual(key, (x,), (0.0,))
+        return Dual(x, 0.0)
 
 
 uniform = Uniform()
@@ -372,12 +367,12 @@ class Baseline(ADEVPrimitive):
     def jvp_estimate(
         self,
         key: PRNGKey,
-        tree_dual: Any,
+        dual_tree: DualTree,
         konts: Tuple,
     ):
         (kpure, kdual) = konts
-        (b_primal, *prim_primals) = Dual.tree_primal(tree_dual)
-        (b_tangent, *prim_tangents) = Dual.tree_tangent(tree_dual)
+        (b_primal, *prim_primals) = Dual.tree_primal(dual_tree)
+        (b_tangent, *prim_tangents) = Dual.tree_tangent(dual_tree)
 
         def new_kdual(key, dual: Dual):
             ret_dual = kdual(key, dual)
@@ -394,7 +389,7 @@ class Baseline(ADEVPrimitive):
 
         l_dual = self.prim.jvp_estimate(
             key,
-            Dual.tree_dual(prim_primals, prim_tangents),
+            Dual.dual_tree(prim_primals, prim_tangents),
             (kpure, new_kdual),
         )
 
@@ -427,12 +422,12 @@ class AddCost(ADEVPrimitive):
     def jvp_estimate(
         self,
         key: PRNGKey,
-        tree_dual: Any,
+        dual_tree: DualTree,
         konts: Tuple,
     ) -> Dual:
-        (_kpure, kdual) = konts
-        (w,) = Dual.tree_primal(tree_dual)
-        (w_tangent,) = Dual.tree_tangent(tree_dual)
+        (_, kdual) = konts
+        (w,) = Dual.tree_primal(dual_tree)
+        (w_tangent,) = Dual.tree_tangent(dual_tree)
         l_dual = kdual(key, Dual(None, None))
         return Dual(w + l_dual.primal, w_tangent + l_dual.tangent)
 
