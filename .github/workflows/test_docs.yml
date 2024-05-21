@@ -49,4 +49,4 @@ jobs:
           restore-keys: ${{ runner.os }}-nox
 
       - name: Run Docs Build
-        run: nox -s mkdocs
+        run: nox -r -s mkdocs
