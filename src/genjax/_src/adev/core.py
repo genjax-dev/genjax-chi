@@ -20,12 +20,15 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 from jax import core as jc
 from jax import util as jax_util
+from jax.extend import linear_util as lu
 from jax.extend import source_info_util as src_util
 from jax.interpreters import ad as jax_autodiff
+from jax.interpreters import batching
 
 from genjax._src.core.interpreters.forward import (
     Environment,
     InitialStylePrimitive,
+    batch_fun,
     initial_style_bind,
 )
 from genjax._src.core.interpreters.staging import stage
@@ -63,9 +66,67 @@ class ADEVPrimitive(Pytree):
     ) -> "Dual":
         pass
 
+    def get_batched_prim(self, dims: Tuple):
+        """
+        To use ADEV primitives inside of `vmap`, they must provide a custom batched primitive version of themselves.
+
+        This method returns the batched primitive, which contains customized gradient estimator strategies which are compatible with batching.
+        """
+        raise NotImplementedError
+
     @typecheck
     def __call__(self, *args):
         return sample_primitive(self, *args)
+
+
+class TailCallADEVPrimitive(ADEVPrimitive):
+    @abstractmethod
+    def before_tail_call(
+        self,
+        key: PRNGKey,
+        tree_dual: Any,  # Pytree with Dual leaves.
+    ) -> "Dual":
+        raise NotImplementedError
+
+    def jvp_estimate(
+        self,
+        key: PRNGKey,
+        tree_dual: Any,  # Pytree with Dual leaves.
+        konts: Tuple[Callable, Callable],
+    ) -> "Dual":
+        _, kdual = konts
+        return kdual(key, self.before_tail_call(key, tree_dual))
+
+    def get_batched_prim(self, dims: Tuple):
+        return TailCallBatchedADEVPrimitive(self, dims)
+
+
+@Pytree.dataclass
+class TailCallBatchedADEVPrimitive(TailCallADEVPrimitive):
+    original_prim: TailCallADEVPrimitive
+    in_dims: Tuple = Pytree.static()
+
+    def sample(self, key, *args):
+        return jax.vmap(self.original_prim.sample, in_axes=(None, *self.in_dims))(
+            key, *args
+        )
+
+    def before_tail_call(
+        self,
+        key: PRNGKey,
+        tree_dual: Any,  # Pytree with Dual leaves.
+    ) -> "Dual":
+        tree_primals = Dual.tree_primal(tree_dual)
+        tree_tangents = Dual.tree_tangent(tree_dual)
+
+        def _before_tail_call(key, tree_primals, tree_tangents):
+            tree_dual = Dual.tree_dual(tree_primals, tree_tangents)
+            return self.original_prim.before_tail_call(key, tree_dual)
+
+        return jax.vmap(
+            _before_tail_call,
+            in_axes=(None, list(self.in_dims), list(self.in_dims)),
+        )(key, tree_primals, tree_tangents)
 
 
 ####################
@@ -90,6 +151,32 @@ def sample_primitive(adev_prim: ADEVPrimitive, *args, key=jax.random.PRNGKey(0))
         adev_prim,
         *args,
     )
+
+
+# TODO: this is gnarly as fuck.
+def batch_primitive(args, dims, **params):
+    def fun_impl(*args, **params):
+        consts, args = jax_util.split_list(args, [params["num_consts"]])
+        return jc.eval_jaxpr(params["_jaxpr"], consts, *args)
+
+    batched, out_dims = batch_fun(lu.wrap_init(fun_impl, params), dims)
+    batched.call_wrapped(*args)
+
+    # TODO: We should be able to avoid this.
+    in_tree = params["in_tree"]
+    key, *rest = args
+    _, *rest_dims = dims
+    adev_prim, *primals = jtu.tree_unflatten(in_tree, rest)
+    batched_prim = adev_prim.get_batched_prim(tuple(rest_dims))
+    v = sample_primitive(
+        batched_prim,
+        *primals,
+        key=key,
+    )
+    return jtu.tree_leaves(v), out_dims()
+
+
+batching.primitive_batchers[sample_p] = batch_primitive
 
 
 ####################

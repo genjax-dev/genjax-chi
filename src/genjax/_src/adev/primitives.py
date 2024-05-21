@@ -21,6 +21,7 @@ from tensorflow_probability.substrates import jax as tfp
 from genjax._src.adev.core import (
     ADEVPrimitive,
     Dual,
+    TailCallADEVPrimitive,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -124,7 +125,7 @@ flip_enum = FlipEnum()
 
 
 @Pytree.dataclass
-class BernoulliMVD(ADEVPrimitive):
+class FlipMVD(ADEVPrimitive):
     def sample(self, key, p):
         return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
 
@@ -147,7 +148,7 @@ class BernoulliMVD(ADEVPrimitive):
         return b_primal, b_tangent + est * p_tangent
 
 
-flip_mvd = BernoulliMVD()
+flip_mvd = FlipMVD()
 
 
 @Pytree.dataclass
@@ -235,17 +236,15 @@ normal_reinforce = reinforce(
 
 
 @Pytree.dataclass
-class NormalREPARAM(ADEVPrimitive):
+class NormalREPARAM(TailCallADEVPrimitive):
     def sample(self, key, loc, scale_diag):
         return tfd.Normal(loc=loc, scale=scale_diag).sample(seed=key)
 
-    def jvp_estimate(
+    def before_tail_call(
         self,
         key: PRNGKey,
         tree_dual: Any,
-        konts: Tuple,
-    ):
-        (_kpure, kdual) = konts
+    ) -> Dual:
         (mu_primal, sigma_primal) = Dual.tree_primal(tree_dual)
         (mu_tangent, sigma_tangent) = Dual.tree_tangent(tree_dual)
         key, sub_key = jax.random.split(key)
@@ -259,29 +258,26 @@ class NormalREPARAM(ADEVPrimitive):
             (mu_primal, sigma_primal),
             (mu_tangent, sigma_tangent),
         )
-        return kdual(key, Dual(primal_out, tangent_out))
+        return Dual(primal_out, tangent_out)
 
 
 normal_reparam = NormalREPARAM()
 
 
 @Pytree.dataclass
-class MvNormalDiagREPARAM(ADEVPrimitive):
+class MvNormalDiagREPARAM(TailCallADEVPrimitive):
     def sample(self, key, loc, scale_diag):
         return tfd.MultivariateNormalDiag(loc=loc, scale_diag=scale_diag).sample(
             seed=key
         )
 
-    def jvp_estimate(
+    def before_tail_call(
         self,
         key: PRNGKey,
-        primals: Tuple,
-        tangents: Tuple,
-        konts: Tuple,
+        tree_dual: Any,
     ):
-        (_kpure, kdual) = konts
-        (loc_primal, diag_scale_primal) = primals
-        (loc_tangent, diag_scale_tangent) = tangents
+        (loc_primal, diag_scale_primal) = Dual.tree_primal(tree_dual)
+        (loc_tangent, diag_scale_tangent) = Dual.tree_tangent(tree_dual)
         key, sub_key = jax.random.split(key)
 
         eps = tfd.Normal(loc=0.0, scale=1.0).sample(
@@ -298,8 +294,7 @@ class MvNormalDiagREPARAM(ADEVPrimitive):
             (loc_primal, diag_scale_primal),
             (loc_tangent, diag_scale_tangent),
         )
-
-        return kdual(key, (primal_out,), (tangent_out,))
+        return Dual(primal_out, tangent_out)
 
 
 mv_normal_diag_reparam = MvNormalDiagREPARAM()
