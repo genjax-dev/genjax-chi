@@ -12,30 +12,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.combinators.masking_combinator import (
-    masking_combinator,
+from genjax._src.generative_functions.combinators.address_bijection_combinator import (
+    AddressBijectionCombinator,
+    address_bijection_combinator,
 )
-from genjax._src.generative_functions.combinators.switch.switch_combinator import (
+from genjax._src.generative_functions.combinators.compose_combinator import (
+    ComposeCombinator,
+    compose_combinator,
+)
+from genjax._src.generative_functions.combinators.cond_combinator import cond_combinator
+from genjax._src.generative_functions.combinators.mask_combinator import (
+    MaskCombinator,
+    mask_combinator,
+)
+from genjax._src.generative_functions.combinators.mixture_combinator import (
+    mixture_combinator,
+)
+from genjax._src.generative_functions.combinators.repeat_combinator import (
+    repeat_combinator,
+)
+from genjax._src.generative_functions.combinators.scan_combinator import (
+    ScanCombinator,
+    scan_combinator,
+)
+from genjax._src.generative_functions.combinators.switch_combinator import (
     SwitchCombinator,
     switch_combinator,
 )
-from genjax._src.generative_functions.combinators.vector.map_combinator import (
-    MapCombinator,
-    map_combinator,
-)
-from genjax._src.generative_functions.combinators.vector.repeat_combinator import (
-    repeat_combinator,
-)
-from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
-    unfold_combinator,
+from genjax._src.generative_functions.combinators.vmap_combinator import (
+    VmapCombinator,
+    vmap_combinator,
 )
 
 __all__ = [
-    "masking_combinator",
-    "map_combinator",
-    "MapCombinator",
-    "repeat_combinator",
-    "unfold_combinator",
-    "switch_combinator",
+    "AddressBijectionCombinator",
+    "ComposeCombinator",
+    "MaskCombinator",
+    "ScanCombinator",
     "SwitchCombinator",
+    "VmapCombinator",
+    "address_bijection_combinator",
+    "compose_combinator",
+    "cond_combinator",
+    "mask_combinator",
+    "mixture_combinator",
+    "repeat_combinator",
+    "scan_combinator",
+    "switch_combinator",
+    "vmap_combinator",
 ]

@@ -15,28 +15,28 @@
 import genjax
 import jax
 import pytest
+from genjax import ChoiceMapBuilder as C
 
 
 class TestVI:
     def test_normal_normal_tight_variance(self):
-        @genjax.static_gen_fn
+        @genjax.gen
         def model(v):
             mu = genjax.normal(0.0, 10.0) @ "mu"
             _ = genjax.normal(mu, 0.1) @ "v"
 
         @genjax.marginal
-        @genjax.static_gen_fn
+        @genjax.gen
         def guide(target):
             (v,) = target.args
             _ = genjax.vi.normal_reparam(v, 0.1) @ "mu"
 
         key = jax.random.PRNGKey(314159)
-        elbo = genjax.vi.ELBO(
-            guide,
-            lambda v: genjax.Target(model, (v,), genjax.choice_map({"v": 3.0})),
+        elbo_grad = genjax.vi.ELBO(
+            guide, lambda v: genjax.Target(model, (v,), C["v"].set(3.0))
         )
         v = 0.1
-        jitted = jax.jit(elbo.grad_estimate)
+        jitted = jax.jit(elbo_grad)
         for _ in range(200):
             (v_grad,) = jitted(key, (v,))
             v -= 1e-3 * v_grad

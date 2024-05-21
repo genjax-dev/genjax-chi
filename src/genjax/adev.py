@@ -13,8 +13,8 @@
 # limitations under the License.
 
 from genjax._src.adev.core import ADEVPrimitive  # noqa: I001
+from genjax._src.adev.core import Dual
 from genjax._src.adev.core import expectation
-from genjax._src.adev.core import reap_key
 from genjax._src.adev.core import sample_primitive
 from genjax._src.adev.primitives import add_cost
 from genjax._src.adev.primitives import baseline
@@ -28,29 +28,31 @@ from genjax._src.adev.primitives import mv_normal_diag_reparam
 from genjax._src.adev.primitives import mv_normal_reparam
 from genjax._src.adev.primitives import normal_reinforce
 from genjax._src.adev.primitives import normal_reparam
+from genjax._src.adev.primitives import beta_implicit
 from genjax._src.adev.primitives import reinforce
 from genjax._src.adev.primitives import uniform
 
 
 __all__ = [
-    # Language.
-    "sample_primitive",
-    "reap_key",
-    "expectation",
     "ADEVPrimitive",
+    "Dual",
+    "add_cost",
+    "baseline",
+    "beta_implicit",
+    "categorical_enum_parallel",
+    "expectation",
     # Primitives.
     "flip_enum",
     "flip_enum_parallel",
     "flip_mvd",
     "flip_reinforce",
-    "categorical_enum_parallel",
     "geometric_reinforce",
+    "mv_normal_diag_reparam",
+    "mv_normal_reparam",
     "normal_reinforce",
     "normal_reparam",
-    "mv_normal_reparam",
-    "mv_normal_diag_reparam",
-    "uniform",
-    "baseline",
     "reinforce",
-    "add_cost",
+    # Language.
+    "sample_primitive",
+    "uniform",
 ]

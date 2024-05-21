@@ -12,18 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+from contextlib import contextmanager  # noqa: I001
 from genjax._src.core.typing import Callable, typecheck
 
 _GLOBAL_CHECKIFY_HANDLER = []
 
 
-def yes_checkify():
+@contextmanager
+def do_checkify():
     _GLOBAL_CHECKIFY_HANDLER.append(True)
-
-
-def no_checkify():
-    _GLOBAL_CHECKIFY_HANDLER.pop()
+    try:
+        yield
+    finally:
+        _GLOBAL_CHECKIFY_HANDLER.pop()
 
 
 @typecheck

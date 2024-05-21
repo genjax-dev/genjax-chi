@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "genjax"
-version = "0.0.1"
+version = "0.4.0"
 description = "Probabilistic programming with Gen, built on top of JAX."
 authors = [
   "McCoy R. Becker <mccoyb@mit.edu>",
@@ -24,7 +24,6 @@ keywords = [
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12"
@@ -34,24 +33,14 @@ classifiers = [
 Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
-blackjax = { version = "^0.9.6", optional = true }
-python = ">=3.9,<3.13"
-jax = "^0.4.25"
-numpy = "^1.26.4"
+python = ">=3.10,<3.13"
+jax = "^0.4.28"
 tensorflow-probability = "^0.23.0"
-rich = "^13.7.1"
-jaxtyping = "^0.2.25"
-optax = "^0.1.9"
-beartype = "^0.17.0"
-dill = "^0.3.8"
-pygments = "^2.17.2"
-plum-dispatch = "^2.3.2"
-equinox = "^0.11.3"
-msgpack = {version = "^1.0.7", optional = true }
-tinygp = { version = "^0.2.3", optional = true }
-typing_extensions = ">=4.6.0,<5"
-oryx = "^0.2.6"
+jaxtyping = "^0.2.28"
+beartype = "^0.18.5"
 deprecated = "^1.2.14"
+penzai = "^0.1.1"
+msgpack = {version = "^1.0.8", optional = true }
 
 [tool.poetry.group.dev]
 optional = true
@@ -71,6 +60,7 @@ xdoctest = "^1.1.0"
 jupyterlab = "^4.1.6"
 nox = "^2024.3.2"
 nox-poetry = "^1.0.3"
+jupytext = "^1.16.2"
 
 [tool.poetry.group.docs]
 optional = true
@@ -80,15 +70,19 @@ mkdocs = "^1.5.3"
 mkdocs-git-authors-plugin = "^0.7.2"
 mkdocs-git-revision-date-localized-plugin = "^1.1.0"
 mkdocs-git-committers-plugin-2 = "^1.1.1"
-markdown-exec = {version="^1.6.0", extras=["ansi"]}
+markdown-exec = {version="^1.8.2", extras=["ansi"]}
 mkdocs-material = { git = "git@github.com:probcomp/mkdocs-material-insiders.git" }
-mkdocstrings = { extras=["python"], git = "https://github.com/mkdocstrings/mkdocstrings.git", tag="0.24.0" }
+mkdocstrings-python = { git = "git@github.com:probcomp/mkdocstrings-python.git" }
+black = "^24.4.2"
 
 [tool.poetry.extras]
-tinygp = ["tinygp"]
-blackjax = ["blackjax"]
 msgpack = ["msgpack"]
-all = ["blackjax", "msgpack", "tinygp"]
+all = ["msgpack"]
+
+[[tool.poetry.source]]
+name = "gcp"
+url = "https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/"
+priority = "explicit"
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
@@ -144,18 +138,17 @@ indent-width = 4
 convention = "google"
 
 [tool.ruff.lint]
+preview = true
 extend-select = ["I"]
 select = ["E4", "E7", "E9", "F"]
-# F811 silences errors from GenJAX's type-based dispatch. Remove this if we can
-# find some way to teach ruff about these overloads.
-#
 # F403 disables errors from `*` imports, which we currently use heavily.
-ignore = ["F811", "F403"]
+ignore = ["F403"]
 fixable = ["ALL"]
 unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.format]
+preview = true
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false

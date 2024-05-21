@@ -17,10 +17,11 @@ Markov models (HMMs)."""
 import jax
 import jax.numpy as jnp
 
+from genjax._src.core.generative import Selection
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
-from genjax._src.generative_functions.combinators.vector.unfold_combinator import (
-    unfold_combinator,
+from genjax._src.generative_functions.combinators.scan_combinator import (
+    scan_combinator,
 )
 from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMM,
@@ -29,10 +30,10 @@ from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
 )
-from genjax._src.generative_functions.static.static_gen_fn import static_gen_fn
-from genjax._src.shortcuts import select
+from genjax._src.generative_functions.static import gen
 
 
+@Pytree.dataclass
 class DiscreteHMMInferenceProblem(Pytree):
     initial_state: IntArray
     log_posterior: FloatArray
@@ -72,8 +73,8 @@ def build_test_against_exact_inference(
         observation_variance,
     )
 
-    @unfold_combinator(max_length=max_length)
-    @static_gen_fn
+    @scan_combinator(max_length=max_length)
+    @gen
     def markov_chain(state: IntArray, config: DiscreteHMMConfiguration):
         transition = config.transition_tensor()
         observation = config.observation_tensor()
@@ -85,8 +86,8 @@ def build_test_against_exact_inference(
         key, sub_key = jax.random.split(key)
         initial_state = categorical.sample(sub_key, jnp.ones(config.linear_grid_dim))
         tr = markov_chain.simulate(sub_key, (max_length - 1, initial_state, config))
-        z_sel = select("z")
-        x_sel = select("x")
+        z_sel = Selection.at["z"]
+        x_sel = Selection.at["x"]
         latent_sequence = tr.filter(z_sel)["z"]
         observation_sequence = tr.filter(x_sel)["x"]
         log_data_marginal = DiscreteHMM.data_logpdf(config, observation_sequence)

@@ -42,6 +42,7 @@ def scaled_circulant(N, k, epsilon, delta):
     return circulant(source)
 
 
+@Pytree.dataclass
 class DiscreteHMMConfiguration(Pytree):
     linear_grid_dim: IntArray = Pytree.static()
     adjacency_distance_trans: IntArray = Pytree.static()
@@ -137,7 +138,7 @@ def forward_filtering_backward_sampling(
         forward_filter = alpha - jax.scipy.special.logsumexp(alpha)
         return (index + 1, alpha), (alpha, forward_filter)
 
-    _, (alpha, forward_filters) = jax.lax.scan(
+    _, (_alpha, forward_filters) = jax.lax.scan(
         forward_pass, (0, prior), observation_sequence
     )
 
@@ -238,6 +239,7 @@ def latent_sequence_posterior(
     return prod, (probs, hmm.log_prob(observation_sequence))
 
 
+@Pytree.dataclass
 class _DiscreteHMMLatentSequencePosterior(Distribution):
     def random_weighted(self, key, config, observation_sequence, **kwargs):
         key, sub_key = jax.random.split(key)

@@ -16,15 +16,26 @@
 The Pytree interface determines how data classes behave across JAX-transformed function boundaries - it provides a user with the freedom to declare subfields of a class as "static" (meaning, the value of the field cannot be a JAX traced value, it must be a Python literal, or a constant array - and the value is embedded in the `PyTreeDef` of any instance) or "dynamic" (meaning, the value may be a JAX traced value).
 """
 
-import equinox as eqx
+import inspect
+from dataclasses import field, fields
+
 import jax.numpy as jnp
 import jax.tree_util as jtu
-import rich.tree as rich_tree
+from penzai import pz
+from penzai.treescope import default_renderer
+from penzai.treescope.foldable_representation import (
+    basic_parts,
+    common_structures,
+    common_styles,
+    foldable_impl,
+)
+from penzai.treescope.handlers import builtin_structure_handler
+from penzai.treescope.handlers.penzai import struct_handler
+from typing_extensions import dataclass_transform
 
-import genjax._src.core.pretty_printing as gpp
+from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
-    ArrayLike,
     Callable,
     List,
     Tuple,
@@ -33,53 +44,87 @@ from genjax._src.core.typing import (
     static_check_supports_grad,
 )
 
+register_exclusion(__file__)
 
-class Pytree(eqx.Module):
+
+class Pytree(pz.Struct):
     """`Pytree` is an abstract base class which registers a class with JAX's `Pytree`
-    system."""
+    system. JAX's `Pytree` system tracks how data classes should behave across JAX-transformed function boundaries, like `jax.jit` or `jax.vmap`.
+
+    Inheriting this class provides the implementor with the freedom to declare how the subfields of a class should behave:
+
+    * `Pytree.static(...)`: the value of the field cannot be a JAX traced value, it must be a Python literal, or a constant). The values of static fields are embedded in the `PyTreeDef` of any instance of the class.
+    * `Pytree.field(...)` or no annotation: the value may be a JAX traced value, and JAX will attempt to convert it to tracer values inside of its transformations.
+
+    If a field _points to another `Pytree`_, it should not be declared as `Pytree.static()`, as the `Pytree` interface will automatically handle the `Pytree` fields as dynamic fields.
+
+    """
+
+    @dataclass_transform(
+        frozen_default=True,
+    )
+    @classmethod
+    def dataclass(
+        cls,
+        incoming: type[Any] | None = None,
+        /,
+        **kwargs,
+    ) -> type[Any] | Callable[[type[Any]], type[Any]]:
+        """
+        Denote that a class (which is inheriting `Pytree`) should be treated as a dataclass, meaning it can hold data in fields which are declared as part of the class.
+
+        A dataclass is to be distinguished from a "methods only" `Pytree` class, which does not have fields, but may define methods.
+        The latter cannot be instantiated, but can be inherited from, while the former can be instantiated:
+        the `Pytree.dataclass` declaration informs the system _how to instantiate_ the class as a dataclass,
+        and how to automatically define JAX's `Pytree` interfaces (`tree_flatten`, `tree_unflatten`, etc.) for the dataclass, based on the fields declared in the class, and possibly `Pytree.static(...)` or `Pytree.field(...)` annotations (or lack thereof, the default is that all fields are `Pytree.field(...)`).
+
+        All `Pytree` dataclasses support pretty printing, as well as rendering to HTML.
+
+        Examples:
+            ```python exec="yes" html="true" source="material-block" session="core"
+            from genjax import Pytree
+            from genjax.typing import FloatArray, typecheck
+            import jax.numpy as jnp
+
+            @Pytree.dataclass
+            @typecheck # Enforces type annotations on instantiation.
+            class MyClass(Pytree):
+                my_static_field: int = Pytree.static()
+                my_dynamic_field: FloatArray
+
+            print(MyClass(10, jnp.array(5.0)).render_html())
+            ```
+        """
+
+        return pz.pytree_dataclass(
+            incoming,
+            **kwargs,
+        )
 
     @staticmethod
     def static(**kwargs):
-        return eqx.field(**kwargs, static=True)
+        """Declare a field of a `Pytree` dataclass to be static. Users can provide additional keyword argument options,
+        like `default` or `default_factory`, to customize how the field is instantiated when an instance of
+        the dataclass is instantiated.` Fields which are provided with default values must come after required fields in the dataclass declaration.
+
+        Examples:
+            ```python exec="yes" html="true" source="material-block" session="core"
+            @Pytree.dataclass
+            @typecheck # Enforces type annotations on instantiation.
+            class MyClass(Pytree):
+                my_dynamic_field: FloatArray
+                my_static_field: int = Pytree.static(default=0)
+
+            print(MyClass(jnp.array(5.0)).render_html())
+            ```
+
+        """
+        return field(metadata={"pytree_node": False}, **kwargs)
 
     @staticmethod
     def field(**kwargs):
-        return eqx.field(**kwargs)
-
-    def tree_flatten(self):
-        return jtu.tree_flatten(self)
-
-    def tree_leaves(self):
-        return jtu.tree_leaves(self)
-
-    # This exposes slicing into the struct-of-array representation,
-    # taking leaves and indexing into them on the provided index,
-    # returning a value with the same `Pytree` structure.
-    def slice(self, index_or_index_array: ArrayLike) -> "Pytree":
-        """Utility available to any class which mixes `Pytree` base. This method
-        supports indexing/slicing on indices when leaves are arrays.
-
-        `obj.slice(index)` will take an instance whose class extends `Pytree`, and return an instance of the same class type, but with leaves indexed into at `index`.
-
-        Arguments:
-            index_or_index_array: An `Int` index or an array of indices which will be used to index into the leaf arrays of the `Pytree` instance.
-
-        Returns:
-            new_instance: A `Pytree` instance of the same type, whose leaf values are the results of indexing into the leaf arrays with `index_or_index_array`.
-        """
-        return jtu.tree_map(lambda v: v[index_or_index_array], self)
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    # Can be customized by Pytree mixers.
-    def __rich_tree__(self):
-        return gpp.tree_pformat(self)
-
-    # Defines default pretty printing.
-    def __rich_console__(self, console, options):
-        yield self.__rich_tree__()
+        "Declare a field of a `Pytree` dataclass to be dynamic. Alternatively, one can leave the annotation off in the declaration."
+        return field(**kwargs)
 
     ##############################
     # Utility class constructors #
@@ -90,33 +135,33 @@ class Pytree(eqx.Module):
         # The value must be concrete!
         # It cannot be a JAX traced value.
         assert static_check_is_concrete(v)
-        if isinstance(v, PytreeConst):
+        if isinstance(v, Const):
             return v
         else:
-            return PytreeConst(v)
+            return Const(v)
 
-    # Safe: will not wrap a PytreeConst in another PytreeConst, and will not
+    # Safe: will not wrap a Const in another Const, and will not
     # wrap dynamic values.
     @staticmethod
     def tree_const(v):
         def _inner(v):
-            if isinstance(v, PytreeConst):
+            if isinstance(v, Const):
                 return v
             elif static_check_is_concrete(v):
-                return PytreeConst(v)
+                return Const(v)
             else:
                 return v
 
         return jtu.tree_map(
             _inner,
             v,
-            is_leaf=lambda v: isinstance(v, PytreeConst),
+            is_leaf=lambda v: isinstance(v, Const),
         )
 
     @staticmethod
     def tree_unwrap_const(v):
         def _inner(v):
-            if isinstance(v, PytreeConst):
+            if isinstance(v, Const):
                 return v.const
             else:
                 return v
@@ -124,12 +169,15 @@ class Pytree(eqx.Module):
         return jtu.tree_map(
             _inner,
             v,
-            is_leaf=lambda v: isinstance(v, PytreeConst),
+            is_leaf=lambda v: isinstance(v, Const),
         )
 
     @staticmethod
     def partial(*args):
-        return lambda fn: PytreeDynamicClosure(args, fn)
+        return lambda fn: Closure(args, fn)
+
+    def treedef(self):
+        return jtu.tree_structure(self)
 
     #################
     # Static checks #
@@ -147,7 +195,7 @@ class Pytree(eqx.Module):
 
     @staticmethod
     def static_check_none(v):
-        return v == PytreeConst(None)
+        return v == Const(None)
 
     @staticmethod
     def static_check_tree_leaves_have_matching_leading_dim(tree):
@@ -245,6 +293,100 @@ class Pytree(eqx.Module):
 
         return jtu.tree_map(_zipper, grad, nograd, is_leaf=_is_none)
 
+    def render_html(self):
+        def _pytree_handler(node, subtree_renderer):
+            constructor_open = struct_handler.render_struct_constructor(node)
+            fs = fields(node)
+
+            (
+                background_color,
+                background_pattern,
+            ) = builtin_structure_handler.parse_color_and_pattern(
+                node.treescope_color(), type(node).__name__
+            )
+
+            if background_pattern is not None:
+                if background_color is None:
+                    raise ValueError(
+                        "background_color must be provided if background_pattern is"
+                    )
+
+                def wrap_block(block):
+                    return common_styles.WithBlockPattern(
+                        block, color=background_color, pattern=background_pattern
+                    )
+
+                wrap_topline = common_styles.PatternedTopLineSpanGroup
+                wrap_bottomline = common_styles.PatternedBottomLineSpanGroup
+
+            elif background_color is not None and background_color != "transparent":
+
+                def wrap_block(block):
+                    return common_styles.WithBlockColor(block, color=background_color)
+
+                wrap_topline = common_styles.ColoredTopLineSpanGroup
+                wrap_bottomline = common_styles.ColoredBottomLineSpanGroup
+
+            else:
+
+                def id(rendering):
+                    return rendering
+
+                wrap_block = id
+                wrap_topline = id
+                wrap_bottomline = id
+
+            children = builtin_structure_handler.build_field_children(
+                node,
+                None,
+                subtree_renderer,
+                fields_or_attribute_names=fs,
+                key_path_fn=node.key_for_field,
+                attr_style_fn=struct_handler.struct_attr_style_fn_for_fields(fs),
+            )
+            children = basic_parts.IndentedChildren(children)
+
+            suffix = ")"
+
+            return wrap_block(
+                basic_parts.Siblings(
+                    children=[
+                        wrap_topline(constructor_open),
+                        basic_parts.Siblings.build(
+                            foldable_impl.HyperlinkTarget(
+                                foldable_impl.FoldableTreeNodeImpl(
+                                    basic_parts.FoldCondition(
+                                        collapsed=basic_parts.Text("..."),
+                                        expanded=children,
+                                    )
+                                ),
+                                keypath=None,
+                            ),
+                            wrap_bottomline(basic_parts.Text(suffix)),
+                        ),
+                    ],
+                )
+            )
+
+        def custom_handler(node, path, subtree_renderer):
+            if inspect.isfunction(node):
+                return common_structures.build_one_line_tree_node(
+                    line=common_styles.CustomTextColor(
+                        basic_parts.Text(f"<fn {node.__name__}>"),
+                        color="blue",
+                    ),
+                    path=None,
+                )
+            if isinstance(node, Pytree):
+                return _pytree_handler(node, subtree_renderer)
+            return NotImplemented
+
+        default_renderer.active_renderer.get().handlers.insert(0, custom_handler)
+        return pz.ts.render_to_html(
+            self,
+            roundtrip_mode=False,
+        )
+
 
 ##############################
 # Associated utility classes #
@@ -252,21 +394,20 @@ class Pytree(eqx.Module):
 
 
 # Wrapper for static values (can include callables).
-class PytreeConst(Pytree):
+@Pytree.dataclass
+class Const(Pytree):
     const: Any = Pytree.static()
 
     def __call__(self, *args):
         return self.const(*args)
 
-    def __rich_tree__(self):
-        return rich_tree.Tree(f"[bold](PytreeConst) {self.const}")
-
 
 # Construct for a type of closure which closes over dynamic values.
 # NOTE: experimental.
-class PytreeDynamicClosure(Pytree):
+@Pytree.dataclass
+class Closure(Pytree):
     dyn_args: Tuple
     fn: Callable = Pytree.static()
 
-    def __call__(self, *args):
-        return self.fn(*self.dyn_args, *args)
+    def __call__(self, *args, **kwargs):
+        return self.fn(*self.dyn_args, *args, **kwargs)

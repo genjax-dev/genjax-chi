@@ -1,13 +1,12 @@
 <br>
 <p align="center">
-<img width="400px" src="./docs/assets/img/logo.png"/>
+<img width="500px" src="./docs/assets/img/logo.png"/>
 </p>
-<br>
-
-<div align="center">
-<b><i>Probabilistic programming with Gen, built on top of JAX.</i></b>
-</div>
-<br>
+<p align="center">
+  <strong>
+    Probabilistic programming with (parallel & differentiable) programmable inference.
+  </strong>
+</p>
 
 <div align="center">
 
@@ -31,18 +30,15 @@
 [nightly_build_status_url]: https://github.com/probcomp/genjax/actions/workflows/ci.yml?query=branch%3Anightly
 
 
-<div align="center">
-<b>(Early stage)</b> 🔪 expect sharp edges 🔪
-</div>
 
 ## 🔎 What is GenJAX?
 
-Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://probcomp.github.io/genjax/notebooks/concepts/introduction/intro_to_genjax.html#what-is-a-generative-function).
+Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://probcomp.github.io/genjax/cookbook/active/intro.html#generative-functions).
 
 GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax) - exposing the ability to programmatically construct and manipulate generative functions, as well as [JIT compile + auto-batch inference computations using generative functions onto GPU devices](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html).
 
 <div align="center">
-<a href="https://probcomp.github.io/genjax/notebooks/index.html">Jump into the notebooks!</a>
+<a href="https://probcomp.github.io/genjax/cookbook/">Jump into the notebooks!</a>
 <br>
 <br>
 </div>
@@ -79,15 +75,13 @@ command for the architecture you're targeting. To run GenJAX without GPU
 support:
 
 ```sh
-pip install jax[cpu]==0.4.25
+pip install jax[cpu]==0.4.28
 ```
 
-On a Linux machine with a GPU, run either of the following commands, depending
-on which CUDA version (11 or 12) you have installed:
+On a Linux machine with a GPU, run the following command:
 
 ```sh
-pip install jax[cuda11_pip]==0.4.25
-pip install jax[cuda12_pip]==0.4.25
+pip install jax[cuda12]==0.4.28
 ```
 
 ### Quick example

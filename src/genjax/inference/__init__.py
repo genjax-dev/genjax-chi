@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.inference.core import (
-    ChoiceDistribution,
+from genjax._src.inference.sp import (
     InferenceAlgorithm,
     Marginal,
+    SampleDistribution,
     Target,
     ValueMarginal,
     marginal,
@@ -23,19 +23,17 @@ from genjax._src.inference.core import (
 from genjax.inference import (
     exact_testbed,
     smc,
-    translator,
     vi,
 )
 
 __all__ = [
-    "ChoiceDistribution",
     "InferenceAlgorithm",
     "Marginal",
+    "SampleDistribution",
     "Target",
     "ValueMarginal",
-    "marginal",
     "exact_testbed",
+    "marginal",
     "smc",
-    "translator",
     "vi",
 ]

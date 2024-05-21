@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from genjax._src.generative_functions.distributions.custom import discrete_hmm
-from genjax._src.generative_functions.distributions.custom.dirac import Dirac, dirac
 from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
     DiscreteHMM,
     DiscreteHMMConfiguration,
@@ -22,10 +21,9 @@ from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
 from genjax._src.generative_functions.distributions.distribution import (
     Distribution,
     ExactDensity,
+    exact_density,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
-    TFPDistribution,
-    TFPMixture,
     bates,
     bernoulli,
     beta,
@@ -41,7 +39,6 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     inverse_gamma,
     kumaraswamy,
     logit_normal,
-    mixture,
     moyal,
     multinomial,
     mv_normal,
@@ -62,17 +59,20 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 )
 
 __all__ = [
+    "DiscreteHMM",
+    "DiscreteHMMConfiguration",
     "Distribution",
     "ExactDensity",
-    "TFPDistribution",
-    "TFPMixture",
-    "mixture",
-    "beta",
     "bates",
     "bernoulli",
-    "flip",
+    "beta",
+    "categorical",
     "chi",
     "chi2",
+    "discrete_hmm",
+    "exact_density",
+    "flip",
+    "forward_filtering_backward_sampling",
     "geometric",
     "gumbel",
     "half_cauchy",
@@ -83,15 +83,14 @@ __all__ = [
     "logit_normal",
     "moyal",
     "multinomial",
+    "mv_normal",
+    "mv_normal_diag",
     "negative_binomial",
+    "normal",
     "plackett_luce",
     "power_spherical",
     "skellam",
     "student_t",
-    "normal",
-    "mv_normal_diag",
-    "mv_normal",
-    "categorical",
     "truncated_cauchy",
     "truncated_normal",
     "uniform",
@@ -99,10 +98,4 @@ __all__ = [
     "von_mises_fisher",
     "weibull",
     "zipf",
-    "discrete_hmm",
-    "DiscreteHMM",
-    "DiscreteHMMConfiguration",
-    "forward_filtering_backward_sampling",
-    "Dirac",
-    "dirac",
 ]
