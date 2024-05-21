@@ -104,11 +104,11 @@ over 50 independent trials of SIR (with K = 50 particles).
 import jax
 import jax.numpy as jnp
 import genjax
-from genjax import beta, flip, static_gen_fn, Target, choice_map
+from genjax import beta, flip, gen, Target, ChoiceMap
 from genjax.inference.smc import ImportanceK
 
 # Create a generative model.
-@static_gen_fn
+@gen
 def beta_bernoulli(α, β):
     p = beta(α, β) @ "p"
     v = flip(p) @ "v"
@@ -120,7 +120,7 @@ def run_inference(obs: bool):
     # the model, arguments to the model, and constraints.
     posterior_target = Target(beta_bernoulli, # the model
                               (2.0, 2.0), # arguments to the model
-                              choice_map({"v": obs}), # constraints
+                              ChoiceMap.d({"v": obs}), # constraints
                             )
 
     # Use a library algorithm, or design your own - more on that in the docs!
