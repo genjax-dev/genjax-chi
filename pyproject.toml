@@ -41,6 +41,8 @@ beartype = "^0.18.5"
 deprecated = "^1.2.14"
 penzai = "^0.1.1"
 msgpack = {version = "^1.0.8", optional = true }
+# gen-studio = {version = "v2024.05.23.085705", source = "gcp"}
+gen-studio = {path = "../gen-studio", develop = true}
 
 [tool.poetry.group.dev]
 optional = true
