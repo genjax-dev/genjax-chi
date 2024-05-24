@@ -44,11 +44,15 @@ from genjax._src.core.typing import (
     FloatArray,
     Optional,
     PRNGKey,
+    Sequence,
     Tuple,
     typecheck,
 )
 
 register_exclusion(__file__)
+
+# JAX Type alias.
+InAxes = int | None | Sequence[Any]
 
 
 @Pytree.dataclass
@@ -132,7 +136,7 @@ class VmapCombinator(GenerativeFunction):
     The source generative function.
     """
 
-    in_axes: Tuple = Pytree.static()
+    in_axes: InAxes = Pytree.static()
     """
     The axes specified, it should be a tuple which matches (or prefixes) the `Pytree` type of the argument tuple for the underlying `gen_fn`.
     """
@@ -146,10 +150,12 @@ class VmapCombinator(GenerativeFunction):
     def _static_check_broadcastable(self, args):
         # Argument broadcast semantics must be fully specified
         # in `in_axes`.
-        if not len(args) == len(self.in_axes):
-            raise Exception(
-                f"VmapCombinator requires that length of the provided in_axes kwarg match the number of arguments provided to the invocation.\nA mismatch occured with len(args) = {len(args)} and len(self.in_axes) = {len(self.in_axes)}"
-            )
+        if self.in_axes is not None:
+            axes_length = 1 if isinstance(self.in_axes, int) else len(self.in_axes)
+            if not len(args) == axes_length:
+                raise Exception(
+                    f"VmapCombinator requires that length of the provided in_axes kwarg match the number of arguments provided to the invocation.\nA mismatch occured with len(args) = {len(args)} and len(self.in_axes) = {axes_length}"
+                )
 
     def _static_broadcast_dim_length(self, args):
         def find_axis_size(axis, x):
@@ -314,7 +320,7 @@ def vmap_combinator(
     gen_fn: Optional[GenerativeFunctionClosure] = None,
     /,
     *,
-    in_axes: Tuple,
+    in_axes: InAxes,
 ) -> Callable | VmapCombinator:
     def decorator(gen_fn) -> VmapCombinator:
         return VmapCombinator(gen_fn, in_axes)

@@ -41,6 +41,7 @@ from genjax._src.core.typing import (
     static_check_is_concrete,
     typecheck,
 )
+from genjax._src.generative_functions.combinators.vmap_combinator import InAxes
 
 register_exclusion(__file__)
 
@@ -684,7 +685,7 @@ class GenerativeFunction(Pytree):
     def vmap(
         self,
         *args,
-        in_axes=0,
+        in_axes: InAxes = 0,
     ) -> "GenerativeFunction":
         from genjax import vmap_combinator
 
