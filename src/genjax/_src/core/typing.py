@@ -48,6 +48,8 @@ List = btyping.List
 Optional = btyping.Optional
 Type = btyping.Type
 
+# JAX Type alias.
+InAxes = int | None | Sequence[Any]
 
 # Types of Python literals.
 Int = int

@@ -31,6 +31,7 @@ from genjax._src.core.typing import (
     Callable,
     Dict,
     FloatArray,
+    InAxes,
     Int,
     IntArray,
     Is,
@@ -41,7 +42,6 @@ from genjax._src.core.typing import (
     static_check_is_concrete,
     typecheck,
 )
-from genjax._src.generative_functions.combinators.vmap_combinator import InAxes
 
 register_exclusion(__file__)
 

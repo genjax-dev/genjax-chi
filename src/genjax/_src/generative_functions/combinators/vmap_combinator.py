@@ -42,17 +42,14 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     FloatArray,
+    InAxes,
     Optional,
     PRNGKey,
-    Sequence,
     Tuple,
     typecheck,
 )
 
 register_exclusion(__file__)
-
-# JAX Type alias.
-InAxes = int | None | Sequence[Any]
 
 
 @Pytree.dataclass
