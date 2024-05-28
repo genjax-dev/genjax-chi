@@ -3,7 +3,7 @@ name: Render and Publish Docs
 on:
   push:
     branches:
-      - main
+      - huebert/private-site
 
 env:
   POETRY_EXPERIMENTAL_SYSTEM_GIT_CLIENT: true
@@ -56,8 +56,18 @@ jobs:
       - name: Run Docs Build
         run: nox -r -s docs-build
 
-      - name: Deploy to GH Pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Authenticate with Google Cloud
+        uses: 'google-github-actions/auth@v2.1.3'
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
+          project_id: 'probcomp-caliban'
+          workload_identity_provider: 'projects/110275315150/locations/global/workloadIdentityPools/gen-website-private-publishers/providers/github'
+          service_account: 'gen-website-private-admin@probcomp-caliban.iam.gserviceaccount.com'
+          audience: '//iam.googleapis.com/projects/110275315150/locations/global/workloadIdentityPools/gen-website-private-publishers/providers/github'
+
+      - name: Deploy to Google Cloud Storage
+        run: | 
+          WEBSITE_DIR='./site'
+          PARENT_DOMAIN='gen.dev'
+          SUBDOMAIN=${{github.event.repository.name}}
+          BUCKET_PATH="gs://gen-website-private/$PARENT_DOMAIN/$SUBDOMAIN"
+          gcloud storage rsync --recursive --delete-unmatched-destination-objects --cache-control 'public, max-age=60' $WEBSITE_DIR $BUCKET_PATH
