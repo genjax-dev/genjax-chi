@@ -29,6 +29,7 @@ from genjax._src.generative_functions.combinators.mask_combinator import (
     mask_combinator,
 )
 from genjax._src.generative_functions.combinators.mixture_combinator import (
+    MixtureCombinator,
     mixture_combinator,
 )
 from genjax._src.generative_functions.combinators.repeat_combinator import (
@@ -53,6 +54,7 @@ __all__ = [
     "CondCombinator",
     "ComposeCombinator",
     "MaskCombinator",
+    "MixtureCombinator",
     "RepeatCombinator",
     "ScanCombinator",
     "SwitchCombinator",

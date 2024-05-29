@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from abc import abstractmethod
-from typing import Union
 
 import jax
 import jax.numpy as jnp
@@ -828,9 +827,7 @@ class GenerativeFunction(Pytree):
         *args,
         in_axes: InAxes = 0,
     ) -> "GenerativeFunction":
-        from genjax._src.generative_functions.combinators.vmap_combinator import (
-            VmapCombinator,
-        )
+        from genjax import VmapCombinator
 
         return (
             VmapCombinator(self, in_axes=in_axes)(*args)
@@ -843,9 +840,7 @@ class GenerativeFunction(Pytree):
         *args,
         num_repeats: Int,
     ) -> "GenerativeFunction":
-        from genjax._src.generative_functions.combinators.repeat_combinator import (
-            RepeatCombinator,
-        )
+        from genjax import RepeatCombinator
 
         return (
             RepeatCombinator(self, num_repeats=num_repeats)(*args)
@@ -858,9 +853,7 @@ class GenerativeFunction(Pytree):
         *args,
         max_length: Int,
     ) -> "GenerativeFunction":
-        from genjax._src.generative_functions.combinators.scan_combinator import (
-            ScanCombinator,
-        )
+        from genjax import ScanCombinator
 
         return (
             ScanCombinator(self, max_length=max_length)(*args)
@@ -872,9 +865,7 @@ class GenerativeFunction(Pytree):
         self,
         *args,
     ) -> "GenerativeFunction":
-        from genjax._src.generative_functions.combinators.mask_combinator import (
-            MaskCombinator,
-        )
+        from genjax import MaskCombinator
 
         return MaskCombinator(self)(*args) if args else MaskCombinator(self)
 
@@ -883,9 +874,7 @@ class GenerativeFunction(Pytree):
         gen_fn: "GenerativeFunction",
         *args,
     ) -> "GenerativeFunction":
-        from genjax._src.generative_functions.combinators.cond_combinator import (
-            CondCombinator,
-        )
+        from genjax import CondCombinator
 
         return (
             CondCombinator(self, gen_fn)(*args)
@@ -898,9 +887,7 @@ class GenerativeFunction(Pytree):
         address_bijection: dict,
         *args,
     ) -> "GenerativeFunction":
-        from genjax._src.generative_functions.combinators.address_bijection_combinator import (
-            AddressBijectionCombinator,
-        )
+        from genjax import AddressBijectionCombinator
 
         return (
             AddressBijectionCombinator(self, address_bijection=address_bijection)(*args)
@@ -913,9 +900,7 @@ class GenerativeFunction(Pytree):
         branches: List["GenerativeFunction"],
         *args,
     ) -> "GenerativeFunction":
-        from genjax._src.generative_functions.combinators.switch_combinator import (
-            SwitchCombinator,
-        )
+        from genjax import SwitchCombinator
 
         return (
             SwitchCombinator((self, *branches))(*args)
@@ -928,9 +913,7 @@ class GenerativeFunction(Pytree):
         gen_fn: "GenerativeFunction",
         *args,
     ) -> "GenerativeFunction":
-        from genjax._src.generative_functions.combinators.mixture_combinator import (
-            MixtureCombinator,
-        )
+        from genjax import MixtureCombinator
 
         return (
             MixtureCombinator(self, gen_fn)(*args)

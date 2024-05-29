@@ -13,8 +13,6 @@
 # limitations under the License.
 
 
-from typing import Callable
-
 from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import typecheck

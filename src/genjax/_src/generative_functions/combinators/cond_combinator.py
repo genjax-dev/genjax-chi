@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import jax.numpy as jnp
-from numpy import deprecate
 
 from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.traceback_util import register_exclusion
