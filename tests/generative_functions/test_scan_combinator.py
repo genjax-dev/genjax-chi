@@ -14,6 +14,7 @@
 
 import genjax
 import jax
+import jax.numpy as jnp
 import pytest
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
@@ -35,6 +36,25 @@ class TestScanSimpleNormal:
         scan_score = tr.get_score()
         sel = S[..., "z"]
         assert tr.project(key, sel) == scan_score
+
+    def test_scan_of_repeat(self):
+        @genjax.scan_combinator(max_length=10)
+        @genjax.gen
+        def kernel(x):
+            d1 = genjax.normal(0.0, 1.0) @ "d1"
+            d2 = genjax.normal.repeat(num_repeats=4)(0.0, 1.0) @ "d2"
+
+            return x + d1 + d2
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(kernel.simulate)(sub_key, (7, jnp.zeros(4)))
+        assert tr.project(S[..., "d1"]) + tr.project(S[..., "d2"]) == tr.get_score()
+        assert (
+            tr.project(genjax.ChoiceMapBuilder[jnp.array([0, 1, 2, 3, 4]), ...])
+            + tr.project(genjax.ChoiceMapBuilder[jnp.array([5, 6, 7, 8, 9]), ...])
+            == tr.get_score()
+        )
 
     def test_scan_simple_normal_importance(self):
         @genjax.scan_combinator(max_length=10)
