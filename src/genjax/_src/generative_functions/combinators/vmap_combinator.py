@@ -25,7 +25,6 @@ from genjax._src.core.generative import (
     ChoiceMap,
     EmptyTrace,
     GenerativeFunction,
-    GenerativeFunctionClosure,
     GenericProblem,
     ImportanceProblem,
     Retdiff,
@@ -335,11 +334,11 @@ class VmapCombinator(GenerativeFunction):
 
 
 def vmap_combinator(
-    gen_fn: Optional[GenerativeFunctionClosure] = None,
+    gen_fn: Optional[GenerativeFunction] = None,
     /,
     *,
     in_axes: InAxes,
-) -> Callable | VmapCombinator:
+) -> Callable[[GenerativeFunction], VmapCombinator] | VmapCombinator:
     def decorator(gen_fn) -> VmapCombinator:
         return VmapCombinator(gen_fn, in_axes)
 

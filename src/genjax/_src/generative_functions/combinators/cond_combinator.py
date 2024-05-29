@@ -13,19 +13,37 @@
 # limitations under the License.
 
 import jax.numpy as jnp
+from numpy import deprecate
 
 from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.combinators.compose_combinator import (
     ComposeCombinator,
-    compose_combinator,
 )
 from genjax._src.generative_functions.combinators.switch_combinator import (
-    switch_combinator,
+    SwitchCombinator,
 )
 
 register_exclusion(__file__)
+
+
+@typecheck
+def CondCombinator(
+    if_gen_fn: GenerativeFunction,
+    else_gen_fn: GenerativeFunction,
+) -> ComposeCombinator:
+    def argument_mapping(b, *args):
+        idx = jnp.array(0 if bool(b) else 1, dtype=int)
+        return (idx, *args)
+
+    inner_combinator = SwitchCombinator((if_gen_fn, else_gen_fn))
+
+    return ComposeCombinator(
+        inner_combinator,
+        argument_mapping,
+        info="Derived combinator (Cond)",
+    )
 
 
 @typecheck
@@ -33,14 +51,4 @@ def cond_combinator(
     if_gen_fn: GenerativeFunction,
     else_gen_fn: GenerativeFunction,
 ) -> ComposeCombinator:
-    def argument_mapping(b, *args):
-        idx = jnp.array(b, dtype=int)
-        return (idx, *args)
-
-    inner_combinator = switch_combinator(if_gen_fn, else_gen_fn)
-
-    return compose_combinator(
-        inner_combinator,
-        pre=argument_mapping,
-        info="Derived combinator (Cond)",
-    )
+    return CondCombinator(if_gen_fn, else_gen_fn)

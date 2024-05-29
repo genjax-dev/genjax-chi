@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from abc import abstractmethod
+from typing import Union
 
 import jax
 import jax.numpy as jnp
@@ -827,12 +828,14 @@ class GenerativeFunction(Pytree):
         *args,
         in_axes: InAxes = 0,
     ) -> "GenerativeFunction":
-        from genjax import vmap_combinator
+        from genjax._src.generative_functions.combinators.vmap_combinator import (
+            VmapCombinator,
+        )
 
         return (
-            vmap_combinator(self, in_axes=in_axes)(*args)
+            VmapCombinator(self, in_axes=in_axes)(*args)
             if args
-            else vmap_combinator(self, in_axes=in_axes)
+            else VmapCombinator(self, in_axes=in_axes)
         )
 
     def repeat(
@@ -840,12 +843,14 @@ class GenerativeFunction(Pytree):
         *args,
         num_repeats: Int,
     ) -> "GenerativeFunction":
-        from genjax import repeat_combinator
+        from genjax._src.generative_functions.combinators.repeat_combinator import (
+            RepeatCombinator,
+        )
 
         return (
-            repeat_combinator(self, num_repeats=num_repeats)(*args)
+            RepeatCombinator(self, num_repeats=num_repeats)(*args)
             if args
-            else repeat_combinator(self, num_repeats=num_repeats)
+            else RepeatCombinator(self, num_repeats=num_repeats)
         )
 
     def scan(
@@ -853,33 +858,39 @@ class GenerativeFunction(Pytree):
         *args,
         max_length: Int,
     ) -> "GenerativeFunction":
-        from genjax import scan_combinator
+        from genjax._src.generative_functions.combinators.scan_combinator import (
+            ScanCombinator,
+        )
 
         return (
-            scan_combinator(self, max_length=max_length)(*args)
+            ScanCombinator(self, max_length=max_length)(*args)
             if args
-            else scan_combinator(self, max_length=max_length)
+            else ScanCombinator(self, max_length=max_length)
         )
 
     def mask(
         self,
         *args,
     ) -> "GenerativeFunction":
-        from genjax import mask_combinator
+        from genjax._src.generative_functions.combinators.mask_combinator import (
+            MaskCombinator,
+        )
 
-        return mask_combinator(self)(*args) if args else mask_combinator(self)
+        return MaskCombinator(self)(*args) if args else MaskCombinator(self)
 
     def or_else(
         self,
         gen_fn: "GenerativeFunction",
         *args,
     ) -> "GenerativeFunction":
-        from genjax import cond_combinator
+        from genjax._src.generative_functions.combinators.cond_combinator import (
+            CondCombinator,
+        )
 
         return (
-            cond_combinator(self, gen_fn)(*args)
+            CondCombinator(self, gen_fn)(*args)
             if args
-            else cond_combinator(self, gen_fn)
+            else CondCombinator(self, gen_fn)
         )
 
     def addr_bij(
@@ -887,14 +898,14 @@ class GenerativeFunction(Pytree):
         address_bijection: dict,
         *args,
     ) -> "GenerativeFunction":
-        from genjax import address_bijection_combinator
+        from genjax._src.generative_functions.combinators.address_bijection_combinator import (
+            AddressBijectionCombinator,
+        )
 
         return (
-            address_bijection_combinator(self, address_bijection=address_bijection)(
-                *args
-            )
+            AddressBijectionCombinator(self, address_bijection=address_bijection)(*args)
             if args
-            else address_bijection_combinator(self, address_bijection=address_bijection)
+            else AddressBijectionCombinator(self, address_bijection=address_bijection)
         )
 
     def switch(
@@ -902,12 +913,14 @@ class GenerativeFunction(Pytree):
         branches: List["GenerativeFunction"],
         *args,
     ) -> "GenerativeFunction":
-        from genjax import switch_combinator
+        from genjax._src.generative_functions.combinators.switch_combinator import (
+            SwitchCombinator,
+        )
 
         return (
-            switch_combinator(self, *branches)(*args)
+            SwitchCombinator((self, *branches))(*args)
             if args
-            else switch_combinator(self, *branches)
+            else SwitchCombinator((self, *branches))
         )
 
     def mix(
@@ -915,12 +928,14 @@ class GenerativeFunction(Pytree):
         gen_fn: "GenerativeFunction",
         *args,
     ) -> "GenerativeFunction":
-        from genjax import mixture_combinator
+        from genjax._src.generative_functions.combinators.mixture_combinator import (
+            MixtureCombinator,
+        )
 
         return (
-            mixture_combinator(self, gen_fn)(*args)
+            MixtureCombinator(self, gen_fn)(*args)
             if args
-            else mixture_combinator(self, gen_fn)
+            else MixtureCombinator(self, gen_fn)
         )
 
     def attach(
@@ -928,12 +943,12 @@ class GenerativeFunction(Pytree):
         *args,
         **kwargs,
     ) -> "GenerativeFunction":
-        from genjax.inference.smc import attach_combinator
+        from genjax._src.inference.smc import AttachCombinator
 
         return (
-            attach_combinator(self, **kwargs)(*args)
+            AttachCombinator(self, **kwargs)(*args)
             if args
-            else attach_combinator(self, **kwargs)
+            else AttachCombinator(self, **kwargs)
         )
 
     #####################

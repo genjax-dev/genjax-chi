@@ -20,7 +20,10 @@ from genjax._src.generative_functions.combinators.compose_combinator import (
     ComposeCombinator,
     compose_combinator,
 )
-from genjax._src.generative_functions.combinators.cond_combinator import cond_combinator
+from genjax._src.generative_functions.combinators.cond_combinator import (
+    CondCombinator,
+    cond_combinator,
+)
 from genjax._src.generative_functions.combinators.mask_combinator import (
     MaskCombinator,
     mask_combinator,
@@ -29,6 +32,7 @@ from genjax._src.generative_functions.combinators.mixture_combinator import (
     mixture_combinator,
 )
 from genjax._src.generative_functions.combinators.repeat_combinator import (
+    RepeatCombinator,
     repeat_combinator,
 )
 from genjax._src.generative_functions.combinators.scan_combinator import (
@@ -46,8 +50,10 @@ from genjax._src.generative_functions.combinators.vmap_combinator import (
 
 __all__ = [
     "AddressBijectionCombinator",
+    "CondCombinator",
     "ComposeCombinator",
     "MaskCombinator",
+    "RepeatCombinator",
     "ScanCombinator",
     "SwitchCombinator",
     "VmapCombinator",
