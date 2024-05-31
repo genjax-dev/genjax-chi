@@ -1040,24 +1040,27 @@ files = [
 
 [[package]]
 name = "gen-studio"
-version = "0.1.0"
+version = "2024.5.23.85705"
 description = ""
 optional = false
 python-versions = ">=3.10,<3.13"
-files = []
-develop = true
+files = [
+    {file = "gen_studio-2024.5.23.85705-py3-none-any.whl", hash = "sha256:12dd2eee88550957c89e400f23fc5b6427faebe6bf0572075fa67c73c236ddb2"},
+    {file = "gen_studio-2024.5.23.85705.tar.gz", hash = "sha256:1a76058925b29e2151911f322d08a5304ec49ae5a5245e344a5f9a559f680f1f"},
+]
 
 [package.dependencies]
-anywidget = "^0.9.10"
-jax = "^0.4.25"
-jaxlib = "^0.4.28"
-numpy = "^1.26.4"
-penzai = "^0.1.1"
-traitlets = "^5.14.3"
+anywidget = ">=0.9.10,<0.10.0"
+jax = ">=0.4.25,<0.5.0"
+jaxlib = ">=0.4.28,<0.5.0"
+numpy = ">=1.26.4,<2.0.0"
+penzai = ">=0.1.1,<0.2.0"
+traitlets = ">=5.14.3,<6.0.0"
 
 [package.source]
-type = "directory"
-url = "../gen-studio"
+type = "legacy"
+url = "https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple"
+reference = "gcp"
 
 [[package]]
 name = "ghp-import"
@@ -4665,4 +4668,4 @@ msgpack = ["msgpack"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "292b8ccc5ec5a2ad9b7bb884d0cb0ea627738cf8f2091b246b9960784730db4f"
+content-hash = "4521069374fb4eb1caa2c51e94652824651ab81ce1c605dbb4451dbd033c8cbf"
