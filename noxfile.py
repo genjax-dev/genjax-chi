@@ -61,6 +61,13 @@ def install_jaxlib(session):
 
 @session(python=python_version)
 def prepare(session):
+    session.run(
+        "poetry",
+        "self",
+        "add",
+        "keyrings.google-artifactregistry-auth",
+        external=True,
+    )
     session.run_always(
         "poetry", "install", "--with", "dev", "--all-extras", external=True
     )
@@ -203,7 +210,7 @@ def docs_build(session: Session) -> None:
 
 @session(name="docs-serve", python=python_version)
 def docs_serve(session: Session) -> None:
-    """Build the documentation."""
+    """Serve the already-built documentation."""
     session.run_always(
         "poetry", "install", "--with", "docs", "--with", "dev", external=True
     )
