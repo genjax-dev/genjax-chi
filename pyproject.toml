@@ -45,7 +45,7 @@ beartype = "^0.18.5"
 deprecated = "^1.2.14"
 penzai = "^0.1.1"
 msgpack = {version = "^1.0.8", optional = true }
-gen-studio = {version = "v2024.05.23.085705", source = "gcp"}
+gen-studio = {version = "v2024.05.23.085705", source = "gcp", optional = true}
 
 [tool.poetry.group.dev]
 optional = true
@@ -82,7 +82,8 @@ black = "^24.4.2"
 
 [tool.poetry.extras]
 msgpack = ["msgpack"]
-all = ["msgpack"]
+studio = ["gen-studio"]
+all = ["msgpack", "gen-studio"]
 
 [[tool.poetry.source]]
 name = "gcp"
@@ -176,3 +177,4 @@ style = "pep440"
 [build-system]
 requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
 build-backend = "poetry_dynamic_versioning.backend"
+
