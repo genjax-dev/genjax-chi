@@ -16,6 +16,14 @@ jobs:
         with:
           python-version: 3.11.5
 
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
       - name: Setup Nox
         uses: daisylb/setup-nox@v2.1.0
 
