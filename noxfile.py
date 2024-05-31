@@ -211,10 +211,23 @@ def docs_build(session: Session) -> None:
 @session(name="docs-serve", python=python_version)
 def docs_serve(session: Session) -> None:
     """Serve the already-built documentation."""
-    session.run_always(
-        "poetry", "install", "--with", "docs", "--with", "dev", external=True
+    session.run(
+        "python",
+        "-m",
+        "http.server",
+        "8080",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "site",
     )
-    session.run("poetry", "run", "mkdocs", "serve")
+
+
+@session(name="docs-build-serve", python=python_version)
+def docs_build_serve(session: Session) -> None:
+    """Build and serve the documentation site."""
+    docs_build(session)
+    docs_serve(session)
 
 
 @session(name="notebooks-serve", python=python_version)

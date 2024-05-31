@@ -139,9 +139,17 @@ nox -r -s docs-build
 This command will use `mkdocs` to build the static site, and then use `quarto`
 to render the notebooks into the static site directory.
 
-Pushing the resulting changes to the `main` branch will trigger a CI job to
-deploy to the GitHub Pages branch `gh-pages`, from which the documentation is
-hosted.
+To view the generated site, run:
+
+```bash
+nox -r -s docs-serve
+```
+
+or to run both commands in sequence:
+
+```bash
+nox -r -s docs-build-serve
+```
 
 ## Granting someone access to GenJAX's Artifact Registry
 
