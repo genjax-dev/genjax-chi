@@ -2911,13 +2911,13 @@ files = [
 
 [[package]]
 name = "penzai"
-version = "0.1.1"
+version = "0.1.2"
 description = "Penzai: A JAX research toolkit for building, editing, and visualizing neural networks."
 optional = false
 python-versions = ">=3.10"
 files = [
-    {file = "penzai-0.1.1-py3-none-any.whl", hash = "sha256:759729ca0c70ad235eb3835d0e06b64d38d774108df67edbcca78e6782f5e885"},
-    {file = "penzai-0.1.1.tar.gz", hash = "sha256:264e65132a755162ef7ec87ba5f15f9c1f7ec0d8c4281e2319cce19b262e258a"},
+    {file = "penzai-0.1.2-py3-none-any.whl", hash = "sha256:33166b969d910eba45d07acfdcd5091845b0bbd2d8c68d04df86d67a1a14d2d0"},
+    {file = "penzai-0.1.2.tar.gz", hash = "sha256:750aec53d74312524b6079b2c4d6f7225c9a82eec2498e16dbca32762f8aae91"},
 ]
 
 [package.dependencies]
