@@ -63,12 +63,12 @@ Value = Any
 # Trace-time-checked primitives #
 #################################
 
-SingleBool = Annotated[
+ScalarBool = Annotated[
     Bool | BoolArray,
     Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
 ]
 
-SingleFloat = Annotated[
+ScalarFloat = Annotated[
     Float | FloatArray,
     Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
 ]
