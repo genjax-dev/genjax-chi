@@ -45,7 +45,7 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 > group](https://github.com/probcomp/genjax/issues/new?assignees=sritchie&projects=&template=access.md&title=%5BACCESS%5D)
 > - [install the Google Cloud command line tools](https://cloud.google.com/sdk/docs/install)
 > - follow the instructions on the [installation page](https://cloud.google.com/sdk/docs/install)
-> - run `gcloud init` as described [in this guide](https://cloud.google.com/sdk/docs/initializing).
+> - run `gcloud auth application-default login` as described [in this guide](https://cloud.google.com/sdk/docs/initializing).
 
 To install GenJAX using `pip`:
 
