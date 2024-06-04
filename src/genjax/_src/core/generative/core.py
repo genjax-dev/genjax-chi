@@ -38,6 +38,7 @@ from genjax._src.core.typing import (
     List,
     Optional,
     PRNGKey,
+    SingleFloat,
     Tuple,
     static_check_is_concrete,
     typecheck,
@@ -49,19 +50,14 @@ register_exclusion(__file__)
 # Special generative function types #
 #####################################
 
-Weight = Annotated[
-    float | FloatArray,
-    Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
-]
+Weight = SingleFloat
+
 """
 A _weight_ is a density ratio which often occurs in the context of proper weighting for [`Target`][genjax.inference.Target] distributions, or in Gen's [`update`][genjax.core.GenerativeFunction.update] interface, whose mathematical content is described in [`update`][genjax.core.GenerativeFunction.update].
 
 The type `Weight` does not enforce any meaningful mathematical invariants, but is used to denote the type of weights in GenJAX, to improve readability and parsing of interface specifications / expectations.
 """
-Score = Annotated[
-    float | FloatArray,
-    Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
-]
+Score = SingleFloat
 """
 A _score_ is a density ratio, described fully in [`simulate`][genjax.core.GenerativeFunction.simulate].
 

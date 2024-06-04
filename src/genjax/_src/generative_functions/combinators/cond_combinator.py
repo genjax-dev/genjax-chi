@@ -16,7 +16,7 @@ import jax.numpy as jnp
 
 from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import typecheck
+from genjax._src.core.typing import SingleBool, typecheck
 from genjax._src.generative_functions.combinators.compose_combinator import (
     ComposeCombinator,
 )
@@ -26,14 +26,13 @@ from genjax._src.generative_functions.combinators.switch_combinator import (
 
 register_exclusion(__file__)
 
-
 @typecheck
 def CondCombinator(
     if_gen_fn: GenerativeFunction,
     else_gen_fn: GenerativeFunction,
 ) -> ComposeCombinator:
-    def argument_mapping(b, *args):
-        idx = jnp.array(0 if bool(b) else 1, dtype=int)
+    @typecheck
+    def argument_mapping(b: SingleBool, *args):
         return (idx, *args)
 
     inner_combinator = SwitchCombinator((if_gen_fn, else_gen_fn))
