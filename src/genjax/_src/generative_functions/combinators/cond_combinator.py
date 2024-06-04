@@ -26,6 +26,7 @@ from genjax._src.generative_functions.combinators.switch_combinator import (
 
 register_exclusion(__file__)
 
+
 @typecheck
 def CondCombinator(
     if_gen_fn: GenerativeFunction,
