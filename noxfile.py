@@ -60,11 +60,12 @@ def install_jaxlib(session):
 
 
 @session(python=python_version)
-def prepare(session, *extras):
-    extra_acc = []
-    for extra in extras:
-        extra_acc += ["--with", extra]
-    print(extras)
+def prepare(session, *with_strs):
+    with_pairs = []
+
+    for s in with_strs:
+        with_pairs += ["--with", s]
+
     session.run(
         "poetry",
         "self",
@@ -73,7 +74,7 @@ def prepare(session, *extras):
         external=True,
     )
     session.run_always(
-        "poetry", "install", "--with", "dev", *extra_acc, "--all-extras", external=True
+        "poetry", "install", "--with", "dev", *with_pairs, "--all-extras", external=True
     )
     install_jaxlib(session)
 
