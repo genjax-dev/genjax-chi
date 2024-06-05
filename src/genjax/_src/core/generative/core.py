@@ -848,7 +848,8 @@ class GenerativeFunction(Pytree):
                 v = genjax.normal(x, 1.0) @ "v"
                 return genjax.normal(v, 0.01) @ "q"
 
-            vmapped = model.vmap(in_axes=0)             
+
+            vmapped = model.vmap(in_axes=0)
 
             key = jax.random.PRNGKey(314159)
             arr = jnp.ones(100)
@@ -901,15 +902,10 @@ class GenerativeFunction(Pytree):
     def or_else(
         self,
         gen_fn: "GenerativeFunction",
-        *args,
     ) -> "GenerativeFunction":
         from genjax import CondCombinator
 
-        return (
-            CondCombinator(self, gen_fn)(*args)
-            if args
-            else CondCombinator(self, gen_fn)
-        )
+        return CondCombinator(self, gen_fn)
 
     def addr_bij(
         self,

@@ -20,6 +20,7 @@ import jax.numpy as jnp
 
 class TestCombinators:
     """Tests for the generative function combinator methods."""
+
     def test_vmap(self):
         key = jax.random.PRNGKey(314159)
 
@@ -51,6 +52,15 @@ class TestCombinators:
             jnp.array([chm(0)["q"].value, chm(1)["q"].value, chm(2)["q"].value]), qarr
         )
 
+    def test_repeat(self):
+        pass
+
+    def test_scan(self):
+        pass
+
+    def test_mask(self):
+        pass
+
     def test_or_else(self):
         key = jax.random.PRNGKey(314159)
 
@@ -72,3 +82,12 @@ class TestCombinators:
 
         else_tr = jit_fn(key, (False,))
         assert "else_value" in else_tr.get_choices()("tossed")
+
+    def test_addr_bij(self):
+        pass
+
+    def test_mix(self):
+        pass
+
+    def test_attach(self):
+        pass
