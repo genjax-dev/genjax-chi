@@ -843,6 +843,7 @@ class GenerativeFunction(Pytree):
             import jax.numpy as jnp
             import genjax
 
+
             @genjax.gen
             def model(x):
                 v = genjax.normal(x, 1.0) @ "v"
