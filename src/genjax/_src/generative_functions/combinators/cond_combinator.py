@@ -34,13 +34,17 @@ def CondCombinator(
 ) -> ComposeCombinator:
     @typecheck
     def argument_mapping(b: ScalarBool, *args):
+        # Note that True maps to 0 to select the "if" branch,
+        # False to 1.
+        idx = jnp.array(jnp.logical_not(b), dtype=int)
         return (idx, *args)
 
     inner_combinator = SwitchCombinator((if_gen_fn, else_gen_fn))
 
     return ComposeCombinator(
         inner_combinator,
-        argument_mapping,
+        argument_mapping=argument_mapping,
+        retval_mapping=lambda _, retval: retval,
         info="Derived combinator (Cond)",
     )
 

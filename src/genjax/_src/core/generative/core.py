@@ -820,16 +820,49 @@ class GenerativeFunction(Pytree):
 
     def vmap(
         self,
-        *args,
         in_axes: InAxes = 0,
     ) -> "GenerativeFunction":
+        """
+        Returns a version of `self` that supports `vmap`-based patterns of
+        parallel (and generative) computation.
+
+        Args:
+            in_axes (InAxes, optional): indicates how the underlying `vmap`
+                patterns should be broadcast across the input arguments to the
+                generative function. Defaults to 0.
+
+        Returns:
+            GenerativeFunction: a new GenerativeFunction that accepts a
+            `numpy.array` of arguments (instead of the original argument to
+            `self`) for each vmapped index
+
+        Examples:
+
+            ```python exec="yes" html="true" source="material-block" session="gen-fn"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+
+            @genjax.gen
+            def model(x):
+                v = genjax.normal(x, 1.0) @ "v"
+                return genjax.normal(v, 0.01) @ "q"
+
+            vmapped = model.vmap(in_axes=0)             
+
+            key = jax.random.PRNGKey(314159)
+            arr = jnp.ones(100)
+
+            # `vmapped` accepts an array if numbers instead of the original
+            # single number that `model` accepted.
+            tr = jax.jit(vmapped.simulate)(key, (arr,))
+
+            print(tr.render_html())
+            ```
+        """
         from genjax import VmapCombinator
 
-        return (
-            VmapCombinator(self, in_axes=in_axes)(*args)
-            if args
-            else VmapCombinator(self, in_axes=in_axes)
-        )
+        return VmapCombinator(self, in_axes=in_axes)
 
     def repeat(
         self,
