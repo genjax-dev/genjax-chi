@@ -34,8 +34,7 @@ def CondCombinator(
 ) -> ComposeCombinator:
     @typecheck
     def argument_mapping(b: ScalarBool, *args):
-        # Note that True maps to 0 to select the "if" branch,
-        # False to 1.
+        # Note that `True` maps to 0 to select the "if" branch, `False` to 1.
         idx = jnp.array(jnp.logical_not(b), dtype=int)
         return (idx, *args)
 

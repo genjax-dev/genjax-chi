@@ -823,18 +823,19 @@ class GenerativeFunction(Pytree):
         in_axes: InAxes = 0,
     ) -> "GenerativeFunction":
         """
-        Returns a version of `self` that supports `vmap`-based patterns of
-        parallel (and generative) computation.
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
+        supports `vmap`-based patterns of parallel (and generative) computation.
 
         Args:
-            in_axes (InAxes, optional): indicates how the underlying `vmap`
-                patterns should be broadcast across the input arguments to the
-                generative function. Defaults to 0.
+            in_axes ([`InAxes`][genjax.typing.InAxes], optional): indicates how
+                the underlying `vmap` patterns should be broadcast across the
+                input arguments to the generative function. Defaults to 0.
 
         Returns:
-            GenerativeFunction: a new GenerativeFunction that accepts a
+            [`GenerativeFunction`][genjax.GenerativeFunction]: a new
+            [`GenerativeFunction`][genjax.GenerativeFunction] that accepts a
             `numpy.array` of arguments (instead of the original argument to
-            `self`) for each vmapped index
+            `self`) for each vmapped index.
 
         Examples:
 
@@ -904,6 +905,50 @@ class GenerativeFunction(Pytree):
         self,
         gen_fn: "GenerativeFunction",
     ) -> "GenerativeFunction":
+        """
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that accepts
+
+        - a boolean argument
+        - an argument tuple for `self`
+        - an argument tuple for the supplied `gen_fn`
+
+        and acts like `self` when the boolean is `True` or like `gen_fn` otherwise.
+
+        Args:
+            gen_fn ([`GenerativeFunction`][genjax.GenerativeFunction]): called
+                when the boolean argument is `False`.
+
+        Returns:
+            [`GenerativeFunction`][genjax.GenerativeFunction]
+
+        Examples:
+
+            ```python exec="yes" html="true" source="material-block" session="gen-fn"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+
+            @genjax.gen
+            def if_model(x):
+                return genjax.normal(x, 1.0) @ "if_value"
+
+            @genjax.gen
+            def else_model(x):
+                return genjax.normal(x, 5.0) @ "else_value"
+
+            @genjax.gen
+            def model(toss: bool):
+                # Note that the returned model takes a new boolean predicate in
+                # addition to argument tuples for each branch.
+                return if_model.or_else(else_model)(toss, (1.0,), (10.0,)) @ "tossed"
+
+            key = jax.random.PRNGKey(314159)
+
+            tr = jax.jit(model.simulate)(key, (True,))
+
+            print(tr.render_html())
+            ```
+        """        
         from genjax import CondCombinator
 
         return CondCombinator(self, gen_fn)
