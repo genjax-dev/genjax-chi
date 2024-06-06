@@ -145,7 +145,7 @@ def static_check_supports_grad(v):
 
 
 @typecheck
-def static_check_shape_dtype_equivalence(vs: List[ArrayLike]) -> Bool:
+def static_check_shape_dtype_equivalence(vs: List[Array]) -> Bool:
     shape_dtypes = [(v.shape, v.dtype) for v in vs]
     num_unique = set(shape_dtypes)
     return len(num_unique) == 1
