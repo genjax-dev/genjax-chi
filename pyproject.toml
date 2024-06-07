@@ -37,7 +37,7 @@ classifiers = [
 Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.13"
+python = ">=3.11,<3.13"
 jax = "^0.4.28"
 tensorflow-probability = "^0.23.0"
 jaxtyping = "^0.2.28"
