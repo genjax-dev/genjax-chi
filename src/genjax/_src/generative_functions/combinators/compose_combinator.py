@@ -15,14 +15,14 @@
 
 from genjax._src.core.generative import (
     Argdiffs,
+    ChangeTargetWithConstraintRequest,
     EmptyTrace,
     GenerativeFunction,
-    GenericProblem,
     Retdiff,
     Sample,
     Score,
     Trace,
-    UpdateProblem,
+    UpdateRequest,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff, incremental
@@ -89,9 +89,9 @@ class ComposeCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
+        update_request: UpdateRequest,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         assert isinstance(trace, EmptyTrace | ComposeTrace)
         primals = Diff.tree_primal(argdiffs)
         tangents = Diff.tree_tangent(argdiffs)
@@ -106,7 +106,9 @@ class ComposeCombinator(GenerativeFunction):
             case EmptyTrace():
                 inner_trace = EmptyTrace(self.inner)
         tr, w, inner_retdiff, bwd_problem = self.inner.update(
-            key, inner_trace, GenericProblem(inner_argdiffs, update_problem)
+            key,
+            inner_trace,
+            ChangeTargetWithConstraintRequest(inner_argdiffs, update_request),
         )
         inner_retval_primals = Diff.tree_primal((inner_retdiff,))
         inner_retval_tangents = Diff.tree_tangent((inner_retdiff,))
@@ -132,14 +134,14 @@ class ComposeCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
+        update_request: UpdateRequest,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        match update_request:
+            case ChangeTargetWithConstraintRequest(argdiffs, subrequest):
+                return self.update_change_target(key, trace, subrequest, argdiffs)
             case _:
                 return self.update_change_target(
-                    key, trace, update_problem, Diff.no_change(trace.get_args())
+                    key, trace, update_request, Diff.no_change(trace.get_args())
                 )
 
     @typecheck

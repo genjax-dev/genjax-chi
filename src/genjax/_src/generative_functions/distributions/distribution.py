@@ -17,35 +17,38 @@ from abc import abstractmethod
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 from jax.experimental import checkify
 from jax.lax import cond
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.generative import (
     Argdiffs,
+    Arguments,
+    ChangeTargetWithConstraintRequest,
     ChoiceMap,
     Constraint,
     EmptyConstraint,
-    EmptyProblem,
+    EmptyRequest,
     EmptyTrace,
     GenerativeFunction,
-    GenericProblem,
-    ImportanceProblem,
+    ImportanceRequest,
     Mask,
     MaskedConstraint,
-    MaskedProblem,
-    ProjectProblem,
+    MaskedRequest,
+    ProjectRequest,
     Retdiff,
     Retval,
     Sample,
     Score,
     Selection,
     Trace,
-    UpdateProblem,
+    UnhandledConstraint,
+    UnhandledRequest,
+    UpdateRequest,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import staged_check
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
@@ -55,13 +58,12 @@ from genjax._src.core.typing import (
     FloatArray,
     PRNGKey,
     Tuple,
-    static_check_is_concrete,
     typecheck,
 )
 
-#####
-# DistributionTrace
-#####
+#####################
+# DistributionTrace #
+#####################
 
 
 @Pytree.dataclass
@@ -124,17 +126,18 @@ class Distribution(GenerativeFunction):
         return tr
 
     @typecheck
-    def importance_choice_map(
+    def update_importance_choice_map(
         self,
         key: PRNGKey,
         chm: ChoiceMap,
         args: Tuple,
-    ):
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         v = chm.get_value()
         match v:
             case None:
                 tr = self.simulate(key, args)
-                return tr, jnp.array(0.0), EmptyProblem()
+                retdiff = Diff.unknown_change(tr.get_retval())
+                return tr, jnp.array(0.0), retdiff, EmptyRequest()
 
             case Mask(flag, value):
 
@@ -149,42 +152,59 @@ class Distribution(GenerativeFunction):
 
                 score, w, new_v = cond(flag, _importance, _simulate, key, value)
                 tr = DistributionTrace(self, args, new_v, score)
-                bwd_problem = MaskedProblem(flag, ProjectProblem())
-                return tr, w, bwd_problem
+                bwd_problem = MaskedRequest(flag, ProjectRequest())
+                retdiff = Diff.unknown_change(tr.get_retval())
+                return tr, w, retdiff, bwd_problem
 
             case _:
                 w = self.estimate_logpdf(key, v, *args)
-                bwd_problem = ProjectProblem()
+                bwd_problem = ProjectRequest()
                 tr = DistributionTrace(self, args, v, w)
-                return tr, w, bwd_problem
+                retdiff = Diff.unknown_change(tr.get_retval())
+                return tr, w, retdiff, bwd_problem
 
     @typecheck
-    def importance_masked_constraint(
+    def update_importance_masked_constraint(
         self,
         key: PRNGKey,
+        flag: Bool | BoolArray,
         constraint: MaskedConstraint,
         args: Tuple,
-    ) -> Tuple[Trace, Weight, UpdateProblem]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         def simulate_branch(key, _, args):
             tr = self.simulate(key, args)
             return (
                 tr,
                 jnp.array(0.0),
-                MaskedProblem(False, ProjectProblem()),
+                MaskedRequest(False, ProjectRequest()),
             )
 
         def importance_branch(key, constraint, args):
             tr, w = self.importance(key, constraint, args)
-            return tr, w, MaskedProblem(True, ProjectProblem())
+            return tr, w, MaskedRequest(True, ProjectRequest())
 
-        return jax.lax.cond(
-            constraint.flag,
+        tr, w, bwd_request = jax.lax.cond(
+            flag,
             importance_branch,
             simulate_branch,
             key,
-            constraint.constraint,
+            constraint,
             args,
         )
+        retdiff = Diff.unknown_change(tr.get_retval())
+        return tr, w, retdiff, bwd_request
+
+    @typecheck
+    def update_importance_empty_constraint(
+        self,
+        key: PRNGKey,
+        args: Arguments,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        tr = self.simulate(key, args)
+        w = jnp.array(0.0)
+        bwd_problem = EmptyRequest()
+        retdiff = Diff.unknown_change(tr.get_retval())
+        return tr, w, retdiff, bwd_problem
 
     @typecheck
     def update_importance(
@@ -192,207 +212,46 @@ class Distribution(GenerativeFunction):
         key: PRNGKey,
         constraint: Constraint,
         args: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         match constraint:
             case ChoiceMap():
-                tr, w, bwd_problem = self.importance_choice_map(key, constraint, args)
-            case MaskedConstraint(flag, inner_constraint):
-                if staged_check(flag):
-                    return self.update_importance(key, inner_constraint, args)
-                else:
-                    tr, w, bwd_problem = self.importance_masked_constraint(
-                        key, constraint, args
-                    )
+                return self.update_importance_choice_map(
+                    key,
+                    constraint,
+                    args,
+                )
+            case MaskedConstraint(flag, constraint):
+                return self.update_importance_masked_constraint(
+                    key,
+                    flag,
+                    constraint,
+                    args,
+                )
             case EmptyConstraint():
-                tr = self.simulate(key, args)
-                w = jnp.array(0.0)
-                bwd_problem = EmptyProblem()
+                return self.update_importance_empty_constraint(
+                    key,
+                    args,
+                )
             case _:
-                raise Exception("Unhandled type.")
-        return tr, w, Diff.unknown_change(tr.get_retval()), bwd_problem
+                raise UnhandledConstraint(constraint)
 
+    @typecheck
     def update_empty(
         self,
         trace: Trace,
-        argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        sample = trace.get_sample()
-        primals = Diff.tree_primal(argdiffs)
-        new_score, _ = self.assess(sample, primals)
-        new_trace = DistributionTrace(self, primals, sample.get_value(), new_score)
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         return (
-            new_trace,
-            new_score - trace.get_score(),
+            trace,
+            0.0,
             Diff.tree_diff_no_change(trace.get_retval()),
-            EmptyProblem(),
+            EmptyRequest(),
         )
 
-    def update_constraint_masked_constraint(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        constraint: MaskedConstraint,
-        argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        old_sample = trace.get_sample()
-
-        def update_branch(key, trace, constraint, argdiffs):
-            tr, w, rd, _ = self.update(key, trace, GenericProblem(argdiffs, constraint))
-            return (
-                tr,
-                w,
-                rd,
-                MaskedProblem(True, old_sample),
-            )
-
-        def do_nothing_branch(key, trace, constraint, argdiffs):
-            tr, w, _, _ = self.update(
-                key, trace, GenericProblem(argdiffs, EmptyProblem())
-            )
-            return (
-                tr,
-                w,
-                Diff.tree_diff_unknown_change(tr.get_retval()),
-                MaskedProblem(False, old_sample),
-            )
-
-        return jax.lax.cond(
-            constraint.flag,
-            update_branch,
-            do_nothing_branch,
-            key,
-            trace,
-            constraint.constraint,
-            argdiffs,
-        )
-
-    def update_constraint(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        constraint: Constraint,
-        argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        primals = Diff.tree_primal(argdiffs)
-        match constraint:
-            case EmptyConstraint():
-                old_sample = trace.get_sample()
-                old_retval = trace.get_retval()
-                new_score, _ = self.assess(old_sample, primals)
-                new_trace = DistributionTrace(
-                    self, primals, old_sample.get_value(), new_score
-                )
-                return (
-                    new_trace,
-                    new_score - trace.get_score(),
-                    Diff.tree_diff_no_change(old_retval),
-                    EmptyProblem(),
-                )
-
-            case MaskedConstraint(flag, problem):
-                if staged_check(flag):
-                    return self.update(key, trace, GenericProblem(argdiffs, problem))
-                else:
-                    return self.update_constraint_masked_constraint(
-                        key, trace, constraint, argdiffs
-                    )
-
-            case ChoiceMap():
-                check = constraint.has_value()
-                v = constraint.get_value()
-                if isinstance(v, UpdateProblem):
-                    return self.update(key, trace, GenericProblem(argdiffs, v))
-                elif static_check_is_concrete(check) and check:
-                    fwd = self.estimate_logpdf(key, v, *primals)
-                    bwd = trace.get_score()
-                    w = fwd - bwd
-                    new_tr = DistributionTrace(self, primals, v, fwd)
-                    discard = trace.get_sample()
-                    retval_diff = Diff.tree_diff_unknown_change(v)
-                    return (
-                        new_tr,
-                        w,
-                        retval_diff,
-                        discard,
-                    )
-                elif static_check_is_concrete(check):
-                    value_chm = trace.get_sample()
-                    v = value_chm.get_value()
-                    fwd = self.estimate_logpdf(key, v, *primals)
-                    bwd = trace.get_score()
-                    w = fwd - bwd
-                    new_tr = DistributionTrace(self, primals, v, fwd)
-                    retval_diff = Diff.tree_diff_no_change(v)
-                    return (new_tr, w, retval_diff, EmptyProblem())
-                else:
-                    # Whether or not the choice map has a value is dynamic...
-                    # We must handled with a cond.
-                    def _true_branch(key, new_value, old_value):
-                        fwd = self.estimate_logpdf(key, new_value, *primals)
-                        bwd = trace.get_score()
-                        w = fwd - bwd
-                        return (new_value, w, fwd)
-
-                    def _false_branch(key, new_value, old_value):
-                        fwd = self.estimate_logpdf(key, old_value, *primals)
-                        bwd = trace.get_score()
-                        w = fwd - bwd
-                        return (old_value, w, fwd)
-
-                    masked_value: Mask = v
-                    flag = masked_value.flag
-                    new_value = masked_value.value
-                    old_value = trace.get_sample().get_value()
-
-                    new_value, w, score = jax.lax.cond(
-                        flag,
-                        _true_branch,
-                        _false_branch,
-                        key,
-                        new_value,
-                        old_value,
-                    )
-                    return (
-                        DistributionTrace(self, primals, new_value, score),
-                        w,
-                        Diff.tree_diff_unknown_change(new_value),
-                        MaskedProblem(flag, old_value),
-                    )
-
-            case _:
-                raise Exception("Unhandled constraint in update.")
-
-    def update_masked(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        flag: Bool | BoolArray,
-        problem: UpdateProblem,
-        argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        old_value = trace.get_retval()
-        primals = Diff.tree_primal(argdiffs)
-        possible_trace, w, retdiff, bwd_problem = self.update(
-            key,
-            trace,
-            GenericProblem(argdiffs, problem),
-        )
-        new_value = possible_trace.get_retval()
-        w = w * flag
-        bwd_problem = MaskedProblem(flag, bwd_problem)
-        new_trace = DistributionTrace(
-            self,
-            primals,
-            jax.lax.select(flag, new_value, old_value),
-            jax.lax.select(flag, possible_trace.get_score(), trace.get_score()),
-        )
-
-        return new_trace, w, retdiff, bwd_problem
-
+    @typecheck
     def update_project(
         self,
         trace: Trace,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         original = trace.get_score()
         removed_value = trace.get_retval()
         retdiff = Diff.tree_diff_unknown_change(trace.get_retval())
@@ -403,56 +262,114 @@ class Distribution(GenerativeFunction):
             ChoiceMap.value(removed_value),
         )
 
-    def update_selection_project(
+    @typecheck
+    def update_selection(
         self,
         key: PRNGKey,
         trace: Trace,
         selection: Selection,
-        argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         check = () in selection
 
         return self.update(
             key,
             trace,
-            GenericProblem(
-                argdiffs,
-                MaskedProblem.maybe(check, ProjectProblem()),
-            ),
+            MaskedRequest.maybe_empty(check, ProjectRequest()),
         )
 
     @typecheck
-    def update_change_target(
+    def update_masked(
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
+        flag: Bool | BoolArray,
+        problem: UpdateRequest,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        possible_trace, w, retdiff, bwd_problem = self.update(
+            key,
+            trace,
+            problem,
+        )
+        old_value = trace.get_retval()
+        new_value = possible_trace.get_retval()
+        w = w * flag
+        bwd_problem = MaskedRequest(flag, bwd_problem)
+        new_trace = DistributionTrace(
+            self,
+            jtu.tree_map(
+                lambda v1, v2: jax.lax.select(flag, v1, v2),
+                trace.get_args(),
+                possible_trace.get_args(),
+            ),
+            jax.lax.select(flag, new_value, old_value),
+            jax.lax.select(flag, possible_trace.get_score(), trace.get_score()),
+        )
+
+        return new_trace, w, retdiff, bwd_problem
+
+    @typecheck
+    def update_ctc_empty(
+        self,
+        trace: Trace,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        match update_problem:
-            case EmptyProblem():
-                return self.update_empty(trace, argdiffs)
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        pass
 
-            case Constraint():
-                return self.update_constraint(key, trace, update_problem, argdiffs)
+    @typecheck
+    def update_ctc_masked_constraint(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        flag: Bool | BoolArray,
+        constraint: Constraint,
+        argdiffs: Argdiffs,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        pass
 
-            case MaskedProblem(flag, subproblem):
-                return self.update_masked(key, trace, flag, subproblem, argdiffs)
+    @typecheck
+    def update_ctc_choice_map(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        chm: ChoiceMap,
+        argdiffs: Argdiffs,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        pass
 
-            case ProjectProblem():
-                return self.update_project(trace)
-
-            case Selection():
-                return self.update_selection_project(
-                    key, trace, update_problem, argdiffs
+    @typecheck
+    def update_change_target_with_constraint(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        constraint: Constraint,
+        argdiffs: Argdiffs,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        match constraint:
+            case EmptyConstraint():
+                return self.update_ctc_empty(
+                    trace,
+                    argdiffs,
                 )
 
-            case ImportanceProblem(constraint) if isinstance(trace, EmptyTrace):
-                primals = Diff.tree_primal(argdiffs)
-                return self.update_importance(key, constraint, primals)
+            case MaskedConstraint(flag, constraint):
+                return self.update_ctc_masked_constraint(
+                    key,
+                    trace,
+                    flag,
+                    constraint,
+                    argdiffs,
+                )
+
+            case ChoiceMap():
+                return self.update_ctc_choice_map(
+                    key,
+                    trace,
+                    constraint,
+                    argdiffs,
+                )
 
             case _:
-                raise Exception(f"Not implement fwd problem: {update_problem}.")
+                raise UnhandledConstraint(constraint)
 
     @GenerativeFunction.gfi_boundary
     @typecheck
@@ -460,15 +377,51 @@ class Distribution(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
-            case _:
-                return self.update_change_target(
-                    key, trace, update_problem, Diff.no_change(trace.get_args())
+        update_request: UpdateRequest,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        match update_request:
+            case EmptyRequest():
+                return self.update_empty(
+                    trace,
                 )
+
+            case MaskedRequest(flag, subrequest):
+                return self.update_masked(
+                    key,
+                    trace,
+                    flag,
+                    subrequest,
+                )
+
+            case ChangeTargetWithConstraintRequest(argdiffs, constraint):
+                return self.update_change_target_with_constraint(
+                    key,
+                    trace,
+                    constraint,
+                    argdiffs,
+                )
+
+            case ImportanceRequest(args, constraint) if isinstance(trace, EmptyTrace):
+                return self.update_importance(
+                    key,
+                    constraint,
+                    args,
+                )
+
+            case Selection():
+                return self.update_selection(
+                    key,
+                    trace,
+                    update_request,
+                )
+
+            case ProjectRequest():
+                return self.update_project(
+                    trace,
+                )
+
+            case _:
+                raise UnhandledRequest(update_request)
 
     @typecheck
     def assess(

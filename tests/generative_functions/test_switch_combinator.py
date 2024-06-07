@@ -17,7 +17,7 @@ import jax
 import pytest
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
-from genjax import UpdateProblemBuilder as U
+from genjax import UpdateRequestBuilder as U
 from jax import numpy as jnp
 
 

@@ -16,7 +16,7 @@ import genjax
 import jax
 from genjax import ChoiceMapBuilder as C
 from genjax import EmptyConstraint, MaskedConstraint
-from genjax import UpdateProblemBuilder as U
+from genjax import UpdateRequestBuilder as U
 from genjax.incremental import Diff, NoChange, UnknownChange
 
 
@@ -65,7 +65,7 @@ class TestDistributions:
 
         # No constraint, no change to arguments.
         (new_tr, w, _, _) = genjax.normal.update(
-            sub_key, tr, U.g((Diff(0.0, NoChange), Diff(1.0, NoChange)), C.n())
+            sub_key, tr, U.ctc((Diff(0.0, NoChange), Diff(1.0, NoChange)), C.n())
         )
         assert new_tr.get_sample().get_value() == tr.get_sample().get_value()
         assert (
@@ -78,7 +78,7 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            U.g(
+            U.ctc(
                 (Diff(0.0, NoChange), Diff(1.0, NoChange)),
                 C.v(1.0),
             ),
@@ -96,7 +96,7 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            U.g((Diff(1.0, UnknownChange), Diff(1.0, NoChange)), C.n()),
+            U.ctc((Diff(1.0, UnknownChange), Diff(1.0, NoChange)), C.n()),
         )
         assert new_tr.get_sample().get_value() == tr.get_sample().get_value()
         assert (
@@ -113,7 +113,7 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            U.g(
+            U.ctc(
                 (Diff(1.0, UnknownChange), Diff(2.0, UnknownChange)),
                 C.v(1.0),
             ),
@@ -131,9 +131,9 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            U.g(
+            U.ctc(
                 (Diff(0.0, NoChange), Diff(1.0, NoChange)),
-                MaskedConstraint(True, C.v(1.0)),
+                U.maybe(True, C.v(1.0)),
             ),
         )
         assert new_tr.get_sample().get_value() == 1.0
@@ -149,9 +149,9 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            U.g(
+            U.ctc(
                 (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
-                MaskedConstraint(True, C.v(1.0)),
+                U.maybe(True, C.v(1.0)),
             ),
         )
         assert new_tr.get_sample().get_value() == 1.0
@@ -167,9 +167,9 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            U.g(
+            U.ctc(
                 (Diff(0.0, NoChange), Diff(1.0, NoChange)),
-                MaskedConstraint(False, C.v(1.0)),
+                U.maybe(False, C.v(1.0)),
             ),
         )
         assert new_tr.get_sample().get_value() == tr.get_sample().get_value()
@@ -183,9 +183,9 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            U.g(
+            U.ctc(
                 (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
-                MaskedConstraint(False, C.v(1.0)),
+                Cs.maybe_empty(False, C.v(1.0)),
             ),
         )
         assert new_tr.get_sample().get_value() == tr.get_sample().get_value()

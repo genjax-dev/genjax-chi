@@ -39,12 +39,15 @@ from genjax._src.core.typing import (
     Callable,
     List,
     Tuple,
+    TypeVar,
     static_check_is_array,
     static_check_is_concrete,
     static_check_supports_grad,
 )
 
 register_exclusion(__file__)
+
+_T = TypeVar("_T")
 
 
 class Pytree(pz.Struct):
@@ -66,10 +69,10 @@ class Pytree(pz.Struct):
     @classmethod
     def dataclass(
         cls,
-        incoming: type[Any] | None = None,
+        incoming: type[_T] | None = None,
         /,
         **kwargs,
-    ) -> type[Any] | Callable[[type[Any]], type[Any]]:
+    ) -> type[_T] | Callable[[type[_T]], type[_T]]:
         """
         Denote that a class (which is inheriting `Pytree`) should be treated as a dataclass, meaning it can hold data in fields which are declared as part of the class.
 

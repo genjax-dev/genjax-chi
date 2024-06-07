@@ -14,16 +14,16 @@
 
 
 from genjax._src.core.generative import (
+    ChangeTargetWithConstraintRequest,
     ChoiceMap,
     EmptyTrace,
     GenerativeFunction,
-    GenericProblem,
-    ImportanceProblem,
+    ImportanceRequest,
     Retdiff,
     Sample,
     Score,
     Trace,
-    UpdateProblem,
+    UpdateRequest,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -104,9 +104,9 @@ class AddressBijectionCombinator(GenerativeFunction):
         tr, w, retdiff, inner_bwd_problem = self.gen_fn.update(
             key,
             EmptyTrace(self.gen_fn),
-            GenericProblem(
+            ChangeTargetWithConstraintRequest(
                 argdiffs,
-                ImportanceProblem(inner_problem),
+                ImportanceRequest(inner_problem),
             ),
         )
         assert isinstance(inner_bwd_problem, ChoiceMap)
@@ -120,12 +120,12 @@ class AddressBijectionCombinator(GenerativeFunction):
         trace: AddressBijectionTrace,
         chm: ChoiceMap,
         argdiffs: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         inner_problem = chm.with_addr_map(self.get_inverse())
         tr, w, retdiff, inner_bwd_problem = self.gen_fn.update(
             key,
             trace.inner,
-            GenericProblem(
+            ChangeTargetWithConstraintRequest(
                 argdiffs,
                 inner_problem,
             ),
@@ -139,18 +139,18 @@ class AddressBijectionCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
+        update_request: UpdateRequest,
         argdiffs: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        match update_problem:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        match update_request:
             case ChoiceMap():
-                return self.update_choice_map(key, trace, update_problem, argdiffs)
+                return self.update_choice_map(key, trace, update_request, argdiffs)
 
-            case ImportanceProblem(constraint):
+            case ImportanceRequest(constraint):
                 return self.update_importance(key, constraint, argdiffs)
 
             case _:
-                raise ValueError(f"Unrecognized update problem: {update_problem}")
+                raise ValueError(f"Unrecognized update problem: {update_request}")
 
     @GenerativeFunction.gfi_boundary
     @typecheck
@@ -158,14 +158,14 @@ class AddressBijectionCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
+        update_request: UpdateRequest,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        match update_request:
+            case ChangeTargetWithConstraintRequest(argdiffs, subrequest):
+                return self.update_change_target(key, trace, subrequest, argdiffs)
             case _:
                 return self.update_change_target(
-                    key, trace, update_problem, Diff.no_change(trace.get_args())
+                    key, trace, update_request, Diff.no_change(trace.get_args())
                 )
 
     @GenerativeFunction.gfi_boundary

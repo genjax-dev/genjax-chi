@@ -32,7 +32,7 @@ from genjax._src.core.generative import (
     Retdiff,
     Sample,
     Trace,
-    UpdateProblem,
+    UpdateRequest,
     Weight,
 )
 from genjax._src.core.pytree import Pytree
@@ -548,16 +548,16 @@ class KernelGenerativeFunction(GenerativeFunction):
         key: PRNGKey,
         constraint: Constraint,
         args: Tuple,
-    ) -> Tuple[Trace, Weight, UpdateProblem]:
+    ) -> Tuple[Trace, Weight, UpdateRequest]:
         raise NotImplementedError
 
     def update(
         self,
         key: PRNGKey,
         trace: KernelTrace,
-        update_problem: UpdateProblem,
+        update_request: UpdateRequest,
         args: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         raise NotImplementedError
 
 
@@ -565,7 +565,7 @@ class KernelGenerativeFunction(GenerativeFunction):
 def kernel_gen_fn(
     source: Callable[
         [Sample, Target],
-        Tuple[UpdateProblem, Sample],
+        Tuple[UpdateRequest, Sample],
     ],
 ) -> KernelGenerativeFunction:
     return KernelGenerativeFunction(gen(source))
@@ -666,7 +666,7 @@ class AttachCombinator(GenerativeFunction):
         key: PRNGKey,
         constraint: Constraint,
         args: Tuple,
-    ) -> Tuple[Trace, Weight, UpdateProblem]:
+    ) -> Tuple[Trace, Weight, UpdateRequest]:
         move = self.importance_move(constraint)
         match move:
             case SMCP3Move(K, _):
@@ -697,11 +697,11 @@ class AttachCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: AttachTrace,
-        update_problem: UpdateProblem,
+        update_request: UpdateRequest,
         argdiffs: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         gen_fn_trace = trace.inner
-        move = self.update_move(update_problem)
+        move = self.update_move(update_request)
         previous_latents = move.get_previous_latents()
         new_constraint = move.get_new_constraint()
         match move:
@@ -731,7 +731,7 @@ class AttachCombinator(GenerativeFunction):
                 return self.gen_fn.update(
                     key,
                     gen_fn_trace,
-                    update_problem,
+                    update_request,
                     argdiffs,
                 )
 

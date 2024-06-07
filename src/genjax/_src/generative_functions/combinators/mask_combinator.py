@@ -16,18 +16,18 @@ from jax.lax import select
 
 from genjax._src.core.generative import (
     Argdiffs,
+    ChangeTargetWithConstraintRequest,
     ChoiceMap,
     EmptyTrace,
     GenerativeFunction,
-    GenericProblem,
     Mask,
-    MaskedProblem,
+    MaskedRequest,
     MaskedSample,
     Retdiff,
     Sample,
     Score,
     Trace,
-    UpdateProblem,
+    UpdateRequest,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -99,9 +99,9 @@ class MaskCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
+        update_request: UpdateRequest,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         (check, *_) = Diff.tree_primal(argdiffs)
         (check_diff, *inner_argdiffs) = argdiffs
         match trace:
@@ -111,7 +111,9 @@ class MaskCombinator(GenerativeFunction):
                 inner_trace = EmptyTrace(self.gen_fn)
 
         premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
-            key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+            key,
+            inner_trace,
+            ChangeTargetWithConstraintRequest(tuple(inner_argdiffs), update_request),
         )
         w = select(
             check,
@@ -122,7 +124,7 @@ class MaskCombinator(GenerativeFunction):
             MaskTrace(self, premasked_trace, check),
             w,
             Mask.maybe(check_diff, retdiff),
-            MaskedProblem(check, bwd_problem),
+            MaskedRequest(check, bwd_problem),
         )
 
     @typecheck
@@ -130,14 +132,14 @@ class MaskCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
+        update_request: UpdateRequest,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        match update_request:
+            case ChangeTargetWithConstraintRequest(argdiffs, subrequest):
+                return self.update_change_target(key, trace, subrequest, argdiffs)
             case _:
                 return self.update_change_target(
-                    key, trace, update_problem, Diff.no_change(trace.get_args())
+                    key, trace, update_request, Diff.no_change(trace.get_args())
                 )
 
     @typecheck
