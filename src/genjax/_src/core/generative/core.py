@@ -923,13 +923,16 @@ class GenerativeFunction(Pytree):
             import jax.numpy as jnp
             import genjax
 
+
             @genjax.gen
             def if_model(x):
                 return genjax.normal(x, 1.0) @ "if_value"
 
+
             @genjax.gen
             def else_model(x):
                 return genjax.normal(x, 5.0) @ "else_value"
+
 
             @genjax.gen
             def model(toss: bool):
@@ -937,13 +940,14 @@ class GenerativeFunction(Pytree):
                 # addition to argument tuples for each branch.
                 return if_model.or_else(else_model)(toss, (1.0,), (10.0,)) @ "tossed"
 
+
             key = jax.random.PRNGKey(314159)
 
             tr = jax.jit(model.simulate)(key, (True,))
 
             print(tr.render_html())
             ```
-        """        
+        """
         from genjax import CondCombinator
 
         return CondCombinator(self, gen_fn)

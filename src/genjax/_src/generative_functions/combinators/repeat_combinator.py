@@ -33,9 +33,7 @@ from genjax._src.generative_functions.static import gen
 register_exclusion(__file__)
 
 
-def RepeatCombinator(
-    gen_fn: GenerativeFunction, /, *, n: Int
-) -> ComposeCombinator:
+def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> ComposeCombinator:
     def argument_mapping(*args):
         return (jnp.zeros(n), args)
 
