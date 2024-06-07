@@ -34,10 +34,10 @@ register_exclusion(__file__)
 
 
 def RepeatCombinator(
-    gen_fn: GenerativeFunction, /, *, num_repeats: Int
+    gen_fn: GenerativeFunction, /, *, n: Int
 ) -> ComposeCombinator:
     def argument_mapping(*args):
-        return (jnp.zeros(num_repeats), args)
+        return (jnp.zeros(n), args)
 
     # This is a static generative function which an attached
     # choice map address bijection, to collapse the `_internal`

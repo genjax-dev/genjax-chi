@@ -869,16 +869,11 @@ class GenerativeFunction(Pytree):
 
     def repeat(
         self,
-        *args,
-        num_repeats: Int,
+        n: Int,
     ) -> "GenerativeFunction":
         from genjax import RepeatCombinator
 
-        return (
-            RepeatCombinator(self, num_repeats=num_repeats)(*args)
-            if args
-            else RepeatCombinator(self, num_repeats=num_repeats)
-        )
+        return RepeatCombinator(self, n=n)
 
     def scan(
         self,
