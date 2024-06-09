@@ -24,8 +24,8 @@ import jax.tree_util as jtu
 from genjax._src.core.generative.core import (
     Constraint,
     ProjectRequest,
+    RegenerateRequest,
     Sample,
-    UpdateRequest,
 )
 from genjax._src.core.generative.functional_types import Mask, Sum
 from genjax._src.core.interpreters.staging import (
@@ -97,7 +97,7 @@ class _SelectionBuilder(Pytree):
 SelectionBuilder = _SelectionBuilder()
 
 
-class Selection(ProjectRequest):
+class Selection(Pytree):
     """
     The type `Selection` provides a lens-like interface for filtering the random choices in a `ChoiceMap`.
 
@@ -466,7 +466,7 @@ def check_none(v):
         return True
 
 
-class ChoiceMap(Sample, Constraint, UpdateRequest):
+class ChoiceMap(Sample):
     """
     The type `ChoiceMap` denotes a map-like value which can be sampled from generative functions.
 
@@ -972,3 +972,23 @@ def choice_map_address_function(
     c: ChoiceMap,
 ) -> ChoiceMap:
     return choice_map_empty if c.static_is_empty() else AddrMapChm(addr_map, c)
+
+
+############################################
+# Choice map and selection update requests #
+############################################
+
+
+@Pytree.dataclass
+class ChoiceMapConstraint(Constraint):
+    choice_map: ChoiceMap
+
+
+@Pytree.dataclass
+class SelectionProjectRequest(ProjectRequest):
+    selection: Selection
+
+
+@Pytree.dataclass
+class SelectionRegenerateRequest(RegenerateRequest):
+    selection: Selection

@@ -274,8 +274,19 @@ class SumRequest(UpdateRequest):
 
 
 @Pytree.dataclass(match_args=True)
+class ConstraintRequest(UpdateRequest):
+    constraint: Constraint
+
+
+@Pytree.dataclass(match_args=True)
 class ChangeTargetWithConstraintRequest(UpdateRequest):
     argdiffs: Argdiffs
+    constraint: Constraint
+
+
+@Pytree.dataclass(match_args=True)
+class ImportanceRequest(UpdateRequest):
+    args: Arguments
     constraint: Constraint
 
 
@@ -283,10 +294,8 @@ class ProjectRequest(UpdateRequest):
     pass
 
 
-@Pytree.dataclass(match_args=True)
-class ImportanceRequest(UpdateRequest):
-    args: Arguments
-    constraint: Constraint
+class RegenerateRequest(UpdateRequest):
+    pass
 
 
 class UpdateRequestBuilder(Pytree):
