@@ -43,7 +43,7 @@ def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> ComposeCombina
     # (as part of StaticGenerativeFunction.Trace interfaces)
     @address_bijection_combinator(address_bijection={...: "_internal"})
     @gen
-    def expanded_gen_fn(idx: IntArray, args: Tuple):
+    def expanded_gen_fn(_: IntArray, args: Tuple):
         return gen_fn(*args) @ "_internal"
 
     inner_combinator_closure = VmapCombinator(expanded_gen_fn, in_axes=(0, None))
@@ -64,6 +64,6 @@ def repeat_combinator(
     num_repeats: Int,
 ) -> Callable[[GenerativeFunction], ComposeCombinator] | GenerativeFunction:
     if gen_fn:
-        return RepeatCombinator(gen_fn, num_repeats=num_repeats)
+        return RepeatCombinator(gen_fn, n=num_repeats)
     else:
-        return lambda gen_fn: RepeatCombinator(gen_fn, num_repeats=num_repeats)
+        return lambda gen_fn: RepeatCombinator(gen_fn, n=num_repeats)

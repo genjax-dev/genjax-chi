@@ -144,7 +144,7 @@ class VmapCombinator(GenerativeFunction):
 
         return jax.vmap(inner, in_axes=self.in_axes)(*args)
 
-    def _static_check_broadcastable(self, args):
+    def _static_check_broadcastable(self, args: Tuple) -> None:
         # Argument broadcast semantics must be fully specified
         # in `in_axes`.
         if self.in_axes is not None:

@@ -820,7 +820,56 @@ class GenerativeFunction(Pytree):
 
     def vmap(
         self,
-        in_axes: InAxes = 0,
+        in_axes: InAxes = 0
+    ) -> "GenerativeFunction":
+        """
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
+        supports `vmap`-based patterns of parallel (and generative) computation.
+
+        Args:
+            in_axes ([`InAxes`][genjax.typing.InAxes], optional): indicates how
+            the underlying `vmap` patterns should be broadcast across the
+            input arguments to the generative function. Defaults to 0.
+
+        Returns:
+            [`GenerativeFunction`][genjax.GenerativeFunction]: a new
+            [`GenerativeFunction`][genjax.GenerativeFunction] that accepts a
+            `jax.numpy.array` of arguments (instead of the original argument to
+            `self`) for each vmapped index.
+
+        Examples:
+
+            ```python exec="yes" html="true" source="material-block" session="gen-fn"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+
+
+            @genjax.gen
+            def model(x):
+                v = genjax.normal(x, 1.0) @ "v"
+                return genjax.normal(v, 0.01) @ "q"
+
+
+            vmapped = model.vmap(in_axes=0)
+
+            key = jax.random.PRNGKey(314159)
+            arr = jnp.ones(100)
+
+            # `vmapped` accepts an array if numbers instead of the original
+            # single number that `model` accepted.
+            tr = jax.jit(vmapped.simulate)(key, (arr,))
+
+            print(tr.render_html())
+            ```
+        """
+        from genjax import VmapCombinator
+
+        return VmapCombinator(self, in_axes=in_axes)
+
+    def repeat(
+        self,
+        n: Int
     ) -> "GenerativeFunction":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
@@ -862,43 +911,112 @@ class GenerativeFunction(Pytree):
 
             print(tr.render_html())
             ```
-        """
-        from genjax import VmapCombinator
-
-        return VmapCombinator(self, in_axes=in_axes)
-
-    def repeat(
-        self,
-        n: Int,
-    ) -> "GenerativeFunction":
+        """        
         from genjax import RepeatCombinator
 
         return RepeatCombinator(self, n=n)
 
     def scan(
         self,
-        *args,
         max_length: Int,
     ) -> "GenerativeFunction":
+        """
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
+        supports `vmap`-based patterns of parallel (and generative) computation.
+
+        Args:
+            in_axes ([`InAxes`][genjax.typing.InAxes], optional): indicates how
+                the underlying `vmap` patterns should be broadcast across the
+                input arguments to the generative function. Defaults to 0.
+
+        Returns:
+            [`GenerativeFunction`][genjax.GenerativeFunction]: a new
+            [`GenerativeFunction`][genjax.GenerativeFunction] that accepts a
+            `numpy.array` of arguments (instead of the original argument to
+            `self`) for each vmapped index.
+
+        Examples:
+
+            ```python exec="yes" html="true" source="material-block" session="gen-fn"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+
+
+            @genjax.gen
+            def model(x):
+                v = genjax.normal(x, 1.0) @ "v"
+                return genjax.normal(v, 0.01) @ "q"
+
+
+            vmapped = model.vmap(in_axes=0)
+
+            key = jax.random.PRNGKey(314159)
+            arr = jnp.ones(100)
+
+            # `vmapped` accepts an array if numbers instead of the original
+            # single number that `model` accepted.
+            tr = jax.jit(vmapped.simulate)(key, (arr,))
+
+            print(tr.render_html())
+            ```
+        """        
         from genjax import ScanCombinator
 
-        return (
-            ScanCombinator(self, max_length=max_length)(*args)
-            if args
-            else ScanCombinator(self, max_length=max_length)
-        )
+        return ScanCombinator(self, max_length=max_length)
+
 
     def mask(
         self,
-        *args,
     ) -> "GenerativeFunction":
+        """
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
+        supports `vmap`-based patterns of parallel (and generative) computation.
+
+        Args:
+            in_axes ([`InAxes`][genjax.typing.InAxes], optional): indicates how
+                the underlying `vmap` patterns should be broadcast across the
+                input arguments to the generative function. Defaults to 0.
+
+        Returns:
+            [`GenerativeFunction`][genjax.GenerativeFunction]: a new
+            [`GenerativeFunction`][genjax.GenerativeFunction] that accepts a
+            `numpy.array` of arguments (instead of the original argument to
+            `self`) for each vmapped index.
+
+        Examples:
+
+            ```python exec="yes" html="true" source="material-block" session="gen-fn"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+
+
+            @genjax.gen
+            def model(x):
+                v = genjax.normal(x, 1.0) @ "v"
+                return genjax.normal(v, 0.01) @ "q"
+
+
+            vmapped = model.vmap(in_axes=0)
+
+            key = jax.random.PRNGKey(314159)
+            arr = jnp.ones(100)
+
+            # `vmapped` accepts an array if numbers instead of the original
+            # single number that `model` accepted.
+            tr = jax.jit(vmapped.simulate)(key, (arr,))
+
+            print(tr.render_html())
+            ```
+        """        
         from genjax import MaskCombinator
 
-        return MaskCombinator(self)(*args) if args else MaskCombinator(self)
+        return MaskCombinator(self)
 
     def or_else(
         self,
-        gen_fn: "GenerativeFunction",
+        gen_fn: "GenerativeFunction"
     ) -> "GenerativeFunction":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that accepts
@@ -954,55 +1072,199 @@ class GenerativeFunction(Pytree):
 
     def addr_bij(
         self,
-        address_bijection: dict,
-        *args,
+        address_bijection: dict
     ) -> "GenerativeFunction":
+        """
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
+        supports `vmap`-based patterns of parallel (and generative) computation.
+
+        Args:
+            in_axes ([`InAxes`][genjax.typing.InAxes], optional): indicates how
+                the underlying `vmap` patterns should be broadcast across the
+                input arguments to the generative function. Defaults to 0.
+
+        Returns:
+            [`GenerativeFunction`][genjax.GenerativeFunction]: a new
+            [`GenerativeFunction`][genjax.GenerativeFunction] that accepts a
+            `numpy.array` of arguments (instead of the original argument to
+            `self`) for each vmapped index.
+
+        Examples:
+
+            ```python exec="yes" html="true" source="material-block" session="gen-fn"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+
+
+            @genjax.gen
+            def model(x):
+                v = genjax.normal(x, 1.0) @ "v"
+                return genjax.normal(v, 0.01) @ "q"
+
+
+            vmapped = model.vmap(in_axes=0)
+
+            key = jax.random.PRNGKey(314159)
+            arr = jnp.ones(100)
+
+            # `vmapped` accepts an array if numbers instead of the original
+            # single number that `model` accepted.
+            tr = jax.jit(vmapped.simulate)(key, (arr,))
+
+            print(tr.render_html())
+            ```
+        """        
         from genjax import AddressBijectionCombinator
 
-        return (
-            AddressBijectionCombinator(self, address_bijection=address_bijection)(*args)
-            if args
-            else AddressBijectionCombinator(self, address_bijection=address_bijection)
-        )
+        return AddressBijectionCombinator(self, address_bijection=address_bijection)
 
     def switch(
         self,
-        branches: List["GenerativeFunction"],
-        *args,
+        branches: List["GenerativeFunction"]
     ) -> "GenerativeFunction":
+        """
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
+        supports `vmap`-based patterns of parallel (and generative) computation.
+
+        Args:
+            in_axes ([`InAxes`][genjax.typing.InAxes], optional): indicates how
+                the underlying `vmap` patterns should be broadcast across the
+                input arguments to the generative function. Defaults to 0.
+
+        Returns:
+            [`GenerativeFunction`][genjax.GenerativeFunction]: a new
+            [`GenerativeFunction`][genjax.GenerativeFunction] that accepts a
+            `numpy.array` of arguments (instead of the original argument to
+            `self`) for each vmapped index.
+
+        Examples:
+
+            ```python exec="yes" html="true" source="material-block" session="gen-fn"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+
+
+            @genjax.gen
+            def model(x):
+                v = genjax.normal(x, 1.0) @ "v"
+                return genjax.normal(v, 0.01) @ "q"
+
+
+            vmapped = model.vmap(in_axes=0)
+
+            key = jax.random.PRNGKey(314159)
+            arr = jnp.ones(100)
+
+            # `vmapped` accepts an array if numbers instead of the original
+            # single number that `model` accepted.
+            tr = jax.jit(vmapped.simulate)(key, (arr,))
+
+            print(tr.render_html())
+            ```
+        """        
         from genjax import SwitchCombinator
 
-        return (
-            SwitchCombinator((self, *branches))(*args)
-            if args
-            else SwitchCombinator((self, *branches))
-        )
+        return SwitchCombinator((self, *branches))
 
     def mix(
         self,
-        gen_fn: "GenerativeFunction",
-        *args,
+        gen_fn: "GenerativeFunction"
     ) -> "GenerativeFunction":
+        """
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
+        supports `vmap`-based patterns of parallel (and generative) computation.
+
+        Args:
+            in_axes ([`InAxes`][genjax.typing.InAxes], optional): indicates how
+                the underlying `vmap` patterns should be broadcast across the
+                input arguments to the generative function. Defaults to 0.
+
+        Returns:
+            [`GenerativeFunction`][genjax.GenerativeFunction]: a new
+            [`GenerativeFunction`][genjax.GenerativeFunction] that accepts a
+            `numpy.array` of arguments (instead of the original argument to
+            `self`) for each vmapped index.
+
+        Examples:
+
+            ```python exec="yes" html="true" source="material-block" session="gen-fn"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+
+
+            @genjax.gen
+            def model(x):
+                v = genjax.normal(x, 1.0) @ "v"
+                return genjax.normal(v, 0.01) @ "q"
+
+
+            vmapped = model.vmap(in_axes=0)
+
+            key = jax.random.PRNGKey(314159)
+            arr = jnp.ones(100)
+
+            # `vmapped` accepts an array if numbers instead of the original
+            # single number that `model` accepted.
+            tr = jax.jit(vmapped.simulate)(key, (arr,))
+
+            print(tr.render_html())
+            ```
+        """        
         from genjax import MixtureCombinator
 
-        return (
-            MixtureCombinator(self, gen_fn)(*args)
-            if args
-            else MixtureCombinator(self, gen_fn)
-        )
+        return MixtureCombinator(self, gen_fn)
 
     def attach(
         self,
-        *args,
-        **kwargs,
+        **kwargs
     ) -> "GenerativeFunction":
+        """
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
+        supports `vmap`-based patterns of parallel (and generative) computation.
+
+        Args:
+            in_axes ([`InAxes`][genjax.typing.InAxes], optional): indicates how
+                the underlying `vmap` patterns should be broadcast across the
+                input arguments to the generative function. Defaults to 0.
+
+        Returns:
+            [`GenerativeFunction`][genjax.GenerativeFunction]: a new
+            [`GenerativeFunction`][genjax.GenerativeFunction] that accepts a
+            `numpy.array` of arguments (instead of the original argument to
+            `self`) for each vmapped index.
+
+        Examples:
+
+            ```python exec="yes" html="true" source="material-block" session="gen-fn"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+
+
+            @genjax.gen
+            def model(x):
+                v = genjax.normal(x, 1.0) @ "v"
+                return genjax.normal(v, 0.01) @ "q"
+
+
+            vmapped = model.vmap(in_axes=0)
+
+            key = jax.random.PRNGKey(314159)
+            arr = jnp.ones(100)
+
+            # `vmapped` accepts an array if numbers instead of the original
+            # single number that `model` accepted.
+            tr = jax.jit(vmapped.simulate)(key, (arr,))
+
+            print(tr.render_html())
+            ```
+        """        
         from genjax._src.inference.smc import AttachCombinator
 
-        return (
-            AttachCombinator(self, **kwargs)(*args)
-            if args
-            else AttachCombinator(self, **kwargs)
-        )
+        return AttachCombinator(self, **kwargs)
 
     #####################
     # GenSP / inference #
