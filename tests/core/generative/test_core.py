@@ -62,12 +62,11 @@ class TestCombinators:
         vmap_model = model.vmap()
         repeat_model = model.repeat(n=3)
 
-        vmap_tr   = jax.jit(vmap_model.simulate)(key, (jnp.zeros(3),))
+        vmap_tr = jax.jit(vmap_model.simulate)(key, (jnp.zeros(3),))
         repeat_tr = jax.jit(repeat_model.simulate)(key, (0.0,))
 
         repeatarr = jnp.array([-0.00965115, -0.13072716, -0.818963])
-        varr = jnp.array([1.0768734, -1.220163 , -2.0751207])
-
+        varr = jnp.array([1.0768734, -1.220163, -2.0751207])
 
         # Check that we get 3 repeated values:
         assert jnp.array_equal(repeat_tr.get_choices()[..., "x"], repeatarr)
@@ -75,17 +74,16 @@ class TestCombinators:
         # vmap does as well, but they are different, oddly:
         assert jnp.array_equal(vmap_tr.get_choices()[..., "x"], varr)
 
-
         # the vmap and repeat versions of the code should return the same values.
         # TODO this does not currently work. Asking @femtomc why not!
         # assert jnp.array_equal(vmap_tr.get_choices()[..., "x"],
         #                        repeat_tr.get_choices()[..., "x"])
 
-        # chm = tr.get_choices()        
-        
+        # chm = tr.get_choices()
+
         # tr, w = model.repeat(n=10).importance(key, constraint, ())
         # assert tr.get_choices() == 10
-        # assert genjax.normal.assess(genjax.ChoiceMapBuilder.v(tr.get_sample()[1, "x"]), (0.0, 1.0))[0] == w        
+        # assert genjax.normal.assess(genjax.ChoiceMapBuilder.v(tr.get_sample()[1, "x"]), (0.0, 1.0))[0] == w
 
     def test_scan(self):
         key = jax.random.PRNGKey(314159)

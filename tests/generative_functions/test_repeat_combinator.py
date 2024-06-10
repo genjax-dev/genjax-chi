@@ -18,9 +18,7 @@ from jax.random import PRNGKey
 
 
 class TestRepeatCombinator:
-
     def test_repeat_combinator_importance(self):
-
         @gen
         def model():
             return normal(0.0, 1.0) @ "x"

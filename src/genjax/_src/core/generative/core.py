@@ -818,10 +818,7 @@ class GenerativeFunction(Pytree):
     # Combinators #
     ###############
 
-    def vmap(
-        self,
-        in_axes: InAxes = 0
-    ) -> "GenerativeFunction":
+    def vmap(self, in_axes: InAxes = 0) -> "GenerativeFunction":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
         supports `vmap`-based patterns of parallel (and generative) computation.
@@ -867,10 +864,7 @@ class GenerativeFunction(Pytree):
 
         return VmapCombinator(self, in_axes=in_axes)
 
-    def repeat(
-        self,
-        n: Int
-    ) -> "GenerativeFunction":
+    def repeat(self, n: Int) -> "GenerativeFunction":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
         supports `vmap`-based patterns of parallel (and generative) computation.
@@ -911,7 +905,7 @@ class GenerativeFunction(Pytree):
 
             print(tr.render_html())
             ```
-        """        
+        """
         from genjax import RepeatCombinator
 
         return RepeatCombinator(self, n=n)
@@ -960,11 +954,10 @@ class GenerativeFunction(Pytree):
 
             print(tr.render_html())
             ```
-        """        
+        """
         from genjax import ScanCombinator
 
         return ScanCombinator(self, max_length=max_length)
-
 
     def mask(
         self,
@@ -1009,15 +1002,12 @@ class GenerativeFunction(Pytree):
 
             print(tr.render_html())
             ```
-        """        
+        """
         from genjax import MaskCombinator
 
         return MaskCombinator(self)
 
-    def or_else(
-        self,
-        gen_fn: "GenerativeFunction"
-    ) -> "GenerativeFunction":
+    def or_else(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that accepts
 
@@ -1070,10 +1060,7 @@ class GenerativeFunction(Pytree):
 
         return CondCombinator(self, gen_fn)
 
-    def addr_bij(
-        self,
-        address_bijection: dict
-    ) -> "GenerativeFunction":
+    def addr_bij(self, address_bijection: dict) -> "GenerativeFunction":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
         supports `vmap`-based patterns of parallel (and generative) computation.
@@ -1114,15 +1101,12 @@ class GenerativeFunction(Pytree):
 
             print(tr.render_html())
             ```
-        """        
+        """
         from genjax import AddressBijectionCombinator
 
         return AddressBijectionCombinator(self, address_bijection=address_bijection)
 
-    def switch(
-        self,
-        branches: List["GenerativeFunction"]
-    ) -> "GenerativeFunction":
+    def switch(self, branches: List["GenerativeFunction"]) -> "GenerativeFunction":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
         supports `vmap`-based patterns of parallel (and generative) computation.
@@ -1163,15 +1147,12 @@ class GenerativeFunction(Pytree):
 
             print(tr.render_html())
             ```
-        """        
+        """
         from genjax import SwitchCombinator
 
         return SwitchCombinator((self, *branches))
 
-    def mix(
-        self,
-        gen_fn: "GenerativeFunction"
-    ) -> "GenerativeFunction":
+    def mix(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
         supports `vmap`-based patterns of parallel (and generative) computation.
@@ -1212,15 +1193,12 @@ class GenerativeFunction(Pytree):
 
             print(tr.render_html())
             ```
-        """        
+        """
         from genjax import MixtureCombinator
 
         return MixtureCombinator(self, gen_fn)
 
-    def attach(
-        self,
-        **kwargs
-    ) -> "GenerativeFunction":
+    def attach(self, **kwargs) -> "GenerativeFunction":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
         supports `vmap`-based patterns of parallel (and generative) computation.
@@ -1261,7 +1239,7 @@ class GenerativeFunction(Pytree):
 
             print(tr.render_html())
             ```
-        """        
+        """
         from genjax._src.inference.smc import AttachCombinator
 
         return AttachCombinator(self, **kwargs)
