@@ -1,6 +1,7 @@
-import jax
-import time
 import multiprocessing
+import time
+
+import jax
 
 
 def i_wont_be_so_fine(x):
