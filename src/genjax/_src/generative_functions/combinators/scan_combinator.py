@@ -37,6 +37,7 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
+    Callable,
     FloatArray,
     Int,
     IntArray,
@@ -497,7 +498,7 @@ def scan_combinator(
     /,
     *,
     max_length: Int,
-):
+) -> Callable[[GenerativeFunction], ScanCombinator] | ScanCombinator:
     def decorator(f):
         return ScanCombinator(f, max_length)
 

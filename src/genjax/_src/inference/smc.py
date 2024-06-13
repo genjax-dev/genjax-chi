@@ -747,9 +747,10 @@ def attach_combinator(
     importance_move: SMCMove = DeferToInternal(),
     update_move: SMCMove = DeferToInternal(),
 ):
-    if importance_move or update_move:
-        return AttachCombinator(
-            gen_fn,
-            importance_move,
-            update_move,
-        )
+    def decorator(gen_fn) -> AttachCombinator:
+        return AttachCombinator(gen_fn, importance_move, update_move)
+
+    if gen_fn:
+        return decorator(gen_fn)
+    else:
+        return decorator

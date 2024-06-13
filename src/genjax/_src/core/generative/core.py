@@ -38,6 +38,7 @@ from genjax._src.core.typing import (
     List,
     Optional,
     PRNGKey,
+    ScalarFloat,
     Tuple,
     static_check_is_concrete,
     typecheck,
@@ -49,19 +50,14 @@ register_exclusion(__file__)
 # Special generative function types #
 #####################################
 
-Weight = Annotated[
-    float | FloatArray,
-    Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
-]
+Weight = ScalarFloat
+
 """
 A _weight_ is a density ratio which often occurs in the context of proper weighting for [`Target`][genjax.inference.Target] distributions, or in Gen's [`update`][genjax.core.GenerativeFunction.update] interface, whose mathematical content is described in [`update`][genjax.core.GenerativeFunction.update].
 
 The type `Weight` does not enforce any meaningful mathematical invariants, but is used to denote the type of weights in GenJAX, to improve readability and parsing of interface specifications / expectations.
 """
-Score = Annotated[
-    float | FloatArray,
-    Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
-]
+Score = ScalarFloat
 """
 A _score_ is a density ratio, described fully in [`simulate`][genjax.core.GenerativeFunction.simulate].
 
@@ -822,119 +818,141 @@ class GenerativeFunction(Pytree):
     # Combinators #
     ###############
 
-    def vmap(
-        self,
-        *args,
-        in_axes: InAxes = 0,
-    ) -> "GenerativeFunction":
-        from genjax import vmap_combinator
+    def vmap(self, in_axes: InAxes = 0) -> "GenerativeFunction":
+        """
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
+        supports `vmap`-based patterns of parallel (and generative) computation.
 
-        return (
-            vmap_combinator(self, in_axes=in_axes)(*args)
-            if args
-            else vmap_combinator(self, in_axes=in_axes)
-        )
+        Args:
+            in_axes ([`InAxes`][genjax.typing.InAxes], optional): indicates how the underlying `vmap` patterns should be broadcast across the input arguments to the generative function. Defaults to 0. See [this link](https://jax.readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
 
-    def repeat(
-        self,
-        *args,
-        num_repeats: Int,
-    ) -> "GenerativeFunction":
-        from genjax import repeat_combinator
+        Returns:
+            [`GenerativeFunction`][genjax.GenerativeFunction]: a new
+            [`GenerativeFunction`][genjax.GenerativeFunction] that accepts a
+            `jax.numpy.array` of arguments (instead of the original argument to
+            `self`) for each vmapped index.
 
-        return (
-            repeat_combinator(self, num_repeats=num_repeats)(*args)
-            if args
-            else repeat_combinator(self, num_repeats=num_repeats)
-        )
+        Examples:
+
+            ```python exec="yes" html="true" source="material-block" session="gen-fn"
+            import jax
+            import jax.numpy as jnp
+            import genjax
+
+
+            @genjax.gen
+            def model(x):
+                v = genjax.normal(x, 1.0) @ "v"
+                return genjax.normal(v, 0.01) @ "q"
+
+
+            vmapped = model.vmap(in_axes=0)
+
+            key = jax.random.PRNGKey(314159)
+            arr = jnp.ones(100)
+
+            # `vmapped` accepts an array if numbers instead of the original
+            # single number that `model` accepted.
+            tr = jax.jit(vmapped.simulate)(key, (arr,))
+
+            print(tr.render_html())
+            ```
+        """
+        from genjax import VmapCombinator
+
+        return VmapCombinator(self, in_axes=in_axes)
+
+    def repeat(self, n: Int) -> "GenerativeFunction":
+        from genjax import RepeatCombinator
+
+        return RepeatCombinator(self, n=n)
 
     def scan(
         self,
-        *args,
         max_length: Int,
     ) -> "GenerativeFunction":
-        from genjax import scan_combinator
+        from genjax import ScanCombinator
 
-        return (
-            scan_combinator(self, max_length=max_length)(*args)
-            if args
-            else scan_combinator(self, max_length=max_length)
-        )
+        return ScanCombinator(self, max_length=max_length)
 
     def mask(
         self,
-        *args,
     ) -> "GenerativeFunction":
-        from genjax import mask_combinator
+        from genjax import MaskCombinator
 
-        return mask_combinator(self)(*args) if args else mask_combinator(self)
+        return MaskCombinator(self)
 
-    def or_else(
-        self,
-        gen_fn: "GenerativeFunction",
-        *args,
-    ) -> "GenerativeFunction":
-        from genjax import cond_combinator
+    def or_else(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
+        """
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that accepts
 
-        return (
-            cond_combinator(self, gen_fn)(*args)
-            if args
-            else cond_combinator(self, gen_fn)
-        )
+        - a boolean argument
+        - an argument tuple for `self`
+        - an argument tuple for the supplied `gen_fn`
 
-    def addr_bij(
-        self,
-        address_bijection: dict,
-        *args,
-    ) -> "GenerativeFunction":
-        from genjax import address_bijection_combinator
+        and acts like `self` when the boolean is `True` or like `gen_fn` otherwise.
 
-        return (
-            address_bijection_combinator(self, address_bijection=address_bijection)(
-                *args
-            )
-            if args
-            else address_bijection_combinator(self, address_bijection=address_bijection)
-        )
+        Args:
+            gen_fn ([`GenerativeFunction`][genjax.GenerativeFunction]): called when the boolean argument is `False`.
 
-    def switch(
-        self,
-        branches: List["GenerativeFunction"],
-        *args,
-    ) -> "GenerativeFunction":
-        from genjax import switch_combinator
+        Returns:
+            [`GenerativeFunction`][genjax.GenerativeFunction]
 
-        return (
-            switch_combinator(self, *branches)(*args)
-            if args
-            else switch_combinator(self, *branches)
-        )
+        Examples:
 
-    def mix(
-        self,
-        gen_fn: "GenerativeFunction",
-        *args,
-    ) -> "GenerativeFunction":
-        from genjax import mixture_combinator
+            ```python exec="yes" html="true" source="material-block" session="gen-fn"
+            import jax
+            import jax.numpy as jnp
+            import genjax
 
-        return (
-            mixture_combinator(self, gen_fn)(*args)
-            if args
-            else mixture_combinator(self, gen_fn)
-        )
 
-    def attach(
-        self,
-        *args,
-        **kwargs,
-    ) -> "GenerativeFunction":
-        from genjax.inference.smc import attach_combinator
+            @genjax.gen
+            def if_model(x):
+                return genjax.normal(x, 1.0) @ "if_value"
 
-        return (
-            attach_combinator(self, **kwargs)(*args)
-            if args
-            else attach_combinator(self, **kwargs)
-        )
+
+            @genjax.gen
+            def else_model(x):
+                return genjax.normal(x, 5.0) @ "else_value"
+
+
+            @genjax.gen
+            def model(toss: bool):
+                # Note that the returned model takes a new boolean predicate in
+                # addition to argument tuples for each branch.
+                return if_model.or_else(else_model)(toss, (1.0,), (10.0,)) @ "tossed"
+
+
+            key = jax.random.PRNGKey(314159)
+
+            tr = jax.jit(model.simulate)(key, (True,))
+
+            print(tr.render_html())
+            ```
+        """
+        from genjax import CondCombinator
+
+        return CondCombinator(self, gen_fn)
+
+    def addr_bij(self, address_bijection: dict) -> "GenerativeFunction":
+        from genjax import AddressBijectionCombinator
+
+        return AddressBijectionCombinator(self, address_bijection=address_bijection)
+
+    def switch(self, branches: List["GenerativeFunction"]) -> "GenerativeFunction":
+        from genjax import SwitchCombinator
+
+        return SwitchCombinator((self, *branches))
+
+    def mix(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
+        from genjax import MixtureCombinator
+
+        return MixtureCombinator(self, gen_fn)
+
+    def attach(self, **kwargs) -> "GenerativeFunction":
+        from genjax._src.inference.smc import AttachCombinator
+
+        return AttachCombinator(self, **kwargs)
 
     #####################
     # GenSP / inference #
@@ -949,9 +967,9 @@ class GenerativeFunction(Pytree):
         from genjax import marginal
 
         return (
-            marginal(self, select_or_addr=select_or_addr, algorithm=algorithm)(*args)
+            marginal(self, selection=select_or_addr, algorithm=algorithm)(*args)
             if args
-            else marginal(self, select_or_addr=select_or_addr, algorithm=algorithm)
+            else marginal(self, selection=select_or_addr, algorithm=algorithm)
         )
 
     def target(

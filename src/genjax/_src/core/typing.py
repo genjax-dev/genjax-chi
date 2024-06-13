@@ -59,6 +59,20 @@ String = str
 
 Value = Any
 
+#################################
+# Trace-time-checked primitives #
+#################################
+
+ScalarBool = Annotated[
+    Bool | BoolArray,
+    Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
+]
+
+ScalarFloat = Annotated[
+    Float | FloatArray,
+    Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
+]
+
 ############
 # Generics #
 ############

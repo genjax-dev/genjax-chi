@@ -17,10 +17,10 @@ from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.combinators.compose_combinator import (
-    compose_combinator,
+    ComposeCombinator,
 )
 from genjax._src.generative_functions.combinators.switch_combinator import (
-    switch_combinator,
+    SwitchCombinator,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
@@ -30,14 +30,11 @@ from genjax._src.generative_functions.static import gen
 register_exclusion(__file__)
 
 
-@typecheck
-def mixture_combinator(
-    *gen_fns: GenerativeFunction,
-) -> GenerativeFunction:
+def MixtureCombinator(*gen_fns) -> ComposeCombinator:
     def argument_mapping(mixture_logits, *args):
         return (mixture_logits, *args)
 
-    inner_combinator_closure = switch_combinator(*gen_fns)
+    inner_combinator_closure = SwitchCombinator(gen_fns)
 
     @gen
     def mixture_model(mixture_logits, *args):
@@ -45,8 +42,30 @@ def mixture_combinator(
         v = inner_combinator_closure(mix_idx, *args) @ "component_sample"
         return v
 
-    return compose_combinator(
+    return ComposeCombinator(
         mixture_model,
-        pre=argument_mapping,
+        argument_mapping=argument_mapping,
+        info="Derived combinator (Mixture)",
+    )
+
+
+@typecheck
+def mixture_combinator(
+    *gen_fns: GenerativeFunction,
+) -> GenerativeFunction:
+    def argument_mapping(mixture_logits, *args):
+        return (mixture_logits, *args)
+
+    inner_combinator_closure = SwitchCombinator(gen_fns)
+
+    @gen
+    def mixture_model(mixture_logits, *args):
+        mix_idx = categorical(logits=mixture_logits) @ "mixture_component"
+        v = inner_combinator_closure(mix_idx, *args) @ "component_sample"
+        return v
+
+    return ComposeCombinator(
+        mixture_model,
+        argument_mapping=argument_mapping,
         info="Derived combinator (Mixture)",
     )

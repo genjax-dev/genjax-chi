@@ -189,7 +189,10 @@ def address_bijection_combinator(
     /,
     *,
     address_bijection: dict,
-) -> Callable | AddressBijectionCombinator:
+) -> (
+    Callable[[GenerativeFunction], AddressBijectionCombinator]
+    | AddressBijectionCombinator
+):
     def decorator(f):
         return AddressBijectionCombinator(f, address_bijection)
 
