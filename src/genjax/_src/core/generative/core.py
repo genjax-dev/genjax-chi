@@ -824,9 +824,7 @@ class GenerativeFunction(Pytree):
         supports `vmap`-based patterns of parallel (and generative) computation.
 
         Args:
-            in_axes ([`InAxes`][genjax.typing.InAxes], optional): indicates how
-            the underlying `vmap` patterns should be broadcast across the
-            input arguments to the generative function. Defaults to 0.
+            in_axes ([`InAxes`][genjax.typing.InAxes], optional): indicates how the underlying `vmap` patterns should be broadcast across the input arguments to the generative function. Defaults to 0. See [this link](https://jax.readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
 
         Returns:
             [`GenerativeFunction`][genjax.GenerativeFunction]: a new
@@ -895,8 +893,7 @@ class GenerativeFunction(Pytree):
         and acts like `self` when the boolean is `True` or like `gen_fn` otherwise.
 
         Args:
-            gen_fn ([`GenerativeFunction`][genjax.GenerativeFunction]): called
-                when the boolean argument is `False`.
+            gen_fn ([`GenerativeFunction`][genjax.GenerativeFunction]): called when the boolean argument is `False`.
 
         Returns:
             [`GenerativeFunction`][genjax.GenerativeFunction]

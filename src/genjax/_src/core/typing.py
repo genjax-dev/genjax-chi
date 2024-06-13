@@ -65,12 +65,12 @@ Value = Any
 
 ScalarBool = Annotated[
     Bool | BoolArray,
-    Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
+    Is[jnp.isscalar],
 ]
 
 ScalarFloat = Annotated[
     Float | FloatArray,
-    Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
+    Is[jnp.isscalar],
 ]
 
 ############
