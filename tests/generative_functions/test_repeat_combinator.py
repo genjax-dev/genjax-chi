@@ -24,5 +24,5 @@ class TestRepeatCombinator:
             return normal(0.0, 1.0) @ "x"
 
         key = PRNGKey(314)
-        tr, w = model.repeat(num_repeats=10).importance(key, C[1, "x"].set(3.0), ())
+        tr, w = model.repeat(n=10).importance(key, C[1, "x"].set(3.0), ())
         assert normal.assess(C.v(tr.get_sample()[1, "x"]), (0.0, 1.0))[0] == w
