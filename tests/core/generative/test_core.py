@@ -71,49 +71,8 @@ class TestCombinators:
         # Check that we get 3 repeated values:
         assert jnp.array_equal(repeat_tr.get_choices()[..., "x"], repeatarr)
 
-        # vmap does as well, but they are different, oddly:
+        # vmap does as well, but they are different due to internal seed splitting:
         assert jnp.array_equal(vmap_tr.get_choices()[..., "x"], varr)
-
-        # the vmap and repeat versions of the code should return the same values.
-        # TODO this does not currently work. Asking @femtomc why not!
-        # assert jnp.array_equal(vmap_tr.get_choices()[..., "x"],
-        #                        repeat_tr.get_choices()[..., "x"])
-
-        # chm = tr.get_choices()
-
-        # tr, w = model.repeat(n=10).importance(key, constraint, ())
-        # assert tr.get_choices() == 10
-        # assert genjax.normal.assess(genjax.ChoiceMapBuilder.v(tr.get_sample()[1, "x"]), (0.0, 1.0))[0] == w
-
-    def test_scan(self):
-        key = jax.random.PRNGKey(314159)
-
-        @genjax.gen
-        def model(x):
-            v = genjax.normal(x, 1.0) @ "v"
-            return genjax.normal(v, 0.01) @ "q"
-
-        vmapped_model = model.vmap()
-
-        jit_fn = jax.jit(vmapped_model.simulate)
-
-        tr = jit_fn(key, (jnp.array([10.0, 20.0, 30.0]),))
-        chm = tr.get_choices()
-
-    def test_mask(self):
-        key = jax.random.PRNGKey(314159)
-
-        @genjax.gen
-        def model(x):
-            v = genjax.normal(x, 1.0) @ "v"
-            return genjax.normal(v, 0.01) @ "q"
-
-        vmapped_model = model.vmap()
-
-        jit_fn = jax.jit(vmapped_model.simulate)
-
-        tr = jit_fn(key, (jnp.array([10.0, 20.0, 30.0]),))
-        chm = tr.get_choices()
 
     def test_or_else(self):
         key = jax.random.PRNGKey(314159)
@@ -136,48 +95,3 @@ class TestCombinators:
 
         else_tr = jit_fn(key, (False,))
         assert "else_value" in else_tr.get_choices()("tossed")
-
-    def test_addr_bij(self):
-        key = jax.random.PRNGKey(314159)
-
-        @genjax.gen
-        def model(x):
-            v = genjax.normal(x, 1.0) @ "v"
-            return genjax.normal(v, 0.01) @ "q"
-
-        vmapped_model = model.vmap()
-
-        jit_fn = jax.jit(vmapped_model.simulate)
-
-        tr = jit_fn(key, (jnp.array([10.0, 20.0, 30.0]),))
-        chm = tr.get_choices()
-
-    def test_mix(self):
-        key = jax.random.PRNGKey(314159)
-
-        @genjax.gen
-        def model(x):
-            v = genjax.normal(x, 1.0) @ "v"
-            return genjax.normal(v, 0.01) @ "q"
-
-        vmapped_model = model.vmap()
-
-        jit_fn = jax.jit(vmapped_model.simulate)
-
-        tr = jit_fn(key, (jnp.array([10.0, 20.0, 30.0]),))
-        chm = tr.get_choices()
-
-    def test_attach(self):
-        key = jax.random.PRNGKey(314159)
-
-        @genjax.gen
-        def model(x):
-            v = genjax.normal(x, 1.0) @ "v"
-            return genjax.normal(v, 0.01) @ "q"
-
-        vmapped_model = model.vmap()
-
-        jit_fn = jax.jit(vmapped_model.simulate)
-
-        tr = jit_fn(key, (jnp.array([10.0, 20.0, 30.0]),))
-        chm = tr.get_choices()
