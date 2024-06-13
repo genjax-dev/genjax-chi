@@ -17,10 +17,10 @@ import jax.numpy as jnp
 from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import ScalarBool, typecheck
-from genjax._src.generative_functions.combinators.compose_combinator import (
+from genjax._src.generative_functions.combinators.compose import (
     ComposeCombinator,
 )
-from genjax._src.generative_functions.combinators.switch_combinator import (
+from genjax._src.generative_functions.combinators.switch import (
     SwitchCombinator,
 )
 
@@ -28,7 +28,7 @@ register_exclusion(__file__)
 
 
 @typecheck
-def CondCombinator(
+def OrElseCombinator(
     if_gen_fn: GenerativeFunction,
     else_gen_fn: GenerativeFunction,
 ) -> ComposeCombinator:
@@ -49,8 +49,8 @@ def CondCombinator(
 
 
 @typecheck
-def cond_combinator(
+def or_else(
     if_gen_fn: GenerativeFunction,
     else_gen_fn: GenerativeFunction,
 ) -> ComposeCombinator:
-    return CondCombinator(if_gen_fn, else_gen_fn)
+    return OrElseCombinator(if_gen_fn, else_gen_fn)

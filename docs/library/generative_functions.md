@@ -78,18 +78,18 @@ While the programmatic `StaticGenerativeFunction` language is powerful, its rest
     options:
         show_root_heading: true
 
-::: genjax.repeat_combinator
+::: genjax.repeat
     options:
         show_root_heading: true
 
-::: genjax.cond_combinator
+::: genjax.or_else
     options:
         show_root_heading: true
 
-::: genjax.mixture_combinator
+::: genjax.mix
     options:
         show_root_heading: true
 
-::: genjax.address_bijection_combinator
+::: genjax.address_bijection
     options:
         show_root_heading: true

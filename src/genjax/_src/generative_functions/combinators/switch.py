@@ -685,7 +685,5 @@ class SwitchCombinator(GenerativeFunction):
 
 
 @typecheck
-def switch_combinator(
-    *f: GenerativeFunction,
-) -> SwitchCombinator:
+def switch(*f: GenerativeFunction) -> SwitchCombinator:
     return SwitchCombinator(f)

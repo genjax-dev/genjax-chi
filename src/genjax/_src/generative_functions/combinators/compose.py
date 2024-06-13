@@ -159,18 +159,13 @@ class ComposeCombinator(GenerativeFunction):
 #############
 
 
-def compose_combinator(
-    gen_fn: Optional[GenerativeFunction] = None,
-    /,
+def compose(
     *,
     pre: Callable = lambda *args: args,
     post: Callable = lambda _, retval: retval,
     info: Optional[String] = None,
-) -> Callable | ComposeCombinator:
+) -> Callable[[GenerativeFunction], ComposeCombinator]:
     def decorator(f) -> ComposeCombinator:
         return ComposeCombinator(f, pre, post, info)
 
-    if gen_fn:
-        return decorator(gen_fn)
-    else:
-        return decorator
+    return decorator

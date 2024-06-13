@@ -556,7 +556,7 @@ class GenerativeFunction(Pytree):
             print(tr.render_html())
             ```
 
-            Another example, using the same model, composed into [`genjax.repeat_combinator`](generative_functions.md#genjax.repeat_combinator) - which creates a new generative function, which has the same interface:
+            Another example, using the same model, composed into [`genjax.repeat`](generative_functions.md#genjax.repeat) - which creates a new generative function, which has the same interface:
             ```python exec="yes" html="true" source="material-block" session="core"
             @genjax.gen
             def model():
@@ -930,14 +930,14 @@ class GenerativeFunction(Pytree):
             print(tr.render_html())
             ```
         """
-        from genjax import CondCombinator
+        from genjax import OrElseCombinator
 
-        return CondCombinator(self, gen_fn)
+        return OrElseCombinator(self, gen_fn)
 
-    def addr_bij(self, address_bijection: dict) -> "GenerativeFunction":
+    def addr_bij(self, mapping: dict) -> "GenerativeFunction":
         from genjax import AddressBijectionCombinator
 
-        return AddressBijectionCombinator(self, address_bijection=address_bijection)
+        return AddressBijectionCombinator(self, mapping=mapping)
 
     def switch(self, branches: List["GenerativeFunction"]) -> "GenerativeFunction":
         from genjax import SwitchCombinator
@@ -960,17 +960,16 @@ class GenerativeFunction(Pytree):
 
     def marginal(
         self,
-        *args,
+        /,
+        *,
         select_or_addr: Optional[Any] = None,
-        algorithm: Optional[Any] = None,
+        algorithm: Optional[Any] = None
     ) -> "GenerativeFunction":
-        from genjax import marginal
+        from genjax import Marginal, Selection
+        if select_or_addr is None:
+            select_or_addr = Selection.all()
 
-        return (
-            marginal(self, selection=select_or_addr, algorithm=algorithm)(*args)
-            if args
-            else marginal(self, selection=select_or_addr, algorithm=algorithm)
-        )
+        return Marginal(self, selection=select_or_addr, algorithm=algorithm)
 
     def target(
         self,

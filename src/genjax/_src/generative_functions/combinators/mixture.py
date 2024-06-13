@@ -16,10 +16,10 @@
 from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.combinators.compose_combinator import (
+from genjax._src.generative_functions.combinators.compose import (
     ComposeCombinator,
 )
-from genjax._src.generative_functions.combinators.switch_combinator import (
+from genjax._src.generative_functions.combinators.switch import (
     SwitchCombinator,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
@@ -50,22 +50,5 @@ def MixtureCombinator(*gen_fns) -> ComposeCombinator:
 
 
 @typecheck
-def mixture_combinator(
-    *gen_fns: GenerativeFunction,
-) -> GenerativeFunction:
-    def argument_mapping(mixture_logits, *args):
-        return (mixture_logits, *args)
-
-    inner_combinator_closure = SwitchCombinator(gen_fns)
-
-    @gen
-    def mixture_model(mixture_logits, *args):
-        mix_idx = categorical(logits=mixture_logits) @ "mixture_component"
-        v = inner_combinator_closure(mix_idx, *args) @ "component_sample"
-        return v
-
-    return ComposeCombinator(
-        mixture_model,
-        argument_mapping=argument_mapping,
-        info="Derived combinator (Mixture)",
-    )
+def mix(*gen_fns: GenerativeFunction) -> GenerativeFunction:
+    return MixtureCombinator(*gen_fns)

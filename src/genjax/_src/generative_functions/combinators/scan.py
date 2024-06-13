@@ -142,7 +142,7 @@ class ScanCombinator(GenerativeFunction):
 
 
         # You can also use the decorator when declaring the function:
-        @genjax.scan_combinator(max_length=1000)
+        @genjax.scan(max_length=1000)
         @genjax.gen
         def random_walk(prev, xs):
             x = genjax.normal(prev, 1.0) @ "x"
@@ -493,16 +493,10 @@ class ScanCombinator(GenerativeFunction):
 
 
 @typecheck
-def scan_combinator(
-    gen_fn: Optional[GenerativeFunction] = None,
-    /,
-    *,
-    max_length: Int,
-) -> Callable[[GenerativeFunction], ScanCombinator] | ScanCombinator:
+def scan(
+    max_length: Int
+) -> Callable[[GenerativeFunction], ScanCombinator]:
     def decorator(f):
         return ScanCombinator(f, max_length)
 
-    if gen_fn:
-        return decorator(gen_fn)
-    else:
-        return decorator
+    return decorator

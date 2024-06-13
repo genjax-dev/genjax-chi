@@ -19,13 +19,13 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import Callable, Int, IntArray, Optional, Tuple, typecheck
-from genjax._src.generative_functions.combinators.address_bijection_combinator import (
-    address_bijection_combinator,
+from genjax._src.generative_functions.combinators.address_bijection import (
+    address_bijection,
 )
-from genjax._src.generative_functions.combinators.compose_combinator import (
+from genjax._src.generative_functions.combinators.compose import (
     ComposeCombinator,
 )
-from genjax._src.generative_functions.combinators.vmap_combinator import (
+from genjax._src.generative_functions.combinators.vmap import (
     VmapCombinator,
 )
 from genjax._src.generative_functions.static import gen
@@ -41,7 +41,7 @@ def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> ComposeCombina
     # choice map address bijection, to collapse the `_internal`
     # address hierarchy below.
     # (as part of StaticGenerativeFunction.Trace interfaces)
-    @address_bijection_combinator(address_bijection={...: "_internal"})
+    @address_bijection(mapping={...: "_internal"})
     @gen
     def expanded_gen_fn(_: IntArray, args: Tuple):
         return gen_fn(*args) @ "_internal"
@@ -57,13 +57,5 @@ def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> ComposeCombina
 
 
 @typecheck
-def repeat_combinator(
-    gen_fn: Optional[GenerativeFunction] = None,
-    /,
-    *,
-    num_repeats: Int,
-) -> Callable[[GenerativeFunction], ComposeCombinator] | GenerativeFunction:
-    if gen_fn:
-        return RepeatCombinator(gen_fn, n=num_repeats)
-    else:
-        return lambda gen_fn: RepeatCombinator(gen_fn, n=num_repeats)
+def repeat(n: Int) -> Callable[[GenerativeFunction], ComposeCombinator]:
+    return lambda gen_fn: RepeatCombinator(gen_fn, n=n)

@@ -98,7 +98,7 @@ class VmapCombinator(GenerativeFunction):
         ##############################################################
 
 
-        @genjax.vmap_combinator(in_axes=(0,))
+        @genjax.vmap(in_axes=(0,))
         @genjax.gen
         def mapped(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
@@ -107,7 +107,7 @@ class VmapCombinator(GenerativeFunction):
 
 
         #################################################
-        # The other way: use `vmap_combinator` directly #
+        # The other way: use `vmap` directly #
         #################################################
 
 
@@ -118,7 +118,7 @@ class VmapCombinator(GenerativeFunction):
             return x + noise1 + noise2
 
 
-        mapped = genjax.vmap_combinator(in_axes=(0,))(add_normal_noise)
+        mapped = genjax.vmap(in_axes=(0,))(add_normal_noise)
 
         key = jax.random.PRNGKey(314159)
         arr = jnp.ones(100)
@@ -333,16 +333,11 @@ class VmapCombinator(GenerativeFunction):
 #############
 
 
-def vmap_combinator(
-    gen_fn: Optional[GenerativeFunction] = None,
-    /,
+def vmap(
     *,
     in_axes: InAxes,
-) -> Callable[[GenerativeFunction], VmapCombinator] | VmapCombinator:
+) -> Callable[[GenerativeFunction], VmapCombinator]:
     def decorator(gen_fn) -> VmapCombinator:
         return VmapCombinator(gen_fn, in_axes)
 
-    if gen_fn:
-        return decorator(gen_fn)
-    else:
-        return decorator
+    return decorator
