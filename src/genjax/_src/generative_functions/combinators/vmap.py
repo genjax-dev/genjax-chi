@@ -335,7 +335,7 @@ class VmapCombinator(GenerativeFunction):
 
 def vmap(
     *,
-    in_axes: InAxes,
+    in_axes: InAxes = 0
 ) -> Callable[[GenerativeFunction], VmapCombinator]:
     def decorator(gen_fn) -> VmapCombinator:
         return VmapCombinator(gen_fn, in_axes)

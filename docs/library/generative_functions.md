@@ -1,4 +1,5 @@
 # The menagerie of `GenerativeFunction`
+
 Generative functions are probabilistic building blocks. They allow you to express complex probability distributions, and automate several operations on them. GenJAX exports a standard library of generative functions, and this page catalogues them and their usage.
 ## The venerable & reliable `Distribution`
 
@@ -78,18 +79,18 @@ While the programmatic `StaticGenerativeFunction` language is powerful, its rest
     options:
         show_root_heading: true
 
-::: genjax.repeat
+::: genjax.RepeatCombinator
     options:
         show_root_heading: true
 
-::: genjax.or_else
+::: genjax.OrElseCombinator
     options:
         show_root_heading: true
 
-::: genjax.mix
+::: genjax.MixCombinator
     options:
         show_root_heading: true
 
-::: genjax.address_bijection
+::: genjax.AddressBijectionCombinator
     options:
         show_root_heading: true

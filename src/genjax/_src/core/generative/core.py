@@ -860,7 +860,7 @@ class GenerativeFunction(Pytree):
         """
         import genjax
 
-        return genjax.vmap(self, in_axes=in_axes)
+        return genjax.vmap(in_axes=in_axes)(self)
 
     def repeat(self, n: Int) -> "GenerativeFunction":
         """
@@ -876,7 +876,7 @@ class GenerativeFunction(Pytree):
         """
         import genjax
 
-        return genjax.repeat(self, n=n)
+        return genjax.repeat(n=n)(self)
 
     def scan(
         self,
@@ -895,7 +895,7 @@ class GenerativeFunction(Pytree):
         """
         import genjax
 
-        return genjax.scan(self, max_length=max_length)
+        return genjax.scan(max_length=max_length)(self)
 
     def mask(
         self,
@@ -976,7 +976,7 @@ class GenerativeFunction(Pytree):
         """
         import genjax
 
-        return genjax.map_addresses(self, mapping=mapping)
+        return genjax.map_addresses(mapping=mapping)(self)
 
     def switch(self, branches: List["GenerativeFunction"]) -> "GenerativeFunction":
         """
@@ -992,7 +992,7 @@ class GenerativeFunction(Pytree):
 
         return genjax.switch((self, *branches))
 
-    def mix(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
+    def mix(self, *fns: "GenerativeFunction") -> "GenerativeFunction":
         """
         Combines two generative functions into a mixture model.
 
@@ -1004,7 +1004,7 @@ class GenerativeFunction(Pytree):
         """
         import genjax
 
-        return genjax.mix(self, gen_fn)
+        return genjax.mix(self, *fns)
 
     def attach(self, **kwargs) -> "GenerativeFunction":
         """

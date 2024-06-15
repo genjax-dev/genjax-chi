@@ -146,7 +146,7 @@ class ScanCombinator(GenerativeFunction):
         @genjax.gen
         def random_walk(prev, xs):
             x = genjax.normal(prev, 1.0) @ "x"
-            return x, None
+            return x
 
 
         init = 0.5
