@@ -59,6 +59,6 @@ def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> ComposeCombina
 @typecheck
 def repeat(n: Int) -> Callable[[GenerativeFunction], ComposeCombinator]:
     def decorator(gen_fn) -> ComposeCombinator:
-        return  RepeatCombinator(gen_fn, n=n)
+        return RepeatCombinator(gen_fn, n=n)
 
     return decorator

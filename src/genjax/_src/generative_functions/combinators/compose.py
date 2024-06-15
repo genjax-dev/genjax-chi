@@ -162,9 +162,25 @@ class ComposeCombinator(GenerativeFunction):
 def compose(
     *,
     pre: Callable = lambda *args: args,
-    post: Callable = lambda _, retval: retval,
+    post: Callable = lambda _args, retval: retval,
     info: Optional[String] = None,
 ) -> Callable[[GenerativeFunction], ComposeCombinator]:
+    """
+    Decorator factory that produces a decorator to compose generative functions with pre and post processing.
+
+    Args:
+        pre (Callable, optional): A function to preprocess the arguments before passing them to the generative function.
+            Defaults to a function that returns the arguments as they are.
+        post (Callable, optional): A function to postprocess the return value of the generative function.
+            Defaults to a function that returns the return value as it is.
+        info (Optional[String], optional): Additional information to be associated with the composed function.
+            Defaults to None.
+
+    Returns:
+        Callable[[GenerativeFunction], ComposeCombinator]: A decorator that, when applied to a generative function,
+        returns a `ComposeCombinator` instance that manages the pre and post processing.
+    """
+
     def decorator(f) -> ComposeCombinator:
         return ComposeCombinator(f, pre, post, info)
 

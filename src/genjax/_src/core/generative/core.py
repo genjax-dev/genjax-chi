@@ -39,6 +39,7 @@ from genjax._src.core.typing import (
     Optional,
     PRNGKey,
     ScalarFloat,
+    String,
     Tuple,
     static_check_is_concrete,
     typecheck,
@@ -878,24 +879,21 @@ class GenerativeFunction(Pytree):
 
         return genjax.repeat(n=n)(self)
 
-    def scan(
-        self,
-        max_length: Int,
-    ) -> "GenerativeFunction":
+    def scan(self, n: Int) -> "GenerativeFunction":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that applies the current generative function sequentially over a sequence of inputs up to a specified maximum length.
 
         This combinator is useful for handling sequences or time-series data where the model needs to be applied repeatedly over a sequence.
 
         Args:
-            max_length (Int): The maximum length of the sequence over which the generative function is applied.
+            n (Int): The maximum length of the sequence over which the generative function is applied.
 
         Returns:
-            [`GenerativeFunction`][genjax.GenerativeFunction]: A new [`GenerativeFunction`][genjax.GenerativeFunction] that applies the original function sequentially up to `max_length` times.
+            [`GenerativeFunction`][genjax.GenerativeFunction]: A new [`GenerativeFunction`][genjax.GenerativeFunction] that applies the original function sequentially up to `n` times.
         """
         import genjax
 
-        return genjax.scan(n=max_length)(self)
+        return genjax.scan(n=n)(self)
 
     def mask(
         self,
@@ -1006,8 +1004,10 @@ class GenerativeFunction(Pytree):
 
         return genjax.mix(self, *fns)
 
+    # TODO fix this, expand these args out.
     def attach(self, **kwargs) -> "GenerativeFunction":
         """
+        TODO this is wrong!
         Attaches additional metadata or settings to the generative function, typically used in inference.
 
         Args:
@@ -1020,6 +1020,17 @@ class GenerativeFunction(Pytree):
 
         return attach(**kwargs)(self)
 
+    def compose(
+        self,
+        *,
+        pre: Callable = lambda *args: args,
+        post: Callable = lambda _, retval: retval,
+        info: Optional[String] = None,
+    ) -> "GenerativeFunction":
+        import genjax
+
+        return genjax.compose(pre=pre, post=post, info=info)(self)
+
     #####################
     # GenSP / inference #
     #####################
@@ -1029,9 +1040,10 @@ class GenerativeFunction(Pytree):
         /,
         *,
         select_or_addr: Optional[Any] = None,
-        algorithm: Optional[Any] = None
+        algorithm: Optional[Any] = None,
     ) -> "GenerativeFunction":
         from genjax import Marginal, Selection
+
         if select_or_addr is None:
             select_or_addr = Selection.all()
 
