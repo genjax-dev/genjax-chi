@@ -41,7 +41,6 @@ from genjax._src.core.typing import (
     FloatArray,
     Int,
     IntArray,
-    Optional,
     PRNGKey,
     Tuple,
     typecheck,
@@ -493,10 +492,8 @@ class ScanCombinator(GenerativeFunction):
 
 
 @typecheck
-def scan(
-    max_length: Int
-) -> Callable[[GenerativeFunction], ScanCombinator]:
+def scan(n: Int) -> Callable[[GenerativeFunction], ScanCombinator]:
     def decorator(f):
-        return ScanCombinator(f, max_length)
+        return ScanCombinator(f, n)
 
     return decorator

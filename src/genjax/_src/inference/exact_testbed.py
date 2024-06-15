@@ -73,7 +73,7 @@ def build_test_against_exact_inference(
         observation_variance,
     )
 
-    @scan(max_length=max_length)
+    @scan(n=max_length)
     @gen
     def markov_chain(state: IntArray, config: DiscreteHMMConfiguration):
         transition = config.transition_tensor()

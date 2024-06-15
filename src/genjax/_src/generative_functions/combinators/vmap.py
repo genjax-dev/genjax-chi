@@ -43,7 +43,6 @@ from genjax._src.core.typing import (
     Callable,
     FloatArray,
     InAxes,
-    Optional,
     PRNGKey,
     Tuple,
     typecheck,
@@ -333,10 +332,7 @@ class VmapCombinator(GenerativeFunction):
 #############
 
 
-def vmap(
-    *,
-    in_axes: InAxes = 0
-) -> Callable[[GenerativeFunction], VmapCombinator]:
+def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction], VmapCombinator]:
     def decorator(gen_fn) -> VmapCombinator:
         return VmapCombinator(gen_fn, in_axes)
 

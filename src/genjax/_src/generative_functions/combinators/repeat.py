@@ -18,7 +18,7 @@ from genjax._src.core.generative import (
     GenerativeFunction,
 )
 from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import Callable, Int, IntArray, Optional, Tuple, typecheck
+from genjax._src.core.typing import Callable, Int, IntArray, Tuple, typecheck
 from genjax._src.generative_functions.combinators.address_bijection import (
     map_addresses,
 )
@@ -58,4 +58,7 @@ def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> ComposeCombina
 
 @typecheck
 def repeat(n: Int) -> Callable[[GenerativeFunction], ComposeCombinator]:
-    return lambda gen_fn: RepeatCombinator(gen_fn, n=n)
+    def decorator(gen_fn) -> ComposeCombinator:
+        return  RepeatCombinator(gen_fn, n=n)
+
+    return decorator

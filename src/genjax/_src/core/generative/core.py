@@ -895,7 +895,7 @@ class GenerativeFunction(Pytree):
         """
         import genjax
 
-        return genjax.scan(max_length=max_length)(self)
+        return genjax.scan(n=max_length)(self)
 
     def mask(
         self,
