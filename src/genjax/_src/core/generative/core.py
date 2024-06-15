@@ -858,29 +858,59 @@ class GenerativeFunction(Pytree):
             print(tr.render_html())
             ```
         """
-        from genjax import VmapCombinator
+        import genjax
 
-        return VmapCombinator(self, in_axes=in_axes)
+        return genjax.vmap(self, in_axes=in_axes)
 
     def repeat(self, n: Int) -> "GenerativeFunction":
-        from genjax import RepeatCombinator
+        """
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that repeats the execution of the current generative function `n` times.
 
-        return RepeatCombinator(self, n=n)
+        This combinator is useful for creating multiple samples from the same generative model in a batched manner.
+
+        Args:
+            n (Int): The number of times to repeat the generative function.
+
+        Returns:
+            [`GenerativeFunction`][genjax.GenerativeFunction]: A new [`GenerativeFunction`][genjax.GenerativeFunction] that repeats the original function `n` times.
+        """
+        import genjax
+
+        return genjax.repeat(self, n=n)
 
     def scan(
         self,
         max_length: Int,
     ) -> "GenerativeFunction":
-        from genjax import ScanCombinator
+        """
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that applies the current generative function sequentially over a sequence of inputs up to a specified maximum length.
 
-        return ScanCombinator(self, max_length=max_length)
+        This combinator is useful for handling sequences or time-series data where the model needs to be applied repeatedly over a sequence.
+
+        Args:
+            max_length (Int): The maximum length of the sequence over which the generative function is applied.
+
+        Returns:
+            [`GenerativeFunction`][genjax.GenerativeFunction]: A new [`GenerativeFunction`][genjax.GenerativeFunction] that applies the original function sequentially up to `max_length` times.
+        """
+        import genjax
+
+        return genjax.scan(self, max_length=max_length)
 
     def mask(
         self,
     ) -> "GenerativeFunction":
-        from genjax import MaskCombinator
+        """
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that applies a mask to the output of the current generative function.
 
-        return MaskCombinator(self)
+        This combinator is useful for selectively enabling or disabling parts of the output based on some criteria, which can be dynamically defined.
+
+        Returns:
+            [`GenerativeFunction`][genjax.GenerativeFunction]: A new [`GenerativeFunction`][genjax.GenerativeFunction] with masking applied.
+        """
+        import genjax
+
+        return genjax.mask(self)
 
     def or_else(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
         """
@@ -930,29 +960,65 @@ class GenerativeFunction(Pytree):
             print(tr.render_html())
             ```
         """
-        from genjax import OrElseCombinator
+        import genjax
 
-        return OrElseCombinator(self, gen_fn)
+        return genjax.or_else(self, gen_fn)
 
-    def addr_bij(self, mapping: dict) -> "GenerativeFunction":
-        from genjax import AddressBijectionCombinator
+    def map_addresses(self, mapping: dict) -> "GenerativeFunction":
+        """
+        Applies an address bijection to the generative function.
 
-        return AddressBijectionCombinator(self, mapping=mapping)
+        Args:
+            mapping (dict): A dictionary mapping from original addresses to new addresses.
+
+        Returns:
+            GenerativeFunction: A new generative function with addresses remapped according to the provided mapping.
+        """
+        import genjax
+
+        return genjax.map_addresses(self, mapping=mapping)
 
     def switch(self, branches: List["GenerativeFunction"]) -> "GenerativeFunction":
-        from genjax import SwitchCombinator
+        """
+        Creates a switch combinator that selects one of the branches based on the index provided at runtime.
 
-        return SwitchCombinator((self, *branches))
+        Args:
+            branches (List[GenerativeFunction]): A list of generative functions to choose from.
+
+        Returns:
+            GenerativeFunction: A new generative function that acts as a switch between the provided branches.
+        """
+        import genjax
+
+        return genjax.switch((self, *branches))
 
     def mix(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
-        from genjax import MixtureCombinator
+        """
+        Combines two generative functions into a mixture model.
 
-        return MixtureCombinator(self, gen_fn)
+        Args:
+            gen_fn (GenerativeFunction): The generative function to mix with the current function.
+
+        Returns:
+            GenerativeFunction: A new generative function representing a mixture of the original and the provided function.
+        """
+        import genjax
+
+        return genjax.mix(self, gen_fn)
 
     def attach(self, **kwargs) -> "GenerativeFunction":
-        from genjax._src.inference.smc import AttachCombinator
+        """
+        Attaches additional metadata or settings to the generative function, typically used in inference.
 
-        return AttachCombinator(self, **kwargs)
+        Args:
+            **kwargs: Arbitrary keyword arguments containing settings or metadata.
+
+        Returns:
+            GenerativeFunction: The original generative function enhanced with the provided settings or metadata.
+        """
+        from genjax._src.inference.smc import attach
+
+        return attach(**kwargs)(self)
 
     #####################
     # GenSP / inference #

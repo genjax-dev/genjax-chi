@@ -14,7 +14,7 @@
 
 from genjax._src.generative_functions.combinators.address_bijection import (
     AddressBijectionCombinator,
-    address_bijection,
+    map_addresses,
 )
 from genjax._src.generative_functions.combinators.compose import (
     ComposeCombinator,
@@ -59,7 +59,7 @@ __all__ = [
     "ScanCombinator",
     "SwitchCombinator",
     "VmapCombinator",
-    "address_bijection",
+    "map_addresses",
     "compose",
     "mask",
     "mix",

@@ -184,7 +184,7 @@ class AddressBijectionCombinator(GenerativeFunction):
 
 
 @typecheck
-def address_bijection(
+def map_addresses(
     mapping: dict
 ) -> Callable[[GenerativeFunction], AddressBijectionCombinator]:
     def decorator(f):

@@ -20,7 +20,7 @@ from genjax._src.core.generative import (
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import Callable, Int, IntArray, Optional, Tuple, typecheck
 from genjax._src.generative_functions.combinators.address_bijection import (
-    address_bijection,
+    map_addresses,
 )
 from genjax._src.generative_functions.combinators.compose import (
     ComposeCombinator,
@@ -41,7 +41,7 @@ def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> ComposeCombina
     # choice map address bijection, to collapse the `_internal`
     # address hierarchy below.
     # (as part of StaticGenerativeFunction.Trace interfaces)
-    @address_bijection(mapping={...: "_internal"})
+    @map_addresses(mapping={...: "_internal"})
     @gen
     def expanded_gen_fn(_: IntArray, args: Tuple):
         return gen_fn(*args) @ "_internal"
