@@ -1035,17 +1035,13 @@ class GenerativeFunction(Pytree):
     def map(
         self, f: Callable, /, *, info: Optional[String] = None
     ) -> "GenerativeFunction":
-        import genjax
-
-        return genjax.dimap(post=lambda _, ret: f(ret), info=info)(self)
+        return f.dimap(pre=lambda *args: args, post=lambda _, ret: f(ret), info=info)
 
     def contramap(
         self, f: Callable, /, *, info: Optional[String] = None
     ) -> "GenerativeFunction":
         """Returns a new _tuple_ of args, be careful here!"""
-        import genjax
-
-        return genjax.dimap(pre=lambda *args: f(*args), info=info)(self)
+        return f.dimap(pre=lambda *args: f(*args), post=lambda _, ret: ret, info=info)
 
     #####################
     # GenSP / inference #
@@ -1055,15 +1051,15 @@ class GenerativeFunction(Pytree):
         self,
         /,
         *,
-        select_or_addr: Optional[Any] = None,
+        selection: Optional[Any] = None,
         algorithm: Optional[Any] = None,
     ) -> "GenerativeFunction":
         from genjax import Marginal, Selection
 
-        if select_or_addr is None:
-            select_or_addr = Selection.all()
+        if selection is None:
+            selection = Selection.all()
 
-        return Marginal(self, selection=select_or_addr, algorithm=algorithm)
+        return Marginal(self, selection=selection, algorithm=algorithm)
 
     def target(
         self,
