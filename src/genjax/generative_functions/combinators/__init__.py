@@ -16,9 +16,9 @@ from genjax._src.generative_functions.combinators.address_bijection import (
     AddressBijectionCombinator,
     map_addresses,
 )
-from genjax._src.generative_functions.combinators.compose import (
-    ComposeCombinator,
-    compose,
+from genjax._src.generative_functions.combinators.dimap import (
+    DimapCombinator,
+    dimap,
 )
 from genjax._src.generative_functions.combinators.mask import (
     MaskCombinator,
@@ -52,7 +52,7 @@ from genjax._src.generative_functions.combinators.vmap import (
 __all__ = [
     "AddressBijectionCombinator",
     "OrElseCombinator",
-    "ComposeCombinator",
+    "DimapCombinator",
     "MaskCombinator",
     "MixtureCombinator",
     "RepeatCombinator",
@@ -60,7 +60,7 @@ __all__ = [
     "SwitchCombinator",
     "VmapCombinator",
     "map_addresses",
-    "compose",
+    "dimap",
     "mask",
     "mix",
     "or_else",

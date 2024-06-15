@@ -22,8 +22,8 @@ from genjax._src.core.typing import Callable, Int, IntArray, Tuple, typecheck
 from genjax._src.generative_functions.combinators.address_bijection import (
     map_addresses,
 )
-from genjax._src.generative_functions.combinators.compose import (
-    ComposeCombinator,
+from genjax._src.generative_functions.combinators.dimap import (
+    DimapCombinator,
 )
 from genjax._src.generative_functions.combinators.vmap import (
     VmapCombinator,
@@ -33,7 +33,7 @@ from genjax._src.generative_functions.static import gen
 register_exclusion(__file__)
 
 
-def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> ComposeCombinator:
+def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> DimapCombinator:
     def argument_mapping(*args):
         return (jnp.zeros(n), args)
 
@@ -48,7 +48,7 @@ def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> ComposeCombina
 
     inner_combinator_closure = VmapCombinator(expanded_gen_fn, in_axes=(0, None))
 
-    return ComposeCombinator(
+    return DimapCombinator(
         inner_combinator_closure,
         argument_mapping,
         lambda _, retval: retval,
@@ -57,8 +57,8 @@ def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> ComposeCombina
 
 
 @typecheck
-def repeat(n: Int) -> Callable[[GenerativeFunction], ComposeCombinator]:
-    def decorator(gen_fn) -> ComposeCombinator:
+def repeat(n: Int) -> Callable[[GenerativeFunction], DimapCombinator]:
+    def decorator(gen_fn) -> DimapCombinator:
         return RepeatCombinator(gen_fn, n=n)
 
     return decorator

@@ -17,8 +17,8 @@ import jax.numpy as jnp
 from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import ScalarBool, typecheck
-from genjax._src.generative_functions.combinators.compose import (
-    ComposeCombinator,
+from genjax._src.generative_functions.combinators.dimap import (
+    DimapCombinator,
 )
 from genjax._src.generative_functions.combinators.switch import (
     SwitchCombinator,
@@ -31,7 +31,7 @@ register_exclusion(__file__)
 def OrElseCombinator(
     if_gen_fn: GenerativeFunction,
     else_gen_fn: GenerativeFunction,
-) -> ComposeCombinator:
+) -> DimapCombinator:
     @typecheck
     def argument_mapping(b: ScalarBool, *args):
         # Note that `True` maps to 0 to select the "if" branch, `False` to 1.
@@ -40,7 +40,7 @@ def OrElseCombinator(
 
     inner_combinator = SwitchCombinator((if_gen_fn, else_gen_fn))
 
-    return ComposeCombinator(
+    return DimapCombinator(
         inner_combinator,
         argument_mapping=argument_mapping,
         retval_mapping=lambda _, retval: retval,
@@ -52,5 +52,5 @@ def OrElseCombinator(
 def or_else(
     if_gen_fn: GenerativeFunction,
     else_gen_fn: GenerativeFunction,
-) -> ComposeCombinator:
+) -> DimapCombinator:
     return OrElseCombinator(if_gen_fn, else_gen_fn)

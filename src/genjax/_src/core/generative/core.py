@@ -1020,16 +1020,32 @@ class GenerativeFunction(Pytree):
 
         return attach(**kwargs)(self)
 
-    def compose(
+    def dimap(
         self,
+        /,
         *,
-        pre: Callable = lambda *args: args,
-        post: Callable = lambda _, retval: retval,
+        pre: Callable,
+        post: Callable,
         info: Optional[String] = None,
     ) -> "GenerativeFunction":
         import genjax
 
-        return genjax.compose(pre=pre, post=post, info=info)(self)
+        return genjax.dimap(pre=pre, post=post, info=info)(self)
+
+    def map(
+        self, f: Callable, /, *, info: Optional[String] = None
+    ) -> "GenerativeFunction":
+        import genjax
+
+        return genjax.dimap(post=lambda _, ret: f(ret), info=info)(self)
+
+    def contramap(
+        self, f: Callable, /, *, info: Optional[String] = None
+    ) -> "GenerativeFunction":
+        """Returns a new _tuple_ of args, be careful here!"""
+        import genjax
+
+        return genjax.dimap(pre=lambda *args: f(*args), info=info)(self)
 
     #####################
     # GenSP / inference #

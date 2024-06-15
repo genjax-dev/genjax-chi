@@ -75,7 +75,7 @@ While the programmatic `StaticGenerativeFunction` language is powerful, its rest
 ## Derived combinators
 
 
-::: genjax.ComposeCombinator
+::: genjax.DimapCombinator
     options:
         show_root_heading: true
 

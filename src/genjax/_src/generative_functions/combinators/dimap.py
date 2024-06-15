@@ -43,7 +43,7 @@ register_exclusion(__file__)
 
 @Pytree.dataclass
 class ComposeTrace(Trace):
-    compose_combinator: "ComposeCombinator"
+    compose_combinator: "DimapCombinator"
     inner: Trace
     args: Tuple
     retval: Any
@@ -65,7 +65,7 @@ class ComposeTrace(Trace):
 
 
 @Pytree.dataclass
-class ComposeCombinator(GenerativeFunction):
+class DimapCombinator(GenerativeFunction):
     inner: GenerativeFunction
     argument_mapping: Callable = Pytree.static()
     retval_mapping: Callable = Pytree.static()
@@ -159,12 +159,12 @@ class ComposeCombinator(GenerativeFunction):
 #############
 
 
-def compose(
+def dimap(
     *,
     pre: Callable = lambda *args: args,
     post: Callable = lambda _args, retval: retval,
     info: Optional[String] = None,
-) -> Callable[[GenerativeFunction], ComposeCombinator]:
+) -> Callable[[GenerativeFunction], DimapCombinator]:
     """
     Decorator factory that produces a decorator to compose generative functions with pre and post processing.
 
@@ -181,7 +181,7 @@ def compose(
         returns a `ComposeCombinator` instance that manages the pre and post processing.
     """
 
-    def decorator(f) -> ComposeCombinator:
-        return ComposeCombinator(f, pre, post, info)
+    def decorator(f) -> DimapCombinator:
+        return DimapCombinator(f, pre, post, info)
 
     return decorator
