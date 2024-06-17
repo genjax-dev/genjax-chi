@@ -61,9 +61,9 @@ def repeat_combinator(
     gen_fn: Optional[GenerativeFunction] = None,
     /,
     *,
-    num_repeats: Int,
+    n: Int,
 ) -> Callable[[GenerativeFunction], ComposeCombinator] | GenerativeFunction:
     if gen_fn:
-        return RepeatCombinator(gen_fn, n=num_repeats)
+        return RepeatCombinator(gen_fn, n=n)
     else:
-        return lambda gen_fn: RepeatCombinator(gen_fn, n=num_repeats)
+        return lambda gen_fn: RepeatCombinator(gen_fn, n=n)
