@@ -21,7 +21,7 @@ book:
     - active/intro.ipynb
     # - combinators.ipynb
     # - inference_libraries.ipynb
-    - cookbook/generative_fun.ipynb
+    - cookbook/basics/generative_fun.ipynb
     - cookbook/basics/methods_of_generative_fun.ipynb
     - cookbook/basics/debugging.ipynb
     - cookbook/basics/saving_traces.ipynb
