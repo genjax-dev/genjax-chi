@@ -333,6 +333,44 @@ class VmapCombinator(GenerativeFunction):
 
 
 def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction], VmapCombinator]:
+    """
+    Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
+    supports `vmap`-based patterns of parallel (and generative) computation.
+
+    Args:
+        in_axes ([`InAxes`][genjax.typing.InAxes], optional): indicates how the underlying `vmap` patterns should be broadcast across the input arguments to the generative function. Defaults to 0. See [this link](https://jax.readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
+
+    Returns:
+        [`GenerativeFunction`][genjax.GenerativeFunction]: a new
+        [`GenerativeFunction`][genjax.GenerativeFunction] that accepts a
+        `jax.numpy.array` of arguments (instead of the original argument to
+        `self`) for each vmapped index.
+
+    Examples:
+
+        ```python exec="yes" html="true" source="material-block" session="gen-fn"
+        import jax
+        import jax.numpy as jnp
+        import genjax
+
+
+        @genjax.vmap(in_axes=0)
+        @genjax.gen
+        def vmapped_model(x):
+            v = genjax.normal(x, 1.0) @ "v"
+            return genjax.normal(v, 0.01) @ "q"
+
+
+        key = jax.random.PRNGKey(314159)
+        arr = jnp.ones(100)
+
+        # `vmapped_model` accepts an array of numbers:
+        tr = jax.jit(vmapped.simulate)(key, (arr,))
+
+        print(tr.render_html())
+        ```
+    """
+
     def decorator(gen_fn) -> VmapCombinator:
         return VmapCombinator(gen_fn, in_axes)
 
