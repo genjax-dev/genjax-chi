@@ -39,12 +39,15 @@ from genjax._src.core.interpreters.forward import Environment, StatefulHandler
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Annotated,
     Any,
     Callable,
     IntArray,
+    Is,
     List,
     Optional,
     Tuple,
+    TypeVar,
     Value,
     static_check_is_concrete,
     typecheck,
@@ -121,6 +124,13 @@ def static_check_is_change_tangent(v):
 # Diffs (generalized duals) #
 #############################
 
+DiffType = Annotated[
+    Any,
+    Is[lambda v: Diff.static_check_tree_diff(v)],
+]
+
+T = TypeVar("T", bound=Any)
+
 
 @Pytree.dataclass
 class Diff(Pytree):
@@ -188,6 +198,18 @@ class Diff(Pytree):
                 return v.get_tangent()
             else:
                 return v
+
+        return jtu.tree_map(_inner, v, is_leaf=Diff.static_check_is_diff)
+
+    @staticmethod
+    @typecheck
+    def tree_ensure_diff(v, to_diff: Callable[[T], DiffType]) -> DiffType:
+        @typecheck
+        def _inner(v: T):
+            if Diff.static_check_is_diff(v):
+                return v
+            else:
+                return to_diff(v)
 
         return jtu.tree_map(_inner, v, is_leaf=Diff.static_check_is_diff)
 
@@ -303,6 +325,8 @@ class IncrementalInterpreter(Pytree):
         return jtu.tree_unflatten(out_tree(), flat_out)
 
 
+# TODO: add a typecheck with TypeVar to enforce that the values returned
+# by the returned callable are all valid Diff instances.
 @typecheck
 def incremental(f: Callable):
     @functools.wraps(f)
@@ -313,11 +337,13 @@ def incremental(f: Callable):
         tangents: Tuple,
     ):
         interpreter = IncrementalInterpreter()
-        return interpreter.run_interpreter(
+        maybe_diffs = interpreter.run_interpreter(
             _stateful_handler,
             f,
             primals,
             tangents,
         )
+        diffs = Diff.tree_ensure_diff(maybe_diffs, Diff.no_change)
+        return diffs
 
     return wrapped
