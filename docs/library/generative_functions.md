@@ -46,6 +46,10 @@ For any serious work, you'll want a way to combine generative functions together
 
 While the programmatic `StaticGenerativeFunction` language is powerful, its restrictions can be limiting. Combinators are a way to express common patterns of composition in a more concise way, and to gain access to effects which are common in JAX (like `jax.vmap`) for generative computations.
 
+::: genjax.vmap
+    options:
+        show_root_heading: true
+
 ::: genjax.VmapCombinator
     options:
         show_root_heading: true
@@ -87,7 +91,7 @@ While the programmatic `StaticGenerativeFunction` language is powerful, its rest
     options:
         show_root_heading: true
 
-::: genjax.MixCombinator
+::: genjax.MixtureCombinator
     options:
         show_root_heading: true
 

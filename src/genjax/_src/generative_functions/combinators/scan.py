@@ -137,15 +137,15 @@ class ScanCombinator(GenerativeFunction):
 
 
         # You can apply the Scan combinator directly like this:
-        scan_gen_fned_random_walk = random_walk.scan(max_length=1000)
+        scan_gen_fned_random_walk = random_walk.scan(n=1000)
 
 
         # You can also use the decorator when declaring the function:
-        @genjax.scan(max_length=1000)
+        @genjax.scan(n=1000)
         @genjax.gen
         def random_walk(prev, xs):
             x = genjax.normal(prev, 1.0) @ "x"
-            return x
+            return x, None
 
 
         init = 0.5

@@ -78,7 +78,9 @@ watch:
 plugins:
   - search
   - offline
-  - markdown-exec
+  - markdown-exec:
+      fail_on_error: true
+
   - typeset:
       enabled: true
   - git-revision-date-localized:

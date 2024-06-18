@@ -566,7 +566,7 @@ class GenerativeFunction(Pytree):
 
 
             key = PRNGKey(0)
-            tr = model.repeat(num_repeats=10).simulate(key, ())
+            tr = model.repeat(n=10).simulate(key, ())
             print(tr.render_html())
             ```
 
@@ -574,7 +574,7 @@ class GenerativeFunction(Pytree):
             ```python exec="yes" html="true" source="material-block" session="core"
             key = PRNGKey(0)
             sub_keys = split(key, 10)
-            sim = model.repeat(num_repeats=10).simulate
+            sim = model.repeat(n=10).simulate
             tr = jit(vmap(sim, in_axes=(0, None)))(sub_keys, ())
             print(tr.render_html())
             ```
@@ -976,46 +976,18 @@ class GenerativeFunction(Pytree):
 
         return genjax.map_addresses(mapping=mapping)(self)
 
-    def switch(self, branches: List["GenerativeFunction"]) -> "GenerativeFunction":
-        """
-        Creates a switch combinator that selects one of the branches based on the index provided at runtime.
-
-        Args:
-            branches (List[GenerativeFunction]): A list of generative functions to choose from.
-
-        Returns:
-            GenerativeFunction: A new generative function that acts as a switch between the provided branches.
-        """
+    def switch(self, *branches: "GenerativeFunction") -> "GenerativeFunction":
         import genjax
 
-        return genjax.switch((self, *branches))
+        return genjax.switch(self, *branches)
 
     def mix(self, *fns: "GenerativeFunction") -> "GenerativeFunction":
-        """
-        Combines two generative functions into a mixture model.
-
-        Args:
-            gen_fn (GenerativeFunction): The generative function to mix with the current function.
-
-        Returns:
-            GenerativeFunction: A new generative function representing a mixture of the original and the provided function.
-        """
         import genjax
 
         return genjax.mix(self, *fns)
 
     # TODO fix this, expand these args out.
     def attach(self, **kwargs) -> "GenerativeFunction":
-        """
-        TODO this is wrong!
-        Attaches additional metadata or settings to the generative function, typically used in inference.
-
-        Args:
-            **kwargs: Arbitrary keyword arguments containing settings or metadata.
-
-        Returns:
-            GenerativeFunction: The original generative function enhanced with the provided settings or metadata.
-        """
         from genjax._src.inference.smc import attach
 
         return attach(**kwargs)(self)
@@ -1041,7 +1013,7 @@ class GenerativeFunction(Pytree):
         self, f: Callable, /, *, info: Optional[String] = None
     ) -> "GenerativeFunction":
         """Returns a new _tuple_ of args, be careful here!"""
-        return f.dimap(pre=lambda *args: f(*args), post=lambda _, ret: ret, info=info)
+        return f.dimap(pre=f, post=lambda _, ret: ret, info=info)
 
     #####################
     # GenSP / inference #
