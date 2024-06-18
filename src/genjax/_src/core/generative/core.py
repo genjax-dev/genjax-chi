@@ -990,12 +990,12 @@ class GenerativeFunction(Pytree):
         selection: Optional[Any] = None,
         algorithm: Optional[Any] = None,
     ) -> "GenerativeFunction":
-        from genjax import Marginal, Selection
+        from genjax import Selection, marginal
 
         if selection is None:
             selection = Selection.all()
 
-        return Marginal(self, selection=selection, algorithm=algorithm)
+        return marginal(selection=selection, algorithm=algorithm)(self)
 
     def target(
         self,

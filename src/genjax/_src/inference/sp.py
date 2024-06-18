@@ -275,15 +275,13 @@ class Marginal(SampleDistribution):
 
 @typecheck
 def marginal(
-    selection: Optional[Selection] = None, algorithm: Optional[Algorithm] = None
+    selection: Optional[Selection] = Selection.all(),
+    algorithm: Optional[Algorithm] = None,
 ) -> Callable[[GenerativeFunction], Marginal]:
     @Pytree.partial(selection)
     def decorator(
-        selection: Optional[Selection],
         gen_fn: GenerativeFunction,
     ) -> Marginal:
-        if not selection:
-            selection = Selection.all()
         return Marginal(
             gen_fn,
             selection,
