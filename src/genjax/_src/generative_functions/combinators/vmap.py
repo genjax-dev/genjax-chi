@@ -365,7 +365,7 @@ def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction], VmapCombinato
         arr = jnp.ones(100)
 
         # `vmapped_model` accepts an array of numbers:
-        tr = jax.jit(vmapped.simulate)(key, (arr,))
+        tr = jax.jit(vmapped_model.simulate)(key, (arr,))
 
         print(tr.render_html())
         ```

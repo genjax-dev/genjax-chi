@@ -46,55 +46,22 @@ For any serious work, you'll want a way to combine generative functions together
 
 While the programmatic `StaticGenerativeFunction` language is powerful, its restrictions can be limiting. Combinators are a way to express common patterns of composition in a more concise way, and to gain access to effects which are common in JAX (like `jax.vmap`) for generative computations.
 
+Each of the combinators below is implemented as a decorator. `GenerativeFunction` instances make each combinator available as a method with the same name.
+
 ::: genjax.vmap
-    options:
-        show_root_heading: true
 
-::: genjax.VmapCombinator
-    options:
-        show_root_heading: true
-        members:
-        - gen_fn
-        - in_axes
-        - update
+::: genjax.scan
 
-::: genjax.ScanCombinator
-    options:
-        show_root_heading: true
-        members:
-        - update
+::: genjax.switch
 
-::: genjax.SwitchCombinator
-    options:
-        show_root_heading: true
-        members:
-        - update
+::: genjax.mask
 
-::: genjax.MaskCombinator
-    options:
-        show_root_heading: true
-        members:
-        - update
+::: genjax.dimap
 
-## Derived combinators
+::: genjax.repeat
 
+::: genjax.or_else
 
-::: genjax.DimapCombinator
-    options:
-        show_root_heading: true
+::: genjax.mix
 
-::: genjax.RepeatCombinator
-    options:
-        show_root_heading: true
-
-::: genjax.OrElseCombinator
-    options:
-        show_root_heading: true
-
-::: genjax.MixtureCombinator
-    options:
-        show_root_heading: true
-
-::: genjax.AddressBijectionCombinator
-    options:
-        show_root_heading: true
+::: genjax.map_addresses
