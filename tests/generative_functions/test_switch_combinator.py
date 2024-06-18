@@ -49,7 +49,7 @@ class TestSwitchCombinator:
         def simple_flip():
             _y3 = genjax.flip(0.3) @ "y3"
 
-        switch = genjax.switch(simple_normal, simple_flip)
+        switch = simple_normal.switch(simple_flip)
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
@@ -179,7 +179,7 @@ class TestSwitchCombinator:
             return x
 
         key = jax.random.PRNGKey(314159)
-        switch = genjax.switch(regular, outlier)
+        switch = regular.switch(outlier)
         key, importance_key = jax.random.split(key)
 
         (tr, wt) = switch.importance(
@@ -216,7 +216,7 @@ class TestSwitchCombinator:
         def f2():
             return genjax.normal(0.0, 2.0) @ "y"
 
-        s = genjax.switch(f1, f2)
+        s = f1.switch(f2)
 
         keys = jax.random.split(jax.random.PRNGKey(17), 3)
         # Just select 0 in all branches for simplicity:
@@ -238,7 +238,7 @@ class TestSwitchCombinator:
         @genjax.gen
         def model():
             b = genjax.flip(0.5) @ "b"
-            s = genjax.switch(f, empty)(jnp.int32(b), (), ()) @ "s"
+            s = f.switch(empty)(jnp.int32(b), (), ()) @ "s"
             return s
 
         key = jax.random.PRNGKey(314159)

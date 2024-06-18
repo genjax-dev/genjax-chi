@@ -278,7 +278,6 @@ def marginal(
     selection: Optional[Selection] = Selection.all(),
     algorithm: Optional[Algorithm] = None,
 ) -> Callable[[GenerativeFunction], Marginal]:
-    @Pytree.partial(selection)
     def decorator(
         gen_fn: GenerativeFunction,
     ) -> Marginal:

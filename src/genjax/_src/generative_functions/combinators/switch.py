@@ -148,11 +148,11 @@ class SwitchCombinator(GenerativeFunction):
             x = genjax.bernoulli(0.3) @ "x2"
 
 
-        #####################################################################
-        # Creating a `SwitchCombinator` via the preferred `switch` function #
-        #####################################################################
+        ###################################################################
+        # Creating a `SwitchCombinator` via the preferred `switch` method #
+        ###################################################################
 
-        switch = genjax.switch(branch_1, branch_2)
+        switch = branch_1.switch(branch_2)
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
