@@ -1,4 +1,5 @@
 # The menagerie of `GenerativeFunction`
+
 Generative functions are probabilistic building blocks. They allow you to express complex probability distributions, and automate several operations on them. GenJAX exports a standard library of generative functions, and this page catalogues them and their usage.
 ## The venerable & reliable `Distribution`
 
@@ -45,51 +46,16 @@ For any serious work, you'll want a way to combine generative functions together
 
 While the programmatic `StaticGenerativeFunction` language is powerful, its restrictions can be limiting. Combinators are a way to express common patterns of composition in a more concise way, and to gain access to effects which are common in JAX (like `jax.vmap`) for generative computations.
 
-::: genjax.VmapCombinator
-    options:
-        show_root_heading: true
-        members:
-        - gen_fn
-        - in_axes
-        - update
+Each of the combinators below is implemented as a decorator. `GenerativeFunction` instances make each combinator available as a method with the same name.
 
-::: genjax.ScanCombinator
-    options:
-        show_root_heading: true
-        members:
-        - update
-
-::: genjax.SwitchCombinator
-    options:
-        show_root_heading: true
-        members:
-        - update
-
-::: genjax.MaskCombinator
-    options:
-        show_root_heading: true
-        members:
-        - update
-
-## Derived combinators
-
-
-::: genjax.ComposeCombinator
-    options:
-        show_root_heading: true
-
-::: genjax.repeat_combinator
-    options:
-        show_root_heading: true
-
-::: genjax.cond_combinator
-    options:
-        show_root_heading: true
-
-::: genjax.mixture_combinator
-    options:
-        show_root_heading: true
-
-::: genjax.address_bijection_combinator
-    options:
-        show_root_heading: true
+::: genjax.vmap
+::: genjax.repeat
+::: genjax.scan
+::: genjax.mask
+::: genjax.or_else
+::: genjax.switch
+::: genjax.mix
+::: genjax.map_addresses
+::: genjax.dimap
+::: genjax.map
+::: genjax.contramap

@@ -23,7 +23,7 @@ from genjax import UpdateProblemBuilder as U
 
 class TestScanSimpleNormal:
     def test_scan_simple_normal(self):
-        @genjax.scan_combinator(max_length=10)
+        @genjax.scan(n=10)
         @genjax.gen
         def scanner(x, c):
             z = genjax.normal(x, 1.0) @ "z"
@@ -37,7 +37,7 @@ class TestScanSimpleNormal:
         assert tr.project(key, sel) == scan_score
 
     def test_scan_simple_normal_importance(self):
-        @genjax.scan_combinator(max_length=10)
+        @genjax.scan(n=10)
         @genjax.gen
         def scanner(x, c):
             z = genjax.normal(x, 1.0) @ "z"
@@ -55,7 +55,7 @@ class TestScanSimpleNormal:
             assert w == genjax.normal.assess(C.v(value), (prev, 1.0))[0]
 
     def test_scan_simple_normal_update(self):
-        @genjax.scan_combinator(max_length=10)
+        @genjax.scan(n=10)
         @genjax.gen
         def scanner(x, c):
             z = genjax.normal(x, 1.0) @ "z"

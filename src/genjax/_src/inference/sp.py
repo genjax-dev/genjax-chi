@@ -233,7 +233,7 @@ class Marginal(SampleDistribution):
         self,
         key: PRNGKey,
         *args,
-    ) -> Tuple[Weight, Sample]:
+    ) -> Tuple[FloatArray, Sample]:
         key, sub_key = jax.random.split(key)
         tr = self.gen_fn.simulate(sub_key, args)
         choices: ChoiceMap = tr.get_sample()
@@ -275,26 +275,16 @@ class Marginal(SampleDistribution):
 
 @typecheck
 def marginal(
-    gen_fn: Optional[GenerativeFunction] = None,
-    /,
-    *,
-    selection: Optional[Selection] = None,
+    selection: Optional[Selection] = Selection.all(),
     algorithm: Optional[Algorithm] = None,
-) -> Callable | GenerativeFunction:
-    @Pytree.partial(selection)
+) -> Callable[[GenerativeFunction], Marginal]:
     def decorator(
-        selection: Optional[Selection],
         gen_fn: GenerativeFunction,
     ) -> Marginal:
-        if not selection:
-            selection = Selection.all()
         return Marginal(
             gen_fn,
             selection,
             algorithm,
         )
 
-    if gen_fn is not None:
-        return decorator(gen_fn)
-    else:
-        return decorator
+    return decorator

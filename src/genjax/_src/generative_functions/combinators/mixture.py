@@ -15,11 +15,11 @@
 
 from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import typecheck
-from genjax._src.generative_functions.combinators.compose_combinator import (
-    ComposeCombinator,
+from genjax._src.core.typing import Callable, typecheck
+from genjax._src.generative_functions.combinators.dimap import (
+    DimapCombinator,
 )
-from genjax._src.generative_functions.combinators.switch_combinator import (
+from genjax._src.generative_functions.combinators.switch import (
     SwitchCombinator,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
@@ -30,7 +30,7 @@ from genjax._src.generative_functions.static import gen
 register_exclusion(__file__)
 
 
-def MixtureCombinator(*gen_fns) -> ComposeCombinator:
+def MixtureCombinator(*gen_fns) -> DimapCombinator:
     def argument_mapping(mixture_logits, *args):
         return (mixture_logits, *args)
 
@@ -42,7 +42,7 @@ def MixtureCombinator(*gen_fns) -> ComposeCombinator:
         v = inner_combinator_closure(mix_idx, *args) @ "component_sample"
         return v
 
-    return ComposeCombinator(
+    return DimapCombinator(
         mixture_model,
         argument_mapping=argument_mapping,
         info="Derived combinator (Mixture)",
@@ -50,22 +50,10 @@ def MixtureCombinator(*gen_fns) -> ComposeCombinator:
 
 
 @typecheck
-def mixture_combinator(
+def mix(
     *gen_fns: GenerativeFunction,
-) -> GenerativeFunction:
-    def argument_mapping(mixture_logits, *args):
-        return (mixture_logits, *args)
+) -> Callable[[GenerativeFunction], DimapCombinator]:
+    def decorator(f: GenerativeFunction) -> DimapCombinator:
+        return MixtureCombinator(f, *gen_fns)
 
-    inner_combinator_closure = SwitchCombinator(gen_fns)
-
-    @gen
-    def mixture_model(mixture_logits, *args):
-        mix_idx = categorical(logits=mixture_logits) @ "mixture_component"
-        v = inner_combinator_closure(mix_idx, *args) @ "component_sample"
-        return v
-
-    return ComposeCombinator(
-        mixture_model,
-        argument_mapping=argument_mapping,
-        info="Derived combinator (Mixture)",
-    )
+    return decorator

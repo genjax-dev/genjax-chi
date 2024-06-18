@@ -39,6 +39,7 @@ from genjax._src.core.typing import (
     Optional,
     PRNGKey,
     ScalarFloat,
+    String,
     Tuple,
     static_check_is_concrete,
     typecheck,
@@ -184,7 +185,7 @@ class Constraint(UpdateProblem):
 
     Constraints represent a request to force a value to satisfy a predicate. Just like all [`UpdateProblem`][genjax.core.UpdateProblem] instances, the generative function must respond to the request to update a trace to satisfy the constraint by providing an [`update`][genjax.core.GenerativeFunction.update] implementation which implements an SMCP3 move that transforms the provided trace to satisfy the specification.
 
-    Constraints can also be used to construct [`ImportanceProblem`](genjax.core.ImportanceProblem) instances, which are used to implement the [`importance`][genjax.core.GenerativeFunction.importance] interface. This interface implements a restricted SMCP3 move, from the empty target, to the target induced by the constraint.
+    Constraints can also be used to construct `ImportanceProblem` instances, which are used to implement the [`importance`][genjax.core.GenerativeFunction.importance] interface. This interface implements a restricted SMCP3 move, from the empty target, to the target induced by the constraint.
     """
 
 
@@ -556,7 +557,7 @@ class GenerativeFunction(Pytree):
             print(tr.render_html())
             ```
 
-            Another example, using the same model, composed into [`genjax.repeat_combinator`](generative_functions.md#genjax.repeat_combinator) - which creates a new generative function, which has the same interface:
+            Another example, using the same model, composed into [`genjax.repeat`](generative_functions.md#genjax.repeat) - which creates a new generative function, which has the same interface:
             ```python exec="yes" html="true" source="material-block" session="core"
             @genjax.gen
             def model():
@@ -565,7 +566,7 @@ class GenerativeFunction(Pytree):
 
 
             key = PRNGKey(0)
-            tr = model.repeat(num_repeats=10).simulate(key, ())
+            tr = model.repeat(n=10).simulate(key, ())
             print(tr.render_html())
             ```
 
@@ -573,7 +574,7 @@ class GenerativeFunction(Pytree):
             ```python exec="yes" html="true" source="material-block" session="core"
             key = PRNGKey(0)
             sub_keys = split(key, 10)
-            sim = model.repeat(num_repeats=10).simulate
+            sim = model.repeat(n=10).simulate
             tr = jit(vmap(sim, in_axes=(0, None)))(sub_keys, ())
             print(tr.render_html())
             ```
@@ -759,6 +760,9 @@ class GenerativeFunction(Pytree):
             ```python exec="yes" html="true" source="material-block" session="core"
             from genjax import normal
             from genjax import ChoiceMapBuilder as C
+            from jax.random import PRNGKey
+
+            key = PRNGKey(0)
 
             tr, w = normal.importance(key, C.v(1.0), (0.0, 1.0))
             print(tr.get_sample().render_html())
@@ -818,22 +822,17 @@ class GenerativeFunction(Pytree):
     # Combinators #
     ###############
 
-    def vmap(self, in_axes: InAxes = 0) -> "GenerativeFunction":
+    def vmap(self, /, *, in_axes: InAxes = 0) -> "GenerativeFunction":
         """
-        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
-        supports `vmap`-based patterns of parallel (and generative) computation.
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that performs a vectorized map over the argument specified by `in_axes`. Traced values are nested under an index, and the retval is vectorized.
 
         Args:
-            in_axes ([`InAxes`][genjax.typing.InAxes], optional): indicates how the underlying `vmap` patterns should be broadcast across the input arguments to the generative function. Defaults to 0. See [this link](https://jax.readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
+            in_axes: Selector specifying which input arguments (or index into them) should be vectorized. Defaults to 0, i.e., the first argument. See [this link](https://jax.readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
 
         Returns:
-            [`GenerativeFunction`][genjax.GenerativeFunction]: a new
-            [`GenerativeFunction`][genjax.GenerativeFunction] that accepts a
-            `jax.numpy.array` of arguments (instead of the original argument to
-            `self`) for each vmapped index.
+            A new [`GenerativeFunction`][genjax.GenerativeFunction] that accepts an argument of one-higher dimension at the position specified by `in_axes`.
 
         Examples:
-
             ```python exec="yes" html="true" source="material-block" session="gen-fn"
             import jax
             import jax.numpy as jnp
@@ -858,29 +857,35 @@ class GenerativeFunction(Pytree):
             print(tr.render_html())
             ```
         """
-        from genjax import VmapCombinator
+        import genjax
 
-        return VmapCombinator(self, in_axes=in_axes)
+        return genjax.vmap(in_axes=in_axes)(self)
 
-    def repeat(self, n: Int) -> "GenerativeFunction":
-        from genjax import RepeatCombinator
+    def repeat(self, /, *, n: Int) -> "GenerativeFunction":
+        """
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that samples from `self` `n` times, returning a vector of `n` results and nesting traced values under an index.
 
-        return RepeatCombinator(self, n=n)
+        This combinator is useful for creating multiple samples from the same generative model in a batched manner.
 
-    def scan(
-        self,
-        max_length: Int,
-    ) -> "GenerativeFunction":
-        from genjax import ScanCombinator
+        Args:
+            n: The number of times to sample from the generative function.
 
-        return ScanCombinator(self, max_length=max_length)
+        Returns:
+            A new [`GenerativeFunction`][genjax.GenerativeFunction] that samples from the original function `n` times.
+        """
+        import genjax
 
-    def mask(
-        self,
-    ) -> "GenerativeFunction":
-        from genjax import MaskCombinator
+        return genjax.repeat(n=n)(self)
 
-        return MaskCombinator(self)
+    def scan(self, /, *, n: Int) -> "GenerativeFunction":
+        import genjax
+
+        return genjax.scan(n=n)(self)
+
+    def mask(self) -> "GenerativeFunction":
+        import genjax
+
+        return genjax.mask(self)
 
     def or_else(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
         """
@@ -893,13 +898,12 @@ class GenerativeFunction(Pytree):
         and acts like `self` when the boolean is `True` or like `gen_fn` otherwise.
 
         Args:
-            gen_fn ([`GenerativeFunction`][genjax.GenerativeFunction]): called when the boolean argument is `False`.
+            gen_fn: called when the boolean argument is `False`.
 
         Returns:
             [`GenerativeFunction`][genjax.GenerativeFunction]
 
         Examples:
-
             ```python exec="yes" html="true" source="material-block" session="gen-fn"
             import jax
             import jax.numpy as jnp
@@ -930,29 +934,50 @@ class GenerativeFunction(Pytree):
             print(tr.render_html())
             ```
         """
-        from genjax import CondCombinator
+        import genjax
 
-        return CondCombinator(self, gen_fn)
+        return genjax.or_else(gen_fn)(self)
 
-    def addr_bij(self, address_bijection: dict) -> "GenerativeFunction":
-        from genjax import AddressBijectionCombinator
+    def map_addresses(self, /, *, mapping: dict) -> "GenerativeFunction":
+        import genjax
 
-        return AddressBijectionCombinator(self, address_bijection=address_bijection)
+        return genjax.map_addresses(mapping=mapping)(self)
 
-    def switch(self, branches: List["GenerativeFunction"]) -> "GenerativeFunction":
-        from genjax import SwitchCombinator
+    def switch(self, *branches: "GenerativeFunction") -> "GenerativeFunction":
+        import genjax
 
-        return SwitchCombinator((self, *branches))
+        return genjax.switch(*branches)(self)
 
-    def mix(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
-        from genjax import MixtureCombinator
+    def mix(self, *fns: "GenerativeFunction") -> "GenerativeFunction":
+        import genjax
 
-        return MixtureCombinator(self, gen_fn)
+        return genjax.mix(*fns)(self)
 
-    def attach(self, **kwargs) -> "GenerativeFunction":
-        from genjax._src.inference.smc import AttachCombinator
+    def dimap(
+        self,
+        /,
+        *,
+        pre: Callable,
+        post: Callable,
+        info: Optional[String] = None,
+    ) -> "GenerativeFunction":
+        import genjax
 
-        return AttachCombinator(self, **kwargs)
+        return genjax.dimap(pre=pre, post=post, info=info)(self)
+
+    def map(
+        self, f: Callable, *, info: Optional[String] = None
+    ) -> "GenerativeFunction":
+        import genjax
+
+        return genjax.map(f=f, info=info)
+
+    def contramap(
+        self, f: Callable, *, info: Optional[String] = None
+    ) -> "GenerativeFunction":
+        import genjax
+
+        return genjax.contramap(f=f, info=info)
 
     #####################
     # GenSP / inference #
@@ -960,17 +985,17 @@ class GenerativeFunction(Pytree):
 
     def marginal(
         self,
-        *args,
-        select_or_addr: Optional[Any] = None,
+        /,
+        *,
+        selection: Optional[Any] = None,
         algorithm: Optional[Any] = None,
     ) -> "GenerativeFunction":
-        from genjax import marginal
+        from genjax import Selection, marginal
 
-        return (
-            marginal(self, selection=select_or_addr, algorithm=algorithm)(*args)
-            if args
-            else marginal(self, selection=select_or_addr, algorithm=algorithm)
-        )
+        if selection is None:
+            selection = Selection.all()
+
+        return marginal(selection=selection, algorithm=algorithm)(self)
 
     def target(
         self,

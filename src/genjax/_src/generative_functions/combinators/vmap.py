@@ -43,7 +43,6 @@ from genjax._src.core.typing import (
     Callable,
     FloatArray,
     InAxes,
-    Optional,
     PRNGKey,
     Tuple,
     typecheck,
@@ -98,7 +97,7 @@ class VmapCombinator(GenerativeFunction):
         ##############################################################
 
 
-        @genjax.vmap_combinator(in_axes=(0,))
+        @genjax.vmap(in_axes=(0,))
         @genjax.gen
         def mapped(x):
             noise1 = genjax.normal(0.0, 1.0) @ "noise1"
@@ -106,9 +105,9 @@ class VmapCombinator(GenerativeFunction):
             return x + noise1 + noise2
 
 
-        #################################################
-        # The other way: use `vmap_combinator` directly #
-        #################################################
+        ######################################
+        # The other way: use `vmap` directly #
+        ######################################
 
 
         @genjax.gen
@@ -118,7 +117,7 @@ class VmapCombinator(GenerativeFunction):
             return x + noise1 + noise2
 
 
-        mapped = genjax.vmap_combinator(in_axes=(0,))(add_normal_noise)
+        mapped = genjax.vmap(in_axes=(0,))(add_normal_noise)
 
         key = jax.random.PRNGKey(314159)
         arr = jnp.ones(100)
@@ -333,16 +332,41 @@ class VmapCombinator(GenerativeFunction):
 #############
 
 
-def vmap_combinator(
-    gen_fn: Optional[GenerativeFunction] = None,
-    /,
-    *,
-    in_axes: InAxes,
-) -> Callable[[GenerativeFunction], VmapCombinator] | VmapCombinator:
+def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction], VmapCombinator]:
+    """
+    Returns a decorator that wraps a [`GenerativeFunction`][genjax.GenerativeFunction] and returns a new `GenerativeFunction` that performs a vectorized map over the argument specified by `in_axes`. Traced values are nested under an index, and the retval is vectorized.
+
+    Args:
+        in_axes: Selector specifying which input arguments (or index into them) should be vectorized. Defaults to 0, i.e., the first argument. See [this link](https://jax.readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
+
+    Returns:
+        A new [`GenerativeFunction`][genjax.GenerativeFunction] that accepts an argument of one-higher dimension at the position specified by `in_axes`.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="gen-fn"
+        import jax
+        import jax.numpy as jnp
+        import genjax
+
+
+        @genjax.vmap(in_axes=0)
+        @genjax.gen
+        def vmapped_model(x):
+            v = genjax.normal(x, 1.0) @ "v"
+            return genjax.normal(v, 0.01) @ "q"
+
+
+        key = jax.random.PRNGKey(314159)
+        arr = jnp.ones(100)
+
+        # `vmapped_model` accepts an array of numbers:
+        tr = jax.jit(vmapped_model.simulate)(key, (arr,))
+
+        print(tr.render_html())
+        ```
+    """
+
     def decorator(gen_fn) -> VmapCombinator:
         return VmapCombinator(gen_fn, in_axes)
 
-    if gen_fn:
-        return decorator(gen_fn)
-    else:
-        return decorator
+    return decorator

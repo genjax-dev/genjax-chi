@@ -20,7 +20,7 @@ from genjax._src.inference.smc import (
     SMCAlgorithm,
     SMCMove,
     SMCP3Move,
-    attach_combinator,
+    attach,
 )
 
 __all__ = [
@@ -31,5 +31,5 @@ __all__ = [
     "SMCAlgorithm",
     "SMCMove",
     "SMCP3Move",
-    "attach_combinator",
+    "attach",
 ]

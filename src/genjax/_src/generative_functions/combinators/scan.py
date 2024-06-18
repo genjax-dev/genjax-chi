@@ -41,7 +41,6 @@ from genjax._src.core.typing import (
     FloatArray,
     Int,
     IntArray,
-    Optional,
     PRNGKey,
     Tuple,
     typecheck,
@@ -138,11 +137,11 @@ class ScanCombinator(GenerativeFunction):
 
 
         # You can apply the Scan combinator directly like this:
-        scan_gen_fned_random_walk = random_walk.scan(max_length=1000)
+        scan_gen_fned_random_walk = random_walk.scan(n=1000)
 
 
         # You can also use the decorator when declaring the function:
-        @genjax.scan_combinator(max_length=1000)
+        @genjax.scan(n=1000)
         @genjax.gen
         def random_walk(prev, xs):
             x = genjax.normal(prev, 1.0) @ "x"
@@ -493,16 +492,8 @@ class ScanCombinator(GenerativeFunction):
 
 
 @typecheck
-def scan_combinator(
-    gen_fn: Optional[GenerativeFunction] = None,
-    /,
-    *,
-    max_length: Int,
-) -> Callable[[GenerativeFunction], ScanCombinator] | ScanCombinator:
+def scan(*, n: Int) -> Callable[[GenerativeFunction], ScanCombinator]:
     def decorator(f):
-        return ScanCombinator(f, max_length)
+        return ScanCombinator(f, n)
 
-    if gen_fn:
-        return decorator(gen_fn)
-    else:
-        return decorator
+    return decorator

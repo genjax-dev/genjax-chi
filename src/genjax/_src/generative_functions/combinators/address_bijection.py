@@ -56,7 +56,7 @@ class AddressBijectionTrace(Trace):
 
     def get_sample(self) -> Sample:
         sample: ChoiceMap = self.inner.get_sample()
-        return sample.with_addr_map(self.gen_fn.address_bijection)
+        return sample.with_addr_map(self.gen_fn.mapping)
 
     def get_score(self):
         return self.inner.get_score()
@@ -65,15 +65,15 @@ class AddressBijectionTrace(Trace):
 @Pytree.dataclass
 class AddressBijectionCombinator(GenerativeFunction):
     gen_fn: GenerativeFunction
-    address_bijection: dict = Pytree.static(default_factory=dict)
+    mapping: dict = Pytree.static(default_factory=dict)
 
     def get_inverse(self) -> dict:
-        inverse_map = {v: k for (k, v) in self.address_bijection.items()}
+        inverse_map = {v: k for (k, v) in self.mapping.items()}
         return inverse_map
 
     def static_check_bijection(self):
         inverse_map = self.get_inverse()
-        for k, v in self.address_bijection.items():
+        for k, v in self.mapping.items():
             assert inverse_map[v] == k
 
     def __post_init__(self):
@@ -110,7 +110,7 @@ class AddressBijectionCombinator(GenerativeFunction):
             ),
         )
         assert isinstance(inner_bwd_problem, ChoiceMap)
-        bwd_problem = inner_bwd_problem.with_addr_map(self.address_bijection)
+        bwd_problem = inner_bwd_problem.with_addr_map(self.mapping)
         return AddressBijectionTrace(self, tr), w, retdiff, bwd_problem
 
     @typecheck
@@ -131,7 +131,7 @@ class AddressBijectionCombinator(GenerativeFunction):
             ),
         )
         assert isinstance(inner_bwd_problem, ChoiceMap)
-        bwd_problem = inner_bwd_problem.with_addr_map(self.address_bijection)
+        bwd_problem = inner_bwd_problem.with_addr_map(self.mapping)
         return AddressBijectionTrace(self, tr), w, retdiff, bwd_problem
 
     @typecheck
@@ -184,19 +184,10 @@ class AddressBijectionCombinator(GenerativeFunction):
 
 
 @typecheck
-def address_bijection_combinator(
-    gen_fn: GenerativeFunction | None = None,
-    /,
-    *,
-    address_bijection: dict,
-) -> (
-    Callable[[GenerativeFunction], AddressBijectionCombinator]
-    | AddressBijectionCombinator
-):
+def map_addresses(
+    mapping: dict,
+) -> Callable[[GenerativeFunction], AddressBijectionCombinator]:
     def decorator(f):
-        return AddressBijectionCombinator(f, address_bijection)
+        return AddressBijectionCombinator(f, mapping)
 
-    if gen_fn:
-        return decorator(gen_fn)
-    else:
-        return decorator
+    return decorator

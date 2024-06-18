@@ -12,60 +12,64 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.combinators.address_bijection_combinator import (
+from genjax._src.generative_functions.combinators.address_bijection import (
     AddressBijectionCombinator,
-    address_bijection_combinator,
+    map_addresses,
 )
-from genjax._src.generative_functions.combinators.compose_combinator import (
-    ComposeCombinator,
-    compose_combinator,
+from genjax._src.generative_functions.combinators.dimap import (
+    DimapCombinator,
+    contramap,
+    dimap,
+    map,
 )
-from genjax._src.generative_functions.combinators.cond_combinator import (
-    CondCombinator,
-    cond_combinator,
-)
-from genjax._src.generative_functions.combinators.mask_combinator import (
+from genjax._src.generative_functions.combinators.mask import (
     MaskCombinator,
-    mask_combinator,
+    mask,
 )
-from genjax._src.generative_functions.combinators.mixture_combinator import (
+from genjax._src.generative_functions.combinators.mixture import (
     MixtureCombinator,
-    mixture_combinator,
+    mix,
 )
-from genjax._src.generative_functions.combinators.repeat_combinator import (
+from genjax._src.generative_functions.combinators.or_else import (
+    OrElseCombinator,
+    or_else,
+)
+from genjax._src.generative_functions.combinators.repeat import (
     RepeatCombinator,
-    repeat_combinator,
+    repeat,
 )
-from genjax._src.generative_functions.combinators.scan_combinator import (
+from genjax._src.generative_functions.combinators.scan import (
     ScanCombinator,
-    scan_combinator,
+    scan,
 )
-from genjax._src.generative_functions.combinators.switch_combinator import (
+from genjax._src.generative_functions.combinators.switch import (
     SwitchCombinator,
-    switch_combinator,
+    switch,
 )
-from genjax._src.generative_functions.combinators.vmap_combinator import (
+from genjax._src.generative_functions.combinators.vmap import (
     VmapCombinator,
-    vmap_combinator,
+    vmap,
 )
 
 __all__ = [
     "AddressBijectionCombinator",
-    "CondCombinator",
-    "ComposeCombinator",
+    "OrElseCombinator",
+    "DimapCombinator",
     "MaskCombinator",
     "MixtureCombinator",
     "RepeatCombinator",
     "ScanCombinator",
     "SwitchCombinator",
     "VmapCombinator",
-    "address_bijection_combinator",
-    "compose_combinator",
-    "cond_combinator",
-    "mask_combinator",
-    "mixture_combinator",
-    "repeat_combinator",
-    "scan_combinator",
-    "switch_combinator",
-    "vmap_combinator",
+    "map_addresses",
+    "dimap",
+    "map",
+    "contramap",
+    "mask",
+    "mix",
+    "or_else",
+    "repeat",
+    "scan",
+    "switch",
+    "vmap",
 ]
