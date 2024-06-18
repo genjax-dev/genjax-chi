@@ -18,7 +18,9 @@ from genjax._src.generative_functions.combinators.address_bijection import (
 )
 from genjax._src.generative_functions.combinators.dimap import (
     DimapCombinator,
+    contramap,
     dimap,
+    map,
 )
 from genjax._src.generative_functions.combinators.mask import (
     MaskCombinator,
@@ -61,6 +63,8 @@ __all__ = [
     "VmapCombinator",
     "map_addresses",
     "dimap",
+    "map",
+    "contramap",
     "mask",
     "mix",
     "or_else",

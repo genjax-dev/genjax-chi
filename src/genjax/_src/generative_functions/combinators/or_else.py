@@ -16,7 +16,7 @@ import jax.numpy as jnp
 
 from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import ScalarBool, typecheck
+from genjax._src.core.typing import Callable, ScalarBool, typecheck
 from genjax._src.generative_functions.combinators.dimap import (
     DimapCombinator,
 )
@@ -50,7 +50,57 @@ def OrElseCombinator(
 
 @typecheck
 def or_else(
-    if_gen_fn: GenerativeFunction,
     else_gen_fn: GenerativeFunction,
-) -> DimapCombinator:
-    return OrElseCombinator(if_gen_fn, else_gen_fn)
+) -> Callable[[GenerativeFunction], DimapCombinator]:
+    """
+    Returns a decorator that wraps a [`GenerativeFunction`][genjax.GenerativeFunction] `if_gen_fn` and returns a new `GenerativeFunction` that accepts
+
+    - a boolean argument
+    - an argument tuple for `if_gen_fn`
+    - an argument tuple for the supplied `else_gen_fn`
+
+    and acts like `if_gen_fn` when the boolean is `True` or `else_gen_fn` otherwise.
+
+    Args:
+        else_gen_fn: called when the boolean argument is `False`.
+
+    Returns:
+        A decorator that produces a new [`GenerativeFunction`][genjax.GenerativeFunction].
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="gen-fn"
+        import jax
+        import jax.numpy as jnp
+        import genjax
+
+
+        @genjax.gen
+        def else_model(x):
+            return genjax.normal(x, 5.0) @ "else_value"
+
+
+        @genjax.or_else(else_model)
+        @genjax.gen
+        def or_else_model(x):
+            return genjax.normal(x, 1.0) @ "if_value"
+
+
+        @genjax.gen
+        def model(toss: bool):
+            # Note that `or_else_model` takes a new boolean predicate in
+            # addition to argument tuples for each branch.
+            return or_else_model(toss, (1.0,), (10.0,)) @ "tossed"
+
+
+        key = jax.random.PRNGKey(314159)
+
+        tr = jax.jit(model.simulate)(key, (True,))
+
+        print(tr.render_html())
+        ```
+    """
+
+    def decorator(if_gen_fn) -> DimapCombinator:
+        return OrElseCombinator(if_gen_fn, else_gen_fn)
+
+    return decorator

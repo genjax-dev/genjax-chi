@@ -4,26 +4,10 @@
 This page describes the set of core concepts and datatypes in GenJAX, including Gen's generative datatypes and concepts ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`UpdateProblem`][genjax.core.UpdateProblem]), the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree], [`Const`][genjax.core.Const], and [`Closure`][genjax.core.Closure]), as well as functionally inspired `Pytree` extensions ([`Mask`][genjax.core.Mask], [`Sum`][genjax.core.Sum]), and GenJAX's approach to "static" (JAX tracing time) typechecking ([`typecheck`][genjax.typing.typecheck]).
 
 ::: genjax.core.GenerativeFunction
-    options:
-      members:
-        - simulate
-        - assess
-        - update
-        - importance
-        - propose
 
 Traces are data structures which record (execution and inference) data about the invocation of generative functions. Traces are often specialized to a generative function language, to take advantage of data locality, and other representation optimizations. Traces support a _trace interface_: a set of accessor methods designed to provide convenient manipulation when handling traces in inference algorithms. We document this interface below for the `Trace` data type.
 
 ::: genjax.core.Trace
-    options:
-      members:
-        - update
-        - get_args
-        - get_retval
-        - get_gen_fn
-        - get_sample
-        - get_score
-
 ::: genjax.core.Sample
 ::: genjax.core.UpdateProblem
 ::: genjax.core.Constraint
@@ -35,16 +19,7 @@ Generative functions will often include _addressed_ random choices. These are ra
 The standard `Sample` type for this type of generative function is the `ChoiceMap` type.
 
 ::: genjax.core.ChoiceMap
-    options:
-      members:
-        - at
-        - filter
-
 ::: genjax.core.Selection
-    options:
-      members:
-        - at
-        - filter
 
 ## JAX compatible data via `Pytree`
 
@@ -104,6 +79,7 @@ GenJAX uses [`beartype`](https://github.com/beartype/beartype) to perform type c
 ::: genjax.typing.typecheck
 
 ###  Generative interface types
+
 ::: genjax.core.Arguments
 ::: genjax.core.Retval
 ::: genjax.core.Score

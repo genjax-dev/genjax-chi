@@ -492,7 +492,7 @@ class ScanCombinator(GenerativeFunction):
 
 
 @typecheck
-def scan(n: Int) -> Callable[[GenerativeFunction], ScanCombinator]:
+def scan(*, n: Int) -> Callable[[GenerativeFunction], ScanCombinator]:
     def decorator(f):
         return ScanCombinator(f, n)
 

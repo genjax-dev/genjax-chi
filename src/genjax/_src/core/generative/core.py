@@ -760,6 +760,9 @@ class GenerativeFunction(Pytree):
             ```python exec="yes" html="true" source="material-block" session="core"
             from genjax import normal
             from genjax import ChoiceMapBuilder as C
+            from jax.random import PRNGKey
+
+            key = PRNGKey(0)
 
             tr, w = normal.importance(key, C.v(1.0), (0.0, 1.0))
             print(tr.get_sample().render_html())
@@ -819,22 +822,17 @@ class GenerativeFunction(Pytree):
     # Combinators #
     ###############
 
-    def vmap(self, in_axes: InAxes = 0) -> "GenerativeFunction":
+    def vmap(self, /, *, in_axes: InAxes = 0) -> "GenerativeFunction":
         """
-        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
-        supports `vmap`-based patterns of parallel (and generative) computation.
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that performs a vectorized map over the argument specified by `in_axes`. Traced values are nested under an index, and the retval is vectorized.
 
         Args:
-            in_axes ([`InAxes`][genjax.typing.InAxes], optional): indicates how the underlying `vmap` patterns should be broadcast across the input arguments to the generative function. Defaults to 0. See [this link](https://jax.readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
+            in_axes: Selector specifying which input arguments (or index into them) should be vectorized. Defaults to 0, i.e., the first argument. See [this link](https://jax.readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
 
         Returns:
-            [`GenerativeFunction`][genjax.GenerativeFunction]: a new
-            [`GenerativeFunction`][genjax.GenerativeFunction] that accepts a
-            `jax.numpy.array` of arguments (instead of the original argument to
-            `self`) for each vmapped index.
+            A new [`GenerativeFunction`][genjax.GenerativeFunction] that accepts an argument of one-higher dimension at the position specified by `in_axes`.
 
         Examples:
-
             ```python exec="yes" html="true" source="material-block" session="gen-fn"
             import jax
             import jax.numpy as jnp
@@ -863,49 +861,28 @@ class GenerativeFunction(Pytree):
 
         return genjax.vmap(in_axes=in_axes)(self)
 
-    def repeat(self, n: Int) -> "GenerativeFunction":
+    def repeat(self, /, *, n: Int) -> "GenerativeFunction":
         """
-        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that repeats the execution of the current generative function `n` times.
+        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that samples from `self` `n` times, returning a vector of `n` results and nesting traced values under an index.
 
         This combinator is useful for creating multiple samples from the same generative model in a batched manner.
 
         Args:
-            n (Int): The number of times to repeat the generative function.
+            n: The number of times to sample from the generative function.
 
         Returns:
-            [`GenerativeFunction`][genjax.GenerativeFunction]: A new [`GenerativeFunction`][genjax.GenerativeFunction] that repeats the original function `n` times.
+            A new [`GenerativeFunction`][genjax.GenerativeFunction] that samples from the original function `n` times.
         """
         import genjax
 
         return genjax.repeat(n=n)(self)
 
-    def scan(self, n: Int) -> "GenerativeFunction":
-        """
-        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that applies the current generative function sequentially over a sequence of inputs up to a specified maximum length.
-
-        This combinator is useful for handling sequences or time-series data where the model needs to be applied repeatedly over a sequence.
-
-        Args:
-            n (Int): The maximum length of the sequence over which the generative function is applied.
-
-        Returns:
-            [`GenerativeFunction`][genjax.GenerativeFunction]: A new [`GenerativeFunction`][genjax.GenerativeFunction] that applies the original function sequentially up to `n` times.
-        """
+    def scan(self, /, *, n: Int) -> "GenerativeFunction":
         import genjax
 
         return genjax.scan(n=n)(self)
 
-    def mask(
-        self,
-    ) -> "GenerativeFunction":
-        """
-        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that applies a mask to the output of the current generative function.
-
-        This combinator is useful for selectively enabling or disabling parts of the output based on some criteria, which can be dynamically defined.
-
-        Returns:
-            [`GenerativeFunction`][genjax.GenerativeFunction]: A new [`GenerativeFunction`][genjax.GenerativeFunction] with masking applied.
-        """
+    def mask(self) -> "GenerativeFunction":
         import genjax
 
         return genjax.mask(self)
@@ -921,13 +898,12 @@ class GenerativeFunction(Pytree):
         and acts like `self` when the boolean is `True` or like `gen_fn` otherwise.
 
         Args:
-            gen_fn ([`GenerativeFunction`][genjax.GenerativeFunction]): called when the boolean argument is `False`.
+            gen_fn: called when the boolean argument is `False`.
 
         Returns:
             [`GenerativeFunction`][genjax.GenerativeFunction]
 
         Examples:
-
             ```python exec="yes" html="true" source="material-block" session="gen-fn"
             import jax
             import jax.numpy as jnp
@@ -960,18 +936,9 @@ class GenerativeFunction(Pytree):
         """
         import genjax
 
-        return genjax.or_else(self, gen_fn)
+        return genjax.or_else(gen_fn)(self)
 
-    def map_addresses(self, mapping: dict) -> "GenerativeFunction":
-        """
-        Applies an address bijection to the generative function.
-
-        Args:
-            mapping (dict): A dictionary mapping from original addresses to new addresses.
-
-        Returns:
-            GenerativeFunction: A new generative function with addresses remapped according to the provided mapping.
-        """
+    def map_addresses(self, /, *, mapping: dict) -> "GenerativeFunction":
         import genjax
 
         return genjax.map_addresses(mapping=mapping)(self)
@@ -979,18 +946,12 @@ class GenerativeFunction(Pytree):
     def switch(self, *branches: "GenerativeFunction") -> "GenerativeFunction":
         import genjax
 
-        return genjax.switch(self, *branches)
+        return genjax.switch(*branches)(self)
 
     def mix(self, *fns: "GenerativeFunction") -> "GenerativeFunction":
         import genjax
 
-        return genjax.mix(self, *fns)
-
-    # TODO fix this, expand these args out.
-    def attach(self, **kwargs) -> "GenerativeFunction":
-        from genjax._src.inference.smc import attach
-
-        return attach(**kwargs)(self)
+        return genjax.mix(*fns)(self)
 
     def dimap(
         self,
@@ -1005,15 +966,18 @@ class GenerativeFunction(Pytree):
         return genjax.dimap(pre=pre, post=post, info=info)(self)
 
     def map(
-        self, f: Callable, /, *, info: Optional[String] = None
+        self, f: Callable, *, info: Optional[String] = None
     ) -> "GenerativeFunction":
-        return f.dimap(pre=lambda *args: args, post=lambda _, ret: f(ret), info=info)
+        import genjax
+
+        return genjax.map(f=f, info=info)
 
     def contramap(
-        self, f: Callable, /, *, info: Optional[String] = None
+        self, f: Callable, *, info: Optional[String] = None
     ) -> "GenerativeFunction":
-        """Returns a new _tuple_ of args, be careful here!"""
-        return f.dimap(pre=f, post=lambda _, ret: ret, info=info)
+        import genjax
+
+        return genjax.contramap(f=f, info=info)
 
     #####################
     # GenSP / inference #

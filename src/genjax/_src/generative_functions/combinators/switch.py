@@ -40,6 +40,7 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
+    Callable,
     FloatArray,
     Int,
     IntArray,
@@ -685,5 +686,10 @@ class SwitchCombinator(GenerativeFunction):
 
 
 @typecheck
-def switch(*f: GenerativeFunction) -> SwitchCombinator:
-    return SwitchCombinator(f)
+def switch(
+    *gen_fns: GenerativeFunction,
+) -> Callable[[GenerativeFunction], SwitchCombinator]:
+    def decorator(f: GenerativeFunction) -> SwitchCombinator:
+        return SwitchCombinator((f, *gen_fns))
+
+    return decorator

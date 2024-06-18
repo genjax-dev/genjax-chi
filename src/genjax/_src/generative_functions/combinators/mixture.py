@@ -15,7 +15,7 @@
 
 from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import typecheck
+from genjax._src.core.typing import Callable, typecheck
 from genjax._src.generative_functions.combinators.dimap import (
     DimapCombinator,
 )
@@ -50,5 +50,10 @@ def MixtureCombinator(*gen_fns) -> DimapCombinator:
 
 
 @typecheck
-def mix(*gen_fns: GenerativeFunction) -> GenerativeFunction:
-    return MixtureCombinator(*gen_fns)
+def mix(
+    *gen_fns: GenerativeFunction,
+) -> Callable[[GenerativeFunction], DimapCombinator]:
+    def decorator(f: GenerativeFunction) -> DimapCombinator:
+        return MixtureCombinator(f, *gen_fns)
+
+    return decorator

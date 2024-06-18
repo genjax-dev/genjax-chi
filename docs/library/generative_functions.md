@@ -49,19 +49,13 @@ While the programmatic `StaticGenerativeFunction` language is powerful, its rest
 Each of the combinators below is implemented as a decorator. `GenerativeFunction` instances make each combinator available as a method with the same name.
 
 ::: genjax.vmap
-
-::: genjax.scan
-
-::: genjax.switch
-
-::: genjax.mask
-
-::: genjax.dimap
-
 ::: genjax.repeat
-
+::: genjax.scan
+::: genjax.mask
 ::: genjax.or_else
-
+::: genjax.switch
 ::: genjax.mix
-
 ::: genjax.map_addresses
+::: genjax.dimap
+::: genjax.map
+::: genjax.contramap

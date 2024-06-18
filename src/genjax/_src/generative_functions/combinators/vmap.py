@@ -105,9 +105,9 @@ class VmapCombinator(GenerativeFunction):
             return x + noise1 + noise2
 
 
-        #################################################
+        ######################################
         # The other way: use `vmap` directly #
-        #################################################
+        ######################################
 
 
         @genjax.gen
@@ -334,20 +334,15 @@ class VmapCombinator(GenerativeFunction):
 
 def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction], VmapCombinator]:
     """
-    Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that
-    supports `vmap`-based patterns of parallel (and generative) computation.
+    Returns a decorator that wraps a [`GenerativeFunction`][genjax.GenerativeFunction] and returns a new `GenerativeFunction` that performs a vectorized map over the argument specified by `in_axes`. Traced values are nested under an index, and the retval is vectorized.
 
     Args:
-        in_axes ([`InAxes`][genjax.typing.InAxes], optional): indicates how the underlying `vmap` patterns should be broadcast across the input arguments to the generative function. Defaults to 0. See [this link](https://jax.readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
+        in_axes: Selector specifying which input arguments (or index into them) should be vectorized. Defaults to 0, i.e., the first argument. See [this link](https://jax.readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
 
     Returns:
-        [`GenerativeFunction`][genjax.GenerativeFunction]: a new
-        [`GenerativeFunction`][genjax.GenerativeFunction] that accepts a
-        `jax.numpy.array` of arguments (instead of the original argument to
-        `self`) for each vmapped index.
+        A new [`GenerativeFunction`][genjax.GenerativeFunction] that accepts an argument of one-higher dimension at the position specified by `in_axes`.
 
     Examples:
-
         ```python exec="yes" html="true" source="material-block" session="gen-fn"
         import jax
         import jax.numpy as jnp

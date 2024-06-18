@@ -57,7 +57,19 @@ def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> DimapCombinato
 
 
 @typecheck
-def repeat(n: Int) -> Callable[[GenerativeFunction], DimapCombinator]:
+def repeat(*, n: Int) -> Callable[[GenerativeFunction], DimapCombinator]:
+    """
+    Returns a decorator that wraps a [`GenerativeFunction`][genjax.GenerativeFunction] `gen_fn` and returns a new `GenerativeFunction` that samples from `gen_fn `n` times, returning a vector of `n` results and nesting traced values under an index.
+
+    This combinator is useful for creating multiple samples from the same generative model in a batched manner.
+
+    Args:
+        n: The number of times to sample from the generative function.
+
+    Returns:
+        A new [`GenerativeFunction`][genjax.GenerativeFunction] that samples from the original function `n` times.
+    """
+
     def decorator(gen_fn) -> DimapCombinator:
         return RepeatCombinator(gen_fn, n=n)
 
