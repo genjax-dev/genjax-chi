@@ -131,9 +131,9 @@ class ScanCombinator(GenerativeFunction):
 
         # A kernel_gen_fn generative function.
         @genjax.gen
-        def random_walk(prev):
+        def random_walk(prev, _):
             x = genjax.normal(prev, 1.0) @ "x"
-            return x
+            return x, None
 
 
         # You can apply the Scan combinator directly like this:
@@ -143,7 +143,7 @@ class ScanCombinator(GenerativeFunction):
         # You can also use the decorator when declaring the function:
         @genjax.scan(n=1000)
         @genjax.gen
-        def random_walk(prev, xs):
+        def random_walk(prev, _):
             x = genjax.normal(prev, 1.0) @ "x"
             return x, None
 
