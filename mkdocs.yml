@@ -25,6 +25,7 @@ nav:
   - Library reference:
       - Core: library/core.md
       - Generative functions: library/generative_functions.md
+      - Combinators: library/combinators.md
       - Inference: library/inference.md
     # - ADEV: library/adev.md
   - For developers:

@@ -557,7 +557,7 @@ class GenerativeFunction(Pytree):
             print(tr.render_html())
             ```
 
-            Another example, using the same model, composed into [`genjax.repeat`](generative_functions.md#genjax.repeat) - which creates a new generative function, which has the same interface:
+            Another example, using the same model, composed into [`genjax.repeat`](combinators.md#genjax.repeat) - which creates a new generative function, which has the same interface:
             ```python exec="yes" html="true" source="material-block" session="core"
             @genjax.gen
             def model():
@@ -865,7 +865,7 @@ class GenerativeFunction(Pytree):
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that samples from `self` `n` times, returning a vector of `n` results and nesting traced values under an index.
 
-        This combinator is useful for creating multiple samples from the same generative model in a batched manner.
+        This combinator is useful for creating multiple samples from `self` in a batched manner.
 
         Args:
             n: The number of times to sample from the generative function.
@@ -877,17 +877,103 @@ class GenerativeFunction(Pytree):
 
         return genjax.repeat(n=n)(self)
 
-    def scan(self, /, *, n: Int) -> "GenerativeFunction":
+    def scan(
+        self,
+        /,
+        *,
+        n: Optional[Int] = None,
+        reverse: bool = False,
+        unroll: int | bool = 1,
+    ) -> "GenerativeFunction":
+        """
+        When called on a [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)`, returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])` where
+
+        - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
+        - `a` may be a primitive, an array type or a pytree (container) type with array leaves
+        - `b` may be a primitive, an array type or a pytree (container) type with array leaves.
+
+        All traced values are nested under an index.
+
+        For any array type specifier `t`, `[t]` represents the type with an additional leading axis, and if `t` is a pytree (container) type with array leaves then `[t]` represents the type with the same pytree structure and corresponding leaves each with an additional leading axis.
+
+        When the type of `xs` (denoted `[a]` above) is an array type or None, and the type of `ys` (denoted `[b]` above) is an array type, the semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation:
+
+        ```python
+        def scan(f, init, xs, length=None):
+            if xs is None:
+                xs = [None] * length
+            carry = init
+            ys = []
+            for x in xs:
+                carry, y = f(carry, x)
+                ys.append(y)
+            return carry, np.stack(ys)
+        ```
+
+        Unlike that Python version, both `xs` and `ys` may be arbitrary pytree values, and so multiple arrays can be scanned over at once and produce multiple output arrays. `None` is actually a special case of this, as it represents an empty pytree.
+
+        The loop-carried value `c` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `c` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
+
+        Args:
+            n: optional integer specifying the number of loop iterations, which (if supplied) must agree with the sizes of leading axes of the arrays in `xs`. If supplied then the returned generative function can take `None` in place of `xs`, as seen in the Python example above.
+
+            reverse: optional boolean specifying whether to run the scan iteration forward (the default) or in reverse, equivalent to reversing the leading axes of the arrays in both `xs` and in `ys`.
+
+            unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many scan iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
+
+        Examples:
+            Scan for 1000 iterations with no array input:
+            ```python exec="yes" html="true" source="material-block" session="scan"
+            import jax
+            import genjax
+
+
+            @genjax.gen
+            def random_walk(prev, _):
+                x = genjax.normal(prev, 1.0) @ "x"
+                return x, None
+
+
+            scan_fn = random_walk.scan(n=1000)
+            init = 0.5
+            key = jax.random.PRNGKey(314159)
+
+            tr = jax.jit(scan_fn.simulate)(key, (init, None))
+            print(tr.render_html())
+            ```
+
+            Scan across an input array:
+            ```python exec="yes" html="true" source="material-block" session="scan"
+            import jax.numpy as jnp
+
+
+            @genjax.gen
+            def add_and_square(sum, x):
+                new_sum = sum + x
+                return new_sum, sum * sum
+
+
+            # notice no `n` parameter supplied:
+            scan_fn = add_and_square.scan()
+            init = 0.0
+            xs = jnp.ones(10)
+
+            tr = jax.jit(scan_fn.simulate)(key, (init, xs))
+
+            # The retval has the final carry and an array of all `sum*sum` returned.
+            print(tr.render_html())
+            ```
+        """
         import genjax
 
-        return genjax.scan(n=n)(self)
+        return genjax.scan(n=n, reverse=reverse, unroll=unroll)(self)
 
-    def mask(self) -> "GenerativeFunction":
+    def mask(self, /) -> "GenerativeFunction":
         import genjax
 
         return genjax.mask(self)
 
-    def or_else(self, gen_fn: "GenerativeFunction") -> "GenerativeFunction":
+    def or_else(self, gen_fn: "GenerativeFunction", /) -> "GenerativeFunction":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that accepts
 
@@ -970,14 +1056,14 @@ class GenerativeFunction(Pytree):
     ) -> "GenerativeFunction":
         import genjax
 
-        return genjax.map(f=f, info=info)
+        return genjax.map(f=f, info=info)(self)
 
     def contramap(
         self, f: Callable, *, info: Optional[String] = None
     ) -> "GenerativeFunction":
         import genjax
 
-        return genjax.contramap(f=f, info=info)
+        return genjax.contramap(f=f, info=info)(self)
 
     #####################
     # GenSP / inference #
