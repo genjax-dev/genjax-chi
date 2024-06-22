@@ -740,16 +740,11 @@ class AttachCombinator(GenerativeFunction):
 
 
 @typecheck
-def attach_combinator(
-    gen_fn: Optional[GenerativeFunction] = None,
-    /,
-    *,
+def attach(
     importance_move: SMCMove = DeferToInternal(),
     update_move: SMCMove = DeferToInternal(),
-):
-    if importance_move or update_move:
-        return AttachCombinator(
-            gen_fn,
-            importance_move,
-            update_move,
-        )
+) -> Callable[[GenerativeFunction], AttachCombinator]:
+    def decorator(gen_fn) -> AttachCombinator:
+        return AttachCombinator(gen_fn, importance_move, update_move)
+
+    return decorator

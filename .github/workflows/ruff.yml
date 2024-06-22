@@ -1,4 +1,4 @@
-name: pre-commit hooks
+name: Ruff linter
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  pre-commit:
+  ruff:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -15,13 +15,6 @@ jobs:
     - uses: actions/setup-python@v4
       with:
         python-version: 3.11.5
-
-  # - uses: pre-commit/action@v3.0.0
-
-    - uses: chartboost/ruff-action@v1
-      with:
-        version: 0.3.0
-        args: format --check
 
     - uses: chartboost/ruff-action@v1
       with:

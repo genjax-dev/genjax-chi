@@ -60,9 +60,21 @@ def install_jaxlib(session):
 
 
 @session(python=python_version)
-def prepare(session):
+def prepare(session, *with_strs):
+    with_pairs = []
+
+    for s in with_strs:
+        with_pairs += ["--with", s]
+
+    session.run(
+        "poetry",
+        "self",
+        "add",
+        "keyrings.google-artifactregistry-auth",
+        external=True,
+    )
     session.run_always(
-        "poetry", "install", "--with", "dev", "--all-extras", external=True
+        "poetry", "install", "--with", "dev", *with_pairs, "--all-extras", external=True
     )
     install_jaxlib(session)
 
@@ -178,18 +190,11 @@ def build(session):
 @session(name="mkdocs", python=python_version)
 def mkdocs(session: Session) -> None:
     """Run the mkdocs-only portion of the docs build."""
-    prepare(session)
-    session.run_always(
-        "poetry",
-        "install",
-        "--with",
-        "docs",
-        external=True,
-    )
+    prepare(session, "docs")
     build_dir = Path("site")
     if build_dir.exists():
         shutil.rmtree(build_dir)
-    session.run("poetry", "run", "mkdocs", "build", external=True)
+    session.run("poetry", "run", "mkdocs", "build", "--strict", external=True)
 
 
 @session(name="docs-build", python=python_version)
@@ -203,11 +208,24 @@ def docs_build(session: Session) -> None:
 
 @session(name="docs-serve", python=python_version)
 def docs_serve(session: Session) -> None:
-    """Build the documentation."""
-    session.run_always(
-        "poetry", "install", "--with", "docs", "--with", "dev", external=True
+    """Serve the already-built documentation."""
+    session.run(
+        "python",
+        "-m",
+        "http.server",
+        "8080",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "site",
     )
-    session.run("poetry", "run", "mkdocs", "serve")
+
+
+@session(name="docs-build-serve", python=python_version)
+def docs_build_serve(session: Session) -> None:
+    """Build and serve the documentation site."""
+    docs_build(session)
+    docs_serve(session)
 
 
 @session(name="notebooks-serve", python=python_version)

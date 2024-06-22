@@ -21,10 +21,11 @@ copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 
 nav:
   - Home: index.md
-  - Cookbook: cookbook
+  - Cookbook: cookbook/index.md
   - Library reference:
       - Core: library/core.md
       - Generative functions: library/generative_functions.md
+      - Combinators: library/combinators.md
       - Inference: library/inference.md
     # - ADEV: library/adev.md
   - For developers:
@@ -139,5 +140,5 @@ markdown_extensions:
       generic: true
   - toc:
       title: On this page
-      toc_depth: 2
+      toc_depth: 3
       permalink: true
