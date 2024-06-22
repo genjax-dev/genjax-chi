@@ -125,11 +125,11 @@ class ScanCombinator(GenerativeFunction):
     - `a` may be a primitive, an array type or a pytree (container) type with array leaves
     - `b` may be a primitive, an array type or a pytree (container) type with array leaves.
 
-    All traced values are nested under an index.
+    The values traced by each call to the original generative function will be nested under an integer index that matches the loop iteration index that generated it.
 
     For any array type specifier `t`, `[t]` represents the type with an additional leading axis, and if `t` is a pytree (container) type with array leaves then `[t]` represents the type with the same pytree structure and corresponding leaves each with an additional leading axis.
 
-    When the type of `xs` (denoted `[a]` above) is an array type or None, and the type of `ys` (denoted `[b]` above) is an array type, the semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation:
+    When the type of `xs` in the snippet below (denoted `[a]` above) is an array type or None, and the type of `ys` in the snippet below (denoted `[b]` above) is an array type, the semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation:
 
     ```python
     def scan(f, init, xs, length=None):
@@ -150,7 +150,7 @@ class ScanCombinator(GenerativeFunction):
     Attributes:
         kernel_gen_fn: a generative function to be scanned of type `(c, a) -> (c, b)`, meaning that `f` accepts two arguments where the first is a value of the loop carry and the second is a slice of `xs` along its leading axis, and that `f` returns a pair where the first element represents a new value for the loop carry and the second represents a slice of the output.
 
-        length: optional integer specifying the number of loop iterations, which (if supplied) must agree with the sizes of leading axes of the arrays in `xs`. If supplied then the returned generative function can take `None` in place of `xs`, as seen in the Python example above.
+        length: optional integer specifying the number of loop iterations, which (if supplied) must agree with the sizes of leading axes of the arrays in the returned function's second argument. If supplied then the returned generative function can take `None` as its second argument.
 
         reverse: optional boolean specifying whether to run the scan iteration forward (the default) or in reverse, equivalent to reversing the leading axes of the arrays in both `xs` and in `ys`.
 
@@ -165,7 +165,7 @@ class ScanCombinator(GenerativeFunction):
 
         # A kernel_gen_fn generative function.
         @genjax.gen
-        def random_walk(prev, _):
+        def random_walk_step(prev, _):
             x = genjax.normal(prev, 1.0) @ "x"
             return x, None
 
@@ -173,9 +173,9 @@ class ScanCombinator(GenerativeFunction):
         init = 0.5
         key = jax.random.PRNGKey(314159)
 
-        scan_gen_fned_random_walk = random_walk.scan(n=1000)
+        random_walk = random_walk_step.scan(n=1000)
 
-        tr = jax.jit(scan_gen_fned_random_walk.simulate)(key, (init, None))
+        tr = jax.jit(random_walk.simulate)(key, (init, None))
         print(tr.render_html())
         ```
 
@@ -553,11 +553,11 @@ def scan(
     - `a` may be a primitive, an array type or a pytree (container) type with array leaves
     - `b` may be a primitive, an array type or a pytree (container) type with array leaves.
 
-    All traced values are nested under an index.
+    The values traced by each call to the original generative function will be nested under an integer index that matches the loop iteration index that generated it.
 
     For any array type specifier `t`, `[t]` represents the type with an additional leading axis, and if `t` is a pytree (container) type with array leaves then `[t]` represents the type with the same pytree structure and corresponding leaves each with an additional leading axis.
 
-    When the type of `xs` (denoted `[a]` above) is an array type or None, and the type of `ys` (denoted `[b]` above) is an array type, the semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation:
+    When the type of `xs` in the snippet below (denoted `[a]` above) is an array type or None, and the type of `ys` in the snippet below (denoted `[b]` above) is an array type, the semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation:
 
     ```python
     def scan(f, init, xs, length=None):
@@ -576,7 +576,7 @@ def scan(
     The loop-carried value `c` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `c` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
 
     Args:
-        n: optional integer specifying the number of loop iterations, which (if supplied) must agree with the sizes of leading axes of the arrays in `xs`. If supplied then the returned generative function can take `None` in place of `xs`, as seen in the Python example above.
+        n: optional integer specifying the number of loop iterations, which (if supplied) must agree with the sizes of leading axes of the arrays in the returned function's second argument. If supplied then the returned generative function can take `None` as its second argument.
 
         reverse: optional boolean specifying whether to run the scan iteration forward (the default) or in reverse, equivalent to reversing the leading axes of the arrays in both `xs` and in `ys`.
 
@@ -610,7 +610,7 @@ def scan(
 
         @genjax.scan()
         @genjax.gen
-        def add_and_square(sum, x):
+        def add_and_square_all(sum, x):
             new_sum = sum + x
             return new_sum, sum * sum
 
@@ -618,7 +618,7 @@ def scan(
         init = 0.0
         xs = jnp.ones(10)
 
-        tr = jax.jit(add_and_square.simulate)(key, (init, xs))
+        tr = jax.jit(add_and_square_all.simulate)(key, (init, xs))
 
         # The retval has the final carry and an array of all `sum*sum` returned.
         print(tr.render_html())
