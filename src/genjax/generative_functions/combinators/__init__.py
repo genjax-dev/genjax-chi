@@ -40,6 +40,10 @@ from genjax._src.generative_functions.combinators.repeat import (
 )
 from genjax._src.generative_functions.combinators.scan import (
     ScanCombinator,
+    accumulate,
+    iterate,
+    iterate_final,
+    reduce,
     scan,
 )
 from genjax._src.generative_functions.combinators.switch import (
@@ -62,14 +66,18 @@ __all__ = [
     "SwitchCombinator",
     "VmapCombinator",
     "map_addresses",
+    "reduce",
+    "iterate",
+    "iterate_final",
     "dimap",
     "map",
     "contramap",
     "mask",
     "mix",
+    "scan",
     "or_else",
     "repeat",
-    "scan",
+    "accumulate",
     "switch",
     "vmap",
 ]

@@ -49,6 +49,10 @@ square_many_better = genjax.vmap()(square)
 ## `scan`-like Combinators
 
 ::: genjax.scan
+::: genjax.accumulate
+::: genjax.reduce
+::: genjax.iterate
+::: genjax.iterate_final
 
 ## Control Flow Combinators
 
