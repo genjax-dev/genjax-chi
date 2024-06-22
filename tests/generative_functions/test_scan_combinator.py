@@ -38,17 +38,17 @@ class TestScanSimpleNormal:
         assert tr.project(key, sel) == scan_score
 
     def test_scan_of_repeat(self):
-        @genjax.scan_combinator(max_length=10)
+        @genjax.scan(n=10)
         @genjax.gen
-        def kernel(x):
+        def kernel(x, _):
             d1 = genjax.normal(0.0, 1.0) @ "d1"
-            d2 = genjax.normal.repeat(num_repeats=4)(0.0, 1.0) @ "d2"
+            d2 = genjax.normal.repeat(n=4)(0.0, 1.0) @ "d2"
 
-            return x + d1 + d2
+            return x + d1 + d2, None
 
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        tr = jax.jit(kernel.simulate)(sub_key, (7, jnp.zeros(4)))
+        tr = jax.jit(kernel.simulate)(sub_key, (jnp.zeros(4), None))
         assert tr.project(S[..., "d1"]) + tr.project(S[..., "d2"]) == tr.get_score()
         assert (
             tr.project(genjax.ChoiceMapBuilder[jnp.array([0, 1, 2, 3, 4]), ...])
