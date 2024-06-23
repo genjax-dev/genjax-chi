@@ -20,7 +20,7 @@ from genjax import ChoiceMapBuilder as C
 
 class TestMaskCombinator:
     def test_mask_simple_normal_true(self):
-        @genjax.mask_combinator
+        @genjax.mask
         @genjax.gen
         def model(x):
             z = genjax.normal(x, 1.0) @ "z"
@@ -35,7 +35,7 @@ class TestMaskCombinator:
         assert tr.get_retval() == genjax.Mask(jnp.array(False), tr.inner.get_retval())
 
     def test_mask_simple_normal_false(self):
-        @genjax.mask_combinator
+        @genjax.mask
         @genjax.gen
         def model(x):
             z = genjax.normal(x, 1.0) @ "z"

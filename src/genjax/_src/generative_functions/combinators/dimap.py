@@ -42,8 +42,8 @@ register_exclusion(__file__)
 
 
 @Pytree.dataclass
-class ComposeTrace(Trace):
-    compose_combinator: "ComposeCombinator"
+class DimapTrace(Trace):
+    dimap_combinator: "DimapCombinator"
     inner: Trace
     args: Tuple
     retval: Any
@@ -52,7 +52,7 @@ class ComposeTrace(Trace):
         return self.args
 
     def get_gen_fn(self):
-        return self.compose_combinator
+        return self.dimap_combinator
 
     def get_sample(self):
         return self.inner.get_sample()
@@ -65,7 +65,7 @@ class ComposeTrace(Trace):
 
 
 @Pytree.dataclass
-class ComposeCombinator(GenerativeFunction):
+class DimapCombinator(GenerativeFunction):
     inner: GenerativeFunction
     argument_mapping: Callable = Pytree.static()
     retval_mapping: Callable = Pytree.static()
@@ -77,12 +77,12 @@ class ComposeCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         args: Tuple,
-    ) -> ComposeTrace:
+    ) -> DimapTrace:
         inner_args = self.argument_mapping(*args)
         tr = self.inner.simulate(key, inner_args)
         inner_retval = tr.get_retval()
         retval = self.retval_mapping(inner_args, inner_retval)
-        return ComposeTrace(self, tr, args, retval)
+        return DimapTrace(self, tr, args, retval)
 
     @typecheck
     def update_change_target(
@@ -92,7 +92,7 @@ class ComposeCombinator(GenerativeFunction):
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        assert isinstance(trace, EmptyTrace | ComposeTrace)
+        assert isinstance(trace, EmptyTrace | DimapTrace)
         primals = Diff.tree_primal(argdiffs)
         tangents = Diff.tree_tangent(argdiffs)
         inner_argdiffs = incremental(self.argument_mapping)(
@@ -101,7 +101,7 @@ class ComposeCombinator(GenerativeFunction):
             tangents,
         )
         match trace:
-            case ComposeTrace():
+            case DimapTrace():
                 inner_trace = trace.inner
             case EmptyTrace():
                 inner_trace = EmptyTrace(self.inner)
@@ -121,7 +121,7 @@ class ComposeCombinator(GenerativeFunction):
         )
         retval_primal = Diff.tree_primal(retval_diff)
         return (
-            ComposeTrace(self, tr, primals, retval_primal),
+            DimapTrace(self, tr, primals, retval_primal),
             w,
             retval_diff,
             bwd_problem,
@@ -159,18 +159,29 @@ class ComposeCombinator(GenerativeFunction):
 #############
 
 
-def compose_combinator(
-    gen_fn: Optional[GenerativeFunction] = None,
-    /,
+def dimap(
     *,
     pre: Callable = lambda *args: args,
-    post: Callable = lambda _, retval: retval,
+    post: Callable = lambda _args, retval: retval,
     info: Optional[String] = None,
-) -> Callable | ComposeCombinator:
-    def decorator(f) -> ComposeCombinator:
-        return ComposeCombinator(f, pre, post, info)
+) -> Callable[[GenerativeFunction], DimapCombinator]:
+    def decorator(f) -> DimapCombinator:
+        return DimapCombinator(f, pre, post, info)
 
-    if gen_fn:
-        return decorator(gen_fn)
-    else:
-        return decorator
+    return decorator
+
+
+def map(
+    f: Callable,
+    *,
+    info: Optional[String] = None,
+) -> Callable[[GenerativeFunction], DimapCombinator]:
+    return dimap(pre=lambda *args: args, post=lambda _, ret: f(ret), info=info)
+
+
+def contramap(
+    f: Callable,
+    *,
+    info: Optional[String] = None,
+) -> Callable[[GenerativeFunction], DimapCombinator]:
+    return dimap(pre=f, post=lambda _, ret: ret, info=info)

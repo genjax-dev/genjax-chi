@@ -136,14 +136,14 @@ class Sum(Pytree):
             return (z, z)
 
 
-        tr = jax.jit(model1.switch([model2]).simulate)(key, (1, (), ()))
+        tr = jax.jit(model1.switch(model2).simulate)(key, (1, (), ()))
         print(tr.get_retval().render_html())
         ```
 
         Users can collapse the `Sum` type by consuming it via [`jax.lax.switch`](https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html), for instance:
         ```python exec="yes" html="true" source="material-block" session="core"
         def collapsing_a_sum_type(key, idx):
-            tr = model1.switch([model2]).simulate(key, (idx, (), ()))
+            tr = model1.switch(model2).simulate(key, (idx, (), ()))
             sum = tr.get_retval()
             v = jax.lax.switch(
                 sum.idx,

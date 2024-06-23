@@ -20,7 +20,7 @@ from genjax import ChoiceMapBuilder as C
 
 class TestVmapCombinator:
     def test_vmap_combinator_simple_normal(self):
-        @genjax.vmap_combinator(in_axes=(0,))
+        @genjax.vmap(in_axes=(0,))
         @genjax.gen
         def model(x):
             z = genjax.normal(x, 1.0) @ "z"
@@ -33,7 +33,7 @@ class TestVmapCombinator:
         assert map_score == jnp.sum(tr.inner.get_score())
 
     def test_vmap_combinator_vector_choice_map_importance(self):
-        @genjax.vmap_combinator(in_axes=(0,))
+        @genjax.vmap(in_axes=(0,))
         @genjax.gen
         def kernel(x):
             z = genjax.normal(x, 1.0) @ "z"
@@ -54,7 +54,7 @@ class TestVmapCombinator:
         )
 
     def test_vmap_combinator_indexed_choice_map_importance(self):
-        @genjax.vmap_combinator(in_axes=(0,))
+        @genjax.vmap(in_axes=(0,))
         @genjax.gen
         def kernel(x):
             z = genjax.normal(x, 1.0) @ "z"
@@ -77,13 +77,13 @@ class TestVmapCombinator:
             assert v == zv[i]
 
     def test_vmap_combinator_nested_indexed_choice_map_importance(self):
-        @genjax.vmap_combinator(in_axes=(0,))
+        @genjax.vmap(in_axes=(0,))
         @genjax.gen
         def model(x):
             z = genjax.normal(x, 1.0) @ "z"
             return z
 
-        @genjax.vmap_combinator(in_axes=(0,))
+        @genjax.vmap(in_axes=(0,))
         @genjax.gen
         def higher_model(x):
             return model(x) @ "outer"
@@ -95,7 +95,7 @@ class TestVmapCombinator:
         assert w == genjax.normal.assess(C.v(1.0), (1.0, 1.0))[0]
 
     def test_vmap_combinator_vmap_pytree(self):
-        @genjax.vmap_combinator(in_axes=(None, (0, None)))
+        @genjax.vmap(in_axes=(None, (0, None)))
         @genjax.gen
         def foo(y, args):
             loc, scale = args
@@ -106,7 +106,7 @@ class TestVmapCombinator:
         _ = jax.jit(foo.simulate)(key, (10.0, (jnp.arange(3.0), 1.0)))
 
     def test_vmap_combinator_assess(self):
-        @genjax.vmap_combinator(in_axes=(0,))
+        @genjax.vmap(in_axes=(0,))
         @genjax.gen
         def model(x):
             z = genjax.normal(x, 1.0) @ "z"

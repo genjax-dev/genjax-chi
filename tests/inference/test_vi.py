@@ -25,7 +25,7 @@ class TestVI:
             mu = genjax.normal(0.0, 10.0) @ "mu"
             _ = genjax.normal(mu, 0.1) @ "v"
 
-        @genjax.marginal
+        @genjax.marginal()
         @genjax.gen
         def guide(target):
             (v,) = target.args

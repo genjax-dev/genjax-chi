@@ -40,6 +40,7 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
+    Callable,
     FloatArray,
     Int,
     IntArray,
@@ -147,11 +148,11 @@ class SwitchCombinator(GenerativeFunction):
             x = genjax.bernoulli(0.3) @ "x2"
 
 
-        ################################################################################
-        # Creating a `SwitchCombinator` via the preferred `switch_combinator` function #
-        ################################################################################
+        ###################################################################
+        # Creating a `SwitchCombinator` via the preferred `switch` method #
+        ###################################################################
 
-        switch = genjax.switch_combinator(branch_1, branch_2)
+        switch = branch_1.switch(branch_2)
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
@@ -685,7 +686,10 @@ class SwitchCombinator(GenerativeFunction):
 
 
 @typecheck
-def switch_combinator(
-    *f: GenerativeFunction,
-) -> SwitchCombinator:
-    return SwitchCombinator(f)
+def switch(
+    *gen_fns: GenerativeFunction,
+) -> Callable[[GenerativeFunction], SwitchCombinator]:
+    def decorator(f: GenerativeFunction) -> SwitchCombinator:
+        return SwitchCombinator((f, *gen_fns))
+
+    return decorator

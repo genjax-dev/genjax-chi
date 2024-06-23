@@ -63,15 +63,9 @@ Value = Any
 # Trace-time-checked primitives #
 #################################
 
-ScalarBool = Annotated[
-    Bool | BoolArray,
-    Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
-]
-
-ScalarFloat = Annotated[
-    Float | FloatArray,
-    Is[lambda arr: jnp.array(arr, copy=False).shape == ()],
-]
+ScalarShaped = Is[lambda arr: jnp.array(arr, copy=False).shape == ()]
+ScalarBool = Annotated[Bool | BoolArray, ScalarShaped]
+ScalarFloat = Annotated[Float | FloatArray, ScalarShaped]
 
 ############
 # Generics #
@@ -178,11 +172,15 @@ __all__ = [
     "Float",
     "FloatArray",
     "Generic",
+    "InAxes",
     "Int",
     "IntArray",
     "Is",
     "List",
     "PRNGKey",
+    "ScalarBool",
+    "ScalarFloat",
+    "ScalarShaped",
     "Sequence",
     "Tuple",
     "Type",
