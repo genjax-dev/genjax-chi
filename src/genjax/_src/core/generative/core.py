@@ -863,7 +863,9 @@ class GenerativeFunction(Pytree):
 
     def repeat(self, /, *, n: Int) -> "GenerativeFunction":
         """
-        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that samples from `self` `n` times, returning a vector of `n` results and nesting traced values under an index.
+        Returns a [`genjax.GenerativeFunction`][] that samples from `self` `n` times, returning a vector of `n` results.
+
+        The values traced by each call `gen_fn` will be nested under an integer index that matches the loop iteration index that generated it.
 
         This combinator is useful for creating multiple samples from `self` in a batched manner.
 
@@ -871,7 +873,25 @@ class GenerativeFunction(Pytree):
             n: The number of times to sample from the generative function.
 
         Returns:
-            A new [`GenerativeFunction`][genjax.GenerativeFunction] that samples from the original function `n` times.
+            A new [`genjax.GenerativeFunction`][] that samples from the original function `n` times.
+
+        Examples:
+            ```python exec="yes" html="true" source="material-block" session="repeat"
+            import genjax, jax
+
+
+            @genjax.repeat(n=10)
+            @genjax.gen
+            def normal_draws(mean):
+                return genjax.normal(mean, 1.0) @ "x"
+
+
+            key = jax.random.PRNGKey(314159)
+
+            # Generate 10 draws from a normal distribution with mean 2.0
+            tr = jax.jit(normal_draws.simulate)(key, (2.0,))
+            print(tr.render_html())
+            ```
         """
         import genjax
 
@@ -1025,16 +1045,19 @@ class GenerativeFunction(Pytree):
         return genjax.or_else(gen_fn)(self)
 
     def map_addresses(self, /, *, mapping: dict) -> "GenerativeFunction":
+        """TODO maps on the way in and the way out."""
         import genjax
 
         return genjax.map_addresses(mapping=mapping)(self)
 
     def switch(self, *branches: "GenerativeFunction") -> "GenerativeFunction":
+        """TODO look at the getting started notebook for examples"""
         import genjax
 
         return genjax.switch(*branches)(self)
 
     def mix(self, *fns: "GenerativeFunction") -> "GenerativeFunction":
+        """TODO look at the getting started notebook for examples"""
         import genjax
 
         return genjax.mix(*fns)(self)
@@ -1047,6 +1070,7 @@ class GenerativeFunction(Pytree):
         post: Callable,
         info: Optional[String] = None,
     ) -> "GenerativeFunction":
+        """TODO docs"""
         import genjax
 
         return genjax.dimap(pre=pre, post=post, info=info)(self)
@@ -1054,6 +1078,7 @@ class GenerativeFunction(Pytree):
     def map(
         self, f: Callable, *, info: Optional[String] = None
     ) -> "GenerativeFunction":
+        """TODO docs we get this one..."""
         import genjax
 
         return genjax.map(f=f, info=info)(self)
@@ -1061,6 +1086,7 @@ class GenerativeFunction(Pytree):
     def contramap(
         self, f: Callable, *, info: Optional[String] = None
     ) -> "GenerativeFunction":
+        """TODO docs this one also is clear"""
         import genjax
 
         return genjax.contramap(f=f, info=info)(self)

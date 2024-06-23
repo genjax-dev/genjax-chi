@@ -71,9 +71,12 @@ class MaskTrace(Trace):
 
 @Pytree.dataclass
 class MaskCombinator(GenerativeFunction):
-    """A combinator which enables dynamic masking of generative functions.
-    `MaskCombinator` takes a `GenerativeFunction` as a parameter, and
-    returns a new `GenerativeFunction` which accepts a boolean array as the
+    """
+    TODO docs. Boom, I know what this does now, this adds an initial argument. Why would I want to mask from the score?
+
+    Try this approach: https://stackoverflow.com/questions/68901049/copying-the-docstring-of-function-onto-another-function-by-name
+
+    A combinator which enables dynamic masking of generative functions. `MaskCombinator` takes a `GenerativeFunction` as a parameter, and returns a new `GenerativeFunction` which accepts a boolean array as the
     first argument denoting if the invocation of the generative function should
     be masked or not.
 

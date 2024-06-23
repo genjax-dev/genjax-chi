@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import jax.numpy as jnp
 from genjax import ChoiceMapBuilder as C
 from genjax import gen, normal
 from jax.random import PRNGKey
@@ -26,3 +27,13 @@ class TestRepeatCombinator:
         key = PRNGKey(314)
         tr, w = model.repeat(n=10).importance(key, C[1, "x"].set(3.0), ())
         assert normal.assess(C.v(tr.get_sample()[1, "x"]), (0.0, 1.0))[0] == w
+
+    def test_repeat_matches_vmap(self):
+        @gen
+        def square(x):
+            return x * x
+
+        key = PRNGKey(314)
+        assert jnp.array_equal(
+            square.repeat(n=10)(2)(key), square.vmap()(jnp.repeat(2, 10))(key)
+        ), "Repeat 10 times matches vmap with 10 equal inputs"
