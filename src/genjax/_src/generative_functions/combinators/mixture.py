@@ -42,10 +42,8 @@ def MixtureCombinator(*gen_fns) -> DimapCombinator:
         v = inner_combinator_closure(mix_idx, *args) @ "component_sample"
         return v
 
-    return DimapCombinator(
-        mixture_model,
-        argument_mapping=argument_mapping,
-        info="Derived combinator (Mixture)",
+    return mixture_model.contramap(
+        argument_mapping, info="Derived combinator (Mixture)"
     )
 
 
@@ -53,6 +51,20 @@ def MixtureCombinator(*gen_fns) -> DimapCombinator:
 def mix(
     *gen_fns: GenerativeFunction,
 ) -> Callable[[GenerativeFunction], DimapCombinator]:
+    """_summary_
+
+    Returns:
+        _description_
+
+    Examples:
+        Mixing two normal draws:
+        ```python exec="yes" html="true" source="material-block" session="mix"
+        import genjax, jax
+
+        # TODO make a real example!
+        ```
+    """
+
     def decorator(f: GenerativeFunction) -> DimapCombinator:
         return MixtureCombinator(f, *gen_fns)
 

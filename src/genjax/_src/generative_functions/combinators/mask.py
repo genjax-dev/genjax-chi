@@ -83,6 +83,29 @@ class MaskCombinator(GenerativeFunction):
     The return value type is a `Mask`, with a flag value equal to the passed in boolean array.
 
     If the invocation is masked with the boolean array `False`, it's contribution to the score of the trace is ignored. Otherwise, it has same semantics as if one was invoking the generative function without masking.
+
+    Examples:
+        Masking a normal draw:
+        ```python exec="yes" html="true" source="material-block" session="mask"
+        import genjax, jax
+
+
+        @genjax.mask
+        @genjax.gen
+        def masked_normal_draw(mean):
+            return genjax.normal(mean, 1.0) @ "x"
+
+
+        key = jax.random.PRNGKey(314159)
+        tr = jax.jit(masked_normal_draw.simulate)(
+            key,
+            (
+                False,
+                2.0,
+            ),
+        )
+        print(tr.render_html())
+        ```
     """
 
     gen_fn: GenerativeFunction

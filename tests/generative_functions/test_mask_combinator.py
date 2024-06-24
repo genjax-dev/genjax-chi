@@ -30,6 +30,7 @@ class TestMaskCombinator:
         tr = jax.jit(model.simulate)(key, (True, -4.0))
         assert tr.get_score() == tr.inner.get_score()
         assert tr.get_retval() == genjax.Mask(jnp.array(True), tr.inner.get_retval())
+
         tr = jax.jit(model.simulate)(key, (False, -4.0))
         assert tr.get_score() == 0.0
         assert tr.get_retval() == genjax.Mask(jnp.array(False), tr.inner.get_retval())

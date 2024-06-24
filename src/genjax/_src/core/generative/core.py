@@ -1051,7 +1051,42 @@ class GenerativeFunction(Pytree):
         return genjax.map_addresses(mapping=mapping)(self)
 
     def switch(self, *branches: "GenerativeFunction") -> "GenerativeFunction":
-        """TODO look at the getting started notebook for examples"""
+        """
+        Given `n` [`genjax.GenerativeFunction`][] inputs, returns a decorator that takes a [`genjax.GenerativeFunction`][] `f` and returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
+
+        - an index in the range `[0, n]`
+        - a tuple of arguments for `f` and each of the input generative functions (`n+1` total tuples)
+
+        and executes the generative function at the supplied index with its provided arguments.
+
+        If `index` is out of bounds, `index` is clamped to within bounds.
+
+        Examples:
+            ```python exec="yes" html="true" source="material-block" session="switch"
+            import jax, genjax
+
+
+            @genjax.gen
+            def branch_1():
+                x = genjax.normal(0.0, 1.0) @ "x1"
+
+
+            @genjax.gen
+            def branch_2():
+                x = genjax.bernoulli(0.3) @ "x2"
+
+
+            switch = branch_1.switch(branch_2)
+
+            key = jax.random.PRNGKey(314159)
+            jitted = jax.jit(switch.simulate)
+
+            # Select `branch_2` by providing 1:
+            tr = jitted(key, (1, (), ()))
+
+            print(tr.render_html())
+            ```
+        """
         import genjax
 
         return genjax.switch(*branches)(self)
