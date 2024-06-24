@@ -19,7 +19,7 @@ license = "Apache 2.0"
 readme = "README.md"
 homepage = "https://github.com/probcomp/genjax"
 repository = "https://github.com/probcomp/genjax"
-documentation = "https://probcomp.github.io/genjax/"
+documentation = "https://genjax.gen.dev/"
 keywords = [
   "artificial-intelligence",
   "probabilistic-programming",

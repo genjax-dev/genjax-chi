@@ -18,18 +18,18 @@
 
 | **Documentation** |          **Build status**          |
 | :---------------: | :--------------------------------: |
-| [![](https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square)](https://probcomp.github.io/genjax/) [![](https://img.shields.io/badge/jupyter-%23FA0F00.svg?style=flat-square&logo=jupyter&logoColor=white)][cookbook] | [![][main_build_action_badge]][main_build_status_url] |
+| [![](https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square)](https://genjax.gen.dev/) [![](https://img.shields.io/badge/jupyter-%23FA0F00.svg?style=flat-square&logo=jupyter&logoColor=white)][cookbook] | [![][main_build_action_badge]][main_build_status_url] |
 
 </div>
 
 ## 🔎 What is GenJAX?
 
-Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://probcomp.github.io/genjax/cookbook/active/intro.html#generative-functions).
+Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://genjax.gen.dev/cookbook/active/intro.html#generative-functions).
 
 GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax) - exposing the ability to programmatically construct and manipulate generative functions, as well as [JIT compile + auto-batch inference computations using generative functions onto GPU devices](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html).
 
 <div align="center">
-<a href="https://probcomp.github.io/genjax/cookbook/">Jump into the notebooks!</a>
+<a href="https://genjax.gen.dev/cookbook/">Jump into the notebooks!</a>
 <br>
 <br>
 </div>
@@ -168,7 +168,7 @@ Created and maintained by the <a href="http://probcomp.csail.mit.edu/">MIT Proba
 
 [actions]: https://github.com/probcomp/genjax/actions
 [adev]: https://arxiv.org/abs/2212.06386
-[cookbook]: https://probcomp.github.io/genjax/cookbook/
+[cookbook]: https://genjax.gen.dev/cookbook/
 [coverage_badge]: https://github.com/probcomp/genjax/coverage.svg
 [effect_handling_interp]: https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=ukjVJ2Ls_6Q3
 [equinox]: https://github.com/patrick-kidger/equinox
