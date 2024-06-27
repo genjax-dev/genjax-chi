@@ -880,11 +880,12 @@ class GenerativeFunction(Pytree):
             import genjax, jax
 
 
-            @genjax.repeat(n=10)
             @genjax.gen
-            def normal_draws(mean):
+            def normal_draw(mean):
                 return genjax.normal(mean, 1.0) @ "x"
 
+
+            normal_draws = normal_draw.repeat(n=10)
 
             key = jax.random.PRNGKey(314159)
 
@@ -958,6 +959,7 @@ class GenerativeFunction(Pytree):
 
 
             random_walk = random_walk_step.scan(n=1000)
+
             init = 0.5
             key = jax.random.PRNGKey(314159)
 
@@ -992,6 +994,40 @@ class GenerativeFunction(Pytree):
         return genjax.scan(n=n, reverse=reverse, unroll=unroll)(self)
 
     def mask(self, /) -> "GenerativeFunction":
+        """
+        Enables dynamic masking of generative functions. Returns a new [`genjax.GenerativeFunction`][] like `self`, but which accepts an additional boolean first argument.
+
+        If `True`, the invocation of `self` is masked, and its contribution to the score is ignored. If `False`, it has the same semantics as if one was invoking `self` without masking.
+
+        The return value type is a `Mask`, with a flag value equal to the supplied boolean.
+
+        Returns:
+            The masked version of the original [`genjax.GenerativeFunction`][].
+
+        Examples:
+            Masking a normal draw:
+            ```python exec="yes" html="true" source="material-block" session="mask"
+            import genjax, jax
+
+
+            @genjax.gen
+            def normal_draw(mean):
+                return genjax.normal(mean, 1.0) @ "x"
+
+
+            masked_normal_draw = normal_draw.mask()
+
+            key = jax.random.PRNGKey(314159)
+            tr = jax.jit(masked_normal_draw.simulate)(
+                key,
+                (
+                    False,
+                    2.0,
+                ),
+            )
+            print(tr.render_html())
+            ```
+        """
         import genjax
 
         return genjax.mask(self)
@@ -1008,9 +1044,6 @@ class GenerativeFunction(Pytree):
 
         Args:
             gen_fn: called when the boolean argument is `False`.
-
-        Returns:
-            [`GenerativeFunction`][genjax.GenerativeFunction]
 
         Examples:
             ```python exec="yes" html="true" source="material-block" session="gen-fn"
@@ -1048,6 +1081,42 @@ class GenerativeFunction(Pytree):
         return genjax.or_else(gen_fn)(self)
 
     def map_addresses(self, /, *, mapping: dict) -> "GenerativeFunction":
+        """
+        Takes a mapping from new addresses to old addresses and returns a new [`genjax.GenerativeFunction`][] like `self` with the addresses transformed according to the mapping.
+
+        Constraints passed into GFI methods on the returned [`genjax.GenerativeFunction`][] should use the new addresses (keys) and expect them to be mapped to the old addresses (values) internally. Any returned trace will have old addresses (values) mapped to new addresses (keys).
+
+        !!! info
+            Note that the values in the `mapping` must be unique, or the constructor will throw an error.
+
+        Args:
+            mapping: A dictionary specifying the address mapping. Keys are original addresses, and values are the new addresses.
+
+        Returns:
+            A new [`genjax.GenerativeFunction`][] like `self` with the addresses transformed according to `mapping`.
+
+        Examples:
+            Applying an address mapping to a generative function:
+            ```python exec="yes" html="true" source="material-block" session="map_addresses"
+            import genjax
+            import jax
+
+
+            @genjax.gen
+            def model():
+                x = genjax.normal(0.0, 1.0) @ "x"
+                y = genjax.normal(x, 1.0) @ "y"
+                return x + y
+
+
+            mapped_model = model.map_addresses(mapping={"new_x": "x", "new_y": "y"})
+
+            key = jax.random.PRNGKey(0)
+            trace = mapped_model.simulate(key, ())
+            chm = trace.get_sample()
+            print((chm["new_x"], chm["new_y"]))
+                ```
+        """
         import genjax
 
         return genjax.map_addresses(mapping=mapping)(self)
@@ -1094,6 +1163,49 @@ class GenerativeFunction(Pytree):
         return genjax.switch(self, *branches)
 
     def mix(self, *fns: "GenerativeFunction") -> "GenerativeFunction":
+        """
+        Takes any number of [`genjax.GenerativeFunction`][]s and returns a new [`genjax.GenerativeFunction`][] that represents a mixture model.
+
+        The returned generative function takes the following arguments:
+
+        - `mixture_logits`: Logits for the categorical distribution used to select a component.
+        - `*args`: Argument tuples for `self` and each of the input generative functions
+
+        and samples from `self` or one of the input generative functions based on a draw from a categorical distribution defined by the provided mixture logits.
+
+        Args:
+            *fns: Variable number of [`genjax.GenerativeFunction`][]s to be mixed with `self`.
+
+        Returns:
+            A new [`genjax.GenerativeFunction`][] representing the mixture model.
+
+        Examples:
+            ```python exec="yes" html="true" source="material-block" session="mix"
+            import jax
+            import genjax
+
+
+            # Define component generative functions
+            @genjax.gen
+            def component1(x):
+                return genjax.normal(x, 1.0) @ "y"
+
+
+            @genjax.gen
+            def component2(x):
+                return genjax.normal(x, 2.0) @ "y"
+
+
+            # Create mixture model
+            mixture = component1.mix(component2)
+
+            # Use the mixture model
+            key = jax.random.PRNGKey(0)
+            logits = jax.numpy.array([0.3, 0.7])  # Favors component2
+            trace = mixture.simulate(key, (logits, (0.0,), (7.0,)))
+            print(trace.render_html())
+                ```
+        """
         import genjax
 
         return genjax.mix(self, *fns)
@@ -1106,6 +1218,50 @@ class GenerativeFunction(Pytree):
         post: Callable,
         info: Optional[String] = None,
     ) -> "GenerativeFunction":
+        """
+        Returns a new [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
+
+        !!! info
+            Prefer [`genjax.GenerativeFunction.map`][] if you only need to transform the return value, or [`genjax.GenerativeFunction.contramap`][] if you only need to transform the arguments.
+
+        Args:
+            pre: A callable that preprocesses the arguments before passing them to the wrapped function. Note that `pre` must return a _tuple_ of arguments, not a bare argument. Default is the identity function.
+            post: A callable that postprocesses the return value of the wrapped function. Default is the identity function.
+            info: An optional string providing additional information about the `dimap` operation.
+
+        Returns:
+            A new [`genjax.GenerativeFunction`][] with `pre` and `post` applied.
+
+        Examples:
+            ```python exec="yes" html="true" source="material-block" session="dimap"
+            import jax, genjax
+
+
+            # Define pre- and post-processing functions
+            def pre_process(x, y):
+                return (x + 1, y * 2)
+
+
+            def post_process(args, retval):
+                return retval**2
+
+
+            @genjax.gen
+            def model(x, y):
+                return genjax.normal(x, y) @ "z"
+
+
+            dimap_model = model.dimap(
+                pre=pre_process, post=post_process, info="Square of normal"
+            )
+
+            # Use the dimap model
+            key = jax.random.PRNGKey(0)
+            trace = dimap_model.simulate(key, (2.0, 3.0))
+
+            print(trace.render_html())
+            ```
+        """
         import genjax
 
         return genjax.dimap(pre=pre, post=post, info=info)(self)
@@ -1113,7 +1269,40 @@ class GenerativeFunction(Pytree):
     def map(
         self, f: Callable, *, info: Optional[String] = None
     ) -> "GenerativeFunction":
-        """TODO docs we get this one..."""
+        """
+        Specialized version of [`genjax.dimap`][] where only the post-processing function is applied.
+
+        Args:
+            f: A callable that postprocesses the return value of the wrapped function.
+            info: An optional string providing additional information about the `map` operation.
+
+        Returns:
+            A [`genjax.GenerativeFunction`][] that acts like `self` with a post-processing function to its return value.
+
+        Examples:
+            ```python exec="yes" html="true" source="material-block" session="map"
+            import jax, genjax
+
+
+            # Define a post-processing function
+            def square(x):
+                return x**2
+
+
+            @genjax.gen
+            def model(x):
+                return genjax.normal(x, 1.0) @ "z"
+
+
+            map_model = model.map(square, info="Square of normal")
+
+            # Use the map model
+            key = jax.random.PRNGKey(0)
+            trace = map_model.simulate(key, (2.0,))
+
+            print(trace.render_html())
+            ```
+        """
         import genjax
 
         return genjax.map(f=f, info=info)(self)
@@ -1121,7 +1310,41 @@ class GenerativeFunction(Pytree):
     def contramap(
         self, f: Callable, *, info: Optional[String] = None
     ) -> "GenerativeFunction":
-        """TODO docs this one also is clear"""
+        """
+        Specialized version of [`genjax.GenerativeFunction.dimap`][] where only the pre-processing function is applied.
+
+        Args:
+            f: A callable that preprocesses the arguments of the wrapped function. Note that `f` must return a _tuple_ of arguments, not a bare argument.
+            info: An optional string providing additional information about the `contramap` operation.
+
+        Returns:
+            A [`genjax.GenerativeFunction`][] that acts like `self` with a pre-processing function to its arguments.
+
+        Examples:
+            ```python exec="yes" html="true" source="material-block" session="contramap"
+            import jax, genjax
+
+
+            # Define a pre-processing function.
+            # Note that this function must return a tuple of arguments!
+            def add_one(x):
+                return (x + 1,)
+
+
+            @genjax.gen
+            def model(x):
+                return genjax.normal(x, 1.0) @ "z"
+
+
+            contramap_model = model.contramap(add_one, info="Add one to input")
+
+            # Use the contramap model
+            key = jax.random.PRNGKey(0)
+            trace = contramap_model.simulate(key, (2.0,))
+
+            print(trace.render_html())
+            ```
+        """
         import genjax
 
         return genjax.contramap(f=f, info=info)(self)

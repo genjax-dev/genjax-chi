@@ -40,7 +40,6 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
-    Callable,
     FloatArray,
     Int,
     IntArray,
@@ -691,7 +690,9 @@ class SwitchCombinator(GenerativeFunction):
 
 
 @typecheck
-def switch(*gen_fns: GenerativeFunction,) -> SwitchCombinator:
+def switch(
+    *gen_fns: GenerativeFunction,
+) -> SwitchCombinator:
     """
     Given `n` [`genjax.GenerativeFunction`][] inputs, returns a decorator that takes a [`genjax.GenerativeFunction`][] `f` and returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
 
@@ -708,20 +709,23 @@ def switch(*gen_fns: GenerativeFunction,) -> SwitchCombinator:
     Returns:
 
 
-    
+
 
     Examples:
         Create a `SwitchCombinator` via the [`genjax.switch`][] method:
         ```python exec="yes" html="true" source="material-block" session="switch"
         import jax, genjax
 
+
         @genjax.gen
         def branch_1():
             x = genjax.normal(0.0, 1.0) @ "x1"
 
+
         @genjax.gen
         def branch_2():
             x = genjax.bernoulli(0.3) @ "x2"
+
 
         switch = genjax.switch(branch_1, branch_2)
 

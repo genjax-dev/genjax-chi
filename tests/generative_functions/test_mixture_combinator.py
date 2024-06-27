@@ -20,6 +20,7 @@
 # from genjax import SelectionBuilder as S
 # from genjax import UpdateProblemBuilder as U
 
+
 class TestMixtureCombinator:
     def test_mixture_combinator(self):
         pass

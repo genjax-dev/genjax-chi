@@ -26,6 +26,12 @@ def OrElseCombinator(
     if_gen_fn: GenerativeFunction,
     else_gen_fn: GenerativeFunction,
 ) -> GenerativeFunction:
+    """
+    Combinator which enables conditional execution of generative functions. See [`genjax.or_else`][] for more details.
+
+    (This version accepts by `if_gen_fn` and `else_gen_fn` and returns a combinator, vs [`genjax.or_else`][] which returns a decorator.)
+    """
+
     @typecheck
     def argument_mapping(b: ScalarBool, if_args: Tuple, else_args: Tuple):
         # Note that `True` maps to 0 to select the "if" branch, `False` to 1.

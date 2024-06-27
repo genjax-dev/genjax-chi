@@ -31,6 +31,12 @@ register_exclusion(__file__)
 
 
 def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> DimapCombinator:
+    """
+    A combinator that samples from a supplied [`genjax.GenerativeFunction`][] `gen_fn` a fixed number of times, returning a vector of `n` results.
+
+    See [`genjax.repeat`][] for more details.
+    """
+
     def argument_mapping(*args):
         return (jnp.zeros(n), args)
 
@@ -64,8 +70,9 @@ def repeat(*, n: Int) -> Callable[[GenerativeFunction], DimapCombinator]:
         A new [`genjax.GenerativeFunction`][] that samples from the original function `n` times.
 
     Examples:
-        ```python exec="yes" html="true" source="material-block" session="dimap"
+        ```python exec="yes" html="true" source="material-block" session="repeat"
         import genjax, jax
+
 
         @genjax.repeat(n=10)
         @genjax.gen

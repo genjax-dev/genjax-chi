@@ -26,14 +26,20 @@ from genjax._src.generative_functions.static import gen
 
 register_exclusion(__file__)
 
+
 @typecheck
 def mix(*gen_fns: GenerativeFunction) -> GenerativeFunction:
     """
     Creates a mixture model from a set of generative functions.
 
-    This function takes multiple generative functions as input and returns a new generative function
-    that represents a mixture model. The returned function samples from one of the input generative
-    functions based on a categorical distribution defined by the provided mixture logits.
+    This function takes multiple generative functions as input and returns a new generative function that represents a mixture model.
+
+    The returned generative function takes the following arguments:
+
+    - `mixture_logits`: Logits for the categorical distribution used to select a component.
+    - `*args`: Argument tuples for each of the input generative functions
+
+    and samples from one of the input generative functions based on draw from a categorical distribution defined by the provided mixture logits.
 
     Args:
         *gen_fns: Variable number of [`genjax.GenerativeFunction`][]s to be mixed.
@@ -41,23 +47,22 @@ def mix(*gen_fns: GenerativeFunction) -> GenerativeFunction:
     Returns:
         A new [`genjax.GenerativeFunction`][] representing the mixture model.
 
-    The returned generative function takes the following arguments:
-        mixture_logits: Logits for the categorical distribution used to select a component.
-        *args: Argument tuples for each of the input generative functions.
-
     Examples:
         ```python exec="yes" html="true" source="material-block" session="mix"
         import jax
         import genjax
+
 
         # Define component generative functions
         @genjax.gen
         def component1(x):
             return genjax.normal(x, 1.0) @ "y"
 
+
         @genjax.gen
         def component2(x):
             return genjax.normal(x, 2.0) @ "y"
+
 
         # Create mixture model
         mixture = genjax.mix(component1, component2)
