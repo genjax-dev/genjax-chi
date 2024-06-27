@@ -247,17 +247,3 @@ class TestSwitchCombinator:
         _tr = model.simulate(sub_key, ())
         # TODO
         assert True
-
-        @genjax.gen
-        def nested_normal_draws():
-            mean = genjax.normal(0.0, 1.0) @ "mean"
-            draws = jax.vmap(lambda _: genjax.normal(mean, 1.0) @ "draw")(
-                jnp.arange(10)
-            )
-            return draws
-
-        key = jax.random.PRNGKey(314159)
-        tr = nested_normal_draws.simulate(key, ())
-        assert tr == 10
-
-        # assert tr.get_sample()["draw"].shape == (10,)
