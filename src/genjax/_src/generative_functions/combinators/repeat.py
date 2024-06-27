@@ -64,9 +64,8 @@ def repeat(*, n: Int) -> Callable[[GenerativeFunction], DimapCombinator]:
         A new [`genjax.GenerativeFunction`][] that samples from the original function `n` times.
 
     Examples:
-        ```python exec="yes" html="true" source="material-block" session="repeat"
+        ```python exec="yes" html="true" source="material-block" session="dimap"
         import genjax, jax
-
 
         @genjax.repeat(n=10)
         @genjax.gen

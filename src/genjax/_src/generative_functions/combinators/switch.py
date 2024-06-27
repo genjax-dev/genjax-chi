@@ -137,8 +137,11 @@ class SwitchCombinator(GenerativeFunction):
 
         This pattern allows `GenJAX` to express existence uncertainty over random choices -- as different generative function branches need not share addresses.
 
+    Attributes:
+        branches: generative functions that the `SwitchCombinator` will select from based on the supplied index.
+
     Examples:
-        Create a `SwitchCombinator` via the [`genjax.GenerativeFunction.switch`][] method:
+        Create a `SwitchCombinator` via the [`genjax.switch`][] method:
         ```python exec="yes" html="true" source="material-block" session="switch"
         import jax, genjax
 
@@ -153,7 +156,7 @@ class SwitchCombinator(GenerativeFunction):
             x = genjax.bernoulli(0.3) @ "x2"
 
 
-        switch = branch_1.switch(branch_2)
+        switch = genjax.switch(branch_1, branch_2)
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
@@ -688,9 +691,7 @@ class SwitchCombinator(GenerativeFunction):
 
 
 @typecheck
-def switch(
-    *gen_fns: GenerativeFunction,
-) -> Callable[[GenerativeFunction], SwitchCombinator]:
+def switch(*gen_fns: GenerativeFunction,) -> SwitchCombinator:
     """
     Given `n` [`genjax.GenerativeFunction`][] inputs, returns a decorator that takes a [`genjax.GenerativeFunction`][] `f` and returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
 
@@ -701,22 +702,28 @@ def switch(
 
     If `index` is out of bounds, `index` is clamped to within bounds.
 
+    Args:
+        gen_fns: generative functions that the `SwitchCombinator` will select from when given an index of 1 or greater.
+
+    Returns:
+
+
+    
+
     Examples:
-        Create a `SwitchCombinator` via the [`genjax.GenerativeFunction.switch`][] method:
+        Create a `SwitchCombinator` via the [`genjax.switch`][] method:
         ```python exec="yes" html="true" source="material-block" session="switch"
         import jax, genjax
 
+        @genjax.gen
+        def branch_1():
+            x = genjax.normal(0.0, 1.0) @ "x1"
 
         @genjax.gen
         def branch_2():
             x = genjax.bernoulli(0.3) @ "x2"
 
-
-        @genjax.switch(branch_2)
-        @genjax.gen
-        def switch():
-            x = genjax.normal(0.0, 1.0) @ "x1"
-
+        switch = genjax.switch(branch_1, branch_2)
 
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
@@ -727,8 +734,4 @@ def switch(
         print(tr.render_html())
         ```
     """
-
-    def decorator(f: GenerativeFunction) -> SwitchCombinator:
-        return SwitchCombinator((f, *gen_fns))
-
-    return decorator
+    return SwitchCombinator(gen_fns)

@@ -66,6 +66,42 @@ class DimapTrace(Trace):
 
 @Pytree.dataclass
 class DimapCombinator(GenerativeFunction):
+    """
+    A combinator that transforms both the arguments and return values of a [`genjax.GenerativeFunction`][].
+
+    This combinator allows for the modification of input arguments and return values through specified mapping functions, enabling the adaptation of a generative function to different contexts or requirements.
+
+    Attributes:
+        inner: The inner generative function to which the transformations are applied.
+        argument_mapping: A function that maps the original arguments to the modified arguments that are passed to the inner generative function.
+        retval_mapping: A function that takes a pair of `(args, return_value)` of the inner generative function and returns a mapped return value.
+        info: Optional information or description about the specific instance of the combinator.
+
+    Examples:
+        Transforming the arguments and return values of a normal distribution draw via the [`genjax.dimap`][] decorator:
+        ```python exec="yes" html="true" source="material-block" session="dimap"
+        import genjax, jax
+
+        @genjax.dimap(
+            # double the mean and halve the std
+            pre=lambda mean, std: (mean * 2, std / 2),
+            post=lambda _args, retval: retval * 10
+        )
+        @genjax.gen
+        def transformed_normal_draw(mean, std):
+            return genjax.normal(mean, std) @ "x"
+
+        key = jax.random.PRNGKey(314159)
+        tr = jax.jit(transformed_normal_draw.simulate)(
+            key,
+            (
+                0.0,  # Original mean
+                1.0,  # Original std
+            ),
+        )
+        print(tr.render_html())
+        ```
+    """
     inner: GenerativeFunction
     argument_mapping: Callable = Pytree.static()
     retval_mapping: Callable = Pytree.static()

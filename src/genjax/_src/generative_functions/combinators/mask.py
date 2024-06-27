@@ -72,23 +72,22 @@ class MaskTrace(Trace):
 @Pytree.dataclass
 class MaskCombinator(GenerativeFunction):
     """
-    TODO docs. Boom, I know what this does now, this adds an initial argument. Why would I want to mask from the score?
+    Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
 
-    Try this approach: https://stackoverflow.com/questions/68901049/copying-the-docstring-of-function-onto-another-function-by-name
+    If `True`, the invocation of the generative function is masked, and its contribution to the score is ignored. If `False`, it has the same semantics as if one was invoking the generative function without masking.
 
-    A combinator which enables dynamic masking of generative functions. `MaskCombinator` takes a `GenerativeFunction` as a parameter, and returns a new `GenerativeFunction` which accepts a boolean array as the
-    first argument denoting if the invocation of the generative function should
-    be masked or not.
+    The return value type is a `Mask`, with a flag value equal to the supplied boolean.
 
-    The return value type is a `Mask`, with a flag value equal to the passed in boolean array.
+    Parameters:
+        gen_fn: The generative function to be masked.
 
-    If the invocation is masked with the boolean array `False`, it's contribution to the score of the trace is ignored. Otherwise, it has same semantics as if one was invoking the generative function without masking.
+    Returns:
+        The masked version of the input generative function.
 
     Examples:
         Masking a normal draw:
         ```python exec="yes" html="true" source="material-block" session="mask"
         import genjax, jax
-
 
         @genjax.mask
         @genjax.gen

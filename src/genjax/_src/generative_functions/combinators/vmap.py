@@ -340,7 +340,7 @@ def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction], VmapCombinato
         in_axes: Selector specifying which input arguments (or index into them) should be vectorized. Defaults to 0, i.e., the first argument. See [this link](https://jax.readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
 
     Returns:
-        A new [`GenerativeFunction`][genjax.GenerativeFunction] that accepts an argument of one-higher dimension at the position specified by `in_axes`.
+        A decorator that converts a [`genjax.GenerativeFunction`][] into a new [`genjax.GenerativeFunction`][] that accepts an argument of one-higher dimension at the position specified by `in_axes`.
 
     Examples:
         ```python exec="yes" html="true" source="material-block" session="gen-fn"

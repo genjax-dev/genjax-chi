@@ -941,6 +941,9 @@ class GenerativeFunction(Pytree):
 
             unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many scan iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
 
+        Returns:
+            A new [`genjax.GenerativeFunction`][] that takes a loop-carried value and a new input, and returns a new loop-carried value along with either `None` or an output to be collected into the second return value.
+
         Examples:
             Scan for 1000 iterations with no array input:
             ```python exec="yes" html="true" source="material-block" session="scan"
@@ -1045,7 +1048,6 @@ class GenerativeFunction(Pytree):
         return genjax.or_else(gen_fn)(self)
 
     def map_addresses(self, /, *, mapping: dict) -> "GenerativeFunction":
-        """TODO maps on the way in and the way out."""
         import genjax
 
         return genjax.map_addresses(mapping=mapping)(self)
@@ -1089,13 +1091,12 @@ class GenerativeFunction(Pytree):
         """
         import genjax
 
-        return genjax.switch(*branches)(self)
+        return genjax.switch(self, *branches)
 
     def mix(self, *fns: "GenerativeFunction") -> "GenerativeFunction":
-        """TODO look at the getting started notebook for examples"""
         import genjax
 
-        return genjax.mix(*fns)(self)
+        return genjax.mix(self, *fns)
 
     def dimap(
         self,
@@ -1105,7 +1106,6 @@ class GenerativeFunction(Pytree):
         post: Callable,
         info: Optional[String] = None,
     ) -> "GenerativeFunction":
-        """TODO docs"""
         import genjax
 
         return genjax.dimap(pre=pre, post=post, info=info)(self)
