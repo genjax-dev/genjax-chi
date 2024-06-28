@@ -16,13 +16,7 @@ import jax.numpy as jnp
 
 from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import Callable, ScalarBool, typecheck
-from genjax._src.generative_functions.combinators.dimap import (
-    DimapCombinator,
-)
-from genjax._src.generative_functions.combinators.switch import (
-    SwitchCombinator,
-)
+from genjax._src.core.typing import Callable, ScalarBool, Tuple, typecheck
 
 register_exclusion(__file__)
 
@@ -31,27 +25,28 @@ register_exclusion(__file__)
 def OrElseCombinator(
     if_gen_fn: GenerativeFunction,
     else_gen_fn: GenerativeFunction,
-) -> DimapCombinator:
+) -> GenerativeFunction:
+    """
+    Combinator which enables conditional execution of generative functions. See [`genjax.or_else`][] for more details.
+
+    (This version accepts by `if_gen_fn` and `else_gen_fn` and returns a combinator, vs [`genjax.or_else`][] which returns a decorator.)
+    """
+
     @typecheck
-    def argument_mapping(b: ScalarBool, *args):
+    def argument_mapping(b: ScalarBool, if_args: Tuple, else_args: Tuple):
         # Note that `True` maps to 0 to select the "if" branch, `False` to 1.
         idx = jnp.array(jnp.logical_not(b), dtype=int)
-        return (idx, *args)
+        return (idx, if_args, else_args)
 
-    inner_combinator = SwitchCombinator((if_gen_fn, else_gen_fn))
-
-    return DimapCombinator(
-        inner_combinator,
-        argument_mapping=argument_mapping,
-        retval_mapping=lambda _, retval: retval,
-        info="Derived combinator (Cond)",
+    return if_gen_fn.switch(else_gen_fn).contramap(
+        argument_mapping, info="Derived combinator (OrElse)"
     )
 
 
 @typecheck
 def or_else(
     else_gen_fn: GenerativeFunction,
-) -> Callable[[GenerativeFunction], DimapCombinator]:
+) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Returns a decorator that wraps a [`GenerativeFunction`][genjax.GenerativeFunction] `if_gen_fn` and returns a new `GenerativeFunction` that accepts
 
@@ -100,7 +95,7 @@ def or_else(
         ```
     """
 
-    def decorator(if_gen_fn) -> DimapCombinator:
+    def decorator(if_gen_fn) -> GenerativeFunction:
         return OrElseCombinator(if_gen_fn, else_gen_fn)
 
     return decorator

@@ -71,15 +71,41 @@ class MaskTrace(Trace):
 
 @Pytree.dataclass
 class MaskCombinator(GenerativeFunction):
-    """A combinator which enables dynamic masking of generative functions.
-    `MaskCombinator` takes a `GenerativeFunction` as a parameter, and
-    returns a new `GenerativeFunction` which accepts a boolean array as the
-    first argument denoting if the invocation of the generative function should
-    be masked or not.
+    """
+    Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
 
-    The return value type is a `Mask`, with a flag value equal to the passed in boolean array.
+    If `True`, the invocation of the generative function is masked, and its contribution to the score is ignored. If `False`, it has the same semantics as if one was invoking the generative function without masking.
 
-    If the invocation is masked with the boolean array `False`, it's contribution to the score of the trace is ignored. Otherwise, it has same semantics as if one was invoking the generative function without masking.
+    The return value type is a `Mask`, with a flag value equal to the supplied boolean.
+
+    Parameters:
+        gen_fn: The generative function to be masked.
+
+    Returns:
+        The masked version of the input generative function.
+
+    Examples:
+        Masking a normal draw:
+        ```python exec="yes" html="true" source="material-block" session="mask"
+        import genjax, jax
+
+
+        @genjax.mask
+        @genjax.gen
+        def masked_normal_draw(mean):
+            return genjax.normal(mean, 1.0) @ "x"
+
+
+        key = jax.random.PRNGKey(314159)
+        tr = jax.jit(masked_normal_draw.simulate)(
+            key,
+            (
+                False,
+                2.0,
+            ),
+        )
+        print(tr.render_html())
+        ```
     """
 
     gen_fn: GenerativeFunction
@@ -161,4 +187,40 @@ class MaskCombinator(GenerativeFunction):
 
 @typecheck
 def mask(f: GenerativeFunction) -> MaskCombinator:
+    """
+    Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
+
+    If `True`, the invocation of the generative function is masked, and its contribution to the score is ignored. If `False`, it has the same semantics as if one was invoking the generative function without masking.
+
+    The return value type is a `Mask`, with a flag value equal to the supplied boolean.
+
+    Args:
+        f: The generative function to be masked.
+
+    Returns:
+        The masked version of the input generative function.
+
+    Examples:
+        Masking a normal draw:
+        ```python exec="yes" html="true" source="material-block" session="mask"
+        import genjax, jax
+
+
+        @genjax.mask
+        @genjax.gen
+        def masked_normal_draw(mean):
+            return genjax.normal(mean, 1.0) @ "x"
+
+
+        key = jax.random.PRNGKey(314159)
+        tr = jax.jit(masked_normal_draw.simulate)(
+            key,
+            (
+                False,
+                2.0,
+            ),
+        )
+        print(tr.render_html())
+        ```
+    """
     return MaskCombinator(f)
