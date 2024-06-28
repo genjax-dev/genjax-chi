@@ -27,7 +27,6 @@ from genjax._src.generative_functions.combinators.mask import (
     mask,
 )
 from genjax._src.generative_functions.combinators.mixture import (
-    MixtureCombinator,
     mix,
 )
 from genjax._src.generative_functions.combinators.or_else import (
@@ -56,7 +55,6 @@ __all__ = [
     "OrElseCombinator",
     "DimapCombinator",
     "MaskCombinator",
-    "MixtureCombinator",
     "RepeatCombinator",
     "ScanCombinator",
     "SwitchCombinator",

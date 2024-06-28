@@ -66,6 +66,45 @@ class DimapTrace(Trace):
 
 @Pytree.dataclass
 class DimapCombinator(GenerativeFunction):
+    """
+    A combinator that transforms both the arguments and return values of a [`genjax.GenerativeFunction`][].
+
+    This combinator allows for the modification of input arguments and return values through specified mapping functions, enabling the adaptation of a generative function to different contexts or requirements.
+
+    Attributes:
+        inner: The inner generative function to which the transformations are applied.
+        argument_mapping: A function that maps the original arguments to the modified arguments that are passed to the inner generative function.
+        retval_mapping: A function that takes a pair of `(args, return_value)` of the inner generative function and returns a mapped return value.
+        info: Optional information or description about the specific instance of the combinator.
+
+    Examples:
+        Transforming the arguments and return values of a normal distribution draw via the [`genjax.dimap`][] decorator:
+        ```python exec="yes" html="true" source="material-block" session="dimap"
+        import genjax, jax
+
+
+        @genjax.dimap(
+            # double the mean and halve the std
+            pre=lambda mean, std: (mean * 2, std / 2),
+            post=lambda _args, retval: retval * 10,
+        )
+        @genjax.gen
+        def transformed_normal_draw(mean, std):
+            return genjax.normal(mean, std) @ "x"
+
+
+        key = jax.random.PRNGKey(314159)
+        tr = jax.jit(transformed_normal_draw.simulate)(
+            key,
+            (
+                0.0,  # Original mean
+                1.0,  # Original std
+            ),
+        )
+        print(tr.render_html())
+        ```
+    """
+
     inner: GenerativeFunction
     argument_mapping: Callable = Pytree.static()
     retval_mapping: Callable = Pytree.static()
@@ -165,6 +204,49 @@ def dimap(
     post: Callable = lambda _args, retval: retval,
     info: Optional[String] = None,
 ) -> Callable[[GenerativeFunction], DimapCombinator]:
+    """
+    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
+
+    !!! info
+        Prefer [`genjax.map`][] if you only need to transform the return value, or [`genjax.contramap`][] if you need to transform the arguments.
+
+    Args:
+        pre: A callable that preprocesses the arguments before passing them to the wrapped function. Note that `pre` must return a _tuple_ of arguments, not a bare argument. Default is the identity function.
+        post: A callable that postprocesses the return value of the wrapped function. Default is the identity function.
+        info: An optional string providing additional information about the `dimap` operation.
+
+    Returns:
+        A decorator that takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] with the same behavior but with the arguments and return value transformed according to `pre` and `post`.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="dimap"
+        import jax, genjax
+
+
+        # Define pre- and post-processing functions
+        def pre_process(x, y):
+            return (x + 1, y * 2)
+
+
+        def post_process(args, retval):
+            return retval**2
+
+
+        # Apply dimap to a generative function
+        @genjax.dimap(pre=pre_process, post=post_process, info="Square of normal")
+        @genjax.gen
+        def dimap_model(x, y):
+            return genjax.normal(x, y) @ "z"
+
+
+        # Use the dimap model
+        key = jax.random.PRNGKey(0)
+        trace = dimap_model.simulate(key, (2.0, 3.0))
+
+        print(trace.render_html())
+        ```
+    """
+
     def decorator(f) -> DimapCombinator:
         return DimapCombinator(f, pre, post, info)
 
@@ -176,6 +258,42 @@ def map(
     *,
     info: Optional[String] = None,
 ) -> Callable[[GenerativeFunction], DimapCombinator]:
+    """
+    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies a post-processing function to its return value.
+
+    This is a specialized version of [`genjax.dimap`][] where only the post-processing function is applied.
+
+    Args:
+        f: A callable that postprocesses the return value of the wrapped function.
+        info: An optional string providing additional information about the `map` operation.
+
+    Returns:
+        A decorator that takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] with the same behavior but with the return value transformed according to `f`.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="map"
+        import jax, genjax
+
+
+        # Define a post-processing function
+        def square(x):
+            return x**2
+
+
+        # Apply map to a generative function
+        @genjax.map(square, info="Square of normal")
+        @genjax.gen
+        def map_model(x):
+            return genjax.normal(x, 1.0) @ "z"
+
+
+        # Use the map model
+        key = jax.random.PRNGKey(0)
+        trace = map_model.simulate(key, (2.0,))
+
+        print(trace.render_html())
+        ```
+    """
     return dimap(pre=lambda *args: args, post=lambda _, ret: f(ret), info=info)
 
 
@@ -184,4 +302,41 @@ def contramap(
     *,
     info: Optional[String] = None,
 ) -> Callable[[GenerativeFunction], DimapCombinator]:
+    """
+    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies a pre-processing function to its arguments.
+
+    This is a specialized version of [`genjax.dimap`][] where only the pre-processing function is applied.
+
+    Args:
+        f: A callable that preprocesses the arguments of the wrapped function. Note that `f` must return a _tuple_ of arguments, not a bare argument.
+        info: An optional string providing additional information about the `contramap` operation.
+
+    Returns:
+        A decorator that takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] with the same behavior but with the arguments transformed according to `f`.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="contramap"
+        import jax, genjax
+
+
+        # Define a pre-processing function.
+        # Note that this function must return a tuple of arguments!
+        def add_one(x):
+            return (x + 1,)
+
+
+        # Apply contramap to a generative function
+        @genjax.contramap(add_one, info="Add one to input")
+        @genjax.gen
+        def contramap_model(x):
+            return genjax.normal(x, 1.0) @ "z"
+
+
+        # Use the contramap model
+        key = jax.random.PRNGKey(0)
+        trace = contramap_model.simulate(key, (2.0,))
+
+        print(trace.render_html())
+        ```
+    """
     return dimap(pre=f, post=lambda _, ret: ret, info=info)

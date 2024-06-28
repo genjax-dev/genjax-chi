@@ -64,6 +64,41 @@ class AddressBijectionTrace(Trace):
 
 @Pytree.dataclass
 class AddressBijectionCombinator(GenerativeFunction):
+    """
+    Combinator that takes a [`genjax.GenerativeFunction`][] and a mapping from new addresses to old addresses and returns a new generative function with the same behavior but with the addresses transformed according to the mapping.
+
+    Constraints passed into GFI methods on the returned [`genjax.GenerativeFunction`][] should use the new addresses (keys) and expect them to be mapped to the old addresses (values) internally. Any returned trace will have old addresses (values) mapped to new addresses (keys).
+
+    !!! info
+        Note that the `mapping` must be unique, or the constructor will throw an error.
+
+    Attributes:
+        gen_fn: The inner generative function to be transformed.
+        mapping: A dictionary specifying the address mapping. Keys are original addresses, and values are the new addresses.
+
+    Examples:
+        Applying an address mapping to a generative function:
+        ```python exec="yes" html="true" source="material-block" session="map_addresses"
+        import genjax
+        import jax
+
+
+        @genjax.gen
+        def model():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = genjax.normal(x, 1.0) @ "y"
+            return x + y
+
+
+        mapped_model = model.map_addresses(mapping={"new_x": "x", "new_y": "y"})
+
+        key = jax.random.PRNGKey(0)
+        trace = mapped_model.simulate(key, ())
+        chm = trace.get_sample()
+        print((chm["new_x"], chm["new_y"]))
+        ```
+    """
+
     gen_fn: GenerativeFunction
     mapping: dict = Pytree.static(default_factory=dict)
 
@@ -79,9 +114,9 @@ class AddressBijectionCombinator(GenerativeFunction):
     def __post_init__(self):
         self.static_check_bijection()
 
-    ##################################
-    # Generative function interfaces #
-    ##################################
+    #################################
+    # Generative function interface #
+    #################################
 
     @GenerativeFunction.gfi_boundary
     @typecheck
@@ -185,8 +220,45 @@ class AddressBijectionCombinator(GenerativeFunction):
 
 @typecheck
 def map_addresses(
+    *,
     mapping: dict,
 ) -> Callable[[GenerativeFunction], AddressBijectionCombinator]:
+    """
+    Takes a mapping from new addresses to old addresses and returns a decorator that produces a [`genjax.GenerativeFunction`][] with the same behavior but with the addresses transformed according to the mapping.
+
+    Constraints passed into GFI methods on the returned [`genjax.GenerativeFunction`][] should use the new addresses (keys) and expect them to be mapped to the old addresses (values) internally. Any returned trace will have old addresses (values) mapped to new addresses (keys).
+
+    !!! info
+        Note that the values in the `mapping` must be unique, or the constructor will throw an error.
+
+    Args:
+        mapping: A dictionary specifying the address mapping. Keys are original addresses, and values are the new addresses.
+
+    Returns:
+        A decorator that takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] with the same behavior but with the addresses transformed according to the mapping.
+
+    Examples:
+        Applying an address mapping to a generative function:
+        ```python exec="yes" html="true" source="material-block" session="map_addresses"
+        import genjax
+        import jax
+
+
+        @genjax.map_addresses(mapping={"new_x": "x", "new_y": "y"})
+        @genjax.gen
+        def mapped_model():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = genjax.normal(x, 1.0) @ "y"
+            return x + y
+
+
+        key = jax.random.PRNGKey(0)
+        trace = mapped_model.simulate(key, ())
+        chm = trace.get_sample()
+        print((chm["new_x"], chm["new_y"]))
+        ```
+    """
+
     def decorator(f):
         return AddressBijectionCombinator(f, mapping)
 
