@@ -30,7 +30,6 @@ from genjax._src.generative_functions.combinators.mixture import (
     mix,
 )
 from genjax._src.generative_functions.combinators.or_else import (
-    OrElseCombinator,
     or_else,
 )
 from genjax._src.generative_functions.combinators.repeat import (
@@ -52,7 +51,6 @@ from genjax._src.generative_functions.combinators.vmap import (
 
 __all__ = [
     "AddressBijectionCombinator",
-    "OrElseCombinator",
     "DimapCombinator",
     "MaskCombinator",
     "RepeatCombinator",

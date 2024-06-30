@@ -1078,7 +1078,7 @@ class GenerativeFunction(Pytree):
         """
         import genjax
 
-        return genjax.or_else(gen_fn)(self)
+        return genjax.or_else(self, gen_fn)
 
     def map_addresses(self, /, *, mapping: dict) -> "GenerativeFunction":
         """
