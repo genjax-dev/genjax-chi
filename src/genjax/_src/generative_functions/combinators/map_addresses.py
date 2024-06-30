@@ -13,6 +13,8 @@
 # limitations under the License.
 
 
+from functools import cached_property
+
 from genjax._src.core.generative import (
     ChoiceMap,
     EmptyTrace,
@@ -102,12 +104,13 @@ class MapAddressesCombinator(GenerativeFunction):
     gen_fn: GenerativeFunction
     mapping: dict = Pytree.static(default_factory=dict)
 
-    def get_inverse(self) -> dict:
+    @cached_property
+    def inverse_mapping(self) -> dict:
         inverse_map = {v: k for (k, v) in self.mapping.items()}
         return inverse_map
 
     def static_check_invertible(self):
-        inverse_map = self.get_inverse()
+        inverse_map = self.inverse_mapping
         for k, v in self.mapping.items():
             assert inverse_map[v] == k
 
@@ -135,7 +138,7 @@ class MapAddressesCombinator(GenerativeFunction):
         chm: ChoiceMap,
         argdiffs: Tuple,
     ):
-        inner_problem = chm.with_addr_map(self.get_inverse())
+        inner_problem = chm.with_addr_map(self.inverse_mapping)
         tr, w, retdiff, inner_bwd_problem = self.gen_fn.update(
             key,
             EmptyTrace(self.gen_fn),
@@ -156,7 +159,7 @@ class MapAddressesCombinator(GenerativeFunction):
         chm: ChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        inner_problem = chm.with_addr_map(self.get_inverse())
+        inner_problem = chm.with_addr_map(self.inverse_mapping)
         tr, w, retdiff, inner_bwd_problem = self.gen_fn.update(
             key,
             trace.inner,
@@ -212,7 +215,7 @@ class MapAddressesCombinator(GenerativeFunction):
     ) -> Tuple[Score, Any]:
         match sample:
             case ChoiceMap():
-                inner_sample = sample.with_addr_map(self.get_inverse())
+                inner_sample = sample.with_addr_map(self.inverse_mapping)
                 return self.gen_fn.assess(inner_sample, args)
             case _:
                 raise ValueError(f"Not handled sample: {sample}")
