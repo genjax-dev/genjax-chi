@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.combinators.address_bijection import (
-    AddressBijectionCombinator,
-    map_addresses,
-)
 from genjax._src.generative_functions.combinators.dimap import (
     DimapCombinator,
     contramap,
     dimap,
     map,
+)
+from genjax._src.generative_functions.combinators.map_addresses import (
+    MapAddressesCombinator,
+    map_addresses,
 )
 from genjax._src.generative_functions.combinators.mask import (
     MaskCombinator,
@@ -51,7 +51,7 @@ from genjax._src.generative_functions.combinators.vmap import (
 )
 
 __all__ = [
-    "AddressBijectionCombinator",
+    "MapAddressesCombinator",
     "OrElseCombinator",
     "DimapCombinator",
     "MaskCombinator",

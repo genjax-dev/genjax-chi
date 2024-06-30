@@ -41,8 +41,8 @@ register_exclusion(__file__)
 
 
 @Pytree.dataclass
-class AddressBijectionTrace(Trace):
-    gen_fn: "AddressBijectionCombinator"
+class MapAddressesTrace(Trace):
+    gen_fn: "MapAddressesCombinator"
     inner: Trace
 
     def get_args(self) -> Tuple:
@@ -63,7 +63,7 @@ class AddressBijectionTrace(Trace):
 
 
 @Pytree.dataclass
-class AddressBijectionCombinator(GenerativeFunction):
+class MapAddressesCombinator(GenerativeFunction):
     """
     Combinator that takes a [`genjax.GenerativeFunction`][] and a mapping from new addresses to old addresses and returns a new generative function with the same behavior but with the addresses transformed according to the mapping.
 
@@ -106,13 +106,13 @@ class AddressBijectionCombinator(GenerativeFunction):
         inverse_map = {v: k for (k, v) in self.mapping.items()}
         return inverse_map
 
-    def static_check_bijection(self):
+    def static_check_invertible(self):
         inverse_map = self.get_inverse()
         for k, v in self.mapping.items():
             assert inverse_map[v] == k
 
     def __post_init__(self):
-        self.static_check_bijection()
+        self.static_check_invertible()
 
     #################################
     # Generative function interface #
@@ -126,7 +126,7 @@ class AddressBijectionCombinator(GenerativeFunction):
         args: Tuple,
     ) -> Trace:
         tr = self.gen_fn.simulate(key, args)
-        return AddressBijectionTrace(self, tr)
+        return MapAddressesTrace(self, tr)
 
     @typecheck
     def update_importance(
@@ -146,13 +146,13 @@ class AddressBijectionCombinator(GenerativeFunction):
         )
         assert isinstance(inner_bwd_problem, ChoiceMap)
         bwd_problem = inner_bwd_problem.with_addr_map(self.mapping)
-        return AddressBijectionTrace(self, tr), w, retdiff, bwd_problem
+        return MapAddressesTrace(self, tr), w, retdiff, bwd_problem
 
     @typecheck
     def update_choice_map(
         self,
         key: PRNGKey,
-        trace: AddressBijectionTrace,
+        trace: MapAddressesTrace,
         chm: ChoiceMap,
         argdiffs: Tuple,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
@@ -167,7 +167,7 @@ class AddressBijectionCombinator(GenerativeFunction):
         )
         assert isinstance(inner_bwd_problem, ChoiceMap)
         bwd_problem = inner_bwd_problem.with_addr_map(self.mapping)
-        return AddressBijectionTrace(self, tr), w, retdiff, bwd_problem
+        return MapAddressesTrace(self, tr), w, retdiff, bwd_problem
 
     @typecheck
     def update_change_target(
@@ -222,7 +222,7 @@ class AddressBijectionCombinator(GenerativeFunction):
 def map_addresses(
     *,
     mapping: dict,
-) -> Callable[[GenerativeFunction], AddressBijectionCombinator]:
+) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Takes a mapping from new addresses to old addresses and returns a decorator that produces a [`genjax.GenerativeFunction`][] with the same behavior but with the addresses transformed according to the mapping.
 
@@ -260,6 +260,6 @@ def map_addresses(
     """
 
     def decorator(f):
-        return AddressBijectionCombinator(f, mapping)
+        return MapAddressesCombinator(f, mapping)
 
     return decorator

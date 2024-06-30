@@ -19,18 +19,15 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import Callable, Int, IntArray, Tuple, typecheck
-from genjax._src.generative_functions.combinators.address_bijection import (
+from genjax._src.generative_functions.combinators.map_addresses import (
     map_addresses,
-)
-from genjax._src.generative_functions.combinators.dimap import (
-    DimapCombinator,
 )
 from genjax._src.generative_functions.static import gen
 
 register_exclusion(__file__)
 
 
-def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> DimapCombinator:
+def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> GenerativeFunction:
     """
     A combinator that samples from a supplied [`genjax.GenerativeFunction`][] `gen_fn` a fixed number of times, returning a vector of `n` results.
 
@@ -40,8 +37,8 @@ def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> DimapCombinato
     def argument_mapping(*args):
         return (jnp.zeros(n), args)
 
-    # This is a static generative function which an attached
-    # choice map address bijection, to collapse the `_internal`
+    # This is a static generative function with an attached
+    # choicemap address mapping, to collapse the `_internal`
     # address hierarchy below.
     # (as part of StaticGenerativeFunction.Trace interfaces)
     @map_addresses(mapping={...: "_internal"})
@@ -55,7 +52,7 @@ def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> DimapCombinato
 
 
 @typecheck
-def repeat(*, n: Int) -> Callable[[GenerativeFunction], DimapCombinator]:
+def repeat(*, n: Int) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] `gen_fn` of type `a -> b` and returns a new `GenerativeFunction` of type `a -> [b]` that samples from `gen_fn `n` times, returning a vector of `n` results.
 
@@ -88,7 +85,7 @@ def repeat(*, n: Int) -> Callable[[GenerativeFunction], DimapCombinator]:
         ```
     """
 
-    def decorator(gen_fn) -> DimapCombinator:
+    def decorator(gen_fn) -> GenerativeFunction:
         return RepeatCombinator(gen_fn, n=n)
 
     return decorator
