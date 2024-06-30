@@ -109,13 +109,13 @@ class MapAddressesCombinator(GenerativeFunction):
         inverse_map = {v: k for (k, v) in self.mapping.items()}
         return inverse_map
 
-    def static_check_invertible(self):
+    def _static_check_invertible(self):
         inverse_map = self.inverse_mapping
         for k, v in self.mapping.items():
             assert inverse_map[v] == k
 
     def __post_init__(self):
-        self.static_check_invertible()
+        self._static_check_invertible()
 
     #################################
     # Generative function interface #
