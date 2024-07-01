@@ -39,8 +39,8 @@ from genjax._src.core.typing import (
     Any,
     Bool,
     BoolArray,
-    Generic,
     EllipsisType,
+    Generic,
     Int,
     IntArray,
     List,
@@ -466,9 +466,11 @@ def check_none(v):
     else:
         return True
 
+
 T = TypeVar("T")
 
-class ChoiceMap(Generic[T], Sample):
+
+class ChoiceMap(Generic[T], Pytree):
     """
     The type `ChoiceMap` denotes a map-like value which can be sampled from generative functions.
 
@@ -949,7 +951,7 @@ class AddrMapChm(ChoiceMap):
     addr_map: dict = Pytree.static()
     c: ChoiceMap = Pytree.field()
 
-    def get_value(self) -> Bool | BoolArray:
+    def get_value(self) -> Any:
         mapped = self.addr_map.get((), ())
         if mapped:
             submap = self.c.get_submap(mapped)
@@ -980,34 +982,45 @@ def choice_map_address_function(
 # Update requests #
 ###################
 
-@Pytree.dataclass
-class ChoiceMapSample(Sample):
-    choice_map: ChoiceMap
-    
-    def get_submap(self, addr: ExtendedAddress):
-        pass
 
-    def get_value(self) -> UpdateRequest:
-        pass
+@Pytree.dataclass
+class ChoiceMapSample(Sample, ChoiceMap[Sample]):
+    choice_map: ChoiceMap[Sample]
+
+    def get_submap(self, addr: ExtendedAddress) -> "ChoiceMapSample":
+        return ChoiceMapSample(self.choice_map(addr))
+
+    def get_value(self) -> Sample:
+        return self.choice_map.get_value()
+
+
 @Pytree.dataclass
 class ChoiceMapConstraint(Constraint):
     choice_map: ChoiceMap[Constraint]
+
+    def get_submap(self, addr: ExtendedAddress) -> "ChoiceMapConstraint":
+        return ChoiceMapConstraint(self.choice_map(addr))
+
+    def get_value(self) -> Constraint:
+        return self.choice_map.get_value()
+
 
 @Pytree.dataclass
 class ChoiceMapUpdateRequest(UpdateRequest):
     choice_map: ChoiceMap[UpdateRequest]
 
-    def get_submap(self, addr: ExtendedAddress):
-        return ChoiceMapUpdateRequest(self.choice_map.get_submap(addr))
+    def get_submap(self, addr: ExtendedAddress) -> "ChoiceMapUpdateRequest":
+        return ChoiceMapUpdateRequest(self.choice_map(addr))
 
     def get_value(self) -> UpdateRequest:
         return self.choice_map.get_value()
 
+
 @Pytree.dataclass
-class ProjectSelectionRequest(UpdateRequest):
+class SelectionProjectRequest(UpdateRequest):
     selection: Selection
 
 
 @Pytree.dataclass
-class RegenerateSelectionRequest(UpdateRequest):
+class SelectionRegenerateRequest(UpdateRequest):
     selection: Selection

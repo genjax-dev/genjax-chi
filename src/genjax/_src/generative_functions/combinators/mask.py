@@ -21,8 +21,8 @@ from genjax._src.core.generative import (
     GenerativeFunction,
     IncrementalUpdateRequest,
     Mask,
-    MaskedUpdateRequest,
     MaskedSample,
+    MaskedUpdateRequest,
     Retdiff,
     Sample,
     Score,
@@ -111,7 +111,9 @@ class MaskCombinator(GenerativeFunction):
                 inner_trace = EmptyTrace(self.gen_fn)
 
         premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
-            key, inner_trace, IncrementalUpdateRequest(tuple(inner_argdiffs), update_request)
+            key,
+            inner_trace,
+            IncrementalUpdateRequest(tuple(inner_argdiffs), update_request),
         )
         w = select(
             check,

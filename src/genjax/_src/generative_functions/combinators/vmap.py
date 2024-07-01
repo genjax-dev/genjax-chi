@@ -25,7 +25,7 @@ from genjax._src.core.generative import (
     ChoiceMap,
     EmptyTrace,
     GenerativeFunction,
-    ImportanceRequest,
+    ImportanceUpdateRequest,
     IncrementalUpdateRequest,
     Retdiff,
     Retval,
@@ -202,7 +202,7 @@ class VmapCombinator(GenerativeFunction):
                 EmptyTrace(self.gen_fn),
                 IncrementalUpdateRequest(
                     Diff.unknown_change(args),
-                    ImportanceRequest(submap),
+                    ImportanceUpdateRequest(submap),
                 ),
             )
             return tr, w, rd, ChoiceMap.idx(idx, bwd_problem)
@@ -286,7 +286,7 @@ class VmapCombinator(GenerativeFunction):
             case ChoiceMap():
                 return self.update_choice_map(key, trace, update_request, argdiffs)
 
-            case ImportanceRequest(constraint) if isinstance(
+            case ImportanceUpdateRequest(constraint) if isinstance(
                 constraint, ChoiceMap
             ) and isinstance(trace, EmptyTrace):
                 return self.update_importance(key, constraint, argdiffs)

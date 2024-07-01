@@ -25,8 +25,8 @@ from genjax._src.core.generative import (
     IncrementalUpdateRequest,
     Mask,
     MaskedConstraint,
-    MaskedUpdateRequest,
     MaskedSample,
+    MaskedUpdateRequest,
     Retdiff,
     Retval,
     Sample,
@@ -35,8 +35,8 @@ from genjax._src.core.generative import (
     SelectionBuilder,
     Sum,
     Trace,
-    UpdateRequestBuilder,
     UpdateRequest,
+    UpdateRequestBuilder,
     Weight,
 )
 

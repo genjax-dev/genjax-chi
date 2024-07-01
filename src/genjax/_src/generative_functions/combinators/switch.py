@@ -22,7 +22,7 @@ from genjax._src.core.generative import (
     ChoiceMap,
     EmptyTrace,
     GenerativeFunction,
-    ImportanceRequest,
+    ImportanceUpdateRequest,
     IncrementalUpdateRequest,
     Retdiff,
     Sample,
@@ -462,7 +462,7 @@ class SwitchCombinator(GenerativeFunction):
     @typecheck
     def _empty_importance_defs(
         self,
-        problem: ImportanceRequest,
+        problem: ImportanceUpdateRequest,
         argdiffs: Argdiffs,
     ):
         trace_defs = []
@@ -528,7 +528,7 @@ class SwitchCombinator(GenerativeFunction):
     def update_importance(
         self,
         key: PRNGKey,
-        problem: ImportanceRequest,
+        problem: ImportanceUpdateRequest,
         argdiffs: Tuple,
     ) -> Tuple[SwitchTrace, Weight, Retdiff, UpdateRequest]:
         args = Diff.tree_primal(argdiffs)

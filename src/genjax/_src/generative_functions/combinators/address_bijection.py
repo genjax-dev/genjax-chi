@@ -17,7 +17,7 @@ from genjax._src.core.generative import (
     ChoiceMap,
     EmptyTrace,
     GenerativeFunction,
-    ImportanceRequest,
+    ImportanceUpdateRequest,
     IncrementalUpdateRequest,
     Retdiff,
     Sample,
@@ -106,7 +106,7 @@ class AddressBijectionCombinator(GenerativeFunction):
             EmptyTrace(self.gen_fn),
             IncrementalUpdateRequest(
                 argdiffs,
-                ImportanceRequest(inner_problem),
+                ImportanceUpdateRequest(inner_problem),
             ),
         )
         assert isinstance(inner_bwd_problem, ChoiceMap)
@@ -146,7 +146,7 @@ class AddressBijectionCombinator(GenerativeFunction):
             case ChoiceMap():
                 return self.update_choice_map(key, trace, update_request, argdiffs)
 
-            case ImportanceRequest(constraint):
+            case ImportanceUpdateRequest(constraint):
                 return self.update_importance(key, constraint, argdiffs)
 
             case _:

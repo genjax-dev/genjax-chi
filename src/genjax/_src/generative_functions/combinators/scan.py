@@ -19,10 +19,10 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    EmptyUpdateRequest,
     EmptyTrace,
+    EmptyUpdateRequest,
     GenerativeFunction,
-    ImportanceRequest,
+    ImportanceUpdateRequest,
     IncrementalUpdateRequest,
     Retdiff,
     Sample,
@@ -224,7 +224,7 @@ class ScanCombinator(GenerativeFunction):
                 EmptyTrace(self.kernel_gen_fn),
                 IncrementalUpdateRequest(
                     Diff.unknown_change((carry, scanned_in)),
-                    ImportanceRequest(constraint),
+                    ImportanceUpdateRequest(constraint),
                 ),
             )
             (carry, scanned_out) = tr.get_retval()
@@ -414,7 +414,9 @@ class ScanCombinator(GenerativeFunction):
     ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         assert isinstance(trace, EmptyTrace | ScanTrace)
         match update_request:
-            case ImportanceRequest(constraint) if isinstance(constraint, ChoiceMap):
+            case ImportanceUpdateRequest(constraint) if isinstance(
+                constraint, ChoiceMap
+            ):
                 return self.update_importance(
                     key, constraint, Diff.tree_primal(argdiffs)
                 )

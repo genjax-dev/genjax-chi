@@ -25,22 +25,31 @@ from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
     ChoiceMapBuilder,
-    EmptyUpdateRequest,
     EmptyTrace,
+    EmptyUpdateRequest,
     GenerativeFunction,
-    ImportanceRequest,
+    ImportanceUpdateRequest,
     IncrementalUpdateRequest,
     Retdiff,
     Sample,
     Score,
-    Selection,
     StaticAddress,
     StaticAddressComponent,
     Trace,
     UpdateRequest,
     Weight,
 )
-from genjax._src.core.generative.core import push_trace_overload_stack
+from genjax._src.core.generative.choice_map import (
+    ChoiceMapConstraint,
+    ChoiceMapUpdateRequest,
+    SelectionProjectRequest,
+)
+from genjax._src.core.generative.core import (
+    Arguments,
+    Constraint,
+    ConstraintUpdateRequest,
+)
+from genjax._src.core.generative.generative_function import push_trace_overload_stack
 from genjax._src.core.interpreters.forward import (
     InitialStylePrimitive,
     StatefulHandler,
@@ -61,6 +70,8 @@ from genjax._src.core.typing import (
     List,
     PRNGKey,
     Tuple,
+    dispatch,
+    overload,
     typecheck,
 )
 
@@ -288,6 +299,113 @@ def simulate_transform(source_fn):
     return wrapper
 
 
+##############
+# Importance #
+##############
+
+
+@dataclass
+class ImportanceHandler(StaticHandler):
+    key: PRNGKey
+    previous_trace: StaticTrace
+    constraint: Constraint
+    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    address_traces: List[Trace] = Pytree.field(default_factory=list)
+    bwd_requests: List[UpdateRequest] = Pytree.field(default_factory=list)
+
+    def yield_state(self):
+        return (
+            self.score,
+            self.weight,
+            self.address_visitor,
+            self.address_traces,
+            self.bwd_requests,
+        )
+
+    def visit(self, addr):
+        self.address_visitor.visit(addr)
+
+    @overload
+    def get_subconstraint_internal(
+        self, addr: StaticAddress, constraint: ChoiceMapConstraint
+    ):
+        return self.constraint.get_submap(addr)
+
+    @dispatch
+    def get_subconstraint_internal(self, addr: StaticAddress, constraint: Constraint):
+        raise NotImplementedError
+
+    def get_subconstraint(self, addr: StaticAddress):
+        return self.get_subconstraint_internal(addr, self.constraint)
+
+    def handle_retval(self, v):
+        return jtu.tree_leaves(v, is_leaf=lambda v: isinstance(v, Diff))
+
+    @typecheck
+    def handle_trace(
+        self,
+        addr: StaticAddress,
+        gen_fn: GenerativeFunction,
+        args: Tuple,
+    ):
+        self.visit(addr)
+        subtrace = EmptyTrace(gen_fn)
+        subconstraint = self.get_subconstraint(addr)
+        request = ImportanceUpdateRequest(args, subconstraint)
+        self.key, sub_key = jax.random.split(self.key)
+        (tr, w, retval_diff, bwd_request) = gen_fn.update(
+            sub_key,
+            subtrace,
+            request,
+        )
+        self.score += tr.get_score()
+        self.weight += w
+        self.address_traces.append(tr)
+        self.bwd_requests.append(bwd_request)
+
+        return retval_diff
+
+
+def importance_transform(source_fn):
+    @functools.wraps(source_fn)
+    @typecheck
+    def wrapper(
+        key: PRNGKey,
+        previous_trace: EmptyTrace,
+        constraint: Constraint,
+        args: Arguments,
+    ):
+        stateful_handler = ImportanceHandler(key, previous_trace, constraint)
+        retval = forward(source_fn)(stateful_handler, *args)
+        (
+            score,
+            weight,
+            address_visitor,
+            address_traces,
+            bwd_requests,
+        ) = stateful_handler.yield_state()
+        retval_diff = Diff.tree_diff_unknown_change(retval)
+        return (
+            (
+                retval_diff,
+                weight,
+                # Trace.
+                (
+                    retval,
+                    address_visitor,
+                    address_traces,
+                    score,
+                ),
+                # Backward update problem.
+                bwd_requests,
+            ),
+        )
+
+    return wrapper
+
+
 ##########
 # Update #
 ##########
@@ -297,12 +415,12 @@ def simulate_transform(source_fn):
 class UpdateHandler(StaticHandler):
     key: PRNGKey
     previous_trace: StaticTrace
-    fwd_problem: UpdateRequest
+    request: UpdateRequest
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: List[Trace] = Pytree.field(default_factory=list)
-    bwd_problems: List[UpdateRequest] = Pytree.field(default_factory=list)
+    bwd_requests: List[UpdateRequest] = Pytree.field(default_factory=list)
 
     def yield_state(self):
         return (
@@ -310,30 +428,42 @@ class UpdateHandler(StaticHandler):
             self.weight,
             self.address_visitor,
             self.address_traces,
-            self.bwd_problems,
+            self.bwd_requests,
         )
 
     def visit(self, addr):
         self.address_visitor.visit(addr)
 
-    @typecheck
+    @overload
+    def get_subrequest_internal(self, addr: StaticAddress, request: EmptyUpdateRequest):
+        return request
+
+    @overload
+    def get_subrequest_internal(
+        self, addr: StaticAddress, request: SelectionProjectRequest
+    ):
+        return self.request(addr)
+
+    @overload
+    def get_subrequest_internal(
+        self, addr: StaticAddress, request: ChoiceMapUpdateRequest
+    ):
+        return self.request(addr)
+
+    @overload
+    def get_subrequest_internal(
+        self, addr: StaticAddress, request: ConstraintUpdateRequest
+    ):
+        constraint = request.constraint
+        subconstraint = constraint(addr)
+        return ConstraintUpdateRequest(subconstraint)
+
+    @dispatch
+    def get_subrequest_internal(self, addr: StaticAddress, request: UpdateRequest):
+        raise NotImplementedError
+
     def get_subrequest(self, addr: StaticAddress):
-        match self.fwd_problem:
-            case ChoiceMap():
-                return self.fwd_problem(addr)
-
-            case ImportanceRequest(constraint) if isinstance(constraint, ChoiceMap):
-                return ImportanceRequest(constraint(addr))
-
-            case Selection():
-                subrequest = self.fwd_problem(addr)
-                return subrequest
-
-            case EmptyUpdateRequest():
-                return EmptyUpdateRequest()
-
-            case _:
-                raise ValueError(f"Not implemented fwd_problem: {self.fwd_problem}")
+        return self.get_subrequest_internal(addr, self.request)
 
     def get_subtrace(self, sub_gen_fn: GenerativeFunction, addr: StaticAddress):
         if isinstance(self.previous_trace, EmptyTrace):
@@ -356,13 +486,13 @@ class UpdateHandler(StaticHandler):
         subtrace = self.get_subtrace(gen_fn, addr)
         subrequest = self.get_subrequest(addr)
         self.key, sub_key = jax.random.split(self.key)
-        (tr, w, retval_diff, bwd_problem) = gen_fn.update(
+        (tr, w, retval_diff, bwd_request) = gen_fn.update(
             sub_key, subtrace, IncrementalUpdateRequest(argdiffs, subrequest)
         )
         self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
-        self.bwd_problems.append(bwd_problem)
+        self.bwd_requests.append(bwd_request)
 
         return retval_diff
 
@@ -383,7 +513,7 @@ def update_transform(source_fn):
             weight,
             address_visitor,
             address_traces,
-            bwd_problems,
+            bwd_requests,
         ) = stateful_handler.yield_state()
         return (
             (
@@ -398,7 +528,7 @@ def update_transform(source_fn):
                     score,
                 ),
                 # Backward update problem.
-                bwd_problems,
+                bwd_requests,
             ),
         )
 
@@ -533,12 +663,58 @@ class StaticGenerativeFunction(GenerativeFunction):
             score,
         )
 
-    @typecheck
-    def update_change_target(
+    def update_importance(
         self,
         key: PRNGKey,
         trace: Trace,
-        update_request: UpdateRequest,
+        constraint: Constraint,
+        args: Arguments,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
+        (
+            (
+                retval_diffs,
+                weight,
+                (
+                    retval_primals,
+                    address_visitor,
+                    address_traces,
+                    score,
+                ),
+                bwd_requests,
+            ),
+        ) = importance_transform(syntax_sugar_handled)(key, trace, constraint, args)
+
+        def make_bwd_request(visitor, subrequests):
+            addresses = visitor.get_visited()
+            addresses = Pytree.tree_unwrap_const(addresses)
+            chm = ChoiceMap.empty()
+            for addr, subrequest in zip(addresses, subrequests):
+                chm = chm ^ ChoiceMapBuilder.a(addr, subrequest)
+            return chm
+
+        bwd_request = make_bwd_request(address_visitor, bwd_requests)
+        return (
+            StaticTrace(
+                self,
+                args,
+                retval_primals,
+                address_visitor,
+                address_traces,
+                score,
+            ),
+            weight,
+            retval_diffs,
+            bwd_request,
+        )
+
+    def update_incremental_generic(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        request: UpdateRequest,
         argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         syntax_sugar_handled = push_trace_overload_stack(
@@ -555,11 +731,11 @@ class StaticGenerativeFunction(GenerativeFunction):
                     address_traces,
                     score,
                 ),
-                bwd_problems,
+                bwd_requests,
             ),
-        ) = update_transform(syntax_sugar_handled)(key, trace, update_request, argdiffs)
+        ) = update_transform(syntax_sugar_handled)(key, trace, request, argdiffs)
 
-        def make_bwd_problem(visitor, subrequests):
+        def make_bwd_request(visitor, subrequests):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_unwrap_const(addresses)
             chm = ChoiceMap.empty()
@@ -567,7 +743,7 @@ class StaticGenerativeFunction(GenerativeFunction):
                 chm = chm ^ ChoiceMapBuilder.a(addr, subrequest)
             return chm
 
-        bwd_problem = make_bwd_problem(address_visitor, bwd_problems)
+        bwd_request = make_bwd_request(address_visitor, bwd_requests)
         return (
             StaticTrace(
                 self,
@@ -579,28 +755,38 @@ class StaticGenerativeFunction(GenerativeFunction):
             ),
             weight,
             retval_diffs,
-            bwd_problem,
+            bwd_request,
         )
 
+    @overload
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        request: ImportanceUpdateRequest,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        args, constraint = request.args, request.constraint
+        return self.update_importance(key, trace, constraint, args)
+
+    @overload
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        request: IncrementalUpdateRequest,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        argdiffs, subrequest = request.argdiffs, request.subrequest
+        return self.update_incremental_generic(key, trace, subrequest, argdiffs)
+
     @GenerativeFunction.gfi_boundary
-    @typecheck
+    @dispatch
     def update(
         self,
         key: PRNGKey,
         trace: Trace,
         update_request: UpdateRequest,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
-        match update_request:
-            case IncrementalUpdateRequest(argdiffs, subrequest):
-                return self.update_change_target(key, trace, subrequest, argdiffs)
-            case _:
-                return self.update(
-                    key,
-                    trace,
-                    IncrementalUpdateRequest(
-                        Diff.no_change(trace.get_args()), update_request
-                    ),
-                )
+        raise NotImplementedError
 
     @GenerativeFunction.gfi_boundary
     @typecheck
