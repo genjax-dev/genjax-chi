@@ -16,7 +16,7 @@ import genjax
 import jax
 from genjax import ChoiceMapBuilder as C
 from genjax import EmptyConstraint, MaskedConstraint
-from genjax import UpdateProblemBuilder as U
+from genjax import UpdateRequestBuilder as U
 from genjax.incremental import Diff, NoChange, UnknownChange
 
 

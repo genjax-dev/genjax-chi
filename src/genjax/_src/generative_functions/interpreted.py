@@ -34,7 +34,7 @@ from genjax._src.core.generative import (
     Score,
     Selection,
     Trace,
-    UpdateProblem,
+    UpdateRequest,
     Weight,
 )
 from genjax._src.core.generative.core import push_trace_overload_stack
@@ -159,24 +159,24 @@ class SimulateHandler(Handler):
 class UpdateHandler(Handler):
     key: PRNGKey
     previous_trace: Trace
-    fwd_problem: UpdateProblem
+    fwd_problem: UpdateRequest
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: List[Trace] = Pytree.field(default_factory=list)
-    bwd_problems: List[UpdateProblem] = Pytree.field(default_factory=list)
+    bwd_problems: List[UpdateRequest] = Pytree.field(default_factory=list)
 
     def visit(self, addr):
         self.address_visitor.visit(addr)
 
-    def get_subproblem(self, addr: Address):
+    def get_subrequest(self, addr: Address):
         match self.fwd_problem:
             case ChoiceMap():
                 return self.fwd_problem.get_submap(addr)
 
             case Selection():
-                subproblem = self.fwd_problem.step(addr)
-                return subproblem
+                subrequest = self.fwd_problem.step(addr)
+                return subrequest
 
             case _:
                 raise ValueError(f"Not implemented fwd_problem: {self.fwd_problem}")
@@ -196,10 +196,10 @@ class UpdateHandler(Handler):
     ):
         self.visit(addr)
         subtrace = self.get_subtrace(addr)
-        subproblem = self.get_subproblem(addr)
+        subrequest = self.get_subrequest(addr)
         self.key, sub_key = jax.random.split(self.key)
         (tr, w, retval_diff, bwd_problem) = gen_fn.update(
-            sub_key, subtrace, subproblem, argdiffs
+            sub_key, subtrace, subrequest, argdiffs
         )
         self.score += tr.get_score()
         self.weight += w
@@ -357,22 +357,22 @@ class InterpretedGenerativeFunction(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
+        update_request: UpdateRequest,
         argdiffs: Argdiffs,
     ) -> Tuple[InterpretedTrace, Weight, Retdiff, ChoiceMap]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_interpreted, self.source
         )
 
-        def make_bwd_problem(visitor, subproblems):
+        def make_bwd_problem(visitor, subrequests):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_unwrap_const(addresses)
             chm = ChoiceMap.n
-            for addr, subproblem in zip(addresses, subproblems):
-                chm = chm ^ ChoiceMap.a(addr, subproblem)
+            for addr, subrequest in zip(addresses, subrequests):
+                chm = chm ^ ChoiceMap.a(addr, subrequest)
             return chm
 
-        with UpdateHandler(key, trace, update_problem) as handler:
+        with UpdateHandler(key, trace, update_request) as handler:
             args = Diff.tree_primal(argdiffs)
             retval = syntax_sugar_handled(*args)
             visitor = handler.address_visitor

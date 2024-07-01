@@ -46,6 +46,7 @@ deprecated = "^1.2.14"
 penzai = "^0.1.1"
 msgpack = {version = "^1.0.8", optional = true }
 genstudio = {version = "2024.06.07.0931.49", source = "gcp", optional = true}
+plum-dispatch = "^2.4.4"
 
 [tool.poetry.group.dev]
 optional = true

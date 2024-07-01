@@ -18,7 +18,7 @@ import pytest
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import SelectionBuilder as S
-from genjax import UpdateProblemBuilder as U
+from genjax import UpdateRequestBuilder as U
 
 
 class TestScanSimpleNormal:

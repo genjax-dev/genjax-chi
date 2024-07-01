@@ -21,7 +21,11 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.generative.core import Constraint, ProjectProblem, Sample
+from genjax._src.core.generative.core import (
+    Constraint,
+    Sample,
+    UpdateRequest,
+)
 from genjax._src.core.generative.functional_types import Mask, Sum
 from genjax._src.core.interpreters.staging import (
     staged_and,
@@ -35,6 +39,7 @@ from genjax._src.core.typing import (
     Any,
     Bool,
     BoolArray,
+    Generic,
     EllipsisType,
     Int,
     IntArray,
@@ -42,6 +47,7 @@ from genjax._src.core.typing import (
     Optional,
     String,
     Tuple,
+    TypeVar,
     Union,
     static_check_bool,
     typecheck,
@@ -92,7 +98,7 @@ class _SelectionBuilder(Pytree):
 SelectionBuilder = _SelectionBuilder()
 
 
-class Selection(ProjectProblem):
+class Selection(Pytree):
     """
     The type `Selection` provides a lens-like interface for filtering the random choices in a `ChoiceMap`.
 
@@ -460,8 +466,9 @@ def check_none(v):
     else:
         return True
 
+T = TypeVar("T")
 
-class ChoiceMap(Sample, Constraint):
+class ChoiceMap(Generic[T], Sample):
     """
     The type `ChoiceMap` denotes a map-like value which can be sampled from generative functions.
 
@@ -510,14 +517,14 @@ class ChoiceMap(Sample, Constraint):
     #######################
 
     @abstractmethod
-    def get_value(self) -> Any:
+    def get_value(self) -> T:
         raise NotImplementedError
 
     @abstractmethod
     def get_submap(
         self,
         addr: ExtendedAddressComponent,
-    ) -> "ChoiceMap":
+    ) -> "ChoiceMap[T]":
         raise NotImplementedError
 
     @typecheck
@@ -525,7 +532,7 @@ class ChoiceMap(Sample, Constraint):
         return check_none(self.get_value())
 
     @typecheck
-    def filter(self, selection: Selection) -> "ChoiceMap":
+    def filter(self, selection: Selection) -> "ChoiceMap[T]":
         """Filter the choice map on the `Selection`. The resulting choice map only contains the addresses in the selection.
 
         Examples:
@@ -967,3 +974,40 @@ def choice_map_address_function(
     c: ChoiceMap,
 ) -> ChoiceMap:
     return choice_map_empty if c.static_is_empty() else AddrMapChm(addr_map, c)
+
+
+###################
+# Update requests #
+###################
+
+@Pytree.dataclass
+class ChoiceMapSample(Sample):
+    choice_map: ChoiceMap
+    
+    def get_submap(self, addr: ExtendedAddress):
+        pass
+
+    def get_value(self) -> UpdateRequest:
+        pass
+@Pytree.dataclass
+class ChoiceMapConstraint(Constraint):
+    choice_map: ChoiceMap[Constraint]
+
+@Pytree.dataclass
+class ChoiceMapUpdateRequest(UpdateRequest):
+    choice_map: ChoiceMap[UpdateRequest]
+
+    def get_submap(self, addr: ExtendedAddress):
+        return ChoiceMapUpdateRequest(self.choice_map.get_submap(addr))
+
+    def get_value(self) -> UpdateRequest:
+        return self.choice_map.get_value()
+
+@Pytree.dataclass
+class ProjectSelectionRequest(UpdateRequest):
+    selection: Selection
+
+
+@Pytree.dataclass
+class RegenerateSelectionRequest(UpdateRequest):
+    selection: Selection

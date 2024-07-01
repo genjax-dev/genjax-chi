@@ -21,6 +21,7 @@ from typing import Annotated  # noqa: F401, I001
 from types import EllipsisType
 
 import beartype.typing as btyping
+from plum import dispatch, overload
 from jax import core as jc
 import jax.numpy as jnp
 import jaxtyping as jtyping
@@ -191,6 +192,8 @@ __all__ = [
     "static_check_is_concrete",
     "static_check_shape_dtype_equivalence",
     "static_check_supports_grad",
+    "overload",
+    "dispatch",
     "typecheck",
     "typecheck_with_config",
 ]

@@ -26,6 +26,9 @@ from genjax._src.core.traceback_util import gfi_boundary, register_exclusion
 from genjax._src.core.typing import (
     Annotated,
     Any,
+    Generic,
+    overload,
+    dispatch,
     Bool,
     BoolArray,
     Callable,
@@ -41,6 +44,7 @@ from genjax._src.core.typing import (
     ScalarFloat,
     String,
     Tuple,
+    TypeVar,
     static_check_is_concrete,
     typecheck,
 )
@@ -104,74 +108,83 @@ When used under type checking, `Retdiff` assumes that the return value is a `Pyt
 #########################
 
 
-class UpdateProblem(Pytree):
+class UpdateRequest(Pytree):
     """
-    An `UpdateProblem` is a request to update a trace of a generative function. Generative functions respond to instances of subtypes of `UpdateProblem` by providing an [`update`][genjax.core.GenerativeFunction.update] implementation.
+    An `UpdateRequest` is a request to update a trace of a generative function. Generative functions respond to instances of subtypes of `UpdateRequest` by providing an [`update`][genjax.core.GenerativeFunction.update] implementation.
 
-    Updating a trace is a common operation in inference processes, but naively mutating the trace will invalidate the mathematical invariants that Gen retains. `UpdateProblem` instances denote requests for _SMC moves_ in the framework of [SMCP3](https://proceedings.mlr.press/v206/lew23a.html), which preserve these invariants.
+    Updating a trace is a common operation in inference processes, but naively mutating the trace will invalidate the mathematical invariants that Gen retains. `UpdateRequest` instances denote requests for _SMC moves_ in the framework of [SMCP3](https://proceedings.mlr.press/v206/lew23a.html), which preserve these invariants.
     """
 
 
 @Pytree.dataclass
-class EmptyProblem(UpdateProblem):
+class EmptyUpdateRequest(UpdateRequest):
     pass
 
 
 @Pytree.dataclass(match_args=True)
-class MaskedProblem(UpdateProblem):
+class MaskedUpdateRequest(UpdateRequest):
     flag: Bool | BoolArray
-    problem: UpdateProblem
+    problem: UpdateRequest
 
     @classmethod
-    def maybe_empty(cls, f: BoolArray, problem: UpdateProblem):
+    def maybe_empty(cls, f: BoolArray, problem: UpdateRequest):
         match problem:
-            case MaskedProblem(flag, subproblem):
-                return MaskedProblem(staged_and(f, flag), subproblem)
+            case MaskedUpdateRequest(flag, subrequest):
+                return MaskedUpdateRequest(staged_and(f, flag), subrequest)
             case _:
                 static_bool_check = static_check_is_concrete(f) and isinstance(f, Bool)
                 return (
                     problem
                     if static_bool_check and f
-                    else EmptyProblem()
+                    else EmptyUpdateRequest()
                     if static_bool_check
-                    else MaskedProblem(f, problem)
+                    else MaskedUpdateRequest(f, problem)
                 )
 
 
 @Pytree.dataclass
-class SumProblem(UpdateProblem):
+class SumUpdateRequest(UpdateRequest):
     idx: Int | IntArray
-    problems: List[UpdateProblem]
+    problems: List[UpdateRequest]
 
 
+U = TypeVar("U", bound=UpdateRequest)
 @Pytree.dataclass(match_args=True)
-class GenericProblem(UpdateProblem):
+class IncrementalUpdateRequest(Generic[U], UpdateRequest):
     argdiffs: Argdiffs
-    subproblem: UpdateProblem
+    subrequest: U
+
+
+C = TypeVar("C", bound="Constraint")
 
 
 @Pytree.dataclass(match_args=True)
-class ImportanceProblem(UpdateProblem):
-    constraint: "Constraint"
+class ConstraintRequest(Generic[C], UpdateRequest):
+    constraint: C
+
+
+@Pytree.dataclass(match_args=True)
+class ImportanceRequest(Generic[C], UpdateRequest):
+    constraint: C
 
 
 @Pytree.dataclass
-class ProjectProblem(UpdateProblem):
+class ProjectRequest(UpdateRequest):
     pass
 
 
-class UpdateProblemBuilder(Pytree):
+class UpdateRequestBuilder(Pytree):
     @classmethod
     def empty(cls):
-        return EmptyProblem()
+        return EmptyUpdateRequest()
 
     @classmethod
-    def maybe(cls, flag: Bool | BoolArray, problem: "UpdateProblem"):
-        return MaskedProblem.maybe_empty(flag, problem)
+    def maybe(cls, flag: Bool | BoolArray, problem: "UpdateRequest"):
+        return MaskedUpdateRequest.maybe_empty(flag, problem)
 
     @classmethod
-    def g(cls, argdiffs: Argdiffs, subproblem: "UpdateProblem") -> "UpdateProblem":
-        return GenericProblem(argdiffs, subproblem)
+    def g(cls, argdiffs: Argdiffs, subrequest: "UpdateRequest") -> "UpdateRequest":
+        return IncrementalUpdateRequest(argdiffs, subrequest)
 
 
 ###############
@@ -179,11 +192,11 @@ class UpdateProblemBuilder(Pytree):
 ###############
 
 
-class Constraint(UpdateProblem):
+class Constraint(UpdateRequest):
     """
-    `Constraint` is a type of [`UpdateProblem`][genjax.core.UpdateProblem] specified by a function from the [`Sample`][genjax.core.Sample] space of the generative function to a value space `Y`, and a target value `v` in `Y`. In other words, a [`Constraint`][genjax.core.Constraint] denotes the pair $(S \\mapsto Y, v \\in Y)$.
+    `Constraint` is a type of [`UpdateRequest`][genjax.core.UpdateRequest] specified by a function from the [`Sample`][genjax.core.Sample] space of the generative function to a value space `Y`, and a target value `v` in `Y`. In other words, a [`Constraint`][genjax.core.Constraint] denotes the pair $(S \\mapsto Y, v \\in Y)$.
 
-    Constraints represent a request to force a value to satisfy a predicate. Just like all [`UpdateProblem`][genjax.core.UpdateProblem] instances, the generative function must respond to the request to update a trace to satisfy the constraint by providing an [`update`][genjax.core.GenerativeFunction.update] implementation which implements an SMCP3 move that transforms the provided trace to satisfy the specification.
+    Constraints represent a request to force a value to satisfy a predicate. Just like all [`UpdateRequest`][genjax.core.UpdateRequest] instances, the generative function must respond to the request to update a trace to satisfy the constraint by providing an [`update`][genjax.core.GenerativeFunction.update] implementation which implements an SMCP3 move that transforms the provided trace to satisfy the specification.
 
     Constraints can also be used to construct `ImportanceProblem` instances, which are used to implement the [`importance`][genjax.core.GenerativeFunction.importance] interface. This interface implements a restricted SMCP3 move, from the empty target, to the target induced by the constraint.
     """
@@ -370,10 +383,10 @@ class Trace(Pytree):
     def update(
         self,
         key: PRNGKey,
-        problem: UpdateProblem,
-    ) -> Tuple["Trace", Weight, Retdiff, UpdateProblem]:
+        problem: UpdateRequest,
+    ) -> Tuple["Trace", Weight, Retdiff, UpdateRequest]:
         """
-        This method calls out to the underlying [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update] method - see [`UpdateProblem`][genjax.core.UpdateProblem] and [`update`][genjax.core.GenerativeFunction.update] for more information.
+        This method calls out to the underlying [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update] method - see [`UpdateRequest`][genjax.core.UpdateRequest] and [`update`][genjax.core.GenerativeFunction.update] for more information.
         """
         gen_fn = self.get_gen_fn()
         return gen_fn.update(key, self, problem)
@@ -382,13 +395,13 @@ class Trace(Pytree):
     def project(
         self,
         key: PRNGKey,
-        problem: ProjectProblem,
+        problem: ProjectRequest,
     ) -> Weight:
         gen_fn = self.get_gen_fn()
         _, w, _, _ = gen_fn.update(
             key,
             self,
-            GenericProblem(Diff.no_change(self.get_args()), problem),
+            IncrementalUpdateRequest(Diff.no_change(self.get_args()), problem),
         )
         return -w
 
@@ -450,7 +463,7 @@ class GenerativeFunction(Pytree):
     Generative functions are a type of probabilistic program. In terms of their mathematical specification, they come equipped with a few ingredients:
 
     * (**Distribution over samples**) $P(\\cdot_t, \\cdot_r; a)$ - a probability distribution over samples $t$ and untraced randomness $r$, indexed by arguments $a$. This ingredient is involved in all the interfaces and specifies the distribution over samples which the generative function represents.
-    * (**Family of K/L proposals**) $(K(\\cdot_t, \\cdot_{K_r}; u, t), L(\\cdot_t, \\cdot_{L_r}; u, t)) = \\mathcal{F}(u, t)$ - a family of pairs of probabilistic programs (referred to as K and L), indexed by [`UpdateProblem`][genjax.core.UpdateProblem] $u$ and an existing sample $t$. This ingredient supports the [`update`][genjax.core.GenerativeFunction.update] and [`importance`][genjax.core.GenerativeFunction.importance] interface, and is used to specify an SMCP3 move which the generative function must provide in response to an update request. K and L must satisfy additional properties, described further in [`update`][genjax.core.GenerativeFunction.update].
+    * (**Family of K/L proposals**) $(K(\\cdot_t, \\cdot_{K_r}; u, t), L(\\cdot_t, \\cdot_{L_r}; u, t)) = \\mathcal{F}(u, t)$ - a family of pairs of probabilistic programs (referred to as K and L), indexed by [`UpdateRequest`][genjax.core.UpdateRequest] $u$ and an existing sample $t$. This ingredient supports the [`update`][genjax.core.GenerativeFunction.update] and [`importance`][genjax.core.GenerativeFunction.importance] interface, and is used to specify an SMCP3 move which the generative function must provide in response to an update request. K and L must satisfy additional properties, described further in [`update`][genjax.core.GenerativeFunction.update].
     * (**Return value function**) $f(t, r, a)$ - a deterministic return value function, which maps samples and untraced randomness to return values.
 
     Generative functions also support a family of [`Target`][genjax.inference.Target] distributions - a [`Target`][genjax.inference.Target] distribution is a (possibly unnormalized) distribution, typically induced by inference problems.
@@ -502,8 +515,7 @@ class GenerativeFunction(Pytree):
         return GenerativeFunctionClosure(self, args, kwargs)
 
     def __abstract_call__(self, *args) -> Retval:
-        """Used to support JAX tracing, although this default implementation involves no
-        JAX operations (it takes a fixed-key sample from the return value).
+        """Used to support abstract evaluation of generative function code.
 
         Generative functions may customize this to improve compilation time.
         """
@@ -581,27 +593,27 @@ class GenerativeFunction(Pytree):
         """
         raise NotImplementedError
 
-    @abstractmethod
+    @overload
     def update(
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        update_request: UpdateRequest,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         """
-        Update a trace in response to an [`UpdateProblem`][genjax.core.UpdateProblem], returning a new [`Trace`][genjax.core.Trace], an incremental [`Weight`][genjax.core.Weight] for the new target, a [`Retdiff`][genjax.core.Retdiff] return value tagged with change information, and a backward [`UpdateProblem`][genjax.core.UpdateProblem] which requests the reverse move (to go back to the original trace).
+        Update a trace in response to an [`UpdateRequest`][genjax.core.UpdateRequest], returning a new [`Trace`][genjax.core.Trace], an incremental [`Weight`][genjax.core.Weight] for the new target, a [`Retdiff`][genjax.core.Retdiff] return value tagged with change information, and a backward [`UpdateRequest`][genjax.core.UpdateRequest] which requests the reverse move (to go back to the original trace).
 
-        The specification of this interface is parametric over the kind of `UpdateProblem` -- responding to an `UpdateProblem` instance requires that the generative function provides an implementation of a sequential Monte Carlo move in the [SMCP3](https://proceedings.mlr.press/v206/lew23a.html) framework. Users of inference algorithms are not expected to understand the ingredients, but inference algorithm developers are.
+        The specification of this interface is parametric over the kind of `UpdateRequest` -- responding to an `UpdateRequest` instance requires that the generative function provides an implementation of a sequential Monte Carlo move in the [SMCP3](https://proceedings.mlr.press/v206/lew23a.html) framework. Users of inference algorithms are not expected to understand the ingredients, but inference algorithm developers are.
 
         Examples:
             Updating a trace in response to a request for a [`Target`][genjax.inference.Target] change induced by a change to the arguments:
             ```python exec="yes" source="material-block" session="core"
             from genjax import gen
             from genjax import normal
-            from genjax import EmptyProblem
+            from genjax import EmptyUpdateRequest
             from genjax import Diff
             from genjax import ChoiceMapBuilder as C
-            from genjax import UpdateProblemBuilder as U
+            from genjax import UpdateRequestBuilder as U
 
 
             @gen
@@ -622,7 +634,7 @@ class GenerativeFunction(Pytree):
                 initial_tr,
                 U.g(
                     Diff.unknown_change((3.0,)),
-                    EmptyProblem(),
+                    EmptyUpdateRequest(),
                 ),
             )
             ```
@@ -661,7 +673,7 @@ class GenerativeFunction(Pytree):
 
         The `update` interface uses the mathematical ingredients described above to perform probability-aware mutations and incremental [`Weight`][genjax.core.Weight] computations on [`Trace`][genjax.core.Trace] instances, which allows Gen to provide automation to support inference agorithms like importance sampling, SMC, MCMC and many more.
 
-        An `UpdateProblem` denotes a function $tr \\mapsto (T, T')$ from traces to a pair of targets (the previous [`Target`][genjax.inference.Target] $T$, and the final [`Target`][genjax.inference.Target] $T'$).
+        An `UpdateRequest` denotes a function $tr \\mapsto (T, T')$ from traces to a pair of targets (the previous [`Target`][genjax.inference.Target] $T$, and the final [`Target`][genjax.inference.Target] $T'$).
 
         Several common types of moves can be requested via the `GenericProblem` type:
 
@@ -670,22 +682,22 @@ class GenerativeFunction(Pytree):
 
         g = GenericProblem(
             Diff.unknown_change((1.0,)),  # "Argdiffs"
-            EmptyProblem(),  # Subproblem
+            EmptyUpdateRequest(),  # subrequest
         )
         ```
 
-        Creating problem instances is also possible using the `UpdateProblemBuilder`:
+        Creating problem instances is also possible using the `UpdateRequestBuilder`:
         ```python exec="yes" html="true" source="material-block" session="core"
-        from genjax import UpdateProblemBuilder as U
+        from genjax import UpdateRequestBuilder as U
 
         g = U.g(
             Diff.unknown_change((3.0,)),  # "Argdiffs"
-            EmptyProblem(),  # Subproblem
+            EmptyUpdateRequest(),  # subrequest
         )
         print(g.render_html())
         ```
 
-        `GenericProblem` contains information about changes to the arguments of the generative function ([`Argdiffs`][genjax.core.Argdiffs]) and a subproblem which specifies an additional move to be performed. The subproblem can be a bonafide [`UpdateProblem`][genjax.core.UpdateProblem] itself, or a [`Constraint`][genjax.core.Constraint] (like [`ChoiceMap`][genjax.core.ChoiceMap]).
+        `GenericProblem` contains information about changes to the arguments of the generative function ([`Argdiffs`][genjax.core.Argdiffs]) and a subrequest which specifies an additional move to be performed. The subrequest can be a bonafide [`UpdateRequest`][genjax.core.UpdateRequest] itself, or a [`Constraint`][genjax.core.Constraint] (like [`ChoiceMap`][genjax.core.ChoiceMap]).
 
         ```python exec="yes" html="true" source="material-block" session="core"
         new_tr, inc_w, retdiff, bwd_prob = model.update(
@@ -711,7 +723,7 @@ class GenerativeFunction(Pytree):
         """
         Return [the score][genjax.core.Trace.get_score] and [the return value][genjax.core.Trace.get_retval] when the generative function is invoked with the provided arguments, and constrained to take the provided sample as the sampled value.
 
-        It is an error if the provided sample value is off the support of the distribution over the `Sample` type, or otherwise induces a partial constraint on the execution of the generative function (which would require the generative function to provide an `update` implementation which responds to the `UpdateProblem` induced by the [`importance`][genjax.core.GenerativeFunction.importance] interface).
+        It is an error if the provided sample value is off the support of the distribution over the `Sample` type, or otherwise induces a partial constraint on the execution of the generative function (which would require the generative function to provide an `update` implementation which responds to the `UpdateRequest` induced by the [`importance`][genjax.core.GenerativeFunction.importance] interface).
 
         Examples:
             This method is similar to density evaluation interfaces for distributions.
@@ -785,12 +797,14 @@ class GenerativeFunction(Pytree):
             print(tr.get_sample().render_html())
             ```
 
-        Under the hood, creates an [`UpdateProblem`][genjax.core.UpdateProblem] which requests that the generative function respond with a move from the _empty_ trace (the only possible value for _empty_ target $\\delta_\\emptyset$) to the target induced by the generative function for constraint $C$ with arguments $a$.
+        Under the hood, creates an [`UpdateRequest`][genjax.core.UpdateRequest] which requests that the generative function respond with a move from the _empty_ trace (the only possible value for _empty_ target $\\delta_\\emptyset$) to the target induced by the generative function for constraint $C$ with arguments $a$.
         """
         tr, w, _, _ = self.update(
             key,
             EmptyTrace(self),
-            GenericProblem(Diff.unknown_change(args), ImportanceProblem(constraint)),
+            IncrementalUpdateRequest(
+                Diff.unknown_change(args), ImportanceRequest(constraint)
+            ),
         )
         return tr, w
 
@@ -1063,11 +1077,11 @@ class IgnoreKwargs(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
+        update_request: UpdateRequest,
         argdiffs: Argdiffs,
     ):
         (argdiffs, _kwargdiffs) = argdiffs
-        return self.wrapped.update(key, trace, update_problem, argdiffs)
+        return self.wrapped.update(key, trace, update_request, argdiffs)
 
 
 @Pytree.dataclass
@@ -1140,19 +1154,19 @@ class GenerativeFunctionClosure(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        problem: UpdateRequest,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         match problem:
-            case GenericProblem(argdiffs, subproblem):
+            case IncrementalUpdateRequest(argdiffs, subrequest):
                 full_argdiffs = (*self.args, *argdiffs)
                 if self.kwargs:
                     maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
                     return maybe_kwarged_gen_fn.update(
                         key,
                         trace,
-                        GenericProblem(
+                        IncrementalUpdateRequest(
                             (full_argdiffs, self.kwargs),
-                            subproblem,
+                            subrequest,
                         ),
                     )
             case _:

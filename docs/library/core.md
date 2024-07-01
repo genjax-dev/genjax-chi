@@ -1,7 +1,7 @@
 # Journey to the center of `genjax.core`
 
 
-This page describes the set of core concepts and datatypes in GenJAX, including Gen's generative datatypes and concepts ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`UpdateProblem`][genjax.core.UpdateProblem]), the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree], [`Const`][genjax.core.Const], and [`Closure`][genjax.core.Closure]), as well as functionally inspired `Pytree` extensions ([`Mask`][genjax.core.Mask], [`Sum`][genjax.core.Sum]), and GenJAX's approach to "static" (JAX tracing time) typechecking ([`typecheck`][genjax.typing.typecheck]).
+This page describes the set of core concepts and datatypes in GenJAX, including Gen's generative datatypes and concepts ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`UpdateRequest`][genjax.core.UpdateRequest]), the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree], [`Const`][genjax.core.Const], and [`Closure`][genjax.core.Closure]), as well as functionally inspired `Pytree` extensions ([`Mask`][genjax.core.Mask], [`Sum`][genjax.core.Sum]), and GenJAX's approach to "static" (JAX tracing time) typechecking ([`typecheck`][genjax.typing.typecheck]).
 
 ::: genjax.core.GenerativeFunction
 
@@ -9,7 +9,7 @@ Traces are data structures which record (execution and inference) data about the
 
 ::: genjax.core.Trace
 ::: genjax.core.Sample
-::: genjax.core.UpdateProblem
+::: genjax.core.UpdateRequest
 ::: genjax.core.Constraint
 
 ## Generative functions with addressed random choices
