@@ -30,7 +30,7 @@ book:
     - cookbook/expressivity/iterating_computation.ipynb
     - cookbook/expressivity/mixture.ipynb
     - cookbook/inference/custom_proposal.ipynb
-    - cookbook/library_author/compose_combinator.ipynb
+    - cookbook/library_author/dimap_combinator.ipynb
 
 bibliography: references.bib
 
