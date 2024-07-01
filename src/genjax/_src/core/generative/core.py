@@ -527,7 +527,7 @@ class GenerativeFunction(Pytree):
         return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), data_shape)
 
     @classmethod
-    def gfi_boundary(_cls, c: Callable[P, T]) -> Callable[P, T]:
+    def gfi_boundary(cls, c: Callable[P, T]) -> Callable[P, T]:
         return gfi_boundary(c)
 
     @abstractmethod
