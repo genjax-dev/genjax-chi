@@ -58,9 +58,6 @@ theme:
     - navigation.tabs.sticky
     - navigation.top
     - navigation.tracking
-    - navigation.instant
-    - navigation.instant.progress
-    - navigation.instant.preview
     - navigation.path
     - navigation.prune
     - search.highlight
