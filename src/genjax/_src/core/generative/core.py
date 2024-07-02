@@ -49,8 +49,8 @@ from genjax._src.core.typing import (
 
 register_exclusion(__file__)
 
-P = ParamSpec("P")
-T = TypeVar("T")
+_P = ParamSpec("_P")
+_T = TypeVar("_T")
 
 #####################################
 # Special generative function types #
@@ -526,7 +526,7 @@ class GenerativeFunction(Pytree):
         return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), data_shape)
 
     @classmethod
-    def gfi_boundary(cls, c: Callable[P, T]) -> Callable[P, T]:
+    def gfi_boundary(cls, c: Callable[_P, _T]) -> Callable[_P, _T]:
         return gfi_boundary(c)
 
     @abstractmethod

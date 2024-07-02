@@ -15,8 +15,8 @@
 import jax._src.traceback_util as traceback_util
 from beartype.typing import Callable, ParamSpec, TypeVar
 
-P = ParamSpec("P")
-T = TypeVar("T")
+_P = ParamSpec("_P")
+_T = TypeVar("_T")
 
 
 # register_exclusion = traceback_util.register_exclusion
@@ -24,5 +24,5 @@ def register_exclusion(v):
     return v
 
 
-def gfi_boundary(c: Callable[P, T]) -> Callable[P, T]:
+def gfi_boundary(c: Callable[_P, _T]) -> Callable[_P, _T]:
     return traceback_util.api_boundary(c)
