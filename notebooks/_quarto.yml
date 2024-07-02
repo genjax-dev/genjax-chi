@@ -29,6 +29,7 @@ book:
     - cookbook/expressivity/conditionals.ipynb
     - cookbook/expressivity/iterating_computation.ipynb
     - cookbook/expressivity/mixture.ipynb
+    - cookbook/inference/importance_sampling.ipynb
     - cookbook/inference/custom_proposal.ipynb
     - cookbook/library_author/dimap_combinator.ipynb
 
