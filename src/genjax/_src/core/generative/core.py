@@ -79,7 +79,7 @@ Retval = Any
 
 Argdiffs = Annotated[
     Tuple,
-    Is[lambda v: Diff.static_check_tree_diff(v)],
+    Is[Diff.static_check_tree_diff],
 ]
 """
 `Argdiffs` is the type of argument values with an attached `ChangeType` (c.f. [`update`][genjax.core.GenerativeFunction.update]).
@@ -90,7 +90,7 @@ When used under type checking, `Retdiff` assumes that the argument values are `P
 
 Retdiff = Annotated[
     Retval,
-    Is[lambda v: Diff.static_check_tree_diff(v)],
+    Is[Diff.static_check_tree_diff],
 ]
 """
 `Retdiff` is the type of return values with an attached `ChangeType` (c.f. [`update`][genjax.core.GenerativeFunction.update]).
@@ -1078,7 +1078,7 @@ class GenerativeFunction(Pytree):
         """
         import genjax
 
-        return genjax.or_else(gen_fn)(self)
+        return genjax.or_else(self, gen_fn)
 
     def switch(self, *branches: "GenerativeFunction") -> "GenerativeFunction":
         """
