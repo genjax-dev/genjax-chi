@@ -186,7 +186,7 @@ class MaskCombinator(GenerativeFunction):
 
 
 @typecheck
-def mask(f: GenerativeFunction) -> MaskCombinator:
+def mask(f: GenerativeFunction) -> GenerativeFunction:
     """
     Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
 

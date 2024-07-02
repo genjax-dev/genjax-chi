@@ -203,7 +203,7 @@ def dimap(
     pre: Callable = lambda *args: args,
     post: Callable = lambda _args, retval: retval,
     info: Optional[String] = None,
-) -> Callable[[GenerativeFunction], DimapCombinator]:
+) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
 
@@ -247,7 +247,7 @@ def dimap(
         ```
     """
 
-    def decorator(f) -> DimapCombinator:
+    def decorator(f) -> GenerativeFunction:
         return DimapCombinator(f, pre, post, info)
 
     return decorator
@@ -257,7 +257,7 @@ def map(
     f: Callable,
     *,
     info: Optional[String] = None,
-) -> Callable[[GenerativeFunction], DimapCombinator]:
+) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies a post-processing function to its return value.
 
@@ -301,7 +301,7 @@ def contramap(
     f: Callable,
     *,
     info: Optional[String] = None,
-) -> Callable[[GenerativeFunction], DimapCombinator]:
+) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies a pre-processing function to its arguments.
 
