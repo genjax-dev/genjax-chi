@@ -1091,47 +1091,6 @@ class GenerativeFunction(Pytree):
 
         return genjax.or_else(self, gen_fn)
 
-    def map_addresses(self, /, *, mapping: dict) -> "GenerativeFunction":
-        """
-        Takes a mapping from new addresses to old addresses and returns a new [`genjax.GenerativeFunction`][] like `self` with the addresses transformed according to the mapping.
-
-        Constraints passed into GFI methods on the returned [`genjax.GenerativeFunction`][] should use the new addresses (keys) and expect them to be mapped to the old addresses (values) internally. Any returned trace will have old addresses (values) mapped to new addresses (keys).
-
-        !!! info
-            Note that the values in the `mapping` must be unique, or the constructor will throw an error.
-
-        Args:
-            mapping: A dictionary specifying the address mapping. Keys are original addresses, and values are the new addresses.
-
-        Returns:
-            A new [`genjax.GenerativeFunction`][] like `self` with the addresses transformed according to `mapping`.
-
-        Examples:
-            Applying an address mapping to a generative function:
-            ```python exec="yes" html="true" source="material-block" session="map_addresses"
-            import genjax
-            import jax
-
-
-            @genjax.gen
-            def model():
-                x = genjax.normal(0.0, 1.0) @ "x"
-                y = genjax.normal(x, 1.0) @ "y"
-                return x + y
-
-
-            mapped_model = model.map_addresses(mapping={"new_x": "x", "new_y": "y"})
-
-            key = jax.random.PRNGKey(0)
-            trace = mapped_model.simulate(key, ())
-            chm = trace.get_sample()
-            print((chm["new_x"], chm["new_y"]))
-                ```
-        """
-        import genjax
-
-        return genjax.map_addresses(mapping=mapping)(self)
-
     def switch(self, *branches: "GenerativeFunction") -> "GenerativeFunction":
         """
         Given `n` [`genjax.GenerativeFunction`][] inputs, returns a decorator that takes a [`genjax.GenerativeFunction`][] `f` and returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:

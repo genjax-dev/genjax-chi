@@ -692,7 +692,7 @@ class SwitchCombinator(GenerativeFunction):
 @typecheck
 def switch(
     *gen_fns: GenerativeFunction,
-) -> SwitchCombinator:
+) -> GenerativeFunction:
     """
     Given `n` [`genjax.GenerativeFunction`][] inputs, returns a decorator that takes a [`genjax.GenerativeFunction`][] `f` and returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
 

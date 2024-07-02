@@ -34,6 +34,10 @@ class TestRepeatCombinator:
             return x * x
 
         key = PRNGKey(314)
+        repeat_retval = square.repeat(n=10)(2)(key)
+
+        assert repeat_retval.shape == (10,), "We asked for and received 10 squares"
+
         assert jnp.array_equal(
-            square.repeat(n=10)(2)(key), square.vmap()(jnp.repeat(2, 10))(key)
+            square.vmap()(jnp.repeat(2, 10))(key), repeat_retval
         ), "Repeat 10 times matches vmap with 10 equal inputs"

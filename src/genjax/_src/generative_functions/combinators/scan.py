@@ -545,7 +545,7 @@ class ScanCombinator(GenerativeFunction):
 @typecheck
 def scan(
     *, n: Optional[Int] = None, reverse: bool = False, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction], ScanCombinator]:
+) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)`and returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])` where
 

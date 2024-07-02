@@ -649,11 +649,6 @@ class ChoiceMap(Sample, Constraint):
     def kw(cls, **kwargs) -> "ChoiceMap":
         return ChoiceMap.d(kwargs)
 
-    # NOTE: this only allows dictionaries with static keys
-    # a.k.a. strings -- not jax.arrays -- for now.
-    def with_addr_map(self, addr_map: dict):
-        return choice_map_address_function(addr_map, self)
-
     ##########################
     # AddressIndex interface #
     ##########################
@@ -935,35 +930,3 @@ def choice_map_filtered(
     c: ChoiceMap,
 ) -> ChoiceMap:
     return choice_map_empty if c.static_is_empty() else FilteredChm(selection, c)
-
-
-@Pytree.dataclass
-class AddrMapChm(ChoiceMap):
-    addr_map: dict = Pytree.static()
-    c: ChoiceMap = Pytree.field()
-
-    def get_value(self) -> Bool | BoolArray:
-        mapped = self.addr_map.get((), ())
-        if mapped:
-            submap = self.c.get_submap(mapped)
-            return submap.get_value()
-        else:
-            return self.c.get_value()
-
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
-        if ... in self.addr_map:
-            mapped = self.addr_map[...]
-            return self.c.get_submap(mapped).get_submap(addr)
-        else:
-            mapped = self.addr_map.get(addr, addr)
-            if mapped is ...:
-                return self.c
-            return self.c.get_submap(mapped)
-
-
-@typecheck
-def choice_map_address_function(
-    addr_map: dict,
-    c: ChoiceMap,
-) -> ChoiceMap:
-    return choice_map_empty if c.static_is_empty() else AddrMapChm(addr_map, c)

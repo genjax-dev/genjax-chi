@@ -327,7 +327,7 @@ class VmapCombinator(GenerativeFunction):
 #############
 
 
-def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction], VmapCombinator]:
+def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Returns a decorator that wraps a [`GenerativeFunction`][genjax.GenerativeFunction] and returns a new `GenerativeFunction` that performs a vectorized map over the argument specified by `in_axes`. Traced values are nested under an index, and the retval is vectorized.
 
@@ -360,7 +360,7 @@ def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction], VmapCombinato
         ```
     """
 
-    def decorator(gen_fn) -> VmapCombinator:
+    def decorator(gen_fn) -> GenerativeFunction:
         return VmapCombinator(gen_fn, in_axes)
 
     return decorator
