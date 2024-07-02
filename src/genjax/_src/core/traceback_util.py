@@ -14,7 +14,7 @@
 
 import jax._src.traceback_util as traceback_util
 
-from genjax._src.core.typing import Callable, ParamSpec, TypeVar
+from beartype.typing import Callable, ParamSpec, TypeVar
 
 P = ParamSpec("P")
 T = TypeVar("T")
