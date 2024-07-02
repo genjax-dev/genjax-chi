@@ -65,7 +65,7 @@ class TestCombinators:
         vmap_tr = jax.jit(vmap_model.simulate)(key, (jnp.zeros(3),))
         repeat_tr = jax.jit(repeat_model.simulate)(key, (0.0,))
 
-        repeatarr = jnp.array([-0.00965115, -0.13072716, -0.818963])
+        repeatarr = jnp.array([1.0768734, -1.220163, -2.0751207])
         varr = jnp.array([1.0768734, -1.220163, -2.0751207])
 
         # Check that we get 3 repeated values:

@@ -55,9 +55,8 @@ square_many_better = genjax.vmap()(square)
 ::: genjax.or_else
 ::: genjax.switch
 
-## Various Transformations
+## Argument and Return Transformations
 
-::: genjax.map_addresses
 ::: genjax.dimap
 ::: genjax.map
 ::: genjax.contramap
