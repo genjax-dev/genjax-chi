@@ -649,11 +649,6 @@ class ChoiceMap(Sample, Constraint):
     def kw(cls, **kwargs) -> "ChoiceMap":
         return ChoiceMap.d(kwargs)
 
-    # NOTE: this only allows dictionaries with static keys
-    # a.k.a. strings -- not jax.arrays -- for now.
-    def with_addr_map(self, addr_map: dict):
-        return AddrMapChm.create(self, addr_map)
-
     ##########################
     # AddressIndex interface #
     ##########################
