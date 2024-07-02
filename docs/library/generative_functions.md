@@ -55,7 +55,6 @@ Each of the combinators below is implemented as a decorator. `GenerativeFunction
 ::: genjax.or_else
 ::: genjax.switch
 ::: genjax.mix
-::: genjax.map_addresses
 ::: genjax.dimap
 ::: genjax.map
 ::: genjax.contramap

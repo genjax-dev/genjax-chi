@@ -18,44 +18,30 @@ from genjax._src.core.generative import (
     GenerativeFunction,
 )
 from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import Callable, Int, IntArray, Tuple, typecheck
-from genjax._src.generative_functions.combinators.address_bijection import (
-    map_addresses,
+from genjax._src.core.typing import (
+    Callable,
+    Int,
+    typecheck,
 )
-from genjax._src.generative_functions.combinators.dimap import (
-    DimapCombinator,
-)
-from genjax._src.generative_functions.static import gen
 
 register_exclusion(__file__)
 
 
-def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> DimapCombinator:
+def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> GenerativeFunction:
     """
     A combinator that samples from a supplied [`genjax.GenerativeFunction`][] `gen_fn` a fixed number of times, returning a vector of `n` results.
 
     See [`genjax.repeat`][] for more details.
     """
-
-    def argument_mapping(*args):
-        return (jnp.zeros(n), args)
-
-    # This is a static generative function which an attached
-    # choice map address bijection, to collapse the `_internal`
-    # address hierarchy below.
-    # (as part of StaticGenerativeFunction.Trace interfaces)
-    @map_addresses(mapping={...: "_internal"})
-    @gen
-    def expanded_gen_fn(_: IntArray, args: Tuple):
-        return gen_fn(*args) @ "_internal"
-
-    return expanded_gen_fn.vmap(in_axes=(0, None)).contramap(
-        argument_mapping, info="Derived combinator (Repeat)"
+    return (
+        gen_fn.contramap(lambda _idx, args: args)
+        .vmap(in_axes=(0, None))
+        .contramap(lambda *args: (jnp.zeros(n), args))
     )
 
 
 @typecheck
-def repeat(*, n: Int) -> Callable[[GenerativeFunction], DimapCombinator]:
+def repeat(*, n: Int) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] `gen_fn` of type `a -> b` and returns a new `GenerativeFunction` of type `a -> [b]` that samples from `gen_fn `n` times, returning a vector of `n` results.
 
@@ -88,7 +74,7 @@ def repeat(*, n: Int) -> Callable[[GenerativeFunction], DimapCombinator]:
         ```
     """
 
-    def decorator(gen_fn) -> DimapCombinator:
+    def decorator(gen_fn) -> GenerativeFunction:
         return RepeatCombinator(gen_fn, n=n)
 
     return decorator
