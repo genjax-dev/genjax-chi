@@ -37,22 +37,26 @@ from genjax._src.core.typing import (
     Is,
     List,
     Optional,
+    ParamSpec,
     PRNGKey,
     ScalarFloat,
     String,
     Tuple,
+    TypeVar,
     static_check_is_concrete,
     typecheck,
 )
 
 register_exclusion(__file__)
 
+P = ParamSpec("P")
+T = TypeVar("T")
+
 #####################################
 # Special generative function types #
 #####################################
 
 Weight = ScalarFloat
-
 """
 A _weight_ is a density ratio which often occurs in the context of proper weighting for [`Target`][genjax.inference.Target] distributions, or in Gen's [`update`][genjax.core.GenerativeFunction.update] interface, whose mathematical content is described in [`update`][genjax.core.GenerativeFunction.update].
 
@@ -359,7 +363,9 @@ class Trace(Pytree):
         """Return the [`Sample`][genjax.core.Sample] sampled from the distribution over samples by the generative function during the invocation which created the [`Trace`][genjax.core.Trace]."""
 
     # TODO: deprecated.
-    def get_choices(self) -> Sample:
+    @typecheck
+    def get_choices(self) -> "ChoiceMap":
+        """Version of [`Trace.get_sample`][] for traces where the sample is an instance of [`ChoiceMap`][genjax.core.ChoiceMap]."""
         return self.get_sample()
 
     @abstractmethod
@@ -520,7 +526,7 @@ class GenerativeFunction(Pytree):
         return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), data_shape)
 
     @classmethod
-    def gfi_boundary(cls, c: Callable) -> Callable:
+    def gfi_boundary(cls, c: Callable[P, T]) -> Callable[P, T]:
         return gfi_boundary(c)
 
     @abstractmethod

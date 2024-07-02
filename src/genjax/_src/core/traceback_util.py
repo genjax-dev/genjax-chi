@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import jax._src.traceback_util as traceback_util
-
 from beartype.typing import Callable, ParamSpec, TypeVar
 
 P = ParamSpec("P")
