@@ -71,6 +71,9 @@ class TestCombinators:
         # Check that we get 3 repeated values:
         assert jnp.array_equal(repeat_tr.get_choices()[..., "x"], repeatarr)
 
+        # check that the return value matches the traced values (in this case)
+        assert jnp.array_equal(repeat_tr.get_retval(), repeatarr)
+
         # vmap does as well, but they are different due to internal seed splitting:
         assert jnp.array_equal(vmap_tr.get_choices()[..., "x"], varr)
 
