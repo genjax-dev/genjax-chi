@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from abc import abstractmethod
+from typing import TYPE_CHECKING
 
 import jax
 import jax.numpy as jnp
@@ -37,22 +38,30 @@ from genjax._src.core.typing import (
     Is,
     List,
     Optional,
+    ParamSpec,
     PRNGKey,
     ScalarFloat,
     String,
     Tuple,
+    TypeVar,
     static_check_is_concrete,
     typecheck,
 )
 
 register_exclusion(__file__)
 
+# Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
+if TYPE_CHECKING:
+    import genjax
+
+_P = ParamSpec("_P")
+_T = TypeVar("_T")
+
 #####################################
 # Special generative function types #
 #####################################
 
 Weight = ScalarFloat
-
 """
 A _weight_ is a density ratio which often occurs in the context of proper weighting for [`Target`][genjax.inference.Target] distributions, or in Gen's [`update`][genjax.core.GenerativeFunction.update] interface, whose mathematical content is described in [`update`][genjax.core.GenerativeFunction.update].
 
@@ -311,7 +320,7 @@ class Trace(Pytree):
     def get_score(self) -> Score:
         """Return the [`Score`][genjax.core.Score] of the `Trace`.
 
-        The score must satisfy a particular mathematical specification: it's either an exact density evaluation of $P$ (the distribution over samples) for the sample returned by `Trace.get_sample`, or _a sample from an estimator_ (a density estimate) if the generative function contains _untraced randomness_.
+        The score must satisfy a particular mathematical specification: it's either an exact density evaluation of $P$ (the distribution over samples) for the sample returned by [`genjax.Trace.get_sample`][], or _a sample from an estimator_ (a density estimate) if the generative function contains _untraced randomness_.
 
         Let $s$ be the score, $t$ the sample, and $a$ the arguments: when the generative function contains no _untraced randomness_, the score (in logspace) is given by:
 
@@ -359,7 +368,9 @@ class Trace(Pytree):
         """Return the [`Sample`][genjax.core.Sample] sampled from the distribution over samples by the generative function during the invocation which created the [`Trace`][genjax.core.Trace]."""
 
     # TODO: deprecated.
-    def get_choices(self) -> Sample:
+    @typecheck
+    def get_choices(self) -> "genjax.ChoiceMap":
+        """Version of [`genjax.Trace.get_sample`][] for traces where the sample is an instance of [`genjax.ChoiceMap`][]."""
         return self.get_sample()
 
     @abstractmethod
@@ -520,7 +531,7 @@ class GenerativeFunction(Pytree):
         return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), data_shape)
 
     @classmethod
-    def gfi_boundary(cls, c: Callable) -> Callable:
+    def gfi_boundary(cls, c: Callable[_P, _T]) -> Callable[_P, _T]:
         return gfi_boundary(c)
 
     @abstractmethod
@@ -536,7 +547,7 @@ class GenerativeFunction(Pytree):
 
         The [`Trace`][genjax.core.Trace] returned by `simulate` implements its own interface.
 
-        It is responsible for storing the arguments of the invocation ([`Trace.get_args`](core.md#genjax.core.Trace.get_args)), the return value of the generative function ([`Trace.get_retval`](core.md#genjax.core.Trace.get_retval)), the identity of the generative function which produced the trace ([`Trace.get_gen_fn`](core.md#genjax.core.Trace.get_gen_fn)), the sample of traced random choices produced during the invocation ([`Trace.get_sample`](core.md#genjax.core.Trace.get_sample)) and _the score_ of the sample ([`Trace.get_score`](core.md#genjax.core.Trace.get_score)).
+        It is responsible for storing the arguments of the invocation ([`genjax.Trace.get_args`][]), the return value of the generative function ([`genjax.Trace.get_retval`][]), the identity of the generative function which produced the trace ([`genjax.Trace.get_gen_fn`][]), the sample of traced random choices produced during the invocation ([`genjax.Trace.get_sample`][]) and _the score_ of the sample ([`genjax.Trace.get_score`][]).
 
         Examples:
             ```python exec="yes" html="true" source="material-block" session="core"

@@ -43,7 +43,7 @@ from genjax._src.generative_functions.distributions.distribution import Distribu
 @Pytree.dataclass
 class Target(Pytree):
     """
-    A `Target` represents an unnormalized target distribution induced by conditioning a generative function on a [`Constraint`](core.md#genjax.core.Constraint).
+    A `Target` represents an unnormalized target distribution induced by conditioning a generative function on a [`genjax.Constraint`][].
 
     Targets are created by providing a generative function, arguments to the generative function, and a constraint.
 
