@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from abc import abstractmethod
+from typing import TYPE_CHECKING
 
 import jax
 import jax.numpy as jnp
@@ -48,6 +49,10 @@ from genjax._src.core.typing import (
 )
 
 register_exclusion(__file__)
+
+# Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
+if TYPE_CHECKING:
+    import genjax
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
@@ -364,7 +369,7 @@ class Trace(Pytree):
 
     # TODO: deprecated.
     @typecheck
-    def get_choices(self) -> "ChoiceMap":
+    def get_choices(self) -> "genjax.ChoiceMap":
         """Version of [`Trace.get_sample`][] for traces where the sample is an instance of [`ChoiceMap`][genjax.core.ChoiceMap]."""
         return self.get_sample()
 
