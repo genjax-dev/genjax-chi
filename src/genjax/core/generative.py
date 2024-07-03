@@ -13,6 +13,8 @@
 # limitations under the License.
 
 from genjax._src.core.generative import (
+    Address,
+    AddressComponent,
     Argdiffs,
     Arguments,
     ChoiceMap,
@@ -41,6 +43,8 @@ from genjax._src.core.generative import (
 )
 
 __all__ = [
+    "Address",
+    "AddressComponent",
     "Argdiffs",
     "Arguments",
     "ChoiceMap",

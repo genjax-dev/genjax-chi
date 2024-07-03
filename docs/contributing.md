@@ -18,7 +18,7 @@ Here is a list of important resources for contributors:
 
 [apache 2.0 license]: https://opensource.org/licenses/Apache-2.0
 [source code]: https://github.com/probcomp/genjax
-[documentation]: https://probcomp.github.io/genjax
+[documentation]: https://genjax.gen.dev
 [issue tracker]: https://github.com/probcomp/genjax/issues
 
 ## How to report a bug

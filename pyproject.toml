@@ -19,7 +19,7 @@ license = "Apache 2.0"
 readme = "README.md"
 homepage = "https://github.com/probcomp/genjax"
 repository = "https://github.com/probcomp/genjax"
-documentation = "https://probcomp.github.io/genjax/"
+documentation = "https://genjax.gen.dev/"
 keywords = [
   "artificial-intelligence",
   "probabilistic-programming",
@@ -37,7 +37,7 @@ classifiers = [
 Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
-python = ">=3.11,<3.13"
+python = ">=3.10,<3.13"
 jax = "^0.4.28"
 tensorflow-probability = "^0.23.0"
 jaxtyping = "^0.2.28"
