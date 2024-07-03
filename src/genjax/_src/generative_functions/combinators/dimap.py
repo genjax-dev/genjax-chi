@@ -147,8 +147,8 @@ class DimapCombinator(GenerativeFunction):
         tr, w, inner_retdiff, bwd_problem = self.inner.update(
             key, inner_trace, GenericProblem(inner_argdiffs, update_problem)
         )
-        inner_retval_primals = Diff.tree_primal((inner_retdiff,))
-        inner_retval_tangents = Diff.tree_tangent((inner_retdiff,))
+        inner_retval_primals = Diff.tree_primal(inner_retdiff)
+        inner_retval_tangents = Diff.tree_tangent(inner_retdiff)
 
         def closed_mapping(args, retval):
             return self.retval_mapping(args, retval)
@@ -158,6 +158,7 @@ class DimapCombinator(GenerativeFunction):
             (primals, inner_retval_primals),
             (tangents, inner_retval_tangents),
         )
+
         retval_primal = Diff.tree_primal(retval_diff)
         return (
             DimapTrace(self, tr, primals, retval_primal),
