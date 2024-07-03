@@ -23,8 +23,11 @@ class TestDimapCombinator:
         def pre_process(x, y):
             return (x + 1, y * 2)
 
-        def post_process(args, retval):
-            return retval**2
+        def post_process(_, retval):
+            return retval + 2
+
+        def invert_post(x):
+            return x - 2
 
         @genjax.gen
         def model(x, y):
@@ -38,15 +41,31 @@ class TestDimapCombinator:
         key = jax.random.PRNGKey(0)
         trace = dimap_model.simulate(key, (2.0, 3.0))
         assert (
-            20.333187 == trace.get_retval()
+            -2.5092335 == trace.get_retval()
         ), "initial retval is a square of random draw"
+
+        assert (
+            genjax.normal.logpdf(
+                invert_post(trace.get_retval()), *pre_process(2.0, 3.0)
+            )
+            == trace.get_score()
+        ), "final score sees pre-processing but not post-processing (note the inverse). This is only true here because we are returning the sampled value."
 
         updated_tr, _, _, _ = trace.update(key, C["z"].set(-2.0))
         assert (
-            4.0 == updated_tr.get_retval()
-        ), "updating 'z' should run through `post_process` before returning"
+            0.0 == updated_tr.get_retval()
+        ), "updated 'z' must hit `post_process` before returning"
 
-        tr, _ = dimap_model.importance(key, updated_tr.get_sample(), (1.0, 2.0))
+        importance_tr, _ = dimap_model.importance(
+            key, updated_tr.get_sample(), (1.0, 2.0)
+        )
         assert (
-            tr.get_retval() == updated_tr.get_retval()
+            importance_tr.get_retval() == updated_tr.get_retval()
         ), "importance shouldn't update the retval"
+
+        assert (
+            genjax.normal.logpdf(
+                invert_post(importance_tr.get_retval()), *pre_process(1.0, 2.0)
+            )
+            == importance_tr.get_score()
+        ), "with importance trace, final score sees pre-processing but not post-processing."
