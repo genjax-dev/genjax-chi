@@ -1,4 +1,3 @@
-
 # Copyright 2024 MIT Probabilistic Computing Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +19,6 @@ from genjax import ChoiceMapBuilder as C
 
 class TestDimapCombinator:
     def test_dimap_update_retval(self):
-
         # Define pre- and post-processing functions
         def pre_process(x, y):
             return (x + 1, y * 2)
@@ -38,13 +36,17 @@ class TestDimapCombinator:
 
         # Use the dimap model
         key = jax.random.PRNGKey(0)
-        trace = dimap_model.simulate(key, (2.0, 3.0))  
-        trace.get_retval()
-        updated_tr, updated_w, _, _ = trace.update(key, C['z'].set(-2.0))
-        assert 4.0 == updated_tr.get_retval(), "updating 'z' should run through `post_process` before returning"
+        trace = dimap_model.simulate(key, (2.0, 3.0))
+        assert (
+            20.333187 == trace.get_retval()
+        ), "initial retval is a square of random draw"
 
-        tr, w = dimap_model.importance(key, updated_tr.get_sample(), (2.0, 3.0))
-        assert tr.get_retval() == updated_tr.get_retval()
+        updated_tr, _, _, _ = trace.update(key, C["z"].set(-2.0))
+        assert (
+            4.0 == updated_tr.get_retval()
+        ), "updating 'z' should run through `post_process` before returning"
 
-        # TODO what can I say about the weight??
-        # assert w == updated_w
+        tr, _ = dimap_model.importance(key, updated_tr.get_sample(), (1.0, 2.0))
+        assert (
+            tr.get_retval() == updated_tr.get_retval()
+        ), "importance shouldn't update the retval"
