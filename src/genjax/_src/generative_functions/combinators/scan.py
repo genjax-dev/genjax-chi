@@ -46,7 +46,6 @@ from genjax._src.core.typing import (
     Tuple,
     typecheck,
 )
-from genjax._src.generative_functions.combinators.dimap import DimapCombinator
 
 register_exclusion(__file__)
 
@@ -638,7 +637,7 @@ def scan(
 @typecheck
 def accumulate(
     *, reverse: bool = False, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction], DimapCombinator]:
+) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> [c]` where
 
@@ -708,7 +707,7 @@ def accumulate(
 @typecheck
 def reduce(
     *, reverse: bool = False, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction], DimapCombinator]:
+) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> c` where
 
@@ -775,7 +774,7 @@ def reduce(
 @typecheck
 def iterate(
     *, n: Int, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction], DimapCombinator]:
+) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> [a]` where
 
@@ -840,7 +839,7 @@ def iterate(
 @typecheck
 def iterate_final(
     *, n: Int, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction], DimapCombinator]:
+) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a` where
 
