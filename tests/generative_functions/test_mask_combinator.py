@@ -15,8 +15,9 @@
 import genjax
 import jax
 import jax.numpy as jnp
+from genjax import Diff
 from genjax import ChoiceMapBuilder as C
-
+from genjax import UpdateProblemBuilder as U
 
 class TestMaskCombinator:
     def test_mask_simple_normal_true(self):
@@ -53,3 +54,36 @@ class TestMaskCombinator:
 
         _, w = jax.jit(model.importance)(key, C["z"].set(-2.0), tr.get_args())
         assert w == 0.0
+
+    def test_mask_update_weight_to_argdiffs(self):
+        @genjax.mask
+        @genjax.gen
+        def model(x):
+            z = genjax.normal(x, 1.0) @ "z"
+            return z
+        key = jax.random.PRNGKey(314159)
+
+        # pre-update mask arg is True
+        tr = jax.jit(model.simulate)(key, (True, 2.0))
+        # mask check arg transition: True --> True
+        argdiffs = U.g((Diff.unknown_change(True), Diff.no_change(tr.get_args()[1])), C.n())
+        w = tr.update(key, argdiffs)[1]
+        assert w == tr.inner.update(key, C.n())[1]
+        assert w == 0.0
+        # mask check arg transition: True --> False
+        argdiffs = U.g((Diff.unknown_change(False), Diff.no_change(tr.get_args()[1])), C.n())
+        w = tr.update(key, argdiffs)[1]
+        assert w == -tr.get_score()
+
+        # pre-update mask arg is False
+        tr = jax.jit(model.simulate)(key, (False, 2.0))
+        # mask check arg transition: False --> True
+        argdiffs = U.g((Diff.unknown_change(True), Diff.no_change(tr.get_args()[1])), C.n())
+        w = tr.update(key, argdiffs)[1]
+        assert w == tr.inner.update(key, C.n())[1] + tr.inner.get_score()
+        assert w == tr.inner.update(key, C.n())[0].get_score()
+        # mask check arg transition: False --> False
+        argdiffs = U.g((Diff.unknown_change(False), Diff.no_change(tr.get_args()[1])), C.n())
+        w = tr.update(key, argdiffs)[1]
+        assert w == 0.0
+        assert w == tr.get_score()

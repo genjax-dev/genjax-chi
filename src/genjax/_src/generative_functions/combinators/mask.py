@@ -140,9 +140,17 @@ class MaskCombinator(GenerativeFunction):
             key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
         )
         w = select(
-            check,
-            w + trace.get_score(),
-            -trace.get_score(),
+            trace.check,
+            select(
+                check,
+                w,
+                -trace.get_score(),
+            ),
+            select(
+                check,
+                premasked_trace.get_score(),
+                0.,
+            )
         )
         return (
             MaskTrace(self, premasked_trace, check),
