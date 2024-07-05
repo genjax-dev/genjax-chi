@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from abc import abstractmethod
+from typing import TYPE_CHECKING
+
+import jax
+import jax.numpy as jnp
+import jax.tree_util as jtu
+from penzai.core import formatting_util
 
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import staged_and
@@ -29,6 +36,9 @@ from genjax._src.core.typing import (
     IntArray,
     Is,
     List,
+    Optional,
+    ParamSpec,
+    PRNGKey,
     ScalarFloat,
     Tuple,
     TypeVar,
@@ -37,12 +47,18 @@ from genjax._src.core.typing import (
 
 register_exclusion(__file__)
 
+# Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
+if TYPE_CHECKING:
+    import genjax
+
+_P = ParamSpec("_P")
+_T = TypeVar("_T")
+
 #####################################
 # Special generative function types #
 #####################################
 
 Weight = ScalarFloat
-
 """
 A _weight_ is a density ratio which often occurs in the context of proper weighting for [`Target`][genjax.inference.Target] distributions, or in Gen's [`update`][genjax.core.GenerativeFunction.update] interface, whose mathematical content is described in [`update`][genjax.core.GenerativeFunction.update].
 
@@ -69,7 +85,7 @@ Retval = Any
 
 Argdiffs = Annotated[
     Tuple,
-    Is[lambda v: Diff.static_check_tree_diff(v)],
+    Is[Diff.static_check_tree_diff],
 ]
 """
 `Argdiffs` is the type of argument values with an attached `ChangeType` (c.f. [`update`][genjax.core.GenerativeFunction.update]).
@@ -80,7 +96,7 @@ When used under type checking, `Retdiff` assumes that the argument values are `P
 
 Retdiff = Annotated[
     Retval,
-    Is[lambda v: Diff.static_check_tree_diff(v)],
+    Is[Diff.static_check_tree_diff],
 ]
 """
 `Retdiff` is the type of return values with an attached `ChangeType` (c.f. [`update`][genjax.core.GenerativeFunction.update]).

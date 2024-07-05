@@ -74,6 +74,7 @@ ScalarFloat = Annotated[Float | FloatArray, ScalarShaped]
 
 Generic = btyping.Generic
 TypeVar = btyping.TypeVar
+ParamSpec = btyping.ParamSpec
 
 ########################################
 # Static typechecking from annotations #
@@ -178,6 +179,7 @@ __all__ = [
     "IntArray",
     "Is",
     "List",
+    "ParamSpec",
     "PRNGKey",
     "ScalarBool",
     "ScalarFloat",

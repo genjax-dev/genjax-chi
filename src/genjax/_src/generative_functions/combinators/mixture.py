@@ -15,12 +15,9 @@
 
 from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import Callable, typecheck
-from genjax._src.generative_functions.combinators.dimap import (
-    DimapCombinator,
-)
+from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.combinators.switch import (
-    SwitchCombinator,
+    switch,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
@@ -30,30 +27,60 @@ from genjax._src.generative_functions.static import gen
 register_exclusion(__file__)
 
 
-def MixtureCombinator(*gen_fns) -> DimapCombinator:
-    def argument_mapping(mixture_logits, *args):
-        return (mixture_logits, *args)
+@typecheck
+def mix(*gen_fns: GenerativeFunction) -> GenerativeFunction:
+    """
+    Creates a mixture model from a set of generative functions.
 
-    inner_combinator_closure = SwitchCombinator(gen_fns)
+    This function takes multiple generative functions as input and returns a new generative function that represents a mixture model.
+
+    The returned generative function takes the following arguments:
+
+    - `mixture_logits`: Logits for the categorical distribution used to select a component.
+    - `*args`: Argument tuples for each of the input generative functions
+
+    and samples from one of the input generative functions based on draw from a categorical distribution defined by the provided mixture logits.
+
+    Args:
+        *gen_fns: Variable number of [`genjax.GenerativeFunction`][]s to be mixed.
+
+    Returns:
+        A new [`genjax.GenerativeFunction`][] representing the mixture model.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="mix"
+        import jax
+        import genjax
+
+
+        # Define component generative functions
+        @genjax.gen
+        def component1(x):
+            return genjax.normal(x, 1.0) @ "y"
+
+
+        @genjax.gen
+        def component2(x):
+            return genjax.normal(x, 2.0) @ "y"
+
+
+        # Create mixture model
+        mixture = genjax.mix(component1, component2)
+
+        # Use the mixture model
+        key = jax.random.PRNGKey(0)
+        logits = jax.numpy.array([0.3, 0.7])  # Favors component2
+        trace = mixture.simulate(key, (logits, (0.0,), (7.0,)))
+        print(trace.render_html())
+        ```
+    """
+
+    inner_combinator_closure = switch(*gen_fns)
 
     @gen
     def mixture_model(mixture_logits, *args):
-        mix_idx = categorical(logits=mixture_logits) @ "mixture_component"
+        mix_idx = categorical(mixture_logits) @ "mixture_component"
         v = inner_combinator_closure(mix_idx, *args) @ "component_sample"
         return v
 
-    return DimapCombinator(
-        mixture_model,
-        argument_mapping=argument_mapping,
-        info="Derived combinator (Mixture)",
-    )
-
-
-@typecheck
-def mix(
-    *gen_fns: GenerativeFunction,
-) -> Callable[[GenerativeFunction], DimapCombinator]:
-    def decorator(f: GenerativeFunction) -> DimapCombinator:
-        return MixtureCombinator(f, *gen_fns)
-
-    return decorator
+    return mixture_model

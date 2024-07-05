@@ -45,6 +45,7 @@ from genjax._src.core.typing import (
     FloatArray,
     Int,
     IntArray,
+    Optional,
     List,
     PRNGKey,
     Tuple,
@@ -73,7 +74,7 @@ class ScanTrace(Trace):
     def get_sample(self):
         return jax.vmap(
             lambda idx, subtrace: ChoiceMap.idx(idx, subtrace.get_sample()),
-        )(jnp.arange(self.scan_gen_fn.max_length), self.inner)
+        )(jnp.arange(self.scan_gen_fn.length), self.inner)
 
     def get_gen_fn(self):
         return self.scan_gen_fn
@@ -116,47 +117,87 @@ class StaticRetractionUpdateRequest(UpdateRequest):
 
 @Pytree.dataclass
 class ScanCombinator(GenerativeFunction):
-    """> `ScanCombinator` accepts a kernel_gen_fn generative function, as well as a static
-    maximum unroll length, and provides a scan-like pattern of generative computation.
+    """
+    `ScanCombinator` wraps a `kernel_gen_fn` [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)` in a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])`, where
 
-    !!! info "kernel_gen_fn generative functions"
-        A kernel_gen_fn generative function is one which accepts and returns the same signature of arguments. Under the hood, `ScanCombinator` is implemented using `jax.lax.scan` - which has the same requirements.
+    - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
+    - `a` may be a primitive, an array type or a pytree (container) type with array leaves
+    - `b` may be a primitive, an array type or a pytree (container) type with array leaves.
+
+    The values traced by each call to the original generative function will be nested under an integer index that matches the loop iteration index that generated it.
+
+    For any array type specifier `t`, `[t]` represents the type with an additional leading axis, and if `t` is a pytree (container) type with array leaves then `[t]` represents the type with the same pytree structure and corresponding leaves each with an additional leading axis.
+
+    When the type of `xs` in the snippet below (denoted `[a]` above) is an array type or None, and the type of `ys` in the snippet below (denoted `[b]` above) is an array type, the semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation:
+
+    ```python
+    def scan(f, init, xs, length=None):
+        if xs is None:
+            xs = [None] * length
+        carry = init
+        ys = []
+        for x in xs:
+            carry, y = f(carry, x)
+            ys.append(y)
+        return carry, np.stack(ys)
+    ```
+
+    Unlike that Python version, both `xs` and `ys` may be arbitrary pytree values, and so multiple arrays can be scanned over at once and produce multiple output arrays. `None` is actually a special case of this, as it represents an empty pytree.
+
+    The loop-carried value `c` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `c` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
+
+    Attributes:
+        kernel_gen_fn: a generative function to be scanned of type `(c, a) -> (c, b)`, meaning that `f` accepts two arguments where the first is a value of the loop carry and the second is a slice of `xs` along its leading axis, and that `f` returns a pair where the first element represents a new value for the loop carry and the second represents a slice of the output.
+
+        length: optional integer specifying the number of loop iterations, which (if supplied) must agree with the sizes of leading axes of the arrays in the returned function's second argument. If supplied then the returned generative function can take `None` as its second argument.
+
+        reverse: optional boolean specifying whether to run the scan iteration forward (the default) or in reverse, equivalent to reversing the leading axes of the arrays in both `xs` and in `ys`.
+
+        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many scan iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
 
     Examples:
-        ```python exec="yes" html="true" source="material-block" session="gen-fn"
+        Use the [`genjax.GenerativeFunction.scan`][] method:
+        ```python exec="yes" html="true" source="material-block" session="scan"
         import jax
         import genjax
 
 
         # A kernel_gen_fn generative function.
         @genjax.gen
-        def random_walk(prev):
-            x = genjax.normal(prev, 1.0) @ "x"
-            return x
-
-
-        # You can apply the Scan combinator directly like this:
-        scan_gen_fned_random_walk = random_walk.scan(n=1000)
-
-
-        # You can also use the decorator when declaring the function:
-        @genjax.scan(n=1000)
-        @genjax.gen
-        def random_walk(prev, xs):
+        def random_walk_step(prev, _):
             x = genjax.normal(prev, 1.0) @ "x"
             return x, None
 
 
         init = 0.5
         key = jax.random.PRNGKey(314159)
-        tr = jax.jit(random_walk.simulate)(key, (init, None))
 
+        random_walk = random_walk_step.scan(n=1000)
+
+        tr = jax.jit(random_walk.simulate)(key, (init, None))
+        print(tr.render_html())
+        ```
+
+        Or use the [`genjax.scan`][] decorator:
+        ```python exec="yes" html="true" source="material-block" session="scan"
+        @genjax.scan(n=1000)
+        @genjax.gen
+        def random_walk(prev, _):
+            x = genjax.normal(prev, 1.0) @ "x"
+            return x, None
+
+
+        tr = jax.jit(random_walk.simulate)(key, (init, None))
         print(tr.render_html())
         ```
     """
 
     kernel_gen_fn: GenerativeFunction
-    max_length: Int = Pytree.static()
+
+    # Only required for `None` carry inputs
+    length: Optional[Int] = Pytree.static()
+    reverse: bool = Pytree.static(default=False)
+    unroll: int | bool = Pytree.static(default=1)
 
     # To get the type of return value, just invoke
     # the scanned over source (with abstract tracer arguments).
@@ -171,7 +212,9 @@ class ScanCombinator(GenerativeFunction):
             _inner,
             carry,
             scanned_in,
-            length=self.max_length,
+            length=self.length,
+            reverse=self.reverse,
+            unroll=self.unroll,
         )
 
         return v, scanned_out
@@ -203,7 +246,9 @@ class ScanCombinator(GenerativeFunction):
             _inner,
             (key, 0, carry),
             scanned_in,
-            length=self.max_length,
+            length=self.length,
+            reverse=self.reverse,
+            unroll=self.unroll,
         )
 
         return ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores))
@@ -243,7 +288,9 @@ class ScanCombinator(GenerativeFunction):
             _importance,
             (key, 0, carry),
             scanned_in,
-            length=self.max_length,
+            length=self.length,
+            reverse=self.reverse,
+            unroll=self.unroll,
         )
         bwd_request = ChoiceMapUpdateRequest(bwd_requests)
         return (
@@ -537,7 +584,9 @@ class ScanCombinator(GenerativeFunction):
             _assess,
             (0, carry),
             scanned_in,
-            length=self.max_length,
+            length=self.length,
+            reverse=self.reverse,
+            unroll=self.unroll,
         )
         return (
             jnp.sum(scores),
@@ -577,8 +626,265 @@ class ScanCombinator(GenerativeFunction):
 
 
 @typecheck
-def scan(*, n: Int) -> Callable[[GenerativeFunction], ScanCombinator]:
+def accumulate(
+    *, reverse: bool = False, unroll: int | bool = 1
+) -> Callable[[GenerativeFunction], GenerativeFunction]:
+    """
+    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> [c]` where
+
+    - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
+    - `[c]` is an array of all loop-carried values seen during iteration (excluding the first)
+    - `a` may be a primitive, an array type or a pytree (container) type with array leaves
+
+    All traced values are nested under an index.
+
+    For any array type specifier `t`, `[t]` represents the type with an additional leading axis, and if `t` is a pytree (container) type with array leaves then `[t]` represents the type with the same pytree structure and corresponding leaves each with an additional leading axis.
+
+    The semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation (note the similarity to [`itertools.accumulate`](https://docs.python.org/3/library/itertools.html#itertools.accumulate)):
+
+    ```python
+    def accumulate(f, init, xs):
+        carry = init
+        carries = []
+        for x in xs:
+            carry = f(carry, x)
+            carries.append(carry)
+        return carries
+    ```
+
+    Unlike that Python version, both `xs` and `carries` may be arbitrary pytree values, and so multiple arrays can be scanned over at once and produce multiple output arrays.
+
+    The loop-carried value `c` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `c` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
+
+    Args:
+        reverse: optional boolean specifying whether to run the accumulation forward (the default) or in reverse, equivalent to reversing the leading axes of the arrays in both `xs` and in `carries`.
+
+        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
+
+    Examples:
+        accumulate a running total:
+        ```python exec="yes" html="true" source="material-block" session="scan"
+        import jax
+        import genjax
+        import jax.numpy as jnp
+
+
+        @genjax.accumulate()
+        @genjax.gen
+        def add(sum, x):
+            new_sum = sum + x
+            return new_sum
+
+
+        init = 0.0
+        key = jax.random.PRNGKey(314159)
+        xs = jnp.ones(10)
+
+        tr = jax.jit(add.simulate)(key, (init, xs))
+        print(tr.render_html())
+        ```
+    """
+
     def decorator(f):
-        return ScanCombinator(f, n)
+        return (
+            f.map(lambda ret: (ret, ret))
+            .scan(reverse=reverse, unroll=unroll)
+            .map(lambda ret: ret[1])
+        )
+
+    return decorator
+
+
+@typecheck
+def reduce(
+    *, reverse: bool = False, unroll: int | bool = 1
+) -> Callable[[GenerativeFunction], GenerativeFunction]:
+    """
+    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> c` where
+
+    - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
+    - `a` may be a primitive, an array type or a pytree (container) type with array leaves
+
+    All traced values are nested under an index.
+
+    For any array type specifier `t`, `[t]` represents the type with an additional leading axis, and if `t` is a pytree (container) type with array leaves then `[t]` represents the type with the same pytree structure and corresponding leaves each with an additional leading axis.
+
+    The semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation (note the similarity to [`functools.reduce`](https://docs.python.org/3/library/itertools.html#functools.reduce)):
+
+    ```python
+    def reduce(f, init, xs):
+        carry = init
+        for x in xs:
+            carry = f(carry, x)
+        return carry
+    ```
+
+    Unlike that Python version, both `xs` and `carry` may be arbitrary pytree values, and so multiple arrays can be scanned over at once and produce multiple output arrays.
+
+    The loop-carried value `c` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `c` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
+
+    Args:
+        reverse: optional boolean specifying whether to run the accumulation forward (the default) or in reverse, equivalent to reversing the leading axis of the array `xs`.
+
+        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
+
+    Examples:
+        sum an array of numbers:
+        ```python exec="yes" html="true" source="material-block" session="scan"
+        import jax
+        import genjax
+        import jax.numpy as jnp
+
+
+        @genjax.reduce()
+        @genjax.gen
+        def add(sum, x):
+            new_sum = sum + x
+            return new_sum
+
+
+        init = 0.0
+        key = jax.random.PRNGKey(314159)
+        xs = jnp.ones(10)
+
+        tr = jax.jit(add.simulate)(key, (init, xs))
+        print(tr.render_html())
+        ```
+    """
+
+    def decorator(f: GenerativeFunction):
+        return (
+            f.map(lambda ret: (ret, None))
+            .scan(reverse=reverse, unroll=unroll)
+            .map(lambda ret: ret[0])
+        )
+
+    return decorator
+
+
+@typecheck
+def iterate(
+    *, n: Int, unroll: int | bool = 1
+) -> Callable[[GenerativeFunction], GenerativeFunction]:
+    """
+    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> [a]` where
+
+    - `a` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
+    - `[a]` is an array of all `f(a)`, `f(f(a))` etc. values seen during iteration (excluding tjhe initial `a`)
+
+    All traced values are nested under an index.
+
+    The semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation:
+
+    ```python
+    def iterate(f, n, init):
+        input = init
+        seen = []
+        for _ in range(n):
+            input = f(input)
+            seen.append(input)
+        return seen
+    ```
+
+    `init` may be an arbitrary pytree value, and so multiple arrays can be iterated over at once and produce multiple output arrays.
+
+    The iterated value `a` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `a` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
+
+    Args:
+        n: the number of iterations to run.
+
+        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
+
+    Examples:
+        iterative addition, returning all intermediate sums:
+        ```python exec="yes" html="true" source="material-block" session="scan"
+        import jax
+        import genjax
+
+
+        @genjax.iterate(n=100)
+        @genjax.gen
+        def inc(x):
+            return x + 1
+
+
+        init = 0.0
+        key = jax.random.PRNGKey(314159)
+
+        tr = jax.jit(inc.simulate)(key, (init,))
+        print(tr.render_html())
+        ```
+    """
+
+    def decorator(f: GenerativeFunction):
+        # strip off the JAX-supplied `None` on the way in, accumulate `ret` on the way out.
+        return (
+            f.dimap(pre=lambda *args: args[:-1], post=lambda _, ret: (ret, ret))
+            .scan(n=n, unroll=unroll)
+            .dimap(pre=lambda *args: (*args, None), post=lambda _, ret: ret[1])
+        )
+
+    return decorator
+
+
+@typecheck
+def iterate_final(
+    *, n: Int, unroll: int | bool = 1
+) -> Callable[[GenerativeFunction], GenerativeFunction]:
+    """
+    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a` where
+
+    - `a` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
+    - the original function is invoked `n` times with each input coming from the previous invocation's output, so that the new function returns $f^n(a)$
+
+    All traced values are nested under an index.
+
+    The semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation:
+
+    ```python
+    def iterate_final(f, n, init):
+        ret = init
+        for _ in range(n):
+            ret = f(ret)
+        return ret
+    ```
+
+    `init` may be an arbitrary pytree value, and so multiple arrays can be iterated over at once and produce multiple output arrays.
+
+    The iterated value `a` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `a` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
+
+    Args:
+        n: the number of iterations to run.
+
+        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
+
+    Examples:
+        iterative addition:
+        ```python exec="yes" html="true" source="material-block" session="scan"
+        import jax
+        import genjax
+
+
+        @genjax.iterate_final(n=100)
+        @genjax.gen
+        def inc(x):
+            return x + 1
+
+
+        init = 0.0
+        key = jax.random.PRNGKey(314159)
+
+        tr = jax.jit(inc.simulate)(key, (init,))
+        print(tr.render_html())
+        ```
+    """
+
+    def decorator(f: GenerativeFunction):
+        # strip off the JAX-supplied `None` on the way in, no accumulation on the way out.
+        return (
+            f.dimap(pre=lambda *args: args[:-1], post=lambda _, ret: (ret, None))
+            .scan(n=n, unroll=unroll)
+            .dimap(pre=lambda *args: (*args, None), post=lambda _, ret: ret[0])
+        )
 
     return decorator

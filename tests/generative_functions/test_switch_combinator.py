@@ -37,6 +37,7 @@ class TestSwitchCombinator:
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         _tr = model.simulate(sub_key, ())
+        # TODO
         assert True
 
     def test_switch_combinator_simulate(self):
@@ -244,4 +245,5 @@ class TestSwitchCombinator:
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         _tr = model.simulate(sub_key, ())
+        # TODO
         assert True

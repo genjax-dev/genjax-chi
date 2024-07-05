@@ -16,44 +16,18 @@ import jax.numpy as jnp
 
 from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import Callable, ScalarBool, typecheck
-from genjax._src.generative_functions.combinators.dimap import (
-    DimapCombinator,
-)
-from genjax._src.generative_functions.combinators.switch import (
-    SwitchCombinator,
-)
+from genjax._src.core.typing import ScalarBool, Tuple, typecheck
 
 register_exclusion(__file__)
 
 
 @typecheck
-def OrElseCombinator(
+def or_else(
     if_gen_fn: GenerativeFunction,
     else_gen_fn: GenerativeFunction,
-) -> DimapCombinator:
-    @typecheck
-    def argument_mapping(b: ScalarBool, *args):
-        # Note that `True` maps to 0 to select the "if" branch, `False` to 1.
-        idx = jnp.array(jnp.logical_not(b), dtype=int)
-        return (idx, *args)
-
-    inner_combinator = SwitchCombinator((if_gen_fn, else_gen_fn))
-
-    return DimapCombinator(
-        inner_combinator,
-        argument_mapping=argument_mapping,
-        retval_mapping=lambda _, retval: retval,
-        info="Derived combinator (Cond)",
-    )
-
-
-@typecheck
-def or_else(
-    else_gen_fn: GenerativeFunction,
-) -> Callable[[GenerativeFunction], DimapCombinator]:
+) -> GenerativeFunction:
     """
-    Returns a decorator that wraps a [`GenerativeFunction`][genjax.GenerativeFunction] `if_gen_fn` and returns a new `GenerativeFunction` that accepts
+    Given two [`genjax.GenerativeFunction`][]s `if_gen_fn` and `else_gen_fn`, returns a new [`genjax.GenerativeFunction`][] that accepts
 
     - a boolean argument
     - an argument tuple for `if_gen_fn`
@@ -65,13 +39,18 @@ def or_else(
         else_gen_fn: called when the boolean argument is `False`.
 
     Returns:
-        A decorator that produces a new [`GenerativeFunction`][genjax.GenerativeFunction].
+        A [`genjax.GenerativeFunction`][] modified for conditional execution.
 
     Examples:
-        ```python exec="yes" html="true" source="material-block" session="gen-fn"
+        ```python exec="yes" html="true" source="material-block" session="or_else"
         import jax
         import jax.numpy as jnp
         import genjax
+
+
+        @genjax.gen
+        def if_model(x):
+            return genjax.normal(x, 1.0) @ "if_value"
 
 
         @genjax.gen
@@ -79,10 +58,7 @@ def or_else(
             return genjax.normal(x, 5.0) @ "else_value"
 
 
-        @genjax.or_else(else_model)
-        @genjax.gen
-        def or_else_model(x):
-            return genjax.normal(x, 1.0) @ "if_value"
+        or_else_model = genjax.or_else(if_model, else_model)
 
 
         @genjax.gen
@@ -100,7 +76,12 @@ def or_else(
         ```
     """
 
-    def decorator(if_gen_fn) -> DimapCombinator:
-        return OrElseCombinator(if_gen_fn, else_gen_fn)
+    @typecheck
+    def argument_mapping(b: ScalarBool, if_args: Tuple, else_args: Tuple):
+        # Note that `True` maps to 0 to select the "if" branch, `False` to 1.
+        idx = jnp.array(jnp.logical_not(b), dtype=int)
+        return (idx, if_args, else_args)
 
-    return decorator
+    return if_gen_fn.switch(else_gen_fn).contramap(
+        argument_mapping, info="Derived combinator (OrElse)"
+    )

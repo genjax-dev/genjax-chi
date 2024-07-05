@@ -65,11 +65,14 @@ class TestCombinators:
         vmap_tr = jax.jit(vmap_model.simulate)(key, (jnp.zeros(3),))
         repeat_tr = jax.jit(repeat_model.simulate)(key, (0.0,))
 
-        repeatarr = jnp.array([-0.00965115, -0.13072716, -0.818963])
+        repeatarr = jnp.array([1.0768734, -1.220163, -2.0751207])
         varr = jnp.array([1.0768734, -1.220163, -2.0751207])
 
         # Check that we get 3 repeated values:
         assert jnp.array_equal(repeat_tr.get_choices()[..., "x"], repeatarr)
+
+        # check that the return value matches the traced values (in this case)
+        assert jnp.array_equal(repeat_tr.get_retval(), repeatarr)
 
         # vmap does as well, but they are different due to internal seed splitting:
         assert jnp.array_equal(vmap_tr.get_choices()[..., "x"], varr)

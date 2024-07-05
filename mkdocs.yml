@@ -13,7 +13,7 @@
 # limitations under the License.
 
 site_name: GenJAX
-site_url: https://probcomp.github.io/genjax/
+site_url: https://genjax.gen.dev/
 repo_url: https://github.com/probcomp/genjax
 repo_name: probcomp/genjax
 edit_uri: edit/main/docs/
@@ -25,6 +25,7 @@ nav:
   - Library reference:
       - Core: library/core.md
       - Generative functions: library/generative_functions.md
+      - Combinators: library/combinators.md
       - Inference: library/inference.md
     # - ADEV: library/adev.md
   - For developers:
@@ -57,9 +58,6 @@ theme:
     - navigation.tabs.sticky
     - navigation.top
     - navigation.tracking
-    - navigation.instant
-    - navigation.instant.progress
-    - navigation.instant.preview
     - navigation.path
     - navigation.prune
     - search.highlight
