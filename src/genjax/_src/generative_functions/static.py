@@ -25,6 +25,7 @@ from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
     ChoiceMapBuilder,
+    ChoiceMapSample,
     EmptyTrace,
     EmptyUpdateRequest,
     GenerativeFunction,
@@ -117,13 +118,13 @@ class StaticTrace(Trace):
     def get_gen_fn(self) -> GenerativeFunction:
         return self.gen_fn
 
-    def get_sample(self) -> ChoiceMap:
+    def get_sample(self) -> Sample:
         addresses = self.addresses.get_visited()
         chm = ChoiceMap.empty()
         for addr, subtrace in zip(addresses, self.subtraces):
             chm = chm ^ ChoiceMapBuilder.a(addr, subtrace.get_sample())
 
-        return chm
+        return ChoiceMapSample(chm)
 
     def get_score(self) -> Score:
         return self.score
@@ -341,7 +342,7 @@ class ImportanceHandler(StaticHandler):
         return self.get_subconstraint_internal(addr, self.constraint)
 
     def handle_retval(self, v):
-        return jtu.tree_leaves(v, is_leaf=lambda v: isinstance(v, Diff))
+        return jtu.tree_leaves(v)
 
     @typecheck
     def handle_trace(
@@ -351,8 +352,8 @@ class ImportanceHandler(StaticHandler):
         args: Tuple,
     ):
         self.visit(addr)
-        subtrace = EmptyTrace(gen_fn)
         subconstraint = self.get_subconstraint(addr)
+        subtrace = EmptyTrace(gen_fn)
         request = ImportanceUpdateRequest(args, subconstraint)
         self.key, sub_key = jax.random.split(self.key)
         (tr, w, retval_diff, bwd_request) = gen_fn.update(
@@ -365,7 +366,7 @@ class ImportanceHandler(StaticHandler):
         self.address_traces.append(tr)
         self.bwd_requests.append(bwd_request)
 
-        return retval_diff
+        return Diff.tree_primal(retval_diff)
 
 
 def importance_transform(source_fn):
@@ -386,10 +387,9 @@ def importance_transform(source_fn):
             address_traces,
             bwd_requests,
         ) = stateful_handler.yield_state()
-        retval_diff = Diff.tree_diff_unknown_change(retval)
         return (
             (
-                retval_diff,
+                retval,
                 weight,
                 # Trace.
                 (
@@ -675,10 +675,10 @@ class StaticGenerativeFunction(GenerativeFunction):
         )
         (
             (
-                retval_diffs,
+                retval,
                 weight,
                 (
-                    retval_primals,
+                    retval,
                     address_visitor,
                     address_traces,
                     score,
@@ -693,20 +693,20 @@ class StaticGenerativeFunction(GenerativeFunction):
             chm = ChoiceMap.empty()
             for addr, subrequest in zip(addresses, subrequests):
                 chm = chm ^ ChoiceMapBuilder.a(addr, subrequest)
-            return chm
+            return ChoiceMapUpdateRequest(chm)
 
         bwd_request = make_bwd_request(address_visitor, bwd_requests)
         return (
             StaticTrace(
                 self,
                 args,
-                retval_primals,
+                retval,
                 address_visitor,
                 address_traces,
                 score,
             ),
             weight,
-            retval_diffs,
+            Diff.tree_diff_unknown_change(retval),
             bwd_request,
         )
 

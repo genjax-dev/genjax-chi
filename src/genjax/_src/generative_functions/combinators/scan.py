@@ -19,6 +19,8 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
+    ChoiceMapUpdateRequest,
+    Constraint,
     EmptyTrace,
     EmptyUpdateRequest,
     GenerativeFunction,
@@ -32,6 +34,8 @@ from genjax._src.core.generative import (
     UpdateRequest,
     Weight,
 )
+from genjax._src.core.generative.choice_map import ChoiceMapConstraint
+from genjax._src.core.generative.core import Arguments
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
@@ -41,8 +45,11 @@ from genjax._src.core.typing import (
     FloatArray,
     Int,
     IntArray,
+    List,
     PRNGKey,
     Tuple,
+    dispatch,
+    overload,
     typecheck,
 )
 
@@ -74,19 +81,6 @@ class ScanTrace(Trace):
     def get_score(self):
         return self.score
 
-    def index_update(
-        self,
-        idx: IntArray,
-        problem: UpdateRequest,
-    ) -> UpdateRequest:
-        return IndexProblem(idx, problem)
-
-    def checkerboard_update(
-        self,
-        problem: UpdateRequest,
-    ) -> UpdateRequest:
-        return CheckerboardProblem(problem)
-
 
 #######################
 # Custom update specs #
@@ -94,20 +88,25 @@ class ScanTrace(Trace):
 
 
 @Pytree.dataclass(match_args=True)
-class StaticResizeProblem(UpdateRequest):
-    subrequest: UpdateRequest
-    resized_length: Int = Pytree.static()
-
-
-@Pytree.dataclass(match_args=True)
-class IndexProblem(UpdateRequest):
+class IndexUpdateRequest(UpdateRequest):
     index: IntArray
     subrequest: UpdateRequest
 
 
 @Pytree.dataclass(match_args=True)
-class CheckerboardProblem(UpdateRequest):
-    subrequest: UpdateRequest
+class StaticExtensionUpdateRequest(UpdateRequest):
+    """
+    Denotes an extension of a `ScanTrace` by static `extension_length` number of steps.
+    """
+
+    constraint: Constraint
+    new_scans: Any
+    extension_length: Int = Pytree.static()
+
+
+@Pytree.dataclass(match_args=True)
+class StaticRetractionUpdateRequest(UpdateRequest):
+    retraction_length: Int = Pytree.static()
 
 
 ###################
@@ -213,150 +212,53 @@ class ScanCombinator(GenerativeFunction):
     def update_importance(
         self,
         key: PRNGKey,
-        constraint: ChoiceMap,
-        args: Tuple,
+        trace: Trace,
+        constraint: ChoiceMapConstraint,
+        args: Arguments,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         (carry, scanned_in) = args
 
         def _inner_importance(key, constraint, carry, scanned_in):
-            tr, w, _retdiff, bwd_problem = self.kernel_gen_fn.update(
+            tr, w, _retdiff, bwd_request = self.kernel_gen_fn.update(
                 key,
                 EmptyTrace(self.kernel_gen_fn),
-                IncrementalUpdateRequest(
-                    Diff.unknown_change((carry, scanned_in)),
-                    ImportanceUpdateRequest(constraint),
-                ),
+                ImportanceUpdateRequest((carry, scanned_in), constraint),
             )
             (carry, scanned_out) = tr.get_retval()
             score = tr.get_score()
-            return (carry, score), (tr, scanned_out, w, bwd_problem)
+            return (carry, score), (tr, scanned_out, w, bwd_request)
 
         def _importance(carry, scanned_over):
             key, idx, carried_value = carry
             key = jax.random.fold_in(key, idx)
             submap = constraint.get_submap(idx)
-            (carry, score), (tr, scanned_out, w, inner_bwd_problem) = _inner_importance(
+            (carry, score), (tr, scanned_out, w, inner_bwd_request) = _inner_importance(
                 key, submap, carried_value, scanned_over
             )
-            bwd_problem = ChoiceMap.idx(idx, inner_bwd_problem)
+            bwd_request = ChoiceMap.idx(idx, inner_bwd_request)
 
-            return (key, idx + 1, carry), (tr, scanned_out, score, w, bwd_problem)
+            return (key, idx + 1, carry), (tr, scanned_out, score, w, bwd_request)
 
-        (_, _, carried_out), (tr, scanned_out, scores, ws, bwd_problems) = jax.lax.scan(
+        (_, _, carried_out), (tr, scanned_out, scores, ws, bwd_requests) = jax.lax.scan(
             _importance,
             (key, 0, carry),
             scanned_in,
             length=self.max_length,
         )
+        bwd_request = ChoiceMapUpdateRequest(bwd_requests)
         return (
             ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores)),
             jnp.sum(ws),
             Diff.unknown_change((carried_out, scanned_out)),
-            bwd_problems,
-        )
-
-    def _get_subrequest(
-        self,
-        problem: UpdateRequest,
-        idx: IntArray,
-    ) -> UpdateRequest:
-        match problem:
-            case ChoiceMap():
-                return problem(idx)
-
-            case Selection():
-                subrequest = problem(idx)
-                return subrequest
-
-            case _:
-                raise Exception(f"Not implemented subrequest: {problem}")
-
-    @typecheck
-    def update_generic(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        problem: UpdateRequest,
-        argdiffs: Argdiffs,
-    ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateRequest]:
-        carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(
-            Diff.tree_primal(argdiffs)
-        )
-
-        def _inner_update(key, subtrace, subrequest, carry, scanned_in):
-            (
-                new_subtrace,
-                w,
-                kernel_retdiff,
-                bwd_problem,
-            ) = self.kernel_gen_fn.update(
-                key,
-                subtrace,
-                IncrementalUpdateRequest(
-                    (carry, scanned_in),
-                    subrequest,
-                ),
-            )
-            (carry_retdiff, scanned_out_retdiff) = kernel_retdiff
-            score = new_subtrace.get_score()
-            return (carry_retdiff, score), (
-                new_subtrace,
-                scanned_out_retdiff,
-                w,
-                bwd_problem,
-            )
-
-        def _update(carry, scanned_over):
-            key, idx, carried_value = carry
-            (subtrace, *scanned_in) = scanned_over
-            key = jax.random.fold_in(key, idx)
-            subrequest = self._get_subrequest(problem, idx)
-            (
-                (carry, score),
-                (new_subtrace, scanned_out, w, inner_bwd_problem),
-            ) = _inner_update(key, subtrace, subrequest, carried_value, scanned_in)
-            bwd_problem = ChoiceMap.idx(idx, inner_bwd_problem)
-
-            return (key, idx + 1, carry), (
-                new_subtrace,
-                scanned_out,
-                score,
-                w,
-                bwd_problem,
-            )
-
-        (
-            (_, _, carried_out_diff),
-            (new_subtraces, scanned_out_diff, scores, ws, bwd_problems),
-        ) = jax.lax.scan(
-            _update,
-            (key, 0, carry_diff),
-            (trace.inner, *scanned_in_diff),
-            length=self.max_length,
-        )
-        carried_out, scanned_out = Diff.tree_primal((
-            carried_out_diff,
-            scanned_out_diff,
-        ))
-        return (
-            ScanTrace(
-                self,
-                new_subtraces,
-                Diff.tree_primal(argdiffs),
-                (carried_out, scanned_out),
-                jnp.sum(scores),
-            ),
-            jnp.sum(ws),
-            (carried_out_diff, scanned_out_diff),
-            bwd_problems,
+            bwd_request,
         )
 
     def update_index(
         self,
         key: PRNGKey,
-        trace: ScanTrace,
+        trace: Trace,
         index: IntArray,
-        update_request: UpdateRequest,
+        request: UpdateRequest,
     ):
         starting_subslice = jtu.tree_map(lambda v: v[index], trace.inner)
         affected_subslice = jtu.tree_map(lambda v: v[index + 1], trace.inner)
@@ -365,11 +267,11 @@ class ScanCombinator(GenerativeFunction):
             updated_start,
             start_w,
             starting_retdiff,
-            bwd_problem,
+            bwd_request,
         ) = self.kernel_gen_fn.update(
             key,
             starting_subslice,
-            update_request,
+            request,
             starting_argdiffs,
         )
         updated_end, end_w, ending_retdiff, _ = self.kernel_gen_fn.update(
@@ -401,56 +303,211 @@ class ScanCombinator(GenerativeFunction):
             ),
             start_w + end_w,
             Diff.unknown_change(new_retvals),
-            IndexProblem(index, bwd_problem),
+            IndexUpdateRequest(index, bwd_request),
         )
 
-    @typecheck
-    def update_change_target(
+    @overload
+    def update_incremental(
         self,
         key: PRNGKey,
         trace: Trace,
-        update_request: UpdateRequest,
+        request: IndexUpdateRequest,
         argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
-        assert isinstance(trace, EmptyTrace | ScanTrace)
-        match update_request:
-            case ImportanceUpdateRequest(constraint) if isinstance(
-                constraint, ChoiceMap
-            ):
-                return self.update_importance(
-                    key, constraint, Diff.tree_primal(argdiffs)
-                )
-            case IndexProblem(index, subrequest):
-                if Diff.static_check_no_change(argdiffs):
-                    return self.update_index(key, trace, index, subrequest)
-                else:
-                    return self.update_generic(
-                        key, trace, ChoiceMap.idx(index, subrequest), argdiffs
-                    )
-            case _:
-                return self.update_generic(key, trace, update_request, argdiffs)
+        index, subrequest = request.index, request.subrequest
+        if Diff.static_check_no_change(argdiffs):
+            return self.update_index(key, trace, index, subrequest)
+        else:
+            choice_map_request = ChoiceMapUpdateRequest(
+                ChoiceMap.idx(index, subrequest)
+            )
+            return self.update_incremental(key, trace, choice_map_request, argdiffs)
 
-    @GenerativeFunction.gfi_boundary
-    @typecheck
+    def _get_subrequest(
+        self,
+        request: UpdateRequest,
+        idx: IntArray,
+    ) -> UpdateRequest:
+        match request:
+            case ChoiceMap():
+                return request(idx)
+
+            case Selection():
+                subrequest = request(idx)
+                return subrequest
+
+            case _:
+                raise Exception(f"Not implemented subrequest: {request}")
+
+    @overload
+    def update_incremental(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        request: UpdateRequest,
+        argdiffs: Argdiffs,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(
+            Diff.tree_primal(argdiffs)
+        )
+
+        def _inner_update(key, subtrace, subrequest, carry, scanned_in):
+            (
+                new_subtrace,
+                w,
+                kernel_retdiff,
+                bwd_request,
+            ) = self.kernel_gen_fn.update(
+                key,
+                subtrace,
+                IncrementalUpdateRequest(
+                    (carry, scanned_in),
+                    subrequest,
+                ),
+            )
+            (carry_retdiff, scanned_out_retdiff) = kernel_retdiff
+            score = new_subtrace.get_score()
+            return (carry_retdiff, score), (
+                new_subtrace,
+                scanned_out_retdiff,
+                w,
+                bwd_request,
+            )
+
+        def _update(carry, scanned_over):
+            key, idx, carried_value = carry
+            (subtrace, *scanned_in) = scanned_over
+            key = jax.random.fold_in(key, idx)
+            subrequest = self._get_subrequest(request, idx)
+            (
+                (carry, score),
+                (new_subtrace, scanned_out, w, inner_bwd_request),
+            ) = _inner_update(key, subtrace, subrequest, carried_value, scanned_in)
+            bwd_request = ChoiceMap.idx(idx, inner_bwd_request)
+
+            return (key, idx + 1, carry), (
+                new_subtrace,
+                scanned_out,
+                score,
+                w,
+                bwd_request,
+            )
+
+        (
+            (_, _, carried_out_diff),
+            (new_subtraces, scanned_out_diff, scores, ws, bwd_requests),
+        ) = jax.lax.scan(
+            _update,
+            (key, 0, carry_diff),
+            (trace.inner, *scanned_in_diff),
+            length=self.max_length,
+        )
+        carried_out, scanned_out = Diff.tree_primal((
+            carried_out_diff,
+            scanned_out_diff,
+        ))
+        return (
+            ScanTrace(
+                self,
+                new_subtraces,
+                Diff.tree_primal(argdiffs),
+                (carried_out, scanned_out),
+                jnp.sum(scores),
+            ),
+            jnp.sum(ws),
+            (carried_out_diff, scanned_out_diff),
+            bwd_requests,
+        )
+
+    @dispatch
+    def update_incremental(
+        self, key, trace, request, argdiffs
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        raise NotImplementedError
+
+    @overload
     def update(
         self,
         key: PRNGKey,
         trace: Trace,
-        update_request: UpdateRequest,
+        request: StaticExtensionUpdateRequest,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
-        match update_request:
-            case IncrementalUpdateRequest(argdiffs, subrequest):
-                return self.update_change_target(key, trace, subrequest, argdiffs)
+        extension_length, new_scans, constraint = (
+            request.extension_length,
+            request.new_scans,
+            request.constraint,
+        )
+        constraint = ChoiceMapConstraint(
+            jax.vmap(lambda idx, constraint: ChoiceMap.idx(idx, constraint))(
+                jnp.arange(extension_length), constraint
+            )
+            if extension_length != 1
+            else ChoiceMap.idx(1, constraint)
+        )
+        internal_combinator = ScanCombinator(self.kernel_gen_fn, extension_length)
+        (old_carried, old_scanned_out) = trace.get_retval()
+        extension_tr, w = internal_combinator.importance(
+            key, constraint, (old_carried, new_scans)
+        )
+        (final_carried, new_scanned_out) = extension_tr.get_retval()
+        final_inner_tr = Pytree.tree_concat([trace.inner, extension_tr.inner])
+        score = jnp.sum(final_inner_tr.get_score())
+        final_scanned_out = Pytree.tree_concat([old_scanned_out, new_scanned_out])
+        full_combinator = ScanCombinator(
+            self.kernel_gen_fn, self.max_length + extension_length
+        )
+        tr = ScanTrace(
+            full_combinator,
+            final_inner_tr,
+            trace.get_args(),
+            (final_carried, final_scanned_out),
+            score,
+        )
+        return (
+            tr,
+            w,
+            Diff.tree_diff_unknown_change((final_carried, new_scanned_out)),
+            StaticRetractionUpdateRequest(extension_length),
+        )
 
-            case _:
-                return self.update(
-                    key,
-                    trace,
-                    IncrementalUpdateRequest(
-                        Diff.no_change(trace.get_args()),
-                        update_request,
-                    ),
-                )
+    @overload
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        request: StaticRetractionUpdateRequest,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        raise NotImplementedError
+
+    @overload
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        request: ImportanceUpdateRequest,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        args, constraint = request.args, request.constraint
+        return self.update_importance(key, trace, constraint, args)
+
+    @overload
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        request: IncrementalUpdateRequest,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        argdiffs, subrequest = request.argdiffs, request.subrequest
+        return self.update_incremental(key, trace, subrequest, argdiffs)
+
+    @GenerativeFunction.gfi_boundary
+    @dispatch
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        request: UpdateRequest,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        raise NotImplementedError
 
     @GenerativeFunction.gfi_boundary
     @typecheck
@@ -486,6 +543,32 @@ class ScanCombinator(GenerativeFunction):
             jnp.sum(scores),
             (carried_out, scanned_out),
         )
+
+    @classmethod
+    def index_update(
+        cls,
+        idx: IntArray,
+        request: UpdateRequest,
+    ) -> IndexUpdateRequest:
+        return IndexUpdateRequest(idx, request)
+
+    @classmethod
+    def extension_update(
+        cls,
+        extension_length: Int,
+        new_scans: Any,
+        constraint: Constraint,
+    ) -> StaticExtensionUpdateRequest:
+        return StaticExtensionUpdateRequest(constraint, new_scans, extension_length)
+
+    @classmethod
+    def propose_extension_update(
+        cls,
+        extension_length: Int,
+        new_scans: Any,
+        proposal: GenerativeFunction,
+    ):
+        pass
 
 
 #############

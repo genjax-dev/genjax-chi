@@ -162,7 +162,7 @@ class Trace(Pytree):
     ) -> Tuple["Trace", Weight, Retdiff, UpdateRequest]:
         gen_fn = self.get_gen_fn()
         return gen_fn.update(key, self, choice_map, argdiffs)
-    
+
     @overload
     def update(
         self,
@@ -384,13 +384,17 @@ class GenerativeFunction(Pytree):
 
     @overload
     def update(
-        self, key: PRNGKey, trace: Trace, choice_map: "ChoiceMap", argdiffs: Argdiffs,
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        choice_map: "ChoiceMap",
+        argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         choice_map_constraint = ChoiceMapConstraint(choice_map)
         constraint_request = ConstraintUpdateRequest(choice_map_constraint)
         request = IncrementalUpdateRequest(argdiffs, constraint_request)
         return self.update(key, trace, request)
-    
+
     @dispatch
     def update(
         self,
@@ -512,7 +516,6 @@ class GenerativeFunction(Pytree):
         """
         raise NotImplementedError
 
-
     @abstractmethod
     def assess(
         self,
@@ -564,12 +567,22 @@ class GenerativeFunction(Pytree):
         args: Arguments,
     ) -> Tuple[Trace, Weight]:
         tr, w, _, _ = self.update(
-            key,
-            EmptyTrace(self),
-            ImportanceUpdateRequest(args, constraint)
+            key, EmptyTrace(self), ImportanceUpdateRequest(args, constraint)
         )
         return tr, w
-    
+
+    @overload
+    def importance(
+        self,
+        key: PRNGKey,
+        constraint: ChoiceMapConstraint,
+        args: Arguments,
+    ) -> Tuple[Trace, Weight]:
+        tr, w, _, _ = self.update(
+            key, EmptyTrace(self), ImportanceUpdateRequest(args, constraint)
+        )
+        return tr, w
+
     @overload
     def importance(
         self,
@@ -578,7 +591,7 @@ class GenerativeFunction(Pytree):
         args: Arguments,
     ) -> Tuple[Trace, Weight]:
         return self.importance(key, ChoiceMapConstraint(constraint), args)
-    
+
     @dispatch
     def importance(
         self,
@@ -897,6 +910,38 @@ class IgnoreKwargs(GenerativeFunction):
     ):
         (argdiffs, _kwargdiffs) = argdiffs
         return self.wrapped.update(key, trace, update_request, argdiffs)
+
+
+@Pytree.dataclass(match_args=True)
+class Target(Pytree):
+    """
+    A `Target` represents an unnormalized target distribution induced by conditioning a generative function on a [`Constraint`](core.md#genjax.core.Constraint).
+
+    Targets are created by providing a generative function, arguments to the generative function, and a constraint.
+
+    Examples:
+        Creating a target from a generative function, by providing arguments and a constraint:
+        ```python exec="yes" html="true" source="material-block" session="core"
+        import genjax
+        from genjax import ChoiceMapBuilder as C
+        from genjax.inference import Target
+
+
+        @genjax.gen
+        def model():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = genjax.normal(x, 1.0) @ "y"
+            return x
+
+
+        target = Target(model, (), C["y"].set(3.0))
+        print(target.render_html())
+        ```
+    """
+
+    p: GenerativeFunction
+    args: Arguments
+    constraint: Constraint
 
 
 @Pytree.dataclass

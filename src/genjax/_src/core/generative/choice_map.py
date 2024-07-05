@@ -627,23 +627,23 @@ class ChoiceMap(Generic[T], Pytree):
         return choice_map_empty
 
     @classmethod
-    def value(cls, v) -> "ChoiceMap":
+    def value(cls, v: T) -> "ChoiceMap[T]":
         return choice_map_value(v)
 
     @classmethod
-    def maybe(cls, f: BoolArray, c: "ChoiceMap") -> "ChoiceMap":
+    def maybe(cls, f: BoolArray, c: "ChoiceMap[T]") -> "ChoiceMap[T]":
         return choice_map_masked(f, c)
 
     @classmethod
-    def str(cls, addr: StaticAddressComponent, v: Any) -> "ChoiceMap":
+    def str(cls, addr: StaticAddressComponent, v: "ChoiceMap[T]") -> "ChoiceMap[T]":
         return choice_map_static(
-            addr, ChoiceMap.value(v) if not isinstance(v, ChoiceMap) else v
+            addr, v
         )
 
     @classmethod
-    def idx(cls, addr: DynamicAddressComponent, v: Any) -> "ChoiceMap":
+    def idx(cls, addr: DynamicAddressComponent, v: "ChoiceMap[T]") -> "ChoiceMap[T]":
         return choice_map_idx(
-            addr, ChoiceMap.value(v) if not isinstance(v, ChoiceMap) else v
+            addr, v
         )
 
     @classmethod
@@ -995,7 +995,7 @@ class ChoiceMapSample(Sample, ChoiceMap[Sample]):
 
 
 @Pytree.dataclass
-class ChoiceMapConstraint(Constraint):
+class ChoiceMapConstraint(Constraint, ChoiceMap[Constraint]):
     choice_map: ChoiceMap[Constraint]
 
     def get_submap(self, addr: ExtendedAddress) -> "ChoiceMapConstraint":
@@ -1006,7 +1006,7 @@ class ChoiceMapConstraint(Constraint):
 
 
 @Pytree.dataclass
-class ChoiceMapUpdateRequest(UpdateRequest):
+class ChoiceMapUpdateRequest(UpdateRequest, ChoiceMap[UpdateRequest]):
     choice_map: ChoiceMap[UpdateRequest]
 
     def get_submap(self, addr: ExtendedAddress) -> "ChoiceMapUpdateRequest":

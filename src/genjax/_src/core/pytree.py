@@ -243,6 +243,29 @@ class Pytree(pz.Struct):
             jnp.squeeze(jnp.stack(leaf, axis=-1)) for leaf in grouped_leaves
         ]
         return treedef_list[0].unflatten(result_leaves)
+    
+    @staticmethod
+    def tree_concat(trees):
+        """Takes a list of trees and concatenates every corresponding leaf.
+
+        For example, given two trees ((a, b), c) and ((a', b'), c'), returns ((concatenate(a,
+        a'), concatenate(b, b')), concatenate(c, c')).
+
+        Useful for turning a list of objects into something you can feed to a vmapped
+        function.
+        """
+        leaves_list = []
+        treedef_list = []
+        for tree in trees:
+            leaves, treedef = jtu.tree_flatten(tree)
+            leaves_list.append(leaves)
+            treedef_list.append(treedef)
+
+        grouped_leaves = zip(*leaves_list)
+        result_leaves = [
+            jnp.concatenate(leaf, axis=0) for leaf in grouped_leaves
+        ]
+        return treedef_list[0].unflatten(result_leaves)
 
     @staticmethod
     def tree_unstack(tree):
