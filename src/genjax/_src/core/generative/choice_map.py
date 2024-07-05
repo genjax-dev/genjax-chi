@@ -939,7 +939,6 @@ def choice_map_filtered(
     c: ChoiceMap,
 ) -> ChoiceMap:
     return choice_map_empty if c.static_is_empty() else FilteredChm(selection, c)
-<<<<<<< HEAD
 
 ###################
 # Update requests #
