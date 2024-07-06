@@ -108,7 +108,7 @@ class TestIterate:
         the initial value).
         """
         result = inc.iterate(n=4).simulate(key, (0,)).get_retval()
-        assert jnp.array_equal(result, jnp.array([1, 2, 3, 4]))
+        assert jnp.array_equal(result, jnp.array([0, 1, 2, 3, 4]))
 
     def test_iterate_final(self, key):
         """
@@ -131,7 +131,7 @@ class TestIterate:
         """
         result = inc_tupled.iterate(n=4).simulate(key, ((0, 2),)).get_retval()
         assert jnp.array_equal(
-            result, (jnp.array([2, 4, 6, 8]), jnp.array([2, 2, 2, 2]))
+            result, (jnp.array([0, 2, 4, 6, 8]), jnp.array([2, 2, 2, 2, 2]))
         )
 
     def test_iterate_final_tupled(self, key):
@@ -166,19 +166,19 @@ class TestScanFoldMethods:
         result = add.simulate(key, (0, 2)).get_retval()
         assert result == 2
 
-    def test_scan(self, key):
+    def test_accumulate(self, key):
         """
-        `scan` on a generative function of signature `(accumulator, v) -> accumulator` returns a generative function that
+        `accumulate` on a generative function of signature `(accumulator, v) -> accumulator` returns a generative function that
 
         - takes `(accumulator, jnp.array(v)) -> accumulator`
         - and returns an array of each intermediate accumulator value seen (not including the initial value).
         """
         result = add.accumulate().simulate(key, (0, jnp.ones(4))).get_retval()
-        assert jnp.array_equal(result, jnp.array([1, 2, 3, 4]))
+        assert jnp.array_equal(result, jnp.array([0, 1, 2, 3, 4]))
 
-    def test_fold(self, key):
+    def test_reduce(self, key):
         """
-        `fold` on a generative function of signature `(accumulator, v) -> accumulator` returns a generative function that
+        `reduce` on a generative function of signature `(accumulator, v) -> accumulator` returns a generative function that
 
         - takes `(accumulator, jnp.array(v)) -> accumulator`
         - and returns the final `accumulator` produces by folding in each element of `jnp.array(v)`.
@@ -192,20 +192,21 @@ class TestScanFoldMethods:
         result = add_tupled.simulate(key, ((0, 2), 10)).get_retval()
         assert jnp.array_equal(result, (12, 2))
 
-    def test_scan_tupled(self, key):
+    def test_accumulate_tupled(self, key):
         """
-        `scan` on function with tupled carry state works correctly.
+        `accumulate` on function with tupled carry state works correctly.
         """
         result = (
             add_tupled.accumulate().simulate(key, ((0, 2), jnp.ones(4))).get_retval()
         )
         assert jnp.array_equal(
-            result, (jnp.array([3, 6, 9, 12]), jnp.array([2, 2, 2, 2]))
+            result, (jnp.array([0, 3, 6, 9, 12]), jnp.array([2, 2, 2, 2, 2]))
         )
+        jax.numpy.hstack
 
-    def test_fold_tupled(self, key):
+    def test_reduce_tupled(self, key):
         """
-        `fold` on function with tupled carry state works correctly.
+        `reduce` on function with tupled carry state works correctly.
         """
         result = add_tupled.reduce().simulate(key, ((0, 2), jnp.ones(10))).get_retval()
         assert jnp.array_equal(result, (30, 2))

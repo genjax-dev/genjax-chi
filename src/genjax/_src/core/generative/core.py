@@ -1011,7 +1011,7 @@ class GenerativeFunction(Pytree):
         When called on a [`genjax.GenerativeFunction`][] of type `(c, a) -> c`, returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> [c]` where
 
         - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
-        - `[c]` is an array of all loop-carried values seen during iteration (excluding the first)
+        - `[c]` is an array of all loop-carried values seen during iteration (including the first)
         - `a` may be a primitive, an array type or a pytree (container) type with array leaves
 
         All traced values are nested under an index.
@@ -1023,7 +1023,7 @@ class GenerativeFunction(Pytree):
         ```python
         def accumulate(f, init, xs):
             carry = init
-            carries = []
+            carries = [init]
             for x in xs:
                 carry = f(carry, x)
                 carries.append(carry)
@@ -1129,7 +1129,7 @@ class GenerativeFunction(Pytree):
         When called on a [`genjax.GenerativeFunction`][] of type `a -> a`, returns a new [`genjax.GenerativeFunction`][] of type `a -> [a]` where
 
         - `a` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
-        - `[a]` is an array of all `f(a)`, `f(f(a))` etc. values seen during iteration (excluding tjhe initial `a`)
+        - `[a]` is an array of all `a`, `f(a)`, `f(f(a))` etc. values seen during iteration.
 
         All traced values are nested under an index.
 
@@ -1138,7 +1138,7 @@ class GenerativeFunction(Pytree):
         ```python
         def iterate(f, n, init):
             input = init
-            seen = []
+            seen = [init]
             for _ in range(n):
                 input = f(input)
                 seen.append(input)
@@ -1321,10 +1321,10 @@ class GenerativeFunction(Pytree):
 
     def switch(self, *branches: "GenerativeFunction") -> "GenerativeFunction":
         """
-        Given `n` [`genjax.GenerativeFunction`][] inputs, returns a decorator that takes a [`genjax.GenerativeFunction`][] `f` and returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
+        Given `n` [`genjax.GenerativeFunction`][] inputs, returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
 
-        - an index in the range `[0, n]`
-        - a tuple of arguments for `f` and each of the input generative functions (`n+1` total tuples)
+        - an index in the range $[0, n+1)$
+        - a tuple of arguments for `self` and each of the input generative functions (`n+1` total tuples)
 
         and executes the generative function at the supplied index with its provided arguments.
 
