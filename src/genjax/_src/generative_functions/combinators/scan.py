@@ -652,7 +652,7 @@ def prepend_initial_acc(args, ret):
     Note:
         This function uses JAX's tree mapping to handle nested structures in the accumulator, allowing it to work with complex accumulator types.
     """
-    init_acc, _ = args
+    init_acc = args[0]
     xs = ret[1]
 
     def concat_with_init(init, arr):
