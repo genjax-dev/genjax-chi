@@ -149,8 +149,8 @@ class MaskCombinator(GenerativeFunction):
             jax.lax.select(
                 check,
                 premasked_trace.get_score(),
-                0.,
-            )
+                0.0,
+            ),
         )
         return (
             MaskTrace(self, premasked_trace, check),
