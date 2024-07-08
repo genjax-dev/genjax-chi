@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from jax.lax import select
+import jax
 
 from genjax._src.core.generative import (
     Argdiffs,
@@ -139,14 +139,14 @@ class MaskCombinator(GenerativeFunction):
         premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
             key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
         )
-        w = select(
+        w = jax.lax.select(
             trace.check,
-            select(
+            jax.lax.select(
                 check,
                 w,
                 -trace.get_score(),
             ),
-            select(
+            jax.lax.select(
                 check,
                 premasked_trace.get_score(),
                 0.,
