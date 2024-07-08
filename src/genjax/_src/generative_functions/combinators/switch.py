@@ -694,17 +694,17 @@ def switch(
     *gen_fns: GenerativeFunction,
 ) -> GenerativeFunction:
     """
-    Given `n` [`genjax.GenerativeFunction`][] inputs, returns a decorator that takes a [`genjax.GenerativeFunction`][] `f` and returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
+    Given `n` [`genjax.GenerativeFunction`][] inputs, returns a [`genjax.GenerativeFunction`][] that accepts `n+1` arguments:
 
-    - an index in the range `[0, n]`
-    - a tuple of arguments for `f` and each of the input generative functions (`n+1` total tuples)
+    - an index in the range $[0, n)$
+    - a tuple of arguments for each of the input generative functions (`n` total tuples)
 
     and executes the generative function at the supplied index with its provided arguments.
 
     If `index` is out of bounds, `index` is clamped to within bounds.
 
     Args:
-        gen_fns: generative functions that the `SwitchCombinator` will select from when given an index of 1 or greater.
+        gen_fns: generative functions that the `SwitchCombinator` will select from.
 
     Returns:
 

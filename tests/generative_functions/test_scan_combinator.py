@@ -108,7 +108,11 @@ class TestIterate:
         the initial value).
         """
         result = inc.iterate(n=4).simulate(key, (0,)).get_retval()
-        assert jnp.array_equal(result, jnp.array([1, 2, 3, 4]))
+        assert jnp.array_equal(result, jnp.array([0, 1, 2, 3, 4]))
+
+        # same as result, with a jnp.array-wrapped accumulator
+        result_wrapped = inc.iterate(n=4).simulate(key, (jnp.array(0),)).get_retval()
+        assert jnp.array_equal(result, result_wrapped)
 
     def test_iterate_final(self, key):
         """
@@ -131,7 +135,7 @@ class TestIterate:
         """
         result = inc_tupled.iterate(n=4).simulate(key, ((0, 2),)).get_retval()
         assert jnp.array_equal(
-            result, (jnp.array([2, 4, 6, 8]), jnp.array([2, 2, 2, 2]))
+            result, (jnp.array([0, 2, 4, 6, 8]), jnp.array([2, 2, 2, 2, 2]))
         )
 
     def test_iterate_final_tupled(self, key):
@@ -142,6 +146,54 @@ class TestIterate:
         """
         result = inc_tupled.iterate_final(n=10).simulate(key, ((0, 2),)).get_retval()
         assert jnp.array_equal(result, (20, 2))
+
+    def test_iterate_array(self, key):
+        """
+        `iterate` on function with an array-shaped initial value works correctly.
+        """
+
+        @genjax.gen
+        def double(prev):
+            return prev + prev
+
+        result = double.iterate(n=4).simulate(key, (jnp.ones(4),)).get_retval()
+
+        assert jnp.array_equal(
+            result,
+            jnp.array([
+                [1, 1, 1, 1],
+                [2, 2, 2, 2],
+                [4, 4, 4, 4],
+                [8, 8, 8, 8],
+                [16, 16, 16, 16],
+            ]),
+        )
+
+    def test_iterate_matrix(self, key):
+        """
+        `iterate` on function with matrix-shaped initial value works correctly.
+        """
+
+        fibonacci_matrix = jnp.array([[1, 1], [1, 0]])
+
+        @genjax.gen
+        def fibonacci_step(prev):
+            return fibonacci_matrix @ prev
+
+        iterated_fib = fibonacci_step.iterate(n=5)
+        result = iterated_fib.simulate(key, (fibonacci_matrix,)).get_retval()
+
+        # sequence of F^n fibonacci matrices
+        expected = jnp.array([
+            [[1, 1], [1, 0]],
+            [[2, 1], [1, 1]],
+            [[3, 2], [2, 1]],
+            [[5, 3], [3, 2]],
+            [[8, 5], [5, 3]],
+            [[13, 8], [8, 5]],
+        ])
+
+        assert jnp.array_equal(result, expected)
 
 
 @genjax.gen
@@ -156,7 +208,7 @@ def add_tupled(acc, x):
     return (carry + x + offset, offset)
 
 
-class TestScanFoldMethods:
+class TestAccumulateReduceMethods:
     @pytest.fixture
     def key(self):
         return jax.random.PRNGKey(314159)
@@ -166,19 +218,26 @@ class TestScanFoldMethods:
         result = add.simulate(key, (0, 2)).get_retval()
         assert result == 2
 
-    def test_scan(self, key):
+    def test_accumulate(self, key):
         """
-        `scan` on a generative function of signature `(accumulator, v) -> accumulator` returns a generative function that
+        `accumulate` on a generative function of signature `(accumulator, v) -> accumulator` returns a generative function that
 
         - takes `(accumulator, jnp.array(v)) -> accumulator`
         - and returns an array of each intermediate accumulator value seen (not including the initial value).
         """
         result = add.accumulate().simulate(key, (0, jnp.ones(4))).get_retval()
-        assert jnp.array_equal(result, jnp.array([1, 2, 3, 4]))
 
-    def test_fold(self, key):
+        assert jnp.array_equal(result, jnp.array([0, 1, 2, 3, 4]))
+
+        # same as result, but with a wrapped scalar vs a bare `0`.
+        result_wrapped = (
+            add.accumulate().simulate(key, (jnp.array(0), jnp.ones(4))).get_retval()
+        )
+        assert jnp.array_equal(result, result_wrapped)
+
+    def test_reduce(self, key):
         """
-        `fold` on a generative function of signature `(accumulator, v) -> accumulator` returns a generative function that
+        `reduce` on a generative function of signature `(accumulator, v) -> accumulator` returns a generative function that
 
         - takes `(accumulator, jnp.array(v)) -> accumulator`
         - and returns the final `accumulator` produces by folding in each element of `jnp.array(v)`.
@@ -192,20 +251,65 @@ class TestScanFoldMethods:
         result = add_tupled.simulate(key, ((0, 2), 10)).get_retval()
         assert jnp.array_equal(result, (12, 2))
 
-    def test_scan_tupled(self, key):
+    def test_accumulate_tupled(self, key):
         """
-        `scan` on function with tupled carry state works correctly.
+        `accumulate` on function with tupled carry state works correctly.
         """
         result = (
             add_tupled.accumulate().simulate(key, ((0, 2), jnp.ones(4))).get_retval()
         )
         assert jnp.array_equal(
-            result, (jnp.array([3, 6, 9, 12]), jnp.array([2, 2, 2, 2]))
+            result, (jnp.array([0, 3, 6, 9, 12]), jnp.array([2, 2, 2, 2, 2]))
         )
+        jax.numpy.hstack
 
-    def test_fold_tupled(self, key):
+    def test_reduce_tupled(self, key):
         """
-        `fold` on function with tupled carry state works correctly.
+        `reduce` on function with tupled carry state works correctly.
         """
         result = add_tupled.reduce().simulate(key, ((0, 2), jnp.ones(10))).get_retval()
         assert jnp.array_equal(result, (30, 2))
+
+    def test_accumulate_array(self, key):
+        """
+        `accumulate` with an array-shaped accumulator works correctly, including the initial value.
+        """
+        result = add.accumulate().simulate(key, (jnp.ones(4), jnp.eye(4))).get_retval()
+
+        assert jnp.array_equal(
+            result,
+            jnp.array([
+                [1, 1, 1, 1],
+                [2, 1, 1, 1],
+                [2, 2, 1, 1],
+                [2, 2, 2, 1],
+                [2, 2, 2, 2],
+            ]),
+        )
+
+    def test_accumulate_matrix(self, key):
+        """
+        `accumulate` on function with matrix-shaped initial value works correctly.
+        """
+
+        fib = jnp.array([[1, 1], [1, 0]])
+        repeated_fib = jnp.array([fib, fib, fib, fib, fib])
+
+        @genjax.gen
+        def matmul(prev, next):
+            return prev @ next
+
+        fib_steps = matmul.accumulate()
+        result = fib_steps.simulate(key, (fib, repeated_fib)).get_retval()
+
+        # sequence of F^n fibonacci matrices
+        expected = jnp.array([
+            [[1, 1], [1, 0]],
+            [[2, 1], [1, 1]],
+            [[3, 2], [2, 1]],
+            [[5, 3], [3, 2]],
+            [[8, 5], [5, 3]],
+            [[13, 8], [8, 5]],
+        ])
+
+        assert jnp.array_equal(result, expected)

@@ -634,6 +634,33 @@ def scan(
     return decorator
 
 
+def prepend_initial_acc(args, ret):
+    """
+    Prepends the initial accumulator value to the array of accumulated values.
+
+    This function is used in the context of scan operations to include the initial
+    accumulator state in the output, effectively providing a complete history of
+    the accumulator's values throughout the scan.
+
+    Args:
+        args: A tuple containing the initial arguments to the scan operation. The first element is expected to be the initial accumulator value.
+        ret: A tuple containing the final accumulator value and an array of intermediate accumulator values from the scan operation.
+
+    Returns:
+        A tree structure where each leaf is an array with the initial accumulator value prepended to the corresponding array of intermediate values.
+
+    Note:
+        This function uses JAX's tree mapping to handle nested structures in the accumulator, allowing it to work with complex accumulator types.
+    """
+    init_acc = args[0]
+    xs = ret[1]
+
+    def cat(init, arr):
+        return jnp.concatenate([jnp.array(init)[jnp.newaxis], arr])
+
+    return jax.tree.map(cat, init_acc, xs)
+
+
 @typecheck
 def accumulate(
     *, reverse: bool = False, unroll: int | bool = 1
@@ -642,7 +669,7 @@ def accumulate(
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> [c]` where
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
-    - `[c]` is an array of all loop-carried values seen during iteration (excluding the first)
+    - `[c]` is an array of all loop-carried values seen during iteration (including the first)
     - `a` may be a primitive, an array type or a pytree (container) type with array leaves
 
     All traced values are nested under an index.
@@ -654,7 +681,7 @@ def accumulate(
     ```python
     def accumulate(f, init, xs):
         carry = init
-        carries = []
+        carries = [init]
         for x in xs:
             carry = f(carry, x)
             carries.append(carry)
@@ -694,11 +721,11 @@ def accumulate(
         ```
     """
 
-    def decorator(f):
+    def decorator(f: GenerativeFunction):
         return (
             f.map(lambda ret: (ret, ret))
             .scan(reverse=reverse, unroll=unroll)
-            .map(lambda ret: ret[1])
+            .dimap(pre=lambda *args: args, post=prepend_initial_acc)
         )
 
     return decorator
@@ -779,7 +806,7 @@ def iterate(
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> [a]` where
 
     - `a` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
-    - `[a]` is an array of all `f(a)`, `f(f(a))` etc. values seen during iteration (excluding tjhe initial `a`)
+    - `[a]` is an array of all `a`, `f(a)`, `f(f(a))` etc. values seen during iteration.
 
     All traced values are nested under an index.
 
@@ -788,7 +815,7 @@ def iterate(
     ```python
     def iterate(f, n, init):
         input = init
-        seen = []
+        seen = [init]
         for _ in range(n):
             input = f(input)
             seen.append(input)
@@ -830,7 +857,7 @@ def iterate(
         return (
             f.dimap(pre=lambda *args: args[:-1], post=lambda _, ret: (ret, ret))
             .scan(n=n, unroll=unroll)
-            .dimap(pre=lambda *args: (*args, None), post=lambda _, ret: ret[1])
+            .dimap(pre=lambda *args: (*args, None), post=prepend_initial_acc)
         )
 
     return decorator
