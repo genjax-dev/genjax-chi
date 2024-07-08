@@ -655,10 +655,10 @@ def prepend_initial_acc(args, ret):
     init_acc = args[0]
     xs = ret[1]
 
-    def concat_with_init(init, arr):
-        return jnp.concatenate([jnp.array([init]), arr])
+    def cat(init, arr):
+        return jnp.concatenate([jnp.array(init)[jnp.newaxis], arr])
 
-    return jax.tree.map(concat_with_init, init_acc, xs)
+    return jax.tree.map(cat, init_acc, xs)
 
 
 @typecheck
