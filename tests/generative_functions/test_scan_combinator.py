@@ -334,8 +334,9 @@ class TestScanUpdate:
         def model(k):
             return step.scan(n=3)(k, A(jnp.array([1.0, 2.0, 3.0]))) @ "steps"
 
-        tr = model.simulate(jax.random.PRNGKey(0), (jnp.array(1.0),))
-        u, w, _, _ = tr.update(jax.random.PRNGKey(1), C["steps", 1, "b"].set(99.0))
+        k1, k2 = jax.random.split(key)
+        tr = model.simulate(k1, (jnp.array(1.0),))
+        u, w, _, _ = tr.update(k2, C["steps", 1, "b"].set(99.0))
         assert jnp.allclose(
             u.get_choices()["steps", ..., "b"], jnp.array([2.0, 99.0, 7.0]), atol=0.1
         )
