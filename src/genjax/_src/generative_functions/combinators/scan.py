@@ -344,7 +344,9 @@ class ScanCombinator(GenerativeFunction):
                     subproblem,
                 ),
             )
-            (carry_retdiff, scanned_out_retdiff) = kernel_retdiff
+            (carry_retdiff, scanned_out_retdiff) = Diff.tree_diff_unknown_change(
+                kernel_retdiff
+            )
             score = new_subtrace.get_score()
             return (carry_retdiff, score), (
                 new_subtrace,
