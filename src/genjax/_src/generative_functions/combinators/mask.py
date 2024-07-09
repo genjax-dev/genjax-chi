@@ -142,25 +142,24 @@ class MaskCombinator(GenerativeFunction):
             case EmptyTrace():
                 inner_trace = EmptyTrace(self.gen_fn)
                 init_check = True
-        
+
         premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
-           key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+            key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
         )
 
         w = jax.lax.select(
-                init_check,
-                jax.lax.select(
-                    check,
-                    w,
-                    -trace.get_score(),
-                ),
-                jax.lax.select(
-                    check,
-                    premasked_trace.get_score(),
-                    0.0,
-                )
+            init_check,
+            jax.lax.select(
+                check,
+                w,
+                -trace.get_score(),
+            ),
+            jax.lax.select(
+                check,
+                premasked_trace.get_score(),
+                0.0,
+            ),
         )
-
 
         return (
             MaskTrace(self, premasked_trace, check),
