@@ -355,7 +355,7 @@ class ScanCombinator(GenerativeFunction):
 
         def _update(carry, scanned_over):
             key, idx, carried_value = carry
-            (subtrace, *scanned_in) = scanned_over
+            subtrace, scanned_in = scanned_over
             key = jax.random.fold_in(key, idx)
             subproblem = self._get_subproblem(problem, idx)
             (
