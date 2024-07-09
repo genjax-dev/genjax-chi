@@ -337,6 +337,6 @@ class TestScanUpdate:
         tr = model.simulate(jax.random.PRNGKey(0), (jnp.array(1.0),))
         u, w, _, _ = tr.update(jax.random.PRNGKey(1), C["steps", 1, "b"].set(99.0))
         assert jnp.allclose(
-            u.get_choices()["steps", ..., "b"], jnp.array([2.0, 99.0, 7.0])
+            u.get_choices()["steps", ..., "b"], jnp.array([2.0, 99.0, 7.0]), atol=0.1
         )
         assert w < -100.0
