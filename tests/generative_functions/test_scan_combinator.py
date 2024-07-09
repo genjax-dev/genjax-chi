@@ -126,7 +126,7 @@ class TestIterate:
     def test_inc_tupled(self, key):
         """Baseline test demonstrating `inc_tupled`."""
         result = inc_tupled.simulate(key, ((0, 2),)).get_retval()
-        assert jnp.array_equal(result, (2, 2))
+        assert jnp.array_equal(result, jnp.array((2, 2)))
 
     def test_iterate_tupled(self, key):
         """
@@ -134,9 +134,7 @@ class TestIterate:
         from invocation to invocation.
         """
         result = inc_tupled.iterate(n=4).simulate(key, ((0, 2),)).get_retval()
-        assert jnp.array_equal(
-            result, (jnp.array([0, 2, 4, 6, 8]), jnp.array([2, 2, 2, 2, 2]))
-        )
+        assert jnp.array_equal(result, jnp.array([[0, 2, 4, 6, 8], [2, 2, 2, 2, 2]]))
 
     def test_iterate_final_tupled(self, key):
         """
@@ -145,7 +143,7 @@ class TestIterate:
         `iterate_final`.
         """
         result = inc_tupled.iterate_final(n=10).simulate(key, ((0, 2),)).get_retval()
-        assert jnp.array_equal(result, (20, 2))
+        assert jnp.array_equal(result, jnp.array((20, 2)))
 
     def test_iterate_array(self, key):
         """
@@ -249,7 +247,7 @@ class TestAccumulateReduceMethods:
     def test_add_tupled(self, key):
         """Baseline test demonstrating `add_tupled`."""
         result = add_tupled.simulate(key, ((0, 2), 10)).get_retval()
-        assert jnp.array_equal(result, (12, 2))
+        assert jnp.array_equal(result, jnp.array((12, 2)))
 
     def test_accumulate_tupled(self, key):
         """
@@ -258,9 +256,7 @@ class TestAccumulateReduceMethods:
         result = (
             add_tupled.accumulate().simulate(key, ((0, 2), jnp.ones(4))).get_retval()
         )
-        assert jnp.array_equal(
-            result, (jnp.array([0, 3, 6, 9, 12]), jnp.array([2, 2, 2, 2, 2]))
-        )
+        assert jnp.array_equal(result, jnp.array([[0, 3, 6, 9, 12], [2, 2, 2, 2, 2]]))
         jax.numpy.hstack
 
     def test_reduce_tupled(self, key):
@@ -268,7 +264,7 @@ class TestAccumulateReduceMethods:
         `reduce` on function with tupled carry state works correctly.
         """
         result = add_tupled.reduce().simulate(key, ((0, 2), jnp.ones(10))).get_retval()
-        assert jnp.array_equal(result, (30, 2))
+        assert jnp.array_equal(result, jnp.array((30, 2)))
 
     def test_accumulate_array(self, key):
         """
