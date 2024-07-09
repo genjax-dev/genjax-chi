@@ -21,6 +21,7 @@ from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import SelectionBuilder as S
 from genjax import UpdateProblemBuilder as U
+from genjax.typing import FloatArray
 
 
 @genjax.iterate(n=10)
@@ -324,7 +325,7 @@ class TestScanUpdate:
     def test_scan_update(self, key):
         @pz.pytree_dataclass
         class A(genjax.Pytree):
-            x: genjax.typing.FloatArray
+            x: FloatArray
 
         @genjax.gen
         def step(b, a):
