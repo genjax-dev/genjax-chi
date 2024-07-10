@@ -40,7 +40,6 @@ from genjax._src.core.typing import (
     Optional,
     ParamSpec,
     PRNGKey,
-    ScalarFloat,
     String,
     Tuple,
     TypeVar,
@@ -61,19 +60,17 @@ _T = TypeVar("_T")
 # Special generative function types #
 #####################################
 
-Weight = ScalarFloat
+Weight = FloatArray
 """
 A _weight_ is a density ratio which often occurs in the context of proper weighting for [`Target`][genjax.inference.Target] distributions, or in Gen's [`update`][genjax.core.GenerativeFunction.update] interface, whose mathematical content is described in [`update`][genjax.core.GenerativeFunction.update].
 
 The type `Weight` does not enforce any meaningful mathematical invariants, but is used to denote the type of weights in GenJAX, to improve readability and parsing of interface specifications / expectations.
 """
-Score = ScalarFloat
+Score = FloatArray
 """
 A _score_ is a density ratio, described fully in [`simulate`][genjax.core.GenerativeFunction.simulate].
 
 The type `Score` does not enforce any meaningful mathematical invariants, but is used to denote the type of scores in the GenJAX system, to improve readability and parsing of interface specifications.
-
-Under type checking, the type `Score` enforces that the value must be a scalar floating point number.
 """
 
 Arguments = Tuple
@@ -176,7 +173,7 @@ class UpdateProblemBuilder(Pytree):
 
     @classmethod
     def maybe(cls, flag: Bool | BoolArray, problem: "UpdateProblem"):
-        return MaskedProblem.maybe_empty(flag, problem)
+        return MaskedProblem.maybe_empty(jnp.array(flag), problem)
 
     @classmethod
     def g(cls, argdiffs: Argdiffs, subproblem: "UpdateProblem") -> "UpdateProblem":
@@ -440,7 +437,7 @@ class EmptyTrace(Trace):
         return EmptyTraceRetval()
 
     def get_score(self) -> Score:
-        return 0.0
+        return jnp.array(0.0)
 
     def get_sample(self) -> Sample:
         return EmptySample()
@@ -1610,7 +1607,7 @@ def push_trace_overload_stack(handler, fn):
 
 @Pytree.dataclass
 class IgnoreKwargs(GenerativeFunction):
-    wrapped: "GenerativeFunction"
+    wrapped: GenerativeFunction
 
     def handle_kwargs(self) -> "GenerativeFunction":
         raise NotImplementedError
@@ -1708,9 +1705,9 @@ class GenerativeFunctionClosure(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        problem: UpdateProblem,
+        update_problem: UpdateProblem,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        match problem:
+        match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 full_argdiffs = (*self.args, *argdiffs)
                 if self.kwargs:
