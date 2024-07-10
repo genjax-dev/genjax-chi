@@ -520,7 +520,7 @@ class ExactDensity(Distribution):
         Given arguments to the distribution, sample from the distribution, and return the exact log density of the sample, and the sample.
         """
         v = self.sample(key, *args)
-        w = self.logpdf(v, *args)
+        w = self.estimate_logpdf(key, v, *args)
         return (w, v)
 
     def estimate_logpdf(
