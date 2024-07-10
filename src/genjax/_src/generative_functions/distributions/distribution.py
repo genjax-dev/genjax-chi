@@ -44,7 +44,7 @@ from genjax._src.core.generative import (
     UpdateRequest,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ChoiceMapConstraint
+from genjax._src.core.generative.choice_map import ChoiceMapConstraint, ChoiceMapSample
 from genjax._src.core.generative.core import Arguments, ConstraintUpdateRequest
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import staged_check
@@ -54,9 +54,10 @@ from genjax._src.core.typing import (
     Bool,
     BoolArray,
     Callable,
-    FloatArray,
+    Generic,
     PRNGKey,
     Tuple,
+    TypeVar,
     dispatch,
     overload,
     static_check_is_concrete,
@@ -73,11 +74,11 @@ class DistributionTrace(
     Trace,
 ):
     gen_fn: GenerativeFunction
-    args: Tuple
+    args: Arguments
     value: Any
-    score: FloatArray
+    score: Score
 
-    def get_args(self) -> Tuple:
+    def get_args(self) -> Arguments:
         return self.args
 
     def get_retval(self) -> Any:
@@ -86,32 +87,34 @@ class DistributionTrace(
     def get_gen_fn(self) -> GenerativeFunction:
         return self.gen_fn
 
-    def get_score(self) -> FloatArray:
+    def get_score(self) -> Score:
         return self.score
 
-    def get_sample(self) -> ChoiceMap:
-        return ChoiceMap.value(self.value)
+    def get_sample(self) -> Sample:
+        return ChoiceMapSample(ChoiceMap.value(self.value))
 
 
 ################
 # Distribution #
 ################
 
+R = TypeVar("R")
 
-class Distribution(GenerativeFunction):
+
+class Distribution(Generic[R], GenerativeFunction):
     @abstractmethod
     def random_weighted(
         self,
         key: PRNGKey,
         *args,
-    ) -> Tuple[Score, Retval]:
+    ) -> Tuple[Score, R]:
         pass
 
     @abstractmethod
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        v: Any,
+        v: R,
         *args,
     ) -> Weight:
         pass

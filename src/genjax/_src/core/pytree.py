@@ -265,7 +265,7 @@ class Pytree(pz.Struct):
             jnp.squeeze(jnp.stack(leaf, axis=-1)) for leaf in grouped_leaves
         ]
         return treedef_list[0].unflatten(result_leaves)
-    
+
     @staticmethod
     def tree_concat(trees):
         """Takes a list of trees and concatenates every corresponding leaf.
@@ -284,9 +284,7 @@ class Pytree(pz.Struct):
             treedef_list.append(treedef)
 
         grouped_leaves = zip(*leaves_list)
-        result_leaves = [
-            jnp.concatenate(leaf, axis=0) for leaf in grouped_leaves
-        ]
+        result_leaves = [jnp.concatenate(leaf, axis=0) for leaf in grouped_leaves]
         return treedef_list[0].unflatten(result_leaves)
 
     @staticmethod

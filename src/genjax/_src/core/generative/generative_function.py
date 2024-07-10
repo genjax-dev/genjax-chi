@@ -136,7 +136,7 @@ class Trace(Pytree):
         """Return the [`Sample`][genjax.core.Sample] sampled from the distribution over samples by the generative function during the invocation which created the [`Trace`][genjax.core.Trace]."""
 
     # TODO: deprecated.
-    def get_choices(self) -> Sample:
+    def get_choices(self) -> ChoiceMap:
         return self.get_sample()
 
     @abstractmethod

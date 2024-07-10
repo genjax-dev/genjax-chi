@@ -12,13 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import abstractmethod
 from typing import TYPE_CHECKING
-
-import jax
-import jax.numpy as jnp
-import jax.tree_util as jtu
-from penzai.core import formatting_util
 
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import staged_and
@@ -36,9 +30,7 @@ from genjax._src.core.typing import (
     IntArray,
     Is,
     List,
-    Optional,
     ParamSpec,
-    PRNGKey,
     ScalarFloat,
     Tuple,
     TypeVar,
@@ -49,7 +41,7 @@ register_exclusion(__file__)
 
 # Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
 if TYPE_CHECKING:
-    import genjax
+    pass
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
@@ -152,6 +144,7 @@ class SumUpdateRequest(UpdateRequest):
 
 U = TypeVar("U", bound=UpdateRequest)
 
+
 # NOTE: responding to this request is what old update does.
 @Pytree.dataclass(match_args=True)
 class IncrementalUpdateRequest(Generic[U], UpdateRequest):
@@ -166,6 +159,7 @@ C = TypeVar("C", bound="Constraint")
 class ConstraintUpdateRequest(Generic[C], UpdateRequest):
     constraint: C
 
+
 # NOTE: the importance interface is encapsulated by the new version of update.
 # This request asks for that.
 @Pytree.dataclass(match_args=True)
@@ -178,6 +172,7 @@ class ImportanceUpdateRequest(Generic[C], UpdateRequest):
 @Pytree.dataclass
 class ProjectUpdateRequest(UpdateRequest):
     pass
+
 
 # NOTE: responding to this request is what Gen's regenerate interface does.
 @Pytree.dataclass

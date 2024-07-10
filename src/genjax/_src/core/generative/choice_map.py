@@ -636,15 +636,11 @@ class ChoiceMap(Generic[T], Pytree):
 
     @classmethod
     def str(cls, addr: StaticAddressComponent, v: "ChoiceMap[T]") -> "ChoiceMap[T]":
-        return choice_map_static(
-            addr, v
-        )
+        return choice_map_static(addr, v)
 
     @classmethod
     def idx(cls, addr: DynamicAddressComponent, v: "ChoiceMap[T]") -> "ChoiceMap[T]":
-        return choice_map_idx(
-            addr, v
-        )
+        return choice_map_idx(addr, v)
 
     @classmethod
     def d(cls, d: dict) -> "ChoiceMap":
@@ -939,6 +935,7 @@ def choice_map_filtered(
     c: ChoiceMap,
 ) -> ChoiceMap:
     return choice_map_empty if c.static_is_empty() else FilteredChm(selection, c)
+
 
 ###################
 # Update requests #

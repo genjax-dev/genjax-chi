@@ -89,7 +89,7 @@ class Target(Pytree):
 
 
 @Pytree.dataclass
-class SampleDistribution(Distribution):
+class SampleDistribution(Distribution[Sample]):
     """
     The abstract class `SampleDistribution` represents the type of distributions whose return value type is a `Sample`. This is the abstract base class of `Algorithm`, as well as `Marginal`.
     """
@@ -106,7 +106,7 @@ class SampleDistribution(Distribution):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: Sample,
+        v: Sample,
         *args: Any,
     ) -> FloatArray:
         raise NotImplementedError
