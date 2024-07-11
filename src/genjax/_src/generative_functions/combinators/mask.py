@@ -136,16 +136,16 @@ class MaskCombinator(GenerativeFunction):
                 inner_trace = trace.inner
             case EmptyTrace():
                 inner_trace = EmptyTrace(self.gen_fn)
-        
+
         premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
-           key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+            key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
         )
 
         w = jax.lax.select(
-                check,
-                w,
-                -trace.get_score(),
-            )
+            check,
+            w,
+            -trace.get_score(),
+        )
 
         return (
             MaskTrace(self, premasked_trace, check),
@@ -164,24 +164,23 @@ class MaskCombinator(GenerativeFunction):
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
         (check, *_) = Diff.tree_primal(argdiffs)
         (check_diff, *inner_argdiffs) = argdiffs
-        
+
         inner_trace = EmptyTrace(self.gen_fn)
         imp_update_problem = ImportanceProblem(update_problem)
 
         premasked_trace, w, _, _ = self.gen_fn.update(
-           key, inner_trace, GenericProblem(tuple(inner_argdiffs), imp_update_problem)
+            key, inner_trace, GenericProblem(tuple(inner_argdiffs), imp_update_problem)
         )
 
         _, _, retdiff, bwd_problem = self.gen_fn.update(
-           key, premasked_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+            key, premasked_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
         )
 
         w = jax.lax.select(
-                check,
-                premasked_trace.get_score(),
-                0.0,
-            )
-
+            check,
+            premasked_trace.get_score(),
+            0.0,
+        )
 
         return (
             MaskTrace(self, premasked_trace, check),
@@ -197,21 +196,21 @@ class MaskCombinator(GenerativeFunction):
         trace: Trace,
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-        ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-            match update_problem:
-                case ImportanceProblem(constraint):
-                    return self.update_change_target(
-                        key, trace, update_problem, argdiffs
-                    )
-                case _:
-                    return jax.lax.cond(
-                        trace.check,
-                        self.update_change_target,
-                        self.update_change_target_from_false,
-                        key, trace, update_problem, argdiffs
-                    )
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        match update_problem:
+            case ImportanceProblem(constraint):
+                return self.update_change_target(key, trace, update_problem, argdiffs)
+            case _:
+                return jax.lax.cond(
+                    trace.check,
+                    self.update_change_target,
+                    self.update_change_target_from_false,
+                    key,
+                    trace,
+                    update_problem,
+                    argdiffs,
+                )
 
-    
     @typecheck
     def update(
         self,
@@ -219,7 +218,6 @@ class MaskCombinator(GenerativeFunction):
         trace: Trace,
         update_problem: UpdateProblem,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_dispatch(key, trace, subproblem, argdiffs)
