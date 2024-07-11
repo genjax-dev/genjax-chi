@@ -249,7 +249,7 @@ class ForwardInterpreter(Pytree):
 
 
 @typecheck
-def forward(f: Callable):
+def forward(f: Callable[..., Any]):
     @functools.wraps(f)
     @typecheck
     def wrapped(stateful_handler: StatefulHandler, *args):

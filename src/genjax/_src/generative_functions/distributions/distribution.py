@@ -579,8 +579,8 @@ class ExactDensityFromCallables(ExactDensity):
 
 @typecheck
 def exact_density(
-    sample: Callable,
-    logpdf: Callable,
+    sample: Callable[..., Any],
+    logpdf: Callable[..., Any],
 ):
     if not isinstance(sample, Closure):
         sample = Pytree.partial()(sample)

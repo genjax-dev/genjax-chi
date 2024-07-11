@@ -106,8 +106,8 @@ class DimapCombinator(GenerativeFunction):
     """
 
     inner: GenerativeFunction
-    argument_mapping: Callable = Pytree.static()
-    retval_mapping: Callable = Pytree.static()
+    argument_mapping: Callable[..., Any] = Pytree.static()
+    retval_mapping: Callable[..., Any] = Pytree.static()
     info: Optional[String] = Pytree.static(default=None)
 
     @GenerativeFunction.gfi_boundary
@@ -201,8 +201,8 @@ class DimapCombinator(GenerativeFunction):
 
 def dimap(
     *,
-    pre: Callable = lambda *args: args,
-    post: Callable = lambda _args, retval: retval,
+    pre: Callable[..., Any] = lambda *args: args,
+    post: Callable[..., Any] = lambda _args, retval: retval,
     info: Optional[String] = None,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
@@ -255,7 +255,7 @@ def dimap(
 
 
 def map(
-    f: Callable,
+    f: Callable[..., Any],
     *,
     info: Optional[String] = None,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
@@ -299,7 +299,7 @@ def map(
 
 
 def contramap(
-    f: Callable,
+    f: Callable[..., Any],
     *,
     info: Optional[String] = None,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:

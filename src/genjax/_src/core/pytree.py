@@ -490,7 +490,7 @@ class Closure(Pytree):
     """
 
     dyn_args: Tuple
-    fn: Callable = Pytree.static()
+    fn: Callable[..., Any] = Pytree.static()
 
     def __call__(self, *args, **kwargs):
         return self.fn(*self.dyn_args, *args, **kwargs)

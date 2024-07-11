@@ -1409,8 +1409,8 @@ class GenerativeFunction(Pytree):
         self,
         /,
         *,
-        pre: Callable,
-        post: Callable,
+        pre: Callable[..., Any],
+        post: Callable[..., Any],
         info: Optional[String] = None,
     ) -> "GenerativeFunction":
         """
@@ -1462,7 +1462,7 @@ class GenerativeFunction(Pytree):
         return genjax.dimap(pre=pre, post=post, info=info)(self)
 
     def map(
-        self, f: Callable, *, info: Optional[String] = None
+        self, f: Callable[..., Any], *, info: Optional[String] = None
     ) -> "GenerativeFunction":
         """
         Specialized version of [`genjax.dimap`][] where only the post-processing function is applied.
@@ -1503,7 +1503,7 @@ class GenerativeFunction(Pytree):
         return genjax.map(f=f, info=info)(self)
 
     def contramap(
-        self, f: Callable, *, info: Optional[String] = None
+        self, f: Callable[..., Any], *, info: Optional[String] = None
     ) -> "GenerativeFunction":
         """
         Specialized version of [`genjax.GenerativeFunction.dimap`][] where only the pre-processing function is applied.
@@ -1582,7 +1582,7 @@ class GenerativeFunction(Pytree):
 # C.f. above.
 # This stack will not interact with JAX tracers at all
 # so it's safe, and will be resolved at JAX tracing time.
-GLOBAL_TRACE_OP_HANDLER_STACK: List[Callable] = []
+GLOBAL_TRACE_OP_HANDLER_STACK: List[Callable[..., Any]] = []
 
 
 def handle_off_trace_stack(addr, gen_fn: GenerativeFunction, args):
