@@ -134,32 +134,18 @@ class MaskCombinator(GenerativeFunction):
         match trace:
             case MaskTrace():
                 inner_trace = trace.inner
-                init_check = trace.check
-                match init_check:
-                    case False:
-                        update_problem = ImportanceProblem(update_problem)
-                        inner_trace = EmptyTrace(self.gen_fn)
             case EmptyTrace():
                 inner_trace = EmptyTrace(self.gen_fn)
-                init_check = True
-
+        
         premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
-            key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+           key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
         )
 
         w = jax.lax.select(
-            init_check,
-            jax.lax.select(
                 check,
                 w,
                 -trace.get_score(),
-            ),
-            jax.lax.select(
-                check,
-                premasked_trace.get_score(),
-                0.0,
-            ),
-        )
+            )
 
         return (
             MaskTrace(self, premasked_trace, check),
@@ -169,15 +155,74 @@ class MaskCombinator(GenerativeFunction):
         )
 
     @typecheck
+    def update_change_target_from_false(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        update_problem: UpdateProblem,
+        argdiffs: Argdiffs,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        (check, *_) = Diff.tree_primal(argdiffs)
+        (check_diff, *inner_argdiffs) = argdiffs
+        
+        inner_trace = EmptyTrace(self.gen_fn)
+        imp_update_problem = ImportanceProblem(update_problem)
+
+        premasked_trace, w, _, _ = self.gen_fn.update(
+           key, inner_trace, GenericProblem(tuple(inner_argdiffs), imp_update_problem)
+        )
+
+        _, _, retdiff, bwd_problem = self.gen_fn.update(
+           key, premasked_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+        )
+
+        w = jax.lax.select(
+                check,
+                premasked_trace.get_score(),
+                0.0,
+            )
+
+
+        return (
+            MaskTrace(self, premasked_trace, check),
+            w,
+            Mask.maybe(check_diff, retdiff),
+            MaskedProblem(check, bwd_problem),
+        )
+
+    @typecheck
+    def update_dispatch(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        update_problem: UpdateProblem,
+        argdiffs: Argdiffs,
+        ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+            match update_problem:
+                case ImportanceProblem(constraint):
+                    return self.update_change_target(
+                        key, trace, update_problem, argdiffs
+                    )
+                case _:
+                    return jax.lax.cond(
+                        trace.check,
+                        self.update_change_target,
+                        self.update_change_target_from_false,
+                        key, trace, update_problem, argdiffs
+                    )
+
+    
+    @typecheck
     def update(
         self,
         key: PRNGKey,
         trace: Trace,
         update_problem: UpdateProblem,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
+                return self.update_dispatch(key, trace, subproblem, argdiffs)
             case _:
                 return self.update_change_target(
                     key, trace, update_problem, Diff.no_change(trace.get_args())
