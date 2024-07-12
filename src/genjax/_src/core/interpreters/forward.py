@@ -27,7 +27,7 @@ from jax.interpreters import partial_eval as pe
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import Bool, Callable, List, Union, Value, typecheck
+from genjax._src.core.typing import Any, Bool, Callable, List, Union, Value, typecheck
 
 register_exclusion(__file__)
 
@@ -249,7 +249,7 @@ class ForwardInterpreter(Pytree):
 
 
 @typecheck
-def forward(f: Callable):
+def forward(f: Callable[..., Any]):
     @functools.wraps(f)
     @typecheck
     def wrapped(stateful_handler: StatefulHandler, *args):

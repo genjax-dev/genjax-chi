@@ -47,10 +47,10 @@ record_p = InitialStylePrimitive("record_p")
 
 @Pytree.dataclass
 class FrameRecording(Pytree):
-    f: Callable
+    f: Callable[..., Any]
     args: Tuple
     local_retval: Any
-    cont: Callable
+    cont: Callable[..., Any]
 
 
 @Pytree.dataclass
@@ -61,7 +61,7 @@ class RecordPoint(Pytree):
     def default_call(self, *args):
         return self.callable(*args)
 
-    def handle(self, cont: Callable, *args):
+    def handle(self, cont: Callable[..., Any], *args):
         @Pytree.partial()
         def _cont(*args):
             final_ret, _ = cont(self.callable(*args))
@@ -85,7 +85,7 @@ class RecordPoint(Pytree):
 
 @typecheck
 def rec(
-    callable: Callable,
+    callable: Callable[..., Any],
     debug_tag: Optional[String] = None,
 ):
     if not isinstance(callable, Closure):
@@ -273,7 +273,7 @@ class TimeTravelingDebugger(Pytree):
 
 
 @typecheck
-def _record(source: Callable):
+def _record(source: Callable[..., Any]):
     def inner(*args) -> Tuple[Any, TimeTravelingDebugger]:
         retval, next = time_travel(source)(*args)
         sequence = []
@@ -291,7 +291,7 @@ def _record(source: Callable):
 
 
 @typecheck
-def time_machine(source: Callable):
+def time_machine(source: Callable[..., Any]):
     def instrumented(*args):
         return tag(rec(source, "_enter")(*args), "exit")
 

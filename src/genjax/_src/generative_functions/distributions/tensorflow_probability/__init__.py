@@ -15,13 +15,13 @@
 
 from tensorflow_probability.substrates import jax as tfp
 
-from genjax._src.core.typing import Callable
+from genjax._src.core.typing import Any, Callable
 from genjax._src.generative_functions.distributions.distribution import exact_density
 
 tfd = tfp.distributions
 
 
-def tfp_distribution(dist: Callable):
+def tfp_distribution(dist: Callable[..., Any]):
     def sampler(key, *args, **kwargs):
         d = dist(*args, **kwargs)
         return d.sample(seed=key)
