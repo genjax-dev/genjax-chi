@@ -368,7 +368,7 @@ class Trace(Pytree):
     @typecheck
     def get_choices(self) -> "genjax.ChoiceMap":
         """Version of [`genjax.Trace.get_sample`][] for traces where the sample is an instance of [`genjax.ChoiceMap`][]."""
-        return self.get_sample()
+        return self.get_sample()  # type: ignore
 
     @abstractmethod
     def get_gen_fn(self) -> "GenerativeFunction":

@@ -236,7 +236,7 @@ class Marginal(SampleDistribution):
     ) -> Tuple[FloatArray, Sample]:
         key, sub_key = jax.random.split(key)
         tr = self.gen_fn.simulate(sub_key, args)
-        choices: ChoiceMap = tr.get_sample()
+        choices: ChoiceMap = tr.get_choices()
         latent_choices = choices.filter(self.selection)
         key, sub_key = jax.random.split(key)
         bwd_problem = ~self.selection

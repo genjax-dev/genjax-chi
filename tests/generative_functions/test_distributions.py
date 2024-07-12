@@ -44,7 +44,7 @@ class TestDistributions:
             MaskedConstraint(True, C.v(1.0)),
             (0.0, 1.0),
         )
-        v = tr.get_sample().get_value()
+        v = tr.get_choices().get_value()
         assert v == 1.0
         assert w == genjax.normal.assess(C.v(v), (0.0, 1.0))[0]
 
@@ -54,7 +54,7 @@ class TestDistributions:
             MaskedConstraint(False, C.v(1.0)),
             (0.0, 1.0),
         )
-        v = tr.get_sample().get_value()
+        v = tr.get_choices().get_value()
         assert v != 1.0
         assert w == 0.0
 
@@ -67,9 +67,9 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key, tr, U.g((Diff(0.0, NoChange), Diff(1.0, NoChange)), C.n())
         )
-        assert new_tr.get_sample().get_value() == tr.get_sample().get_value()
+        assert new_tr.get_choices().get_value() == tr.get_choices().get_value()
         assert (
-            new_tr.get_score() == genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
+            new_tr.get_score() == genjax.normal.assess(tr.get_choices(), (0.0, 1.0))[0]
         )
         assert w == 0.0
 
@@ -83,12 +83,12 @@ class TestDistributions:
                 C.v(1.0),
             ),
         )
-        assert new_tr.get_sample().get_value() == 1.0
+        assert new_tr.get_choices().get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.assess(C.v(1.0), (0.0, 1.0))[0]
         assert (
             w
             == genjax.normal.assess(C.v(1.0), (0.0, 1.0))[0]
-            - genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
+            - genjax.normal.assess(tr.get_choices(), (0.0, 1.0))[0]
         )
 
         # No constraint, change to arguments.
@@ -98,14 +98,14 @@ class TestDistributions:
             tr,
             U.g((Diff(1.0, UnknownChange), Diff(1.0, NoChange)), C.n()),
         )
-        assert new_tr.get_sample().get_value() == tr.get_sample().get_value()
+        assert new_tr.get_choices().get_value() == tr.get_choices().get_value()
         assert (
-            new_tr.get_score() == genjax.normal.assess(tr.get_sample(), (1.0, 1.0))[0]
+            new_tr.get_score() == genjax.normal.assess(tr.get_choices(), (1.0, 1.0))[0]
         )
         assert (
             w
-            == genjax.normal.assess(tr.get_sample(), (1.0, 1.0))[0]
-            - genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
+            == genjax.normal.assess(tr.get_choices(), (1.0, 1.0))[0]
+            - genjax.normal.assess(tr.get_choices(), (0.0, 1.0))[0]
         )
 
         # Constraint, change to arguments.
@@ -118,12 +118,12 @@ class TestDistributions:
                 C.v(1.0),
             ),
         )
-        assert new_tr.get_sample().get_value() == 1.0
+        assert new_tr.get_choices().get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.assess(C.v(1.0), (1.0, 2.0))[0]
         assert (
             w
             == genjax.normal.assess(C.v(1.0), (1.0, 2.0))[0]
-            - genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
+            - genjax.normal.assess(tr.get_choices(), (0.0, 1.0))[0]
         )
 
         # Constraint is masked (True), no change to arguments.
@@ -136,12 +136,12 @@ class TestDistributions:
                 MaskedConstraint(True, C.v(1.0)),
             ),
         )
-        assert new_tr.get_sample().get_value() == 1.0
+        assert new_tr.get_choices().get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.assess(C.v(1.0), (0.0, 1.0))[0]
         assert (
             w
             == genjax.normal.assess(C.v(1.0), (0.0, 1.0))[0]
-            - genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
+            - genjax.normal.assess(tr.get_choices(), (0.0, 1.0))[0]
         )
 
         # Constraint is masked (True), change to arguments.
@@ -154,12 +154,12 @@ class TestDistributions:
                 MaskedConstraint(True, C.v(1.0)),
             ),
         )
-        assert new_tr.get_sample().get_value() == 1.0
+        assert new_tr.get_choices().get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.assess(C.v(1.0), (1.0, 1.0))[0]
         assert (
             w
             == genjax.normal.assess(C.v(1.0), (1.0, 1.0))[0]
-            - genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
+            - genjax.normal.assess(tr.get_choices(), (0.0, 1.0))[0]
         )
 
         # Constraint is masked (False), no change to arguments.
@@ -172,9 +172,9 @@ class TestDistributions:
                 MaskedConstraint(False, C.v(1.0)),
             ),
         )
-        assert new_tr.get_sample().get_value() == tr.get_sample().get_value()
+        assert new_tr.get_choices().get_value() == tr.get_choices().get_value()
         assert (
-            new_tr.get_score() == genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
+            new_tr.get_score() == genjax.normal.assess(tr.get_choices(), (0.0, 1.0))[0]
         )
         assert w == 0.0
 
@@ -188,12 +188,12 @@ class TestDistributions:
                 MaskedConstraint(False, C.v(1.0)),
             ),
         )
-        assert new_tr.get_sample().get_value() == tr.get_sample().get_value()
+        assert new_tr.get_choices().get_value() == tr.get_choices().get_value()
         assert (
-            new_tr.get_score() == genjax.normal.assess(tr.get_sample(), (1.0, 1.0))[0]
+            new_tr.get_score() == genjax.normal.assess(tr.get_choices(), (1.0, 1.0))[0]
         )
         assert (
             w
-            == genjax.normal.assess(tr.get_sample(), (1.0, 1.0))[0]
-            - genjax.normal.assess(tr.get_sample(), (0.0, 1.0))[0]
+            == genjax.normal.assess(tr.get_choices(), (1.0, 1.0))[0]
+            - genjax.normal.assess(tr.get_choices(), (0.0, 1.0))[0]
         )

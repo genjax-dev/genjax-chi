@@ -57,7 +57,7 @@ class TestDimapCombinator:
         ), "updated 'z' must hit `post_process` before returning"
 
         importance_tr, _ = dimap_model.importance(
-            key, updated_tr.get_sample(), (1.0, 2.0)
+            key, updated_tr.get_choices(), (1.0, 2.0)
         )
         assert (
             importance_tr.get_retval() == updated_tr.get_retval()
