@@ -196,7 +196,7 @@ class MaskCombinator(GenerativeFunction):
     def update_dispatch(
         self,
         key: PRNGKey,
-        trace: MaskTrace,
+        trace: Trace,
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
@@ -221,7 +221,7 @@ class MaskCombinator(GenerativeFunction):
         trace: Trace,
         update_problem: UpdateProblem,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        assert isinstance(trace, MaskTrace)
+        assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
 
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
