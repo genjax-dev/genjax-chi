@@ -32,6 +32,7 @@ from genjax._src.core.typing import (
     Callable,
     Dict,
     FloatArray,
+    Generic,
     InAxes,
     Int,
     IntArray,
@@ -55,6 +56,9 @@ if TYPE_CHECKING:
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")
+
+S = TypeVar("S", bound="Sample")
+"""S represents a type that is bound to the Sample class."""
 
 #####################################
 # Special generative function types #
@@ -294,7 +298,7 @@ class MaskedSample(Sample):
 #########
 
 
-class Trace(Pytree):
+class Trace(Pytree, Generic[S]):
     """
     `Trace` is the type of traces of generative functions.
 
@@ -361,7 +365,7 @@ class Trace(Pytree):
         """
 
     @abstractmethod
-    def get_sample(self) -> Sample:
+    def get_sample(self) -> S:
         """Return the [`Sample`][genjax.core.Sample] sampled from the distribution over samples by the generative function during the invocation which created the [`Trace`][genjax.core.Trace]."""
 
     # TODO: deprecated.
@@ -412,7 +416,7 @@ class Trace(Pytree):
     ###################
 
     @property
-    def batch_shape(self):
+    def batch_shape(self) -> int:
         return len(self.get_score())
 
 
@@ -427,7 +431,7 @@ class EmptyTraceRetval(Pytree):
 
 
 @Pytree.dataclass
-class EmptyTrace(Trace):
+class EmptyTrace(Trace[EmptySample]):
     gen_fn: "GenerativeFunction"
 
     def get_args(self) -> Tuple:
@@ -439,7 +443,7 @@ class EmptyTrace(Trace):
     def get_score(self) -> Score:
         return jnp.array(0.0)
 
-    def get_sample(self) -> Sample:
+    def get_sample(self):
         return EmptySample()
 
     def get_gen_fn(self) -> "GenerativeFunction":
