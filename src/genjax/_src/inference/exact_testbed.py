@@ -106,7 +106,6 @@ def build_test_against_exact_inference(
     return inference_test_generator
 
 
-default_problem_config = jnp.array((10, 10, 1, 1, 0.3, 0.3))
 default_problem_generator = build_test_against_exact_inference(
-    *default_problem_config,
+    10, *jnp.array((10, 1, 1, 0.3, 0.3))
 )
