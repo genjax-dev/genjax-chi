@@ -17,9 +17,9 @@ Markov models (HMMs)."""
 import jax
 import jax.numpy as jnp
 
-from genjax._src.core.generative import Selection
+from genjax._src.core.generative import SelectionBuilder
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
+from genjax._src.core.typing import FloatArray, Int, IntArray, PRNGKey
 from genjax._src.generative_functions.combinators.scan import (
     scan,
 )
@@ -58,7 +58,7 @@ class DiscreteHMMInferenceProblem(Pytree):
 
 
 def build_test_against_exact_inference(
-    max_length: IntArray,
+    max_length: Int,
     state_space_size: IntArray,
     transition_distance_truncation: IntArray,
     observation_distance_truncation: IntArray,
@@ -86,10 +86,10 @@ def build_test_against_exact_inference(
         key, sub_key = jax.random.split(key)
         initial_state = categorical.sample(sub_key, jnp.ones(config.linear_grid_dim))
         tr = markov_chain.simulate(sub_key, (max_length - 1, initial_state, config))
-        z_sel = Selection.at["z"]
-        x_sel = Selection.at["x"]
-        latent_sequence = tr.filter(z_sel)["z"]
-        observation_sequence = tr.filter(x_sel)["x"]
+        z_sel = SelectionBuilder["z"]
+        x_sel = SelectionBuilder["x"]
+        latent_sequence = tr.get_choices().filter(z_sel)["z"]
+        observation_sequence = tr.get_choices().filter(x_sel)["x"]
         log_data_marginal = DiscreteHMM.data_logpdf(config, observation_sequence)
         # This actually doesn't use any randomness.
         (log_posterior, _) = DiscreteHMM.estimate_logpdf(
@@ -106,7 +106,6 @@ def build_test_against_exact_inference(
     return inference_test_generator
 
 
-default_problem_config = (10, 10, 1, 1, 0.3, 0.3)
 default_problem_generator = build_test_against_exact_inference(
-    *default_problem_config,
+    10, *jnp.array((10, 1, 1, 0.3, 0.3))
 )
