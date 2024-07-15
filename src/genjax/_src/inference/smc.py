@@ -601,7 +601,7 @@ class SMCP3Move(SMCMove):
 
 @Pytree.dataclass
 class DirectOverload(SMCMove):
-    impl: Callable
+    impl: Callable[..., Any]
 
     @typecheck
     def weight_correction(

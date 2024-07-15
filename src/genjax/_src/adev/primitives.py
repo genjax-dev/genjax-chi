@@ -26,6 +26,7 @@ from genjax._src.adev.core import (
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Any,
     Callable,
     PRNGKey,
     Tuple,
@@ -47,8 +48,8 @@ def zero(v):
 
 @Pytree.dataclass
 class REINFORCE(ADEVPrimitive):
-    sample_function: Callable = Pytree.static()
-    differentiable_logpdf: Callable = Pytree.static()
+    sample_function: Callable[..., Any] = Pytree.static()
+    differentiable_logpdf: Callable[..., Any] = Pytree.static()
 
     def sample(self, key, *args):
         return self.sample_function(key, *args)
@@ -126,7 +127,8 @@ flip_enum = FlipEnum()
 
 @Pytree.dataclass
 class FlipMVD(ADEVPrimitive):
-    def sample(self, key, p):
+    def sample(self, key, *args):
+        p = args[0]
         return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
 
     def jvp_estimate(

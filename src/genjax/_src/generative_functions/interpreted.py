@@ -90,7 +90,7 @@ class Handler(object):
 # A primitive used in our language to denote invoking another generative function.
 # Its behavior depends on the handler which is at the top of the stack
 # when the primitive is invoked.
-def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable:
+def trace(addr: Any, gen_fn: GenerativeFunction) -> Callable[..., Any]:
     """Invoke a generative function, binding its generative semantics with the current
     caller.
 
@@ -290,7 +290,7 @@ def handler_trace_with_interpreted(
     return trace(addr, gen_fn)(args)
 
 
-# Our generative function type - simply wraps a `source: Callable`
+# Our generative function type - simply wraps a `source: Callable[..., Any]`
 # which can invoke our `trace` primitive.
 @Pytree.dataclass
 class InterpretedGenerativeFunction(GenerativeFunction):
@@ -331,7 +331,7 @@ class InterpretedGenerativeFunction(GenerativeFunction):
     ```
     """
 
-    source: Callable = Pytree.static()
+    source: Callable[..., Any] = Pytree.static()
 
     @GenerativeFunction.gfi_boundary
     @typecheck

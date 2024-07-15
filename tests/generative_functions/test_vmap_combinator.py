@@ -72,7 +72,7 @@ class TestVmapCombinator:
         chm = jax.vmap(lambda idx, v: C[idx, "z"].set(v))(jnp.arange(3), zv)
         (tr, _) = kernel.importance(sub_key, chm, (map_over,))
         for i in range(0, 3):
-            v = tr.get_sample()[i, "z"]
+            v = tr.get_choices()[i, "z"]
             v = v.unmask()
             assert v == zv[i]
 

@@ -28,6 +28,6 @@ def do_checkify():
 
 
 @typecheck
-def optional_check(check: Callable):
+def optional_check(check: Callable[[], None]):
     if _GLOBAL_CHECKIFY_HANDLER:
         check()

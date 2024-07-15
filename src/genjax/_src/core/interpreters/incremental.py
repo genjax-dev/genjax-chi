@@ -245,7 +245,9 @@ def default_propagation_rule(prim, *args, **_params):
 
 @Pytree.dataclass
 class IncrementalInterpreter(Pytree):
-    custom_rules: dict[jc.Primitive, Callable] = Pytree.static(default_factory=dict)
+    custom_rules: dict[jc.Primitive, Callable[..., Any]] = Pytree.static(
+        default_factory=dict
+    )
 
     def _eval_jaxpr_forward(
         self,
@@ -301,7 +303,7 @@ class IncrementalInterpreter(Pytree):
 
 
 @typecheck
-def incremental(f: Callable):
+def incremental(f: Callable[..., Any]):
     @functools.wraps(f)
     @typecheck
     def wrapped(
