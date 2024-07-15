@@ -72,7 +72,7 @@ class ADEVPrimitive(Pytree):
         self,
         key: PRNGKey,
         dual_tree: DualTree,  # Pytree with Dual leaves.
-        konts: Tuple[Callable, Callable],
+        konts: Tuple[Callable[..., Any], Callable[..., Any]],
     ) -> "Dual":
         pass
 
@@ -102,7 +102,7 @@ class TailCallADEVPrimitive(ADEVPrimitive):
         self,
         key: PRNGKey,
         dual_tree: DualTree,  # Pytree with Dual leaves.
-        konts: Tuple[Callable, Callable],
+        konts: Tuple[Callable[..., Any], Callable[..., Any]],
     ) -> "Dual":
         _, kdual = konts
         return kdual(key, self.before_tail_call(key, dual_tree))
@@ -300,9 +300,9 @@ class ADInterpreter(Pytree):
                     pass
                 else:
                     outs = eqn.primitive.bind(*args, **params)
-                if not eqn.primitive.multiple_results:
-                    outs = [outs]
-                jax_util.safe_map(pure_env.write, eqn.outvars, outs)
+                    if not eqn.primitive.multiple_results:
+                        outs = [outs]
+                    jax_util.safe_map(pure_env.write, eqn.outvars, outs)
 
             return jax_util.safe_map(pure_env.read, jaxpr.outvars)
 
@@ -469,14 +469,14 @@ class ADInterpreter(Pytree):
 
 @Pytree.dataclass
 class ADEVProgram(Pytree):
-    source: Callable = Pytree.static()
+    source: Callable[..., Any] = Pytree.static()
 
     @typecheck
     def _jvp_estimate(
         self,
         key: PRNGKey,
         dual_tree: DualTree,  # Pytree with Dual leaves.
-        dual_kont: Callable,
+        dual_kont: Callable[..., Any],
     ) -> Dual:
         def adev_jvp(f):
             @wraps(f)
@@ -558,7 +558,7 @@ class Expectation(Pytree):
 
 
 @typecheck
-def expectation(source: Callable):
+def expectation(source: Callable[..., Any]):
     prog = ADEVProgram(source)
     return Expectation(prog)
 

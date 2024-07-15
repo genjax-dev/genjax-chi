@@ -254,8 +254,8 @@ class TestStaticGenFnImportance:
             key, choice.get_submap("y2"), (0.0, 1.0)
         )
         test_score = score_1 + score_2
-        assert choice["y1"] == out.get_sample()["y1"]
-        assert choice["y2"] == out.get_sample()["y2"]
+        assert choice["y1"] == out.get_choices()["y1"]
+        assert choice["y2"] == out.get_choices()["y2"]
         assert out.get_score() == pytest.approx(test_score, 0.01)
 
     def test_importance_weight_correctness(self):
@@ -269,8 +269,8 @@ class TestStaticGenFnImportance:
         key = jax.random.PRNGKey(314159)
         choice = C["y1"].set(0.5).at["y2"].set(0.5)
         (tr, w) = simple_normal.importance(key, choice, ())
-        y1 = tr.get_sample()["y1"]
-        y2 = tr.get_sample()["y2"]
+        y1 = tr.get_choices()["y1"]
+        y2 = tr.get_choices()["y2"]
         assert y1 == 0.5
         assert y2 == 0.5
         (_, score_1) = genjax.normal.importance(
@@ -286,7 +286,7 @@ class TestStaticGenFnImportance:
         # Partial constraints.
         choice = C["y2"].set(0.5)
         (tr, w) = simple_normal.importance(key, choice, ())
-        tr_chm = tr.get_sample()
+        tr_chm = tr.get_choices()
         y1 = tr_chm.get_submap("y1")
         y2 = tr_chm.get_submap("y2")
         assert tr_chm["y2"] == 0.5
@@ -299,7 +299,7 @@ class TestStaticGenFnImportance:
         # No constraints.
         choice = C.n()
         (tr, w) = simple_normal.importance(key, choice, ())
-        tr_chm = tr.get_sample()
+        tr_chm = tr.get_choices()
         y1 = tr_chm.get_submap("y1")
         y2 = tr_chm.get_submap("y2")
         score_1, _ = genjax.normal.assess(y1, (0.0, 1.0))

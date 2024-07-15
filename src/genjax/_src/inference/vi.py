@@ -64,7 +64,7 @@ tfd = tfp.distributions
 @typecheck
 def adev_distribution(
     adev_primitive: ADEVPrimitive,
-    differentiable_logpdf: Callable,
+    differentiable_logpdf: Callable[..., Any],
 ) -> ExactDensity:
     """
     Return an [`ExactDensity`][genjax.ExactDensity] distribution whose sampler invokes an ADEV sampling primitive, with a provided differentiable log density function.
