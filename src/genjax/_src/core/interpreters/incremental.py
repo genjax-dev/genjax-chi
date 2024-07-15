@@ -28,7 +28,6 @@ By default, `genjax` provides two types of `ChangeTangent`:
 
 # TODO: Think about when tangents don't share the same Pytree shape as primals.
 
-import abc
 import functools
 
 import jax.core as jc
@@ -40,6 +39,7 @@ from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    Bool,
     Callable,
     IntArray,
     List,
@@ -60,9 +60,8 @@ from genjax._src.core.typing import (
 
 
 class ChangeTangent(Pytree):
-    @abc.abstractmethod
-    def should_flatten(self):
-        pass
+    def should_flatten(self) -> Bool:
+        return False
 
     def widen(self):
         return UnknownChange
@@ -78,8 +77,7 @@ class ChangeTangent(Pytree):
 
 @Pytree.dataclass
 class _UnknownChange(ChangeTangent):
-    def should_flatten(self):
-        return False
+    pass
 
 
 UnknownChange = _UnknownChange()
@@ -87,8 +85,7 @@ UnknownChange = _UnknownChange()
 
 @Pytree.dataclass
 class _NoChange(ChangeTangent):
-    def should_flatten(self):
-        return False
+    pass
 
 
 NoChange = _NoChange()
@@ -248,7 +245,9 @@ def default_propagation_rule(prim, *args, **_params):
 
 @Pytree.dataclass
 class IncrementalInterpreter(Pytree):
-    custom_rules: dict[jc.Primitive, Callable] = Pytree.static(default_factory=dict)
+    custom_rules: dict[jc.Primitive, Callable[..., Any]] = Pytree.static(
+        default_factory=dict
+    )
 
     def _eval_jaxpr_forward(
         self,
@@ -304,7 +303,7 @@ class IncrementalInterpreter(Pytree):
 
 
 @typecheck
-def incremental(f: Callable):
+def incremental(f: Callable[..., Any]):
     @functools.wraps(f)
     @typecheck
     def wrapped(

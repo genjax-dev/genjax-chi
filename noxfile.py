@@ -79,7 +79,7 @@ def prepare(session, *with_strs):
     install_jaxlib(session)
 
 
-@session(python=python_version)
+@session(python=["3.10", "3.11"])
 def tests(session):
     prepare(session)
     session.run(

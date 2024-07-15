@@ -65,7 +65,6 @@ Value = Any
 
 ScalarShaped = Is[lambda arr: jnp.array(arr, copy=False).shape == ()]
 ScalarBool = Annotated[Bool | BoolArray, ScalarShaped]
-ScalarFloat = Annotated[Float | FloatArray, ScalarShaped]
 
 ############
 # Generics #
@@ -73,6 +72,7 @@ ScalarFloat = Annotated[Float | FloatArray, ScalarShaped]
 
 Generic = btyping.Generic
 TypeVar = btyping.TypeVar
+ParamSpec = btyping.ParamSpec
 
 ########################################
 # Static typechecking from annotations #
@@ -130,7 +130,7 @@ Examples:
 #################
 
 
-def static_check_is_array(v):
+def static_check_is_array(v: Any) -> Bool:
     return (
         isinstance(v, jnp.ndarray)
         or isinstance(v, np.ndarray)
@@ -138,11 +138,11 @@ def static_check_is_array(v):
     )
 
 
-def static_check_is_concrete(x):
+def static_check_is_concrete(x: Any) -> Bool:
     return not isinstance(x, jc.Tracer)
 
 
-def static_check_bool(x):
+def static_check_bool(x: Any) -> Bool:
     return static_check_is_concrete(x) and isinstance(x, Bool)
 
 
@@ -177,9 +177,9 @@ __all__ = [
     "IntArray",
     "Is",
     "List",
+    "ParamSpec",
     "PRNGKey",
     "ScalarBool",
-    "ScalarFloat",
     "ScalarShaped",
     "Sequence",
     "Tuple",

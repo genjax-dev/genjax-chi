@@ -596,12 +596,12 @@ class SMCP3Move(SMCMove):
         K_aux: Sample,
         K_aux_score: FloatArray,
     ) -> FloatArray:
-        pass
+        return jnp.array(0.0)
 
 
 @Pytree.dataclass
 class DirectOverload(SMCMove):
-    impl: Callable
+    impl: Callable[..., Any]
 
     @typecheck
     def weight_correction(

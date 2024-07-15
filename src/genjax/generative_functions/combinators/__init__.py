@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.combinators.address_bijection import (
-    AddressBijectionCombinator,
-    map_addresses,
-)
 from genjax._src.generative_functions.combinators.dimap import (
     DimapCombinator,
     contramap,
@@ -27,11 +23,9 @@ from genjax._src.generative_functions.combinators.mask import (
     mask,
 )
 from genjax._src.generative_functions.combinators.mixture import (
-    MixtureCombinator,
     mix,
 )
 from genjax._src.generative_functions.combinators.or_else import (
-    OrElseCombinator,
     or_else,
 )
 from genjax._src.generative_functions.combinators.repeat import (
@@ -40,6 +34,10 @@ from genjax._src.generative_functions.combinators.repeat import (
 )
 from genjax._src.generative_functions.combinators.scan import (
     ScanCombinator,
+    accumulate,
+    iterate,
+    iterate_final,
+    reduce,
     scan,
 )
 from genjax._src.generative_functions.combinators.switch import (
@@ -52,24 +50,24 @@ from genjax._src.generative_functions.combinators.vmap import (
 )
 
 __all__ = [
-    "AddressBijectionCombinator",
-    "OrElseCombinator",
     "DimapCombinator",
     "MaskCombinator",
-    "MixtureCombinator",
     "RepeatCombinator",
     "ScanCombinator",
     "SwitchCombinator",
     "VmapCombinator",
-    "map_addresses",
+    "reduce",
+    "iterate",
+    "iterate_final",
     "dimap",
     "map",
     "contramap",
     "mask",
     "mix",
+    "scan",
     "or_else",
     "repeat",
-    "scan",
+    "accumulate",
     "switch",
     "vmap",
 ]

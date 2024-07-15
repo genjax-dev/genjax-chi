@@ -37,6 +37,7 @@ class TestSwitchCombinator:
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         _tr = model.simulate(sub_key, ())
+        # TODO
         assert True
 
     def test_switch_combinator_simulate(self):
@@ -221,7 +222,7 @@ class TestSwitchCombinator:
         keys = jax.random.split(jax.random.PRNGKey(17), 3)
         # Just select 0 in all branches for simplicity:
         tr = jax.vmap(s.simulate, in_axes=(0, None))(keys, (0, (), ()))
-        y = tr.get_sample()["y"]
+        y = tr.get_choices()["y"]
         y = y.unmask()
         assert y.shape == (3,)
 
@@ -244,4 +245,5 @@ class TestSwitchCombinator:
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         _tr = model.simulate(sub_key, ())
+        # TODO
         assert True

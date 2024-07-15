@@ -43,7 +43,7 @@ from genjax._src.generative_functions.distributions.distribution import Distribu
 @Pytree.dataclass
 class Target(Pytree):
     """
-    A `Target` represents an unnormalized target distribution induced by conditioning a generative function on a [`Constraint`](core.md#genjax.core.Constraint).
+    A `Target` represents an unnormalized target distribution induced by conditioning a generative function on a [`genjax.Constraint`][].
 
     Targets are created by providing a generative function, arguments to the generative function, and a constraint.
 
@@ -236,7 +236,7 @@ class Marginal(SampleDistribution):
     ) -> Tuple[FloatArray, Sample]:
         key, sub_key = jax.random.split(key)
         tr = self.gen_fn.simulate(sub_key, args)
-        choices: ChoiceMap = tr.get_sample()
+        choices: ChoiceMap = tr.get_choices()
         latent_choices = choices.filter(self.selection)
         key, sub_key = jax.random.split(key)
         bwd_problem = ~self.selection
