@@ -15,8 +15,8 @@
 import genjax
 import jax
 import jax.numpy as jnp
-from genjax import Diff
 from genjax import ChoiceMapBuilder as C
+from genjax import Diff
 from genjax import UpdateProblemBuilder as U
 
 

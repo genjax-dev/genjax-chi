@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import jax
 
 from genjax._src.core.generative import (
@@ -20,6 +21,7 @@ from genjax._src.core.generative import (
     EmptyTrace,
     GenerativeFunction,
     GenericProblem,
+    ImportanceProblem,
     Mask,
     MaskedProblem,
     MaskedSample,
@@ -28,7 +30,6 @@ from genjax._src.core.generative import (
     Score,
     Trace,
     UpdateProblem,
-    ImportanceProblem,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -136,6 +137,8 @@ class MaskCombinator(GenerativeFunction):
                 inner_trace = trace.inner
             case EmptyTrace():
                 inner_trace = EmptyTrace(self.gen_fn)
+            case _:
+                raise Exception(f"Unexpected trace type: {trace}")
 
         premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
             key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
@@ -193,12 +196,12 @@ class MaskCombinator(GenerativeFunction):
     def update_dispatch(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: MaskTrace,
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match update_problem:
-            case ImportanceProblem(constraint):
+            case ImportanceProblem(_):
                 return self.update_change_target(key, trace, update_problem, argdiffs)
             case _:
                 return jax.lax.cond(
@@ -218,6 +221,8 @@ class MaskCombinator(GenerativeFunction):
         trace: Trace,
         update_problem: UpdateProblem,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        assert isinstance(trace, MaskTrace)
+
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_dispatch(key, trace, subproblem, argdiffs)
