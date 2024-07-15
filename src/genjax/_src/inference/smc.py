@@ -42,10 +42,12 @@ from genjax._src.core.typing import (
     BoolArray,
     Callable,
     FloatArray,
+    Generic,
     Int,
     Optional,
     PRNGKey,
     Tuple,
+    TypeVar,
     typecheck,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
@@ -60,6 +62,8 @@ from genjax._src.inference.sp import (
     SampleDistribution,
     Target,
 )
+
+S = TypeVar("S", bound=Sample)
 
 
 # Utility, for CSMC stacking.
@@ -510,9 +514,9 @@ class ChangeTarget(SMCAlgorithm):
 
 
 @Pytree.dataclass
-class KernelTrace(Trace):
-    gen_fn: "KernelGenerativeFunction"
-    inner: Trace
+class KernelTrace(Trace[S], Generic[S]):
+    gen_fn: GenerativeFunction
+    inner: Trace[S]
 
     def get_args(self) -> Tuple:
         return self.inner.get_args()

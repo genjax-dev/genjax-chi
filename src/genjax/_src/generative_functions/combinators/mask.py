@@ -35,32 +35,36 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     BoolArray,
+    Generic,
     PRNGKey,
     Tuple,
+    TypeVar,
     typecheck,
 )
 
 register_exclusion(__file__)
 
+S = TypeVar("S", bound=Sample)
+
 
 @Pytree.dataclass
-class MaskTrace(Trace):
-    mask_combinator: "MaskCombinator"
-    inner: Trace
+class MaskTrace(Trace[ChoiceMap | MaskedSample[S]], Generic[S]):
+    gen_fn: GenerativeFunction
+    inner: Trace[S]
     check: BoolArray
 
     def get_args(self):
         return (self.check, *self.inner.get_args())
 
     def get_gen_fn(self):
-        return self.mask_combinator
+        return self.gen_fn
 
     def get_sample(self):
         inner_sample = self.inner.get_sample()
         if isinstance(inner_sample, ChoiceMap):
             return ChoiceMap.maybe(self.check, inner_sample)
         else:
-            return MaskedSample(self.check, self.inner.get_sample())
+            return MaskedSample[S](self.check, inner_sample)
 
     def get_retval(self):
         return Mask(self.check, self.inner.get_retval())

@@ -31,20 +31,25 @@ from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
+    Generic,
     Optional,
     PRNGKey,
     String,
     Tuple,
+    TypeVar,
     typecheck,
 )
 
 register_exclusion(__file__)
 
 
+S = TypeVar("S", bound=Sample)
+
+
 @Pytree.dataclass
-class DimapTrace(Trace):
+class DimapTrace(Trace, Generic[S]):
     dimap_combinator: "DimapCombinator"
-    inner: Trace
+    inner: Trace[S]
     args: Tuple
     retval: Any
 
@@ -54,7 +59,7 @@ class DimapTrace(Trace):
     def get_gen_fn(self):
         return self.dimap_combinator
 
-    def get_sample(self):
+    def get_sample(self) -> S:
         return self.inner.get_sample()
 
     def get_retval(self):

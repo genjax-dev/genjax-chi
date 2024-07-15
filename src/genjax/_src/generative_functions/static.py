@@ -89,7 +89,7 @@ class AddressVisitor(Pytree):
 
 
 @Pytree.dataclass
-class StaticTrace(Trace):
+class StaticTrace(Trace[ChoiceMap]):
     gen_fn: GenerativeFunction
     args: Tuple
     retval: Any
@@ -106,7 +106,7 @@ class StaticTrace(Trace):
     def get_gen_fn(self) -> GenerativeFunction:
         return self.gen_fn
 
-    def get_sample(self) -> ChoiceMap:
+    def get_sample(self):
         addresses = self.addresses.get_visited()
         chm = ChoiceMap.empty()
         for addr, subtrace in zip(addresses, self.subtraces):

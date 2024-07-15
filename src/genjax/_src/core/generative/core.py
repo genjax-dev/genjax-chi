@@ -288,9 +288,9 @@ class EmptySample(Sample):
 
 
 @Pytree.dataclass(match_args=True)
-class MaskedSample(Sample):
+class MaskedSample(Sample, Generic[S]):
     flag: Bool | BoolArray
-    sample: Sample
+    sample: S
 
 
 #########
