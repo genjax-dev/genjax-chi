@@ -29,7 +29,7 @@ from penzai.treescope.handlers.penzai import struct_handler
 from genjax._src.core.pytree import Pytree
 
 
-def pretty():
+def pretty(use_custom=True, summarize_arrays=True):
     def _pytree_handler(node, subtree_renderer):
         constructor_open = struct_handler.render_struct_constructor(node)
         fs = fields(node)
@@ -117,14 +117,16 @@ def pretty():
             return _pytree_handler(node, subtree_renderer)
         return NotImplemented
 
-    default_renderer.active_renderer.get().handlers.insert(0, custom_handler)
+    if use_custom:
+        default_renderer.active_renderer.get().handlers.insert(0, custom_handler)
 
     pz.ts.register_as_default()
     pz.ts.register_autovisualize_magic()
     pz.enable_interactive_context()
 
     # Optional: enables automatic array visualization
-    pz.ts.active_autovisualizer.set_interactive(pz.ts.ArrayAutovisualizer())
+    if summarize_arrays:
+        pz.ts.active_autovisualizer.set_interactive(pz.ts.ArrayAutovisualizer())
 
 
 __all__ = [
