@@ -21,16 +21,17 @@ class TestDimapCombinator:
     def test_dimap_update_retval(self):
         # Define pre- and post-processing functions
         def pre_process(x, y):
-            return (x + 1, y * 2)
+            return (x + 1, y * 2, y * 3)
 
-        def post_process(_, retval):
+        def post_process(args, retval):
+            assert len(args) == 3, "post_process has to receive transformed args."
             return retval + 2
 
         def invert_post(x):
             return x - 2
 
         @genjax.gen
-        def model(x, y):
+        def model(x, y, _):
             return genjax.normal(x, y) @ "z"
 
         dimap_model = model.dimap(

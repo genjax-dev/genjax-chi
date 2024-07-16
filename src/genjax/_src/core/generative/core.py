@@ -38,7 +38,6 @@ from genjax._src.core.typing import (
     Is,
     List,
     Optional,
-    ParamSpec,
     PRNGKey,
     String,
     Tuple,
@@ -53,8 +52,7 @@ register_exclusion(__file__)
 if TYPE_CHECKING:
     import genjax
 
-_P = ParamSpec("_P")
-_T = TypeVar("_T")
+_C = TypeVar("_C", bound=Callable)
 
 #####################################
 # Special generative function types #
@@ -528,7 +526,7 @@ class GenerativeFunction(Pytree):
         return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), data_shape)
 
     @classmethod
-    def gfi_boundary(cls, c: Callable[_P, _T]) -> Callable[_P, _T]:
+    def gfi_boundary(cls, c: _C) -> _C:
         return gfi_boundary(c)
 
     @abstractmethod
