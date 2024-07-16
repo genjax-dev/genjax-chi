@@ -43,6 +43,8 @@ from genjax._src.core.typing import (
     String,
     Tuple,
     TypeVar,
+    dispatch,
+    overload,
     static_check_is_concrete,
     typecheck,
 )
@@ -147,6 +149,11 @@ class MaskedProblem(UpdateProblem):
 @Pytree.dataclass
 class SumProblem(UpdateProblem):
     idx: Int | IntArray
+    problems: List[UpdateProblem]
+
+
+@Pytree.dataclass
+class SequenceProblem(UpdateProblem):
     problems: List[UpdateProblem]
 
 
@@ -589,7 +596,24 @@ class GenerativeFunction(Pytree):
         """
         raise NotImplementedError
 
-    @abstractmethod
+    @overload
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        update_problem: SequenceProblem,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        sequence = update_problem.problems
+        w = 0.0
+        bwd_sequence = []
+        retdiff = Diff.no_change(trace.get_retval())
+        for subproblem in sequence:
+            trace, dw, retdiff, bwd_problem = self.update(key, trace, subproblem)
+            w += dw
+            bwd_sequence.append(bwd_problem)
+        return trace, jnp.array(w), retdiff, SequenceProblem(bwd_sequence)
+
+    @overload
     def update(
         self,
         key: PRNGKey,
@@ -1622,17 +1646,26 @@ class IgnoreKwargs(GenerativeFunction):
         (args, _kwargs) = args
         return self.wrapped.simulate(key, args)
 
+    @overload
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        update_problem: GenericProblem,
+    ):
+        argdiffs = update_problem.argdiffs
+        (argdiffs, _kwargdiffs) = argdiffs
+        return self.wrapped.update(key, trace, GenericProblem(argdiffs, update_problem))
+
     @GenerativeFunction.gfi_boundary
-    @typecheck
+    @dispatch
     def update(
         self,
         key: PRNGKey,
         trace: Trace,
         update_problem: UpdateProblem,
-        argdiffs: Argdiffs,
     ):
-        (argdiffs, _kwargdiffs) = argdiffs
-        return self.wrapped.update(key, trace, update_problem, argdiffs)
+        raise NotImplementedError
 
 
 @Pytree.dataclass

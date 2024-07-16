@@ -27,6 +27,7 @@ import jaxtyping as jtyping
 import numpy as np
 from beartype import BeartypeConf, beartype
 from beartype.vale import Is
+from plum import dispatch, overload
 
 from genjax._src.core.traceback_util import register_exclusion
 
@@ -193,4 +194,6 @@ __all__ = [
     "static_check_supports_grad",
     "typecheck",
     "typecheck_with_config",
+    "overload",
+    "dispatch",
 ]
