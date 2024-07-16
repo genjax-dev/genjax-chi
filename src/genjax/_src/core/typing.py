@@ -73,8 +73,6 @@ ScalarBool = Annotated[Bool | BoolArray, ScalarShaped]
 Generic = btyping.Generic
 TypeVar = btyping.TypeVar
 ParamSpec = btyping.ParamSpec
-TypeVarTuple = btyping.TypeVarTuple
-Unpack = btyping.Unpack
 
 ########################################
 # Static typechecking from annotations #

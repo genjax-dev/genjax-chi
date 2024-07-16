@@ -29,7 +29,6 @@ from genjax._src.core.interpreters.incremental import Diff, incremental
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
-    Any,
     Callable,
     Generic,
     PRNGKey,
@@ -120,12 +119,12 @@ class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
         self,
         key: PRNGKey,
         args: tuple,
-    ) -> DimapTrace:
+    ) -> DimapTrace[tuple, S]:
         inner_args = self.argument_mapping(*args)
         tr = self.inner.simulate(key, inner_args)
         inner_retval = tr.get_retval()
         retval = self.retval_mapping(inner_args, inner_retval)
-        return DimapTrace[tuple, S](self, tr, args, retval)
+        return DimapTrace(self, tr, args, retval)
 
     @typecheck
     def update_change_target(
@@ -134,7 +133,7 @@ class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
         trace: Trace,
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[DimapTrace[tuple, S], Weight, Retdiff, UpdateProblem]:
         assert isinstance(trace, EmptyTrace | DimapTrace)
 
         primals = Diff.tree_primal(argdiffs)
@@ -171,7 +170,7 @@ class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
 
         retval_primal = Diff.tree_primal(retval_diff)
         return (
-            DimapTrace[tuple, S](self, tr, primals, retval_primal),
+            DimapTrace(self, tr, primals, retval_primal),
             w,
             retval_diff,
             bwd_problem,
@@ -183,7 +182,7 @@ class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
         key: PRNGKey,
         trace: Trace,
         update_problem: UpdateProblem,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[DimapTrace[tuple, S], Weight, Retdiff, UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
@@ -197,7 +196,7 @@ class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
         self,
         sample: Sample,
         args: tuple,
-    ) -> tuple[Score, Any]:
+    ) -> tuple[Score, S]:
         inner_args = self.argument_mapping(*args)
         w, inner_retval = self.inner.assess(sample, inner_args)
         retval = self.retval_mapping(inner_args, inner_retval)
