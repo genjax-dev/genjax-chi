@@ -883,7 +883,8 @@ class MaskChm(ChoiceMap):
 
     def get_value(self) -> Optional[Any]:
         v = self.c.get_value()
-        return Mask.maybe_none(self.flag, v)
+        flagv = jnp.bool(self.flag)
+        return Mask.maybe_none(flagv, v)
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap = self.c.get_submap(addr)
@@ -913,7 +914,7 @@ class FilteredChm(ChoiceMap):
 
     def get_value(self) -> Optional[Any]:
         v = self.c.get_value()
-        sel_check = self.selection[()]
+        sel_check = jnp.bool(self.selection[()])
         return Mask.maybe_none(sel_check, v)
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
