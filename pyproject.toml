@@ -109,9 +109,13 @@ exclude = [
     "**/__pycache__",
 ]
 defineConstant = { DEBUG = true }
+typeCheckingMode = "standard"
+reportMatchNotExhaustive = true
 reportMissingImports = true
 reportMissingTypeStubs = false
-typeCheckingMode = "standard"
+analyzeUnannotatedFunctions = true
+strictParameterNoneValue = true
+deprecateTypingAliases = true
 
 [tool.ruff]
 exclude = [

@@ -31,41 +31,45 @@ from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
-    Optional,
+    Generic,
     PRNGKey,
     String,
-    Tuple,
+    TypeVar,
+    TypeVarTuple,
+    Unpack,
     typecheck,
 )
 
 register_exclusion(__file__)
 
+R = TypeVar("R")
+T = TypeVarTuple("T")
 
 @Pytree.dataclass
-class DimapTrace(Trace):
-    dimap_combinator: "DimapCombinator"
+class DimapTrace(Trace, Generic[R, Unpack[T]]):
+    gen_fn: GenerativeFunction
     inner: Trace
-    args: Tuple
-    retval: Any
+    args: tuple[*T]
+    retval: R
 
-    def get_args(self):
+    def get_args(self) -> tuple[*T]:
         return self.args
 
-    def get_gen_fn(self):
-        return self.dimap_combinator
+    def get_gen_fn(self) -> GenerativeFunction:
+        return self.gen_fn
 
-    def get_sample(self):
+    def get_sample(self) -> Sample:
         return self.inner.get_sample()
 
-    def get_retval(self):
+    def get_retval(self) -> R:
         return self.retval
 
-    def get_score(self):
+    def get_score(self) -> Score:
         return self.inner.get_score()
 
 
 @Pytree.dataclass
-class DimapCombinator(GenerativeFunction):
+class DimapCombinator(GenerativeFunction, Generic[Unpack[T]]):
     """
     A combinator that transforms both the arguments and return values of a [`genjax.GenerativeFunction`][].
 
@@ -106,16 +110,16 @@ class DimapCombinator(GenerativeFunction):
     """
 
     inner: GenerativeFunction
-    argument_mapping: Callable[..., Any] = Pytree.static()
+    argument_mapping: Callable[[*T], tuple[*U]] = Pytree.static()
     retval_mapping: Callable[..., Any] = Pytree.static()
-    info: Optional[String] = Pytree.static(default=None)
+    info: String | None = Pytree.static(default=None)
 
     @GenerativeFunction.gfi_boundary
     @typecheck
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
+        args: tuple,
     ) -> DimapTrace:
         inner_args = self.argument_mapping(*args)
         tr = self.inner.simulate(key, inner_args)
@@ -130,7 +134,7 @@ class DimapCombinator(GenerativeFunction):
         trace: Trace,
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         assert isinstance(trace, EmptyTrace | DimapTrace)
         primals = Diff.tree_primal(argdiffs)
         tangents = Diff.tree_tangent(argdiffs)
@@ -173,7 +177,7 @@ class DimapCombinator(GenerativeFunction):
         key: PRNGKey,
         trace: Trace,
         update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
@@ -186,8 +190,8 @@ class DimapCombinator(GenerativeFunction):
     def assess(
         self,
         sample: Sample,
-        args: Tuple,
-    ) -> Tuple[Score, Any]:
+        args: tuple,
+    ) -> tuple[Score, Any]:
         inner_args = self.argument_mapping(*args)
         w, inner_retval = self.inner.assess(sample, inner_args)
         retval = self.retval_mapping(args, inner_retval)
@@ -203,7 +207,7 @@ def dimap(
     *,
     pre: Callable[..., Any] = lambda *args: args,
     post: Callable[..., Any] = lambda _args, retval: retval,
-    info: Optional[String] = None,
+    info: String | None = None,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
@@ -257,7 +261,7 @@ def dimap(
 def map(
     f: Callable[..., Any],
     *,
-    info: Optional[String] = None,
+    info: String | None = None,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies a post-processing function to its return value.
@@ -301,7 +305,7 @@ def map(
 def contramap(
     f: Callable[..., Any],
     *,
-    info: Optional[String] = None,
+    info: String | None = None,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies a pre-processing function to its arguments.

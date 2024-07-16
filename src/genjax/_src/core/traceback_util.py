@@ -20,8 +20,8 @@ _T = TypeVar("_T")
 
 
 # register_exclusion = traceback_util.register_exclusion
-def register_exclusion(v):
-    return v
+def register_exclusion(_)-> None:
+    return None
 
 
 def gfi_boundary(c: Callable[_P, _T]) -> Callable[_P, _T]:
