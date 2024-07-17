@@ -15,6 +15,7 @@
 
 from genjax import ChoiceMapBuilder as C
 from genjax import SelectionBuilder as S
+import jax.numpy as jnp
 
 
 class TestChoiceMap:
@@ -26,6 +27,10 @@ class TestChoiceMap:
     def test_address_map(self):
         chm = C.a(("x",), 3.0)
         assert chm["x"] == 3.0
+
+    def test_mask_map(self):
+        chm = C.a(("x", jnp.array(True)), 3.0)
+        assert chm["x"].value == 3.0
 
 
 class TestSelections:

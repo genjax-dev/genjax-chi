@@ -54,7 +54,8 @@ register_exclusion(__file__)
 #################
 
 StaticAddressComponent = String
-DynamicAddressComponent = Int | IntArray
+MaskAddressComponent = Bool | BoolArray
+DynamicAddressComponent = Int | IntArray | MaskAddressComponent
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
 Address = Tuple[()] | Tuple[AddressComponent, ...]
 StaticAddress = Tuple[()] | Tuple[StaticAddressComponent, ...]
@@ -444,6 +445,8 @@ class _ChoiceMapBuilder(Pytree):
         for comp in reversed(addr):
             if isinstance(comp, ExtendedStaticAddressComponent):
                 new = ChoiceMap.str(comp, new)
+            elif isinstance(comp, MaskAddressComponent):
+                new = ChoiceMap.maybe(comp, new)
             else:
                 new = ChoiceMap.idx(comp, new)
         return new
