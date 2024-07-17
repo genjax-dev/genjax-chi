@@ -13,16 +13,15 @@
 # limitations under the License.
 
 import jax._src.traceback_util as traceback_util
-from beartype.typing import Callable, ParamSpec, TypeVar
+from beartype.typing import Callable, TypeVar
 
-_P = ParamSpec("_P")
-_T = TypeVar("_T")
+_C = TypeVar("_C", bound=Callable)
 
 
 # register_exclusion = traceback_util.register_exclusion
-def register_exclusion(v):
-    return v
+def register_exclusion(_) -> None:
+    return None
 
 
-def gfi_boundary(c: Callable[_P, _T]) -> Callable[_P, _T]:
+def gfi_boundary(c: _C) -> _C:
     return traceback_util.api_boundary(c)
