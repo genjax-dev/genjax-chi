@@ -30,8 +30,10 @@ book:
     - cookbook/expressivity/iterating_computation.ipynb
     - cookbook/expressivity/mixture.ipynb
     - cookbook/expressivity/custom_distribution.ipynb
+    - cookbook/expressivity/stochastic_probabilities.ipynb
     - cookbook/inference/importance_sampling.ipynb
     - cookbook/inference/custom_proposal.ipynb
+    - cookbook/inference/mcmc.ipynb
     - cookbook/library_author/dimap_combinator.ipynb
 
 bibliography: references.bib
