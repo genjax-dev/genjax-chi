@@ -32,13 +32,13 @@ from genjax._src.core.generative import (
     UpdateProblem,
     Weight,
 )
+from genjax._src.core.generative.core import Constraint
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     BoolArray,
     PRNGKey,
-    Tuple,
     typecheck,
 )
 
@@ -116,7 +116,7 @@ class MaskCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
+        args: tuple,
     ) -> MaskTrace:
         check, *inner_args = args
         tr = self.gen_fn.simulate(key, tuple(inner_args))
@@ -129,7 +129,7 @@ class MaskCombinator(GenerativeFunction):
         trace: Trace,
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         (check, *_) = Diff.tree_primal(argdiffs)
         (check_diff, *inner_argdiffs) = argdiffs
         match trace:
@@ -138,7 +138,7 @@ class MaskCombinator(GenerativeFunction):
             case EmptyTrace():
                 inner_trace = EmptyTrace(self.gen_fn)
             case _:
-                raise Exception(f"Unexpected trace type: {trace}")
+                raise NotImplementedError(f"Unexpected trace type: {trace}")
 
         premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
             key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
@@ -164,11 +164,13 @@ class MaskCombinator(GenerativeFunction):
         trace: Trace,
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        (check, *_) = Diff.tree_primal(argdiffs)
-        (check_diff, *inner_argdiffs) = argdiffs
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        check = Diff.tree_primal(argdiffs)[0]
+        check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
 
         inner_trace = EmptyTrace(self.gen_fn)
+
+        assert isinstance(update_problem, Constraint)
         imp_update_problem = ImportanceProblem(update_problem)
 
         premasked_trace, w, _, _ = self.gen_fn.update(
@@ -193,39 +195,36 @@ class MaskCombinator(GenerativeFunction):
         )
 
     @typecheck
-    def update_dispatch(
+    def update(
         self,
         key: PRNGKey,
         trace: Trace,
         update_problem: UpdateProblem,
-        argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
+
         match update_problem:
-            case ImportanceProblem(_):
-                return self.update_change_target(key, trace, update_problem, argdiffs)
-            case _:
+            case GenericProblem(argdiffs, subproblem) if isinstance(
+                subproblem, ImportanceProblem
+            ):
+                return self.update_change_target(key, trace, subproblem, argdiffs)
+            case GenericProblem(argdiffs, subproblem):
+                assert isinstance(trace, MaskTrace)
+
+                if not trace.check:
+                    raise Exception(
+                        "This move is not currently supported! See https://github.com/probcomp/genjax/issues/1230 for notes."
+                    )
+
                 return jax.lax.cond(
                     trace.check,
                     self.update_change_target,
                     self.update_change_target_from_false,
                     key,
                     trace,
-                    update_problem,
+                    subproblem,
                     argdiffs,
                 )
-
-    @typecheck
-    def update(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
-
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem):
-                return self.update_dispatch(key, trace, subproblem, argdiffs)
             case _:
                 return self.update_change_target(
                     key, trace, update_problem, Diff.no_change(trace.get_args())
@@ -235,8 +234,8 @@ class MaskCombinator(GenerativeFunction):
     def assess(
         self,
         sample: Sample,
-        args: Tuple,
-    ) -> Tuple[Score, Mask]:
+        args: tuple,
+    ) -> tuple[Score, Mask]:
         (check, *inner_args) = args
         score, retval = self.gen_fn.assess(sample, tuple(inner_args))
         return (
