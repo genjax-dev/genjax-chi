@@ -364,30 +364,174 @@ class ImportanceK(SMCAlgorithm):
 ##############
 
 
-class ResamplingStrategy(Pytree):
-    pass
+# TODO: we will want a lazy resampling version to avoid unnecessary computation.
+# In particular, the problem comes from the fact that we do not have an efficient data structure for lazy duplication of particles as in the Julia implementation. As the copies will often be sparse (e.g. because of Masking), we can quickly run into memory and performance issues. One solution is to record the indices of the particles that need to be duplicated, and then duplicate them when needed. In general it may be that we need actual particles at every step and then we may need some other tricks, but for some cases we can get away with lazy duplication, where we only perform the construction at the very end.
+# TODO: compared to the Julia version in GenParticleFilters, doesn't implement
+# the `priority_fn` nor the `check` to throw an error for invalid normalized
+# weights (all NaNs or zeros).
+# Also doesn't use the marginal loglikelihood estimate for stability of the weights of long SMC chains which can underflow.
+class ESSResamplingStrategy(ResamplingStrategy):
+    """Abstract class for Resampling strategies that also resample based on the Effective Sample Size (ESS) of the particles.
+    Args:
+        - `prev`: The previous SMCAlgorithm.
+        - `how_many`: The number of particles to resample.
+        - `ess_threshold`: The ESS threshold at which to resample.
 
+    Returns:
+        ParticleCollection: a resampled particle collection.
+    """
 
-class MultinomialResampling(ResamplingStrategy):
-    pass
-
-
-@Pytree.dataclass
-class Resample(Pytree):
     prev: SMCAlgorithm
-    resampling_strategy: ResamplingStrategy
+    how_many: Int
+    ess_threshold: FloatArray  # a value of 1 will always resample
 
     def get_num_particles(self):
-        return self.prev.get_num_particles()
+        return self.how_many
 
     def get_final_target(self):
         return self.prev.get_final_target()
 
-    def run_smc(self, key: PRNGKey):
-        pass
+    @abstractmethod
+    def run_smc(
+        self,
+        key: PRNGKey,
+    ) -> ParticleCollection:
+        raise NotImplementedError
 
-    def run_csmc(self, key: PRNGKey, retained: Sample):
-        pass
+    @abstractmethod
+    def run_csmc(
+        self,
+        key: PRNGKey,
+        retained: Sample,
+    ) -> ParticleCollection:
+        raise NotImplementedError
+
+
+def compute_log_ess(log_weights):
+    """Compute the log of the Effective Sample Size (ESS) of a set of log unnormalized weights."""
+    return 2 * logsumexp(log_weights) - logsumexp(2 * log_weights)
+
+
+def update_weights(log_weights, log_priorities):
+    """Update particle weights after a resampling step."""
+    n = len(log_weights)
+    # If priorities aren't customized, set all log weights to 0
+    if log_weights == log_priorities:
+        return jnp.zeros(n)
+    # Otherwise, set new weights to the ratio of weights over priorities
+    log_ws = log_weights - log_priorities
+    # Adjust new weights such that they sum to the number of particles
+    return log_ws - logsumexp(log_ws) + jnp.log(n)
+
+
+class MultinomialResampling(ResamplingStrategy):
+    """Performs multinomial resampling (i.e. simple random resampling) of the particles in the filter. Each trace (i.e. particle) is resampled with probability proportional to its weight."""
+
+    # TODO: needs testing
+    def run_smc(self, key: PRNGKey):
+        log_weights = collection.get_log_weights()
+        ess = compute_log_ess(log_weights)
+        if ess < jnp.log(self.ess_threshold):
+            keys = jrandom.split(key, self.how_many)
+            idxs = jrandom.categorical(keys, log_weights)
+            collection = self.prev.run_smc(key)
+            new_particles = jtu.tree_map(lambda v: v[idxs], collection.get_particles())
+            new_weights = jnp.zeros(self.how_many)
+            return ParticleCollection(new_particles, new_weights, jnp.array(True))
+        return collection
+
+
+class SystematicResampling(ResamplingStrategy):
+    """Perform systematic resampling of the particles in the filter, which reduces variance relative to multinomial sampling. Look at the cumulative sum of the normalized weights, and then pick the particles that are closest to the strata. This is a deterministic resampling scheme that is more efficient than multinomial resampling.
+
+    Extra arg:
+    - `sort_particles = jnp.array(False)`: Set to `True` to sort particles by weight before stratification.
+    """
+
+    # TODO: need to add sorting logic
+    # Optionally sort particles by weight before resampling
+    # order = jnp.argsort(normalized_log_weights) if self.sort_particles else jnp.arange(len(normalized_log_weights))
+    sort_particles = jnp.array(False)
+
+    # TODO: needs testing
+    def run_smc(self, key: PRNGKey):
+        log_weights = collection.get_log_weights()
+        ess = compute_log_ess(log_weights)
+        if ess < jnp.log(self.ess_threshold):
+            normalized_log_weights = log_weights - logsumexp(log_weights)
+            # Assumes that their sum is not zero.
+            u0 = jrandom.uniform(key)
+            c = jnp.cumsum(normalized_log_weights)
+            u = (jnp.arange(self.how_many) + u0) / self.how_many
+            idxs = jnp.searchsorted(c, u, side="right")
+            collection = self.prev.run_smc(key)
+            # TODO: is that efficient?
+            new_particles = jtu.tree_map(lambda v: v[idxs], collection.get_particles())
+            # TODO: should that be 1 or average of the weights or 1/N?
+            new_weights = jnp.zeros(self.how_many)
+            return ParticleCollection(new_particles, new_weights, jnp.array(True))
+        return collection
+
+
+class StratifiedResampling(ResamplingStrategy):
+    """Performs stratified resampling of the particles in the filter, which reduces variance relative to multinomial sampling.
+    First, uniform random samples ``u_1, ..., u_n`` are drawn within the strata ``[0, 1/n)``, ..., ``[n-1/n, 1)``, where ``n`` is the number of particles. Then, given the cumulative normalized weights ``W_k = Σ_{j=1}^{k} w_j ``, sample the ``k``th particle for each ``u_i`` where ``W_{k-1} ≤ u_i < W_k``.
+
+    Extra arg:
+     - sort_particles = jnp.array(False). Set to `True` to sort particles by weight before stratification.
+    """
+
+    sort_particles = jnp.array(False)
+
+    # TODO: needs testing
+    def run_smc(self, key: PRNGKey):
+        log_weights = collection.get_log_weights()
+        ess = compute_log_ess(log_weights)
+        if ess < jnp.log(self.ess_threshold):
+            normalized_log_weights = log_weights - logsumexp(log_weights)
+            # Assumes that their sum is not zero.
+            keys = jrandom.split(key, self.how_many)
+            us = jrandom.uniform(keys)
+            c = jnp.cumsum(normalized_log_weights)
+            u = (jnp.arange(self.how_many) + us) / self.how_many
+            idxs = jnp.searchsorted(c, u, side="right")
+            collection = self.prev.run_smc(key)
+            new_particles = jtu.tree_map(lambda v: v[idxs], collection.get_particles())
+            new_weights = jnp.zeros(self.how_many)
+            return ParticleCollection(new_particles, new_weights, jnp.array(True))
+        return collection
+
+
+class ResidualResampling(ResamplingStrategy):
+    """Performs residual resampling of the particles in the filter, which reduces variance relative to multinomial sampling. For each particle with normalized weight ``w_i``, ``⌊n w_i⌋`` copies are resampled, where ``n`` is the total number of particles. The remainder are sampled with probability proportional to ``n w_i - ⌊n w_i⌋`` for each particle ``i``."""
+
+    def run_smc(self, key: PRNGKey):
+        log_weights = collection.get_log_weights()
+        ess = compute_log_ess(log_weights)
+        if ess < jnp.log(self.ess_threshold):
+            normalized_log_weights = log_weights - logsumexp(log_weights)
+            # Assumes that their sum is not zero.
+
+            # Deterministically copy previous particles according to their weights
+            n_copies_per_weight = jnp.floor(self.how_many * normalized_log_weights)
+            n_copies = jnp.sum(n_copies_per_weight)
+            n_resampled = self.how_many - n_copies
+            # JAX may be unhappy with dynamic values here
+            idx1 = jnp.repeat(jnp.arange(self.how_many), n_copies_per_weight)
+
+            # Sample remainder according to residual weights
+            # TODO: check if works when all are 0.
+            resample_weights = (
+                self.how_many * normalized_log_weights - n_copies_per_weight
+            )
+            keys = jrandom.split(key, n_resampled)
+            idx2 = jrandom.categorical(keys, resample_weights)
+            idxs = jnp.concatenate([idx1, idx2])
+            collection = self.prev.run_smc(key)
+            new_particles = jtu.tree_map(lambda v: v[idxs], collection.get_particles())
+            new_weights = jnp.zeros(self.how_many)
+            return ParticleCollection(new_particles, new_weights, jnp.array(True))
+        return collection
 
 
 #################
