@@ -44,9 +44,9 @@ from genjax._src.core.typing import (
     IntArray,
     List,
     Optional,
-    Tuple,
     Value,
     static_check_is_concrete,
+    tuple,
     typecheck,
 )
 
@@ -308,8 +308,8 @@ def incremental(f: Callable[..., Any]):
     @typecheck
     def wrapped(
         _stateful_handler: Optional[StatefulHandler],
-        primals: Tuple,
-        tangents: Tuple,
+        primals: tuple,
+        tangents: tuple,
     ):
         interpreter = IncrementalInterpreter()
         return interpreter.run_interpreter(

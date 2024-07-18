@@ -17,23 +17,20 @@ from abc import abstractmethod
 
 import jax
 import jax.numpy as jnp
-from jax.experimental import checkify
 
-from genjax._src.checkify import optional_check
 from genjax._src.core.generative import (
     Argdiffs,
     Arguments,
-    ChoiceMap,
-    Constraint,
+    ChoiceMapConstraint,
+    EmptyChm,
     EmptyConstraint,
     EmptyUpdateRequest,
     EqualityConstraint,
+    GeneralRequest,
     GenerativeFunction,
+    IdentityProjection,
     ImportanceRequest,
-    IncrementalRequest,
-    Mask,
     MaskedConstraint,
-    MaskedUpdateRequest,
     ProjectRequest,
     Retdiff,
     Retval,
@@ -41,11 +38,15 @@ from genjax._src.core.generative import (
     Score,
     Trace,
     UpdateRequest,
+    ValChm,
     ValueSample,
     Weight,
 )
+from genjax._src.core.generative.core import (
+    EmptyProjection,
+    SelectionProjection,
+)
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import staged_check
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
@@ -53,11 +54,12 @@ from genjax._src.core.typing import (
     FloatArray,
     Generic,
     PRNGKey,
-    Tuple,
     TypeVar,
-    static_check_is_concrete,
+    tuple,
     typecheck,
 )
+
+R = TypeVar("R")
 
 #####
 # DistributionTrace
@@ -66,42 +68,80 @@ from genjax._src.core.typing import (
 
 @Pytree.dataclass
 class DistributionTrace(
-    Trace,
+    Generic[R],
+    Trace["Distribution[R]", "ValueSample"],
 ):
-    gen_fn: GenerativeFunction
-    args: Tuple
+    gen_fn: "Distribution"
+    args: tuple
     value: Any
     score: FloatArray
 
-    def get_args(self) -> Tuple:
+    def get_args(self) -> tuple:
         return self.args
 
-    def get_retval(self) -> Any:
+    def get_retval(self) -> R:
         return self.value
 
-    def get_gen_fn(self) -> GenerativeFunction:
+    def get_gen_fn(self) -> "Distribution[R]":
         return self.gen_fn
 
-    def get_score(self) -> FloatArray:
+    def get_score(self) -> Score:
         return self.score
 
-    def get_sample(self) -> ChoiceMap:
-        return ChoiceMap.value(self.value)
+    def get_sample(self) -> ValueSample:
+        return ValueSample(self.value)
+
+    def get_choices(self) -> ValChm:
+        return ValChm(self.value)
 
 
 ################
 # Distribution #
 ################
 
-R = TypeVar("R")
 
-SupportedConstraints = EmptyConstraint | EqualityConstraint 
+SupportedConstraints = (
+    EmptyConstraint
+    | EqualityConstraint
+    | MaskedConstraint[ValueSample, "SupportedConstraints"]
+    | ChoiceMapConstraint
+)
+
+SupportedIncrementalConstraints = (
+    EmptyConstraint
+    | EqualityConstraint
+    | MaskedConstraint[ValueSample, "SupportedIncrementalConstraints"]
+    | ChoiceMapConstraint
+)
+
+SupportedGeneralConstraints = (
+    EmptyConstraint
+    | EqualityConstraint
+    | MaskedConstraint[ValueSample, "SupportedGeneralConstraints"]
+    | ChoiceMapConstraint
+)
+
+SupportedProjections = EmptyProjection | IdentityProjection | SelectionProjection
+
 
 class Distribution(
     Generic[R],
-    IncrementalRequest.SupportsIncrementalUpdate,
-    ImportanceRequest[SupportedConstraints].SupportsImportance,
-    ProjectRequest.SupportsProject,
+    GeneralRequest.SupportsGeneralUpdate[
+        SupportedGeneralConstraints,
+        ValueSample[R],
+        R,
+    ],
+    # IncrementalRequest.SupportsIncrementalUpdate[
+    #    SupportedIncrementalConstraints,
+    #    ValueSample[R],
+    #    R,
+    # ],
+    ImportanceRequest.SupportsImportanceUpdate[
+        SupportedConstraints,
+        ValueSample[R],
+        R,
+    ],
+    ProjectRequest.SupportsProjectUpdate,
     GenerativeFunction[ValueSample[R], R],
 ):
     @abstractmethod
@@ -109,7 +149,7 @@ class Distribution(
         self,
         key: PRNGKey,
         *args,
-    ) -> Tuple[Score, R]:
+    ) -> tuple[Score, R]:
         pass
 
     @abstractmethod
@@ -126,133 +166,158 @@ class Distribution(
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
+        args: Arguments,
     ) -> Trace:
         (w, v) = self.random_weighted(key, *args)
         tr = DistributionTrace(self, args, v, w)
         return tr
 
-    def importance(
+    def importance_update(
         self,
         key: PRNGKey,
-        constraint: EqualityConstraint,
+        constraint: SupportedConstraints,
         args: Arguments,
-    ) -> Tuple[Trace, Weight]:
-        raise NotImplementedError
-    
-    def update_constraint(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        constraint: Constraint,
-        argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
-        primals = Diff.tree_primal(argdiffs)
+    ) -> tuple[Trace, Weight, UpdateRequest]:
         match constraint:
             case EmptyConstraint():
-                old_sample = trace.get_choices()
-                old_retval = trace.get_retval()
-                new_score, _ = self.assess(old_sample, primals)
-                new_trace = DistributionTrace(
-                    self, primals, old_sample.get_value(), new_score
+                tr = self.simulate(key, args)
+                weight = 0.0
+                return tr, jnp.array(weight), ProjectRequest(IdentityProjection())
+
+            case EqualityConstraint(v):
+                w = self.estimate_logpdf(key, v, *args)
+                tr = DistributionTrace(self, args, v, w)
+                return tr, w, ProjectRequest(EmptyProjection())
+
+            case MaskedConstraint(flag, subconstraint):
+                # If it is valid.
+                im_tr, weight, bwd = self.importance_update(key, subconstraint, args)
+                # If it is not.
+                sim_tr, empty_weight, empty_bwd = self.importance_update(
+                    key, EmptyConstraint(), args
                 )
-                return (
-                    new_trace,
-                    new_score - trace.get_score(),
-                    Diff.tree_diff_no_change(old_retval),
-                    EmptyUpdateRequest(),
+
+                tr, w = jtu.tree_map(
+                    lambda v1, v2: jnp.where(flag, v1, v2),
+                    (im_tr, weight),
+                    (sim_tr, empty_weight),
                 )
 
-            case MaskedConstraint(flag, problem):
-                if staged_check(flag):
-                    return self.update(
-                        key, trace, IncrementalRequest(argdiffs, problem)
-                    )
+                # TODO: how to handle this?
+                bwd_request = OrElseRequest(flag, bwd, empty_bwd)
+                return (tr, w, bwd_request)
+
+            # Compatibility with old usage:
+            # here, we allow users to utilize choice maps to specify constraints
+            # but only a few types.
+            case ChoiceMapConstraint(choice_map):
+                if isinstance(choice_map, EmptyChm):
+                    constraint = EmptyConstraint()
+                    return self.importance_update(key, constraint, args)
+                elif isinstance(choice_map, ValChm):
+                    constraint = EqualityConstraint(choice_map.get_value())
+                    return self.importance_update(key, constraint, args)
                 else:
-                    return self.update_constraint_masked_constraint(
-                        key, trace, constraint, argdiffs
-                    )
-
-            case ChoiceMap():
-                check = constraint.has_value()
-                v = constraint.get_value()
-                if isinstance(v, UpdateRequest):
-                    return self.update(key, trace, IncrementalRequest(argdiffs, v))
-                elif static_check_is_concrete(check) and check:
-                    fwd = self.estimate_logpdf(key, v, *primals)
-                    bwd = trace.get_score()
-                    w = fwd - bwd
-                    new_tr = DistributionTrace(self, primals, v, fwd)
-                    discard = trace.get_sample()
-                    retval_diff = Diff.tree_diff_unknown_change(v)
-                    return (
-                        new_tr,
-                        w,
-                        retval_diff,
-                        discard,
-                    )
-                elif static_check_is_concrete(check):
-                    value_chm = trace.get_choices()
-                    v = value_chm.get_value()
-                    fwd = self.estimate_logpdf(key, v, *primals)
-                    bwd = trace.get_score()
-                    w = fwd - bwd
-                    new_tr = DistributionTrace(self, primals, v, fwd)
-                    retval_diff = Diff.tree_diff_no_change(v)
-                    return (new_tr, w, retval_diff, EmptyUpdateRequest())
-                else:
-                    # Whether or not the choice map has a value is dynamic...
-                    # We must handled with a cond.
-                    def _true_branch(key, new_value, old_value):
-                        fwd = self.estimate_logpdf(key, new_value, *primals)
-                        bwd = trace.get_score()
-                        w = fwd - bwd
-                        return (new_value, w, fwd)
-
-                    def _false_branch(key, new_value, old_value):
-                        fwd = self.estimate_logpdf(key, old_value, *primals)
-                        bwd = trace.get_score()
-                        w = fwd - bwd
-                        return (old_value, w, fwd)
-
-                    masked_value: Mask = v
-                    flag = masked_value.flag
-                    new_value = masked_value.value
-                    old_value = trace.get_choices().get_value()
-
-                    new_value, w, score = jax.lax.cond(
-                        flag,
-                        _true_branch,
-                        _false_branch,
-                        key,
-                        new_value,
-                        old_value,
-                    )
-                    return (
-                        DistributionTrace(self, primals, new_value, score),
-                        w,
-                        Diff.tree_diff_unknown_change(new_value),
-                        MaskedUpdateRequest(flag, old_value),
-                    )
-
-            case _:
-                raise Exception("Unhandled constraint in update.")
+                    raise NotImplementedError
 
     @typecheck
     def incremental_update(
         self,
         key: PRNGKey,
         trace: Trace,
-        constraint: Constraint,
+        constraint: SupportedIncrementalConstraints,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
-        return self.update_constraint(key, trace, update_request, argdiffs)
+    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        match constraint:
+            case EmptyConstraint():
+                weight = 0.0
+                return (
+                    trace,
+                    jnp.array(weight),
+                    Diff.no_change(trace.get_retval()),
+                    EmptyUpdateRequest(),
+                )
+
+            case EqualityConstraint(v):
+                primals = Diff.tree_primal(argdiffs)
+                old_score = trace.get_score()
+                w = self.estimate_logpdf(key, v, *primals)
+                inc_w = w - old_score
+                new_tr = DistributionTrace(self, primals, v, w)
+                return new_tr, inc_w, Diff.unknown_change(v), None
+
+            case MaskedConstraint(flag, subconstraint):
+                raise NotImplementedError
+
+            # Compatibility with old usage:
+            # here, we allow users to utilize choice maps to specify constraints
+            # but only a few types.
+            case ChoiceMapConstraint(choice_map):
+                if isinstance(choice_map, EmptyChm):
+                    constraint = EmptyConstraint()
+                    return self.incremental_update(key, trace, constraint, argdiffs)
+                elif isinstance(choice_map, ValChm):
+                    constraint = EqualityConstraint(choice_map.get_value())
+                    return self.incremental_update(key, trace, constraint, argdiffs)
+                else:
+                    raise NotImplementedError
+
+    @typecheck
+    def general_update(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        constraint: SupportedGeneralConstraints,
+        arguments: Arguments,
+    ) -> tuple[Trace, Weight, Retdiff, Sample]:
+        match constraint:
+            case EmptyConstraint():
+                old_score = trace.get_score()
+                v = trace.get_retval()
+                w = self.estimate_logpdf(key, v, *arguments)
+                inc_w = w - old_score
+                old_value = trace.get_retval()
+                new_tr = DistributionTrace(self, arguments, v, w)
+                return new_tr, inc_w, Diff.unknown_change(v), ValueSample(old_value)
+
+            case EqualityConstraint(v):
+                old_score = trace.get_score()
+                w = self.estimate_logpdf(key, v, *arguments)
+                inc_w = w - old_score
+                old_value = trace.get_retval()
+                new_tr = DistributionTrace(self, arguments, v, w)
+                return new_tr, inc_w, Diff.unknown_change(v), ValueSample(old_value)
+
+            case MaskedConstraint(flag, subconstraint):
+                raise NotImplementedError
+
+            # Compatibility with old usage:
+            # here, we allow users to utilize choice maps to specify constraints
+            # but only a few types.
+            case ChoiceMapConstraint(choice_map):
+                if isinstance(choice_map, EmptyChm):
+                    constraint = EmptyConstraint()
+                    return self.general_update(key, trace, constraint, arguments)
+                elif isinstance(choice_map, ValChm):
+                    constraint = EqualityConstraint(choice_map.get_value())
+                    return self.general_update(key, trace, constraint, arguments)
+                else:
+                    raise NotImplementedError
+
+    @typecheck
+    def project_update(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        projection: SupportedProjections,
+    ) -> tuple[Weight, UpdateRequest]:
+        raise NotImplementedError
 
     @typecheck
     def assess(
         self,
-        sample: Sample,
-        args: Tuple,
+        sample: ValueSample,
+        args: tuple,
     ):
         raise NotImplementedError
 
@@ -293,7 +358,7 @@ class ExactDensity(Distribution):
         self,
         key: PRNGKey,
         *args,
-    ) -> Tuple[Score, Retval]:
+    ) -> tuple[Score, Retval]:
         """
         Given arguments to the distribution, sample from the distribution, and return the exact log density of the sample, and the sample.
         """
@@ -320,25 +385,19 @@ class ExactDensity(Distribution):
     @typecheck
     def assess(
         self,
-        sample: ValueSample,
-        args: Tuple,
+        sample: ValueSample
+        | ValChm,  # TODO: the ValChm here is a type of paving over, to allow people to continue to use what they are used to.
+        args: tuple,
     ):
-        key = jax.random.PRNGKey(0)
-        v = sample.get_value()
-        match v:
-            case Mask(flag, value):
-
-                def _check():
-                    check_flag = jnp.all(flag)
-                    checkify.check(
-                        check_flag,
-                        "Attempted to unmask when a mask flag is False: the masked value is invalid.\n",
-                    )
-
-                optional_check(_check)
-                w = self.estimate_logpdf(key, value, *args)
-                return w, value
-            case _:
+        match sample:
+            case ValChm():
+                key = jax.random.PRNGKey(0)
+                v = sample.get_value()
+                w = self.estimate_logpdf(key, v, *args)
+                return w, v
+            case ValueSample():
+                key = jax.random.PRNGKey(0)
+                v = sample.val
                 w = self.estimate_logpdf(key, v, *args)
                 return w, v
 

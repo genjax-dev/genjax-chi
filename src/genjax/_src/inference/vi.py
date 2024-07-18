@@ -38,7 +38,7 @@ from genjax._src.core.typing import (
     FloatArray,
     Int,
     PRNGKey,
-    Tuple,
+    tuple,
     typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import (
@@ -151,8 +151,8 @@ def ELBO(
 
     def grad_estimate(
         key: PRNGKey,
-        args: Tuple,
-    ) -> Tuple:
+        args: tuple,
+    ) -> tuple:
         # In the source language of ADEV.
         @expectation
         def _loss(*args):
@@ -204,8 +204,8 @@ def PWake(
 
     def grad_estimate(
         key: PRNGKey,
-        args: Tuple,
-    ) -> Tuple:
+        args: tuple,
+    ) -> tuple:
         key, sub_key1, sub_key2 = jax.random.split(key, 3)
 
         # In the source language of ADEV.
@@ -233,8 +233,8 @@ def QWake(
 
     def grad_estimate(
         key: PRNGKey,
-        args: Tuple,
-    ) -> Tuple:
+        args: tuple,
+    ) -> tuple:
         key, sub_key1, sub_key2 = jax.random.split(key, 3)
 
         # In the source language of ADEV.

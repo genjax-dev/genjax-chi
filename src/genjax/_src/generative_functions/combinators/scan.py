@@ -43,7 +43,7 @@ from genjax._src.core.typing import (
     IntArray,
     Optional,
     PRNGKey,
-    Tuple,
+    tuple,
     typecheck,
 )
 
@@ -54,11 +54,11 @@ register_exclusion(__file__)
 class ScanTrace(Trace):
     scan_gen_fn: "ScanCombinator"
     inner: Trace
-    args: Tuple
+    args: tuple
     retval: Any
     score: FloatArray
 
-    def get_args(self) -> Tuple:
+    def get_args(self) -> tuple:
         return self.args
 
     def get_retval(self):
@@ -224,7 +224,7 @@ class ScanCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
+        args: tuple,
     ) -> ScanTrace:
         carry, scanned_in = args
 
@@ -259,8 +259,8 @@ class ScanCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: ChoiceMap,
-        args: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        args: tuple,
+    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
         (carry, scanned_in) = args
 
         def _inner_importance(key, constraint, carry, scanned_in):
@@ -325,7 +325,7 @@ class ScanCombinator(GenerativeFunction):
         trace: Trace,
         problem: UpdateRequest,
         argdiffs: Argdiffs,
-    ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateRequest]:
+    ) -> tuple[ScanTrace, Weight, Retdiff, UpdateRequest]:
         carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(
             Diff.tree_primal(argdiffs)
         )
@@ -462,7 +462,7 @@ class ScanCombinator(GenerativeFunction):
         trace: Trace,
         update_request: UpdateRequest,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
         assert isinstance(trace, EmptyTrace | ScanTrace)
         match update_request:
             case ImportanceRequest(constraint) if isinstance(constraint, ChoiceMap):
@@ -486,7 +486,7 @@ class ScanCombinator(GenerativeFunction):
         key: PRNGKey,
         trace: Trace,
         update_request: UpdateRequest,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
         match update_request:
             case IncrementalRequest(argdiffs, subrequest):
                 return self.update_change_target(key, trace, subrequest, argdiffs)
@@ -506,8 +506,8 @@ class ScanCombinator(GenerativeFunction):
     def assess(
         self,
         sample: Sample,
-        args: Tuple,
-    ) -> Tuple[Score, Any]:
+        args: tuple,
+    ) -> tuple[Score, Any]:
         (carry, scanned_in) = args
         assert isinstance(sample, ChoiceMap)
 

@@ -41,10 +41,10 @@ from genjax._src.core.typing import (
     List,
     Optional,
     String,
-    Tuple,
     TypeVar,
     Union,
     static_check_bool,
+    tuple,
     typecheck,
 )
 
@@ -59,12 +59,12 @@ V = TypeVar("V")
 StaticAddressComponent = String
 DynamicAddressComponent = Int | IntArray
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
-Address = Tuple[()] | Tuple[AddressComponent, ...]
-StaticAddress = Tuple[()] | Tuple[StaticAddressComponent, ...]
+Address = tuple[()] | tuple[AddressComponent, ...]
+StaticAddress = tuple[()] | tuple[StaticAddressComponent, ...]
 ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
 ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
-ExtendedStaticAddress = Tuple[()] | Tuple[ExtendedStaticAddressComponent, ...]
-ExtendedAddress = Tuple[()] | Tuple[ExtendedAddressComponent, ...]
+ExtendedStaticAddress = tuple[()] | tuple[ExtendedStaticAddressComponent, ...]
+ExtendedAddress = tuple[()] | tuple[ExtendedAddressComponent, ...]
 
 
 ##############
@@ -80,7 +80,7 @@ ExtendedAddress = Tuple[()] | Tuple[ExtendedAddressComponent, ...]
 @Pytree.dataclass
 class _SelectionBuilder(Pytree):
     def __getitem__(self, addr_comps):
-        if not isinstance(addr_comps, Tuple):
+        if not isinstance(addr_comps, tuple):
             addr_comps = (addr_comps,)
 
         sel = Selection.all()
@@ -717,13 +717,13 @@ choice_map_empty = EmptyChm()
 
 
 @Pytree.dataclass
-class ValueChm(ChoiceMap):
-    v: Any
+class ValChm(Generic[V], ChoiceMap[V]):
+    v: V
 
-    def get_value(self) -> Optional[Any]:
+    def get_value(self) -> V:
         return self.v
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         return choice_map_empty
 
 
@@ -731,7 +731,7 @@ class ValueChm(ChoiceMap):
 def choice_map_value(
     v: Any,
 ) -> ChoiceMap:
-    return ValueChm(v)
+    return ValChm(v)
 
 
 @Pytree.dataclass
@@ -912,16 +912,16 @@ def choice_map_masked(
 
 
 @Pytree.dataclass
-class FilteredChm(ChoiceMap):
+class FilteredChm(ChoiceMap[V | Mask[V]]):
     selection: Selection
-    c: ChoiceMap
+    c: ChoiceMap[V]
 
-    def get_value(self) -> Optional[Any]:
+    def get_value(self) -> V | Mask[V]:
         v = self.c.get_value()
         sel_check = self.selection[()]
         return Mask.maybe_none(sel_check, v)
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap[V]:
         submap = self.c.get_submap(addr)
         subselection = self.selection(addr)
         return choice_map_filtered(subselection, submap)

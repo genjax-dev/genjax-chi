@@ -42,7 +42,7 @@ FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
 Sequence = btyping.Sequence
-Tuple = btyping.Tuple
+tuple = btyping.Tuple
 Dict = btyping.Dict
 List = btyping.List
 Optional = btyping.Optional
@@ -182,7 +182,7 @@ __all__ = [
     "ScalarBool",
     "ScalarShaped",
     "Sequence",
-    "Tuple",
+    "tuple",
     "Type",
     "TypeVar",
     "Union",

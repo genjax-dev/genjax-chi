@@ -20,7 +20,11 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 from penzai.core import formatting_util
 
-from genjax._src.core.generative.choice_map import ChoiceMap, Selection
+from genjax._src.core.generative.choice_map import (
+    ChoiceMap,
+    ExtendedAddressComponent,
+    Selection,
+)
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import get_trace_shape, staged_and
 from genjax._src.core.pytree import Pytree
@@ -42,9 +46,9 @@ from genjax._src.core.typing import (
     Optional,
     PRNGKey,
     String,
-    Tuple,
     TypeVar,
     static_check_is_concrete,
+    tuple,
     typecheck,
 )
 
@@ -57,10 +61,11 @@ if TYPE_CHECKING:
 _C = TypeVar("_C", bound=Callable)
 ArgTuple = TypeVar("ArgTuple", bound=tuple)
 R = TypeVar("R")
-G = TypeVar("G", bound="GenerativeFunction")
 V = TypeVar("V")
+G = TypeVar("G", bound="GenerativeFunction")
 C = TypeVar("C", bound="Constraint")
 S = TypeVar("S", bound="Sample")
+P = TypeVar("P", bound="Projection")
 
 #####################################
 # Special generative function types #
@@ -79,7 +84,7 @@ A _score_ is a density ratio, described fully in [`simulate`][genjax.core.Genera
 The type `Score` does not enforce any meaningful mathematical invariants, but is used to denote the type of scores in the GenJAX system, to improve readability and parsing of interface specifications.
 """
 
-Arguments = Tuple
+Arguments = tuple
 """
 `Arguments` is the type of argument values to generative functions. It is a type alias for `Tuple`, and is used to improve readability and parsing of interface specifications.
 """
@@ -90,7 +95,7 @@ Retval = Any
 """
 
 Argdiffs = Annotated[
-    Tuple,
+    tuple,
     Is[Diff.static_check_tree_diff],
 ]
 """
@@ -119,25 +124,35 @@ When used under type checking, `Retdiff` assumes that the return value is a `Pyt
 class Sample(Pytree):
     """A `Sample` is a value which can be sampled from generative functions. Samples can be scalar values, or map-like values ([`ChoiceMap`][genjax.core.ChoiceMap]). Different sample types can induce different interfaces: `ChoiceMap`, for instance, supports interfaces for accessing sub-maps and values."""
 
+    @abstractmethod
+    def to_constraint(self) -> "Constraint":
+        """
+        A `Sample` can always be coerced into a type of equality constraint.
+        """
+        raise NotImplementedError
+
 
 @Pytree.dataclass
 class EmptySample(Sample):
-    pass
+    def to_constraint(self) -> "EmptyConstraint":
+        return EmptyConstraint()
+
 
 @Pytree.dataclass
 class ValueSample(Generic[V], Sample):
-    v: V
+    val: V
+
+    def to_constraint(self) -> "EqualityConstraint[V]":
+        return EqualityConstraint(self.val)
 
 
 @Pytree.dataclass(match_args=True)
-class MaskedSample(Sample):
+class MaskedSample(Generic[S], Sample):
     flag: Bool | BoolArray
-    sample: Sample
+    sample: S
 
-
-@Pytree.dataclass
-class ChoiceMapSample(Sample, ChoiceMap[Sample]):
-    choice_map: ChoiceMap[Any]
+    def to_constraint(self) -> "MaskedConstraint[S]":
+        return MaskedConstraint(self.flag, self.sample.to_constraint())
 
 
 ###############
@@ -145,7 +160,7 @@ class ChoiceMapSample(Sample, ChoiceMap[Sample]):
 ###############
 
 
-class Constraint(Pytree):
+class Constraint(Generic[S], Pytree):
     pass
 
 
@@ -160,8 +175,8 @@ class EmptyConstraint(Constraint):
     pass
 
 
-@Pytree.dataclass
-class EqualityConstraint(Constraint):
+@Pytree.dataclass(match_args=True)
+class EqualityConstraint(Generic[V], Constraint[ValueSample[V]]):
     """
     An `EqualityConstraint` encodes the constraint that the value output by a
     distribution is equal to a provided value.
@@ -169,11 +184,11 @@ class EqualityConstraint(Constraint):
     Formally, `EqualityConstraint(x)` represents the constraint `(x $\\mapsto$ x, x)`.
     """
 
-    x: Any
+    x: V
 
 
 @Pytree.dataclass(match_args=True)
-class MaskedConstraint(Constraint):
+class MaskedConstraint(Generic[S, C], Constraint[S]):
     """
     A `MaskedConstraint` encodes a possible constraint.
 
@@ -182,7 +197,7 @@ class MaskedConstraint(Constraint):
     """
 
     flag: Bool | BoolArray
-    constraint: Constraint
+    constraint: C
 
 
 @Pytree.dataclass
@@ -223,23 +238,56 @@ class BijectiveConstraint(Constraint):
     v: Any
 
 
+###############
+# Projections #
+###############
+
+
+class Projection(Generic[P], Pytree):
+    """
+    A projection is a mapping from a [`Sample`] space into a subspace.
+    """
+
+    @abstractmethod
+    def project(self, sample: Sample) -> Sample:
+        raise NotImplementedError
+
+    @abstractmethod
+    def complement(self) -> P:
+        raise NotImplementedError
+
+    def __call__(self, sample: Sample) -> Sample:
+        return self.project(sample)
+
+
 @Pytree.dataclass
-class ChoiceMapConstraint(Constraint, ChoiceMap[Constraint]):
-    choice_map: ChoiceMap[Any]
+class IdentityProjection(Projection["EmptyProjection"]):
+    def project(self, sample: S) -> S:
+        return sample
 
-
-class Projection(Pytree):
-    pass
-
-
-@Pytree.dataclass
-class SelectionProjection(Projection):
-    selection: Selection
+    def complement(self) -> "EmptyProjection":
+        return EmptyProjection()
 
 
 @Pytree.dataclass
-class ConstraintProjection(Projection):
-    constraint: Constraint
+class EmptyProjection(Projection["IdentityProjection"]):
+    def project(self, sample: Sample) -> Sample:
+        return EmptySample()
+
+    def complement(self) -> "IdentityProjection":
+        return IdentityProjection()
+
+
+@Pytree.dataclass
+class MaskedProjection(Generic[P], Projection["MaskedProjection[P]"]):
+    flag: Bool | BoolArray
+    proj: Projection[P]
+
+    def project(self, sample: S) -> MaskedSample[S]:
+        return MaskedSample(self.flag, sample)
+
+    def complement(self) -> "MaskedProjection[P]":
+        pass
 
 
 #########
@@ -331,12 +379,12 @@ class Trace(Generic[G, S], Pytree):
     def update(
         self,
         key: PRNGKey,
-        problem: "UpdateRequest",
-    ) -> Tuple["Trace", Weight, Retdiff, "UpdateRequest"]:
+        request: "UpdateRequest",
+    ) -> tuple["Trace", Weight, Retdiff, "UpdateRequest"]:
         """
         This method calls out to the underlying [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update] method - see [`UpdateRequest`][genjax.core.UpdateRequest] and [`update`][genjax.core.GenerativeFunction.update] for more information.
         """
-        return problem.update(key, self)
+        return request.update(key, self)
 
     def project(
         self,
@@ -379,7 +427,7 @@ class EmptyTraceRetval(Pytree):
 class EmptyTrace(Generic[G], Trace[G, EmptySample]):
     gen_fn: G
 
-    def get_args(self) -> Tuple:
+    def get_args(self) -> tuple:
         return (EmptyTraceArg(),)
 
     def get_retval(self) -> Retval:
@@ -543,7 +591,7 @@ class GenerativeFunction(Generic[S, R], Pytree):
         self,
         sample: S,
         args: Arguments,
-    ) -> Tuple[Score, Retval]:
+    ) -> tuple[Score, Retval]:
         """
         Return [the score][genjax.core.Trace.get_score] and [the return value][genjax.core.Trace.get_retval] when the generative function is invoked with the provided arguments, and constrained to take the provided sample as the sampled value.
 
@@ -582,21 +630,40 @@ class GenerativeFunction(Generic[S, R], Pytree):
         raise NotImplementedError
 
     def update(
-        self: G,
+        self,
         key: PRNGKey,
-        trace: Trace[G, ChoiceMapSample],
+        trace: Trace,
         choice_map: ChoiceMap,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace[G, ChoiceMapSample], Weight, Retdiff, "UpdateRequest"]:
+    ) -> tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
         choice_map_constraint = ChoiceMapConstraint(choice_map)
-        assert isinstance(self, IncrementalRequest.SupportsIncrementalUpdate)
-        return self.incremental_update(key, trace, choice_map_constraint, argdiffs)
+        # If possible, do an incremental update.
+        if isinstance(self, IncrementalRequest.SupportsIncrementalUpdate):
+            return IncrementalRequest(argdiffs, choice_map_constraint).update(
+                key, trace
+            )
+
+        # Else, the generative function better support a general (non-incremental) update, do that.
+        assert isinstance(self, GeneralRequest.SupportsGeneralUpdate)
+        primals = Diff.tree_primal(argdiffs)
+        return GeneralRequest(primals, choice_map_constraint).update(key, trace)
+
+    def importance(
+        self,
+        key: PRNGKey,
+        choice_map: ChoiceMap,
+        args: Arguments,
+    ) -> tuple[Trace, Weight]:
+        choice_map_constraint = ChoiceMapConstraint(choice_map)
+        assert isinstance(self, ImportanceRequest.SupportsImportanceUpdate)
+        tr, w, _ = self.importance_update(key, choice_map_constraint, args)
+        return tr, w
 
     def propose(
         self,
         key: PRNGKey,
         args: Arguments,
-    ) -> Tuple[S, Score, Retval]:
+    ) -> tuple[S, Score, Retval]:
         """
         Samples a [`Sample`][genjax.core.Sample] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the [`Retval`][genjax.core.Retval] of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
         """
@@ -1356,7 +1423,7 @@ class GenerativeFunction(Generic[S, R], Pytree):
         /,
         *,
         constraint: Constraint,
-        args: Tuple,
+        args: tuple,
     ):
         from genjax import Target
 
@@ -1427,7 +1494,7 @@ class IgnoreKwargs(GenerativeFunction):
 @Pytree.dataclass
 class GenerativeFunctionClosure(GenerativeFunction):
     gen_fn: GenerativeFunction
-    args: Tuple
+    args: tuple
     kwargs: Dict
 
     def get_gen_fn_with_kwargs(self):
@@ -1476,7 +1543,7 @@ class GenerativeFunctionClosure(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
+        args: tuple,
     ) -> Trace:
         full_args = (*self.args, *args)
         if self.kwargs:
@@ -1495,7 +1562,7 @@ class GenerativeFunctionClosure(GenerativeFunction):
         key: PRNGKey,
         trace: Trace,
         update_request: "UpdateRequest",
-    ) -> Tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
+    ) -> tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
         match update_request:
             case IncrementalRequest(argdiffs, subrequest):
                 full_argdiffs = (*self.args, *argdiffs)
@@ -1517,8 +1584,8 @@ class GenerativeFunctionClosure(GenerativeFunction):
     def assess(
         self,
         sample: Sample,
-        args: Tuple,
-    ) -> Tuple[Score, Retval]:
+        args: tuple,
+    ) -> tuple[Score, Retval]:
         full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
@@ -1652,7 +1719,7 @@ class UpdateRequest(Pytree):
     @abstractmethod
     def update(
         self, key: PRNGKey, trace: Trace
-    ) -> Tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
+    ) -> tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
         """
         Update a trace in response to an [`UpdateRequest`][genjax.core.UpdateRequest], returning a new [`Trace`][genjax.core.Trace], an incremental [`Weight`][genjax.core.Weight] for the new target, a [`Retdiff`][genjax.core.Retdiff] return value tagged with change information, and a backward [`UpdateRequest`][genjax.core.UpdateRequest] which requests the reverse move (to go back to the original trace).
         """
@@ -1663,7 +1730,7 @@ class UpdateRequest(Pytree):
 class EmptyUpdateRequest(UpdateRequest):
     def update(
         self, key: PRNGKey, trace: Trace
-    ) -> Tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
+    ) -> tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
         return (
             trace,
             jnp.array(0.0),
@@ -1671,10 +1738,12 @@ class EmptyUpdateRequest(UpdateRequest):
             EmptyUpdateRequest(),
         )
 
+
 @Pytree.dataclass
 class SumUpdateRequest(UpdateRequest):
     idx: Int | IntArray
     requests: List[UpdateRequest]
+
 
 @Pytree.dataclass
 class MaskedUpdateRequest(UpdateRequest):
@@ -1698,26 +1767,58 @@ class MaskedUpdateRequest(UpdateRequest):
 
 
 @Pytree.dataclass
+class GeneralRequest(UpdateRequest):
+    arguments: Arguments
+    constraint: Constraint
+
+    class SupportsGeneralUpdate(Generic[C, S, R], GenerativeFunction[S, R]):
+        @abstractmethod
+        def general_update(
+            self,
+            key: PRNGKey,
+            trace: Trace,
+            constraint: C,
+            arguments: Arguments,
+        ) -> tuple[Trace, Weight, Retdiff, Sample]:
+            raise NotImplementedError
+
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace[SupportsGeneralUpdate, S],
+    ) -> tuple[Trace[SupportsGeneralUpdate, S], Weight, Retdiff, UpdateRequest]:
+        gen_fn = trace.get_gen_fn()
+        new_trace, weight, retdiff, discard = gen_fn.general_update(
+            key,
+            trace,
+            self.constraint,
+            self.arguments,
+        )
+        bwd_move = GeneralRequest(trace.get_args(), discard.to_constraint())
+        return new_trace, weight, retdiff, bwd_move
+
+
+@Pytree.dataclass
 class IncrementalRequest(UpdateRequest):
     argdiffs: Argdiffs
     constraint: Constraint
 
-    class SupportsIncrementalUpdate(GenerativeFunction):
+    class SupportsIncrementalUpdate(Generic[C, S, R], GenerativeFunction[S, R]):
         @abstractmethod
         def incremental_update(
             self,
             key: PRNGKey,
             trace: Trace,
-            constraint: Constraint,
+            constraint: C,
             argdiffs: Argdiffs,
-        ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
             raise NotImplementedError
 
     def update(
         self,
         key: PRNGKey,
         trace: Trace[SupportsIncrementalUpdate, S],
-    ) -> Tuple[Trace[SupportsIncrementalUpdate, S], Weight, Retdiff, UpdateRequest]:
+    ) -> tuple[Trace[SupportsIncrementalUpdate, S], Weight, Retdiff, UpdateRequest]:
         gen_fn = trace.get_gen_fn()
         return gen_fn.incremental_update(
             key,
@@ -1728,18 +1829,22 @@ class IncrementalRequest(UpdateRequest):
 
 
 @Pytree.dataclass
-class ImportanceRequest(Generic[C], UpdateRequest):
+class ImportanceRequest(UpdateRequest):
     args: Arguments
-    constraint: C
+    constraint: Constraint
 
-    class SupportsImportance(GenerativeFunction):
+    class SupportsImportanceUpdate(Generic[C, S, R], GenerativeFunction[S, R]):
         @abstractmethod
-        def importance(
+        def importance_update(
             self,
             key: PRNGKey,
             constraint: C,
             args: Arguments,
-        ) -> Tuple[Trace, Weight]:
+        ) -> tuple[
+            Trace["ImportanceRequest.SupportsImportanceUpdate", S],
+            Weight,
+            UpdateRequest,
+        ]:
             """
             Returns a properly weighted pair, a [`Trace`][genjax.core.Trace] and a [`Weight`][genjax.core.Weight], properly weighted for the target induced by the generative function for the provided constraint and arguments.
 
@@ -1780,40 +1885,82 @@ class ImportanceRequest(Generic[C], UpdateRequest):
     def update(
         self,
         key: PRNGKey,
-        trace: EmptyTrace[SupportsImportance],
-    ) -> Tuple[Trace[SupportsImportance, S], Weight, Retdiff, UpdateRequest]:
+        trace: EmptyTrace[SupportsImportanceUpdate],
+    ) -> tuple[Trace[SupportsImportanceUpdate, S], Weight, Retdiff, UpdateRequest]:
         gen_fn = trace.get_gen_fn()
-        tr, weight = gen_fn.importance(key, self.constraint, self.args)
-        projection_from_constraint = ConstraintProjection(self.constraint)
-        return (
-            tr,
-            weight,
-            Diff.unknown_change(trace.get_retval()),
-            ProjectRequest(projection_from_constraint),
+        tr, weight, bwd_request = gen_fn.importance_update(
+            key, self.constraint, self.args
         )
+        return (tr, weight, Diff.unknown_change(trace.get_retval()), bwd_request)
 
 
 @Pytree.dataclass
 class ProjectRequest(UpdateRequest):
     projection: Projection
 
-    class SupportsProject(GenerativeFunction):
+    class SupportsProjectUpdate(GenerativeFunction):
         @abstractmethod
-        def project(
+        def project_update(
             self,
             key: PRNGKey,
             trace: Trace,
-            project: Projection,
-        ) -> Weight:
+            projection: Projection,
+        ) -> tuple[Weight, UpdateRequest]:
             raise NotImplementedError
 
     def update(
         self,
         key: PRNGKey,
         trace: Trace,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
         gen_fn = trace.get_gen_fn()
-        weight = gen_fn.project(key, trace, self.projection)
-        sample = trace.get_sample()
-        proj = self.projection(sample)
-        return EmptyTrace(gen_fn), weight, Diff.unknown_change(trace.get_retval()), 
+        weight, bwd_request = gen_fn.project_update(key, trace, self.projection)
+        return (
+            EmptyTrace(gen_fn),
+            weight,
+            Diff.unknown_change(trace.get_retval()),
+            bwd_request,
+        )
+
+
+#######################
+# Choice map specific #
+#######################
+
+
+@Pytree.dataclass(match_args=True)
+class ChoiceMapSample(Sample, ChoiceMap[Sample]):
+    choice_map: ChoiceMap[Any]
+
+    def get_value(self) -> Sample:
+        v = self.choice_map.get_value()
+        return v if isinstance(v, Sample) else ValueSample(v)
+
+    def get_submap(self, addr: ExtendedAddressComponent) -> "ChoiceMapSample":
+        submap = self.choice_map.get_submap(addr)
+        return ChoiceMapSample(submap)
+
+
+@typecheck
+@Pytree.dataclass(match_args=True)
+class ChoiceMapConstraint(Constraint, ChoiceMap[Constraint]):
+    choice_map: ChoiceMap[Any]
+
+    def get_value(self) -> Constraint:
+        v = self.choice_map.get_value()
+        return v if isinstance(v, Constraint) else EqualityConstraint(v)
+
+    def get_submap(self, addr: ExtendedAddressComponent) -> "ChoiceMapConstraint":
+        submap = self.choice_map.get_submap(addr)
+        return ChoiceMapConstraint(submap)
+
+
+@Pytree.dataclass
+class SelectionProjection(Projection["SelectionProjection"]):
+    selection: Selection
+
+    def project(self, sample: ChoiceMapSample) -> ChoiceMapSample:
+        return ChoiceMapSample(sample.filter(self.selection))
+
+    def complement(self) -> "SelectionProjection":
+        return SelectionProjection(~self.selection)

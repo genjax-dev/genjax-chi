@@ -19,6 +19,7 @@ import jax
 from genjax._src.core.generative import (
     Arguments,
     ChoiceMap,
+    ChoiceMapSample,
     GenerativeFunction,
     Sample,
     Selection,
@@ -33,8 +34,8 @@ from genjax._src.core.typing import (
     Generic,
     Optional,
     PRNGKey,
-    Tuple,
     TypeVar,
+    tuple,
     typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
@@ -72,7 +73,7 @@ class Target(Pytree):
     """
 
     p: GenerativeFunction
-    args: Tuple
+    args: tuple
     constraint: ChoiceMap
 
     def importance(self, key: PRNGKey, constraint: ChoiceMap):
@@ -103,7 +104,7 @@ class SampleDistribution(Distribution):
         self,
         key: PRNGKey,
         *args: Any,
-    ) -> Tuple[FloatArray, Sample]:
+    ) -> tuple[FloatArray, Sample]:
         raise NotImplementedError
 
     @abstractmethod
@@ -157,7 +158,7 @@ class Algorithm(SampleDistribution):
         self,
         key: PRNGKey,
         target: Target,
-    ) -> Tuple[Weight, Sample]:
+    ) -> tuple[Weight, Sample]:
         """
         Given a [`Target`][genjax.inference.Target], return a [`Sample`][genjax.core.Sample] from an approximation to the normalized distribution of the target, and a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
 
@@ -223,9 +224,10 @@ class Algorithm(SampleDistribution):
 A = TypeVar("A")
 R = TypeVar("R")
 
+
 @Pytree.dataclass
-class Marginal(Generic[A, R], GenerativeFunction):
-    gen_fn: GenerativeFunction[A, ChoiceMap, R]
+class Marginal(Generic[R], GenerativeFunction[ChoiceMapSample, R]):
+    gen_fn: GenerativeFunction[ChoiceMapSample, R]
     selection: Selection = Pytree.field(default=Selection.all())
     algorithm: Optional[Algorithm] = Pytree.field(default=None)
 
@@ -267,3 +269,20 @@ class Marginal(Generic[A, R], GenerativeFunction):
             target = Target(self.gen_fn, args, constraint)
             Z = self.algorithm.estimate_normalizing_constant(key, target)
             return Z
+
+
+@typecheck
+def marginal(
+    selection: Optional[Selection] = Selection.all(),
+    algorithm: Optional[Algorithm] = None,
+) -> Callable[[GenerativeFunction], Marginal]:
+    def decorator(
+        gen_fn: GenerativeFunction,
+    ) -> Marginal:
+        return Marginal(
+            gen_fn,
+            selection,
+            algorithm,
+        )
+
+    return decorator

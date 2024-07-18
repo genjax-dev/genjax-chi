@@ -29,7 +29,7 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     PRNGKey,
-    Tuple,
+    tuple,
     typecheck,
 )
 
@@ -58,7 +58,7 @@ class REINFORCE(ADEVPrimitive):
         self,
         key: PRNGKey,
         dual_tree: DualTree,
-        konts: Tuple,
+        konts: tuple,
     ):
         (_, kdual) = konts
         primals = Dual.tree_primal(dual_tree)
@@ -95,7 +95,7 @@ class FlipEnum(ADEVPrimitive):
         self,
         key: PRNGKey,
         dual_tree: DualTree,
-        konts: Tuple,
+        konts: tuple,
     ):
         (_, kdual) = konts
         (p_primal,) = Dual.tree_primal(dual_tree)
@@ -135,7 +135,7 @@ class FlipMVD(ADEVPrimitive):
         self,
         key: PRNGKey,
         dual_tree: DualTree,
-        konts: Tuple,
+        konts: tuple,
     ):
         (kpure, kdual) = konts
         (p_primal,) = Dual.tree_primal(dual_tree)
@@ -161,7 +161,7 @@ class FlipEnumParallel(ADEVPrimitive):
         self,
         key: PRNGKey,
         dual_tree: DualTree,
-        konts: Tuple,
+        konts: tuple,
     ):
         (_, kdual) = konts
         (p_primal,) = Dual.tree_primal(dual_tree)
@@ -197,7 +197,7 @@ class CategoricalEnumParallel(ADEVPrimitive):
         self,
         key: PRNGKey,
         dual_tree: DualTree,
-        konts: Tuple,
+        konts: tuple,
     ):
         (_, kdual) = konts
         (probs_primal,) = Dual.tree_primal(dual_tree)
@@ -349,7 +349,7 @@ class Uniform(TailCallADEVPrimitive):
     def before_tail_call(
         self,
         key: PRNGKey,
-        dual_tree: Tuple,
+        dual_tree: tuple,
     ):
         key, sub_key = jax.random.split(key)
         x = tfd.Uniform(low=0.0, high=1.0).sample(seed=sub_key)
@@ -400,7 +400,7 @@ class Baseline(ADEVPrimitive):
         self,
         key: PRNGKey,
         dual_tree: DualTree,
-        konts: Tuple,
+        konts: tuple,
     ):
         (kpure, kdual) = konts
         (b_primal, *prim_primals) = Dual.tree_primal(dual_tree)
@@ -455,7 +455,7 @@ class AddCost(ADEVPrimitive):
         self,
         key: PRNGKey,
         dual_tree: DualTree,
-        konts: Tuple,
+        konts: tuple,
     ) -> Dual:
         (_, kdual) = konts
         (w,) = Dual.tree_primal(dual_tree)

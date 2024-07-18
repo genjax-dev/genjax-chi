@@ -25,13 +25,17 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     BoolArray,
+    Generic,
     Int,
     IntArray,
     List,
+    TypeVar,
     static_check_bool,
     static_check_is_concrete,
     typecheck,
 )
+
+V = TypeVar("V")
 
 #########################
 # Masking and sum types #
@@ -39,7 +43,7 @@ from genjax._src.core.typing import (
 
 
 @Pytree.dataclass(match_args=True)
-class Mask(Pytree):
+class Mask(Generic[V], Pytree):
     """The `Mask` datatype wraps a value in a Boolean flag which denotes whether the data is valid or invalid to use in inference computations.
 
     Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as `Sample` instances, and participate in generative and inference computations (like scores, and importance weights or density ratios). Invalid data **should** be considered unusable, and should be handled with care.
@@ -60,7 +64,7 @@ class Mask(Pytree):
     """
 
     flag: BoolArray
-    value: Any
+    value: V
 
     @classmethod
     def maybe(cls, f: BoolArray, v: Any):
@@ -86,7 +90,7 @@ class Mask(Pytree):
     # Masking interfaces #
     ######################
 
-    def unmask(self):
+    def unmask(self) -> V:
         """Unmask the `Mask`, returning the value within.
 
         This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` wraps valid data at runtime.
@@ -105,7 +109,7 @@ class Mask(Pytree):
         optional_check(_check)
         return self.value
 
-    def unsafe_unmask(self):
+    def unsafe_unmask(self) -> V:
         # Unsafe version of unmask -- should only be used internally,
         # or carefully.
         return self.value

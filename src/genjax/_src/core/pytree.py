@@ -39,11 +39,11 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     List,
-    Tuple,
     TypeVar,
     static_check_is_array,
     static_check_is_concrete,
     static_check_supports_grad,
+    tuple,
 )
 
 register_exclusion(__file__)
@@ -122,6 +122,7 @@ class Pytree(pz.Struct):
 
         return pz.pytree_dataclass(
             incoming,
+            overwrite_parent_init=True,
             **kwargs,
         )
 
@@ -489,7 +490,7 @@ class Closure(Pytree):
         ```
     """
 
-    dyn_args: Tuple
+    dyn_args: tuple
     fn: Callable[..., Any] = Pytree.static()
 
     def __call__(self, *args, **kwargs):

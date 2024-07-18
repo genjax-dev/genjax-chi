@@ -41,7 +41,7 @@ from genjax._src.core.typing import (
     Is,
     List,
     PRNGKey,
-    Tuple,
+    tuple,
     typecheck,
 )
 
@@ -72,11 +72,11 @@ class ADEVPrimitive(Pytree):
         self,
         key: PRNGKey,
         dual_tree: DualTree,  # Pytree with Dual leaves.
-        konts: Tuple[Callable[..., Any], Callable[..., Any]],
+        konts: tuple[Callable[..., Any], Callable[..., Any]],
     ) -> "Dual":
         pass
 
-    def get_batched_prim(self, dims: Tuple):
+    def get_batched_prim(self, dims: tuple):
         """
         To use ADEV primitives inside of `vmap`, they must provide a custom batched primitive version of themselves.
 
@@ -102,19 +102,19 @@ class TailCallADEVPrimitive(ADEVPrimitive):
         self,
         key: PRNGKey,
         dual_tree: DualTree,  # Pytree with Dual leaves.
-        konts: Tuple[Callable[..., Any], Callable[..., Any]],
+        konts: tuple[Callable[..., Any], Callable[..., Any]],
     ) -> "Dual":
         _, kdual = konts
         return kdual(key, self.before_tail_call(key, dual_tree))
 
-    def get_batched_prim(self, dims: Tuple):
+    def get_batched_prim(self, dims: tuple):
         return TailCallBatchedADEVPrimitive(self, dims)
 
 
 @Pytree.dataclass
 class TailCallBatchedADEVPrimitive(TailCallADEVPrimitive):
     original_prim: TailCallADEVPrimitive
-    dims: Tuple = Pytree.static()
+    dims: tuple = Pytree.static()
 
     def sample(self, key, *args):
         return jax.vmap(self.original_prim.sample, in_axes=self.dims)(key, *args)
@@ -528,13 +528,13 @@ class Expectation(Pytree):
 
     # The JVP rules here are registered below.
     # (c.f. Register custom forward mode with JAX)
-    def grad_estimate(self, key: PRNGKey, primals: Tuple):
+    def grad_estimate(self, key: PRNGKey, primals: tuple):
         def _invoke_closed_over(primals):
             return invoke_closed_over(self, key, primals)
 
         return jax.grad(_invoke_closed_over)(primals)
 
-    def value_and_grad_estimate(self, key: PRNGKey, primals: Tuple):
+    def value_and_grad_estimate(self, key: PRNGKey, primals: tuple):
         def _invoke_closed_over(primals):
             return invoke_closed_over(self, key, primals)
 
@@ -548,8 +548,8 @@ class Expectation(Pytree):
     def debug_transform_adev(
         self,
         key: PRNGKey,
-        primals: Tuple,
-        tangents: Tuple,
+        primals: tuple,
+        tangents: tuple,
     ):
         def _identity(x):
             return x
