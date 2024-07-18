@@ -1592,10 +1592,8 @@ class GenerativeFunctionClosure(GenerativeFunction):
                     return maybe_kwarged_gen_fn.update(
                         key,
                         trace,
-                        IncrementalUpdateRequest(
-                            (full_argdiffs, self.kwargs),
-                            subrequest,
-                        ),
+                        subrequest,
+                        (full_argdiffs, self.kwargs),
                     )
             case _:
                 raise NotImplementedError
