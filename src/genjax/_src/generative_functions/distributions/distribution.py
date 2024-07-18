@@ -18,7 +18,6 @@ from abc import abstractmethod
 import jax
 import jax.numpy as jnp
 from jax.experimental import checkify
-from jax.lax import cond
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.generative import (
@@ -147,7 +146,7 @@ class Distribution(GenerativeFunction):
                     w = self.estimate_logpdf(key, v, *args)
                     return (w, w, v)
 
-                score, w, new_v = cond(flag, _importance, _simulate, key, value)
+                score, w, new_v = jax.lax.cond(flag, _importance, _simulate, key, value)
                 tr = DistributionTrace(self, args, new_v, score)
                 bwd_problem = MaskedProblem(flag, ProjectProblem())
                 return tr, w, bwd_problem
