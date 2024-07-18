@@ -26,7 +26,7 @@ from genjax._src.core.generative import (
     EmptyTrace,
     GenerativeFunction,
     ImportanceRequest,
-    IncrementalRequest,
+    IncrementalUpdateRequest,
     Retdiff,
     Retval,
     Score,
@@ -195,7 +195,7 @@ class VmapCombinator(GenerativeFunction):
             tr, w, rd, bwd_problem = self.gen_fn.update(
                 key,
                 EmptyTrace(self.gen_fn),
-                IncrementalRequest(
+                IncrementalUpdateRequest(
                     Diff.unknown_change(args),
                     ImportanceRequest(submap),
                 ),
@@ -227,7 +227,7 @@ class VmapCombinator(GenerativeFunction):
         def _update(key, idx, subtrace, argdiffs):
             subrequest = update_request(idx)
             new_subtrace, w, retdiff, bwd_problem = self.gen_fn.update(
-                key, subtrace, IncrementalRequest(argdiffs, subrequest)
+                key, subtrace, IncrementalUpdateRequest(argdiffs, subrequest)
             )
             return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_problem)
 
@@ -256,7 +256,7 @@ class VmapCombinator(GenerativeFunction):
         def _update(key, idx, subtrace, argdiffs):
             subrequest = selection(idx)
             new_subtrace, w, retdiff, bwd_problem = self.gen_fn.update(
-                key, subtrace, IncrementalRequest(argdiffs, subrequest)
+                key, subtrace, IncrementalUpdateRequest(argdiffs, subrequest)
             )
             return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_problem)
 
@@ -297,7 +297,7 @@ class VmapCombinator(GenerativeFunction):
         update_request: UpdateRequest,
     ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
         match update_request:
-            case IncrementalRequest(argdiffs, subrequest):
+            case IncrementalUpdateRequest(argdiffs, subrequest):
                 return self.update_change_target(key, trace, subrequest, argdiffs)
             case _:
                 return self.update_change_target(

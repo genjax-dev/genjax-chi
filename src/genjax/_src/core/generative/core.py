@@ -262,7 +262,7 @@ class Projection(Generic[P], Pytree):
 
 @Pytree.dataclass
 class IdentityProjection(Projection["EmptyProjection"]):
-    def project(self, sample: S) -> S:
+    def project(self, sample: Sample) -> Sample:
         return sample
 
     def complement(self) -> "EmptyProjection":
@@ -283,8 +283,8 @@ class MaskedProjection(Generic[P], Projection["MaskedProjection[P]"]):
     flag: Bool | BoolArray
     proj: Projection[P]
 
-    def project(self, sample: S) -> MaskedSample[S]:
-        return MaskedSample(self.flag, sample)
+    def project(self, sample: S) -> Bool | BoolArray:
+        return staged_and(self.flag, self.proj(sample))
 
     def complement(self) -> "MaskedProjection[P]":
         pass
@@ -638,15 +638,36 @@ class GenerativeFunction(Generic[S, R], Pytree):
     ) -> tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
         choice_map_constraint = ChoiceMapConstraint(choice_map)
         # If possible, do an incremental update.
-        if isinstance(self, IncrementalRequest.SupportsIncrementalUpdate):
-            return IncrementalRequest(argdiffs, choice_map_constraint).update(
+        if isinstance(self, IncrementalUpdateRequest.SupportsIncrementalUpdate):
+            return IncrementalUpdateRequest(argdiffs, choice_map_constraint).update(
                 key, trace
             )
 
         # Else, the generative function better support a general (non-incremental) update, do that.
-        assert isinstance(self, GeneralRequest.SupportsGeneralUpdate)
+        assert isinstance(self, GeneralUpdateRequest.SupportsGeneralUpdate)
         primals = Diff.tree_primal(argdiffs)
-        return GeneralRequest(primals, choice_map_constraint).update(key, trace)
+        return GeneralUpdateRequest(primals, choice_map_constraint).update(key, trace)
+
+    def regenerate(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        select: Selection,
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
+        selection_projection = SelectionProjection(select)
+        # If possible, do an incremental update.
+        if isinstance(self, IncrementalRegenerateRequest.SupportsIncrementalRegenerate):
+            return IncrementalRegenerateRequest(argdiffs, selection_projection).update(
+                key, trace
+            )
+
+        # Else, the generative function better support a general (non-incremental) update, do that.
+        assert isinstance(self, GeneralRegenerateRequest.SupportsGeneralRegenerate)
+        primals = Diff.tree_primal(argdiffs)
+        return GeneralRegenerateRequest(primals, selection_projection).update(
+            key, trace
+        )
 
     def importance(
         self,
@@ -1564,14 +1585,14 @@ class GenerativeFunctionClosure(GenerativeFunction):
         update_request: "UpdateRequest",
     ) -> tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
         match update_request:
-            case IncrementalRequest(argdiffs, subrequest):
+            case IncrementalUpdateRequest(argdiffs, subrequest):
                 full_argdiffs = (*self.args, *argdiffs)
                 if self.kwargs:
                     maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
                     return maybe_kwarged_gen_fn.update(
                         key,
                         trace,
-                        IncrementalRequest(
+                        IncrementalUpdateRequest(
                             (full_argdiffs, self.kwargs),
                             subrequest,
                         ),
@@ -1767,7 +1788,7 @@ class MaskedUpdateRequest(UpdateRequest):
 
 
 @Pytree.dataclass
-class GeneralRequest(UpdateRequest):
+class GeneralUpdateRequest(UpdateRequest):
     arguments: Arguments
     constraint: Constraint
 
@@ -1794,12 +1815,12 @@ class GeneralRequest(UpdateRequest):
             self.constraint,
             self.arguments,
         )
-        bwd_move = GeneralRequest(trace.get_args(), discard.to_constraint())
+        bwd_move = GeneralUpdateRequest(trace.get_args(), discard.to_constraint())
         return new_trace, weight, retdiff, bwd_move
 
 
 @Pytree.dataclass
-class IncrementalRequest(UpdateRequest):
+class IncrementalUpdateRequest(UpdateRequest):
     argdiffs: Argdiffs
     constraint: Constraint
 
@@ -1826,6 +1847,72 @@ class IncrementalRequest(UpdateRequest):
             self.constraint,
             self.argdiffs,
         )
+
+
+@Pytree.dataclass
+class GeneralRegenerateRequest(UpdateRequest):
+    arguments: Arguments
+    projection: Projection
+
+    class SupportsGeneralRegenerate(Generic[P, S, R], GenerativeFunction[S, R]):
+        @abstractmethod
+        def general_regenerate(
+            self,
+            key: PRNGKey,
+            trace: Trace,
+            projection: P,
+            arguments: Arguments,
+        ) -> tuple[Trace, Weight, Sample]:
+            raise NotImplementedError
+
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace[SupportsGeneralRegenerate, S],
+    ) -> tuple[Trace[SupportsGeneralRegenerate, S], Weight, Retdiff, UpdateRequest]:
+        gen_fn = trace.get_gen_fn()
+        new_trace, weight, discard = gen_fn.general_regenerate(
+            key,
+            trace,
+            self.projection,
+            self.arguments,
+        )
+        bwd_move = GeneralUpdateRequest(trace.get_args(), discard.to_constraint())
+        retval = new_trace.get_retval()
+        return new_trace, weight, Diff.unknown_change(retval), bwd_move
+
+
+@Pytree.dataclass
+class IncrementalRegenerateRequest(UpdateRequest):
+    arguments: Arguments
+    projection: Projection
+
+    class SupportsIncrementalRegenerate(Generic[P, S, R], GenerativeFunction[S, R]):
+        @abstractmethod
+        def incremental_regenerate(
+            self,
+            key: PRNGKey,
+            trace: Trace,
+            projection: P,
+            argdiffs: Argdiffs,
+        ) -> tuple[Trace, Weight, Retdiff, Sample]:
+            raise NotImplementedError
+
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace[SupportsIncrementalRegenerate, S],
+    ) -> tuple[Trace[SupportsIncrementalRegenerate, S], Weight, Retdiff, UpdateRequest]:
+        gen_fn = trace.get_gen_fn()
+        new_trace, weight, retdiff, discard = gen_fn.incremental_regenerate(
+            key,
+            trace,
+            self.projection,
+            self.arguments,
+        )
+        # TODO: can one make this incremental backwards?
+        bwd_move = GeneralUpdateRequest(trace.get_args(), discard.to_constraint())
+        return new_trace, weight, retdiff, bwd_move
 
 
 @Pytree.dataclass
@@ -1898,13 +1985,13 @@ class ImportanceRequest(UpdateRequest):
 class ProjectRequest(UpdateRequest):
     projection: Projection
 
-    class SupportsProjectUpdate(GenerativeFunction):
+    class SupportsProjectUpdate(Generic[P, S, R], GenerativeFunction[S, R]):
         @abstractmethod
         def project_update(
             self,
             key: PRNGKey,
             trace: Trace,
-            projection: Projection,
+            projection: P,
         ) -> tuple[Weight, UpdateRequest]:
             raise NotImplementedError
 

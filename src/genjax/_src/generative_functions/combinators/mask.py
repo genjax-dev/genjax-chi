@@ -21,7 +21,7 @@ from genjax._src.core.generative import (
     EmptyTrace,
     GenerativeFunction,
     ImportanceRequest,
-    IncrementalRequest,
+    IncrementalUpdateRequest,
     Mask,
     MaskedSample,
     MaskedUpdateRequest,
@@ -143,7 +143,7 @@ class MaskCombinator(GenerativeFunction):
         premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
             key,
             inner_trace,
-            IncrementalRequest(tuple(inner_argdiffs), update_request),
+            IncrementalUpdateRequest(tuple(inner_argdiffs), update_request),
         )
 
         w = jax.lax.select(
@@ -178,13 +178,13 @@ class MaskCombinator(GenerativeFunction):
         premasked_trace, w, _, _ = self.gen_fn.update(
             key,
             inner_trace,
-            IncrementalRequest(tuple(inner_argdiffs), imp_update_request),
+            IncrementalUpdateRequest(tuple(inner_argdiffs), imp_update_request),
         )
 
         _, _, retdiff, bwd_problem = self.gen_fn.update(
             key,
             premasked_trace,
-            IncrementalRequest(tuple(inner_argdiffs), update_request),
+            IncrementalUpdateRequest(tuple(inner_argdiffs), update_request),
         )
 
         w = jax.lax.select(
@@ -210,11 +210,11 @@ class MaskCombinator(GenerativeFunction):
         assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
 
         match update_request:
-            case IncrementalRequest(argdiffs, subrequest) if isinstance(
+            case IncrementalUpdateRequest(argdiffs, subrequest) if isinstance(
                 subrequest, ImportanceRequest
             ):
                 return self.update_change_target(key, trace, subrequest, argdiffs)
-            case IncrementalRequest(argdiffs, subrequest):
+            case IncrementalUpdateRequest(argdiffs, subrequest):
                 assert isinstance(trace, MaskTrace)
 
                 if not trace.check:

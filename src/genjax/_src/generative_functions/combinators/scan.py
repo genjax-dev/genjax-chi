@@ -23,7 +23,7 @@ from genjax._src.core.generative import (
     EmptyUpdateRequest,
     GenerativeFunction,
     ImportanceRequest,
-    IncrementalRequest,
+    IncrementalUpdateRequest,
     Retdiff,
     Sample,
     Score,
@@ -267,7 +267,7 @@ class ScanCombinator(GenerativeFunction):
             tr, w, _retdiff, bwd_problem = self.kernel_gen_fn.update(
                 key,
                 EmptyTrace(self.kernel_gen_fn),
-                IncrementalRequest(
+                IncrementalUpdateRequest(
                     Diff.unknown_change((carry, scanned_in)),
                     ImportanceRequest(constraint),
                 ),
@@ -339,7 +339,7 @@ class ScanCombinator(GenerativeFunction):
             ) = self.kernel_gen_fn.update(
                 key,
                 subtrace,
-                IncrementalRequest(
+                IncrementalUpdateRequest(
                     (carry, scanned_in),
                     subrequest,
                 ),
@@ -488,14 +488,14 @@ class ScanCombinator(GenerativeFunction):
         update_request: UpdateRequest,
     ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
         match update_request:
-            case IncrementalRequest(argdiffs, subrequest):
+            case IncrementalUpdateRequest(argdiffs, subrequest):
                 return self.update_change_target(key, trace, subrequest, argdiffs)
 
             case _:
                 return self.update(
                     key,
                     trace,
-                    IncrementalRequest(
+                    IncrementalUpdateRequest(
                         Diff.no_change(trace.get_args()),
                         update_request,
                     ),

@@ -426,10 +426,10 @@ class _ChoiceMapBuilder(Pytree):
         else:
             return choice_map_empty
 
-    def n(self) -> "ChoiceMap":
+    def n(self) -> "EmptyChm":
         return choice_map_empty
 
-    def v(self, v) -> "ChoiceMap":
+    def v(self, v) -> "ValChm":
         return ChoiceMap.value(v)
 
     def d(self, d: dict) -> "ChoiceMap":
@@ -617,15 +617,15 @@ class ChoiceMap(Generic[V], Pytree):
     ######################################
 
     @classmethod
-    def empty(cls) -> "ChoiceMap":
+    def empty(cls) -> "EmptyChm":
         return choice_map_empty
 
     @classmethod
-    def value(cls, v) -> "ChoiceMap":
+    def value(cls, v) -> "ValChm":
         return choice_map_value(v)
 
     @classmethod
-    def maybe(cls, f: BoolArray, c: "ChoiceMap") -> "ChoiceMap":
+    def maybe(cls, f: Bool | BoolArray, c: "ChoiceMap") -> "ChoiceMap":
         return choice_map_masked(f, c)
 
     @classmethod
@@ -730,7 +730,7 @@ class ValChm(Generic[V], ChoiceMap[V]):
 @typecheck
 def choice_map_value(
     v: Any,
-) -> ChoiceMap:
+) -> ValChm:
     return ValChm(v)
 
 

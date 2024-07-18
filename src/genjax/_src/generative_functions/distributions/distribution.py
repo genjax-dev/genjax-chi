@@ -17,6 +17,7 @@ from abc import abstractmethod
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
     Argdiffs,
@@ -24,9 +25,11 @@ from genjax._src.core.generative import (
     ChoiceMapConstraint,
     EmptyChm,
     EmptyConstraint,
+    EmptySample,
     EmptyUpdateRequest,
     EqualityConstraint,
-    GeneralRequest,
+    GeneralRegenerateRequest,
+    GeneralUpdateRequest,
     GenerativeFunction,
     IdentityProjection,
     ImportanceRequest,
@@ -126,7 +129,7 @@ SupportedProjections = EmptyProjection | IdentityProjection | SelectionProjectio
 
 class Distribution(
     Generic[R],
-    GeneralRequest.SupportsGeneralUpdate[
+    GeneralUpdateRequest.SupportsGeneralUpdate[
         SupportedGeneralConstraints,
         ValueSample[R],
         R,
@@ -136,6 +139,11 @@ class Distribution(
     #    ValueSample[R],
     #    R,
     # ],
+    GeneralRegenerateRequest.SupportsGeneralRegenerate[
+        SupportedProjections,
+        ValueSample[R],
+        R,
+    ],
     ImportanceRequest.SupportsImportanceUpdate[
         SupportedConstraints,
         ValueSample[R],
@@ -276,9 +284,8 @@ class Distribution(
                 v = trace.get_retval()
                 w = self.estimate_logpdf(key, v, *arguments)
                 inc_w = w - old_score
-                old_value = trace.get_retval()
                 new_tr = DistributionTrace(self, arguments, v, w)
-                return new_tr, inc_w, Diff.unknown_change(v), ValueSample(old_value)
+                return new_tr, inc_w, Diff.unknown_change(v), EmptySample()
 
             case EqualityConstraint(v):
                 old_score = trace.get_score()
@@ -303,6 +310,36 @@ class Distribution(
                     return self.general_update(key, trace, constraint, arguments)
                 else:
                     raise NotImplementedError
+
+    @typecheck
+    def general_regenerate(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        projection: SupportedProjections,
+        arguments: Arguments,
+    ) -> tuple[Trace, Weight, Sample]:
+        match projection:
+            case EmptyProjection():
+                old_score = trace.get_score()
+                v = trace.get_retval()
+                w = self.estimate_logpdf(key, v, *arguments)
+                inc_w = w - old_score
+                old_value = trace.get_retval()
+                new_tr = DistributionTrace(self, arguments, v, w)
+                return new_tr, inc_w, EmptySample()
+
+            case IdentityProjection():
+                old_score = trace.get_score()
+                w, v = self.random_weighted(key, *arguments)
+                inc_w = w - old_score
+                old_value = trace.get_retval()
+                new_tr = DistributionTrace(self, arguments, v, w)
+                return new_tr, inc_w, ValueSample(old_value)
+
+            # Compatibility with old usage:
+            case SelectionProjection():
+                raise NotImplementedError
 
     @typecheck
     def project_update(

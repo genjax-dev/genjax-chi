@@ -29,7 +29,7 @@ from genjax._src.core.generative import (
     EmptyUpdateRequest,
     GenerativeFunction,
     ImportanceRequest,
-    IncrementalRequest,
+    IncrementalUpdateRequest,
     Retdiff,
     Sample,
     Score,
@@ -357,7 +357,7 @@ class UpdateHandler(StaticHandler):
         subrequest = self.get_subrequest(addr)
         self.key, sub_key = jax.random.split(self.key)
         (tr, w, retval_diff, bwd_problem) = gen_fn.update(
-            sub_key, subtrace, IncrementalRequest(argdiffs, subrequest)
+            sub_key, subtrace, IncrementalUpdateRequest(argdiffs, subrequest)
         )
         self.score += tr.get_score()
         self.weight += w
@@ -591,13 +591,13 @@ class StaticGenerativeFunction(GenerativeFunction):
         update_request: UpdateRequest,
     ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
         match update_request:
-            case IncrementalRequest(argdiffs, subrequest):
+            case IncrementalUpdateRequest(argdiffs, subrequest):
                 return self.update_change_target(key, trace, subrequest, argdiffs)
             case _:
                 return self.update(
                     key,
                     trace,
-                    IncrementalRequest(
+                    IncrementalUpdateRequest(
                         Diff.no_change(trace.get_args()), update_request
                     ),
                 )
