@@ -17,7 +17,7 @@ from genjax._src.core.generative import (
     Argdiffs,
     EmptyTrace,
     GenerativeFunction,
-    GenericProblem,
+    IncrementalUpdateRequest,
     Retdiff,
     Sample,
     Score,
@@ -152,7 +152,7 @@ class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
                 inner_trace = EmptyTrace(self.inner)
 
         tr, w, inner_retdiff, bwd_problem = self.inner.update(
-            key, inner_trace, GenericProblem(inner_argdiffs, update_problem)
+            key, inner_trace, IncrementalUpdateRequest(inner_argdiffs, update_problem)
         )
 
         inner_retval_primals = Diff.tree_primal(inner_retdiff)
@@ -184,7 +184,7 @@ class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
         update_problem: UpdateProblem,
     ) -> tuple[DimapTrace[tuple, S], Weight, Retdiff, UpdateProblem]:
         match update_problem:
-            case GenericProblem(argdiffs, subproblem):
+            case IncrementalUpdateRequest(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
             case _:
                 return self.update_change_target(

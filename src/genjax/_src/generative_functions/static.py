@@ -25,11 +25,11 @@ from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
     ChoiceMapBuilder,
-    EmptyProblem,
     EmptyTrace,
+    EmptyUpdateRequest,
     GenerativeFunction,
-    GenericProblem,
-    ImportanceProblem,
+    ImportanceRequest,
+    IncrementalUpdateRequest,
     Retdiff,
     Sample,
     Score,
@@ -322,15 +322,15 @@ class UpdateHandler(StaticHandler):
             case ChoiceMap():
                 return self.fwd_problem(addr)
 
-            case ImportanceProblem(constraint) if isinstance(constraint, ChoiceMap):
-                return ImportanceProblem(constraint(addr))
+            case ImportanceRequest(constraint) if isinstance(constraint, ChoiceMap):
+                return ImportanceRequest(constraint(addr))
 
             case Selection():
                 subproblem = self.fwd_problem(addr)
                 return subproblem
 
-            case EmptyProblem():
-                return EmptyProblem()
+            case EmptyUpdateRequest():
+                return EmptyUpdateRequest()
 
             case _:
                 raise ValueError(f"Not implemented fwd_problem: {self.fwd_problem}")
@@ -357,7 +357,7 @@ class UpdateHandler(StaticHandler):
         subproblem = self.get_subproblem(addr)
         self.key, sub_key = jax.random.split(self.key)
         (tr, w, retval_diff, bwd_problem) = gen_fn.update(
-            sub_key, subtrace, GenericProblem(argdiffs, subproblem)
+            sub_key, subtrace, IncrementalUpdateRequest(argdiffs, subproblem)
         )
         self.score += tr.get_score()
         self.weight += w
@@ -591,13 +591,15 @@ class StaticGenerativeFunction(GenerativeFunction):
         update_problem: UpdateProblem,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match update_problem:
-            case GenericProblem(argdiffs, subproblem):
+            case IncrementalUpdateRequest(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
             case _:
                 return self.update(
                     key,
                     trace,
-                    GenericProblem(Diff.no_change(trace.get_args()), update_problem),
+                    IncrementalUpdateRequest(
+                        Diff.no_change(trace.get_args()), update_problem
+                    ),
                 )
 
     @GenerativeFunction.gfi_boundary

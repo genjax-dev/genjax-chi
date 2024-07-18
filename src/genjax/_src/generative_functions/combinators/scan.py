@@ -19,11 +19,11 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    EmptyProblem,
     EmptyTrace,
+    EmptyUpdateRequest,
     GenerativeFunction,
-    GenericProblem,
-    ImportanceProblem,
+    ImportanceRequest,
+    IncrementalUpdateRequest,
     Retdiff,
     Sample,
     Score,
@@ -267,9 +267,9 @@ class ScanCombinator(GenerativeFunction):
             tr, w, _retdiff, bwd_problem = self.kernel_gen_fn.update(
                 key,
                 EmptyTrace(self.kernel_gen_fn),
-                GenericProblem(
+                IncrementalUpdateRequest(
                     Diff.unknown_change((carry, scanned_in)),
-                    ImportanceProblem(constraint),
+                    ImportanceRequest(constraint),
                 ),
             )
             (carry, scanned_out) = tr.get_retval()
@@ -339,7 +339,7 @@ class ScanCombinator(GenerativeFunction):
             ) = self.kernel_gen_fn.update(
                 key,
                 subtrace,
-                GenericProblem(
+                IncrementalUpdateRequest(
                     (carry, scanned_in),
                     subproblem,
                 ),
@@ -426,7 +426,7 @@ class ScanCombinator(GenerativeFunction):
         updated_end, end_w, ending_retdiff, _ = self.kernel_gen_fn.update(
             key,
             affected_subslice,
-            EmptyProblem(),
+            EmptyUpdateRequest(),
             starting_retdiff,
         )
 
@@ -465,7 +465,7 @@ class ScanCombinator(GenerativeFunction):
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
         assert isinstance(trace, EmptyTrace | ScanTrace)
         match update_problem:
-            case ImportanceProblem(constraint) if isinstance(constraint, ChoiceMap):
+            case ImportanceRequest(constraint) if isinstance(constraint, ChoiceMap):
                 return self.update_importance(
                     key, constraint, Diff.tree_primal(argdiffs)
                 )
@@ -488,14 +488,14 @@ class ScanCombinator(GenerativeFunction):
         update_problem: UpdateProblem,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match update_problem:
-            case GenericProblem(argdiffs, subproblem):
+            case IncrementalUpdateRequest(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
 
             case _:
                 return self.update(
                     key,
                     trace,
-                    GenericProblem(
+                    IncrementalUpdateRequest(
                         Diff.no_change(trace.get_args()),
                         update_problem,
                     ),

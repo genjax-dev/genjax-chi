@@ -21,7 +21,6 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.generative.core import Constraint, ProjectProblem, Sample
 from genjax._src.core.generative.functional_types import Mask, Sum
 from genjax._src.core.interpreters.staging import (
     staged_and,
@@ -36,18 +35,22 @@ from genjax._src.core.typing import (
     Bool,
     BoolArray,
     EllipsisType,
+    Generic,
     Int,
     IntArray,
     List,
     Optional,
     String,
     Tuple,
+    TypeVar,
     Union,
     static_check_bool,
     typecheck,
 )
 
 register_exclusion(__file__)
+
+V = TypeVar("V")
 
 #################
 # Address types #
@@ -92,7 +95,7 @@ class _SelectionBuilder(Pytree):
 SelectionBuilder = _SelectionBuilder()
 
 
-class Selection(ProjectProblem):
+class Selection(Pytree):
     """
     The type `Selection` provides a lens-like interface for filtering the random choices in a `ChoiceMap`.
 
@@ -461,7 +464,7 @@ def check_none(v):
         return True
 
 
-class ChoiceMap(Sample, Constraint):
+class ChoiceMap(Generic[V], Pytree):
     """
     The type `ChoiceMap` denotes a map-like value which can be sampled from generative functions.
 
@@ -510,7 +513,7 @@ class ChoiceMap(Sample, Constraint):
     #######################
 
     @abstractmethod
-    def get_value(self) -> Any:
+    def get_value(self) -> V:
         raise NotImplementedError
 
     @abstractmethod

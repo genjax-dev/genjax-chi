@@ -25,8 +25,8 @@ from genjax._src.core.generative import (
     ChoiceMap,
     EmptyTrace,
     GenerativeFunction,
-    GenericProblem,
-    ImportanceProblem,
+    ImportanceRequest,
+    IncrementalUpdateRequest,
     Retdiff,
     Retval,
     Score,
@@ -195,9 +195,9 @@ class VmapCombinator(GenerativeFunction):
             tr, w, rd, bwd_problem = self.gen_fn.update(
                 key,
                 EmptyTrace(self.gen_fn),
-                GenericProblem(
+                IncrementalUpdateRequest(
                     Diff.unknown_change(args),
-                    ImportanceProblem(submap),
+                    ImportanceRequest(submap),
                 ),
             )
             return tr, w, rd, ChoiceMap.idx(idx, bwd_problem)
@@ -227,7 +227,7 @@ class VmapCombinator(GenerativeFunction):
         def _update(key, idx, subtrace, argdiffs):
             subproblem = update_problem(idx)
             new_subtrace, w, retdiff, bwd_problem = self.gen_fn.update(
-                key, subtrace, GenericProblem(argdiffs, subproblem)
+                key, subtrace, IncrementalUpdateRequest(argdiffs, subproblem)
             )
             return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_problem)
 
@@ -256,7 +256,7 @@ class VmapCombinator(GenerativeFunction):
         def _update(key, idx, subtrace, argdiffs):
             subproblem = selection(idx)
             new_subtrace, w, retdiff, bwd_problem = self.gen_fn.update(
-                key, subtrace, GenericProblem(argdiffs, subproblem)
+                key, subtrace, IncrementalUpdateRequest(argdiffs, subproblem)
             )
             return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_problem)
 
@@ -281,7 +281,7 @@ class VmapCombinator(GenerativeFunction):
             case ChoiceMap():
                 return self.update_choice_map(key, trace, update_problem, argdiffs)
 
-            case ImportanceProblem(constraint) if isinstance(
+            case ImportanceRequest(constraint) if isinstance(
                 constraint, ChoiceMap
             ) and isinstance(trace, EmptyTrace):
                 return self.update_importance(key, constraint, argdiffs)
@@ -297,7 +297,7 @@ class VmapCombinator(GenerativeFunction):
         update_problem: UpdateProblem,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match update_problem:
-            case GenericProblem(argdiffs, subproblem):
+            case IncrementalUpdateRequest(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
             case _:
                 return self.update_change_target(

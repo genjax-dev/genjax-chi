@@ -26,15 +26,15 @@ from genjax._src.core.generative import (
     ChoiceMap,
     Constraint,
     EmptyConstraint,
-    EmptyProblem,
     EmptyTrace,
+    EmptyUpdateRequest,
     GenerativeFunction,
-    GenericProblem,
-    ImportanceProblem,
+    ImportanceRequest,
+    IncrementalUpdateRequest,
     Mask,
     MaskedConstraint,
-    MaskedProblem,
-    ProjectProblem,
+    MaskedUpdateRequest,
+    ProjectRequest,
     Retdiff,
     Retval,
     Sample,
@@ -134,7 +134,7 @@ class Distribution(GenerativeFunction):
         match v:
             case None:
                 tr = self.simulate(key, args)
-                return tr, jnp.array(0.0), EmptyProblem()
+                return tr, jnp.array(0.0), EmptyUpdateRequest()
 
             case Mask(flag, value):
 
@@ -149,12 +149,12 @@ class Distribution(GenerativeFunction):
 
                 score, w, new_v = cond(flag, _importance, _simulate, key, value)
                 tr = DistributionTrace(self, args, new_v, score)
-                bwd_problem = MaskedProblem(flag, ProjectProblem())
+                bwd_problem = MaskedUpdateRequest(flag, ProjectRequest())
                 return tr, w, bwd_problem
 
             case _:
                 w = self.estimate_logpdf(key, v, *args)
-                bwd_problem = ProjectProblem()
+                bwd_problem = ProjectRequest()
                 tr = DistributionTrace(self, args, v, w)
                 return tr, w, bwd_problem
 
@@ -170,12 +170,12 @@ class Distribution(GenerativeFunction):
             return (
                 tr,
                 jnp.array(0.0),
-                MaskedProblem(False, ProjectProblem()),
+                MaskedUpdateRequest(False, ProjectRequest()),
             )
 
         def importance_branch(key, constraint, args):
             tr, w = self.importance(key, constraint, args)
-            return tr, w, MaskedProblem(True, ProjectProblem())
+            return tr, w, MaskedUpdateRequest(True, ProjectRequest())
 
         return jax.lax.cond(
             constraint.flag,
@@ -206,7 +206,7 @@ class Distribution(GenerativeFunction):
             case EmptyConstraint():
                 tr = self.simulate(key, args)
                 w = jnp.array(0.0)
-                bwd_problem = EmptyProblem()
+                bwd_problem = EmptyUpdateRequest()
             case _:
                 raise Exception("Unhandled type.")
         return tr, w, Diff.unknown_change(tr.get_retval()), bwd_problem
@@ -224,7 +224,7 @@ class Distribution(GenerativeFunction):
             new_trace,
             new_score - trace.get_score(),
             Diff.tree_diff_no_change(trace.get_retval()),
-            EmptyProblem(),
+            EmptyUpdateRequest(),
         )
 
     def update_constraint_masked_constraint(
@@ -237,23 +237,25 @@ class Distribution(GenerativeFunction):
         old_sample = trace.get_choices()
 
         def update_branch(key, trace, constraint, argdiffs):
-            tr, w, rd, _ = self.update(key, trace, GenericProblem(argdiffs, constraint))
+            tr, w, rd, _ = self.update(
+                key, trace, IncrementalUpdateRequest(argdiffs, constraint)
+            )
             return (
                 tr,
                 w,
                 rd,
-                MaskedProblem(True, old_sample),
+                MaskedUpdateRequest(True, old_sample),
             )
 
         def do_nothing_branch(key, trace, _, argdiffs):
             tr, w, _, _ = self.update(
-                key, trace, GenericProblem(argdiffs, EmptyProblem())
+                key, trace, IncrementalUpdateRequest(argdiffs, EmptyUpdateRequest())
             )
             return (
                 tr,
                 w,
                 Diff.tree_diff_unknown_change(tr.get_retval()),
-                MaskedProblem(False, old_sample),
+                MaskedUpdateRequest(False, old_sample),
             )
 
         return jax.lax.cond(
@@ -286,12 +288,14 @@ class Distribution(GenerativeFunction):
                     new_trace,
                     new_score - trace.get_score(),
                     Diff.tree_diff_no_change(old_retval),
-                    EmptyProblem(),
+                    EmptyUpdateRequest(),
                 )
 
             case MaskedConstraint(flag, problem):
                 if staged_check(flag):
-                    return self.update(key, trace, GenericProblem(argdiffs, problem))
+                    return self.update(
+                        key, trace, IncrementalUpdateRequest(argdiffs, problem)
+                    )
                 else:
                     return self.update_constraint_masked_constraint(
                         key, trace, constraint, argdiffs
@@ -301,7 +305,9 @@ class Distribution(GenerativeFunction):
                 check = constraint.has_value()
                 v = constraint.get_value()
                 if isinstance(v, UpdateProblem):
-                    return self.update(key, trace, GenericProblem(argdiffs, v))
+                    return self.update(
+                        key, trace, IncrementalUpdateRequest(argdiffs, v)
+                    )
                 elif static_check_is_concrete(check) and check:
                     fwd = self.estimate_logpdf(key, v, *primals)
                     bwd = trace.get_score()
@@ -323,7 +329,7 @@ class Distribution(GenerativeFunction):
                     w = fwd - bwd
                     new_tr = DistributionTrace(self, primals, v, fwd)
                     retval_diff = Diff.tree_diff_no_change(v)
-                    return (new_tr, w, retval_diff, EmptyProblem())
+                    return (new_tr, w, retval_diff, EmptyUpdateRequest())
                 else:
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
@@ -356,7 +362,7 @@ class Distribution(GenerativeFunction):
                         DistributionTrace(self, primals, new_value, score),
                         w,
                         Diff.tree_diff_unknown_change(new_value),
-                        MaskedProblem(flag, old_value),
+                        MaskedUpdateRequest(flag, old_value),
                     )
 
             case _:
@@ -375,11 +381,11 @@ class Distribution(GenerativeFunction):
         possible_trace, w, retdiff, bwd_problem = self.update(
             key,
             trace,
-            GenericProblem(argdiffs, problem),
+            IncrementalUpdateRequest(argdiffs, problem),
         )
         new_value = possible_trace.get_retval()
         w = w * flag
-        bwd_problem = MaskedProblem(flag, bwd_problem)
+        bwd_problem = MaskedUpdateRequest(flag, bwd_problem)
         new_trace = DistributionTrace(
             self,
             primals,
@@ -415,9 +421,9 @@ class Distribution(GenerativeFunction):
         return self.update(
             key,
             trace,
-            GenericProblem(
+            IncrementalUpdateRequest(
                 argdiffs,
-                MaskedProblem.maybe(check, ProjectProblem()),
+                MaskedUpdateRequest.maybe(check, ProjectRequest()),
             ),
         )
 
@@ -430,16 +436,16 @@ class Distribution(GenerativeFunction):
         argdiffs: Argdiffs,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match update_problem:
-            case EmptyProblem():
+            case EmptyUpdateRequest():
                 return self.update_empty(trace, argdiffs)
 
             case Constraint():
                 return self.update_constraint(key, trace, update_problem, argdiffs)
 
-            case MaskedProblem(flag, subproblem):
+            case MaskedUpdateRequest(flag, subproblem):
                 return self.update_masked(key, trace, flag, subproblem, argdiffs)
 
-            case ProjectProblem():
+            case ProjectRequest():
                 return self.update_project(trace)
 
             case Selection():
@@ -447,7 +453,7 @@ class Distribution(GenerativeFunction):
                     key, trace, update_problem, argdiffs
                 )
 
-            case ImportanceProblem(constraint) if isinstance(trace, EmptyTrace):
+            case ImportanceRequest(constraint) if isinstance(trace, EmptyTrace):
                 primals = Diff.tree_primal(argdiffs)
                 return self.update_importance(key, constraint, primals)
 
@@ -463,7 +469,7 @@ class Distribution(GenerativeFunction):
         update_problem: UpdateProblem,
     ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match update_problem:
-            case GenericProblem(argdiffs, subproblem):
+            case IncrementalUpdateRequest(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
             case _:
                 return self.update_change_target(

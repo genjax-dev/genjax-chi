@@ -20,11 +20,11 @@ from genjax._src.core.generative import (
     ChoiceMap,
     EmptyTrace,
     GenerativeFunction,
-    GenericProblem,
-    ImportanceProblem,
+    ImportanceRequest,
+    IncrementalUpdateRequest,
     Mask,
-    MaskedProblem,
     MaskedSample,
+    MaskedUpdateRequest,
     Retdiff,
     Sample,
     Score,
@@ -141,7 +141,9 @@ class MaskCombinator(GenerativeFunction):
                 raise NotImplementedError(f"Unexpected trace type: {trace}")
 
         premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
-            key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+            key,
+            inner_trace,
+            IncrementalUpdateRequest(tuple(inner_argdiffs), update_problem),
         )
 
         w = jax.lax.select(
@@ -154,7 +156,7 @@ class MaskCombinator(GenerativeFunction):
             MaskTrace(self, premasked_trace, check),
             w,
             Mask.maybe(check_diff, retdiff),
-            MaskedProblem(check, bwd_problem),
+            MaskedUpdateRequest(check, bwd_problem),
         )
 
     @typecheck
@@ -171,14 +173,18 @@ class MaskCombinator(GenerativeFunction):
         inner_trace = EmptyTrace(self.gen_fn)
 
         assert isinstance(update_problem, Constraint)
-        imp_update_problem = ImportanceProblem(update_problem)
+        imp_update_problem = ImportanceRequest(update_problem)
 
         premasked_trace, w, _, _ = self.gen_fn.update(
-            key, inner_trace, GenericProblem(tuple(inner_argdiffs), imp_update_problem)
+            key,
+            inner_trace,
+            IncrementalUpdateRequest(tuple(inner_argdiffs), imp_update_problem),
         )
 
         _, _, retdiff, bwd_problem = self.gen_fn.update(
-            key, premasked_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+            key,
+            premasked_trace,
+            IncrementalUpdateRequest(tuple(inner_argdiffs), update_problem),
         )
 
         w = jax.lax.select(
@@ -191,7 +197,7 @@ class MaskCombinator(GenerativeFunction):
             MaskTrace(self, premasked_trace, check),
             w,
             Mask.maybe(check_diff, retdiff),
-            MaskedProblem(check, bwd_problem),
+            MaskedUpdateRequest(check, bwd_problem),
         )
 
     @typecheck
@@ -204,11 +210,11 @@ class MaskCombinator(GenerativeFunction):
         assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
 
         match update_problem:
-            case GenericProblem(argdiffs, subproblem) if isinstance(
-                subproblem, ImportanceProblem
+            case IncrementalUpdateRequest(argdiffs, subproblem) if isinstance(
+                subproblem, ImportanceRequest
             ):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
-            case GenericProblem(argdiffs, subproblem):
+            case IncrementalUpdateRequest(argdiffs, subproblem):
                 assert isinstance(trace, MaskTrace)
 
                 if not trace.check:
