@@ -20,7 +20,7 @@ import jax.numpy as jnp
 import pytest
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff, Pytree
-from genjax import UpdateProblemBuilder as U
+from genjax import UpdateRequestBuilder as U
 from genjax.generative_functions.static import AddressReuse
 from genjax.typing import Float, FloatArray
 

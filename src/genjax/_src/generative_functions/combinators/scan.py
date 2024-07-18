@@ -23,13 +23,13 @@ from genjax._src.core.generative import (
     EmptyUpdateRequest,
     GenerativeFunction,
     ImportanceRequest,
-    IncrementalUpdateRequest,
+    IncrementalRequest,
     Retdiff,
     Sample,
     Score,
     Selection,
     Trace,
-    UpdateProblem,
+    UpdateRequest,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -78,14 +78,14 @@ class ScanTrace(Trace):
     def index_update(
         self,
         idx: IntArray,
-        problem: UpdateProblem,
-    ) -> UpdateProblem:
+        problem: UpdateRequest,
+    ) -> UpdateRequest:
         return IndexProblem(idx, problem)
 
     def checkerboard_update(
         self,
-        problem: UpdateProblem,
-    ) -> UpdateProblem:
+        problem: UpdateRequest,
+    ) -> UpdateRequest:
         return CheckerboardProblem(problem)
 
 
@@ -95,20 +95,20 @@ class ScanTrace(Trace):
 
 
 @Pytree.dataclass(match_args=True)
-class StaticResizeProblem(UpdateProblem):
-    subproblem: UpdateProblem
+class StaticResizeProblem(UpdateRequest):
+    subrequest: UpdateRequest
     resized_length: Int = Pytree.static()
 
 
 @Pytree.dataclass(match_args=True)
-class IndexProblem(UpdateProblem):
+class IndexProblem(UpdateRequest):
     index: IntArray
-    subproblem: UpdateProblem
+    subrequest: UpdateRequest
 
 
 @Pytree.dataclass(match_args=True)
-class CheckerboardProblem(UpdateProblem):
-    subproblem: UpdateProblem
+class CheckerboardProblem(UpdateRequest):
+    subrequest: UpdateRequest
 
 
 ###################
@@ -260,14 +260,14 @@ class ScanCombinator(GenerativeFunction):
         key: PRNGKey,
         constraint: ChoiceMap,
         args: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         (carry, scanned_in) = args
 
         def _inner_importance(key, constraint, carry, scanned_in):
             tr, w, _retdiff, bwd_problem = self.kernel_gen_fn.update(
                 key,
                 EmptyTrace(self.kernel_gen_fn),
-                IncrementalUpdateRequest(
+                IncrementalRequest(
                     Diff.unknown_change((carry, scanned_in)),
                     ImportanceRequest(constraint),
                 ),
@@ -302,35 +302,35 @@ class ScanCombinator(GenerativeFunction):
             bwd_problems,
         )
 
-    def _get_subproblem(
+    def _get_subrequest(
         self,
-        problem: UpdateProblem,
+        problem: UpdateRequest,
         idx: IntArray,
-    ) -> UpdateProblem:
+    ) -> UpdateRequest:
         match problem:
             case ChoiceMap():
                 return problem(idx)
 
             case Selection():
-                subproblem = problem(idx)
-                return subproblem
+                subrequest = problem(idx)
+                return subrequest
 
             case _:
-                raise Exception(f"Not implemented subproblem: {problem}")
+                raise Exception(f"Not implemented subrequest: {problem}")
 
     @typecheck
     def update_generic(
         self,
         key: PRNGKey,
         trace: Trace,
-        problem: UpdateProblem,
+        problem: UpdateRequest,
         argdiffs: Argdiffs,
-    ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateProblem]:
+    ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateRequest]:
         carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(
             Diff.tree_primal(argdiffs)
         )
 
-        def _inner_update(key, subtrace, subproblem, carry, scanned_in):
+        def _inner_update(key, subtrace, subrequest, carry, scanned_in):
             (
                 new_subtrace,
                 w,
@@ -339,9 +339,9 @@ class ScanCombinator(GenerativeFunction):
             ) = self.kernel_gen_fn.update(
                 key,
                 subtrace,
-                IncrementalUpdateRequest(
+                IncrementalRequest(
                     (carry, scanned_in),
-                    subproblem,
+                    subrequest,
                 ),
             )
             (carry_retdiff, scanned_out_retdiff) = Diff.tree_diff_unknown_change(
@@ -359,11 +359,11 @@ class ScanCombinator(GenerativeFunction):
             key, idx, carried_value = carry
             subtrace, scanned_in = scanned_over
             key = jax.random.fold_in(key, idx)
-            subproblem = self._get_subproblem(problem, idx)
+            subrequest = self._get_subrequest(problem, idx)
             (
                 (carry, score),
                 (new_subtrace, scanned_out, w, inner_bwd_problem),
-            ) = _inner_update(key, subtrace, subproblem, carried_value, scanned_in)
+            ) = _inner_update(key, subtrace, subrequest, carried_value, scanned_in)
             bwd_problem = ChoiceMap.idx(idx, inner_bwd_problem)
 
             return (key, idx + 1, carry), (
@@ -407,7 +407,7 @@ class ScanCombinator(GenerativeFunction):
         key: PRNGKey,
         trace: ScanTrace,
         index: IntArray,
-        update_problem: UpdateProblem,
+        update_request: UpdateRequest,
     ):
         starting_subslice = jtu.tree_map(lambda v: v[index], trace.inner)
         affected_subslice = jtu.tree_map(lambda v: v[index + 1], trace.inner)
@@ -420,7 +420,7 @@ class ScanCombinator(GenerativeFunction):
         ) = self.kernel_gen_fn.update(
             key,
             starting_subslice,
-            update_problem,
+            update_request,
             starting_argdiffs,
         )
         updated_end, end_w, ending_retdiff, _ = self.kernel_gen_fn.update(
@@ -460,24 +460,24 @@ class ScanCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
+        update_request: UpdateRequest,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         assert isinstance(trace, EmptyTrace | ScanTrace)
-        match update_problem:
+        match update_request:
             case ImportanceRequest(constraint) if isinstance(constraint, ChoiceMap):
                 return self.update_importance(
                     key, constraint, Diff.tree_primal(argdiffs)
                 )
-            case IndexProblem(index, subproblem):
+            case IndexProblem(index, subrequest):
                 if Diff.static_check_no_change(argdiffs):
-                    return self.update_index(key, trace, index, subproblem)
+                    return self.update_index(key, trace, index, subrequest)
                 else:
                     return self.update_generic(
-                        key, trace, ChoiceMap.idx(index, subproblem), argdiffs
+                        key, trace, ChoiceMap.idx(index, subrequest), argdiffs
                     )
             case _:
-                return self.update_generic(key, trace, update_problem, argdiffs)
+                return self.update_generic(key, trace, update_request, argdiffs)
 
     @GenerativeFunction.gfi_boundary
     @typecheck
@@ -485,19 +485,19 @@ class ScanCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        match update_problem:
-            case IncrementalUpdateRequest(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
+        update_request: UpdateRequest,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        match update_request:
+            case IncrementalRequest(argdiffs, subrequest):
+                return self.update_change_target(key, trace, subrequest, argdiffs)
 
             case _:
                 return self.update(
                     key,
                     trace,
-                    IncrementalUpdateRequest(
+                    IncrementalRequest(
                         Diff.no_change(trace.get_args()),
-                        update_problem,
+                        update_request,
                     ),
                 )
 

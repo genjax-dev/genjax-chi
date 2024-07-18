@@ -21,7 +21,7 @@ from genjax._src.core.generative import (
     EmptyTrace,
     GenerativeFunction,
     ImportanceRequest,
-    IncrementalUpdateRequest,
+    IncrementalRequest,
     Mask,
     MaskedSample,
     MaskedUpdateRequest,
@@ -29,7 +29,7 @@ from genjax._src.core.generative import (
     Sample,
     Score,
     Trace,
-    UpdateProblem,
+    UpdateRequest,
     Weight,
 )
 from genjax._src.core.generative.core import Constraint
@@ -127,9 +127,9 @@ class MaskCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
+        update_request: UpdateRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
         (check, *_) = Diff.tree_primal(argdiffs)
         (check_diff, *inner_argdiffs) = argdiffs
         match trace:
@@ -143,7 +143,7 @@ class MaskCombinator(GenerativeFunction):
         premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
             key,
             inner_trace,
-            IncrementalUpdateRequest(tuple(inner_argdiffs), update_problem),
+            IncrementalRequest(tuple(inner_argdiffs), update_request),
         )
 
         w = jax.lax.select(
@@ -164,27 +164,27 @@ class MaskCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
+        update_request: UpdateRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
         check = Diff.tree_primal(argdiffs)[0]
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
 
         inner_trace = EmptyTrace(self.gen_fn)
 
-        assert isinstance(update_problem, Constraint)
-        imp_update_problem = ImportanceRequest(update_problem)
+        assert isinstance(update_request, Constraint)
+        imp_update_request = ImportanceRequest(update_request)
 
         premasked_trace, w, _, _ = self.gen_fn.update(
             key,
             inner_trace,
-            IncrementalUpdateRequest(tuple(inner_argdiffs), imp_update_problem),
+            IncrementalRequest(tuple(inner_argdiffs), imp_update_request),
         )
 
         _, _, retdiff, bwd_problem = self.gen_fn.update(
             key,
             premasked_trace,
-            IncrementalUpdateRequest(tuple(inner_argdiffs), update_problem),
+            IncrementalRequest(tuple(inner_argdiffs), update_request),
         )
 
         w = jax.lax.select(
@@ -205,16 +205,16 @@ class MaskCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        update_request: UpdateRequest,
+    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
         assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
 
-        match update_problem:
-            case IncrementalUpdateRequest(argdiffs, subproblem) if isinstance(
-                subproblem, ImportanceRequest
+        match update_request:
+            case IncrementalRequest(argdiffs, subrequest) if isinstance(
+                subrequest, ImportanceRequest
             ):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
-            case IncrementalUpdateRequest(argdiffs, subproblem):
+                return self.update_change_target(key, trace, subrequest, argdiffs)
+            case IncrementalRequest(argdiffs, subrequest):
                 assert isinstance(trace, MaskTrace)
 
                 if not trace.check:
@@ -228,12 +228,12 @@ class MaskCombinator(GenerativeFunction):
                     self.update_change_target_from_false,
                     key,
                     trace,
-                    subproblem,
+                    subrequest,
                     argdiffs,
                 )
             case _:
                 return self.update_change_target(
-                    key, trace, update_problem, Diff.no_change(trace.get_args())
+                    key, trace, update_request, Diff.no_change(trace.get_args())
                 )
 
     @typecheck

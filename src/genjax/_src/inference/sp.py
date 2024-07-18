@@ -17,20 +17,24 @@ from abc import abstractmethod
 import jax
 
 from genjax._src.core.generative import (
+    Arguments,
     ChoiceMap,
     GenerativeFunction,
     Sample,
     Selection,
     Weight,
 )
+from genjax._src.core.generative.core import Trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
     FloatArray,
+    Generic,
     Optional,
     PRNGKey,
     Tuple,
+    TypeVar,
     typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
@@ -189,9 +193,9 @@ class Algorithm(SampleDistribution):
         """
         pass
 
-    ################
-    # VI via GRASP #
-    ################
+    #####################
+    # VI specialization #
+    #####################
 
     @abstractmethod
     def estimate_normalizing_constant(
@@ -216,24 +220,21 @@ class Algorithm(SampleDistribution):
 # Marginal #
 ############
 
+A = TypeVar("A")
+R = TypeVar("R")
 
 @Pytree.dataclass
-@typecheck
-class Marginal(SampleDistribution):
-    """The `Marginal` class represents the marginal distribution of a generative function over
-    a selection of addresses. The return value type is a subtype of `Sample`.
-    """
-
-    gen_fn: GenerativeFunction
+class Marginal(Generic[A, R], GenerativeFunction):
+    gen_fn: GenerativeFunction[A, ChoiceMap, R]
     selection: Selection = Pytree.field(default=Selection.all())
     algorithm: Optional[Algorithm] = Pytree.field(default=None)
 
     @typecheck
-    def random_weighted(
+    def simulate(
         self,
         key: PRNGKey,
-        *args,
-    ) -> Tuple[FloatArray, Sample]:
+        args: Arguments,
+    ) -> Trace:
         key, sub_key = jax.random.split(key)
         tr = self.gen_fn.simulate(sub_key, args)
         choices: ChoiceMap = tr.get_choices()
@@ -266,25 +267,3 @@ class Marginal(SampleDistribution):
             target = Target(self.gen_fn, args, constraint)
             Z = self.algorithm.estimate_normalizing_constant(key, target)
             return Z
-
-
-################################
-# Inference construct language #
-################################
-
-
-@typecheck
-def marginal(
-    selection: Optional[Selection] = Selection.all(),
-    algorithm: Optional[Algorithm] = None,
-) -> Callable[[GenerativeFunction], Marginal]:
-    def decorator(
-        gen_fn: GenerativeFunction,
-    ) -> Marginal:
-        return Marginal(
-            gen_fn,
-            selection,
-            algorithm,
-        )
-
-    return decorator

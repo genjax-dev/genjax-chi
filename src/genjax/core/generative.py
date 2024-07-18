@@ -24,7 +24,7 @@ from genjax._src.core.generative import (
     EmptyUpdateRequest,
     GenerativeFunction,
     GenerativeFunctionClosure,
-    IncrementalUpdateRequest,
+    IncrementalRequest,
     Mask,
     MaskedConstraint,
     MaskedSample,
@@ -37,8 +37,7 @@ from genjax._src.core.generative import (
     SelectionBuilder,
     Sum,
     Trace,
-    UpdateProblem,
-    UpdateProblemBuilder,
+    UpdateRequest,
     Weight,
 )
 
@@ -64,10 +63,9 @@ __all__ = [
     "Score",
     "Selection",
     "SelectionBuilder",
-    "UpdateProblemBuilder",
     "Sum",
     "Trace",
-    "UpdateProblem",
-    "IncrementalUpdateRequest",
+    "UpdateRequest",
+    "IncrementalRequest",
     "Weight",
 ]

@@ -29,7 +29,7 @@ from genjax._src.core.generative import (
     EmptyUpdateRequest,
     GenerativeFunction,
     ImportanceRequest,
-    IncrementalUpdateRequest,
+    IncrementalRequest,
     Retdiff,
     Sample,
     Score,
@@ -37,7 +37,7 @@ from genjax._src.core.generative import (
     StaticAddress,
     StaticAddressComponent,
     Trace,
-    UpdateProblem,
+    UpdateRequest,
     Weight,
 )
 from genjax._src.core.generative.core import push_trace_overload_stack
@@ -297,12 +297,12 @@ def simulate_transform(source_fn):
 class UpdateHandler(StaticHandler):
     key: PRNGKey
     previous_trace: StaticTrace
-    fwd_problem: UpdateProblem
+    fwd_problem: UpdateRequest
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: List[Trace] = Pytree.field(default_factory=list)
-    bwd_problems: List[UpdateProblem] = Pytree.field(default_factory=list)
+    bwd_problems: List[UpdateRequest] = Pytree.field(default_factory=list)
 
     def yield_state(self):
         return (
@@ -317,7 +317,7 @@ class UpdateHandler(StaticHandler):
         self.address_visitor.visit(addr)
 
     @typecheck
-    def get_subproblem(self, addr: StaticAddress):
+    def get_subrequest(self, addr: StaticAddress):
         match self.fwd_problem:
             case ChoiceMap():
                 return self.fwd_problem(addr)
@@ -326,8 +326,8 @@ class UpdateHandler(StaticHandler):
                 return ImportanceRequest(constraint(addr))
 
             case Selection():
-                subproblem = self.fwd_problem(addr)
-                return subproblem
+                subrequest = self.fwd_problem(addr)
+                return subrequest
 
             case EmptyUpdateRequest():
                 return EmptyUpdateRequest()
@@ -354,10 +354,10 @@ class UpdateHandler(StaticHandler):
         argdiffs: Argdiffs = args
         self.visit(addr)
         subtrace = self.get_subtrace(gen_fn, addr)
-        subproblem = self.get_subproblem(addr)
+        subrequest = self.get_subrequest(addr)
         self.key, sub_key = jax.random.split(self.key)
         (tr, w, retval_diff, bwd_problem) = gen_fn.update(
-            sub_key, subtrace, IncrementalUpdateRequest(argdiffs, subproblem)
+            sub_key, subtrace, IncrementalRequest(argdiffs, subrequest)
         )
         self.score += tr.get_score()
         self.weight += w
@@ -538,9 +538,9 @@ class StaticGenerativeFunction(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
+        update_request: UpdateRequest,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -557,14 +557,14 @@ class StaticGenerativeFunction(GenerativeFunction):
                 ),
                 bwd_problems,
             ),
-        ) = update_transform(syntax_sugar_handled)(key, trace, update_problem, argdiffs)
+        ) = update_transform(syntax_sugar_handled)(key, trace, update_request, argdiffs)
 
-        def make_bwd_problem(visitor, subproblems):
+        def make_bwd_problem(visitor, subrequests):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_unwrap_const(addresses)
             chm = ChoiceMap.empty()
-            for addr, subproblem in zip(addresses, subproblems):
-                chm = chm ^ ChoiceMapBuilder.a(addr, subproblem)
+            for addr, subrequest in zip(addresses, subrequests):
+                chm = chm ^ ChoiceMapBuilder.a(addr, subrequest)
             return chm
 
         bwd_problem = make_bwd_problem(address_visitor, bwd_problems)
@@ -588,17 +588,17 @@ class StaticGenerativeFunction(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        match update_problem:
-            case IncrementalUpdateRequest(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
+        update_request: UpdateRequest,
+    ) -> Tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        match update_request:
+            case IncrementalRequest(argdiffs, subrequest):
+                return self.update_change_target(key, trace, subrequest, argdiffs)
             case _:
                 return self.update(
                     key,
                     trace,
-                    IncrementalUpdateRequest(
-                        Diff.no_change(trace.get_args()), update_problem
+                    IncrementalRequest(
+                        Diff.no_change(trace.get_args()), update_request
                     ),
                 )
 
