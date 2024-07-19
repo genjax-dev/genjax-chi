@@ -385,7 +385,7 @@ class ChmSel(Selection):
     def check(self) -> Bool | BoolArray:
         return check_none(self.c.get_value())
 
-    def get_subselection(self, addr: AddressComponent) -> Selection:
+    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         submap = self.c.get_submap(addr)
         return select_choice_map(submap)
 
@@ -706,7 +706,7 @@ class EmptyChm(ChoiceMap):
     def get_value(self) -> Any:
         return None
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         return EmptyChm()
 
     def static_is_empty(self) -> Bool:
@@ -716,7 +716,7 @@ class EmptyChm(ChoiceMap):
 choice_map_empty = EmptyChm()
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class ValChm(Generic[V], ChoiceMap[V]):
     v: V
 
@@ -742,7 +742,7 @@ class IdxChm(ChoiceMap):
     def get_value(self) -> Optional[Any]:
         return None
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         if addr is Ellipsis:
             return self.c
 
@@ -783,7 +783,7 @@ class StaticChm(ChoiceMap):
     def get_value(self) -> Optional[Any]:
         return None
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         check = addr == self.addr
         return choice_map_masked(check, self.c)
 
@@ -818,7 +818,7 @@ class XorChm(ChoiceMap):
         idx = pair_bool_to_idx(check1, check2)
         return Sum.maybe_none(idx, [v1, v2])
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         remaining_1 = self.c1.get_submap(addr)
         remaining_2 = self.c2.get_submap(addr)
         return choice_map_xor(remaining_1, remaining_2)
@@ -858,7 +858,7 @@ class OrChm(ChoiceMap):
         idx = pair_bool_to_idx(check1, check2)
         return Sum.maybe_none(idx, [v1, v2])
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap1 = self.c1.get_submap(addr)
         submap2 = self.c2.get_submap(addr)
 
@@ -890,7 +890,7 @@ class MaskChm(ChoiceMap):
         v = self.c.get_value()
         return Mask.maybe_none(self.flag, v)
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap = self.c.get_submap(addr)
         return choice_map_masked(self.flag, submap)
 

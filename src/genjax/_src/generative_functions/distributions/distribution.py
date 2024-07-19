@@ -23,6 +23,8 @@ from genjax._src.core.generative import (
     Argdiffs,
     Arguments,
     ChoiceMapConstraint,
+    ChoiceMapSample,
+    Constraint,
     EmptyChm,
     EmptyConstraint,
     EmptySample,
@@ -219,14 +221,8 @@ class Distribution(
             # here, we allow users to utilize choice maps to specify constraints
             # but only a few types.
             case ChoiceMapConstraint(choice_map):
-                if isinstance(choice_map, EmptyChm):
-                    constraint = EmptyConstraint()
-                    return self.importance_update(key, constraint, args)
-                elif isinstance(choice_map, ValChm):
-                    constraint = EqualityConstraint(choice_map.get_value())
-                    return self.importance_update(key, constraint, args)
-                else:
-                    raise NotImplementedError
+                inner_constraint = constraint.get_value()
+                return self.importance_update(key, inner_constraint, args)
 
     @typecheck
     def incremental_update(
@@ -277,7 +273,7 @@ class Distribution(
         trace: Trace,
         constraint: SupportedGeneralConstraints,
         arguments: Arguments,
-    ) -> tuple[Trace, Weight, Retdiff, Sample]:
+    ) -> tuple[Trace, Weight, Constraint]:
         match constraint:
             case EmptyConstraint():
                 old_score = trace.get_score()
@@ -285,7 +281,7 @@ class Distribution(
                 w = self.estimate_logpdf(key, v, *arguments)
                 inc_w = w - old_score
                 new_tr = DistributionTrace(self, arguments, v, w)
-                return new_tr, inc_w, Diff.unknown_change(v), EmptySample()
+                return new_tr, inc_w, EmptyConstraint()
 
             case EqualityConstraint(v):
                 old_score = trace.get_score()
@@ -293,7 +289,7 @@ class Distribution(
                 inc_w = w - old_score
                 old_value = trace.get_retval()
                 new_tr = DistributionTrace(self, arguments, v, w)
-                return new_tr, inc_w, Diff.unknown_change(v), ValueSample(old_value)
+                return new_tr, inc_w, EqualityConstraint(old_value)
 
             case MaskedConstraint(flag, subconstraint):
                 raise NotImplementedError
@@ -338,7 +334,7 @@ class Distribution(
                 return new_tr, inc_w, ValueSample(old_value)
 
             # Compatibility with old usage:
-            case SelectionProjection():
+            case SelectionProjection(selection):
                 raise NotImplementedError
 
     @typecheck
@@ -423,15 +419,17 @@ class ExactDensity(Distribution):
     def assess(
         self,
         sample: ValueSample
-        | ValChm,  # TODO: the ValChm here is a type of paving over, to allow people to continue to use what they are used to.
+        | ValChm
+        | ChoiceMapSample,  # TODO: the ValChm here is a type of paving over, to allow people to continue to use what they are used to.
         args: tuple,
     ):
         match sample:
-            case ValChm():
+            case ValChm(v):
+                return self.assess(ValueSample(v), args)
+            case ChoiceMapSample():
                 key = jax.random.PRNGKey(0)
                 v = sample.get_value()
-                w = self.estimate_logpdf(key, v, *args)
-                return w, v
+                return self.assess(v, args)
             case ValueSample():
                 key = jax.random.PRNGKey(0)
                 v = sample.val

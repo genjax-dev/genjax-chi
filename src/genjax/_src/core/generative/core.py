@@ -392,9 +392,9 @@ class Trace(Generic[G, S], Pytree):
         selection: Selection,
     ) -> Weight:
         gen_fn = self.get_gen_fn()
-        assert isinstance(gen_fn, ProjectRequest.SupportsProject)
+        assert isinstance(gen_fn, ProjectRequest.SupportsProjectUpdate)
         projection = SelectionProjection(selection)
-        _, w, _, _ = gen_fn.project(key, self, projection)
+        w, _ = gen_fn.project_update(key, self, projection)
         return w
 
     ###################
@@ -1790,6 +1790,11 @@ class GeneralUpdateRequest(UpdateRequest):
     arguments: Arguments
     constraint: Constraint
 
+    def __getitem__(self, addr):
+        assert isinstance(self.constraint, ChoiceMapConstraint)
+        eq_constraint: EqualityConstraint = self.constraint[addr]
+        return eq_constraint.x
+
     class SupportsGeneralUpdate(Generic[C, S, R], GenerativeFunction[S, R]):
         @abstractmethod
         def general_update(
@@ -1798,7 +1803,7 @@ class GeneralUpdateRequest(UpdateRequest):
             trace: Trace,
             constraint: C,
             arguments: Arguments,
-        ) -> tuple[Trace, Weight, Retdiff, Sample]:
+        ) -> tuple[Trace, Weight, Constraint]:
             raise NotImplementedError
 
     def update(
@@ -1807,13 +1812,14 @@ class GeneralUpdateRequest(UpdateRequest):
         trace: Trace[SupportsGeneralUpdate, S],
     ) -> tuple[Trace[SupportsGeneralUpdate, S], Weight, Retdiff, UpdateRequest]:
         gen_fn = trace.get_gen_fn()
-        new_trace, weight, retdiff, discard = gen_fn.general_update(
+        new_trace, weight, discard_constraint = gen_fn.general_update(
             key,
             trace,
             self.constraint,
             self.arguments,
         )
-        bwd_move = GeneralUpdateRequest(trace.get_args(), discard.to_constraint())
+        retdiff = Diff.unknown_change(new_trace.get_retval())
+        bwd_move = GeneralUpdateRequest(trace.get_args(), discard_constraint)
         return new_trace, weight, retdiff, bwd_move
 
 
@@ -2017,12 +2023,15 @@ class ProjectRequest(UpdateRequest):
 class ChoiceMapSample(Sample, ChoiceMap[Sample]):
     choice_map: ChoiceMap[Any]
 
+    def to_constraint(self) -> "ChoiceMapConstraint":
+        return ChoiceMapConstraint(self.choice_map)
+
     def get_value(self) -> Sample:
         v = self.choice_map.get_value()
         return v if isinstance(v, Sample) else ValueSample(v)
 
     def get_submap(self, addr: ExtendedAddressComponent) -> "ChoiceMapSample":
-        submap = self.choice_map.get_submap(addr)
+        submap = self.choice_map(addr)
         return ChoiceMapSample(submap)
 
 
@@ -2033,10 +2042,11 @@ class ChoiceMapConstraint(Constraint, ChoiceMap[Constraint]):
 
     def get_value(self) -> Constraint:
         v = self.choice_map.get_value()
+        v = EmptyConstraint() if v is None else v
         return v if isinstance(v, Constraint) else EqualityConstraint(v)
 
     def get_submap(self, addr: ExtendedAddressComponent) -> "ChoiceMapConstraint":
-        submap = self.choice_map.get_submap(addr)
+        submap = self.choice_map(addr)
         return ChoiceMapConstraint(submap)
 
 
