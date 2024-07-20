@@ -2053,9 +2053,11 @@ class ChoiceMapConstraint(Constraint, ChoiceMap[Constraint]):
 @Pytree.dataclass
 class SelectionProjection(Projection["SelectionProjection"]):
     selection: Selection
+    subprojection: Projection = IdentityProjection()
 
-    def project(self, sample: ChoiceMapSample) -> ChoiceMapSample:
-        return ChoiceMapSample(sample.filter(self.selection))
+    def project(self, sample: ChoiceMapSample) -> Sample:
+        filtered = ChoiceMapSample(sample.filter(self.selection))
+        return self.subprojection.project(filtered)
 
     def complement(self) -> "SelectionProjection":
-        return SelectionProjection(~self.selection)
+        return SelectionProjection(~self.selection, self.subprojection.complement())
