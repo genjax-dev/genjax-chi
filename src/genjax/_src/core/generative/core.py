@@ -1356,135 +1356,6 @@ def push_trace_overload_stack(handler, fn):
     return wrapped
 
 
-@Pytree.dataclass
-class IgnoreKwargs(GenerativeFunction):
-    wrapped: GenerativeFunction
-
-    def handle_kwargs(self) -> "GenerativeFunction":
-        raise NotImplementedError
-
-    @typecheck
-    def simulate(
-        self,
-        key: PRNGKey,
-        args: Arguments,
-    ) -> Trace:
-        (args, _kwargs) = args
-        return self.wrapped.simulate(key, args)
-
-    @typecheck
-    def update(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        update_request: "UpdateRequest",
-        argdiffs: Argdiffs,
-    ):
-        (argdiffs, _kwargdiffs) = argdiffs
-        return self.wrapped.update(key, trace, update_request, argdiffs)
-
-
-@Pytree.dataclass
-class GenerativeFunctionClosure(GenerativeFunction):
-    gen_fn: GenerativeFunction
-    args: tuple
-    kwargs: Dict
-
-    def get_gen_fn_with_kwargs(self):
-        return self.gen_fn.handle_kwargs()
-
-    # NOTE: Supports callee syntax, and the ability to overload it in callers.
-    def __matmul__(self, addr):
-        if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-            return handle_off_trace_stack(
-                addr,
-                maybe_kwarged_gen_fn,
-                (self.args, self.kwargs),
-            )
-        else:
-            return handle_off_trace_stack(
-                addr,
-                self.gen_fn,
-                self.args,
-            )
-
-    def __call__(self, key: PRNGKey, *args) -> Any:
-        full_args = (*self.args, *args)
-        if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-            return maybe_kwarged_gen_fn.simulate(
-                key, (*full_args, self.kwargs)
-            ).get_retval()
-        else:
-            return self.gen_fn.simulate(key, full_args).get_retval()
-
-    def __abstract_call__(self, *args) -> Any:
-        full_args = (*self.args, *args)
-        if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-            return maybe_kwarged_gen_fn.__abstract_call__(*full_args, **self.kwargs)
-        else:
-            return self.gen_fn.__abstract_call__(*full_args)
-
-    #############################################
-    # Support the interface with reduced syntax #
-    #############################################
-
-    @typecheck
-    def simulate(
-        self,
-        key: PRNGKey,
-        args: tuple,
-    ) -> Trace:
-        full_args = (*self.args, *args)
-        if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-            return maybe_kwarged_gen_fn.simulate(
-                key,
-                (full_args, self.kwargs),
-            )
-        else:
-            return self.gen_fn.simulate(key, full_args)
-
-    @typecheck
-    def update(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        update_request: "UpdateRequest",
-    ) -> tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
-        match update_request:
-            case IncrementalUpdateRequest(argdiffs, subrequest):
-                full_argdiffs = (*self.args, *argdiffs)
-                if self.kwargs:
-                    maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-                    return maybe_kwarged_gen_fn.update(
-                        key,
-                        trace,
-                        subrequest,
-                        (full_argdiffs, self.kwargs),
-                    )
-            case _:
-                raise NotImplementedError
-
-    @typecheck
-    def assess(
-        self,
-        sample: Sample,
-        args: tuple,
-    ) -> tuple[Score, Retval]:
-        full_args = (*self.args, *args)
-        if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-            return maybe_kwarged_gen_fn.assess(
-                sample,
-                (full_args, self.kwargs),
-            )
-        else:
-            return self.gen_fn.assess(sample, full_args)
-
-
 ##############################
 # Generative function traits #
 ##############################
@@ -1549,36 +1420,37 @@ class Simulateable(Generic[A, S, R], GenerativeFunction[A, S, R]):
         """
         raise NotImplementedError
 
-        def __abstract_call__(
-            self: "Simulateable[A, S, R]",
-            *args,
-        ) -> R:
-            """Used to support JAX tracing, although this default implementation involves no
-            JAX operations (it takes a fixed-key sample from the return value).
+    def __abstract_call__(
+        self: "Simulateable[A, S, R]",
+        *args,
+    ) -> R:
+        """Used to support JAX tracing, although this default implementation involves no
+        JAX operations (it takes a fixed-key sample from the return value).
 
-            Generative functions may customize this to improve compilation time.
-            """
-            return self.simulate(jax.random.PRNGKey(0), args).get_retval()
+        Generative functions may customize this to improve compilation time.
+        """
+        return self.simulate(jax.random.PRNGKey(0), args).get_retval()
 
-        def propose(
-            self: "Simulateable[A, S, R]",
-            key: PRNGKey,
-            args: A,
-        ) -> tuple[S, Score, R]:
-            """
-            Samples a [`Sample`][genjax.core.Sample] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the [`Retval`][genjax.core.Retval] of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
-            """
-            tr = self.simulate(key, args)
-            sample = tr.get_sample()
-            score = tr.get_score()
-            retval = tr.get_retval()
-            return sample, score, retval
+    def propose(
+        self: "Simulateable[A, S, R]",
+        key: PRNGKey,
+        args: A,
+    ) -> tuple[S, Score, R]:
+        """
+        Samples a [`Sample`][genjax.core.Sample] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the [`Retval`][genjax.core.Retval] of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
+        """
+        tr = self.simulate(key, args)
+        sample = tr.get_sample()
+        score = tr.get_score()
+        retval = tr.get_retval()
+        return sample, score, retval
 
 
 class Assessable(Generic[A, S, R], GenerativeFunction[A, S, R]):
     @abstractmethod
     def assess(
         self,
+        key: PRNGKey,
         sample: S,
         args: A,
     ) -> tuple[Score, R]:
@@ -2102,3 +1974,144 @@ class SelectionProjection(
 
     def complement(self) -> "SelectionProjection[P, ChoiceMapSample, S2]":
         return SelectionProjection(~self.selection, self.subprojection.complement())
+
+
+####################################
+# Convenience generative functions #
+####################################
+
+
+@Pytree.dataclass
+class IgnoreKwargs(GenerativeFunction):
+    wrapped: GenerativeFunction
+
+    def handle_kwargs(self) -> "GenerativeFunction":
+        raise NotImplementedError
+
+    @typecheck
+    def simulate(
+        self,
+        key: PRNGKey,
+        args: Arguments,
+    ) -> Trace:
+        (args, _kwargs) = args
+        return self.wrapped.simulate(key, args)
+
+    @typecheck
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        update_request: "UpdateRequest",
+        argdiffs: Argdiffs,
+    ):
+        (argdiffs, _kwargdiffs) = argdiffs
+        return self.wrapped.update(key, trace, update_request, argdiffs)
+
+
+@Pytree.dataclass
+class GenerativeFunctionClosure(
+    Generic[G, A, S, R],
+    Assessable[A, S, R],
+    GenerativeFunction[A, S, R],
+):
+    gen_fn: G
+    args: tuple
+    kwargs: Dict
+
+    def get_gen_fn_with_kwargs(self):
+        return self.gen_fn.handle_kwargs()
+
+    # NOTE: Supports callee syntax, and the ability to overload it in callers.
+    def __matmul__(self, addr):
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return handle_off_trace_stack(
+                addr,
+                maybe_kwarged_gen_fn,
+                (self.args, self.kwargs),
+            )
+        else:
+            return handle_off_trace_stack(
+                addr,
+                self.gen_fn,
+                self.args,
+            )
+
+    def __call__(self, key: PRNGKey, *args) -> Any:
+        full_args = (*self.args, *args)
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.simulate(
+                key, (*full_args, self.kwargs)
+            ).get_retval()
+        else:
+            return self.gen_fn.simulate(key, full_args).get_retval()
+
+    def __abstract_call__(
+        self: "GenerativeFunctionClosure[Simulateable[A, S, R], A, S, R]",
+        *args,
+    ) -> Any:
+        full_args = (*self.args, *args)
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.__abstract_call__(*full_args, **self.kwargs)
+        else:
+            return self.gen_fn.__abstract_call__(*full_args)
+
+    #############################################
+    # Support the interface with reduced syntax #
+    #############################################
+
+    @typecheck
+    def simulate(
+        self: "GenerativeFunctionClosure[Simulateable[A, S, R], A, S, R]",
+        key: PRNGKey,
+        args: A,
+    ) -> Trace:
+        full_args = (*self.args, *args)
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.simulate(
+                key,
+                (full_args, self.kwargs),
+            )
+        else:
+            return self.gen_fn.simulate(key, full_args)
+
+    @typecheck
+    def assess(
+        self: "GenerativeFunctionClosure[Assessable[A, S, R], A, S, R]",
+        sample: Sample,
+        args: tuple,
+    ) -> tuple[Score, Retval]:
+        full_args = (*self.args, *args)
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.assess(
+                sample,
+                (full_args, self.kwargs),
+            )
+        else:
+            return self.gen_fn.assess(sample, full_args)
+
+    @typecheck
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        update_request: "UpdateRequest",
+    ) -> tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
+        match update_request:
+            case IncrementalUpdateRequest(argdiffs, subrequest):
+                full_argdiffs = (*self.args, *argdiffs)
+                if self.kwargs:
+                    maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+                    return maybe_kwarged_gen_fn.update(
+                        key,
+                        trace,
+                        subrequest,
+                        (full_argdiffs, self.kwargs),
+                    )
+            case _:
+                raise NotImplementedError
