@@ -23,6 +23,7 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Address,
     Arguments,
+    Assessable,
     ChoiceMap,
     ChoiceMapBuilder,
     ChoiceMapCoercable,
@@ -40,6 +41,7 @@ from genjax._src.core.generative import (
     Sample,
     Score,
     SelectionProjection,
+    Simulateable,
     StaticAddress,
     StaticAddressComponent,
     Trace,
@@ -559,6 +561,8 @@ SupportedProjections = SelectionProjection
 @Pytree.dataclass
 class StaticGenerativeFunction(
     Generic[A, R],
+    Simulateable[A, ChoiceMapSample, R],
+    Assessable[A, ChoiceMapSample, R],
     ImportanceRequest.SupportsImportance[
         SupportedImportanceConstraints,
         A,

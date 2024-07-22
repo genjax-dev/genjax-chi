@@ -1876,7 +1876,7 @@ class ImportanceRequest(
 class ProjectRequest(UpdateRequest):
     projection: Projection
 
-    class SupportsProject(Generic[P, A, S, R], GenerativeFunction[A, S, R]):
+    class SupportsProject(Generic[A, S, R, P], GenerativeFunction[A, S, R]):
         @abstractmethod
         def project_update(
             self,
