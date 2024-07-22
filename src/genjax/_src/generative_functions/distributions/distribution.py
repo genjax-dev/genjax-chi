@@ -22,6 +22,7 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     Arguments,
+    ChoiceMapCoercable,
     ChoiceMapConstraint,
     ChoiceMapSample,
     Constraint,
@@ -43,6 +44,8 @@ from genjax._src.core.generative import (
     Retval,
     Sample,
     Score,
+    SelectionProjection,
+    Simulateable,
     Trace,
     UpdateRequest,
     ValChm,
@@ -51,14 +54,12 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.core import (
     EmptyProjection,
-    SelectionProjection,
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
-    FloatArray,
     Generic,
     PRNGKey,
     TypeVar,
@@ -66,7 +67,8 @@ from genjax._src.core.typing import (
     typecheck,
 )
 
-R = TypeVar("R")
+A = TypeVar("A", bound=Arguments)
+R = TypeVar("R", bound=Retval)
 
 #####
 # DistributionTrace
@@ -75,27 +77,28 @@ R = TypeVar("R")
 
 @Pytree.dataclass
 class DistributionTrace(
-    Generic[R],
-    Trace["Distribution[R]", "ValueSample"],
+    Generic[A, R],
+    ChoiceMapCoercable,
+    Trace["Distribution[A, R]", A, "ValueSample[R]", R],
 ):
-    gen_fn: "Distribution"
-    args: tuple
-    value: Any
-    score: FloatArray
+    gen_fn: "Distribution[A, R]"
+    args: A
+    value: R
+    score: Score
 
-    def get_args(self) -> tuple:
+    def get_args(self) -> A:
         return self.args
 
     def get_retval(self) -> R:
         return self.value
 
-    def get_gen_fn(self) -> "Distribution[R]":
+    def get_gen_fn(self) -> "Distribution[A, R]":
         return self.gen_fn
 
     def get_score(self) -> Score:
         return self.score
 
-    def get_sample(self) -> ValueSample:
+    def get_sample(self) -> ValueSample[R]:
         return ValueSample(self.value)
 
     def get_choices(self) -> ValChm:
@@ -128,19 +131,20 @@ SupportedGeneralConstraints = (
     | ChoiceMapConstraint
 )
 
-SupportedProjectionSamples = EmptySample | ValueSample | MaskedSample
 
 SupportedProjections = (
     EmptyProjection[ValueSample]
     | IdentityProjection[ValueSample]
-    | SelectionProjection["SupportedProjections", SupportedProjectionSamples]
+    | SelectionProjection[ValueSample]
 )
 
 
 class Distribution(
     Generic[A, R],
+    Simulateable[A, ValueSample[R], R],
     GeneralUpdateRequest.SupportsGeneralUpdate[
         SupportedGeneralConstraints,
+        A,
         ValueSample[R],
         R,
     ],
@@ -150,12 +154,14 @@ class Distribution(
     #    R,
     # ],
     GeneralRegenerateRequest.SupportsGeneralRegenerate[
-        SupportedProjections,
+        A,
         ValueSample[R],
         R,
+        SupportedProjections,
     ],
     ImportanceRequest.SupportsImportance[
         SupportedConstraints,
+        A,
         ValueSample[R],
         R,
     ],
@@ -183,17 +189,17 @@ class Distribution(
     def simulate(
         self,
         key: PRNGKey,
-        args: Arguments,
+        arguments: A,
     ) -> Trace:
-        (w, v) = self.random_weighted(key, *args)
-        tr = DistributionTrace(self, args, v, w)
+        (w, v) = self.random_weighted(key, *arguments)
+        tr = DistributionTrace(self, arguments, v, w)
         return tr
 
     def importance_update(
         self,
         key: PRNGKey,
         constraint: SupportedConstraints,
-        args: Arguments,
+        args: A,
     ) -> tuple[Trace, Weight, Projection]:
         match constraint:
             case EmptyConstraint():

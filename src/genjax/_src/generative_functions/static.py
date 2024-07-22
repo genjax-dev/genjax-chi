@@ -25,7 +25,9 @@ from genjax._src.core.generative import (
     Arguments,
     ChoiceMap,
     ChoiceMapBuilder,
+    ChoiceMapCoercable,
     ChoiceMapConstraint,
+    ChoiceMapProjection,
     ChoiceMapSample,
     Constraint,
     GeneralRegenerateRequest,
@@ -64,7 +66,9 @@ from genjax._src.core.typing import (
     typecheck,
 )
 
-R = TypeVar("R")
+A = TypeVar("A", bound=Arguments)
+S = TypeVar("S", bound=Sample)
+R = TypeVar("R", bound=Retval)
 G = TypeVar("G", bound=GenerativeFunction)
 
 
@@ -90,18 +94,22 @@ class AddressVisitor(Pytree):
 
 
 @Pytree.dataclass
-class StaticTrace(Trace):
+class StaticTrace(
+    Generic[A, R],
+    ChoiceMapCoercable,
+    Trace["StaticGenerativeFunction", A, ChoiceMapSample, R],
+):
     gen_fn: "StaticGenerativeFunction"
-    args: tuple
-    retval: Any
+    args: A
+    retval: R
     addresses: AddressVisitor
     subtraces: List[Trace]
     score: Score
 
-    def get_args(self) -> tuple:
+    def get_args(self) -> A:
         return self.args
 
-    def get_retval(self) -> Any:
+    def get_retval(self) -> R:
         return self.retval
 
     def get_gen_fn(self) -> GenerativeFunction:
@@ -119,6 +127,7 @@ class StaticTrace(Trace):
         addresses = self.addresses.get_visited()
         chm = ChoiceMap.empty()
         for addr, subtrace in zip(addresses, self.subtraces):
+            assert isinstance(subtrace, ChoiceMapCoercable)
             chm = chm ^ ChoiceMapBuilder.a(addr, subtrace.get_choices())
 
         return chm
@@ -549,28 +558,32 @@ SupportedProjections = SelectionProjection
 
 @Pytree.dataclass
 class StaticGenerativeFunction(
-    Generic[R],
+    Generic[A, R],
     ImportanceRequest.SupportsImportance[
         SupportedImportanceConstraints,
+        A,
         ChoiceMapSample,
         R,
     ],
     GeneralUpdateRequest.SupportsGeneralUpdate[
         SupportedGeneralConstraints,
+        A,
         ChoiceMapSample,
         R,
     ],
     GeneralRegenerateRequest.SupportsGeneralRegenerate[
-        SupportedProjections,
+        A,
         ChoiceMapSample,
         R,
+        SupportedProjections,
     ],
     ProjectRequest.SupportsProject[
-        SupportedProjections,
+        A,
         ChoiceMapSample,
         R,
+        SupportedProjections,
     ],
-    GenerativeFunction[ChoiceMapSample, R],
+    GenerativeFunction[A, ChoiceMapSample, R],
 ):
     """A `StaticGenerativeFunction` is a generative function which relies on program
     transformations applied to JAX-compatible Python programs to implement the generative
@@ -641,7 +654,7 @@ class StaticGenerativeFunction(
         key: PRNGKey,
         constraint: SupportedImportanceConstraints,
         args: Arguments,
-    ) -> tuple[Trace, Weight, UpdateRequest]:
+    ) -> tuple[Trace, Weight, Projection]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -655,19 +668,19 @@ class StaticGenerativeFunction(
                     address_traces,
                     score,
                 ),
-                bwd_discard_constraints,
+                projections,
             ),
         ) = importance_transform(syntax_sugar_handled)(key, constraint, args)
 
-        def make_bwd_request(visitor, subrequests) -> UpdateRequest:
+        def make_bwd_proj(visitor, subrequests) -> Projection:
             addresses = visitor.get_visited()
             addresses = Pytree.tree_unwrap_const(addresses)
             chm = ChoiceMap.empty()
-            for addr, subrequest in zip(addresses, subrequests):
-                chm = chm ^ ChoiceMapBuilder.a(addr, subrequest)
-            return ChoiceMapUpdateRequest(chm)
+            for addr, subprojection in zip(addresses, projections):
+                chm = chm ^ ChoiceMapBuilder.a(addr, subprojection)
+            return ChoiceMapProjection(chm)
 
-        bwd_request = make_bwd_request(address_visitor, bwd_discard_constraints)
+        bwd_proj = make_bwd_proj(address_visitor, projections)
         return (
             StaticTrace(
                 self,
@@ -678,7 +691,7 @@ class StaticGenerativeFunction(
                 score,
             ),
             weight,
-            bwd_request,
+            bwd_proj,
         )
 
     @typecheck

@@ -21,7 +21,9 @@ from genjax._src.core.generative import (
     ChoiceMap,
     ChoiceMapSample,
     GenerativeFunction,
+    Retval,
     Sample,
+    Score,
     Selection,
     Weight,
 )
@@ -30,7 +32,6 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
-    FloatArray,
     Generic,
     Optional,
     PRNGKey,
@@ -39,6 +40,11 @@ from genjax._src.core.typing import (
     typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
+
+A = TypeVar("A", bound=Arguments)
+R = TypeVar("R", bound=Retval)
+S = TypeVar("S", bound=Sample)
+
 
 ####################
 # Posterior target #
@@ -94,7 +100,7 @@ class Target(Pytree):
 
 
 @Pytree.dataclass
-class SampleDistribution(Distribution):
+class SampleDistribution(Generic[A, S], Distribution[A, S]):
     """
     The abstract class `SampleDistribution` represents the type of distributions whose return value type is a `Sample`. This is the abstract base class of `Algorithm`, as well as `Marginal`.
     """
@@ -104,16 +110,16 @@ class SampleDistribution(Distribution):
         self,
         key: PRNGKey,
         *args: Any,
-    ) -> tuple[FloatArray, Sample]:
+    ) -> tuple[Score, S]:
         raise NotImplementedError
 
     @abstractmethod
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: Sample,
+        v: S,
         *args: Any,
-    ) -> FloatArray:
+    ) -> Weight:
         raise NotImplementedError
 
 
@@ -221,13 +227,10 @@ class Algorithm(SampleDistribution):
 # Marginal #
 ############
 
-A = TypeVar("A")
-R = TypeVar("R")
-
 
 @Pytree.dataclass
-class Marginal(Generic[R], GenerativeFunction[ChoiceMapSample, R]):
-    gen_fn: GenerativeFunction[ChoiceMapSample, R]
+class Marginal(Generic[A, R], GenerativeFunction[A, ChoiceMapSample, R]):
+    gen_fn: GenerativeFunction[A, ChoiceMapSample, R]
     selection: Selection = Pytree.field(default=Selection.all())
     algorithm: Optional[Algorithm] = Pytree.field(default=None)
 

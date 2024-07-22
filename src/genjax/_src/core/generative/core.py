@@ -374,12 +374,6 @@ class Trace(Generic[G, A, S, R], Pytree):
     def get_sample(self) -> S:
         """Return the [`Sample`][genjax.core.Sample] sampled from the distribution over samples by the generative function during the invocation which created the [`Trace`][genjax.core.Trace]."""
 
-    # TODO: deprecated.
-    @typecheck
-    def get_choices(self) -> S:
-        """Version of [`genjax.Trace.get_sample`][] for traces where the sample is an instance of [`genjax.ChoiceMap`][]."""
-        return self.get_sample()  # type: ignore
-
     @abstractmethod
     def get_gen_fn(self) -> G:
         """Returns the [`GenerativeFunction`][genjax.core.GenerativeFunction] whose invocation created the [`Trace`][genjax.core.Trace]."""
@@ -561,7 +555,7 @@ class GenerativeFunction(Generic[A, S, R], Pytree):
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
-        args: Arguments,
+        args: A,
     ) -> tuple[Trace, Weight]:
         choice_map_constraint = ChoiceMapConstraint(choice_map)
         assert isinstance(self, ImportanceRequest.SupportsImportance)
@@ -1739,14 +1733,17 @@ class GeneralRegenerateRequest(UpdateRequest):
     arguments: Arguments
     projection: Projection
 
-    class SupportsGeneralRegenerate(Generic[P, S, R], GenerativeFunction[S, R]):
+    class SupportsGeneralRegenerate(
+        Generic[A, S, R, P],
+        GenerativeFunction[A, S, R],
+    ):
         @abstractmethod
         def general_regenerate(
             self,
             key: PRNGKey,
             trace: Trace,
             projection: P,
-            arguments: Arguments,
+            arguments: A,
         ) -> tuple[Trace, Weight, Sample]:
             raise NotImplementedError
 
@@ -1774,7 +1771,10 @@ class IncrementalRegenerateRequest(UpdateRequest):
     arguments: Arguments
     projection: Projection
 
-    class SupportsIncrementalRegenerate(Generic[P, S, R], GenerativeFunction[S, R]):
+    class SupportsIncrementalRegenerate(
+        Generic[P, A, S, R],
+        GenerativeFunction[A, S, R],
+    ):
         @abstractmethod
         def incremental_regenerate(
             self,
@@ -1782,7 +1782,7 @@ class IncrementalRegenerateRequest(UpdateRequest):
             trace: Trace,
             projection: P,
             argdiffs: Argdiffs,
-        ) -> tuple[Trace, Weight, Retdiff, Sample]:
+        ) -> tuple[Trace, Weight, Retdiff, S]:
             raise NotImplementedError
 
     def update(
@@ -1924,6 +1924,17 @@ class Projectable(
         return w
 
 
+class ChoiceMapCoercable(
+    Trace,
+):
+    @abstractmethod
+    def get_choices(
+        self,
+    ) -> ChoiceMap:
+        """Version of [`genjax.Trace.get_sample`][] for traces where the sample is an instance of [`genjax.ChoiceMap`][]."""
+        raise NotImplementedError
+
+
 #######################
 # Choice map specific #
 #######################
@@ -1961,19 +1972,90 @@ class ChoiceMapConstraint(Constraint, ChoiceMap[Constraint]):
 
 
 @Pytree.dataclass
+class ProjectedChoiceMap(ChoiceMap[Sample]):
+    choice_map_projection: ChoiceMap[Projection]
+    choice_map: ChoiceMap[Sample]
+
+    def get_value(self) -> Sample:
+        leaf = self.choice_map.get_value()
+        leaf_proj = self.choice_map_projection.get_value()
+        return leaf_proj.project(leaf)
+
+    def get_submap(self, addr: ExtendedAddressComponent) -> "ProjectedChoiceMap":
+        submap = self.choice_map.get_submap(addr)
+        submap_proj = self.choice_map_projection.get_submap(addr)
+        return ProjectedChoiceMap(submap_proj, submap)
+
+
+@Pytree.dataclass
+class ChoiceMapProjection(
+    Projection["ChoiceMapProjectionComplement", ChoiceMapSample, ChoiceMapSample],
+    ChoiceMap[Projection],
+):
+    choice_map: ChoiceMap[Any]
+
+    def get_value(self) -> Projection:
+        v = self.choice_map.get_value()
+        return EmptyProjection() if v is None else v
+
+    def get_submap(self, addr: ExtendedAddressComponent) -> "ChoiceMapProjection":
+        submap = self.choice_map(addr)
+        return ChoiceMapProjection(submap)
+
+    def project(self, sample: ChoiceMapSample) -> ChoiceMapSample:
+        return ChoiceMapSample(ProjectedChoiceMap(self, sample))
+
+    def complement(self) -> "ChoiceMapProjectionComplement":
+        return ChoiceMapProjectionComplement(self)
+
+
+@Pytree.dataclass
+class ChoiceMapProjectionComplement(
+    Projection["ChoiceMapProjection", ChoiceMapSample, ChoiceMapSample],
+    ChoiceMap[Projection],
+):
+    choice_map_projection: ChoiceMapProjection
+
+    def get_value(self) -> Projection:
+        v = self.choice_map_projection.get_value()
+        return IdentityProjection() if v is None else v.complement()
+
+    def get_submap(
+        self, addr: ExtendedAddressComponent
+    ) -> "ChoiceMapProjectionComplement":
+        submap = self.choice_map_projection.get_submap(addr)
+        return submap.complement()
+
+    def project(self, sample: ChoiceMapSample) -> ChoiceMapSample:
+        return ChoiceMapSample(ProjectedChoiceMap(self, sample))
+
+    def complement(self) -> "ChoiceMapProjection":
+        return self.choice_map_projection
+
+
+@Pytree.dataclass
 class SelectionProjection(
-    Generic[P, S2],
-    Projection["SelectionProjection[P, ChoiceMapSample, S2]", ChoiceMapSample, S2],
+    Generic[S1],
+    Projection["SelectionProjection", S1, EmptySample | S1 | MaskedSample[S1]],
+    Selection,
 ):
     selection: Selection
-    subprojection: Projection[P, ChoiceMapSample, S2] = IdentityProjection()
 
-    def project(self, sample: ChoiceMapSample) -> S2:
-        filtered = ChoiceMapSample(sample.filter(self.selection))
-        return self.subprojection.project(filtered)
+    def check(self) -> Bool | BoolArray:
+        return self.selection.check()
 
-    def complement(self) -> "SelectionProjection[P, ChoiceMapSample, S2]":
-        return SelectionProjection(~self.selection, self.subprojection.complement())
+    def get_subselection(self, addr: ExtendedAddressComponent) -> "SelectionProjection":
+        return SelectionProjection(self.selection.get_subselection(addr))
+
+    def project(self, sample: S1) -> EmptySample | S1 | MaskedSample[S1]:
+        check = self.check()
+        if check:
+            return sample
+        else:
+            return EmptySample()
+
+    def complement(self) -> "SelectionProjection":
+        return SelectionProjection(~self.selection)
 
 
 ####################################
@@ -1982,8 +2064,12 @@ class SelectionProjection(
 
 
 @Pytree.dataclass
-class IgnoreKwargs(GenerativeFunction):
-    wrapped: GenerativeFunction
+class IgnoreKwargs(
+    Generic[A, S, R],
+    Simulateable[A, S, R],
+    GenerativeFunction[A, S, R],
+):
+    wrapped: GenerativeFunction[A, S, R]
 
     def handle_kwargs(self) -> "GenerativeFunction":
         raise NotImplementedError
@@ -1992,9 +2078,10 @@ class IgnoreKwargs(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: Arguments,
-    ) -> Trace:
-        (args, _kwargs) = args
+        arguments: A,
+    ) -> Trace[GenerativeFunction[A, S, R], A, S, R]:
+        (args, _kwargs) = arguments
+        assert isinstance(self.wrapped, Simulateable)
         return self.wrapped.simulate(key, args)
 
     @typecheck
@@ -2002,11 +2089,11 @@ class IgnoreKwargs(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_request: "UpdateRequest",
+        choice_map: "ChoiceMap",
         argdiffs: Argdiffs,
     ):
         (argdiffs, _kwargdiffs) = argdiffs
-        return self.wrapped.update(key, trace, update_request, argdiffs)
+        return self.wrapped.update(key, trace, choice_map, argdiffs)
 
 
 @Pytree.dataclass
