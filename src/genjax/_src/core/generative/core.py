@@ -26,9 +26,12 @@ from genjax._src.core.generative.choice_map import (
     Selection,
 )
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import get_trace_shape, staged_and
+from genjax._src.core.interpreters.staging import (
+    get_trace_shape,
+    staged_and,
+    staged_not,
+)
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import gfi_boundary, register_exclusion
 from genjax._src.core.typing import (
     Annotated,
     Any,
@@ -52,20 +55,24 @@ from genjax._src.core.typing import (
     typecheck,
 )
 
-register_exclusion(__file__)
-
 # Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
 if TYPE_CHECKING:
     pass
 
-_C = TypeVar("_C", bound=Callable)
-ArgTuple = TypeVar("ArgTuple", bound=tuple)
+A = TypeVar("A", bound="Arguments")
+A_ = TypeVar("A_", bound="Arguments")
 R = TypeVar("R")
 V = TypeVar("V")
 G = TypeVar("G", bound="GenerativeFunction")
 C = TypeVar("C", bound="Constraint")
+C_ = TypeVar("C_", bound="Constraint")
 S = TypeVar("S", bound="Sample")
+S_ = TypeVar("S_", bound="Sample")
+S1 = TypeVar("S1", bound="Sample")
+S2 = TypeVar("S2", bound="Sample")
 P = TypeVar("P", bound="Projection")
+Tr = TypeVar("Tr", bound="Trace")
+Tr_ = TypeVar("Tr_", bound="Trace")
 
 #####################################
 # Special generative function types #
@@ -121,11 +128,11 @@ When used under type checking, `Retdiff` assumes that the return value is a `Pyt
 ###########
 
 
-class Sample(Pytree):
+class Sample(Generic[C], Pytree):
     """A `Sample` is a value which can be sampled from generative functions. Samples can be scalar values, or map-like values ([`ChoiceMap`][genjax.core.ChoiceMap]). Different sample types can induce different interfaces: `ChoiceMap`, for instance, supports interfaces for accessing sub-maps and values."""
 
     @abstractmethod
-    def to_constraint(self) -> "Constraint":
+    def to_constraint(self) -> C:
         """
         A `Sample` can always be coerced into a type of equality constraint.
         """
@@ -133,13 +140,13 @@ class Sample(Pytree):
 
 
 @Pytree.dataclass
-class EmptySample(Sample):
+class EmptySample(Sample["EmptyConstraint"]):
     def to_constraint(self) -> "EmptyConstraint":
         return EmptyConstraint()
 
 
 @Pytree.dataclass
-class ValueSample(Generic[V], Sample):
+class ValueSample(Generic[V], Sample["EqualityConstraint[V]"]):
     val: V
 
     def to_constraint(self) -> "EqualityConstraint[V]":
@@ -147,7 +154,7 @@ class ValueSample(Generic[V], Sample):
 
 
 @Pytree.dataclass(match_args=True)
-class MaskedSample(Generic[S], Sample):
+class MaskedSample(Generic[S], Sample["MaskedConstraint[S]"]):
     flag: Bool | BoolArray
     sample: S
 
@@ -160,12 +167,12 @@ class MaskedSample(Generic[S], Sample):
 ###############
 
 
-class Constraint(Generic[S], Pytree):
+class Constraint(Generic[S_], Pytree):
     pass
 
 
 @Pytree.dataclass
-class EmptyConstraint(Constraint):
+class EmptyConstraint(Constraint[Sample]):
     """
     An `EmptyConstraint` encodes the lack of a constraint.
 
@@ -176,7 +183,7 @@ class EmptyConstraint(Constraint):
 
 
 @Pytree.dataclass(match_args=True)
-class EqualityConstraint(Generic[V], Constraint[ValueSample[V]]):
+class EqualityConstraint(Generic[V], Constraint[ValueSample]):
     """
     An `EqualityConstraint` encodes the constraint that the value output by a
     distribution is equal to a provided value.
@@ -188,7 +195,7 @@ class EqualityConstraint(Generic[V], Constraint[ValueSample[V]]):
 
 
 @Pytree.dataclass(match_args=True)
-class MaskedConstraint(Generic[S, C], Constraint[S]):
+class MaskedConstraint(Generic[S], Constraint[S]):
     """
     A `MaskedConstraint` encodes a possible constraint.
 
@@ -197,7 +204,7 @@ class MaskedConstraint(Generic[S, C], Constraint[S]):
     """
 
     flag: Bool | BoolArray
-    constraint: C
+    constraint: Constraint[S]
 
 
 @Pytree.dataclass
@@ -243,26 +250,26 @@ class BijectiveConstraint(Constraint):
 ###############
 
 
-class Projection(Generic[P], Pytree):
+class Projection(Generic[P, S1, S2], Pytree):
     """
     A projection is a mapping from a [`Sample`] space into a subspace.
     """
 
     @abstractmethod
-    def project(self, sample: Sample) -> Sample:
+    def project(self, sample: S1) -> S2:
         raise NotImplementedError
 
     @abstractmethod
     def complement(self) -> P:
         raise NotImplementedError
 
-    def __call__(self, sample: Sample) -> Sample:
+    def __call__(self, sample: S1) -> S2:
         return self.project(sample)
 
 
 @Pytree.dataclass
-class IdentityProjection(Projection["EmptyProjection"]):
-    def project(self, sample: Sample) -> Sample:
+class IdentityProjection(Generic[S], Projection["EmptyProjection", S, S]):
+    def project(self, sample: S) -> S:
         return sample
 
     def complement(self) -> "EmptyProjection":
@@ -270,8 +277,8 @@ class IdentityProjection(Projection["EmptyProjection"]):
 
 
 @Pytree.dataclass
-class EmptyProjection(Projection["IdentityProjection"]):
-    def project(self, sample: Sample) -> Sample:
+class EmptyProjection(Generic[S], Projection["IdentityProjection", S, EmptySample]):
+    def project(self, sample: S) -> EmptySample:
         return EmptySample()
 
     def complement(self) -> "IdentityProjection":
@@ -279,15 +286,17 @@ class EmptyProjection(Projection["IdentityProjection"]):
 
 
 @Pytree.dataclass
-class MaskedProjection(Generic[P], Projection["MaskedProjection[P]"]):
+class MaskedProjection(
+    Generic[P, S1, S2], Projection["MaskedProjection[P, S1, S2]", S1, MaskedSample[S2]]
+):
     flag: Bool | BoolArray
-    proj: Projection[P]
+    proj: Projection[P, S1, S2]
 
-    def project(self, sample: S) -> Bool | BoolArray:
-        return staged_and(self.flag, self.proj(sample))
+    def project(self, sample: S1) -> MaskedSample[S2]:
+        return MaskedSample(self.flag, self.proj(sample))
 
-    def complement(self) -> "MaskedProjection[P]":
-        pass
+    def complement(self) -> "MaskedProjection[P, S1, S2]":
+        return MaskedProjection(staged_not(self.flag), self.proj.complement())
 
 
 #########
@@ -295,7 +304,7 @@ class MaskedProjection(Generic[P], Projection["MaskedProjection[P]"]):
 #########
 
 
-class Trace(Generic[G, S], Pytree):
+class Trace(Generic[G, A, S, R], Pytree):
     """
     `Trace` is the type of traces of generative functions.
 
@@ -307,11 +316,11 @@ class Trace(Generic[G, S], Pytree):
     """
 
     @abstractmethod
-    def get_args(self) -> Arguments:
+    def get_args(self) -> A:
         """Returns the [`Arguments`][genjax.core.Arguments] for the [`GenerativeFunction`][genjax.core.GenerativeFunction] invocation which created the [`Trace`][genjax.core.Trace]."""
 
     @abstractmethod
-    def get_retval(self) -> Retval:
+    def get_retval(self) -> R:
         """Returns the [`Retval`][genjax.core.Retval] from the [`GenerativeFunction`][genjax.core.GenerativeFunction] invocation which created the [`Trace`][genjax.core.Trace]."""
 
     @abstractmethod
@@ -386,17 +395,6 @@ class Trace(Generic[G, S], Pytree):
         """
         return request.update(key, self)
 
-    def project(
-        self,
-        key: PRNGKey,
-        selection: Selection,
-    ) -> Weight:
-        gen_fn = self.get_gen_fn()
-        assert isinstance(gen_fn, ProjectRequest.SupportsProjectUpdate)
-        projection = SelectionProjection(selection)
-        w, _ = gen_fn.project_update(key, self, projection)
-        return w
-
     ###################
     # Pretty printing #
     ###################
@@ -424,7 +422,10 @@ class EmptyTraceRetval(Pytree):
 
 
 @Pytree.dataclass
-class EmptyTrace(Generic[G], Trace[G, EmptySample]):
+class EmptyTrace(
+    Generic[G],
+    Trace[G, tuple[EmptyTraceArg], EmptySample, EmptyTraceRetval],
+):
     gen_fn: G
 
     def get_args(self) -> tuple:
@@ -448,7 +449,7 @@ class EmptyTrace(Generic[G], Trace[G, EmptySample]):
 #######################
 
 
-class GenerativeFunction(Generic[S, R], Pytree):
+class GenerativeFunction(Generic[A, S, R], Pytree):
     """
     `GenerativeFunction` is the type of _generative functions_, the main computational object in Gen.
 
@@ -506,14 +507,6 @@ class GenerativeFunction(Generic[S, R], Pytree):
     def __call__(self, *args, **kwargs) -> "GenerativeFunctionClosure":
         return GenerativeFunctionClosure(self, args, kwargs)
 
-    def __abstract_call__(self, *args) -> Retval:
-        """Used to support JAX tracing, although this default implementation involves no
-        JAX operations (it takes a fixed-key sample from the return value).
-
-        Generative functions may customize this to improve compilation time.
-        """
-        return self.simulate(jax.random.PRNGKey(0), args).get_retval()
-
     def handle_kwargs(self) -> "GenerativeFunction":
         return IgnoreKwargs(self)
 
@@ -523,111 +516,6 @@ class GenerativeFunction(Generic[S, R], Pytree):
     def get_empty_trace(self, *args) -> Trace:
         data_shape = self.get_trace_shape(*args)
         return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), data_shape)
-
-    @classmethod
-    def gfi_boundary(cls, c: _C) -> _C:
-        return gfi_boundary(c)
-
-    @abstractmethod
-    def simulate(
-        self: G,
-        key: PRNGKey,
-        args: Arguments,
-    ) -> Trace[G, S]:
-        """
-        Execute the generative function, sampling from its distribution over samples, and return a [`Trace`][genjax.core.Trace].
-
-        ## More on traces
-
-        The [`Trace`][genjax.core.Trace] returned by `simulate` implements its own interface.
-
-        It is responsible for storing the arguments of the invocation ([`genjax.Trace.get_args`][]), the return value of the generative function ([`genjax.Trace.get_retval`][]), the identity of the generative function which produced the trace ([`genjax.Trace.get_gen_fn`][]), the sample of traced random choices produced during the invocation ([`genjax.Trace.get_sample`][]) and _the score_ of the sample ([`genjax.Trace.get_score`][]).
-
-        Examples:
-            ```python exec="yes" html="true" source="material-block" session="core"
-            import genjax
-            from jax import vmap, jit
-            from jax.random import PRNGKey
-            from jax.random import split
-
-
-            @genjax.gen
-            def model():
-                x = genjax.normal(0.0, 1.0) @ "x"
-                return x
-
-
-            key = PRNGKey(0)
-            tr = model.simulate(key, ())
-            print(tr.render_html())
-            ```
-
-            Another example, using the same model, composed into [`genjax.repeat`](combinators.md#genjax.repeat) - which creates a new generative function, which has the same interface:
-            ```python exec="yes" html="true" source="material-block" session="core"
-            @genjax.gen
-            def model():
-                x = genjax.normal(0.0, 1.0) @ "x"
-                return x
-
-
-            key = PRNGKey(0)
-            tr = model.repeat(n=10).simulate(key, ())
-            print(tr.render_html())
-            ```
-
-            (**Fun, flirty, fast ... parallel?**) Feel free to use `jax.jit` and `jax.vmap`!
-            ```python exec="yes" html="true" source="material-block" session="core"
-            key = PRNGKey(0)
-            sub_keys = split(key, 10)
-            sim = model.repeat(n=10).simulate
-            tr = jit(vmap(sim, in_axes=(0, None)))(sub_keys, ())
-            print(tr.render_html())
-            ```
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def assess(
-        self,
-        sample: S,
-        args: Arguments,
-    ) -> tuple[Score, Retval]:
-        """
-        Return [the score][genjax.core.Trace.get_score] and [the return value][genjax.core.Trace.get_retval] when the generative function is invoked with the provided arguments, and constrained to take the provided sample as the sampled value.
-
-        It is an error if the provided sample value is off the support of the distribution over the `Sample` type, or otherwise induces a partial constraint on the execution of the generative function (which would require the generative function to provide an `update` implementation which responds to the `UpdateRequest` induced by the [`importance`][genjax.core.GenerativeFunction.importance] interface).
-
-        Examples:
-            This method is similar to density evaluation interfaces for distributions.
-            ```python exec="yes" html="true" source="material-block" session="core"
-            from genjax import normal
-            from genjax import ChoiceMapBuilder as C
-
-            sample = C.v(1.0)
-            score, retval = normal.assess(sample, (1.0, 1.0))
-            print((score, retval))
-            ```
-
-            But it also works with generative functions that sample from spaces with more structure:
-
-            ```python exec="yes" html="true" source="material-block" session="core"
-            from genjax import gen
-            from genjax import normal
-            from genjax import ChoiceMapBuilder as C
-
-
-            @gen
-            def model():
-                v1 = normal(0.0, 1.0) @ "v1"
-                v2 = normal(v1, 1.0) @ "v2"
-
-
-            sample = C.kw(v1=1.0, v2=0.0)
-            score, retval = model.assess(sample, ())
-            print((score, retval))
-            ```
-        """
-        raise NotImplementedError
 
     def update(
         self,
@@ -676,23 +564,9 @@ class GenerativeFunction(Generic[S, R], Pytree):
         args: Arguments,
     ) -> tuple[Trace, Weight]:
         choice_map_constraint = ChoiceMapConstraint(choice_map)
-        assert isinstance(self, ImportanceRequest.SupportsImportanceUpdate)
+        assert isinstance(self, ImportanceRequest.SupportsImportance)
         tr, w, _ = self.importance_update(key, choice_map_constraint, args)
         return tr, w
-
-    def propose(
-        self,
-        key: PRNGKey,
-        args: Arguments,
-    ) -> tuple[S, Score, Retval]:
-        """
-        Samples a [`Sample`][genjax.core.Sample] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the [`Retval`][genjax.core.Retval] of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
-        """
-        tr = self.simulate(key, args)
-        sample = tr.get_sample()
-        score = tr.get_score()
-        retval = tr.get_retval()
-        return sample, score, retval
 
     # NOTE: Supports pretty printing in penzai.
     def treescope_color(self):
@@ -1286,8 +1160,8 @@ class GenerativeFunction(Generic[S, R], Pytree):
         self,
         /,
         *,
-        pre: Callable[..., ArgTuple],
-        post: Callable[[ArgTuple, R], S],
+        pre: Callable[..., A],
+        post: Callable[[A, R], S],
         info: String | None = None,
     ) -> "GenerativeFunction":
         """
@@ -1380,7 +1254,7 @@ class GenerativeFunction(Generic[S, R], Pytree):
         return genjax.map(f=f, info=info)(self)
 
     def contramap(
-        self, f: Callable[..., ArgTuple], *, info: String | None = None
+        self, f: Callable[..., A], *, info: String | None = None
     ) -> "GenerativeFunction":
         """
         Specialized version of [`genjax.GenerativeFunction.dimap`][] where only the pre-processing function is applied.
@@ -1489,7 +1363,6 @@ class IgnoreKwargs(GenerativeFunction):
     def handle_kwargs(self) -> "GenerativeFunction":
         raise NotImplementedError
 
-    @GenerativeFunction.gfi_boundary
     @typecheck
     def simulate(
         self,
@@ -1499,7 +1372,6 @@ class IgnoreKwargs(GenerativeFunction):
         (args, _kwargs) = args
         return self.wrapped.simulate(key, args)
 
-    @GenerativeFunction.gfi_boundary
     @typecheck
     def update(
         self,
@@ -1559,7 +1431,6 @@ class GenerativeFunctionClosure(GenerativeFunction):
     # Support the interface with reduced syntax #
     #############################################
 
-    @GenerativeFunction.gfi_boundary
     @typecheck
     def simulate(
         self,
@@ -1576,7 +1447,6 @@ class GenerativeFunctionClosure(GenerativeFunction):
         else:
             return self.gen_fn.simulate(key, full_args)
 
-    @GenerativeFunction.gfi_boundary
     @typecheck
     def update(
         self,
@@ -1598,7 +1468,6 @@ class GenerativeFunctionClosure(GenerativeFunction):
             case _:
                 raise NotImplementedError
 
-    @GenerativeFunction.gfi_boundary
     @typecheck
     def assess(
         self,
@@ -1616,12 +1485,147 @@ class GenerativeFunctionClosure(GenerativeFunction):
             return self.gen_fn.assess(sample, full_args)
 
 
+##############################
+# Generative function traits #
+##############################
+
+
+class Simulateable(Generic[A, S, R], GenerativeFunction[A, S, R]):
+    @abstractmethod
+    def simulate(
+        self,
+        key: PRNGKey,
+        arguments: A,
+    ) -> Trace[GenerativeFunction[A, S, R], A, S, R]:
+        """
+        Execute the generative function, sampling from its distribution over samples, and return a [`Trace`][genjax.core.Trace].
+
+        ## More on traces
+
+        The [`Trace`][genjax.core.Trace] returned by `simulate` implements its own interface.
+
+        It is responsible for storing the arguments of the invocation ([`genjax.Trace.get_args`][]), the return value of the generative function ([`genjax.Trace.get_retval`][]), the identity of the generative function which produced the trace ([`genjax.Trace.get_gen_fn`][]), the sample of traced random choices produced during the invocation ([`genjax.Trace.get_sample`][]) and _the score_ of the sample ([`genjax.Trace.get_score`][]).
+
+        Examples:
+            ```python exec="yes" html="true" source="material-block" session="core"
+            import genjax
+            from jax import vmap, jit
+            from jax.random import PRNGKey
+            from jax.random import split
+
+
+            @genjax.gen
+            def model():
+                x = genjax.normal(0.0, 1.0) @ "x"
+                return x
+
+
+            key = PRNGKey(0)
+            tr = model.simulate(key, ())
+            print(tr.render_html())
+            ```
+
+            Another example, using the same model, composed into [`genjax.repeat`](combinators.md#genjax.repeat) - which creates a new generative function, which has the same interface:
+            ```python exec="yes" html="true" source="material-block" session="core"
+            @genjax.gen
+            def model():
+                x = genjax.normal(0.0, 1.0) @ "x"
+                return x
+
+
+            key = PRNGKey(0)
+            tr = model.repeat(n=10).simulate(key, ())
+            print(tr.render_html())
+            ```
+
+            (**Fun, flirty, fast ... parallel?**) Feel free to use `jax.jit` and `jax.vmap`!
+            ```python exec="yes" html="true" source="material-block" session="core"
+            key = PRNGKey(0)
+            sub_keys = split(key, 10)
+            sim = model.repeat(n=10).simulate
+            tr = jit(vmap(sim, in_axes=(0, None)))(sub_keys, ())
+            print(tr.render_html())
+            ```
+        """
+        raise NotImplementedError
+
+        def __abstract_call__(
+            self: "Simulateable[A, S, R]",
+            *args,
+        ) -> R:
+            """Used to support JAX tracing, although this default implementation involves no
+            JAX operations (it takes a fixed-key sample from the return value).
+
+            Generative functions may customize this to improve compilation time.
+            """
+            return self.simulate(jax.random.PRNGKey(0), args).get_retval()
+
+        def propose(
+            self: "Simulateable[A, S, R]",
+            key: PRNGKey,
+            args: A,
+        ) -> tuple[S, Score, R]:
+            """
+            Samples a [`Sample`][genjax.core.Sample] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the [`Retval`][genjax.core.Retval] of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
+            """
+            tr = self.simulate(key, args)
+            sample = tr.get_sample()
+            score = tr.get_score()
+            retval = tr.get_retval()
+            return sample, score, retval
+
+
+class Assessable(Generic[A, S, R], GenerativeFunction[A, S, R]):
+    @abstractmethod
+    def assess(
+        self,
+        sample: S,
+        args: A,
+    ) -> tuple[Score, R]:
+        """
+        Return [the score][genjax.core.Trace.get_score] and [the return value][genjax.core.Trace.get_retval] when the generative function is invoked with the provided arguments, and constrained to take the provided sample as the sampled value.
+
+        It is an error if the provided sample value is off the support of the distribution over the `Sample` type, or otherwise induces a partial constraint on the execution of the generative function (which would require the generative function to provide an `update` implementation which responds to the `UpdateRequest` induced by the [`importance`][genjax.core.GenerativeFunction.importance] interface).
+
+        Examples:
+            This method is similar to density evaluation interfaces for distributions.
+            ```python exec="yes" html="true" source="material-block" session="core"
+            from genjax import normal
+            from genjax import ChoiceMapBuilder as C
+
+            sample = C.v(1.0)
+            score, retval = normal.assess(sample, (1.0, 1.0))
+            print((score, retval))
+            ```
+
+            But it also works with generative functions that sample from spaces with more structure:
+
+            ```python exec="yes" html="true" source="material-block" session="core"
+            from genjax import gen
+            from genjax import normal
+            from genjax import ChoiceMapBuilder as C
+
+
+            @gen
+            def model():
+                v1 = normal(0.0, 1.0) @ "v1"
+                v2 = normal(v1, 1.0) @ "v2"
+
+
+            sample = C.kw(v1=1.0, v2=0.0)
+            score, retval = model.assess(sample, ())
+            print((score, retval))
+            ```
+        """
+        raise NotImplementedError
+
+
 #########################
 # Update specifications #
 #########################
 
 
-class UpdateRequest(Pytree):
+class UpdateRequest(Generic[Tr, Tr_], Pytree):
     """
     An `UpdateRequest` is a request to update a trace of a generative function. Generative functions respond to instances of subtypes of `UpdateRequest` by providing an [`update`][genjax.core.GenerativeFunction.update] implementation.
 
@@ -1737,8 +1741,8 @@ class UpdateRequest(Pytree):
 
     @abstractmethod
     def update(
-        self, key: PRNGKey, trace: Trace
-    ) -> tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
+        self, key: PRNGKey, trace: Tr
+    ) -> tuple[Tr_, Weight, Retdiff, "UpdateRequest"]:
         """
         Update a trace in response to an [`UpdateRequest`][genjax.core.UpdateRequest], returning a new [`Trace`][genjax.core.Trace], an incremental [`Weight`][genjax.core.Weight] for the new target, a [`Retdiff`][genjax.core.Retdiff] return value tagged with change information, and a backward [`UpdateRequest`][genjax.core.UpdateRequest] which requests the reverse move (to go back to the original trace).
         """
@@ -1795,22 +1799,25 @@ class GeneralUpdateRequest(UpdateRequest):
         eq_constraint: EqualityConstraint = self.constraint[addr]
         return eq_constraint.x
 
-    class SupportsGeneralUpdate(Generic[C, S, R], GenerativeFunction[S, R]):
+    class SupportsGeneralUpdate(
+        Generic[C, A, S, R],
+        GenerativeFunction[A, S, R],
+    ):
         @abstractmethod
         def general_update(
             self,
             key: PRNGKey,
             trace: Trace,
             constraint: C,
-            arguments: Arguments,
+            arguments: A,
         ) -> tuple[Trace, Weight, Constraint]:
             raise NotImplementedError
 
     def update(
         self,
         key: PRNGKey,
-        trace: Trace[SupportsGeneralUpdate, S],
-    ) -> tuple[Trace[SupportsGeneralUpdate, S], Weight, Retdiff, UpdateRequest]:
+        trace: Trace[SupportsGeneralUpdate, A, S, R],
+    ) -> tuple[Trace[SupportsGeneralUpdate, A, S, R], Weight, Retdiff, UpdateRequest]:
         gen_fn = trace.get_gen_fn()
         new_trace, weight, discard_constraint = gen_fn.general_update(
             key,
@@ -1828,7 +1835,7 @@ class IncrementalUpdateRequest(UpdateRequest):
     argdiffs: Argdiffs
     constraint: Constraint
 
-    class SupportsIncrementalUpdate(Generic[C, S, R], GenerativeFunction[S, R]):
+    class SupportsIncrementalUpdate(Generic[C, A, S, R], GenerativeFunction[A, S, R]):
         @abstractmethod
         def incremental_update(
             self,
@@ -1842,8 +1849,10 @@ class IncrementalUpdateRequest(UpdateRequest):
     def update(
         self,
         key: PRNGKey,
-        trace: Trace[SupportsIncrementalUpdate, S],
-    ) -> tuple[Trace[SupportsIncrementalUpdate, S], Weight, Retdiff, UpdateRequest]:
+        trace: Trace[SupportsIncrementalUpdate, A, S, R],
+    ) -> tuple[
+        Trace[SupportsIncrementalUpdate, A, S, R], Weight, Retdiff, UpdateRequest
+    ]:
         gen_fn = trace.get_gen_fn()
         return gen_fn.incremental_update(
             key,
@@ -1872,8 +1881,10 @@ class GeneralRegenerateRequest(UpdateRequest):
     def update(
         self,
         key: PRNGKey,
-        trace: Trace[SupportsGeneralRegenerate, S],
-    ) -> tuple[Trace[SupportsGeneralRegenerate, S], Weight, Retdiff, UpdateRequest]:
+        trace: Trace[SupportsGeneralRegenerate, A, S, R],
+    ) -> tuple[
+        Trace[SupportsGeneralRegenerate, A, S, R], Weight, Retdiff, UpdateRequest
+    ]:
         gen_fn = trace.get_gen_fn()
         new_trace, weight, discard = gen_fn.general_regenerate(
             key,
@@ -1905,8 +1916,10 @@ class IncrementalRegenerateRequest(UpdateRequest):
     def update(
         self,
         key: PRNGKey,
-        trace: Trace[SupportsIncrementalRegenerate, S],
-    ) -> tuple[Trace[SupportsIncrementalRegenerate, S], Weight, Retdiff, UpdateRequest]:
+        trace: Trace[SupportsIncrementalRegenerate, A, S, R],
+    ) -> tuple[
+        Trace[SupportsIncrementalRegenerate, A, S, R], Weight, Retdiff, UpdateRequest
+    ]:
         gen_fn = trace.get_gen_fn()
         new_trace, weight, retdiff, discard = gen_fn.incremental_regenerate(
             key,
@@ -1920,22 +1933,21 @@ class IncrementalRegenerateRequest(UpdateRequest):
 
 
 @Pytree.dataclass
-class ImportanceRequest(UpdateRequest):
-    args: Arguments
-    constraint: Constraint
+class ImportanceRequest(
+    Generic[A, C],
+    UpdateRequest[EmptyTrace, Trace],
+):
+    args: A
+    constraint: C
 
-    class SupportsImportanceUpdate(Generic[C, S, R], GenerativeFunction[S, R]):
+    class SupportsImportance(Generic[C_, A_, S, R], GenerativeFunction[A_, S, R]):
         @abstractmethod
         def importance_update(
             self,
             key: PRNGKey,
-            constraint: C,
-            args: Arguments,
-        ) -> tuple[
-            Trace["ImportanceRequest.SupportsImportanceUpdate", S],
-            Weight,
-            UpdateRequest,
-        ]:
+            constraint: C_,
+            args: A_,
+        ) -> tuple[Trace[GenerativeFunction[A_, S, R], A_, S, R], Weight, Projection]:
             """
             Returns a properly weighted pair, a [`Trace`][genjax.core.Trace] and a [`Weight`][genjax.core.Weight], properly weighted for the target induced by the generative function for the provided constraint and arguments.
 
@@ -1976,12 +1988,15 @@ class ImportanceRequest(UpdateRequest):
     def update(
         self,
         key: PRNGKey,
-        trace: EmptyTrace[SupportsImportanceUpdate],
-    ) -> tuple[Trace[SupportsImportanceUpdate, S], Weight, Retdiff, UpdateRequest]:
+        trace: EmptyTrace[SupportsImportance[C, A, S, R]],
+    ) -> tuple[
+        Trace[GenerativeFunction[A, S, R], A, S, R], Weight, Retdiff, UpdateRequest
+    ]:
         gen_fn = trace.get_gen_fn()
-        tr, weight, bwd_request = gen_fn.importance_update(
+        tr, weight, projection = gen_fn.importance_update(
             key, self.constraint, self.args
         )
+        bwd_request = ProjectRequest(projection)
         return (tr, weight, Diff.unknown_change(trace.get_retval()), bwd_request)
 
 
@@ -1989,14 +2004,14 @@ class ImportanceRequest(UpdateRequest):
 class ProjectRequest(UpdateRequest):
     projection: Projection
 
-    class SupportsProjectUpdate(Generic[P, S, R], GenerativeFunction[S, R]):
+    class SupportsProject(Generic[P, A, S, R], GenerativeFunction[A, S, R]):
         @abstractmethod
         def project_update(
             self,
             key: PRNGKey,
             trace: Trace,
             projection: P,
-        ) -> tuple[Weight, UpdateRequest]:
+        ) -> tuple[Weight, Constraint]:
             raise NotImplementedError
 
     def update(
@@ -2005,13 +2020,36 @@ class ProjectRequest(UpdateRequest):
         trace: Trace,
     ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
         gen_fn = trace.get_gen_fn()
-        weight, bwd_request = gen_fn.project_update(key, trace, self.projection)
+        weight, constraint = gen_fn.project_update(key, trace, self.projection)
+        arguments = trace.get_args()
+        bwd_request = ImportanceRequest(arguments, constraint)
         return (
             EmptyTrace(gen_fn),
             weight,
             Diff.unknown_change(trace.get_retval()),
             bwd_request,
         )
+
+
+################
+# Trace traits #
+################
+
+
+class Projectable(
+    Generic[A, S, R],
+    Trace[ProjectRequest.SupportsProject, A, S, R],
+):
+    def project(
+        self,
+        key: PRNGKey,
+        selection: Selection,
+    ) -> Weight:
+        gen_fn = self.get_gen_fn()
+        assert isinstance(gen_fn, ProjectRequest.SupportsProject)
+        projection = SelectionProjection(selection)
+        w, _ = gen_fn.project_update(key, self, projection)
+        return w
 
 
 #######################
@@ -2051,13 +2089,16 @@ class ChoiceMapConstraint(Constraint, ChoiceMap[Constraint]):
 
 
 @Pytree.dataclass
-class SelectionProjection(Projection["SelectionProjection"]):
+class SelectionProjection(
+    Generic[P, S2],
+    Projection["SelectionProjection[P, ChoiceMapSample, S2]", ChoiceMapSample, S2],
+):
     selection: Selection
-    subprojection: Projection = IdentityProjection()
+    subprojection: Projection[P, ChoiceMapSample, S2] = IdentityProjection()
 
-    def project(self, sample: ChoiceMapSample) -> Sample:
+    def project(self, sample: ChoiceMapSample) -> S2:
         filtered = ChoiceMapSample(sample.filter(self.selection))
         return self.subprojection.project(filtered)
 
-    def complement(self) -> "SelectionProjection":
+    def complement(self) -> "SelectionProjection[P, ChoiceMapSample, S2]":
         return SelectionProjection(~self.selection, self.subprojection.complement())

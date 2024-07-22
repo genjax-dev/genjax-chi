@@ -649,7 +649,6 @@ class AttachCombinator(GenerativeFunction):
     importance_move: SMCMove = Pytree.static(default=DeferToInternal())
     update_move: SMCMove = Pytree.static(default=DeferToInternal())
 
-    @GenerativeFunction.gfi_boundary
     @typecheck
     def simulate(
         self,
@@ -659,7 +658,6 @@ class AttachCombinator(GenerativeFunction):
         tr = self.gen_fn.simulate(key, args)
         return AttachTrace(self, tr)
 
-    @GenerativeFunction.gfi_boundary
     @typecheck
     def importance(
         self,
@@ -691,7 +689,6 @@ class AttachCombinator(GenerativeFunction):
             case _:
                 raise Exception("Invalid move type")
 
-    @GenerativeFunction.gfi_boundary
     @typecheck
     def update(
         self,

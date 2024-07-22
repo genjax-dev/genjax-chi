@@ -27,12 +27,12 @@ from genjax._src.core.generative import (
     ChoiceMapBuilder,
     ChoiceMapConstraint,
     ChoiceMapSample,
-    ChoiceMapUpdateRequest,
     Constraint,
     GeneralRegenerateRequest,
     GeneralUpdateRequest,
     GenerativeFunction,
     ImportanceRequest,
+    Projection,
     ProjectRequest,
     Retval,
     Sample,
@@ -52,7 +52,6 @@ from genjax._src.core.interpreters.forward import (
     initial_style_bind,
 )
 from genjax._src.core.pytree import Closure, Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -64,8 +63,6 @@ from genjax._src.core.typing import (
     tuple,
     typecheck,
 )
-
-register_exclusion(__file__)
 
 R = TypeVar("R")
 G = TypeVar("G", bound=GenerativeFunction)
@@ -307,7 +304,7 @@ def simulate_transform(source_fn):
 
 @dataclass
 class ImportanceHandler(
-    StaticHandler[ImportanceRequest.SupportsImportanceUpdate],
+    StaticHandler[ImportanceRequest.SupportsImportance],
 ):
     key: PRNGKey
     choice_map_constraint: ChoiceMapConstraint
@@ -315,7 +312,7 @@ class ImportanceHandler(
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: List[Trace] = Pytree.field(default_factory=list)
-    bwd_requests: List[UpdateRequest] = Pytree.field(default_factory=list)
+    bwd_projections: List[Projection] = Pytree.field(default_factory=list)
 
     def yield_state(self):
         return (
@@ -323,7 +320,7 @@ class ImportanceHandler(
             self.weight,
             self.address_visitor,
             self.address_traces,
-            self.bwd_requests,
+            self.bwd_projections,
         )
 
     def visit(self, addr):
@@ -339,17 +336,17 @@ class ImportanceHandler(
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: ImportanceRequest.SupportsImportanceUpdate,
+        gen_fn: ImportanceRequest.SupportsImportance,
         args: tuple,
     ):
         self.visit(addr)
         subconstraint = self.get_subconstraint(addr)
         self.key, sub_key = jax.random.split(self.key)
-        (tr, w, bwd_request) = gen_fn.importance_update(sub_key, subconstraint, args)
+        (tr, w, bwd_projection) = gen_fn.importance_update(sub_key, subconstraint, args)
         self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
-        self.bwd_requests.append(bwd_request)
+        self.bwd_projections.append(bwd_projection)
 
         return tr.get_retval()
 
@@ -365,7 +362,7 @@ def importance_transform(source_fn):
             weight,
             address_visitor,
             address_traces,
-            bwd_discards,
+            bwd_projections,
         ) = stateful_handler.yield_state()
         return (
             (
@@ -379,7 +376,7 @@ def importance_transform(source_fn):
                     score,
                 ),
                 # Backward update problem.
-                bwd_discards,
+                bwd_projections,
             ),
         )
 
@@ -553,7 +550,7 @@ SupportedProjections = SelectionProjection
 @Pytree.dataclass
 class StaticGenerativeFunction(
     Generic[R],
-    ImportanceRequest.SupportsImportanceUpdate[
+    ImportanceRequest.SupportsImportance[
         SupportedImportanceConstraints,
         ChoiceMapSample,
         R,
@@ -568,7 +565,7 @@ class StaticGenerativeFunction(
         ChoiceMapSample,
         R,
     ],
-    ProjectRequest.SupportsProjectUpdate[
+    ProjectRequest.SupportsProject[
         SupportedProjections,
         ChoiceMapSample,
         R,
@@ -617,7 +614,6 @@ class StaticGenerativeFunction(
 
         return StaticGenerativeFunction(kwarged_source)
 
-    @GenerativeFunction.gfi_boundary
     @typecheck
     def simulate(
         self,
@@ -661,9 +657,9 @@ class StaticGenerativeFunction(
                 ),
                 bwd_discard_constraints,
             ),
-        ) = importance_transform(syntax_sugar_handled)(key, constraint, arguments)
+        ) = importance_transform(syntax_sugar_handled)(key, constraint, args)
 
-        def make_bwd_request(visitor, subrequests) -> ChoiceMapUpdateRequest:
+        def make_bwd_request(visitor, subrequests) -> UpdateRequest:
             addresses = visitor.get_visited()
             addresses = Pytree.tree_unwrap_const(addresses)
             chm = ChoiceMap.empty()
@@ -753,7 +749,6 @@ class StaticGenerativeFunction(
     ) -> tuple[Weight, UpdateRequest]:
         raise NotImplementedError
 
-    @GenerativeFunction.gfi_boundary
     @typecheck
     def assess(
         self,

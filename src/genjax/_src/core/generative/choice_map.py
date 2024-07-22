@@ -29,7 +29,6 @@ from genjax._src.core.interpreters.staging import (
     staged_or,
 )
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Bool,
@@ -47,8 +46,6 @@ from genjax._src.core.typing import (
     tuple,
     typecheck,
 )
-
-register_exclusion(__file__)
 
 V = TypeVar("V")
 
@@ -254,7 +251,7 @@ class CompSel(Selection):
         ch = self.s.check()
         return staged_not(ch)
 
-    def get_subselection(self, addr: AddressComponent) -> Selection:
+    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining = self.s(addr)
         return select_complement(remaining)
 
@@ -278,7 +275,7 @@ class StaticSel(Selection):
     def check(self) -> Bool | BoolArray:
         return False
 
-    def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
+    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         check = addr == self.addr or isinstance(addr, EllipsisType)
         return select_defer(check, self.s)
 

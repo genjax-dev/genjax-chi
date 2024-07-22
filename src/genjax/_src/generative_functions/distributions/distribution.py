@@ -36,6 +36,8 @@ from genjax._src.core.generative import (
     IdentityProjection,
     ImportanceRequest,
     MaskedConstraint,
+    MaskedSample,
+    Projection,
     ProjectRequest,
     Retdiff,
     Retval,
@@ -108,29 +110,35 @@ class DistributionTrace(
 SupportedConstraints = (
     EmptyConstraint
     | EqualityConstraint
-    | MaskedConstraint[ValueSample, "SupportedConstraints"]
+    | MaskedConstraint[ValueSample]
     | ChoiceMapConstraint
 )
 
 SupportedIncrementalConstraints = (
     EmptyConstraint
     | EqualityConstraint
-    | MaskedConstraint[ValueSample, "SupportedIncrementalConstraints"]
+    | MaskedConstraint[ValueSample]
     | ChoiceMapConstraint
 )
 
 SupportedGeneralConstraints = (
     EmptyConstraint
     | EqualityConstraint
-    | MaskedConstraint[ValueSample, "SupportedGeneralConstraints"]
+    | MaskedConstraint[ValueSample]
     | ChoiceMapConstraint
 )
 
-SupportedProjections = EmptyProjection | IdentityProjection | SelectionProjection
+SupportedProjectionSamples = EmptySample | ValueSample | MaskedSample
+
+SupportedProjections = (
+    EmptyProjection[ValueSample]
+    | IdentityProjection[ValueSample]
+    | SelectionProjection["SupportedProjections", SupportedProjectionSamples]
+)
 
 
 class Distribution(
-    Generic[R],
+    Generic[A, R],
     GeneralUpdateRequest.SupportsGeneralUpdate[
         SupportedGeneralConstraints,
         ValueSample[R],
@@ -146,13 +154,13 @@ class Distribution(
         ValueSample[R],
         R,
     ],
-    ImportanceRequest.SupportsImportanceUpdate[
+    ImportanceRequest.SupportsImportance[
         SupportedConstraints,
         ValueSample[R],
         R,
     ],
-    ProjectRequest.SupportsProjectUpdate,
-    GenerativeFunction[ValueSample[R], R],
+    ProjectRequest.SupportsProject,
+    GenerativeFunction[A, ValueSample[R], R],
 ):
     @abstractmethod
     def random_weighted(
@@ -171,7 +179,6 @@ class Distribution(
     ) -> Weight:
         pass
 
-    @GenerativeFunction.gfi_boundary
     @typecheck
     def simulate(
         self,
@@ -187,17 +194,17 @@ class Distribution(
         key: PRNGKey,
         constraint: SupportedConstraints,
         args: Arguments,
-    ) -> tuple[Trace, Weight, UpdateRequest]:
+    ) -> tuple[Trace, Weight, Projection]:
         match constraint:
             case EmptyConstraint():
                 tr = self.simulate(key, args)
                 weight = 0.0
-                return tr, jnp.array(weight), ProjectRequest(IdentityProjection())
+                return tr, jnp.array(weight), EmptyProjection()
 
             case EqualityConstraint(v):
                 w = self.estimate_logpdf(key, v, *args)
                 tr = DistributionTrace(self, args, v, w)
-                return tr, w, ProjectRequest(EmptyProjection())
+                return tr, w, IdentityProjection()
 
             case MaskedConstraint(flag, subconstraint):
                 # If it is valid.
@@ -343,8 +350,19 @@ class Distribution(
         key: PRNGKey,
         trace: Trace,
         projection: SupportedProjections,
-    ) -> tuple[Weight, UpdateRequest]:
-        raise NotImplementedError
+    ) -> tuple[Weight, Constraint]:
+        sample = trace.get_sample()
+        projected = projection.project(sample)
+        match projected:
+            case EmptySample():
+                return jnp.array(0.0), EmptyConstraint()
+
+            case ValueSample(v):
+                weight = trace.get_score()
+                return weight, EqualityConstraint(v)
+
+            case MaskedSample(v):
+                raise NotImplementedError
 
     @typecheck
     def assess(
@@ -414,7 +432,6 @@ class ExactDensity(Distribution):
         else:
             return w
 
-    @GenerativeFunction.gfi_boundary
     @typecheck
     def assess(
         self,

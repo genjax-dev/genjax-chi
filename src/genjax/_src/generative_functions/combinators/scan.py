@@ -34,7 +34,6 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -46,8 +45,6 @@ from genjax._src.core.typing import (
     tuple,
     typecheck,
 )
-
-register_exclusion(__file__)
 
 
 @Pytree.dataclass
@@ -479,7 +476,6 @@ class ScanCombinator(GenerativeFunction):
             case _:
                 return self.update_generic(key, trace, update_request, argdiffs)
 
-    @GenerativeFunction.gfi_boundary
     @typecheck
     def update(
         self,
@@ -501,7 +497,6 @@ class ScanCombinator(GenerativeFunction):
                     ),
                 )
 
-    @GenerativeFunction.gfi_boundary
     @typecheck
     def assess(
         self,

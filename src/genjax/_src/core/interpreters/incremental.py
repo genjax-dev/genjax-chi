@@ -41,14 +41,19 @@ from genjax._src.core.typing import (
     Any,
     Bool,
     Callable,
+    Generic,
     IntArray,
     List,
     Optional,
+    TypeVar,
     Value,
     static_check_is_concrete,
     tuple,
     typecheck,
 )
+
+V = TypeVar("V")
+CT = TypeVar("CT", bound="ChangeTangent")
 
 #######################################
 # Change type lattice and propagation #
@@ -120,18 +125,18 @@ def static_check_is_change_tangent(v):
 
 
 @Pytree.dataclass
-class Diff(Pytree):
-    primal: Any
-    tangent: Any
+class Diff(Generic[V, CT], Pytree):
+    primal: V
+    tangent: CT
 
     def __post_init__(self):
         assert not isinstance(self.primal, Diff)
         static_check_is_change_tangent(self.tangent)
 
-    def get_primal(self):
+    def get_primal(self) -> V:
         return self.primal
 
-    def get_tangent(self):
+    def get_tangent(self) -> CT:
         return self.tangent
 
     def unpack(self):
