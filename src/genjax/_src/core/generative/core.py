@@ -101,7 +101,7 @@ Retval = Any
 """
 
 Argdiffs = Annotated[
-    tuple,
+    A,
     Is[Diff.static_check_tree_diff],
 ]
 """
@@ -515,7 +515,7 @@ class GenerativeFunction(Generic[A, S, R], Pytree):
         key: PRNGKey,
         trace: Trace,
         choice_map: ChoiceMap,
-        argdiffs: Argdiffs,
+        argdiffs: Argdiffs[A],
     ) -> tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
         choice_map_constraint = ChoiceMapConstraint(choice_map)
         # If possible, do an incremental update.
@@ -1700,21 +1700,24 @@ class IncrementalUpdateRequest(UpdateRequest):
     argdiffs: Argdiffs
     constraint: Constraint
 
-    class SupportsIncrementalUpdate(Generic[C, A, S, R], GenerativeFunction[A, S, R]):
+    class SupportsIncrementalUpdate(
+        Generic[C, A, S, R],
+        GenerativeFunction[A, S, R],
+    ):
         @abstractmethod
         def incremental_update(
             self,
             key: PRNGKey,
-            trace: Trace,
+            trace: Trace[GenerativeFunction[A, S, R], A, S, R],
             constraint: C,
-            argdiffs: Argdiffs,
+            argdiffs: Argdiffs[A],
         ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
             raise NotImplementedError
 
     def update(
         self,
         key: PRNGKey,
-        trace: Trace[SupportsIncrementalUpdate, A, S, R],
+        trace: Trace[SupportsIncrementalUpdate[Constraint, A, S, R], A, S, R],
     ) -> tuple[
         Trace[SupportsIncrementalUpdate, A, S, R], Weight, Retdiff, UpdateRequest
     ]:

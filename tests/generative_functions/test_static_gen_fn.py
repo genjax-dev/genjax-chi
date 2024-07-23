@@ -18,6 +18,7 @@ import genjax
 import jax
 import jax.numpy as jnp
 import pytest
+from beartype.roar import BeartypeCallHintParamViolation
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff, Pytree
 from genjax.generative_functions.static import AddressReuse
@@ -546,7 +547,7 @@ class TestStaticGenFnStaticAddressChecks:
             return y1 + y2
 
         key = jax.random.PRNGKey(314159)
-        with pytest.raises(TypeError) as _:
+        with pytest.raises(BeartypeCallHintParamViolation) as _:
             _ = simple_normal_addr_tracer.simulate(key, ())
 
 

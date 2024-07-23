@@ -21,7 +21,6 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
-    Address,
     Arguments,
     Assessable,
     ChoiceMap,
@@ -55,7 +54,7 @@ from genjax._src.core.interpreters.forward import (
     forward,
     initial_style_bind,
 )
-from genjax._src.core.pytree import Closure, Pytree
+from genjax._src.core.pytree import Closure, Const, Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -171,9 +170,9 @@ trace_p = InitialStylePrimitive("trace")
 # stage, any traced values stored in `gen_fn`
 # get lifted to by `get_shaped_aval`.
 def _abstract_gen_fn_call(
-    _: Address,
-    gen_fn: GenerativeFunction,
-    args: tuple,
+    _: tuple[Const[StaticAddress], ...],
+    gen_fn: Simulateable[A, S, R],
+    args: A,
 ):
     return gen_fn.__abstract_call__(*args)
 

@@ -37,6 +37,7 @@ from typing_extensions import dataclass_transform
 from genjax._src.core.typing import (
     Any,
     Callable,
+    Generic,
     List,
     TypeVar,
     static_check_is_array,
@@ -45,6 +46,7 @@ from genjax._src.core.typing import (
     tuple,
 )
 
+V = TypeVar("V")
 _T = TypeVar("_T")
 
 
@@ -418,7 +420,7 @@ class Pytree(pz.Struct):
 
 # Wrapper for static values (can include callables).
 @Pytree.dataclass
-class Const(Pytree):
+class Const(Generic[V], Pytree):
     """
     JAX-compatible way to tag a value as a constant. Valid constants include Python literals, strings, essentially anything **that won't hold JAX arrays** inside of a computation.
 
@@ -449,7 +451,7 @@ class Const(Pytree):
         ```
     """
 
-    const: Any = Pytree.static()
+    const: V = Pytree.static()
 
     def __call__(self, *args):
         return self.const(*args)
