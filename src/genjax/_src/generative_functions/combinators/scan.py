@@ -62,9 +62,11 @@ class ScanTrace(Trace):
         return self.retval
 
     def get_sample(self):
-        return jax.vmap(
-            lambda idx, subtrace: ChoiceMap.idx(idx, subtrace.get_sample()),
-        )(jnp.arange(self.scan_gen_fn.length), self.inner)
+        return ChoiceMapSample(
+            jax.vmap(
+                lambda idx, subtrace: ChoiceMap.idx(idx, subtrace.get_sample()),
+            )(jnp.arange(self.scan_gen_fn.length), self.inner)
+        )
 
     def get_gen_fn(self):
         return self.scan_gen_fn
