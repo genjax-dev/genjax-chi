@@ -510,25 +510,6 @@ class GenerativeFunction(Generic[A, S, R], Pytree):
         data_shape = self.get_trace_shape(*args)
         return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), data_shape)
 
-    def update(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        choice_map: ChoiceMap,
-        argdiffs: Argdiffs[A],
-    ) -> tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
-        choice_map_constraint = ChoiceMapConstraint(choice_map)
-        # If possible, do an incremental update.
-        if isinstance(self, IncrementalUpdateRequest.SupportsIncrementalUpdate):
-            return IncrementalUpdateRequest(argdiffs, choice_map_constraint).update(
-                key, trace
-            )
-
-        # Else, the generative function better support a general (non-incremental) update, do that.
-        assert isinstance(self, GeneralUpdateRequest.SupportsGeneralUpdate)
-        primals = Diff.tree_primal(argdiffs)
-        return GeneralUpdateRequest(primals, choice_map_constraint).update(key, trace)
-
     def regenerate(
         self,
         key: PRNGKey,
@@ -1360,7 +1341,7 @@ class Simulateable(Generic[A, S, R], GenerativeFunction[A, S, R]):
         self,
         key: PRNGKey,
         arguments: A,
-    ) -> Trace[GenerativeFunction[A, S, R], A, S, R]:
+    ) -> Tr:
         """
         Execute the generative function, sampling from its distribution over samples, and return a [`Trace`][genjax.core.Trace].
 
@@ -1655,7 +1636,10 @@ class MaskedUpdateRequest(UpdateRequest):
 
 
 @Pytree.dataclass
-class GeneralUpdateRequest(UpdateRequest):
+class GeneralUpdateRequest(
+    Generic[Tr, Tr_],
+    UpdateRequest[Tr, Tr_],
+):
     arguments: Arguments
     constraint: Constraint
 
@@ -1665,24 +1649,48 @@ class GeneralUpdateRequest(UpdateRequest):
         return eq_constraint.x
 
     class SupportsGeneralUpdate(
-        Generic[C, A, S, R],
+        Generic[C, C_, A, S, R],
         GenerativeFunction[A, S, R],
     ):
         @abstractmethod
         def general_update(
             self,
             key: PRNGKey,
-            trace: Trace,
+            trace: Tr,
             constraint: C,
             arguments: A,
-        ) -> tuple[Trace, Weight, Constraint]:
+        ) -> tuple[Tr_, Weight, C_]:
             raise NotImplementedError
 
+    class UseAsDefaultUpdate(
+        Generic[C, C_, A, S, R],
+        SupportsGeneralUpdate[C, C_, A, S, R],
+        GenerativeFunction[A, S, R],
+    ):
+        Tr__ = TypeVar("Tr__", bound=Trace)
+        Kind = Annotated[Tr__, "GeneralUpdateRequest.SupportsGeneralUpdate"]
+
+        def update(
+            self,
+            key: PRNGKey,
+            trace: Kind[Tr],
+            choice_map: ChoiceMap,
+            argdiffs: Argdiffs[A],
+        ) -> tuple[
+            Kind[Tr_],
+            Weight,
+            Retdiff,
+            "UpdateRequest",
+        ]:
+            choice_map_constraint = ChoiceMapConstraint(choice_map)
+            primals = Diff.tree_primal(argdiffs)
+            return GeneralUpdateRequest(primals, choice_map_constraint).update(
+                key, trace
+            )
+
     def update(
-        self,
-        key: PRNGKey,
-        trace: Trace[SupportsGeneralUpdate, A, S, R],
-    ) -> tuple[Trace[SupportsGeneralUpdate, A, S, R], Weight, Retdiff, UpdateRequest]:
+        self, key: PRNGKey, trace: Tr
+    ) -> tuple[Tr_, Weight, Retdiff, UpdateRequest]:
         gen_fn = trace.get_gen_fn()
         new_trace, weight, discard_constraint = gen_fn.general_update(
             key,

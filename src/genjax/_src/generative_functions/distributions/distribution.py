@@ -141,11 +141,10 @@ SupportedProjections = (
 class Distribution(
     Generic[A, R],
     Simulateable[A, ValueSample[R], R],
-    GeneralUpdateRequest.SupportsGeneralUpdate[
-        SupportedGeneralConstraints,
-        A,
-        ValueSample[R],
-        R,
+    GeneralUpdateRequest[
+        DistributionTrace[A, R], DistributionTrace[A, R]
+    ].UseAsDefaultUpdate[
+        SupportedGeneralConstraints, SupportedGeneralConstraints, A, ValueSample[R], R
     ],
     # IncrementalRequest.SupportsIncrementalUpdate[
     #    SupportedIncrementalConstraints,

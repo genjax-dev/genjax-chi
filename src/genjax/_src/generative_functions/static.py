@@ -558,7 +558,8 @@ class StaticGenerativeFunction(
         ChoiceMapSample,
         R,
     ],
-    GeneralUpdateRequest.SupportsGeneralUpdate[
+    GeneralUpdateRequest[StaticTrace[A, R], StaticTrace[A, R]].UseAsDefaultUpdate[
+        SupportedGeneralConstraints,
         SupportedGeneralConstraints,
         A,
         ChoiceMapSample,
