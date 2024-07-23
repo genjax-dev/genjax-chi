@@ -165,13 +165,15 @@ trace_p = InitialStylePrimitive("trace")
 # Trace call (denotes invocation of a generative function) #
 ############################################################
 
+Tr = TypeVar("Tr", bound=Trace)
+
 
 # We defer the abstract call here so that, when we
 # stage, any traced values stored in `gen_fn`
 # get lifted to by `get_shaped_aval`.
 def _abstract_gen_fn_call(
     _: tuple[Const[StaticAddress], ...],
-    gen_fn: Simulateable[A, S, R],
+    gen_fn: Simulateable[Tr, A, S, R],
     args: A,
 ):
     return gen_fn.__abstract_call__(*args)
@@ -550,7 +552,7 @@ SupportedProjections = SelectionProjection
 @Pytree.dataclass
 class StaticGenerativeFunction(
     Generic[A, R],
-    Simulateable[A, ChoiceMapSample, R],
+    Simulateable[StaticTrace[A, R], A, ChoiceMapSample, R],
     Assessable[A, ChoiceMapSample, R],
     ImportanceRequest.SupportsImportance[
         SupportedImportanceConstraints,
@@ -559,6 +561,8 @@ class StaticGenerativeFunction(
         R,
     ],
     GeneralUpdateRequest[StaticTrace[A, R], StaticTrace[A, R]].UseAsDefaultUpdate[
+        StaticTrace[A, R],
+        StaticTrace[A, R],
         SupportedGeneralConstraints,
         SupportedGeneralConstraints,
         A,

@@ -23,7 +23,7 @@ from genjax.incremental import Diff, NoChange, UnknownChange
 class TestDistributions:
     def test_simulate(self):
         key = jax.random.PRNGKey(314159)
-        tr = genjax.normal(0.0, 1.0).simulate(key, ())
+        tr = genjax.normal.simulate(key, (0.0, 1.0))
         assert tr.get_score() == genjax.normal(0.0, 1.0).assess(tr.get_sample(), ())[0]
 
     def test_importance(self):

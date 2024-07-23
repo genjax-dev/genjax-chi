@@ -140,12 +140,26 @@ SupportedProjections = (
 
 class Distribution(
     Generic[A, R],
-    Simulateable[A, ValueSample[R], R],
+    Simulateable[DistributionTrace[A, R], A, ValueSample[R], R],
+    ImportanceRequest.SupportsImportance[
+        SupportedConstraints,
+        A,
+        ValueSample[R],
+        R,
+    ],
+    ProjectRequest.SupportsProject,
     GeneralUpdateRequest[
         DistributionTrace[A, R], DistributionTrace[A, R]
     ].UseAsDefaultUpdate[
-        SupportedGeneralConstraints, SupportedGeneralConstraints, A, ValueSample[R], R
+        DistributionTrace[A, R],
+        DistributionTrace[A, R],
+        SupportedGeneralConstraints,
+        SupportedGeneralConstraints,
+        A,
+        ValueSample[R],
+        R,
     ],
+    # TODO: fill in logic of incremental updates.
     # IncrementalRequest.SupportsIncrementalUpdate[
     #    SupportedIncrementalConstraints,
     #    ValueSample[R],
@@ -157,13 +171,6 @@ class Distribution(
         R,
         SupportedProjections,
     ],
-    ImportanceRequest.SupportsImportance[
-        SupportedConstraints,
-        A,
-        ValueSample[R],
-        R,
-    ],
-    ProjectRequest.SupportsProject,
     GenerativeFunction[A, ValueSample[R], R],
 ):
     @abstractmethod
@@ -187,7 +194,7 @@ class Distribution(
         self,
         key: PRNGKey,
         arguments: A,
-    ) -> Trace:
+    ) -> DistributionTrace[A, R]:
         (w, v) = self.random_weighted(key, *arguments)
         tr = DistributionTrace(self, arguments, v, w)
         return tr
@@ -278,10 +285,10 @@ class Distribution(
     def general_update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: DistributionTrace[A, R],
         constraint: SupportedGeneralConstraints,
-        arguments: Arguments,
-    ) -> tuple[Trace, Weight, Constraint]:
+        arguments: A,
+    ) -> tuple[DistributionTrace[A, R], Weight, SupportedGeneralConstraints]:
         match constraint:
             case EmptyConstraint():
                 old_score = trace.get_score()

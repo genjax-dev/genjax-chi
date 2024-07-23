@@ -72,6 +72,8 @@ S2 = TypeVar("S2", bound="Sample")
 P = TypeVar("P", bound="Projection")
 Tr = TypeVar("Tr", bound="Trace")
 Tr_ = TypeVar("Tr_", bound="Trace")
+_Tr = TypeVar("_Tr", bound="Trace")
+_Tr_ = TypeVar("_Tr_", bound="Trace")
 
 #####################################
 # Special generative function types #
@@ -1335,7 +1337,7 @@ def push_trace_overload_stack(handler, fn):
 ##############################
 
 
-class Simulateable(Generic[A, S, R], GenerativeFunction[A, S, R]):
+class Simulateable(Generic[Tr, A, S, R], GenerativeFunction[A, S, R]):
     @abstractmethod
     def simulate(
         self,
@@ -1395,7 +1397,7 @@ class Simulateable(Generic[A, S, R], GenerativeFunction[A, S, R]):
         raise NotImplementedError
 
     def __abstract_call__(
-        self: "Simulateable[A, S, R]",
+        self: "Simulateable[Tr, A, S, R]",
         *args,
     ) -> R:
         """Used to support JAX tracing, although this default implementation involves no
@@ -1406,7 +1408,7 @@ class Simulateable(Generic[A, S, R], GenerativeFunction[A, S, R]):
         return self.simulate(jax.random.PRNGKey(0), args).get_retval()
 
     def propose(
-        self: "Simulateable[A, S, R]",
+        self: "Simulateable[Tr, A, S, R]",
         key: PRNGKey,
         args: A,
     ) -> tuple[S, Score, R]:
@@ -1649,38 +1651,39 @@ class GeneralUpdateRequest(
         return eq_constraint.x
 
     class SupportsGeneralUpdate(
-        Generic[C, C_, A, S, R],
+        Generic[_Tr, _Tr_, C, C_, A, S, R],
         GenerativeFunction[A, S, R],
     ):
         @abstractmethod
         def general_update(
             self,
             key: PRNGKey,
-            trace: Tr,
+            trace: _Tr,
             constraint: C,
             arguments: A,
-        ) -> tuple[Tr_, Weight, C_]:
+        ) -> tuple[_Tr_, Weight, C_]:
             raise NotImplementedError
 
     class UseAsDefaultUpdate(
-        Generic[C, C_, A, S, R],
-        SupportsGeneralUpdate[C, C_, A, S, R],
+        Generic[_Tr, _Tr_, C, C_, A, S, R],
+        SupportsGeneralUpdate[_Tr, _Tr_, C, C_, A, S, R],
         GenerativeFunction[A, S, R],
     ):
+        # This is the dumbest shit ever but just go with it.
         Tr__ = TypeVar("Tr__", bound=Trace)
         Kind = Annotated[Tr__, "GeneralUpdateRequest.SupportsGeneralUpdate"]
 
         def update(
             self,
             key: PRNGKey,
-            trace: Kind[Tr],
+            trace: Kind[_Tr],
             choice_map: ChoiceMap,
             argdiffs: Argdiffs[A],
         ) -> tuple[
-            Kind[Tr_],
+            Kind[_Tr_],
             Weight,
             Retdiff,
-            "UpdateRequest",
+            UpdateRequest[_Tr_, _Tr],
         ]:
             choice_map_constraint = ChoiceMapConstraint(choice_map)
             primals = Diff.tree_primal(argdiffs)
@@ -1690,7 +1693,7 @@ class GeneralUpdateRequest(
 
     def update(
         self, key: PRNGKey, trace: Tr
-    ) -> tuple[Tr_, Weight, Retdiff, UpdateRequest]:
+    ) -> tuple[Tr_, Weight, Retdiff, UpdateRequest[Tr_, Tr]]:
         gen_fn = trace.get_gen_fn()
         new_trace, weight, discard_constraint = gen_fn.general_update(
             key,
@@ -2074,8 +2077,8 @@ class SelectionProjection(
 
 @Pytree.dataclass
 class IgnoreKwargs(
-    Generic[A, S, R],
-    Simulateable[A, S, R],
+    Generic[Tr, A, S, R],
+    Simulateable[Tr, A, S, R],
     GenerativeFunction[A, S, R],
 ):
     wrapped: GenerativeFunction[A, S, R]
@@ -2143,7 +2146,7 @@ class GenerativeFunctionClosure(
             return self.gen_fn.simulate(key, full_args).get_retval()
 
     def __abstract_call__(
-        self: "GenerativeFunctionClosure[Simulateable[A, S, R], A, S, R]",
+        self: "GenerativeFunctionClosure[Simulateable[Tr, A, S, R], A, S, R]",
         *args,
     ) -> Any:
         full_args = (*self.args, *args)
@@ -2158,7 +2161,7 @@ class GenerativeFunctionClosure(
     #############################################
 
     def simulate(
-        self: "GenerativeFunctionClosure[Simulateable[A, S, R], A, S, R]",
+        self: "GenerativeFunctionClosure[Simulateable[Tr, A, S, R], A, S, R]",
         key: PRNGKey,
         args: A,
     ) -> Trace:
