@@ -38,6 +38,7 @@ from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
+    Int,
     List,
     Tuple,
     TypeVar,
@@ -494,3 +495,35 @@ class Closure(Pytree):
 
     def __call__(self, *args, **kwargs):
         return self.fn(*self.dyn_args, *args, **kwargs)
+
+
+def nth(x: Pytree, idx: Int):
+    return jtu.tree_map(lambda v: v[idx], x)
+
+
+class Pythonic(Pytree):
+    """
+    A class that adds support for bracket indexing/slicing, sequence-like operations,
+    and concatenation to make working with pytrees more Pythonic.
+    """
+
+    def __getitem__(self, idx):
+        return nth(self, idx)
+
+    def __len__(self):
+        return len(jtu.tree_leaves(self)[0])
+
+    def __iter__(self):
+        return (self[i] for i in range(len(self)))
+
+    def __add__(self, other):
+        if not isinstance(other, type(self)):
+            raise TypeError(f"Cannot add {type(self)} and {type(other)}")
+
+        def concat_leaves(x, y):
+            return jnp.concatenate([x, y])
+
+        return jtu.tree_map(concat_leaves, self, other)
+
+    def prepend(self, child):
+        return jtu.tree_map(lambda x: x[jnp.newaxis], child) + self
