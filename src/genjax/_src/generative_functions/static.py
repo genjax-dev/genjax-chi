@@ -217,7 +217,7 @@ class StaticHandler(Generic[G], StatefulHandler):
         self,
         addr: StaticAddress,
         gen_fn: G,
-        args: tuple,
+        args: Arguments,
     ):
         raise NotImplementedError
 
@@ -249,7 +249,7 @@ class StaticHandler(Generic[G], StatefulHandler):
 
 
 @dataclass
-class SimulateHandler(Generic[G], StaticHandler[G]):
+class SimulateHandler(StaticHandler[Simulateable]):
     key: PRNGKey
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
@@ -268,8 +268,8 @@ class SimulateHandler(Generic[G], StaticHandler[G]):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: G,
-        args: tuple,
+        gen_fn: Simulateable,
+        args: Arguments,
     ):
         self.visit(addr)
         self.key, sub_key = jax.random.split(self.key)
