@@ -437,7 +437,6 @@ class MultinomialResampling(ESSResamplingStrategy):
         default=Pytree.const(1.0)
     )  # a value of 1 will always resample
 
-    # TODO: needs testing
     def run_smc(self, key: PRNGKey):
         collection = self.prev.run_smc(key)
         log_weights = collection.get_log_weights()
@@ -476,7 +475,6 @@ class SystematicResampling(ESSResamplingStrategy):
     # order = jnp.argsort(normalized_log_weights) if self.sort_particles else jnp.arange(len(normalized_log_weights))
     sort_particles: Optional[BoolArray] = Pytree.field(default=Pytree.const(False))
 
-    # TODO: needs testing
     def run_smc(self, key: PRNGKey):
         collection = self.prev.run_smc(key)
         log_weights = collection.get_log_weights()
@@ -519,7 +517,6 @@ class StratifiedResampling(ESSResamplingStrategy):
     )  # a value of 1 will always resample
     sort_particles: Optional[BoolArray] = Pytree.field(default=Pytree.const(False))
 
-    # TODO: needs testing
     def run_smc(self, key: PRNGKey):
         collection = self.prev.run_smc(key)
         log_weights = collection.get_log_weights()
