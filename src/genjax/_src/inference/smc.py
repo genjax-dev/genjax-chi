@@ -46,7 +46,6 @@ from genjax._src.core.typing import (
     Optional,
     PRNGKey,
     tuple,
-    typecheck,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
@@ -61,9 +60,9 @@ from genjax._src.inference.sp import (
     Target,
 )
 
-
 # Utility, for CSMC stacking.
-@typecheck
+
+
 def stack_to_first_dim(arr1: ArrayLike, arr2: ArrayLike):
     # Coerce to array, if literal.
     arr1 = jnp.array(arr1, copy=False)
@@ -169,7 +168,6 @@ class SMCAlgorithm(Algorithm):
     # GenSP #
     #########
 
-    @typecheck
     def random_weighted(
         self,
         key: PRNGKey,
@@ -186,7 +184,6 @@ class SMCAlgorithm(Algorithm):
         chm = target.filter_to_unconstrained(particle.get_sample())
         return log_density_estimate, chm
 
-    @typecheck
     def estimate_logpdf(
         self,
         key: PRNGKey,
@@ -207,7 +204,6 @@ class SMCAlgorithm(Algorithm):
     # VI via GRASP #
     ################
 
-    @typecheck
     def estimate_normalizing_constant(
         self,
         key: PRNGKey,
@@ -218,7 +214,6 @@ class SMCAlgorithm(Algorithm):
         particle_collection = algorithm.run_smc(sub_key)
         return particle_collection.get_log_marginal_likelihood_estimate()
 
-    @typecheck
     def estimate_reciprocal_normalizing_constant(
         self,
         key: PRNGKey,
@@ -467,7 +462,7 @@ class ChangeTarget(SMCAlgorithm):
     # `estimate_reciprocal_normalizing_constant` - by avoiding an extra target
     # reweighting step (which will add extra variance to any derived gradient estimators)
     # It is only available for `ChangeTarget`.
-    @typecheck
+
     def run_csmc_for_normalizing_constant(
         self,
         key: PRNGKey,
@@ -561,7 +556,6 @@ class KernelGenerativeFunction(GenerativeFunction):
         raise NotImplementedError
 
 
-@typecheck
 def kernel_gen_fn(
     source: Callable[
         [Sample, Target],
@@ -588,7 +582,6 @@ class SMCP3Move(SMCMove):
     K: KernelGenerativeFunction
     L: KernelGenerativeFunction
 
-    @typecheck
     def weight_correction(
         self,
         old_latents: Sample,
@@ -603,7 +596,6 @@ class SMCP3Move(SMCMove):
 class DirectOverload(SMCMove):
     impl: Callable[..., Any]
 
-    @typecheck
     def weight_correction(
         self,
         old_latents: Sample,
@@ -616,7 +608,6 @@ class DirectOverload(SMCMove):
 
 @Pytree.dataclass
 class DeferToInternal(SMCMove):
-    @typecheck
     def weight_correction(
         self,
         old_latents: Sample,
@@ -643,13 +634,11 @@ class AttachTrace(Trace):
 
 
 @Pytree.dataclass
-@typecheck
 class AttachCombinator(GenerativeFunction):
     gen_fn: GenerativeFunction
     importance_move: SMCMove = Pytree.static(default=DeferToInternal())
     update_move: SMCMove = Pytree.static(default=DeferToInternal())
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -658,7 +647,6 @@ class AttachCombinator(GenerativeFunction):
         tr = self.gen_fn.simulate(key, args)
         return AttachTrace(self, tr)
 
-    @typecheck
     def importance(
         self,
         key: PRNGKey,
@@ -689,7 +677,6 @@ class AttachCombinator(GenerativeFunction):
             case _:
                 raise Exception("Invalid move type")
 
-    @typecheck
     def update(
         self,
         key: PRNGKey,
@@ -736,7 +723,6 @@ class AttachCombinator(GenerativeFunction):
                 raise Exception("Invalid move type")
 
 
-@typecheck
 def attach(
     importance_move: SMCMove = DeferToInternal(),
     update_move: SMCMove = DeferToInternal(),

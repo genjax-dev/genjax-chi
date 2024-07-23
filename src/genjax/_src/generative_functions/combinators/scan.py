@@ -43,7 +43,6 @@ from genjax._src.core.typing import (
     Optional,
     PRNGKey,
     tuple,
-    typecheck,
 )
 
 
@@ -219,7 +218,6 @@ class ScanCombinator(GenerativeFunction):
 
         return v, scanned_out
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -253,7 +251,6 @@ class ScanCombinator(GenerativeFunction):
 
         return ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores))
 
-    @typecheck
     def update_importance(
         self,
         key: PRNGKey,
@@ -317,7 +314,6 @@ class ScanCombinator(GenerativeFunction):
             case _:
                 raise Exception(f"Not implemented subrequest: {problem}")
 
-    @typecheck
     def update_generic(
         self,
         key: PRNGKey,
@@ -454,7 +450,6 @@ class ScanCombinator(GenerativeFunction):
             IndexProblem(index, bwd_problem),
         )
 
-    @typecheck
     def update_change_target(
         self,
         key: PRNGKey,
@@ -478,7 +473,6 @@ class ScanCombinator(GenerativeFunction):
             case _:
                 return self.update_generic(key, trace, update_request, argdiffs)
 
-    @typecheck
     def update(
         self,
         key: PRNGKey,
@@ -499,7 +493,6 @@ class ScanCombinator(GenerativeFunction):
                     ),
                 )
 
-    @typecheck
     def assess(
         self,
         sample: Sample,
@@ -541,7 +534,6 @@ class ScanCombinator(GenerativeFunction):
 ##############
 
 
-@typecheck
 def scan(
     *, n: Optional[Int] = None, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
@@ -660,7 +652,6 @@ def prepend_initial_acc(args, ret):
     return jax.tree.map(cat, init_acc, xs)
 
 
-@typecheck
 def accumulate(
     *, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
@@ -730,7 +721,6 @@ def accumulate(
     return decorator
 
 
-@typecheck
 def reduce(
     *, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
@@ -797,7 +787,6 @@ def reduce(
     return decorator
 
 
-@typecheck
 def iterate(
     *, n: Int, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
@@ -862,7 +851,6 @@ def iterate(
     return decorator
 
 
-@typecheck
 def iterate_final(
     *, n: Int, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:

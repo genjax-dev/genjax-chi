@@ -49,7 +49,6 @@ from genjax._src.core.typing import (
     Value,
     static_check_is_concrete,
     tuple,
-    typecheck,
 )
 
 V = TypeVar("V")
@@ -307,10 +306,8 @@ class IncrementalInterpreter(Pytree):
         return jtu.tree_unflatten(out_tree(), flat_out)
 
 
-@typecheck
 def incremental(f: Callable[..., Any]):
     @functools.wraps(f)
-    @typecheck
     def wrapped(
         _stateful_handler: Optional[StatefulHandler],
         primals: tuple,

@@ -37,7 +37,6 @@ from genjax._src.core.typing import (
     PRNGKey,
     TypeVar,
     tuple,
-    typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
 
@@ -234,7 +233,6 @@ class Marginal(Generic[A, R], GenerativeFunction[A, ChoiceMapSample, R]):
     selection: Selection = Pytree.field(default=Selection.all())
     algorithm: Optional[Algorithm] = Pytree.field(default=None)
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -258,7 +256,6 @@ class Marginal(Generic[A, R], GenerativeFunction[A, ChoiceMapSample, R]):
 
             return (Z, latent_choices)
 
-    @typecheck
     def estimate_logpdf(
         self,
         key: PRNGKey,
@@ -274,7 +271,6 @@ class Marginal(Generic[A, R], GenerativeFunction[A, ChoiceMapSample, R]):
             return Z
 
 
-@typecheck
 def marginal(
     selection: Optional[Selection] = Selection.all(),
     algorithm: Optional[Algorithm] = None,

@@ -64,7 +64,6 @@ from genjax._src.core.typing import (
     PRNGKey,
     TypeVar,
     tuple,
-    typecheck,
 )
 
 A = TypeVar("A", bound=Arguments)
@@ -185,7 +184,6 @@ class Distribution(
     ) -> Weight:
         pass
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -237,7 +235,6 @@ class Distribution(
                 inner_constraint = constraint.get_value()
                 return self.importance_update(key, inner_constraint, args)
 
-    @typecheck
     def incremental_update(
         self,
         key: PRNGKey,
@@ -279,7 +276,6 @@ class Distribution(
                 else:
                     raise NotImplementedError
 
-    @typecheck
     def general_update(
         self,
         key: PRNGKey,
@@ -320,7 +316,6 @@ class Distribution(
                 else:
                     raise NotImplementedError
 
-    @typecheck
     def general_regenerate(
         self,
         key: PRNGKey,
@@ -350,7 +345,6 @@ class Distribution(
             case SelectionProjection(selection):
                 raise NotImplementedError
 
-    @typecheck
     def project_update(
         self,
         key: PRNGKey,
@@ -370,7 +364,6 @@ class Distribution(
             case MaskedSample(v):
                 raise NotImplementedError
 
-    @typecheck
     def assess(
         self,
         sample: ValueSample,
@@ -438,7 +431,6 @@ class ExactDensity(Distribution):
         else:
             return w
 
-    @typecheck
     def assess(
         self,
         sample: ValueSample
@@ -472,7 +464,6 @@ class ExactDensityFromCallables(ExactDensity):
         return self.logpdf_evaluator(v, *args)
 
 
-@typecheck
 def exact_density(
     sample: Callable[..., Any],
     logpdf: Callable[..., Any],

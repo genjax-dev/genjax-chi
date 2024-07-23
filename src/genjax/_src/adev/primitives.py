@@ -30,7 +30,6 @@ from genjax._src.core.typing import (
     Callable,
     PRNGKey,
     tuple,
-    typecheck,
 )
 
 tfd = tfp.distributions
@@ -76,7 +75,6 @@ class REINFORCE(ADEVPrimitive):
         return Dual(out_primal, out_tangent + (out_primal * lp_tangent))
 
 
-@typecheck
 def reinforce(sample_func, logpdf_func):
     return REINFORCE(sample_func, logpdf_func)
 
@@ -436,7 +434,6 @@ class Baseline(ADEVPrimitive):
         return Dual(primal, tangent)
 
 
-@typecheck
 def baseline(prim):
     return Baseline(prim)
 

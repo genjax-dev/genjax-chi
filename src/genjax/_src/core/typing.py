@@ -97,7 +97,7 @@ Examples:
     from genjax.typing import Int
     from genjax.typing import typecheck_with_config as typecheck
 
-    @typecheck(is_color=False, violation_type=TypeError)
+    (is_color=False, violation_type=TypeError)
     def f(x: Int) -> Int:
         return x + 1.0
 
@@ -110,7 +110,7 @@ Examples:
     This also works for the return values:
 
     ```python exec="yes" source="material-block" session="core"
-    @typecheck(is_color=False, violation_type=TypeError)
+    (is_color=False, violation_type=TypeError)
     def f(x: Int) -> Int:
         return x + 1.0
 
@@ -148,7 +148,6 @@ def static_check_supports_grad(v):
     return static_check_is_array(v) and v.dtype == np.float32
 
 
-@typecheck
 def static_check_shape_dtype_equivalence(vs: List[Array]) -> Bool:
     shape_dtypes = [(v.shape, v.dtype) for v in vs]
     num_unique = set(shape_dtypes)

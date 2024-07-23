@@ -14,7 +14,6 @@
 
 
 from genjax._src.core.generative import GenerativeFunction
-from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.combinators.switch import (
     switch,
 )
@@ -24,7 +23,6 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 from genjax._src.generative_functions.static import gen
 
 
-@typecheck
 def mix(*gen_fns: GenerativeFunction) -> GenerativeFunction:
     """
     Creates a mixture model from a set of generative functions.

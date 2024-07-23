@@ -52,7 +52,6 @@ from genjax._src.core.typing import (
     TypeVar,
     static_check_is_concrete,
     tuple,
-    typecheck,
 )
 
 # Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
@@ -1956,7 +1955,6 @@ class ChoiceMapSample(Sample, ChoiceMap[Sample]):
         return ChoiceMapSample(submap)
 
 
-@typecheck
 @Pytree.dataclass(match_args=True)
 class ChoiceMapConstraint(Constraint, ChoiceMap[Constraint]):
     choice_map: ChoiceMap[Any]
@@ -2074,7 +2072,6 @@ class IgnoreKwargs(
     def handle_kwargs(self) -> "GenerativeFunction":
         raise NotImplementedError
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -2084,7 +2081,6 @@ class IgnoreKwargs(
         assert isinstance(self.wrapped, Simulateable)
         return self.wrapped.simulate(key, args)
 
-    @typecheck
     def update(
         self,
         key: PRNGKey,
@@ -2150,7 +2146,6 @@ class GenerativeFunctionClosure(
     # Support the interface with reduced syntax #
     #############################################
 
-    @typecheck
     def simulate(
         self: "GenerativeFunctionClosure[Simulateable[A, S, R], A, S, R]",
         key: PRNGKey,
@@ -2166,7 +2161,6 @@ class GenerativeFunctionClosure(
         else:
             return self.gen_fn.simulate(key, full_args)
 
-    @typecheck
     def assess(
         self: "GenerativeFunctionClosure[Assessable[A, S, R], A, S, R]",
         sample: Sample,
@@ -2182,7 +2176,6 @@ class GenerativeFunctionClosure(
         else:
             return self.gen_fn.assess(sample, full_args)
 
-    @typecheck
     def update(
         self,
         key: PRNGKey,

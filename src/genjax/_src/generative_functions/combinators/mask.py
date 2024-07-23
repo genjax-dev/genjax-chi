@@ -38,7 +38,6 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     BoolArray,
     PRNGKey,
-    typecheck,
 )
 
 
@@ -109,7 +108,6 @@ class MaskCombinator(GenerativeFunction):
 
     gen_fn: GenerativeFunction
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -119,7 +117,6 @@ class MaskCombinator(GenerativeFunction):
         tr = self.gen_fn.simulate(key, tuple(inner_args))
         return MaskTrace(self, tr, check)
 
-    @typecheck
     def update_change_target(
         self,
         key: PRNGKey,
@@ -156,7 +153,6 @@ class MaskCombinator(GenerativeFunction):
             MaskedUpdateRequest(check, bwd_problem),
         )
 
-    @typecheck
     def update_change_target_from_false(
         self,
         key: PRNGKey,
@@ -197,7 +193,6 @@ class MaskCombinator(GenerativeFunction):
             MaskedUpdateRequest(check, bwd_problem),
         )
 
-    @typecheck
     def update(
         self,
         key: PRNGKey,
@@ -233,7 +228,6 @@ class MaskCombinator(GenerativeFunction):
                     key, trace, update_request, Diff.no_change(trace.get_args())
                 )
 
-    @typecheck
     def assess(
         self,
         sample: Sample,
@@ -252,7 +246,6 @@ class MaskCombinator(GenerativeFunction):
 #############
 
 
-@typecheck
 def mask(f: GenerativeFunction) -> GenerativeFunction:
     """
     Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.

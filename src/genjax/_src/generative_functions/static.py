@@ -65,7 +65,6 @@ from genjax._src.core.typing import (
     PRNGKey,
     TypeVar,
     tuple,
-    typecheck,
 )
 
 A = TypeVar("A", bound=Arguments)
@@ -79,7 +78,6 @@ G = TypeVar("G", bound=GenerativeFunction)
 class AddressVisitor(Pytree):
     visited: List[StaticAddress] = Pytree.static(default_factory=list)
 
-    @typecheck
     def visit(self, addr: StaticAddress):
         if addr in self.visited:
             raise AddressReuse(addr)
@@ -137,7 +135,6 @@ class StaticTrace(
     def get_score(self) -> Score:
         return self.score
 
-    @typecheck
     def get_subtrace(self, addr: StaticAddress):
         addresses = self.addresses.get_visited()
         idx = addresses.index(addr)
@@ -181,7 +178,6 @@ def _abstract_gen_fn_call(
     return gen_fn.__abstract_call__(*args)
 
 
-@typecheck
 def trace(
     addr: StaticAddress,
     gen_fn: GenerativeFunction,
@@ -270,7 +266,6 @@ class SimulateHandler(Generic[G], StaticHandler[G]):
             self.score,
         )
 
-    @typecheck
     def handle_trace(
         self,
         addr: StaticAddress,
@@ -343,7 +338,6 @@ class ImportanceHandler(
     ) -> Constraint:
         return self.choice_map_constraint(addr)
 
-    @typecheck
     def handle_trace(
         self,
         addr: StaticAddress,
@@ -364,7 +358,6 @@ class ImportanceHandler(
 
 def importance_transform(source_fn):
     @functools.wraps(source_fn)
-    @typecheck
     def wrapper(key, constraints, args: tuple):
         stateful_handler = ImportanceHandler(key, constraints)
         retval = forward(source_fn)(stateful_handler, *args)
@@ -437,7 +430,6 @@ class GeneralUpdateHandler(
     ) -> Constraint:
         return self.choice_map_constraint(addr)
 
-    @typecheck
     def handle_trace(
         self,
         addr: StaticAddress,
@@ -461,7 +453,6 @@ class GeneralUpdateHandler(
 
 def general_update_transform(source_fn):
     @functools.wraps(source_fn)
-    @typecheck
     def wrapper(key, previous_trace, constraints, args: tuple):
         stateful_handler = GeneralUpdateHandler(key, previous_trace, constraints)
         retval = forward(source_fn)(stateful_handler, *args)
@@ -505,7 +496,6 @@ class AssessHandler(StaticHandler):
     def yield_state(self):
         return (self.score,)
 
-    @typecheck
     def get_subsample(self, addr: StaticAddress):
         match self.sample:
             case ChoiceMap():
@@ -514,7 +504,6 @@ class AssessHandler(StaticHandler):
             case _:
                 raise ValueError(f"Not implemented: {self.sample}")
 
-    @typecheck
     def handle_trace(
         self,
         addr: StaticAddress,
@@ -544,7 +533,8 @@ def assess_transform(source_fn):
 
 
 # Callee syntactic sugar handler.
-@typecheck
+
+
 def handler_trace_with_static(
     addr: StaticAddressComponent | StaticAddress,
     gen_fn: GenerativeFunction,
@@ -631,7 +621,6 @@ class StaticGenerativeFunction(
 
         return StaticGenerativeFunction(kwarged_source)
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -652,7 +641,6 @@ class StaticGenerativeFunction(
             score,
         )
 
-    @typecheck
     def importance_update(
         self,
         key: PRNGKey,
@@ -698,7 +686,6 @@ class StaticGenerativeFunction(
             bwd_proj,
         )
 
-    @typecheck
     def general_update(
         self,
         key: PRNGKey,
@@ -747,7 +734,6 @@ class StaticGenerativeFunction(
             bwd_discard,
         )
 
-    @typecheck
     def general_regenerate(
         self,
         key: PRNGKey,
@@ -757,7 +743,6 @@ class StaticGenerativeFunction(
     ) -> tuple[Trace, Weight, Sample]:
         raise NotImplementedError
 
-    @typecheck
     def project_update(
         self,
         key: PRNGKey,
@@ -766,7 +751,6 @@ class StaticGenerativeFunction(
     ) -> tuple[Weight, UpdateRequest]:
         raise NotImplementedError
 
-    @typecheck
     def assess(
         self,
         sample: ChoiceMap | ChoiceMapSample,
@@ -790,7 +774,6 @@ class StaticGenerativeFunction(
 #############
 
 
-@typecheck
 def gen(f: Callable[..., Any]) -> StaticGenerativeFunction:
     if isinstance(f, Closure):
         return StaticGenerativeFunction(f)

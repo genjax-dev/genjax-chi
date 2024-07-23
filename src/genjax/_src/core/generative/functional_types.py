@@ -32,7 +32,6 @@ from genjax._src.core.typing import (
     TypeVar,
     static_check_bool,
     static_check_is_concrete,
-    typecheck,
 )
 
 V = TypeVar("V")
@@ -188,7 +187,6 @@ class Sum(Pytree):
     """
 
     @classmethod
-    @typecheck
     def maybe(
         cls,
         idx: Int | IntArray | Diff,
@@ -201,7 +199,6 @@ class Sum(Pytree):
         )
 
     @classmethod
-    @typecheck
     def maybe_none(
         cls,
         idx: Int | IntArray | Diff,
@@ -225,6 +222,5 @@ class Sum(Pytree):
         else:
             return self
 
-    @typecheck
     def __getitem__(self, idx: Int):
         return Mask.maybe_none(idx == self.idx, self.values[idx])

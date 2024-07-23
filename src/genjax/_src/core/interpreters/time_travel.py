@@ -35,7 +35,6 @@ from genjax._src.core.typing import (
     Optional,
     String,
     tuple,
-    typecheck,
 )
 
 record_p = InitialStylePrimitive("record_p")
@@ -71,7 +70,6 @@ class RecordPoint(Pytree):
             FrameRecording(self.callable, args, ret, _cont),
         )
 
-    @typecheck
     def __call__(self, *args):
         def _cont_prim_call(brk_pt, *args):
             return brk_pt.default_call(*args)
@@ -79,7 +77,6 @@ class RecordPoint(Pytree):
         return initial_style_bind(record_p)(_cont_prim_call)(self, *args)
 
 
-@typecheck
 def rec(
     callable: Callable[..., Any],
     debug_tag: Optional[String] = None,
@@ -268,7 +265,6 @@ class TimeTravelingDebugger(Pytree):
         return self.remix(*args)
 
 
-@typecheck
 def _record(source: Callable[..., Any]):
     def inner(*args) -> tuple[Any, TimeTravelingDebugger]:
         retval, next = time_travel(source)(*args)
@@ -286,7 +282,6 @@ def _record(source: Callable[..., Any]):
     return inner
 
 
-@typecheck
 def time_machine(source: Callable[..., Any]):
     def instrumented(*args):
         return tag(rec(source, "_enter")(*args), "exit")
