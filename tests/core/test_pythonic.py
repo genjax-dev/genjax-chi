@@ -6,14 +6,13 @@ from genjax.typing import FloatArray
 
 class TestPythonic:
     def test_pythonic(self):
-
         @pz.pytree_dataclass
         class Foo(genjax.Pythonic):
             x: FloatArray
             y: FloatArray
 
-        x = jnp.array([1.0,2.0,3.0,4.0,5.0])
-        y = jnp.array([10.0,20.0,30.0,40.0,50.0])
+        x = jnp.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        y = jnp.array([10.0, 20.0, 30.0, 40.0, 50.0])
 
         f = Foo(x, y)
 
