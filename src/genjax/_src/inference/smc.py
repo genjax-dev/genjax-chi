@@ -370,7 +370,7 @@ class ImportanceK(SMCAlgorithm):
 # the `priority_fn` nor the `check` to throw an error for invalid normalized
 # weights (all NaNs or zeros).
 # Also doesn't use the marginal loglikelihood estimate for stability of the weights of long SMC chains which can underflow.
-class ESSResamplingStrategy(ResamplingStrategy):
+class ESSResamplingStrategy(SMCAlgorithm):
     """Abstract class for Resampling strategies that also resample based on the Effective Sample Size (ESS) of the particles.
     Args:
         - `prev`: The previous SMCAlgorithm.
@@ -383,7 +383,9 @@ class ESSResamplingStrategy(ResamplingStrategy):
 
     prev: SMCAlgorithm
     how_many: Int
-    ess_threshold: FloatArray  # a value of 1 will always resample
+    ess_threshold: Optional[FloatArray] = Pytree.field(
+        default=Pytree.const(1.0)
+    )  # a value of 1 will always resample
 
     def get_num_particles(self):
         return self.how_many
@@ -424,37 +426,59 @@ def update_weights(log_weights, log_priorities):
     return log_ws - logsumexp(log_ws) + jnp.log(n)
 
 
-class MultinomialResampling(ResamplingStrategy):
+@Pytree.dataclass
+class MultinomialResampling(ESSResamplingStrategy):
     """Performs multinomial resampling (i.e. simple random resampling) of the particles in the filter. Each trace (i.e. particle) is resampled with probability proportional to its weight."""
+
+    # TODO: how the heck do I make these inherited from the abstract parent class ESSResamplingStrategy?
+    prev: SMCAlgorithm
+    how_many: Int
+    ess_threshold: Optional[FloatArray] = Pytree.field(
+        default=Pytree.const(1.0)
+    )  # a value of 1 will always resample
 
     # TODO: needs testing
     def run_smc(self, key: PRNGKey):
+        collection = self.prev.run_smc(key)
         log_weights = collection.get_log_weights()
         ess = compute_log_ess(log_weights)
         if ess < jnp.log(self.ess_threshold):
             keys = jrandom.split(key, self.how_many)
             idxs = jrandom.categorical(keys, log_weights)
-            collection = self.prev.run_smc(key)
             new_particles = jtu.tree_map(lambda v: v[idxs], collection.get_particles())
             new_weights = jnp.zeros(self.how_many)
             return ParticleCollection(new_particles, new_weights, jnp.array(True))
         return collection
 
+    def run_csmc(
+        self,
+        key: PRNGKey,
+        retained: Sample,
+    ) -> ParticleCollection:
+        raise NotImplementedError
 
-class SystematicResampling(ResamplingStrategy):
+
+@Pytree.dataclass
+class SystematicResampling(ESSResamplingStrategy):
     """Perform systematic resampling of the particles in the filter, which reduces variance relative to multinomial sampling. Look at the cumulative sum of the normalized weights, and then pick the particles that are closest to the strata. This is a deterministic resampling scheme that is more efficient than multinomial resampling.
 
     Extra arg:
     - `sort_particles = jnp.array(False)`: Set to `True` to sort particles by weight before stratification.
     """
 
+    prev: SMCAlgorithm
+    how_many: Int
+    ess_threshold: Optional[FloatArray] = Pytree.field(
+        default=Pytree.const(1.0)
+    )  # a value of 1 will always resample
     # TODO: need to add sorting logic
     # Optionally sort particles by weight before resampling
     # order = jnp.argsort(normalized_log_weights) if self.sort_particles else jnp.arange(len(normalized_log_weights))
-    sort_particles = jnp.array(False)
+    sort_particles: Optional[BoolArray] = Pytree.field(default=Pytree.const(False))
 
     # TODO: needs testing
     def run_smc(self, key: PRNGKey):
+        collection = self.prev.run_smc(key)
         log_weights = collection.get_log_weights()
         ess = compute_log_ess(log_weights)
         if ess < jnp.log(self.ess_threshold):
@@ -464,7 +488,6 @@ class SystematicResampling(ResamplingStrategy):
             c = jnp.cumsum(normalized_log_weights)
             u = (jnp.arange(self.how_many) + u0) / self.how_many
             idxs = jnp.searchsorted(c, u, side="right")
-            collection = self.prev.run_smc(key)
             # TODO: is that efficient?
             new_particles = jtu.tree_map(lambda v: v[idxs], collection.get_particles())
             # TODO: should that be 1 or average of the weights or 1/N?
@@ -472,8 +495,16 @@ class SystematicResampling(ResamplingStrategy):
             return ParticleCollection(new_particles, new_weights, jnp.array(True))
         return collection
 
+    def run_csmc(
+        self,
+        key: PRNGKey,
+        retained: Sample,
+    ) -> ParticleCollection:
+        raise NotImplementedError
 
-class StratifiedResampling(ResamplingStrategy):
+
+@Pytree.dataclass
+class StratifiedResampling(ESSResamplingStrategy):
     """Performs stratified resampling of the particles in the filter, which reduces variance relative to multinomial sampling.
     First, uniform random samples ``u_1, ..., u_n`` are drawn within the strata ``[0, 1/n)``, ..., ``[n-1/n, 1)``, where ``n`` is the number of particles. Then, given the cumulative normalized weights ``W_k = Σ_{j=1}^{k} w_j ``, sample the ``k``th particle for each ``u_i`` where ``W_{k-1} ≤ u_i < W_k``.
 
@@ -481,10 +512,16 @@ class StratifiedResampling(ResamplingStrategy):
      - sort_particles = jnp.array(False). Set to `True` to sort particles by weight before stratification.
     """
 
-    sort_particles = jnp.array(False)
+    prev: SMCAlgorithm
+    how_many: Int
+    ess_threshold: Optional[FloatArray] = Pytree.field(
+        default=Pytree.const(1.0)
+    )  # a value of 1 will always resample
+    sort_particles: Optional[BoolArray] = Pytree.field(default=Pytree.const(False))
 
     # TODO: needs testing
     def run_smc(self, key: PRNGKey):
+        collection = self.prev.run_smc(key)
         log_weights = collection.get_log_weights()
         ess = compute_log_ess(log_weights)
         if ess < jnp.log(self.ess_threshold):
@@ -495,17 +532,31 @@ class StratifiedResampling(ResamplingStrategy):
             c = jnp.cumsum(normalized_log_weights)
             u = (jnp.arange(self.how_many) + us) / self.how_many
             idxs = jnp.searchsorted(c, u, side="right")
-            collection = self.prev.run_smc(key)
             new_particles = jtu.tree_map(lambda v: v[idxs], collection.get_particles())
             new_weights = jnp.zeros(self.how_many)
             return ParticleCollection(new_particles, new_weights, jnp.array(True))
         return collection
 
+    def run_csmc(
+        self,
+        key: PRNGKey,
+        retained: Sample,
+    ) -> ParticleCollection:
+        raise NotImplementedError
 
-class ResidualResampling(ResamplingStrategy):
+
+@Pytree.dataclass
+class ResidualResampling(ESSResamplingStrategy):
     """Performs residual resampling of the particles in the filter, which reduces variance relative to multinomial sampling. For each particle with normalized weight ``w_i``, ``⌊n w_i⌋`` copies are resampled, where ``n`` is the total number of particles. The remainder are sampled with probability proportional to ``n w_i - ⌊n w_i⌋`` for each particle ``i``."""
 
+    prev: SMCAlgorithm
+    how_many: Int
+    ess_threshold: Optional[FloatArray] = Pytree.field(
+        default=Pytree.const(1.0)
+    )  # a value of 1 will always resample
+
     def run_smc(self, key: PRNGKey):
+        collection = self.prev.run_smc(key)
         log_weights = collection.get_log_weights()
         ess = compute_log_ess(log_weights)
         if ess < jnp.log(self.ess_threshold):
@@ -527,11 +578,17 @@ class ResidualResampling(ResamplingStrategy):
             keys = jrandom.split(key, n_resampled)
             idx2 = jrandom.categorical(keys, resample_weights)
             idxs = jnp.concatenate([idx1, idx2])
-            collection = self.prev.run_smc(key)
             new_particles = jtu.tree_map(lambda v: v[idxs], collection.get_particles())
             new_weights = jnp.zeros(self.how_many)
             return ParticleCollection(new_particles, new_weights, jnp.array(True))
         return collection
+
+    def run_csmc(
+        self,
+        key: PRNGKey,
+        retained: Sample,
+    ) -> ParticleCollection:
+        raise NotImplementedError
 
 
 #################
