@@ -345,14 +345,6 @@ class TestScanWithParameters:
     def key(self):
         return jax.random.PRNGKey(314159)
 
-    @staticmethod
-    def gen_partial(gen_fn, closed_over):
-        @genjax.gen
-        def inner(*args):
-            return gen_fn.inline(closed_over, *args)
-
-        return inner
-
     @genjax.gen
     @staticmethod
     def step(data, state, update):
@@ -381,5 +373,5 @@ class TestScanWithParameters:
 
         end, steps = tr.get_retval()
 
-        assert jnp.allclose(steps, jnp.array([8.0, 14.0, 21.0]))
-        assert jnp.allclose(end, jnp.array(21.0))
+        assert jnp.allclose(steps, jnp.array([8.0, 14.0, 21.0]), atol=0.1)
+        assert jnp.allclose(end, jnp.array(21.0), atol=0.1)

@@ -7,7 +7,7 @@ from genjax.typing import FloatArray
 class TestPythonic:
     def test_pythonic(self):
         @pz.pytree_dataclass
-        class Foo(genjax.Pythonic):
+        class Foo(genjax.PythonicPytree):
             x: FloatArray
             y: FloatArray
 
