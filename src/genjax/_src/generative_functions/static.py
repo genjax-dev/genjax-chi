@@ -616,6 +616,32 @@ class StaticGenerativeFunction(GenerativeFunction):
     def inline(self, *args):
         return self.source(*args)
 
+    def curry(self, *args) -> "StaticGenerativeFunction":
+        """
+        Returns a new [`StaticGenerativeFunction`][] with the given arguments partially applied.
+
+        This method creates a new [`StaticGenerativeFunction`][] that has some of its arguments pre-filled. When called, the new function will use the pre-filled arguments along with any additional arguments provided.
+
+        Args:
+            *args: Variable length argument list to be partially applied to the function.
+
+        Returns:
+            A new [`StaticGenerativeFunction`][] with partially applied arguments.
+
+        Example:
+            ```python
+            @gen
+            def my_model(x, y):
+                z = normal(x, 1.0) @ "z"
+                return y * z
+
+
+            curried_model = my_model.curry(2.0)
+            # Now `curried_model` is equivalent to a model that only takes 'y' as an argument
+            ```
+        """
+        return gen(Pytree.partial(*args)(self.inline))
+
 
 #############
 # Decorator #
