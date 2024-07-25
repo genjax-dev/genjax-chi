@@ -561,8 +561,6 @@ class StaticGenerativeFunction(
         R,
     ],
     GeneralUpdateRequest[StaticTrace[A, R], StaticTrace[A, R]].UseAsDefaultUpdate[
-        StaticTrace[A, R],
-        StaticTrace[A, R],
         SupportedGeneralConstraints,
         SupportedGeneralConstraints,
         A,
@@ -573,8 +571,6 @@ class StaticGenerativeFunction(
         StaticTrace[A, R],
         StaticTrace[A, R],
     ].SupportsGeneralRegenerate[
-        StaticTrace[A, R],
-        StaticTrace[A, R],
         A,
         ChoiceMapSample,
         R,

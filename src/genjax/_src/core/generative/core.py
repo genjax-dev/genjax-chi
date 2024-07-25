@@ -72,8 +72,6 @@ S2 = TypeVar("S2", bound="Sample")
 P = TypeVar("P", bound="Projection")
 Tr = TypeVar("Tr", bound="Trace")
 Tr_ = TypeVar("Tr_", bound="Trace")
-_Tr = TypeVar("_Tr", bound="Trace")
-_Tr_ = TypeVar("_Tr_", bound="Trace")
 
 #####################################
 # Special generative function types #
@@ -1651,22 +1649,22 @@ class GeneralUpdateRequest(
         return eq_constraint.x
 
     class SupportsGeneralUpdate(
-        Generic[_Tr, _Tr_, C, C_, A, S, R],
+        Generic[C, C_, A, S, R],
         GenerativeFunction[A, S, R],
     ):
         @abstractmethod
         def general_update(
             self,
             key: PRNGKey,
-            trace: _Tr,
+            trace: Tr,
             constraint: C,
             arguments: A,
-        ) -> tuple[_Tr_, Weight, C_]:
+        ) -> tuple[Tr_, Weight, C_]:
             raise NotImplementedError
 
     class UseAsDefaultUpdate(
-        Generic[_Tr, _Tr_, C, C_, A, S, R],
-        SupportsGeneralUpdate[_Tr, _Tr_, C, C_, A, S, R],
+        Generic[C, C_, A, S, R],
+        SupportsGeneralUpdate[C, C_, A, S, R],
         GenerativeFunction[A, S, R],
     ):
         # This is the dumbest shit ever but just go with it.
@@ -1676,14 +1674,14 @@ class GeneralUpdateRequest(
         def update(
             self,
             key: PRNGKey,
-            trace: Kind[_Tr],
+            trace: Kind[Tr],
             choice_map: ChoiceMap,
             argdiffs: Argdiffs[A],
         ) -> tuple[
-            Kind[_Tr_],
+            Kind[Tr_],
             Weight,
             Retdiff,
-            UpdateRequest[_Tr_, _Tr],
+            UpdateRequest[Tr_, Tr],
         ]:
             choice_map_constraint = ChoiceMapConstraint(choice_map)
             primals = Diff.tree_primal(argdiffs)
@@ -1721,17 +1719,17 @@ class GeneralRegenerateRequest(
     projection: Projection
 
     class SupportsGeneralRegenerate(
-        Generic[_Tr, _Tr_, A, S, R, P],
+        Generic[A, S, R, P],
         GenerativeFunction[A, S, R],
     ):
         @abstractmethod
         def general_regenerate(
             self,
             key: PRNGKey,
-            trace: _Tr,
+            trace: Tr,
             projection: P,
             arguments: A,
-        ) -> tuple[_Tr_, Weight, Sample]:
+        ) -> tuple[Tr_, Weight, Sample]:
             raise NotImplementedError
 
     def update(

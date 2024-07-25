@@ -151,8 +151,6 @@ class Distribution(
     GeneralUpdateRequest[
         DistributionTrace[A, R], DistributionTrace[A, R]
     ].UseAsDefaultUpdate[
-        DistributionTrace[A, R],
-        DistributionTrace[A, R],
         SupportedGeneralConstraints,
         SupportedGeneralConstraints,
         A,
@@ -169,8 +167,6 @@ class Distribution(
         DistributionTrace[A, R],
         DistributionTrace[A, R],
     ].SupportsGeneralRegenerate[
-        DistributionTrace[A, R],
-        DistributionTrace[A, R],
         A,
         ValueSample[R],
         R,
