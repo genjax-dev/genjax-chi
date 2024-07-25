@@ -1691,9 +1691,15 @@ class GeneralUpdateRequest(
                 key, trace
             )
 
+    # This is the dumbest shit ever but just go with it.
+    Tr__ = TypeVar("Tr__", bound=Trace)
+    Kind = Annotated[Tr__, "GeneralUpdateRequest.SupportsGeneralUpdate"]
+
     def update(
-        self, key: PRNGKey, trace: Tr
-    ) -> tuple[Tr_, Weight, Retdiff, UpdateRequest[Tr_, Tr]]:
+        self,
+        key: PRNGKey,
+        trace: Kind[Tr],
+    ) -> tuple[Kind[Tr_], Weight, Retdiff, UpdateRequest[Tr_, Tr]]:
         gen_fn = trace.get_gen_fn()
         new_trace, weight, discard_constraint = gen_fn.general_update(
             key,
@@ -1704,6 +1710,45 @@ class GeneralUpdateRequest(
         retdiff = Diff.unknown_change(new_trace.get_retval())
         bwd_move = GeneralUpdateRequest(trace.get_args(), discard_constraint)
         return new_trace, weight, retdiff, bwd_move
+
+
+@Pytree.dataclass
+class GeneralRegenerateRequest(
+    Generic[Tr, Tr_],
+    UpdateRequest[Tr, Tr_],
+):
+    arguments: Arguments
+    projection: Projection
+
+    class SupportsGeneralRegenerate(
+        Generic[_Tr, _Tr_, A, S, R, P],
+        GenerativeFunction[A, S, R],
+    ):
+        @abstractmethod
+        def general_regenerate(
+            self,
+            key: PRNGKey,
+            trace: _Tr,
+            projection: P,
+            arguments: A,
+        ) -> tuple[_Tr_, Weight, Sample]:
+            raise NotImplementedError
+
+    def update(
+        self,
+        key: PRNGKey,
+        trace: Tr,
+    ) -> tuple[Tr_, Weight, Retdiff, UpdateRequest]:
+        gen_fn = trace.get_gen_fn()
+        new_trace, weight, discard = gen_fn.general_regenerate(
+            key,
+            trace,
+            self.projection,
+            self.arguments,
+        )
+        bwd_move = GeneralUpdateRequest(trace.get_args(), discard.to_constraint())
+        retval = new_trace.get_retval()
+        return new_trace, weight, Diff.unknown_change(retval), bwd_move
 
 
 @Pytree.dataclass
@@ -1739,44 +1784,6 @@ class IncrementalUpdateRequest(UpdateRequest):
             self.constraint,
             self.argdiffs,
         )
-
-
-@Pytree.dataclass
-class GeneralRegenerateRequest(UpdateRequest):
-    arguments: Arguments
-    projection: Projection
-
-    class SupportsGeneralRegenerate(
-        Generic[A, S, R, P],
-        GenerativeFunction[A, S, R],
-    ):
-        @abstractmethod
-        def general_regenerate(
-            self,
-            key: PRNGKey,
-            trace: Trace,
-            projection: P,
-            arguments: A,
-        ) -> tuple[Trace, Weight, Sample]:
-            raise NotImplementedError
-
-    def update(
-        self,
-        key: PRNGKey,
-        trace: Trace[SupportsGeneralRegenerate, A, S, R],
-    ) -> tuple[
-        Trace[SupportsGeneralRegenerate, A, S, R], Weight, Retdiff, UpdateRequest
-    ]:
-        gen_fn = trace.get_gen_fn()
-        new_trace, weight, discard = gen_fn.general_regenerate(
-            key,
-            trace,
-            self.projection,
-            self.arguments,
-        )
-        bwd_move = GeneralUpdateRequest(trace.get_args(), discard.to_constraint())
-        retval = new_trace.get_retval()
-        return new_trace, weight, Diff.unknown_change(retval), bwd_move
 
 
 @Pytree.dataclass

@@ -569,7 +569,12 @@ class StaticGenerativeFunction(
         ChoiceMapSample,
         R,
     ],
-    GeneralRegenerateRequest.SupportsGeneralRegenerate[
+    GeneralRegenerateRequest[
+        StaticTrace[A, R],
+        StaticTrace[A, R],
+    ].SupportsGeneralRegenerate[
+        StaticTrace[A, R],
+        StaticTrace[A, R],
         A,
         ChoiceMapSample,
         R,
@@ -628,14 +633,14 @@ class StaticGenerativeFunction(
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
-    ) -> StaticTrace:
+        arguments: A,
+    ) -> StaticTrace[A, R]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
         (args, retval, address_visitor, address_traces, score) = simulate_transform(
             syntax_sugar_handled
-        )(key, args)
+        )(key, arguments)
         return StaticTrace(
             self,
             args,

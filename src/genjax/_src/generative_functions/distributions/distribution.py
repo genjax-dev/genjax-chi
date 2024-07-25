@@ -165,7 +165,12 @@ class Distribution(
     #    ValueSample[R],
     #    R,
     # ],
-    GeneralRegenerateRequest.SupportsGeneralRegenerate[
+    GeneralRegenerateRequest[
+        DistributionTrace[A, R],
+        DistributionTrace[A, R],
+    ].SupportsGeneralRegenerate[
+        DistributionTrace[A, R],
+        DistributionTrace[A, R],
         A,
         ValueSample[R],
         R,
