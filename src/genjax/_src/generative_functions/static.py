@@ -30,6 +30,7 @@ from genjax._src.core.generative import (
     ChoiceMapProjection,
     ChoiceMapSample,
     Constraint,
+    EmptyTrace,
     GeneralRegenerateRequest,
     GeneralUpdateRequest,
     GenerativeFunction,
@@ -490,6 +491,7 @@ def general_update_transform(source_fn):
 
 @dataclass
 class AssessHandler(StaticHandler):
+    key: PRNGKey
     sample: Sample
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
@@ -508,19 +510,20 @@ class AssessHandler(StaticHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction,
+        gen_fn: Assessable,
         args: tuple,
     ):
         submap = self.get_subsample(addr)
-        (score, v) = gen_fn.assess(submap, args)
+        self.key, sub_key = jax.random.split(self.key)
+        (score, v) = gen_fn.assess(sub_key, submap, args)
         self.score += score
         return v
 
 
 def assess_transform(source_fn):
     @functools.wraps(source_fn)
-    def wrapper(constraints, args):
-        stateful_handler = AssessHandler(constraints)
+    def wrapper(key, constraints, args):
+        stateful_handler = AssessHandler(key, constraints)
         retval = forward(source_fn)(stateful_handler, *args)
         (score,) = stateful_handler.yield_state()
         return (retval, score)
@@ -534,8 +537,6 @@ def assess_transform(source_fn):
 
 
 # Callee syntactic sugar handler.
-
-
 def handler_trace_with_static(
     addr: StaticAddressComponent | StaticAddress,
     gen_fn: GenerativeFunction,
@@ -554,13 +555,18 @@ class StaticGenerativeFunction(
     Generic[A, R],
     Simulateable[StaticTrace[A, R], A, ChoiceMapSample, R],
     Assessable[A, ChoiceMapSample, R],
-    ImportanceRequest.SupportsImportance[
+    ImportanceRequest[
+        EmptyTrace["StaticGenerativeFunction"], StaticTrace[A, R]
+    ].SupportsImportance[
+        StaticTrace[A, R],
         SupportedImportanceConstraints,
         A,
         ChoiceMapSample,
         R,
     ],
     GeneralUpdateRequest[StaticTrace[A, R], StaticTrace[A, R]].UseAsDefaultUpdate[
+        StaticTrace[A, R],
+        StaticTrace[A, R],
         SupportedGeneralConstraints,
         SupportedGeneralConstraints,
         A,
@@ -571,6 +577,8 @@ class StaticGenerativeFunction(
         StaticTrace[A, R],
         StaticTrace[A, R],
     ].SupportsGeneralRegenerate[
+        StaticTrace[A, R],
+        StaticTrace[A, R],
         A,
         ChoiceMapSample,
         R,
@@ -650,8 +658,8 @@ class StaticGenerativeFunction(
         self,
         key: PRNGKey,
         constraint: SupportedImportanceConstraints,
-        args: Arguments,
-    ) -> tuple[Trace, Weight, Projection]:
+        args: A,
+    ) -> tuple[StaticTrace[A, R], Weight, Projection]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -659,7 +667,7 @@ class StaticGenerativeFunction(
             (
                 weight,
                 (
-                    arguments,
+                    _,
                     retval,
                     address_visitor,
                     address_traces,
@@ -681,7 +689,7 @@ class StaticGenerativeFunction(
         return (
             StaticTrace(
                 self,
-                arguments,
+                args,
                 retval,
                 address_visitor,
                 address_traces,
@@ -694,10 +702,10 @@ class StaticGenerativeFunction(
     def general_update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: StaticTrace[A, R],
         constraint: SupportedGeneralConstraints,
-        arguments: Arguments,
-    ) -> tuple[Trace, Weight, Constraint]:
+        arguments: A,
+    ) -> tuple[StaticTrace[A, R], Weight, SupportedGeneralConstraints]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -705,7 +713,7 @@ class StaticGenerativeFunction(
             (
                 weight,
                 (
-                    arguments,
+                    _,
                     retval,
                     address_visitor,
                     address_traces,
@@ -758,6 +766,7 @@ class StaticGenerativeFunction(
 
     def assess(
         self,
+        key: PRNGKey,
         sample: ChoiceMap | ChoiceMapSample,
         args: tuple,
     ) -> tuple[Score, Retval]:
@@ -767,7 +776,7 @@ class StaticGenerativeFunction(
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (retval, score) = assess_transform(syntax_sugar_handled)(sample, args)
+        (retval, score) = assess_transform(syntax_sugar_handled)(key, sample, args)
         return (score, retval)
 
     def inline(self, *args):

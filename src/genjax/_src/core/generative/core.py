@@ -72,6 +72,8 @@ S2 = TypeVar("S2", bound="Sample")
 P = TypeVar("P", bound="Projection")
 Tr = TypeVar("Tr", bound="Trace")
 Tr_ = TypeVar("Tr_", bound="Trace")
+_Tr = TypeVar("_Tr", bound="Trace")
+_Tr_ = TypeVar("_Tr_", bound="Trace")
 
 #####################################
 # Special generative function types #
@@ -530,17 +532,6 @@ class GenerativeFunction(Generic[A, S, R], Pytree):
         return GeneralRegenerateRequest(primals, selection_projection).update(
             key, trace
         )
-
-    def importance(
-        self,
-        key: PRNGKey,
-        choice_map: ChoiceMap,
-        args: A,
-    ) -> tuple[Trace, Weight]:
-        choice_map_constraint = ChoiceMapConstraint(choice_map)
-        assert isinstance(self, ImportanceRequest.SupportsImportance)
-        tr, w, _ = self.importance_update(key, choice_map_constraint, args)
-        return tr, w
 
     # NOTE: Supports pretty printing in penzai.
     def treescope_color(self):
@@ -1596,10 +1587,10 @@ class UpdateRequest(Generic[Tr, Tr_], Pytree):
 
 
 @Pytree.dataclass
-class EmptyUpdateRequest(UpdateRequest):
+class EmptyUpdateRequest(Generic[Tr], UpdateRequest[Tr, Tr]):
     def update(
-        self, key: PRNGKey, trace: Trace
-    ) -> tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
+        self, key: PRNGKey, trace: Tr
+    ) -> tuple[Tr, Weight, Retdiff, "UpdateRequest"]:
         return (
             trace,
             jnp.array(0.0),
@@ -1649,22 +1640,22 @@ class GeneralUpdateRequest(
         return eq_constraint.x
 
     class SupportsGeneralUpdate(
-        Generic[C, C_, A, S, R],
+        Generic[_Tr, _Tr_, C, C_, A, S, R],
         GenerativeFunction[A, S, R],
     ):
         @abstractmethod
         def general_update(
             self,
             key: PRNGKey,
-            trace: Tr,
+            trace: _Tr,
             constraint: C,
             arguments: A,
-        ) -> tuple[Tr_, Weight, C_]:
+        ) -> tuple[_Tr_, Weight, C_]:
             raise NotImplementedError
 
     class UseAsDefaultUpdate(
-        Generic[C, C_, A, S, R],
-        SupportsGeneralUpdate[C, C_, A, S, R],
+        Generic[_Tr, _Tr_, C, C_, A, S, R],
+        SupportsGeneralUpdate[_Tr, _Tr_, C, C_, A, S, R],
         GenerativeFunction[A, S, R],
     ):
         # This is the dumbest shit ever but just go with it.
@@ -1674,14 +1665,14 @@ class GeneralUpdateRequest(
         def update(
             self,
             key: PRNGKey,
-            trace: Kind[Tr],
+            trace: Kind[_Tr],
             choice_map: ChoiceMap,
             argdiffs: Argdiffs[A],
         ) -> tuple[
-            Kind[Tr_],
+            Kind[_Tr_],
             Weight,
             Retdiff,
-            UpdateRequest[Tr_, Tr],
+            UpdateRequest[_Tr, _Tr_],
         ]:
             choice_map_constraint = ChoiceMapConstraint(choice_map)
             primals = Diff.tree_primal(argdiffs)
@@ -1689,7 +1680,6 @@ class GeneralUpdateRequest(
                 key, trace
             )
 
-    # This is the dumbest shit ever but just go with it.
     Tr__ = TypeVar("Tr__", bound=Trace)
     Kind = Annotated[Tr__, "GeneralUpdateRequest.SupportsGeneralUpdate"]
 
@@ -1719,24 +1709,27 @@ class GeneralRegenerateRequest(
     projection: Projection
 
     class SupportsGeneralRegenerate(
-        Generic[A, S, R, P],
+        Generic[_Tr, _Tr_, A, S, R, P],
         GenerativeFunction[A, S, R],
     ):
         @abstractmethod
         def general_regenerate(
             self,
             key: PRNGKey,
-            trace: Tr,
+            trace: _Tr,
             projection: P,
             arguments: A,
-        ) -> tuple[Tr_, Weight, Sample]:
+        ) -> tuple[_Tr_, Weight, S]:
             raise NotImplementedError
+
+    Tr__ = TypeVar("Tr__", bound=Trace)
+    Kind = Annotated[Tr__, "GeneralRegenerateRequest.SupportsGeneralRegenerate"]
 
     def update(
         self,
         key: PRNGKey,
-        trace: Tr,
-    ) -> tuple[Tr_, Weight, Retdiff, UpdateRequest]:
+        trace: Kind[Tr],
+    ) -> tuple[Kind[Tr_], Weight, Retdiff, UpdateRequest]:
         gen_fn = trace.get_gen_fn()
         new_trace, weight, discard = gen_fn.general_regenerate(
             key,
@@ -1824,20 +1817,20 @@ class IncrementalRegenerateRequest(UpdateRequest):
 
 @Pytree.dataclass
 class ImportanceRequest(
-    Generic[A, C],
-    UpdateRequest[EmptyTrace, Trace],
+    Generic[Tr, Tr_],
+    UpdateRequest[Tr, Tr_],
 ):
-    args: A
-    constraint: C
+    args: Arguments
+    constraint: Constraint
 
-    class SupportsImportance(Generic[C_, A_, S, R], GenerativeFunction[A_, S, R]):
+    class SupportsImportance(Generic[_Tr_, C, A, S, R], GenerativeFunction[A, S, R]):
         @abstractmethod
         def importance_update(
             self,
             key: PRNGKey,
-            constraint: C_,
-            args: A_,
-        ) -> tuple[Trace[GenerativeFunction[A_, S, R], A_, S, R], Weight, Projection]:
+            constraint: C,
+            args: A,
+        ) -> tuple[_Tr_, Weight, Projection]:
             """
             Returns a properly weighted pair, a [`Trace`][genjax.core.Trace] and a [`Weight`][genjax.core.Weight], properly weighted for the target induced by the generative function for the provided constraint and arguments.
 
@@ -1875,13 +1868,22 @@ class ImportanceRequest(
             """
             raise NotImplementedError
 
+        def importance(
+            self,
+            key: PRNGKey,
+            choice_map: ChoiceMap,
+            args: A,
+        ) -> tuple[_Tr_, Weight]:
+            choice_map_constraint = ChoiceMapConstraint(choice_map)
+            assert isinstance(self, ImportanceRequest.SupportsImportance)
+            tr, w, _ = self.importance_update(key, choice_map_constraint, args)  # type:ignore
+            return tr, w
+
     def update(
         self,
         key: PRNGKey,
-        trace: EmptyTrace[SupportsImportance[C, A, S, R]],
-    ) -> tuple[
-        Trace[GenerativeFunction[A, S, R], A, S, R], Weight, Retdiff, UpdateRequest
-    ]:
+        trace: Tr,
+    ) -> tuple[Tr_, Weight, Retdiff, UpdateRequest[Tr_, Tr]]:
         gen_fn = trace.get_gen_fn()
         tr, weight, projection = gen_fn.importance_update(
             key, self.constraint, self.args

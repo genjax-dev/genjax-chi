@@ -22,6 +22,7 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     Arguments,
+    Assessable,
     ChoiceMapCoercable,
     ChoiceMapConstraint,
     ChoiceMapSample,
@@ -29,6 +30,7 @@ from genjax._src.core.generative import (
     EmptyChm,
     EmptyConstraint,
     EmptySample,
+    EmptyTrace,
     EmptyUpdateRequest,
     EqualityConstraint,
     GeneralRegenerateRequest,
@@ -141,7 +143,11 @@ SupportedProjections = (
 class Distribution(
     Generic[A, R],
     Simulateable[DistributionTrace[A, R], A, ValueSample[R], R],
-    ImportanceRequest.SupportsImportance[
+    Assessable[A, ValueSample[R], R],
+    ImportanceRequest[
+        EmptyTrace["Distribution"], DistributionTrace[A, R]
+    ].SupportsImportance[
+        DistributionTrace[A, R],
         SupportedConstraints,
         A,
         ValueSample[R],
@@ -151,6 +157,8 @@ class Distribution(
     GeneralUpdateRequest[
         DistributionTrace[A, R], DistributionTrace[A, R]
     ].UseAsDefaultUpdate[
+        DistributionTrace[A, R],
+        DistributionTrace[A, R],
         SupportedGeneralConstraints,
         SupportedGeneralConstraints,
         A,
@@ -167,6 +175,8 @@ class Distribution(
         DistributionTrace[A, R],
         DistributionTrace[A, R],
     ].SupportsGeneralRegenerate[
+        DistributionTrace[A, R],
+        DistributionTrace[A, R],
         A,
         ValueSample[R],
         R,
@@ -205,7 +215,7 @@ class Distribution(
         key: PRNGKey,
         constraint: SupportedConstraints,
         args: A,
-    ) -> tuple[Trace, Weight, Projection]:
+    ) -> tuple[DistributionTrace[A, R], Weight, Projection]:
         match constraint:
             case EmptyConstraint():
                 tr = self.simulate(key, args)
@@ -373,10 +383,24 @@ class Distribution(
 
     def assess(
         self,
-        sample: ValueSample,
-        args: tuple,
+        key: PRNGKey,
+        sample: ValueSample
+        | ValChm
+        | ChoiceMapSample,  # TODO: the ValChm here is a type of paving over, to allow people to continue to use what they are used to.
+        args: A,
     ):
-        raise NotImplementedError
+        match sample:
+            case ValChm(v):
+                return self.assess(key, ValueSample(v), args)
+            case ChoiceMapSample():
+                key = jax.random.PRNGKey(0)
+                v = sample.get_value()
+                return self.assess(key, v, args)
+            case ValueSample():
+                key = jax.random.PRNGKey(0)
+                v = sample.val
+                w = self.estimate_logpdf(key, v, *args)
+                return w, v
 
 
 ################
@@ -437,26 +461,6 @@ class ExactDensity(Distribution):
             return jnp.sum(w)
         else:
             return w
-
-    def assess(
-        self,
-        sample: ValueSample
-        | ValChm
-        | ChoiceMapSample,  # TODO: the ValChm here is a type of paving over, to allow people to continue to use what they are used to.
-        args: tuple,
-    ):
-        match sample:
-            case ValChm(v):
-                return self.assess(ValueSample(v), args)
-            case ChoiceMapSample():
-                key = jax.random.PRNGKey(0)
-                v = sample.get_value()
-                return self.assess(v, args)
-            case ValueSample():
-                key = jax.random.PRNGKey(0)
-                v = sample.val
-                w = self.estimate_logpdf(key, v, *args)
-                return w, v
 
 
 @Pytree.dataclass

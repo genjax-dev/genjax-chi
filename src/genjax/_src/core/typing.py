@@ -43,6 +43,7 @@ Dict = btyping.Dict
 List = btyping.List
 Optional = btyping.Optional
 Type = btyping.Type
+Literal = btyping.Literal
 
 # JAX Type alias.
 InAxes = int | None | Sequence[Any]
@@ -172,6 +173,7 @@ __all__ = [
     "IntArray",
     "Is",
     "List",
+    "Literal",
     "ParamSpec",
     "PRNGKey",
     "ScalarBool",
