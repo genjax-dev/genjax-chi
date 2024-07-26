@@ -32,9 +32,9 @@ def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> GenerativeFunc
 
     """
     return (
-        gen_fn.contramap(lambda _idx, args: args)
+        gen_fn.contramap(lambda _idx, arguments: arguments)
         .vmap(in_axes=(0, None))
-        .contramap(lambda *args: (jnp.zeros(n), args))
+        .contramap(lambda *arguments: (jnp.zeros(n), arguments))
     )
 
 

@@ -100,14 +100,14 @@ class StaticTrace(
     Trace["StaticGenerativeFunction", A, ChoiceMapSample, R],
 ):
     gen_fn: "StaticGenerativeFunction"
-    args: A
+    arguments: A
     retval: R
     addresses: AddressVisitor
     subtraces: List[Trace]
     score: Score
 
     def get_args(self) -> A:
-        return self.args
+        return self.arguments
 
     def get_retval(self) -> R:
         return self.retval
@@ -177,15 +177,15 @@ Tr = TypeVar("Tr", bound=Trace)
 def _abstract_gen_fn_call(
     _: tuple[Const[StaticAddress], ...],
     gen_fn: Simulateable[Tr, A, S, R],
-    args: A,
+    arguments: A,
 ):
-    return gen_fn.__abstract_call__(*args)
+    return gen_fn.__abstract_call__(*arguments)
 
 
 def trace(
     addr: StaticAddress,
     gen_fn: GenerativeFunction,
-    args: tuple,
+    arguments: tuple,
 ):
     """Invoke a generative function, binding its generative semantics with the
     current caller.
@@ -199,7 +199,7 @@ def trace(
     return initial_style_bind(trace_p)(_abstract_gen_fn_call)(
         addr,
         gen_fn,
-        args,
+        arguments,
     )
 
 
@@ -223,7 +223,7 @@ class StaticHandler(Generic[G], StatefulHandler):
         self,
         addr: StaticAddress,
         gen_fn: G,
-        args: Arguments,
+        arguments: Arguments,
     ):
         raise NotImplementedError
 
@@ -240,10 +240,10 @@ class StaticHandler(Generic[G], StatefulHandler):
         in_tree = _params["in_tree"]
         num_consts = _params.get("num_consts", 0)
         non_const_tracers = tracers[num_consts:]
-        addr, gen_fn, args = jtu.tree_unflatten(in_tree, non_const_tracers)
+        addr, gen_fn, arguments = jtu.tree_unflatten(in_tree, non_const_tracers)
         addr = Pytree.tree_unwrap_const(addr)
         if primitive == trace_p:
-            v = self.handle_trace(addr, gen_fn, args)
+            v = self.handle_trace(addr, gen_fn, arguments)
             return self.handle_retval(v)
         else:
             raise Exception("Illegal primitive: {}".format(primitive))
@@ -275,11 +275,11 @@ class SimulateHandler(StaticHandler[Simulateable]):
         self,
         addr: StaticAddress,
         gen_fn: Simulateable,
-        args: Arguments,
+        arguments: Arguments,
     ):
         self.visit(addr)
         self.key, sub_key = jax.random.split(self.key)
-        tr = gen_fn.simulate(sub_key, args)
+        tr = gen_fn.simulate(sub_key, arguments)
         score = tr.get_score()
         self.address_traces.append(tr)
         self.score += score
@@ -289,16 +289,16 @@ class SimulateHandler(StaticHandler[Simulateable]):
 
 def simulate_transform(source_fn):
     @functools.wraps(source_fn)
-    def wrapper(key, args):
+    def wrapper(key, arguments):
         stateful_handler = SimulateHandler(key)
-        retval = forward(source_fn)(stateful_handler, *args)
+        retval = forward(source_fn)(stateful_handler, *arguments)
         (
             address_visitor,
             address_traces,
             score,
         ) = stateful_handler.yield_state()
         return (
-            args,
+            arguments,
             retval,
             address_visitor,
             address_traces,
@@ -347,12 +347,14 @@ class ImportanceHandler(
         self,
         addr: StaticAddress,
         gen_fn: ImportanceRequest.SupportsImportance,
-        args: tuple,
+        arguments: tuple,
     ):
         self.visit(addr)
         subconstraint = self.get_subconstraint(addr)
         self.key, sub_key = jax.random.split(self.key)
-        (tr, w, bwd_projection) = gen_fn.importance_update(sub_key, subconstraint, args)
+        (tr, w, bwd_projection) = gen_fn.importance_update(
+            sub_key, subconstraint, arguments
+        )
         self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
@@ -363,9 +365,9 @@ class ImportanceHandler(
 
 def importance_transform(source_fn):
     @functools.wraps(source_fn)
-    def wrapper(key, constraints, args: tuple):
+    def wrapper(key, constraints, arguments: tuple):
         stateful_handler = ImportanceHandler(key, constraints)
-        retval = forward(source_fn)(stateful_handler, *args)
+        retval = forward(source_fn)(stateful_handler, *arguments)
         (
             score,
             weight,
@@ -378,7 +380,7 @@ def importance_transform(source_fn):
                 weight,
                 # Trace.
                 (
-                    args,
+                    arguments,
                     retval,
                     address_visitor,
                     address_traces,
@@ -439,14 +441,14 @@ class GeneralUpdateHandler(
         self,
         addr: StaticAddress,
         gen_fn: GeneralUpdateRequest.SupportsGeneralUpdate,
-        args: tuple,
+        arguments: tuple,
     ):
         self.visit(addr)
         subtrace = self.get_subtrace(gen_fn, addr)
         subconstraint = self.get_subconstraint(addr)
         self.key, sub_key = jax.random.split(self.key)
         (tr, w, bwd_discard_constraint) = gen_fn.general_update(
-            sub_key, subtrace, subconstraint, args
+            sub_key, subtrace, subconstraint, arguments
         )
         self.score += tr.get_score()
         self.weight += w
@@ -458,9 +460,9 @@ class GeneralUpdateHandler(
 
 def general_update_transform(source_fn):
     @functools.wraps(source_fn)
-    def wrapper(key, previous_trace, constraints, args: tuple):
+    def wrapper(key, previous_trace, constraints, arguments: tuple):
         stateful_handler = GeneralUpdateHandler(key, previous_trace, constraints)
-        retval = forward(source_fn)(stateful_handler, *args)
+        retval = forward(source_fn)(stateful_handler, *arguments)
         (
             score,
             weight,
@@ -473,7 +475,7 @@ def general_update_transform(source_fn):
                 weight,
                 # Trace.
                 (
-                    args,
+                    arguments,
                     retval,
                     address_visitor,
                     address_traces,
@@ -514,20 +516,20 @@ class AssessHandler(StaticHandler):
         self,
         addr: StaticAddress,
         gen_fn: Assessable,
-        args: tuple,
+        arguments: tuple,
     ):
         submap = self.get_subsample(addr)
         self.key, sub_key = jax.random.split(self.key)
-        (score, v) = gen_fn.assess(sub_key, submap, args)
+        (score, v) = gen_fn.assess(sub_key, submap, arguments)
         self.score += score
         return v
 
 
 def assess_transform(source_fn):
     @functools.wraps(source_fn)
-    def wrapper(key, constraints, args):
+    def wrapper(key, constraints, arguments):
         stateful_handler = AssessHandler(key, constraints)
-        retval = forward(source_fn)(stateful_handler, *args)
+        retval = forward(source_fn)(stateful_handler, *arguments)
         (score,) = stateful_handler.yield_state()
         return (retval, score)
 
@@ -543,9 +545,9 @@ def assess_transform(source_fn):
 def handler_trace_with_static(
     addr: StaticAddressComponent | StaticAddress,
     gen_fn: GenerativeFunction,
-    args: tuple,
+    arguments: tuple,
 ):
-    return trace(addr if isinstance(addr, tuple) else (addr,), gen_fn, args)
+    return trace(addr if isinstance(addr, tuple) else (addr,), gen_fn, arguments)
 
 
 SupportedGeneralConstraints = ChoiceMapConstraint
@@ -567,8 +569,7 @@ class StaticGenerativeFunction(
         ChoiceMapSample,
         R,
     ],
-    GeneralUpdateRequest[StaticTrace[A, R], StaticTrace[A, R]].UseAsDefaultUpdate[
-        StaticTrace[A, R],
+    GeneralUpdateRequest[StaticTrace[A, R],].UseAsDefaultUpdate[
         StaticTrace[A, R],
         SupportedGeneralConstraints,
         SupportedGeneralConstraints,
@@ -631,13 +632,13 @@ class StaticGenerativeFunction(
 
     # To get the type of return value, just invoke
     # the source (with abstract tracer arguments).
-    def __abstract_call__(self, *args) -> Any:
-        return self.source(*args)
+    def __abstract_call__(self, *arguments) -> Any:
+        return self.source(*arguments)
 
     def handle_kwargs(self) -> GenerativeFunction:
         @Pytree.partial()
-        def kwarged_source(args, kwargs):
-            return self.source(*args, **kwargs)
+        def kwarged_source(arguments, kwargs):
+            return self.source(*arguments, **kwargs)
 
         return StaticGenerativeFunction(kwarged_source)
 
@@ -649,12 +650,12 @@ class StaticGenerativeFunction(
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (args, retval, address_visitor, address_traces, score) = simulate_transform(
-            syntax_sugar_handled
-        )(key, arguments)
+        (arguments, retval, address_visitor, address_traces, score) = (
+            simulate_transform(syntax_sugar_handled)(key, arguments)
+        )
         return StaticTrace(
             self,
-            args,
+            arguments,
             retval,
             address_visitor,
             address_traces,
@@ -665,7 +666,7 @@ class StaticGenerativeFunction(
         self,
         key: PRNGKey,
         constraint: SupportedImportanceConstraints,
-        args: A,
+        arguments: A,
     ) -> tuple[StaticTrace[A, R], Weight, Projection]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
@@ -682,7 +683,7 @@ class StaticGenerativeFunction(
                 ),
                 projections,
             ),
-        ) = importance_transform(syntax_sugar_handled)(key, constraint, args)
+        ) = importance_transform(syntax_sugar_handled)(key, constraint, arguments)
 
         def make_bwd_proj(visitor, subrequests) -> Projection:
             addresses = visitor.get_visited()
@@ -696,7 +697,7 @@ class StaticGenerativeFunction(
         return (
             StaticTrace(
                 self,
-                args,
+                arguments,
                 retval,
                 address_visitor,
                 address_traces,
@@ -775,7 +776,7 @@ class StaticGenerativeFunction(
         self,
         key: PRNGKey,
         sample: ChoiceMap | ChoiceMapSample,
-        args: tuple,
+        arguments: tuple,
     ) -> tuple[Score, Retval]:
         sample = (
             sample if isinstance(sample, ChoiceMapSample) else ChoiceMapSample(sample)
@@ -783,11 +784,11 @@ class StaticGenerativeFunction(
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (retval, score) = assess_transform(syntax_sugar_handled)(key, sample, args)
+        (retval, score) = assess_transform(syntax_sugar_handled)(key, sample, arguments)
         return (score, retval)
 
-    def inline(self, *args):
-        return self.source(*args)
+    def inline(self, *arguments):
+        return self.source(*arguments)
 
 
 #############

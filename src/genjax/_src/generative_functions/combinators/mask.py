@@ -114,9 +114,9 @@ class MaskCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        arguments: tuple,
     ) -> MaskTrace:
-        check, *inner_args = args
+        check, *inner_args = arguments
         tr = self.gen_fn.simulate(key, tuple(inner_args))
         return MaskTrace(self, tr, check)
 
@@ -234,9 +234,9 @@ class MaskCombinator(GenerativeFunction):
     def assess(
         self,
         sample: Sample,
-        args: tuple,
+        arguments: tuple,
     ) -> tuple[Score, Mask]:
-        (check, *inner_args) = args
+        (check, *inner_args) = arguments
         score, retval = self.gen_fn.assess(sample, tuple(inner_args))
         return (
             check * score,

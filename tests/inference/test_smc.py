@@ -21,7 +21,7 @@ from jax.scipy.special import logsumexp
 
 
 def logpdf(v):
-    return lambda c, *args: v.assess(C.v(c), args)[0]
+    return lambda c, *arguments: v.assess(C.v(c), arguments)[0]
 
 
 class TestSMC:

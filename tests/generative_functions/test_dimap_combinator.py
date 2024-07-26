@@ -23,8 +23,10 @@ class TestDimapCombinator:
         def pre_process(x, y):
             return (x + 1, y * 2, y * 3)
 
-        def post_process(args, retval):
-            assert len(args) == 3, "post_process has to receive transformed args."
+        def post_process(arguments, retval):
+            assert (
+                len(arguments) == 3
+            ), "post_process has to receive transformed arguments."
             return retval + 2
 
         def invert_post(x):
@@ -47,7 +49,7 @@ class TestDimapCombinator:
 
         assert (trace.get_score(), trace.get_retval()) == dimap_model.assess(
             trace.get_sample(), (2.0, 3.0)
-        ), "assess with the same args returns score, retval"
+        ), "assess with the same arguments returns score, retval"
 
         assert (
             genjax.normal.logpdf(

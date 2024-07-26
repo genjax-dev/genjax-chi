@@ -40,7 +40,7 @@ class MsgPackSerializeBackend(SerializationBackend):
         data, _ = jax.tree_util.tree_flatten(trace)
         return msgpack.packb(data, default=_msgpack_ext_pack, strict_types=True)
 
-    def deserialize(self, encoded_trace, gen_fn: GenerativeFunction, args: tuple):
+    def deserialize(self, encoded_trace, gen_fn: GenerativeFunction, arguments: tuple):
         """Deserialize an object using MsgPack.
 
         The function decodes the MsgPack object and restructures the trace using its Pytree definition. The tree definition is retrieved by tracing the generative function using the stored arguments.
@@ -55,7 +55,7 @@ class MsgPackSerializeBackend(SerializationBackend):
 
         """
         payload = msgpack.unpackb(encoded_trace, ext_hook=_msgpack_ext_unpack)
-        trace_data_shape = gen_fn.get_trace_shape(*args)
+        trace_data_shape = gen_fn.get_trace_shape(*arguments)
         treedef = jax.tree_util.tree_structure(trace_data_shape)
         return jax.tree_util.tree_unflatten(treedef, payload)
 

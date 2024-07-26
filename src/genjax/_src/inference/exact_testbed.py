@@ -104,13 +104,3 @@ def build_test_against_exact_inference(
         )
 
     return inference_test_generator
-
-
-default_problem_generator = build_test_against_exact_inference(
-    10,
-    jnp.array(10),
-    jnp.array(1),
-    jnp.array(1),
-    jnp.array(0.3),
-    jnp.array(0.3),
-)

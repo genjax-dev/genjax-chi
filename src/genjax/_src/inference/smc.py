@@ -539,17 +539,17 @@ class KernelGenerativeFunction(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        arguments: tuple,
     ) -> Trace:
         gen_fn = gen(self.source)
-        tr = gen_fn.simulate(key, args)
+        tr = gen_fn.simulate(key, arguments)
         return tr
 
     def importance(
         self,
         key: PRNGKey,
         constraint: Constraint,
-        args: tuple,
+        arguments: tuple,
     ) -> tuple[Trace, Weight, UpdateRequest]:
         raise NotImplementedError
 
@@ -558,7 +558,7 @@ class KernelGenerativeFunction(GenerativeFunction):
         key: PRNGKey,
         trace: KernelTrace,
         update_request: UpdateRequest,
-        args: tuple,
+        arguments: tuple,
     ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
         raise NotImplementedError
 
@@ -649,16 +649,16 @@ class AttachCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        arguments: tuple,
     ) -> Trace:
-        tr = self.gen_fn.simulate(key, args)
+        tr = self.gen_fn.simulate(key, arguments)
         return AttachTrace(self, tr)
 
     def importance(
         self,
         key: PRNGKey,
         constraint: Constraint,
-        args: tuple,
+        arguments: tuple,
     ) -> tuple[Trace, Weight, UpdateRequest]:
         move = self.importance_move(constraint)
         match move:
@@ -672,14 +672,14 @@ class AttachCombinator(GenerativeFunction):
                     aux,  # aux from K
                     K_aux_score,
                 )
-                tr, w, bwd = self.gen_fn.importance(key, new_latents, args)
+                tr, w, bwd = self.gen_fn.importance(key, new_latents, arguments)
                 return tr, w + w_smc, bwd
 
             case DirectOverload(importance_impl):
-                return importance_impl(key, constraint, args)
+                return importance_impl(key, constraint, arguments)
 
             case DeferToInternal():
-                return self.gen_fn.importance(key, constraint, args)
+                return self.gen_fn.importance(key, constraint, arguments)
 
             case _:
                 raise Exception("Invalid move type")

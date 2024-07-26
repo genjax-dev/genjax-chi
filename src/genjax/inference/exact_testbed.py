@@ -14,10 +14,8 @@
 
 from genjax._src.inference.exact_testbed import (
     build_test_against_exact_inference,
-    default_problem_generator,
 )
 
 __all__ = [
     "build_test_against_exact_inference",
-    "default_problem_generator",
 ]

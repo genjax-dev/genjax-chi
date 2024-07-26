@@ -141,14 +141,14 @@ def xdoctests(session) -> None:
     """Run examples with xdoctest."""
     prepare(session)
     if session.posargs:
-        args = [package, *session.posargs]
+        arguments = [package, *session.posargs]
     else:
-        args = [f"--modname={package}", "--command=all"]
+        arguments = [f"--modname={package}", "--command=all"]
         if "FORCE_COLOR" in os.environ:
-            args.append("--colored=1")
+            arguments.append("--colored=1")
 
     session.install("xdoctest[colors]")
-    session.run("python", "-m", "xdoctest", *args)
+    session.run("python", "-m", "xdoctest", *arguments)
 
 
 @session(python=python_version)

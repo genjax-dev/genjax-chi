@@ -31,7 +31,7 @@ def mix(*gen_fns: GenerativeFunction) -> GenerativeFunction:
     The returned generative function takes the following arguments:
 
     - `mixture_logits`: Logits for the categorical distribution used to select a component.
-    - `*args`: Argument tuples for each of the input generative functions
+    - `*arguments`: Argument tuples for each of the input generative functions
 
     and samples from one of the input generative functions based on draw from a categorical distribution defined by the provided mixture logits.
 
@@ -73,9 +73,9 @@ def mix(*gen_fns: GenerativeFunction) -> GenerativeFunction:
     inner_combinator_closure = switch(*gen_fns)
 
     @gen
-    def mixture_model(mixture_logits, *args):
+    def mixture_model(mixture_logits, *arguments):
         mix_idx = categorical(mixture_logits) @ "mixture_component"
-        v = inner_combinator_closure(mix_idx, *args) @ "component_sample"
+        v = inner_combinator_closure(mix_idx, *arguments) @ "component_sample"
         return v
 
     return mixture_model

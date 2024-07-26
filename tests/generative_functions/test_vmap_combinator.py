@@ -97,8 +97,8 @@ class TestVmapCombinator:
     def test_vmap_combinator_vmap_pytree(self):
         @genjax.vmap(in_axes=(None, (0, None)))
         @genjax.gen
-        def foo(y, args):
-            loc, scale = args
+        def foo(y, arguments):
+            loc, scale = arguments
             x = genjax.normal(loc, scale) @ "x"
             return x + y
 

@@ -114,9 +114,9 @@ def cached_stage_dynamic(flat_fun, in_avals):
 def stage(f):
     """Returns a function that stages a function to a ClosedJaxpr."""
 
-    def wrapped(*args, **kwargs):
+    def wrapped(*arguments, **kwargs):
         fun = lu.wrap_init(f, kwargs)
-        flat_args, in_tree = jtu.tree_flatten(args)
+        flat_args, in_tree = jtu.tree_flatten(arguments)
         flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
         flat_avals = safe_map(get_shaped_aval, flat_args)
         typed_jaxpr = cached_stage_dynamic(flat_fun, tuple(flat_avals))
@@ -129,21 +129,21 @@ def get_data_shape(callable):
     """Returns a function that stages a function and returns the abstract
     Pytree shapes of its return value."""
 
-    def wrapped(*args):
-        _, data_shape = make_jaxpr(callable, return_shape=True)(*args)
+    def wrapped(*arguments):
+        _, data_shape = make_jaxpr(callable, return_shape=True)(*arguments)
         return data_shape
 
     return wrapped
 
 
-def get_trace_shape(gen_fn, args):
+def get_trace_shape(gen_fn, arguments):
     key = jax.random.PRNGKey(0)
-    return get_data_shape(gen_fn.simulate)(key, args)
+    return get_data_shape(gen_fn.simulate)(key, arguments)
 
 
-def get_importance_shape(gen_fn, constraint, args):
+def get_importance_shape(gen_fn, constraint, arguments):
     key = jax.random.PRNGKey(0)
-    return get_data_shape(gen_fn.importance)(key, constraint, args)
+    return get_data_shape(gen_fn.importance)(key, constraint, arguments)
 
 
 def get_update_shape(gen_fn, tr, problem):
@@ -151,8 +151,8 @@ def get_update_shape(gen_fn, tr, problem):
     return get_data_shape(gen_fn.update)(key, tr, problem)
 
 
-def make_zero_trace(gen_fn, *args):
-    out_tree = get_trace_shape(gen_fn, *args)
+def make_zero_trace(gen_fn, *arguments):
+    out_tree = get_trace_shape(gen_fn, *arguments)
     return jtu.tree_map(
         lambda v: jnp.zeros(v.shape, v.dtype),
         out_tree,

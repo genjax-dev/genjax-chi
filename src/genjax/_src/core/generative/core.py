@@ -218,7 +218,7 @@ class EqualityConstraint(Generic[V], Constraint[ValueSample]):
 
 
 @Pytree.dataclass(match_args=True)
-class MaskedConstraint(Generic[S], Constraint[S]):
+class MaskedConstraint(Generic[C, S], Constraint[S]):
     """A `MaskedConstraint` encodes a possible constraint.
 
     Formally, `MaskedConstraint(f: Bool, c: Constraint)` represents the constraint `Option((x $\\mapsto$ x, x))`,
@@ -227,7 +227,7 @@ class MaskedConstraint(Generic[S], Constraint[S]):
     """
 
     flag: Bool | BoolArray
-    constraint: Constraint[S]
+    constraint: C
 
 
 @Pytree.dataclass
@@ -413,7 +413,7 @@ class Trace(Generic[G, A, S, R], Pytree):
     def update(
         self,
         key: PRNGKey,
-        request: "UpdateRequest",
+        request: "ChoiceMap | UpdateRequest",
     ) -> tuple["Trace", Weight, Retdiff, "UpdateRequest"]:
         """This method calls out to the underlying.
 
@@ -422,7 +422,14 @@ class Trace(Generic[G, A, S, R], Pytree):
         [`update`][genjax.core.GenerativeFunction.update] for more information.
 
         """
-        return request.update(key, self)
+        match request:
+            case ChoiceMap():
+                return self.update(
+                    key,
+                    GeneralUpdateRequest(self.get_args(), ChoiceMapConstraint(request)),
+                )
+            case UpdateRequest():
+                return request.update(key, self)
 
     ###################
     # Pretty printing #
@@ -534,17 +541,17 @@ class GenerativeFunction(Generic[Tr, A, S, R], Pytree):
 
     """
 
-    def __call__(self, *args, **kwargs) -> "GenerativeFunctionClosure":
-        return GenerativeFunctionClosure(self, args, kwargs)
+    def __call__(self, *arguments, **kwargs) -> "GenerativeFunctionClosure":
+        return GenerativeFunctionClosure(self, arguments, kwargs)
 
     def handle_kwargs(self) -> "GenerativeFunction":
         return IgnoreKwargs(self)
 
-    def get_trace_shape(self, *args) -> Any:
-        return get_trace_shape(self, args)
+    def get_trace_shape(self, *arguments) -> Any:
+        return get_trace_shape(self, arguments)
 
-    def get_empty_trace(self, *args) -> Trace:
-        data_shape = self.get_trace_shape(*args)
+    def get_empty_trace(self, *arguments) -> Trace:
+        data_shape = self.get_trace_shape(*arguments)
         return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), data_shape)
 
     def regenerate(
@@ -755,7 +762,11 @@ class GenerativeFunction(Generic[Tr, A, S, R], Pytree):
         """
         import genjax
 
-        return genjax.scan(n=n, reverse=reverse, unroll=unroll)(self)
+        return genjax.scan(
+            n=n,
+            reverse=reverse,
+            unroll=unroll,
+        )(self)
 
     def accumulate(
         self, /, *, reverse: bool = False, unroll: int | bool = 1
@@ -1131,7 +1142,7 @@ class GenerativeFunction(Generic[Tr, A, S, R], Pytree):
         The returned generative function takes the following arguments:
 
         - `mixture_logits`: Logits for the categorical distribution used to select a component.
-        - `*args`: Argument tuples for `self` and each of the input generative functions
+        - `*arguments`: Argument tuples for `self` and each of the input generative functions
 
         and samples from `self` or one of the input generative functions based on a draw from a categorical distribution defined by the provided mixture logits.
 
@@ -1205,7 +1216,7 @@ class GenerativeFunction(Generic[Tr, A, S, R], Pytree):
                 return (x + 1, y * 2)
 
 
-            def post_process(args, retval):
+            def post_process(arguments, retval):
                 return retval**2
 
 
@@ -1338,13 +1349,13 @@ class GenerativeFunction(Generic[Tr, A, S, R], Pytree):
         /,
         *,
         constraint: Constraint,
-        args: tuple,
+        arguments: tuple,
     ):
         from genjax import Target
 
         return Target(
             self,
-            args,
+            arguments,
             constraint,
         )
 
@@ -1356,10 +1367,10 @@ class GenerativeFunction(Generic[Tr, A, S, R], Pytree):
 GLOBAL_TRACE_OP_HANDLER_STACK: List[Callable[..., Any]] = []
 
 
-def handle_off_trace_stack(addr, gen_fn: GenerativeFunction, args):
+def handle_off_trace_stack(addr, gen_fn: GenerativeFunction, arguments):
     if GLOBAL_TRACE_OP_HANDLER_STACK:
         handler = GLOBAL_TRACE_OP_HANDLER_STACK[-1]
-        return handler(addr, gen_fn, args)
+        return handler(addr, gen_fn, arguments)
     else:
         raise Exception(
             "Attempting to invoke trace outside of a tracing context.\nIf you want to invoke the generative function closure, and recieve a return value,\ninvoke it with a key."
@@ -1367,9 +1378,9 @@ def handle_off_trace_stack(addr, gen_fn: GenerativeFunction, args):
 
 
 def push_trace_overload_stack(handler, fn):
-    def wrapped(*args):
+    def wrapped(*arguments):
         GLOBAL_TRACE_OP_HANDLER_STACK.append(handler)
-        ret = fn(*args)
+        ret = fn(*arguments)
         GLOBAL_TRACE_OP_HANDLER_STACK.pop()
         return ret
 
@@ -1443,7 +1454,7 @@ class Simulateable(Generic[Tr, A, S, R], GenerativeFunction[Tr, A, S, R]):
 
     def __abstract_call__(
         self: "Simulateable[Tr, A, S, R]",
-        *args,
+        *arguments,
     ) -> R:
         """Used to support JAX tracing, although this default implementation
         involves no JAX operations (it takes a fixed-key sample from the return
@@ -1452,12 +1463,12 @@ class Simulateable(Generic[Tr, A, S, R], GenerativeFunction[Tr, A, S, R]):
         Generative functions may customize this to improve compilation time.
 
         """
-        return self.simulate(jax.random.PRNGKey(0), args).get_retval()
+        return self.simulate(jax.random.PRNGKey(0), arguments).get_retval()
 
     def propose(
         self: "Simulateable[Tr, A, S, R]",
         key: PRNGKey,
-        args: A,
+        arguments: A,
     ) -> tuple[S, Score, R]:
         """Samples a [`Sample`][genjax.core.Sample] and any untraced randomness
         $r$ from the generative function's distribution over samples ($P$), and
@@ -1465,7 +1476,7 @@ class Simulateable(Generic[Tr, A, S, R], GenerativeFunction[Tr, A, S, R]):
         distribution, and the [`Retval`][genjax.core.Retval] of the generative
         function's return value function $f(r, t, a)$ for the sample and
         untraced randomness."""
-        tr = self.simulate(key, args)
+        tr = self.simulate(key, arguments)
         sample = tr.get_sample()
         score = tr.get_score()
         retval = tr.get_retval()
@@ -1478,7 +1489,7 @@ class Assessable(Generic[Tr, A, S, R], GenerativeFunction[Tr, A, S, R]):
         self,
         key: PRNGKey,
         sample: S,
-        args: A,
+        arguments: A,
     ) -> tuple[Score, R]:
         """Return [the score][genjax.core.Trace.get_score] and [the return
         value][genjax.core.Trace.get_retval] when the generative function is
@@ -1700,8 +1711,8 @@ class MaskedUpdateRequest(UpdateRequest):
 
 @Pytree.dataclass
 class GeneralUpdateRequest(
-    Generic[Tr, Tr_],
-    UpdateRequest[Tr, Tr_],
+    Generic[Tr],
+    UpdateRequest[Tr, Tr],
 ):
     arguments: Arguments
     constraint: Constraint
@@ -1712,7 +1723,7 @@ class GeneralUpdateRequest(
         return eq_constraint.x
 
     class SupportsGeneralUpdate(
-        Generic[_Tr, _Tr_, C, C_, A, S, R],
+        Generic[_Tr, C, C_, A, S, R],
         GenerativeFunction[_Tr, A, S, R],
     ):
         @abstractmethod
@@ -1722,12 +1733,12 @@ class GeneralUpdateRequest(
             trace: _Tr,
             constraint: C,
             arguments: A,
-        ) -> tuple[_Tr_, Weight, C_]:
+        ) -> tuple[_Tr, Weight, C_]:
             raise NotImplementedError
 
     class UseAsDefaultUpdate(
-        Generic[_Tr, _Tr_, C, C_, A, S, R],
-        SupportsGeneralUpdate[_Tr, _Tr_, C, C_, A, S, R],
+        Generic[_Tr, C, C_, A, S, R],
+        SupportsGeneralUpdate[_Tr, C, C_, A, S, R],
         GenerativeFunction[_Tr, A, S, R],
     ):
         # This is the dumbest shit ever but just go with it.
@@ -1741,10 +1752,10 @@ class GeneralUpdateRequest(
             choice_map: ChoiceMap,
             argdiffs: Argdiffs[A],
         ) -> tuple[
-            Kind[_Tr_],
+            Kind[_Tr],
             Weight,
             Retdiff,
-            UpdateRequest[_Tr, _Tr_],
+            UpdateRequest[_Tr, _Tr],
         ]:
             choice_map_constraint = ChoiceMapConstraint(choice_map)
             primals = Diff.tree_primal(argdiffs)
@@ -1759,7 +1770,7 @@ class GeneralUpdateRequest(
         self,
         key: PRNGKey,
         trace: Kind[Tr],
-    ) -> tuple[Kind[Tr_], Weight, Retdiff, UpdateRequest[Tr_, Tr]]:
+    ) -> tuple[Kind[Tr], Weight, Retdiff, UpdateRequest[Tr, Tr]]:
         gen_fn = trace.get_gen_fn()
         new_trace, weight, discard_constraint = gen_fn.general_update(
             key,
@@ -1892,7 +1903,7 @@ class ImportanceRequest(
     Generic[Tr, Tr_],
     UpdateRequest[Tr, Tr_],
 ):
-    args: Arguments
+    arguments: Arguments
     constraint: Constraint
 
     class SupportsImportance(
@@ -1903,7 +1914,7 @@ class ImportanceRequest(
             self,
             key: PRNGKey,
             constraint: C,
-            args: A,
+            arguments: A,
         ) -> tuple[_Tr_, Weight, Projection]:
             """Returns a properly weighted pair, a [`Trace`][genjax.core.Trace]
             and a [`Weight`][genjax.core.Weight], properly weighted for the
@@ -1949,11 +1960,11 @@ class ImportanceRequest(
             self,
             key: PRNGKey,
             choice_map: ChoiceMap,
-            args: A,
+            arguments: A,
         ) -> tuple[_Tr_, Weight]:
             choice_map_constraint = ChoiceMapConstraint(choice_map)
             assert isinstance(self, ImportanceRequest.SupportsImportance)
-            tr, w, _ = self.importance_update(key, choice_map_constraint, args)  # type:ignore
+            tr, w, _ = self.importance_update(key, choice_map_constraint, arguments)  # type:ignore
             return tr, w
 
     def update(
@@ -1963,7 +1974,7 @@ class ImportanceRequest(
     ) -> tuple[Tr_, Weight, Retdiff, UpdateRequest[Tr_, Tr]]:
         gen_fn = trace.get_gen_fn()
         tr, weight, projection = gen_fn.importance_update(
-            key, self.constraint, self.args
+            key, self.constraint, self.arguments
         )
         bwd_request = ProjectRequest(projection)
         return (tr, weight, Diff.unknown_change(trace.get_retval()), bwd_request)
@@ -2009,8 +2020,8 @@ class ProjectRequest(UpdateRequest):
 
 
 class Projectable(
-    Generic[A, S, R],
-    Trace[ProjectRequest.SupportsProject, A, S, R],
+    Generic[G, A, S, R],
+    Trace[G, A, S, R],
 ):
     def project(
         self,
@@ -2179,9 +2190,9 @@ class IgnoreKwargs(
         key: PRNGKey,
         arguments: A,
     ) -> Tr:
-        (args, _kwargs) = arguments
+        (arguments, _kwargs) = arguments
         assert isinstance(self.wrapped, Simulateable)
-        return self.wrapped.simulate(key, args)
+        return self.wrapped.simulate(key, arguments)
 
     def update(
         self,
@@ -2201,7 +2212,7 @@ class GenerativeFunctionClosure(
     GenerativeFunction[Tr, A, S, R],
 ):
     gen_fn: G
-    args: tuple
+    arguments: tuple
     kwargs: Dict
 
     def get_gen_fn_with_kwargs(self):
@@ -2214,17 +2225,17 @@ class GenerativeFunctionClosure(
             return handle_off_trace_stack(
                 addr,
                 maybe_kwarged_gen_fn,
-                (self.args, self.kwargs),
+                (self.arguments, self.kwargs),
             )
         else:
             return handle_off_trace_stack(
                 addr,
                 self.gen_fn,
-                self.args,
+                self.arguments,
             )
 
-    def __call__(self, key: PRNGKey, *args) -> Any:
-        full_args = (*self.args, *args)
+    def __call__(self, key: PRNGKey, *arguments) -> Any:
+        full_args = (*self.arguments, *arguments)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             assert isinstance(maybe_kwarged_gen_fn, Simulateable)
@@ -2237,9 +2248,9 @@ class GenerativeFunctionClosure(
 
     def __abstract_call__(
         self,
-        *args,
+        *arguments,
     ) -> Any:
-        full_args = (*self.args, *args)
+        full_args = (*self.arguments, *arguments)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             assert isinstance(maybe_kwarged_gen_fn, Simulateable)
@@ -2255,9 +2266,9 @@ class GenerativeFunctionClosure(
     def simulate(
         self,
         key: PRNGKey,
-        args: A,
+        arguments: A,
     ) -> Trace:
-        full_args = (*self.args, *args)
+        full_args = (*self.arguments, *arguments)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.simulate(
@@ -2270,9 +2281,9 @@ class GenerativeFunctionClosure(
     def assess(
         self,
         sample: Sample,
-        args: tuple,
+        arguments: tuple,
     ) -> tuple[Score, Retval]:
-        full_args = (*self.args, *args)
+        full_args = (*self.arguments, *arguments)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.assess(
@@ -2290,7 +2301,7 @@ class GenerativeFunctionClosure(
     ) -> tuple[Trace, Weight, Retdiff, "UpdateRequest"]:
         match update_request:
             case IncrementalUpdateRequest(argdiffs, subrequest):
-                full_argdiffs = (*self.args, *argdiffs)
+                full_argdiffs = (*self.arguments, *argdiffs)
                 if self.kwargs:
                     maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
                     return maybe_kwarged_gen_fn.update(

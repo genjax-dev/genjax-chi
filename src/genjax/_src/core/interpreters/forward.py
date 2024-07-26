@@ -76,9 +76,9 @@ class FlatPrimitive(jc.Primitive):
 
         ad.primitive_jvps[self] = _jvp
 
-        def _batch(args, dims, **params):
+        def _batch(arguments, dims, **params):
             batched, out_dims = batch_fun(lu.wrap_init(self.impl, params), dims)
-            return batched.call_wrapped(*args), out_dims()
+            return batched.call_wrapped(*arguments), out_dims()
 
         batching.primitive_batchers[self] = _batch
 
@@ -95,9 +95,9 @@ class InitialStylePrimitive(FlatPrimitive):
     def __init__(self, name, batch_semantics=None):
         super().__init__(name)
 
-        def fun_impl(*args, **params):
-            consts, args = jax_util.split_list(args, [params["num_consts"]])
-            return jc.eval_jaxpr(params["_jaxpr"], consts, *args)
+        def fun_impl(*arguments, **params):
+            consts, arguments = jax_util.split_list(arguments, [params["num_consts"]])
+            return jc.eval_jaxpr(params["_jaxpr"], consts, *arguments)
 
         self.def_impl(fun_impl)
 
@@ -112,9 +112,9 @@ def initial_style_bind(prim, **params):
         """Wraps a function to be bound to a primitive, keeping track of Pytree
         information."""
 
-        def wrapped(*args, **kwargs):
+        def wrapped(*arguments, **kwargs):
             """Runs a function and binds it to a call primitive."""
-            _jaxpr, (flat_args, in_tree, out_tree) = stage(f)(*args, **kwargs)
+            _jaxpr, (flat_args, in_tree, out_tree) = stage(f)(*arguments, **kwargs)
             outs = prim.bind(
                 *it.chain(_jaxpr.literals, flat_args),
                 _jaxpr=_jaxpr.jaxpr,
@@ -197,7 +197,7 @@ class StatefulHandler:
     def dispatch(
         self,
         primitive: jc.Primitive,
-        *args,
+        *arguments,
         **kwargs,
     ) -> List:
         pass
@@ -210,30 +210,30 @@ class ForwardInterpreter(Pytree):
         stateful_handler,
         _jaxpr: jc.Jaxpr,
         consts: List,
-        args: List,
+        arguments: List,
     ):
         env = Environment()
         jax_util.safe_map(env.write, _jaxpr.constvars, consts)
-        jax_util.safe_map(env.write, _jaxpr.invars, args)
+        jax_util.safe_map(env.write, _jaxpr.invars, arguments)
         for eqn in _jaxpr.eqns:
             invals = jax_util.safe_map(env.read, eqn.invars)
             subfuns, params = eqn.primitive.get_bind_params(eqn.params)
-            args = subfuns + invals
+            arguments = subfuns + invals
             if stateful_handler.handles(eqn.primitive):
-                outvals = stateful_handler.dispatch(eqn.primitive, *args, **params)
+                outvals = stateful_handler.dispatch(eqn.primitive, *arguments, **params)
             else:
-                outvals = eqn.primitive.bind(*args, **params)
+                outvals = eqn.primitive.bind(*arguments, **params)
             if not eqn.primitive.multiple_results:
                 outvals = [outvals]
             jax_util.safe_map(env.write, eqn.outvars, outvals)
 
         return jax_util.safe_map(env.read, _jaxpr.outvars)
 
-    def run_interpreter(self, stateful_handler, fn, *args, **kwargs):
-        def _inner(*args):
-            return fn(*args, **kwargs)
+    def run_interpreter(self, stateful_handler, fn, *arguments, **kwargs):
+        def _inner(*arguments):
+            return fn(*arguments, **kwargs)
 
-        _closed_jaxpr, (flat_args, _, out_tree) = stage(_inner)(*args)
+        _closed_jaxpr, (flat_args, _, out_tree) = stage(_inner)(*arguments)
         _jaxpr, consts = _closed_jaxpr.jaxpr, _closed_jaxpr.literals
         flat_out = self._eval_jaxpr_forward(
             stateful_handler,
@@ -246,12 +246,12 @@ class ForwardInterpreter(Pytree):
 
 def forward(f: Callable[..., Any]):
     @functools.wraps(f)
-    def wrapped(stateful_handler: StatefulHandler, *args):
+    def wrapped(stateful_handler: StatefulHandler, *arguments):
         interpreter = ForwardInterpreter()
         return interpreter.run_interpreter(
             stateful_handler,
             f,
-            *args,
+            *arguments,
         )
 
     return wrapped

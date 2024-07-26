@@ -73,11 +73,11 @@ def adev_distribution(
 
     """
 
-    def sampler(key: PRNGKey, *args: Any) -> Any:
-        return sample_primitive(adev_primitive, *args, key=key)
+    def sampler(key: PRNGKey, *arguments: Any) -> Any:
+        return sample_primitive(adev_primitive, *arguments, key=key)
 
-    def logpdf(v: Any, *args: Any) -> FloatArray:
-        lp = differentiable_logpdf(v, *args)
+    def logpdf(v: Any, *arguments: Any) -> FloatArray:
+        lp = differentiable_logpdf(v, *arguments)
         # Branching here is statically resolved.
         if lp.shape:
             return jnp.sum(lp)
@@ -88,7 +88,7 @@ def adev_distribution(
 
 
 def logpdf(gen_fn):
-    return lambda v, *args: gen_fn.assess(ChoiceMap.value(v), args)[0]
+    return lambda v, *arguments: gen_fn.assess(ChoiceMap.value(v), arguments)[0]
 
 
 # We import ADEV specific sampling primitives, but then wrap them in
@@ -149,17 +149,17 @@ def ELBO(
 
     def grad_estimate(
         key: PRNGKey,
-        args: tuple,
+        arguments: tuple,
     ) -> tuple:
         # In the source language of ADEV.
         @expectation
-        def _loss(*args):
-            target = make_target(*args)
+        def _loss(*arguments):
+            target = make_target(*arguments)
             guide_alg = Importance(target, guide)
             w = guide_alg.estimate_normalizing_constant(key, target)
             return -w
 
-        return _loss.grad_estimate(key, args)
+        return _loss.grad_estimate(key, arguments)
 
     return grad_estimate
 
@@ -174,17 +174,17 @@ def IWELBO(
 
     def grad_estimate(
         key: PRNGKey,
-        args: Arguments,
+        arguments: Arguments,
     ) -> GradientEstimate:
         # In the source language of ADEV.
         @expectation
-        def _loss(*args):
-            target = make_target(*args)
+        def _loss(*arguments):
+            target = make_target(*arguments)
             guide = ImportanceK(target, proposal, N)
             w = guide.estimate_normalizing_constant(key, target)
             return -w
 
-        return _loss.grad_estimate(key, args)
+        return _loss.grad_estimate(key, arguments)
 
     return grad_estimate
 
@@ -198,7 +198,7 @@ def PWake(
 
     def grad_estimate(
         key: PRNGKey,
-        args: tuple,
+        arguments: tuple,
     ) -> tuple:
         key, sub_key1, sub_key2 = jax.random.split(key, 3)
 
@@ -210,7 +210,7 @@ def PWake(
             tr, _ = target.importance(sub_key2, sample)
             return -tr.get_score()
 
-        return _loss.grad_estimate(key, args)
+        return _loss.grad_estimate(key, arguments)
 
     return grad_estimate
 
@@ -225,7 +225,7 @@ def QWake(
 
     def grad_estimate(
         key: PRNGKey,
-        args: tuple,
+        arguments: tuple,
     ) -> tuple:
         key, sub_key1, sub_key2 = jax.random.split(key, 3)
 
@@ -237,6 +237,6 @@ def QWake(
             w = proposal.estimate_logpdf(sub_key2, sample, target)
             return -w
 
-        return _loss.grad_estimate(key, args)
+        return _loss.grad_estimate(key, arguments)
 
     return grad_estimate

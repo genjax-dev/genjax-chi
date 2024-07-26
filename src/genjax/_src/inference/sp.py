@@ -80,12 +80,12 @@ class Target(Pytree):
     """
 
     p: GenerativeFunction
-    args: tuple
+    arguments: tuple
     constraint: ChoiceMap
 
     def importance(self, key: PRNGKey, constraint: ChoiceMap):
         merged = self.constraint.merge(constraint)
-        return self.p.importance(key, merged, self.args)
+        return self.p.importance(key, merged, self.arguments)
 
     def filter_to_unconstrained(self, choice_map):
         selection = ~self.constraint.get_selection()
@@ -114,7 +114,7 @@ class SampleDistribution(Generic[A, S], Distribution[A, S]):
     def random_weighted(
         self,
         key: PRNGKey,
-        *args: Any,
+        *arguments: Any,
     ) -> tuple[Score, S]:
         raise NotImplementedError
 
@@ -123,7 +123,7 @@ class SampleDistribution(Generic[A, S], Distribution[A, S]):
         self,
         key: PRNGKey,
         v: S,
-        *args: Any,
+        *arguments: Any,
     ) -> Weight:
         raise NotImplementedError
 
@@ -252,10 +252,10 @@ class Marginal(
     def simulate(
         self,
         key: PRNGKey,
-        args: Arguments,
+        arguments: Arguments,
     ) -> Trace:
         key, sub_key = jax.random.split(key)
-        tr = self.gen_fn.simulate(sub_key, args)
+        tr = self.gen_fn.simulate(sub_key, arguments)
         choices: ChoiceMap = tr.get_choices()
         latent_choices = choices.filter(self.selection)
         key, sub_key = jax.random.split(key)
@@ -264,7 +264,7 @@ class Marginal(
         if self.algorithm is None:
             return weight, latent_choices
         else:
-            target = Target(self.gen_fn, args, latent_choices)
+            target = Target(self.gen_fn, arguments, latent_choices)
             other_choices = choices.filter(~self.selection)
             Z = self.algorithm.estimate_reciprocal_normalizing_constant(
                 key, target, other_choices, weight
@@ -276,13 +276,13 @@ class Marginal(
         self,
         key: PRNGKey,
         constraint: ChoiceMap,
-        *args,
+        *arguments,
     ) -> Weight:
         if self.algorithm is None:
-            _, weight = self.gen_fn.importance(key, constraint, args)
+            _, weight = self.gen_fn.importance(key, constraint, arguments)
             return weight
         else:
-            target = Target(self.gen_fn, args, constraint)
+            target = Target(self.gen_fn, arguments, constraint)
             Z = self.algorithm.estimate_normalizing_constant(key, target)
             return Z
 

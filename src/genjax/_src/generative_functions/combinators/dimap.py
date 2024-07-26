@@ -44,11 +44,11 @@ S = TypeVar("S")
 class DimapTrace(Trace, Generic[ArgTuple, S]):
     gen_fn: "DimapCombinator"
     inner: Trace
-    args: ArgTuple
+    arguments: ArgTuple
     retval: S
 
     def get_args(self) -> ArgTuple:
-        return self.args
+        return self.arguments
 
     def get_gen_fn(self) -> GenerativeFunction:
         return self.gen_fn
@@ -73,7 +73,7 @@ class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
     Attributes:
         inner: The inner generative function to which the transformations are applied.
         argument_mapping: A function that maps the original arguments to the modified arguments that are passed to the inner generative function.
-        retval_mapping: A function that takes a pair of `(args, return_value)` of the inner generative function and returns a mapped return value.
+        retval_mapping: A function that takes a pair of `(arguments, return_value)` of the inner generative function and returns a mapped return value.
         info: Optional information or description about the specific instance of the combinator.
 
     Examples:
@@ -113,13 +113,13 @@ class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        arguments: tuple,
     ) -> DimapTrace[tuple, S]:
-        inner_args = self.argument_mapping(*args)
+        inner_args = self.argument_mapping(*arguments)
         tr = self.inner.simulate(key, inner_args)
         inner_retval = tr.get_retval()
         retval = self.retval_mapping(inner_args, inner_retval)
-        return DimapTrace(self, tr, args, retval)
+        return DimapTrace(self, tr, arguments, retval)
 
     def update_change_target(
         self,
@@ -152,8 +152,8 @@ class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
         inner_retval_primals = Diff.tree_primal(inner_retdiff)
         inner_retval_tangents = Diff.tree_tangent(inner_retdiff)
 
-        def closed_mapping(args: tuple, retval: R) -> S:
-            xformed_args = self.argument_mapping(*args)
+        def closed_mapping(arguments: tuple, retval: R) -> S:
+            xformed_args = self.argument_mapping(*arguments)
             return self.retval_mapping(xformed_args, retval)
 
         retval_diff = incremental(closed_mapping)(
@@ -187,9 +187,9 @@ class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
     def assess(
         self,
         sample: Sample,
-        args: tuple,
+        arguments: tuple,
     ) -> tuple[Score, S]:
-        inner_args = self.argument_mapping(*args)
+        inner_args = self.argument_mapping(*arguments)
         w, inner_retval = self.inner.assess(sample, inner_args)
         retval = self.retval_mapping(inner_args, inner_retval)
         return w, retval
@@ -202,7 +202,7 @@ class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
 
 def dimap(
     *,
-    pre: Callable[..., ArgTuple] = lambda *args: args,
+    pre: Callable[..., ArgTuple] = lambda *arguments: arguments,
     post: Callable[[ArgTuple, R], S] = lambda _, retval: retval,
     info: String | None = None,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
@@ -231,7 +231,7 @@ def dimap(
             return (x + 1, y * 2)
 
 
-        def post_process(args, retval):
+        def post_process(arguments, retval):
             return retval**2
 
 
@@ -303,7 +303,7 @@ def map(
     def post(_, x: R) -> S:
         return f(x)
 
-    return dimap(pre=lambda *args: args, post=post, info=info)
+    return dimap(pre=lambda *arguments: arguments, post=post, info=info)
 
 
 def contramap(

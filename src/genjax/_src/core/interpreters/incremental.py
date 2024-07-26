@@ -239,10 +239,10 @@ class Diff(Generic[V, CT], Pytree):
 
 # TODO: currently, only supports our default lattice
 # (`Change` and `NoChange`)
-def default_propagation_rule(prim, *args, **_params):
-    check = Diff.static_check_no_change(args)
-    args = Diff.tree_primal(args)
-    outval = prim.bind(*args, **_params)
+def default_propagation_rule(prim, *arguments, **_params):
+    check = Diff.static_check_no_change(arguments)
+    arguments = Diff.tree_primal(arguments)
+    outval = prim.bind(*arguments, **_params)
     if check:
         return Diff.tree_diff_no_change(outval)
     else:
@@ -278,11 +278,15 @@ class IncrementalInterpreter(Pytree):
                 Diff(v, NoChange) if not isinstance(v, Diff) else v for v in induals
             ]
             subfuns, _params = _eqn.primitive.get_bind_params(_eqn.params)
-            args = subfuns + induals
+            arguments = subfuns + induals
             if _stateful_handler and _stateful_handler.handles(_eqn.primitive):
-                outduals = _stateful_handler.dispatch(_eqn.primitive, *args, **_params)
+                outduals = _stateful_handler.dispatch(
+                    _eqn.primitive, *arguments, **_params
+                )
             else:
-                outduals = default_propagation_rule(_eqn.primitive, *args, **_params)
+                outduals = default_propagation_rule(
+                    _eqn.primitive, *arguments, **_params
+                )
             if not _eqn.primitive.multiple_results:
                 outduals = [outduals]
             jax_util.safe_map(dual_env.write, _eqn.outvars, outduals)
@@ -290,8 +294,8 @@ class IncrementalInterpreter(Pytree):
         return jax_util.safe_map(dual_env.read, _jaxpr.outvars)
 
     def run_interpreter(self, _stateful_handler, fn, primals, tangents, **kwargs):
-        def _inner(*args):
-            return fn(*args, **kwargs)
+        def _inner(*arguments):
+            return fn(*arguments, **kwargs)
 
         _closed_jaxpr, (flat_primals, _, out_tree) = stage(_inner)(*primals)
         flat_tangents = jtu.tree_leaves(

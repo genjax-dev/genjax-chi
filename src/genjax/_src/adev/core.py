@@ -66,7 +66,7 @@ class ADEVPrimitive(Pytree):
     """
 
     @abstractmethod
-    def sample(self, key, *args):
+    def sample(self, key, *arguments):
         raise NotImplementedError
 
     @abstractmethod
@@ -88,8 +88,8 @@ class ADEVPrimitive(Pytree):
         """
         raise NotImplementedError
 
-    def __call__(self, *args):
-        return sample_primitive(self, *args)
+    def __call__(self, *arguments):
+        return sample_primitive(self, *arguments)
 
 
 class TailCallADEVPrimitive(ADEVPrimitive):
@@ -119,8 +119,8 @@ class TailCallBatchedADEVPrimitive(TailCallADEVPrimitive):
     original_prim: TailCallADEVPrimitive
     dims: tuple = Pytree.static()
 
-    def sample(self, key, *args):
-        return jax.vmap(self.original_prim.sample, in_axes=self.dims)(key, *args)
+    def sample(self, key, *arguments):
+        return jax.vmap(self.original_prim.sample, in_axes=self.dims)(key, *arguments)
 
     def before_tail_call(
         self,
@@ -149,36 +149,36 @@ class TailCallBatchedADEVPrimitive(TailCallADEVPrimitive):
 sample_p = InitialStylePrimitive("sample")
 
 
-def sample_primitive(adev_prim: ADEVPrimitive, *args, key=jax.random.PRNGKey(0)):
-    def _adev_prim_call(adev_prim, *args):
+def sample_primitive(adev_prim: ADEVPrimitive, *arguments, key=jax.random.PRNGKey(0)):
+    def _adev_prim_call(adev_prim, *arguments):
         # When used for abstract tracing, value of the key doesn't matter.
         # However, we support overloading the key for other transformations,
         # which will rely on the default semantics of `initial_style_bind`,
         # which is to call this function -- then, the value of the key will matter.
-        v = adev_prim.sample(key, *args)
+        v = adev_prim.sample(key, *arguments)
         return v
 
     return initial_style_bind(sample_p)(_adev_prim_call)(
         adev_prim,
-        *args,
+        *arguments,
     )
 
 
 # TODO: this is gnarly as fuck.
-def batch_primitive(args, dims, **params):
-    def fun_impl(*args, **params):
-        consts, args = jax_util.split_list(args, [params["num_consts"]])
-        return jc.eval_jaxpr(params["_jaxpr"], consts, *args)
+def batch_primitive(arguments, dims, **params):
+    def fun_impl(*arguments, **params):
+        consts, arguments = jax_util.split_list(arguments, [params["num_consts"]])
+        return jc.eval_jaxpr(params["_jaxpr"], consts, *arguments)
 
     batched, out_dims = batch_fun(lu.wrap_init(fun_impl, params), dims)
 
     # populate the out_dims generator
-    _ = batched.call_wrapped(*args)
+    _ = batched.call_wrapped(*arguments)
 
     # Now, we construct our actual batch primitive, and insert it
     # into the IR by binding it via `sample_primitive`.
     in_tree = params["in_tree"]
-    key, *rest = args
+    key, *rest = arguments
     adev_prim, *primals = jtu.tree_unflatten(in_tree, rest)
     batched_prim = adev_prim.get_batched_prim(dims)
 
@@ -297,11 +297,11 @@ class ADInterpreter(Pytree):
             for eqn in eqns:
                 in_vals = jax_util.safe_map(pure_env.read, eqn.invars)
                 subfuns, params = eqn.primitive.get_bind_params(eqn.params)
-                args = subfuns + in_vals
+                arguments = subfuns + in_vals
                 if eqn.primitive is sample_p:
                     pass
                 else:
-                    outs = eqn.primitive.bind(*args, **params)
+                    outs = eqn.primitive.bind(*arguments, **params)
                     if not eqn.primitive.multiple_results:
                         outs = [outs]
                     jax_util.safe_map(pure_env.write, eqn.outvars, outs)
@@ -324,13 +324,13 @@ class ADInterpreter(Pytree):
                         pure_env = Dual.tree_primal(dual_env)
 
                         # Create pure continuation.
-                        def _sample_pure_kont(key, *args):
+                        def _sample_pure_kont(key, *arguments):
                             return eval_jaxpr_iterate_pure(
                                 key,
                                 eqns[eqn_idx + 1 :],
                                 pure_env,
                                 eqn.outvars,
-                                [*args],
+                                [*arguments],
                             )
 
                         # Create dual continuation.
@@ -517,9 +517,9 @@ class Expectation(Pytree):
 
         return self.prog._jvp_estimate(key, dual_tree, _identity)
 
-    def estimate(self, key, args):
-        tangents = jtu.tree_map(lambda _: 0.0, args)
-        primal, _ = self.jvp_estimate(key, args, tangents)
+    def estimate(self, key, arguments):
+        tangents = jtu.tree_map(lambda _: 0.0, arguments)
+        primal, _ = self.jvp_estimate(key, arguments, tangents)
         return primal
 
     ##################################
@@ -569,8 +569,8 @@ def expectation(source: Callable[..., Any]):
 # These two functions are defined to external to `Expectation`
 # to ignore complexities with defining custom JVP rules for Pytree classes.
 @jax.custom_jvp
-def invoke_closed_over(instance, key, args):
-    return instance.estimate(key, args)
+def invoke_closed_over(instance, key, arguments):
+    return instance.estimate(key, arguments)
 
 
 def invoke_closed_over_jvp(primals, tangents):

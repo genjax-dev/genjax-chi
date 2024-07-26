@@ -52,12 +52,12 @@ from genjax._src.core.typing import (
 class VmapTrace(Trace):
     gen_fn: GenerativeFunction
     inner: Trace
-    args: tuple
+    arguments: tuple
     retval: Any
     score: FloatArray
 
     def get_args(self) -> tuple:
-        return self.args
+        return self.arguments
 
     def get_retval(self):
         return self.retval
@@ -132,23 +132,23 @@ class VmapCombinator(GenerativeFunction):
     gen_fn: GenerativeFunction
     in_axes: InAxes = Pytree.static()
 
-    def __abstract_call__(self, *args) -> Any:
-        def inner(*args):
-            return self.gen_fn.__abstract_call__(*args)
+    def __abstract_call__(self, *arguments) -> Any:
+        def inner(*arguments):
+            return self.gen_fn.__abstract_call__(*arguments)
 
-        return jax.vmap(inner, in_axes=self.in_axes)(*args)
+        return jax.vmap(inner, in_axes=self.in_axes)(*arguments)
 
-    def _static_check_broadcastable(self, args: tuple) -> None:
+    def _static_check_broadcastable(self, arguments: tuple) -> None:
         # Argument broadcast semantics must be fully specified
         # in `in_axes`.
         if self.in_axes is not None:
             axes_length = 1 if isinstance(self.in_axes, int) else len(self.in_axes)
-            if not len(args) == axes_length:
+            if not len(arguments) == axes_length:
                 raise Exception(
-                    f"VmapCombinator requires that length of the provided in_axes kwarg match the number of arguments provided to the invocation.\nA mismatch occured with len(args) = {len(args)} and len(self.in_axes) = {axes_length}"
+                    f"VmapCombinator requires that length of the provided in_axes kwarg match the number of arguments provided to the invocation.\nA mismatch occured with len(arguments) = {len(arguments)} and len(self.in_axes) = {axes_length}"
                 )
 
-    def _static_broadcast_dim_length(self, args):
+    def _static_broadcast_dim_length(self, arguments):
         def find_axis_size(axis, x):
             if axis is not None:
                 leaves = jax.tree_util.tree_leaves(x)
@@ -156,7 +156,7 @@ class VmapCombinator(GenerativeFunction):
                     return leaves[0].shape[axis]
             return ()
 
-        axis_sizes = jax.tree_util.tree_map(find_axis_size, self.in_axes, args)
+        axis_sizes = jax.tree_util.tree_map(find_axis_size, self.in_axes, arguments)
         axis_sizes = set(jax.tree_util.tree_leaves(axis_sizes))
         if len(axis_sizes) == 1:
             (d_axis_size,) = axis_sizes
@@ -167,35 +167,35 @@ class VmapCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        arguments: tuple,
     ) -> VmapTrace:
-        self._static_check_broadcastable(args)
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
+        self._static_check_broadcastable(arguments)
+        broadcast_dim_length = self._static_broadcast_dim_length(arguments)
         sub_keys = jax.random.split(key, broadcast_dim_length)
-        tr = jax.vmap(self.gen_fn.simulate, (0, self.in_axes))(sub_keys, args)
+        tr = jax.vmap(self.gen_fn.simulate, (0, self.in_axes))(sub_keys, arguments)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
+        map_tr = VmapTrace(self, tr, arguments, retval, jnp.sum(scores))
         return map_tr
 
     def update_importance(
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
-        args: tuple,
+        arguments: tuple,
     ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
-        self._static_check_broadcastable(args)
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
+        self._static_check_broadcastable(arguments)
+        broadcast_dim_length = self._static_broadcast_dim_length(arguments)
         idx_array = jnp.arange(0, broadcast_dim_length)
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
-        def _importance(key, idx, choice_map, args):
+        def _importance(key, idx, choice_map, arguments):
             submap = choice_map(idx)
             tr, w, rd, bwd_problem = self.gen_fn.update(
                 key,
                 EmptyTrace(self.gen_fn),
                 IncrementalUpdateRequest(
-                    Diff.unknown_change(args),
+                    Diff.unknown_change(arguments),
                     ImportanceRequest(submap),
                 ),
             )
@@ -203,11 +203,11 @@ class VmapCombinator(GenerativeFunction):
 
         (tr, w, rd, bwd_problem) = jax.vmap(
             _importance, in_axes=(0, 0, None, self.in_axes)
-        )(sub_keys, idx_array, choice_map, args)
+        )(sub_keys, idx_array, choice_map, arguments)
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
+        map_tr = VmapTrace(self, tr, arguments, retval, jnp.sum(scores))
         return map_tr, w, rd, bwd_problem
 
     def update_choice_map(
@@ -304,17 +304,19 @@ class VmapCombinator(GenerativeFunction):
     def assess(
         self,
         sample: ChoiceMap,
-        args: tuple,
+        arguments: tuple,
     ) -> tuple[Score, Retval]:
-        self._static_check_broadcastable(args)
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
+        self._static_check_broadcastable(arguments)
+        broadcast_dim_length = self._static_broadcast_dim_length(arguments)
         idx_array = jnp.arange(0, broadcast_dim_length)
 
-        def _assess(idx, args):
+        def _assess(idx, arguments):
             submap = sample(idx)
-            return self.gen_fn.assess(submap, args)
+            return self.gen_fn.assess(submap, arguments)
 
-        scores, retvals = jax.vmap(_assess, in_axes=(0, self.in_axes))(idx_array, args)
+        scores, retvals = jax.vmap(_assess, in_axes=(0, self.in_axes))(
+            idx_array, arguments
+        )
         return jnp.sum(scores), retvals
 
 

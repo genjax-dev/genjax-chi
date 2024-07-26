@@ -50,8 +50,8 @@ class REINFORCE(ADEVPrimitive):
     sample_function: Callable[..., Any] = Pytree.static()
     differentiable_logpdf: Callable[..., Any] = Pytree.static()
 
-    def sample(self, key, *args):
-        return self.sample_function(key, *args)
+    def sample(self, key, *arguments):
+        return self.sample_function(key, *arguments)
 
     def jvp_estimate(
         self,
@@ -125,8 +125,8 @@ flip_enum = FlipEnum()
 
 @Pytree.dataclass
 class FlipMVD(ADEVPrimitive):
-    def sample(self, key, *args):
-        p = args[0]
+    def sample(self, key, *arguments):
+        p = arguments[0]
         return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
 
     def jvp_estimate(
@@ -226,8 +226,8 @@ flip_reinforce = reinforce(
 )
 
 geometric_reinforce = reinforce(
-    lambda key, args: tfd.Geometric(*args).sample(seed=key),
-    lambda v, args: tfd.Geometric(*args).log_prob(v),
+    lambda key, arguments: tfd.Geometric(*arguments).sample(seed=key),
+    lambda v, arguments: tfd.Geometric(*arguments).log_prob(v),
 )
 
 normal_reinforce = reinforce(
@@ -391,8 +391,8 @@ beta_implicit = BetaIMPLICIT()
 class Baseline(ADEVPrimitive):
     prim: ADEVPrimitive
 
-    def sample(self, key, b, *args):
-        return self.prim.sample(key, *args)
+    def sample(self, key, b, *arguments):
+        return self.prim.sample(key, *arguments)
 
     def jvp_estimate(
         self,

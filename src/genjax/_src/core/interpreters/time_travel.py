@@ -43,7 +43,7 @@ record_p = InitialStylePrimitive("record_p")
 @Pytree.dataclass
 class FrameRecording(Pytree):
     f: Callable[..., Any]
-    args: tuple
+    arguments: tuple
     local_retval: Any
     cont: Callable[..., Any]
 
@@ -53,28 +53,28 @@ class RecordPoint(Pytree):
     callable: Closure
     debug_tag: Optional[String] = Pytree.static()
 
-    def default_call(self, *args):
-        return self.callable(*args)
+    def default_call(self, *arguments):
+        return self.callable(*arguments)
 
-    def handle(self, cont: Callable[..., Any], *args):
+    def handle(self, cont: Callable[..., Any], *arguments):
         @Pytree.partial()
-        def _cont(*args):
-            final_ret, _ = cont(self.callable(*args))
+        def _cont(*arguments):
+            final_ret, _ = cont(self.callable(*arguments))
             return final_ret
 
         # Normal execution.
-        ret = self.callable(*args)
-        final_ret = _cont(*args)
+        ret = self.callable(*arguments)
+        final_ret = _cont(*arguments)
         return final_ret, (
             self.debug_tag,
-            FrameRecording(self.callable, args, ret, _cont),
+            FrameRecording(self.callable, arguments, ret, _cont),
         )
 
-    def __call__(self, *args):
-        def _cont_prim_call(brk_pt, *args):
-            return brk_pt.default_call(*args)
+    def __call__(self, *arguments):
+        def _cont_prim_call(brk_pt, *arguments):
+            return brk_pt.default_call(*arguments)
 
-        return initial_style_bind(record_p)(_cont_prim_call)(self, *args)
+        return initial_style_bind(record_p)(_cont_prim_call)(self, *arguments)
 
 
 def rec(
@@ -84,8 +84,8 @@ def rec(
     if not isinstance(callable, Closure):
         callable = Pytree.partial()(callable)
 
-    def inner(*args):
-        return RecordPoint(callable, debug_tag)(*args)
+    def inner(*arguments):
+        return RecordPoint(callable, debug_tag)(*arguments)
 
     return inner
 
@@ -126,14 +126,14 @@ class TimeTravelCPSInterpreter(Pytree):
                 with src_util.user_context(eqn.source_info.traceback):
                     invals = jax_util.safe_map(env.read, eqn.invars)
                     subfuns, params = eqn.primitive.get_bind_params(eqn.params)
-                    args = subfuns + invals
+                    arguments = subfuns + invals
 
                     if eqn.primitive == record_p:
                         env = env.copy()
 
                         @Pytree.partial()
-                        def _kont(*args):
-                            leaves = jtu.tree_leaves(args)
+                        def _kont(*arguments):
+                            leaves = jtu.tree_leaves(arguments)
                             return eval_jaxpr_iterate_cps(
                                 eqns[eqn_idx + 1 :],
                                 env,
@@ -144,15 +144,17 @@ class TimeTravelCPSInterpreter(Pytree):
 
                         in_tree = params["in_tree"]
                         num_consts = params["num_consts"]
-                        cps_prim, *args = jtu.tree_unflatten(in_tree, args[num_consts:])
+                        cps_prim, *arguments = jtu.tree_unflatten(
+                            in_tree, arguments[num_consts:]
+                        )
                         if rebind:
-                            return _kont(cps_prim(*args))
+                            return _kont(cps_prim(*arguments))
 
                         else:
-                            return cps_prim.handle(_kont, *args)
+                            return cps_prim.handle(_kont, *arguments)
 
                     else:
-                        outs = eqn.primitive.bind(*args, **params)
+                        outs = eqn.primitive.bind(*arguments, **params)
 
                 if not eqn.primitive.multiple_results:
                     outs = [outs]
@@ -179,8 +181,8 @@ class TimeTravelCPSInterpreter(Pytree):
 
     @staticmethod
     def time_travel(f):
-        def _inner(*args):
-            closed_jaxpr, (flat_args, _, out_tree) = stage(f)(*args)
+        def _inner(*arguments):
+            closed_jaxpr, (flat_args, _, out_tree) = stage(f)(*arguments)
             jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
             return TimeTravelCPSInterpreter._eval_jaxpr_hybrid_cps(
                 jaxpr,
@@ -248,12 +250,12 @@ class TimeTravelingDebugger(Pytree):
                 new_ptr,
             )
 
-    def remix(self, *args) -> "TimeTravelingDebugger":
+    def remix(self, *arguments) -> "TimeTravelingDebugger":
         frame = self.sequence[self.ptr]
         f, cont = frame.f, frame.cont
-        local_retval = f(*args)
-        _, _debugger = _record(cont)(*args)
-        new_frame = FrameRecording(f, args, local_retval, cont)
+        local_retval = f(*arguments)
+        _, _debugger = _record(cont)(*arguments)
+        new_frame = FrameRecording(f, arguments, local_retval, cont)
         return TimeTravelingDebugger(
             _debugger.final_retval,
             [*self.sequence[: self.ptr], new_frame, *_debugger.sequence],
@@ -261,13 +263,13 @@ class TimeTravelingDebugger(Pytree):
             self.ptr,
         )
 
-    def __call__(self, *args):
-        return self.remix(*args)
+    def __call__(self, *arguments):
+        return self.remix(*arguments)
 
 
 def _record(source: Callable[..., Any]):
-    def inner(*args) -> tuple[Any, TimeTravelingDebugger]:
-        retval, next = time_travel(source)(*args)
+    def inner(*arguments) -> tuple[Any, TimeTravelingDebugger]:
+        retval, next = time_travel(source)(*arguments)
         sequence = []
         jump_points = {}
         while next:
@@ -275,19 +277,19 @@ def _record(source: Callable[..., Any]):
             sequence.append(frame)
             if debug_tag:
                 jump_points[debug_tag] = len(sequence) - 1
-            args, cont = frame.args, frame.cont
-            retval, next = time_travel(cont)(*args)
+            arguments, cont = frame.arguments, frame.cont
+            retval, next = time_travel(cont)(*arguments)
         return retval, TimeTravelingDebugger(retval, sequence, jump_points, 0)
 
     return inner
 
 
 def time_machine(source: Callable[..., Any]):
-    def instrumented(*args):
-        return tag(rec(source, "_enter")(*args), "exit")
+    def instrumented(*arguments):
+        return tag(rec(source, "_enter")(*arguments), "exit")
 
-    def inner(*args) -> TimeTravelingDebugger:
-        _, debugger = _record(instrumented)(*args)
+    def inner(*arguments) -> TimeTravelingDebugger:
+        _, debugger = _record(instrumented)(*arguments)
         return debugger
 
     return inner

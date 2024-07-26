@@ -22,12 +22,12 @@ tfd = tfp.distributions
 
 
 def tfp_distribution(dist: Callable[..., Any]):
-    def sampler(key, *args, **kwargs):
-        d = dist(*args, **kwargs)
+    def sampler(key, *arguments, **kwargs):
+        d = dist(*arguments, **kwargs)
         return d.sample(seed=key)
 
-    def logpdf(v, *args, **kwargs):
-        d = dist(*args, **kwargs)
+    def logpdf(v, *arguments, **kwargs):
+        d = dist(*arguments, **kwargs)
         return d.log_prob(v)
 
     return exact_density(sampler, logpdf)

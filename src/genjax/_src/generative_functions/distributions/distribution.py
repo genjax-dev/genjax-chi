@@ -83,12 +83,12 @@ class DistributionTrace(
     Trace["Distribution[A, R]", A, "ValueSample[R]", R],
 ):
     gen_fn: "Distribution[A, R]"
-    args: A
+    arguments: A
     value: R
     score: Score
 
     def get_args(self) -> A:
-        return self.args
+        return self.arguments
 
     def get_retval(self) -> R:
         return self.value
@@ -114,21 +114,21 @@ class DistributionTrace(
 SupportedConstraints = (
     EmptyConstraint
     | EqualityConstraint
-    | MaskedConstraint[ValueSample]
+    | MaskedConstraint["SupportedConstraints", ValueSample]
     | ChoiceMapConstraint
 )
 
 SupportedIncrementalConstraints = (
     EmptyConstraint
     | EqualityConstraint
-    | MaskedConstraint[ValueSample]
+    | MaskedConstraint["SupportedIncrementalConstraints", ValueSample]
     | ChoiceMapConstraint
 )
 
 SupportedGeneralConstraints = (
     EmptyConstraint
     | EqualityConstraint
-    | MaskedConstraint[ValueSample]
+    | MaskedConstraint["SupportedGeneralConstraints", ValueSample]
     | ChoiceMapConstraint
 )
 
@@ -154,10 +154,7 @@ class Distribution(
         R,
     ],
     ProjectRequest.SupportsProject,
-    GeneralUpdateRequest[
-        DistributionTrace[A, R], DistributionTrace[A, R]
-    ].UseAsDefaultUpdate[
-        DistributionTrace[A, R],
+    GeneralUpdateRequest[DistributionTrace[A, R],].UseAsDefaultUpdate[
         DistributionTrace[A, R],
         SupportedGeneralConstraints,
         SupportedGeneralConstraints,
@@ -188,7 +185,7 @@ class Distribution(
     def random_weighted(
         self,
         key: PRNGKey,
-        *args,
+        *arguments,
     ) -> tuple[Score, R]:
         pass
 
@@ -197,7 +194,7 @@ class Distribution(
         self,
         key: PRNGKey,
         v: R,
-        *args,
+        *arguments,
     ) -> Weight:
         pass
 
@@ -214,25 +211,27 @@ class Distribution(
         self,
         key: PRNGKey,
         constraint: SupportedConstraints,
-        args: A,
+        arguments: A,
     ) -> tuple[DistributionTrace[A, R], Weight, Projection]:
         match constraint:
             case EmptyConstraint():
-                tr = self.simulate(key, args)
+                tr = self.simulate(key, arguments)
                 weight = 0.0
                 return tr, jnp.array(weight), EmptyProjection()
 
             case EqualityConstraint(v):
-                w = self.estimate_logpdf(key, v, *args)
-                tr = DistributionTrace(self, args, v, w)
+                w = self.estimate_logpdf(key, v, *arguments)
+                tr = DistributionTrace(self, arguments, v, w)
                 return tr, w, IdentityProjection()
 
             case MaskedConstraint(flag, subconstraint):
                 # If it is valid.
-                im_tr, weight, bwd = self.importance_update(key, subconstraint, args)
+                im_tr, weight, bwd = self.importance_update(
+                    key, subconstraint, arguments
+                )
                 # If it is not.
                 sim_tr, empty_weight, empty_bwd = self.importance_update(
-                    key, EmptyConstraint(), args
+                    key, EmptyConstraint(), arguments
                 )
 
                 tr, w = jtu.tree_map(
@@ -250,7 +249,7 @@ class Distribution(
             # but only a few types.
             case ChoiceMapConstraint(choice_map):
                 inner_constraint = constraint.get_value()
-                return self.importance_update(key, inner_constraint, args)
+                return self.importance_update(key, inner_constraint, arguments)
 
     def incremental_update(
         self,
@@ -387,19 +386,19 @@ class Distribution(
         sample: ValueSample
         | ValChm
         | ChoiceMapSample,  # TODO: the ValChm here is a type of paving over, to allow people to continue to use what they are used to.
-        args: A,
+        arguments: A,
     ):
         match sample:
             case ValChm(v):
-                return self.assess(key, ValueSample(v), args)
+                return self.assess(key, ValueSample(v), arguments)
             case ChoiceMapSample():
                 key = jax.random.PRNGKey(0)
                 v = sample.get_value()
-                return self.assess(key, v, args)
+                return self.assess(key, v, arguments)
             case ValueSample():
                 key = jax.random.PRNGKey(0)
                 v = sample.val
-                w = self.estimate_logpdf(key, v, *args)
+                w = self.estimate_logpdf(key, v, *arguments)
                 return w, v
 
 
@@ -410,25 +409,25 @@ class Distribution(
 
 class ExactDensity(Distribution):
     @abstractmethod
-    def sample(self, key: PRNGKey, *args):
+    def sample(self, key: PRNGKey, *arguments):
         raise NotImplementedError
 
     @abstractmethod
-    def logpdf(self, v: Retval, *args):
+    def logpdf(self, v: Retval, *arguments):
         raise NotImplementedError
 
-    def __abstract_call__(self, *args):
+    def __abstract_call__(self, *arguments):
         key = jax.random.PRNGKey(0)
-        return self.sample(key, *args)
+        return self.sample(key, *arguments)
 
     def handle_kwargs(self) -> GenerativeFunction:
         @Pytree.partial(self)
-        def sample_with_kwargs(self, key, args, kwargs):
-            return self.sample(key, *args, **kwargs)
+        def sample_with_kwargs(self, key, arguments, kwargs):
+            return self.sample(key, *arguments, **kwargs)
 
         @Pytree.partial(self)
-        def logpdf_with_kwargs(self, v, args, kwargs):
-            return self.logpdf(v, *args, **kwargs)
+        def logpdf_with_kwargs(self, v, arguments, kwargs):
+            return self.logpdf(v, *arguments, **kwargs)
 
         return ExactDensityFromCallables(
             sample_with_kwargs,
@@ -438,23 +437,23 @@ class ExactDensity(Distribution):
     def random_weighted(
         self,
         key: PRNGKey,
-        *args,
+        *arguments,
     ) -> tuple[Score, Retval]:
         """Given arguments to the distribution, sample from the distribution,
         and return the exact log density of the sample, and the sample."""
-        v = self.sample(key, *args)
-        w = self.estimate_logpdf(key, v, *args)
+        v = self.sample(key, *arguments)
+        w = self.estimate_logpdf(key, v, *arguments)
         return (w, v)
 
     def estimate_logpdf(
         self,
         key: PRNGKey,
         v: Any,
-        *args,
+        *arguments,
     ) -> Weight:
         """Given a sample and arguments to the distribution, return the exact
         log density of the sample."""
-        w = self.logpdf(v, *args)
+        w = self.logpdf(v, *arguments)
         if w.shape:
             return jnp.sum(w)
         else:
@@ -466,11 +465,11 @@ class ExactDensityFromCallables(ExactDensity):
     sampler: Closure
     logpdf_evaluator: Closure
 
-    def sample(self, key, *args):
-        return self.sampler(key, *args)
+    def sample(self, key, *arguments):
+        return self.sampler(key, *arguments)
 
-    def logpdf(self, v, *args):
-        return self.logpdf_evaluator(v, *args)
+    def logpdf(self, v, *arguments):
+        return self.logpdf_evaluator(v, *arguments)
 
 
 def exact_density(
