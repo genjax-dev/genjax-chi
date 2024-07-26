@@ -19,6 +19,7 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
+    ChoiceMapSample,
     EmptyTrace,
     EmptyUpdateRequest,
     GenerativeFunction,
@@ -38,54 +39,51 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
-    FloatArray,
+    Generic,
     Int,
     IntArray,
     Optional,
     PRNGKey,
+    TypeVar,
     tuple,
 )
 
+C = TypeVar("C")
+Sc1 = TypeVar("Sc1")
+Sc2 = TypeVar("Sc2")
+S = TypeVar("S", bound=Sample)
+G = TypeVar("G", bound=GenerativeFunction)
+
 
 @Pytree.dataclass
-class ScanTrace(Trace):
+class ScanTrace(
+    Generic[G, C, Sc1, Sc2, S],
+    Trace["ScanCombinator", tuple[C, Sc1], ChoiceMapSample, tuple[C, Sc2]],
+):
     scan_gen_fn: "ScanCombinator"
-    inner: Trace
-    args: tuple
-    retval: Any
-    score: FloatArray
+    inner: Trace[G, tuple[C, Sc1], S, tuple[C, Sc2]]
+    args: tuple[C, Sc1]
+    retval: tuple[C, Sc2]
+    score: Score
 
-    def get_args(self) -> tuple:
+    def get_args(self) -> tuple[C, Sc1]:
         return self.args
 
-    def get_retval(self):
+    def get_retval(self) -> tuple[C, Sc2]:
         return self.retval
 
-    def get_sample(self):
+    def get_sample(self) -> ChoiceMapSample:
         return ChoiceMapSample(
             jax.vmap(
                 lambda idx, subtrace: ChoiceMap.idx(idx, subtrace.get_sample()),
             )(jnp.arange(self.scan_gen_fn.length), self.inner)
         )
 
-    def get_gen_fn(self):
+    def get_gen_fn(self) -> "ScanCombinator":
         return self.scan_gen_fn
 
-    def get_score(self):
+    def get_score(self) -> Score:
         return self.score
-
-    def index_update(
-        self,
-        idx: IntArray,
-        problem: UpdateRequest,
-    ) -> UpdateRequest:
-        return IndexProblem(idx, problem)
-
-    def checkerboard_update(
-        self,
-        problem: UpdateRequest,
-    ) -> UpdateRequest:
-        return CheckerboardProblem(problem)
 
 
 #######################
@@ -230,6 +228,7 @@ class ScanCombinator(GenerativeFunction):
         carry, scanned_in = args
 
         def _inner_simulate(key, carry, scanned_in):
+            assert isinstance(self.kernel_gen_fn, Simulateable)
             tr = self.kernel_gen_fn.simulate(key, (carry, scanned_in))
             (carry, scanned_out) = tr.get_retval()
             score = tr.get_score()

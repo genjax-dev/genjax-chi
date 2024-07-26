@@ -241,7 +241,10 @@ class Algorithm(SampleDistribution):
 
 
 @Pytree.dataclass
-class Marginal(Generic[Tr, A, R], GenerativeFunction[Tr, A, ChoiceMapSample, R]):
+class Marginal(
+    Generic[Tr, A, R],
+    GenerativeFunction[Tr, A, ChoiceMapSample, R],
+):
     gen_fn: GenerativeFunction[Tr, A, ChoiceMapSample, R]
     selection: Selection = Pytree.field(default=Selection.all())
     algorithm: Optional[Algorithm] = Pytree.field(default=None)

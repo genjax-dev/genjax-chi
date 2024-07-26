@@ -20,7 +20,6 @@ import pytest
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import SelectionBuilder as S
-from genjax import UpdateRequestBuilder as U
 from genjax.typing import FloatArray
 
 
