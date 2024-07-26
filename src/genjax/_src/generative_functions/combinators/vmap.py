@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """The `VmapCombinator` is a generative function combinator which exposes
-vectorization
-on the input arguments of a provided generative function callee.
+vectorization on the input arguments of a provided generative function callee.
 
 This vectorization is implemented using `jax.vmap`, and the combinator expects the user to specify `in_axes` as part of the construction of an instance of this combinator.
+
 """
 
 import jax
@@ -126,6 +126,7 @@ class VmapCombinator(GenerativeFunction):
         tr = jax.jit(mapped.simulate)(key, (arr,))
         print(tr.render_html())
         ```
+
     """
 
     gen_fn: GenerativeFunction
@@ -323,8 +324,7 @@ class VmapCombinator(GenerativeFunction):
 
 
 def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a
+    """Returns a decorator that wraps a
     [`GenerativeFunction`][genjax.GenerativeFunction] and returns a new
     `GenerativeFunction` that performs a vectorized map over the argument
     specified by `in_axes`. Traced values are nested under an index, and the
@@ -357,6 +357,7 @@ def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction], GenerativeFun
 
         print(tr.render_html())
         ```
+
     """
 
     def decorator(gen_fn) -> GenerativeFunction:

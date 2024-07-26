@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """This module provides the core functionality and JAX compatibility layer
-which several
-`GenJAX` generative function and inference modules are built on top of.
+which several `GenJAX` generative function and inference modules are built on
+top of.
 
 It contains (truncated, and in no particular order):
 
@@ -22,4 +22,5 @@ It contains (truncated, and in no particular order):
 * Utility abstract data types (mixins) for automatically registering class definitions as valid `Pytree` method implementors (guaranteeing `flatten`/`unflatten` compatibility across JAX transform boundaries). For more information, see [Pytrees](https://jax.readthedocs.io/en/latest/pytrees.html).
 
 * Transformation interpreters: interpreter-based transformations which operate on `ClosedJaxpr` instances, as well as staging functionality for staging out computations to `ClosedJaxpr` instances. The core interpreters are written in a mixed initial / final style. The application of all interpreters are JAX compatible, meaning that the application of any interpreter can be staged out to eliminate the interpreter overhead.
+
 """

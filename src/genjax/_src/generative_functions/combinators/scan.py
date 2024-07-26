@@ -28,6 +28,7 @@ from genjax._src.core.generative import (
     Sample,
     Score,
     Selection,
+    Simulateable,
     Trace,
     UpdateRequest,
     Weight,
@@ -116,10 +117,9 @@ class CheckerboardProblem(UpdateRequest):
 
 @Pytree.dataclass
 class ScanCombinator(GenerativeFunction):
-    """
-    `ScanCombinator` wraps a `kernel_gen_fn` [`genjax.GenerativeFunction`][]
+    """`ScanCombinator` wraps a `kernel_gen_fn` [`genjax.GenerativeFunction`][]
     of type `(c, a) -> (c, b)` in a new [`genjax.GenerativeFunction`][] of type
-    `(c, [a]) -> (c, [b])`, where
+    `(c, [a]) -> (c, [b])`, where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `a` may be a primitive, an array type or a pytree (container) type with array leaves
@@ -191,6 +191,7 @@ class ScanCombinator(GenerativeFunction):
         tr = jax.jit(random_walk.simulate)(key, (init, None))
         print(tr.render_html())
         ```
+
     """
 
     kernel_gen_fn: GenerativeFunction
@@ -206,6 +207,7 @@ class ScanCombinator(GenerativeFunction):
         (carry, scanned_in) = args
 
         def _inner(carry, scanned_in):
+            assert isinstance(self.kernel_gen_fn, Simulateable)
             v, scanned_out = self.kernel_gen_fn.__abstract_call__(carry, scanned_in)
             return v, scanned_out
 
@@ -539,10 +541,9 @@ class ScanCombinator(GenerativeFunction):
 def scan(
     *, n: Optional[Int] = None, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `(c, a) -> (c, b)`and returns a new [`genjax.GenerativeFunction`][] of type
-    `(c, [a]) -> (c, [b])` where
+    `(c, [a]) -> (c, [b])` where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `a` may be a primitive, an array type or a pytree (container) type with array leaves
@@ -621,6 +622,7 @@ def scan(
         # The retval has the final carry and an array of all `sum*sum` returned.
         print(tr.render_html())
         ```
+
     """
 
     def decorator(f):
@@ -630,8 +632,7 @@ def scan(
 
 
 def prepend_initial_acc(args, ret):
-    """
-    Prepends the initial accumulator value to the array of accumulated
+    """Prepends the initial accumulator value to the array of accumulated
     values.
 
     This function is used in the context of scan operations to include the initial
@@ -647,6 +648,7 @@ def prepend_initial_acc(args, ret):
 
     Note:
         This function uses JAX's tree mapping to handle nested structures in the accumulator, allowing it to work with complex accumulator types.
+
     """
     init_acc = args[0]
     xs = ret[1]
@@ -660,10 +662,9 @@ def prepend_initial_acc(args, ret):
 def accumulate(
     *, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type
-    `(c, [a]) -> [c]` where
+    `(c, [a]) -> [c]` where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `[c]` is an array of all loop-carried values seen during iteration (including the first)
@@ -716,6 +717,7 @@ def accumulate(
         tr = jax.jit(add.simulate)(key, (init, xs))
         print(tr.render_html())
         ```
+
     """
 
     def decorator(f: GenerativeFunction):
@@ -731,10 +733,9 @@ def accumulate(
 def reduce(
     *, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type
-    `(c, [a]) -> c` where
+    `(c, [a]) -> c` where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `a` may be a primitive, an array type or a pytree (container) type with array leaves
@@ -784,6 +785,7 @@ def reduce(
         tr = jax.jit(add.simulate)(key, (init, xs))
         print(tr.render_html())
         ```
+
     """
 
     def decorator(f: GenerativeFunction):
@@ -799,10 +801,9 @@ def reduce(
 def iterate(
     *, n: Int, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a ->
-    [a]` where
+    [a]` where.
 
     - `a` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `[a]` is an array of all `a`, `f(a)`, `f(f(a))` etc. values seen during iteration.
@@ -849,6 +850,7 @@ def iterate(
         tr = jax.jit(inc.simulate)(key, (init,))
         print(tr.render_html())
         ```
+
     """
 
     def decorator(f: GenerativeFunction):
@@ -865,10 +867,9 @@ def iterate(
 def iterate_final(
     *, n: Int, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a`
-    where
+    where.
 
     - `a` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - the original function is invoked `n` times with each input coming from the previous invocation's output, so that the new function returns $f^n(a)$
@@ -913,6 +914,7 @@ def iterate_final(
         tr = jax.jit(inc.simulate)(key, (init,))
         print(tr.render_html())
         ```
+
     """
 
     def decorator(f: GenerativeFunction):

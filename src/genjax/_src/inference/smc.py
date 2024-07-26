@@ -93,6 +93,7 @@ class ParticleCollection(Pytree):
     """A collection of weighted particles.
 
     Stores the particles (which are `Trace` instances), the log importance weights, the log marginal likelihood estimate, as well as an indicator flag denoting whether the collection is runtime valid or not (`ParticleCollection.is_valid`).
+
     """
 
     particles: Trace
@@ -118,10 +119,8 @@ class ParticleCollection(Pytree):
         return self.is_valid
 
     def sample_particle(self, key) -> Trace:
-        """
-        Samples a particle from the collection, with probability
-        proportional to its weight.
-        """
+        """Samples a particle from the collection, with probability
+        proportional to its weight."""
         log_weights = self.get_log_weights()
         logits = log_weights - logsumexp(log_weights)
         _, idx = categorical.random_weighted(key, logits)
@@ -242,14 +241,15 @@ class SMCAlgorithm(Algorithm):
 @Pytree.dataclass
 class Importance(SMCAlgorithm):
     """Accepts as input a `target: Target` and, optionally, a proposal `q:
-    SampleDistribution`.
-    `q` should accept a `Target` as input and return a choicemap on a subset
-    of the addresses in `target.gen_fn` not in `target.constraints`.
+    SampleDistribution`. `q` should accept a `Target` as input and return a
+    choicemap on a subset of the addresses in `target.gen_fn` not in
+    `target.constraints`.
 
     This initializes a 1-particle `ParticleCollection` by importance sampling from `target` using `q`.
 
     Any choices in `target.p` not in `q` will be sampled from the internal proposal distribution of `p`,
     given `target.constraints` and the choices sampled by `q`.
+
     """
 
     target: Target
@@ -292,11 +292,8 @@ class Importance(SMCAlgorithm):
 @Pytree.dataclass
 class ImportanceK(SMCAlgorithm):
     """Given a `target: Target` and a proposal `q: SampleDistribution`, as well
-    as the
-    number of particles `k_particles: Int`, initialize a particle collection
-    using
-    importance sampling.
-    """
+    as the number of particles `k_particles: Int`, initialize a particle
+    collection using importance sampling."""
 
     target: Target
     q: Optional[SampleDistribution] = Pytree.field(default=Pytree.const(None))

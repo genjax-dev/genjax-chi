@@ -56,11 +56,13 @@ DualTree = Annotated[
 
 
 class ADEVPrimitive(Pytree):
-    """
-    An `ADEVPrimitive` is a primitive sampler equipped with a JVP gradient
-    estimator strategy. These objects support forward sampling, but also come
-    equipped with a strategy that interacts with ADEV's AD transformation to
-    return a JVP estimate.
+    """An `ADEVPrimitive` is a primitive sampler equipped with a JVP gradient
+    estimator strategy.
+
+    These objects support forward sampling, but also come equipped with a
+    strategy that interacts with ADEV's AD transformation to return a JVP
+    estimate.
+
     """
 
     @abstractmethod
@@ -77,11 +79,12 @@ class ADEVPrimitive(Pytree):
         pass
 
     def get_batched_prim(self, dims: tuple):
-        """
-        To use ADEV primitives inside of `vmap`, they must provide a custom
+        """To use ADEV primitives inside of `vmap`, they must provide a custom
         batched primitive version of themselves.
 
-        This method returns the batched primitive, which contains customized gradient estimator strategies which are compatible with batching.
+        This method returns the batched primitive, which contains customized
+        gradient estimator strategies which are compatible with batching.
+
         """
         raise NotImplementedError
 
@@ -264,13 +267,12 @@ class Dual(Pytree):
 
 @Pytree.dataclass
 class ADInterpreter(Pytree):
-    """The `ADInterpreter` takes a `Jaxpr`,
-    propagates dual numbers through it, while also performing a CPS
-    transformation,
-    to compute forward mode AD.
+    """The `ADInterpreter` takes a `Jaxpr`, propagates dual numbers through it,
+    while also performing a CPS transformation, to compute forward mode AD.
 
     When this interpreter hits
     the `sample_p` primitive, it creates a pair of continuation closures which is passed to the gradient strategy which the primitive is using.
+
     """
 
     @staticmethod

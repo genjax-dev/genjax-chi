@@ -149,8 +149,10 @@ class StaticTrace(
 class AddressReuse(Exception):
     """Attempt to re-write an address in a GenJAX trace.
 
-    Any given address for a random choice may only be written to once. You can choose a
-    different name for the choice, or nest it into a scope where it is unique.
+    Any given address for a random choice may only be written to once. You can
+    choose a different name for the choice, or nest it into a scope where it is
+    unique.
+
     """
 
 
@@ -186,12 +188,12 @@ def trace(
     args: tuple,
 ):
     """Invoke a generative function, binding its generative semantics with the
-    current
-    caller.
+    current caller.
 
     Arguments:
         addr: An address denoting the site of a generative function invocation.
         gen_fn: A generative function invoked as a callee of `StaticGenerativeFunction`.
+
     """
     addr = Pytree.tree_const(addr)
     return initial_style_bind(trace_p)(_abstract_gen_fn_call)(
@@ -555,7 +557,7 @@ SupportedProjections = SelectionProjection
 class StaticGenerativeFunction(
     Generic[A, R],
     Simulateable[StaticTrace[A, R], A, ChoiceMapSample, R],
-    Assessable[A, ChoiceMapSample, R],
+    Assessable[StaticTrace[A, R], A, ChoiceMapSample, R],
     ImportanceRequest[
         EmptyTrace["StaticGenerativeFunction"], StaticTrace[A, R]
     ].SupportsImportance[
@@ -586,18 +588,17 @@ class StaticGenerativeFunction(
         SupportedProjections,
     ],
     ProjectRequest.SupportsProject[
+        StaticTrace[A, R],
         A,
         ChoiceMapSample,
         R,
         SupportedProjections,
     ],
-    GenerativeFunction[A, ChoiceMapSample, R],
+    GenerativeFunction[StaticTrace[A, R], A, ChoiceMapSample, R],
 ):
     """A `StaticGenerativeFunction` is a generative function which relies on
-    program
-    transformations applied to JAX-compatible Python programs to implement the
-    generative
-    function interface.
+    program transformations applied to JAX-compatible Python programs to
+    implement the generative function interface.
 
     By virtue of the implementation, any source program which is provided to this generative function *must* be JAX traceable, meaning [all the footguns for programs that JAX exposes](https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html) apply to the source program.
 
@@ -618,12 +619,14 @@ class StaticGenerativeFunction(
             x = trace("x", genjax.normal)(v, 1.0)
             return x
         ```
+
     """
 
     source: Closure
-    """
-    The source program of the generative function. This is a JAX-compatible
-    Python program.
+    """The source program of the generative function.
+
+    This is a JAX-compatible Python program.
+
     """
 
     # To get the type of return value, just invoke

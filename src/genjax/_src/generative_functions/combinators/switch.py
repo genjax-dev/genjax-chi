@@ -117,8 +117,7 @@ class SwitchTrace(Trace):
 
 @Pytree.dataclass
 class SwitchCombinator(GenerativeFunction):
-    """
-    `SwitchCombinator` accepts `n` generative functions as input and returns
+    """`SwitchCombinator` accepts `n` generative functions as input and returns
     a new [`genjax.GenerativeFunction`][] that accepts `n+1` arguments:
 
     - an index in the range `[0, n-1]`
@@ -161,6 +160,7 @@ class SwitchCombinator(GenerativeFunction):
 
         print(tr.render_html())
         ```
+
     """
 
     branches: tuple[GenerativeFunction, ...]
@@ -676,8 +676,7 @@ class SwitchCombinator(GenerativeFunction):
 def switch(
     *gen_fns: GenerativeFunction,
 ) -> GenerativeFunction:
-    """
-    Given `n` [`genjax.GenerativeFunction`][] inputs, returns a
+    """Given `n` [`genjax.GenerativeFunction`][] inputs, returns a
     [`genjax.GenerativeFunction`][] that accepts `n+1` arguments:
 
     - an index in the range $[0, n)$
@@ -718,5 +717,6 @@ def switch(
 
         print(tr.render_html())
         ```
+
     """
     return SwitchCombinator(gen_fns)

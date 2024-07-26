@@ -115,6 +115,14 @@ final-period = false
 max-line-length = 79
 style = "pep257"
 
+[tool.docformatter]
+recursive = true
+black = true
+non-strict = false
+wrap-summaries = 79
+wrap-descriptions = 79
+blank = true
+
 [tool.pyright]
 venvPath = "."
 venv = ".venv"

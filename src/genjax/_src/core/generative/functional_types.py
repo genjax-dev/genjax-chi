@@ -61,6 +61,7 @@ class Mask(Generic[V], Pytree):
     ## Usage of invalid data
 
     If you use invalid `Mask(False, data)` data in inference computations, you may encounter silently incorrect results.
+
     """
 
     flag: BoolArray
@@ -94,6 +95,7 @@ class Mask(Generic[V], Pytree):
         """Unmask the `Mask`, returning the value within.
 
         This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` wraps valid data at runtime.
+
         """
 
         # If a user chooses to `unmask`, require that they

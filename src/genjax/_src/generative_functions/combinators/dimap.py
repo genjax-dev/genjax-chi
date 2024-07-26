@@ -65,8 +65,7 @@ class DimapTrace(Trace, Generic[ArgTuple, S]):
 
 @Pytree.dataclass
 class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
-    """
-    A combinator that transforms both the arguments and return values of a
+    """A combinator that transforms both the arguments and return values of a
     [`genjax.GenerativeFunction`][].
 
     This combinator allows for the modification of input arguments and return values through specified mapping functions, enabling the adaptation of a generative function to different contexts or requirements.
@@ -103,6 +102,7 @@ class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
         )
         print(tr.render_html())
         ```
+
     """
 
     inner: GenerativeFunction
@@ -206,8 +206,7 @@ def dimap(
     post: Callable[[ArgTuple, R], S] = lambda _, retval: retval,
     info: String | None = None,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and
     applies pre- and post-processing functions to its arguments and return
     value.
 
@@ -249,6 +248,7 @@ def dimap(
 
         print(trace.render_html())
         ```
+
     """
 
     def decorator(f) -> GenerativeFunction:
@@ -262,8 +262,7 @@ def map(
     *,
     info: String | None = None,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and
     applies a post-processing function to its return value.
 
     This is a specialized version of [`genjax.dimap`][] where only the post-processing function is applied.
@@ -298,6 +297,7 @@ def map(
 
         print(trace.render_html())
         ```
+
     """
 
     def post(_, x: R) -> S:
@@ -311,8 +311,7 @@ def contramap(
     *,
     info: String | None = None,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and
     applies a pre-processing function to its arguments.
 
     This is a specialized version of [`genjax.dimap`][] where only the pre-processing function is applied.
@@ -348,5 +347,6 @@ def contramap(
 
         print(trace.render_html())
         ```
+
     """
     return dimap(pre=f, post=lambda _, ret: ret, info=info)

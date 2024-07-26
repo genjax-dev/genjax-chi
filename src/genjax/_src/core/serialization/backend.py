@@ -25,11 +25,11 @@ different backend implementations.
 
 @dataclass
 class SerializationBackend:
-    """
-    This class supports serialization methods and provides pickle-like
+    """This class supports serialization methods and provides pickle-like
     functions for convenience.
 
     Children of this class must override `serialize` which must output a raw byte representation of the trace. Similarly `deserialize` must take in the raw bytes along with the generative function to produce a trace. The *file* argument in `loads` and `dumps` must be a binary file descriptor which supports `read()` and `write()`.
+
     """
 
     @abc.abstractmethod

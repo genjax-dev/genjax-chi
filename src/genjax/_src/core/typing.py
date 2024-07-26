@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """This module contains a set of types and type aliases which are used
-throughout the
-codebase.
+throughout the codebase.
 
-Type annotations in the codebase are exported out of this module for consistency.
+Type annotations in the codebase are exported out of this module for
+consistency.
+
 """
 
 from typing import Annotated  # noqa: I001
@@ -89,8 +90,7 @@ def typecheck_with_config(**kwargs):
 
 
 typecheck = beartype(conf=global_conf)
-"""
-Accepts a function, and returns a function which uses `beartype` to perform
+"""Accepts a function, and returns a function which uses `beartype` to perform
 type checking.
 
 Examples:
@@ -122,6 +122,7 @@ Examples:
     except TypeError as e:
         print("TypeError: ", e)
     ```
+
 """
 
 #################

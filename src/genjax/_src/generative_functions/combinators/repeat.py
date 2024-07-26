@@ -24,12 +24,12 @@ from genjax._src.core.typing import (
 
 
 def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> GenerativeFunction:
-    """
-    A combinator that samples from a supplied
+    """A combinator that samples from a supplied
     [`genjax.GenerativeFunction`][] `gen_fn` a fixed number of times, returning
     a vector of `n` results.
 
     See [`genjax.repeat`][] for more details.
+
     """
     return (
         gen_fn.contramap(lambda _idx, args: args)
@@ -39,8 +39,8 @@ def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> GenerativeFunc
 
 
 def repeat(*, n: Int) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][]
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][]
+
     `gen_fn` of type `a -> b` and returns a new `GenerativeFunction` of type `a
     -> [b]` that samples from `gen_fn `n` times, returning a vector of `n`
     results.
@@ -72,6 +72,7 @@ def repeat(*, n: Int) -> Callable[[GenerativeFunction], GenerativeFunction]:
         tr = jax.jit(normal_draws.simulate)(key, (2.0,))
         print(tr.render_html())
         ```
+
     """
 
     def decorator(gen_fn) -> GenerativeFunction:

@@ -40,6 +40,7 @@ from genjax._src.core.typing import (
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
 
+Tr = TypeVar("Tr", bound=Trace)
 A = TypeVar("A", bound=Arguments)
 R = TypeVar("R", bound=Retval)
 S = TypeVar("S", bound=Sample)
@@ -52,8 +53,7 @@ S = TypeVar("S", bound=Sample)
 
 @Pytree.dataclass
 class Target(Pytree):
-    """
-    A `Target` represents an unnormalized target distribution induced by
+    """A `Target` represents an unnormalized target distribution induced by
     conditioning a generative function on a [`genjax.Constraint`][].
 
     Targets are created by providing a generative function, arguments to the generative function, and a constraint.
@@ -76,6 +76,7 @@ class Target(Pytree):
         target = Target(model, (), C["y"].set(3.0))
         print(target.render_html())
         ```
+
     """
 
     p: GenerativeFunction
@@ -101,10 +102,12 @@ class Target(Pytree):
 
 @Pytree.dataclass
 class SampleDistribution(Generic[A, S], Distribution[A, S]):
-    """
-    The abstract class `SampleDistribution` represents the type of
-    distributions whose return value type is a `Sample`. This is the abstract
+    """The abstract class `SampleDistribution` represents the type of
+    distributions whose return value type is a `Sample`.
+
+    This is the abstract
     base class of `Algorithm`, as well as `Marginal`.
+
     """
 
     @abstractmethod
@@ -168,8 +171,7 @@ class Algorithm(SampleDistribution):
         key: PRNGKey,
         target: Target,
     ) -> tuple[Weight, Sample]:
-        """
-        Given a [`Target`][genjax.inference.Target], return a
+        """Given a [`Target`][genjax.inference.Target], return a
         [`Sample`][genjax.core.Sample] from an approximation to the normalized
         distribution of the target, and a random [`Weight`][genjax.core.Weight]
         estimate of the normalized density of the target at the sample.
@@ -183,6 +185,7 @@ class Algorithm(SampleDistribution):
         $$
 
         This interface corresponds to **(Defn 3.2) Unbiased Density Sampler** in [[Lew23](https://dl.acm.org/doi/pdf/10.1145/3591290)].
+
         """
         pass
 
@@ -193,8 +196,7 @@ class Algorithm(SampleDistribution):
         sample: Sample,
         target: Target,
     ) -> Weight:
-        """
-        Given a [`Sample`][genjax.core.Sample] and a
+        """Given a [`Sample`][genjax.core.Sample] and a
         [`Target`][genjax.inference.Target], return a random
         [`Weight`][genjax.core.Weight] estimate of the normalized density of
         the target at the sample.
@@ -206,6 +208,7 @@ class Algorithm(SampleDistribution):
         $$
 
         This interface corresponds to **(Defn 3.1) Positive Unbiased Density Estimator** in [[Lew23](https://dl.acm.org/doi/pdf/10.1145/3591290)].
+
         """
         pass
 
@@ -238,8 +241,8 @@ class Algorithm(SampleDistribution):
 
 
 @Pytree.dataclass
-class Marginal(Generic[A, R], GenerativeFunction[A, ChoiceMapSample, R]):
-    gen_fn: GenerativeFunction[A, ChoiceMapSample, R]
+class Marginal(Generic[Tr, A, R], GenerativeFunction[Tr, A, ChoiceMapSample, R]):
+    gen_fn: GenerativeFunction[Tr, A, ChoiceMapSample, R]
     selection: Selection = Pytree.field(default=Selection.all())
     algorithm: Optional[Algorithm] = Pytree.field(default=None)
 

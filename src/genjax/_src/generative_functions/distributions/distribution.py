@@ -143,7 +143,7 @@ SupportedProjections = (
 class Distribution(
     Generic[A, R],
     Simulateable[DistributionTrace[A, R], A, ValueSample[R], R],
-    Assessable[A, ValueSample[R], R],
+    Assessable[DistributionTrace[A, R], A, ValueSample[R], R],
     ImportanceRequest[
         EmptyTrace["Distribution"], DistributionTrace[A, R]
     ].SupportsImportance[
@@ -182,7 +182,7 @@ class Distribution(
         R,
         SupportedProjections,
     ],
-    GenerativeFunction[A, ValueSample[R], R],
+    GenerativeFunction[DistributionTrace[A, R], A, ValueSample[R], R],
 ):
     @abstractmethod
     def random_weighted(
@@ -440,10 +440,8 @@ class ExactDensity(Distribution):
         key: PRNGKey,
         *args,
     ) -> tuple[Score, Retval]:
-        """
-        Given arguments to the distribution, sample from the distribution,
-        and return the exact log density of the sample, and the sample.
-        """
+        """Given arguments to the distribution, sample from the distribution,
+        and return the exact log density of the sample, and the sample."""
         v = self.sample(key, *args)
         w = self.estimate_logpdf(key, v, *args)
         return (w, v)
@@ -454,10 +452,8 @@ class ExactDensity(Distribution):
         v: Any,
         *args,
     ) -> Weight:
-        """
-        Given a sample and arguments to the distribution, return the exact
-        log density of the sample.
-        """
+        """Given a sample and arguments to the distribution, return the exact
+        log density of the sample."""
         w = self.logpdf(v, *args)
         if w.shape:
             return jnp.sum(w)

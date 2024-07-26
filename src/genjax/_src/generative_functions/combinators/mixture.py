@@ -24,8 +24,7 @@ from genjax._src.generative_functions.static import gen
 
 
 def mix(*gen_fns: GenerativeFunction) -> GenerativeFunction:
-    """
-    Creates a mixture model from a set of generative functions.
+    """Creates a mixture model from a set of generative functions.
 
     This function takes multiple generative functions as input and returns a new generative function that represents a mixture model.
 
@@ -68,6 +67,7 @@ def mix(*gen_fns: GenerativeFunction) -> GenerativeFunction:
         trace = mixture.simulate(key, (logits, (0.0,), (7.0,)))
         print(trace.render_html())
         ```
+
     """
 
     inner_combinator_closure = switch(*gen_fns)

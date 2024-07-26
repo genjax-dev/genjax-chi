@@ -104,11 +104,9 @@ class TestIterate:
         assert result == 1
 
     def test_iterate(self, key):
-        """
-        `iterate` returns a generative function that applies the original
+        """`iterate` returns a generative function that applies the original
         function `n` times and returns an array of each result (not including
-        the initial value).
-        """
+        the initial value)."""
         result = inc.iterate(n=4).simulate(key, (0,)).get_retval()
         assert jnp.array_equal(result, jnp.array([0, 1, 2, 3, 4]))
 
@@ -117,11 +115,8 @@ class TestIterate:
         assert jnp.array_equal(result, result_wrapped)
 
     def test_iterate_final(self, key):
-        """
-        `iterate_final` returns a generative function that applies the
-        original
-        function `n` times and returns the final result.
-        """
+        """`iterate_final` returns a generative function that applies the
+        original function `n` times and returns the final result."""
 
         result = inc.iterate_final(n=10).simulate(key, (0,)).get_retval()
         assert jnp.array_equal(result, 10)
@@ -132,26 +127,24 @@ class TestIterate:
         assert jnp.array_equal(result, jnp.array((2, 2)))
 
     def test_iterate_tupled(self, key):
-        """
-        `iterate` on function from tuple => tuple passes the tuple correctly
-        from invocation to invocation.
-        """
+        """`iterate` on function from tuple => tuple passes the tuple correctly
+        from invocation to invocation."""
         result = inc_tupled.iterate(n=4).simulate(key, ((0, 2),)).get_retval()
         assert jnp.array_equal(result, jnp.array([[0, 2, 4, 6, 8], [2, 2, 2, 2, 2]]))
 
     def test_iterate_final_tupled(self, key):
-        """
-        `iterate` on function from tuple => tuple passes the tuple correctly
-        from invocation to invocation. Same idea as above, but with
-        `iterate_final`.
+        """`iterate` on function from tuple => tuple passes the tuple correctly
+        from invocation to invocation.
+
+        Same idea as above, but with `iterate_final`.
+
         """
         result = inc_tupled.iterate_final(n=10).simulate(key, ((0, 2),)).get_retval()
         assert jnp.array_equal(result, jnp.array((20, 2)))
 
     def test_iterate_array(self, key):
         """`iterate` on function with an array-shaped initial value works
-        correctly.
-        """
+        correctly."""
 
         @genjax.gen
         def double(prev):
@@ -172,8 +165,7 @@ class TestIterate:
 
     def test_iterate_matrix(self, key):
         """`iterate` on function with matrix-shaped initial value works
-        correctly.
-        """
+        correctly."""
 
         fibonacci_matrix = jnp.array([[1, 1], [1, 0]])
 
@@ -220,13 +212,13 @@ class TestAccumulateReduceMethods:
         assert result == 2
 
     def test_accumulate(self, key):
-        """
-        `accumulate` on a generative function of signature `(accumulator, v)
-        ->
-        accumulator` returns a generative function that.
+        """`accumulate` on a generative function of signature `(accumulator, v)
+        -> accumulator` returns a generative function that.
 
-        - takes `(accumulator, jnp.array(v)) -> accumulator`
-        - and returns an array of each intermediate accumulator value seen (not including the initial value).
+        - takes `(accumulator, jnp.array(v)) -> accumulator` - and returns an
+        array of each intermediate accumulator value seen (not including the
+        initial value).
+
         """
         result = add.accumulate().simulate(key, (0, jnp.ones(4))).get_retval()
 
@@ -239,12 +231,13 @@ class TestAccumulateReduceMethods:
         assert jnp.array_equal(result, result_wrapped)
 
     def test_reduce(self, key):
-        """
-        `reduce` on a generative function of signature `(accumulator, v) ->
+        """`reduce` on a generative function of signature `(accumulator, v) ->
         accumulator` returns a generative function that.
 
-        - takes `(accumulator, jnp.array(v)) -> accumulator`
-        - and returns the final `accumulator` produces by folding in each element of `jnp.array(v)`.
+        - takes `(accumulator, jnp.array(v)) -> accumulator` - and returns the
+        final `accumulator` produces by folding in each element of
+        `jnp.array(v)`.
+
         """
 
         result = add.reduce().simulate(key, (0, jnp.ones(10))).get_retval()
@@ -256,9 +249,7 @@ class TestAccumulateReduceMethods:
         assert jnp.array_equal(result, jnp.array((12, 2)))
 
     def test_accumulate_tupled(self, key):
-        """`accumulate` on function with tupled carry state works
-        correctly.
-        """
+        """`accumulate` on function with tupled carry state works correctly."""
         result = (
             add_tupled.accumulate().simulate(key, ((0, 2), jnp.ones(4))).get_retval()
         )
@@ -271,11 +262,8 @@ class TestAccumulateReduceMethods:
         assert jnp.array_equal(result, jnp.array((30, 2)))
 
     def test_accumulate_array(self, key):
-        """
-        `accumulate` with an array-shaped accumulator works correctly,
-        including the
-        initial value.
-        """
+        """`accumulate` with an array-shaped accumulator works correctly,
+        including the initial value."""
         result = add.accumulate().simulate(key, (jnp.ones(4), jnp.eye(4))).get_retval()
 
         assert jnp.array_equal(
@@ -290,10 +278,8 @@ class TestAccumulateReduceMethods:
         )
 
     def test_accumulate_matrix(self, key):
-        """
-        `accumulate` on function with matrix-shaped initial value works
-        correctly.
-        """
+        """`accumulate` on function with matrix-shaped initial value works
+        correctly."""
 
         fib = jnp.array([[1, 1], [1, 0]])
         repeated_fib = jnp.broadcast_to(fib, (5, 2, 2))

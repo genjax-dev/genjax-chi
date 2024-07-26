@@ -45,26 +45,20 @@ distribution from TensorFlow Probability distributions.
 """
 
 bates = tfp_distribution(tfd.Bates)
-"""
-A `tfp_distribution` generative function which wraps the [`tfd.Bates`](https
+"""A `tfp_distribution` generative function which wraps the [`tfd.Bates`](https
 ://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bates)
-distribution from TensorFlow Probability distributions.
-"""
+distribution from TensorFlow Probability distributions."""
 
 bernoulli = tfp_distribution(lambda logits: tfd.Bernoulli(logits=logits))
-"""
-A `tfp_distribution` generative function which wraps the [`tfd.Bernoulli`](h
+"""A `tfp_distribution` generative function which wraps the [`tfd.Bernoulli`](h
 ttps://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoul
-li) distribution from TensorFlow Probability distributions.
-"""
+li) distribution from TensorFlow Probability distributions."""
 
 flip = tfp_distribution(lambda p: tfd.Bernoulli(probs=p))
-"""
-A `tfp_distribution` generative function which wraps the [`tfd.Bernoulli`](h
+"""A `tfp_distribution` generative function which wraps the [`tfd.Bernoulli`](h
 ttps://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoul
 li) distribution from TensorFlow Probability distributions, but is constructed
-using a probability value and not a logit.
-"""
+using a probability value and not a logit."""
 
 chi = tfp_distribution(tfd.Chi)
 """
@@ -81,18 +75,14 @@ distribution from TensorFlow Probability distributions.
 """
 
 geometric = tfp_distribution(tfd.Geometric)
-"""
-A `tfp_distribution` generative function which wraps the [`tfd.Geometric`](h
+"""A `tfp_distribution` generative function which wraps the [`tfd.Geometric`](h
 ttps://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Geometr
-ic) distribution from TensorFlow Probability distributions.
-"""
+ic) distribution from TensorFlow Probability distributions."""
 
 gumbel = tfp_distribution(tfd.Gumbel)
-"""
-A `tfp_distribution` generative function which wraps the [`tfd.Gumbel`](http
+"""A `tfp_distribution` generative function which wraps the [`tfd.Gumbel`](http
 s://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Gumbel)
-distribution from TensorFlow Probability distributions.
-"""
+distribution from TensorFlow Probability distributions."""
 
 half_cauchy = tfp_distribution(tfd.HalfCauchy)
 """
@@ -130,11 +120,9 @@ aswamy) distribution from TensorFlow Probability distributions.
 """
 
 laplace = tfp_distribution(tfd.Laplace)
-"""
-A `tfp_distribution` generative function which wraps the [`tfd.Laplace`](htt
+"""A `tfp_distribution` generative function which wraps the [`tfd.Laplace`](htt
 ps://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Laplace)
-distribution from TensorFlow Probability distributions.
-"""
+distribution from TensorFlow Probability distributions."""
 
 logit_normal = tfp_distribution(tfd.LogitNormal)
 """
@@ -144,11 +132,9 @@ Normal) distribution from TensorFlow Probability distributions.
 """
 
 moyal = tfp_distribution(tfd.Moyal)
-"""
-A `tfp_distribution` generative function which wraps the [`tfd.Moyal`](https
+"""A `tfp_distribution` generative function which wraps the [`tfd.Moyal`](https
 ://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Moyal)
-distribution from TensorFlow Probability distributions.
-"""
+distribution from TensorFlow Probability distributions."""
 
 multinomial = tfp_distribution(tfd.Multinomial)
 """
@@ -179,25 +165,23 @@ werSpherical) distribution from TensorFlow Probability distributions.
 """
 
 skellam = tfp_distribution(tfd.Skellam)
-"""
-A `tfp_distribution` generative function which wraps the [`tfd.Skellam`](htt
+"""A `tfp_distribution` generative function which wraps the [`tfd.Skellam`](htt
 ps://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Skellam)
-distribution from TensorFlow Probability distributions.
-"""
+distribution from TensorFlow Probability distributions."""
 
 student_t = tfp_distribution(tfd.StudentT)
-"""
-A `tfp_distribution` generative function which wraps the [`tfd.StudentT`](ht
+"""A `tfp_distribution` generative function which wraps the
+[`tfd.StudentT`](ht.
+
 tps://www.tensorflow.org/probability/api_docs/python/tfp/distributions/StudentT
 ) distribution from TensorFlow Probability distributions.
+
 """
 
 normal = tfp_distribution(tfd.Normal)
-"""
-A `tfp_distribution` generative function which wraps the [`tfd.Normal`](http
+"""A `tfp_distribution` generative function which wraps the [`tfd.Normal`](http
 s://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Normal)
-distribution from TensorFlow Probability distributions.
-"""
+distribution from TensorFlow Probability distributions."""
 
 mv_normal_diag = tfp_distribution(
     lambda μ, Σ_diag: tfd.MultivariateNormalDiag(loc=μ, scale_diag=Σ_diag)
@@ -239,17 +223,17 @@ runcatedNormal) distribution from TensorFlow Probability distributions.
 """
 
 uniform = tfp_distribution(tfd.Uniform)
-"""
-A `tfp_distribution` generative function which wraps the [`tfd.Uniform`](htt
+"""A `tfp_distribution` generative function which wraps the [`tfd.Uniform`](htt
 ps://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Uniform)
-distribution from TensorFlow Probability distributions.
-"""
+distribution from TensorFlow Probability distributions."""
 
 von_mises = tfp_distribution(tfd.VonMises)
-"""
-A `tfp_distribution` generative function which wraps the [`tfd.VonMises`](ht
+"""A `tfp_distribution` generative function which wraps the
+[`tfd.VonMises`](ht.
+
 tps://www.tensorflow.org/probability/api_docs/python/tfp/distributions/VonMises
 ) distribution from TensorFlow Probability distributions.
+
 """
 
 von_mises_fisher = tfp_distribution(tfd.VonMisesFisher)
@@ -260,11 +244,9 @@ nMisesFisher) distribution from TensorFlow Probability distributions.
 """
 
 weibull = tfp_distribution(tfd.Weibull)
-"""
-A `tfp_distribution` generative function which wraps the [`tfd.Weibull`](htt
+"""A `tfp_distribution` generative function which wraps the [`tfd.Weibull`](htt
 ps://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Weibull)
-distribution from TensorFlow Probability distributions.
-"""
+distribution from TensorFlow Probability distributions."""
 
 zipf = tfp_distribution(tfd.Zipf)
 """

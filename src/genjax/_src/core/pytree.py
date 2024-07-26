@@ -55,9 +55,9 @@ _T = TypeVar("_T")
 
 class Pytree(pz.Struct):
     """`Pytree` is an abstract base class which registers a class with JAX's
-    `Pytree`
-    system. JAX's `Pytree` system tracks how data classes should behave across
-    JAX-transformed function boundaries, like `jax.jit` or `jax.vmap`.
+    `Pytree` system. JAX's `Pytree` system tracks how data classes should
+    behave across JAX-transformed function boundaries, like `jax.jit` or
+    `jax.vmap`.
 
     Inheriting this class provides the implementor with the freedom to declare how the subfields of a class should behave:
 
@@ -65,6 +65,7 @@ class Pytree(pz.Struct):
     * `Pytree.field(...)` or no annotation: the value may be a JAX traced value, and JAX will attempt to convert it to tracer values inside of its transformations.
 
     If a field _points to another `Pytree`_, it should not be declared as `Pytree.static()`, as the `Pytree` interface will automatically handle the `Pytree` fields as dynamic fields.
+
     """
 
     @classmethod
@@ -95,8 +96,7 @@ class Pytree(pz.Struct):
         /,
         **kwargs,
     ) -> type[_T] | Callable[[type[_T]], type[_T]]:
-        """
-        Denote that a class (which is inheriting `Pytree`) should be treated
+        """Denote that a class (which is inheriting `Pytree`) should be treated
         as a dataclass, meaning it can hold data in fields which are declared
         as part of the class.
 
@@ -123,6 +123,7 @@ class Pytree(pz.Struct):
 
             print(MyClass(10, jnp.array(5.0)).render_html())
             ```
+
         """
 
         return pz.pytree_dataclass(
@@ -134,11 +135,11 @@ class Pytree(pz.Struct):
     @staticmethod
     def static(**kwargs):
         """Declare a field of a `Pytree` dataclass to be static. Users can
-        provide additional keyword argument options,
-        like `default` or `default_factory`, to customize how the field is
-        instantiated when an instance of
-        the dataclass is instantiated.` Fields which are provided with default
-        values must come after required fields in the dataclass declaration.
+        provide additional keyword argument options, like `default` or
+        `default_factory`, to customize how the field is instantiated when an
+        instance of the dataclass is instantiated.` Fields which are provided
+        with default values must come after required fields in the dataclass
+        declaration.
 
         Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
@@ -151,15 +152,16 @@ class Pytree(pz.Struct):
 
             print(MyClass(jnp.array(5.0)).render_html())
             ```
+
         """
         return field(metadata={"pytree_node": False}, **kwargs)
 
     @staticmethod
     def field(**kwargs):
         """Declare a field of a `Pytree` dataclass to be dynamic.
-        Alternatively,
-        one can leave the annotation off in the declaratio
-        ""
+
+        Alternatively, one can leave the annotation off in the declaratio ""
+
         """
         return field(**kwargs)
 
@@ -259,11 +261,12 @@ class Pytree(pz.Struct):
     def tree_stack(trees):
         """Takes a list of trees and stacks every corresponding leaf.
 
-        For example, given two trees ((a, b), c) and ((a', b'), c'), returns ((stack(a,
-        a'), stack(b, b')), stack(c, c')).
+        For example, given two trees ((a, b), c) and ((a', b'), c'), returns
+        ((stack(a, a'), stack(b, b')), stack(c, c')).
 
-        Useful for turning a list of objects into something you can feed to a vmapped
-        function.
+        Useful for turning a list of objects into something you can feed to a
+        vmapped function.
+
         """
         leaves_list = []
         treedef_list = []
@@ -289,6 +292,7 @@ class Pytree(pz.Struct):
 
         Useful for turning the output of a vmapped function into normal
         objects.
+
         """
         leaves, treedef = jtu.tree_flatten(tree)
         n_trees = leaves[0].shape[0]
@@ -434,8 +438,7 @@ class Pytree(pz.Struct):
 # Wrapper for static values (can include callables).
 @Pytree.dataclass
 class Const(Generic[V], Pytree):
-    """
-    JAX-compatible way to tag a value as a constant. Valid constants include
+    """JAX-compatible way to tag a value as a constant. Valid constants include
     Python literals, strings, essentially anything **that won't hold JAX
     arrays** inside of a computation.
 
@@ -464,6 +467,7 @@ class Const(Generic[V], Pytree):
         r = jax.jit(f)(c)
         print(r)
         ```
+
     """
 
     val: V = Pytree.static()

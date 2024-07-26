@@ -92,8 +92,7 @@ SelectionBuilder = _SelectionBuilder()
 
 
 class Selection(Pytree):
-    """
-    The type `Selection` provides a lens-like interface for filtering the
+    """The type `Selection` provides a lens-like interface for filtering the
     random choices in a `ChoiceMap`.
 
     Examples:
@@ -133,6 +132,7 @@ class Selection(Pytree):
         sel = S["x", "y"] | S["z"]
         print(sel["x", "y"], sel["z", "y"])
         ```
+
     """
 
     def __or__(self, other: "Selection") -> "Selection":
@@ -479,8 +479,7 @@ class ChoiceMapAddressIndex(Pytree):
 
 
 class ChoiceMap(Generic[V], Pytree):
-    """
-    The type `ChoiceMap` denotes a map-like value which can be sampled from
+    """The type `ChoiceMap` denotes a map-like value which can be sampled from
     generative functions.
 
     Generative functions which utilize `ChoiceMap` as their sample representation typically support a notion of _addressing_ for the random choices they make. `ChoiceMap` stores addressed random choices, and provides a data language for querying and manipulating these choices.
@@ -521,6 +520,7 @@ class ChoiceMap(Generic[V], Pytree):
         vec_chm = vmap(lambda idx, v: C["x", idx].set(v))(jnp.arange(10), jnp.ones(10))
         print(vec_chm.render_html())
         ```
+
     """
 
     #######################
@@ -567,6 +567,7 @@ class ChoiceMap(Generic[V], Pytree):
             filtered = chm.filter(selection)
             print("y" in filtered)
             ```
+
         """
         return choice_map_filtered(selection, self)
 
@@ -664,8 +665,7 @@ class ChoiceMap(Generic[V], Pytree):
 
     @property
     def at(self) -> ChoiceMapAddressIndex:
-        """
-        Access the `ChoiceMapAddressIndex` mutation interface. This allows
+        """Access the `ChoiceMapAddressIndex` mutation interface. This allows
         users to take an existing choice map, and mutate it _functionally_.
 
         Examples:
@@ -674,6 +674,7 @@ class ChoiceMap(Generic[V], Pytree):
         chm = chm.at["x", "y"].set(4.0)
         print(chm["x", "y"])
         ```
+
         """
         return ChoiceMapAddressIndex(self, [])
 

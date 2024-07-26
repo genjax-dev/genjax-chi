@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """This module supports incremental computation using a form of JVP-inspired
-computation
-with a type of generalized tangent values (e.g. `ChangeTangent` below).
+computation with a type of generalized tangent values (e.g. `ChangeTangent`
+below).
 
 Incremental computation is currently a concern of Gen's `update` GFI method - and can be utilized _as a runtime performance optimization_ for computing the weight (and changes to `Trace` instances) which `update` computes.
 
@@ -25,6 +25,7 @@ By default, `genjax` provides two types of `ChangeTangent`:
 * `UnknownChange` - indicating that a value has changed, without further information about the change.
 
 `ChangeTangents` are provided along with primal values into `Diff` instances. The generative function `update` interface expects tuples of `Pytree` instances whose leaves are `Diff` instances (`argdiffs`).
+
 """
 
 # TODO: Think about when tangents don't share the same Pytree shape as primals.

@@ -12,15 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """The `combinators` module exposes _generative function combinators_:
-generative
-functions which accept other generative functions as configuration arguments,
-and
-implement their own generative function interfaces using structured patterns of
-control
-flow (and other types of useful modifications). If one thinks of a control flow
-primitive as an operation on deterministic types, a combinator can be thought
-of as
-lifting the operation to support generative function semantics.
+generative functions which accept other generative functions as configuration
+arguments, and implement their own generative function interfaces using
+structured patterns of control flow (and other types of useful modifications).
+If one thinks of a control flow primitive as an operation on deterministic
+types, a combinator can be thought of as lifting the operation to support
+generative function semantics.
 
 GenJAX exposes several combinators:
 
@@ -28,4 +25,5 @@ GenJAX exposes several combinators:
 * [`VmapCombinator`](map.md) - which exposes generative vectorization over input arguments. The implementation essentially wraps [`jax.vmap`](https://jax.readthedocs.io/en/latest/_autosummary/jax.vmap.html) into the interfaces.
 * [`ScanCombinator`](unfold.md) - which exposes a scan-like pattern for generative computation in a state space pattern, by utilizing the control flow primitive [`jax.lax.scan`](https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.scan.html).
 * [`SwitchCombinator`](switch.md) - which exposes stochastic branching patterns, by utilizing the control flow primitive [`jax.lax.switch`](https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html).
+
 """

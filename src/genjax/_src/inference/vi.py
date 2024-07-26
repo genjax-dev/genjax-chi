@@ -64,12 +64,13 @@ def adev_distribution(
     adev_primitive: ADEVPrimitive,
     differentiable_logpdf: Callable[..., Any],
 ) -> ExactDensity:
-    """
-    Return an [`ExactDensity`][genjax.ExactDensity] distribution whose
+    """Return an [`ExactDensity`][genjax.ExactDensity] distribution whose
     sampler invokes an ADEV sampling primitive, with a provided differentiable
     log density function.
 
-    Exact densities created using this function can be used as distributions in variational guide programs.
+    Exact densities created using this function can be used as distributions in
+    variational guide programs.
+
     """
 
     def sampler(key: PRNGKey, *args: Any) -> Any:
@@ -135,20 +136,16 @@ geometric_reinforce = adev_distribution(
 ##############
 
 GradientEstimate = Any
-"""
-The type of gradient estimates returned by sampling from gradient estimators
-for loss terms.
-"""
+"""The type of gradient estimates returned by sampling from gradient estimators
+for loss terms."""
 
 
 def ELBO(
     guide: SampleDistribution,
     make_target: Callable[..., Target],
 ) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
-    """
-    Return a function that computes the gradient estimate of the ELBO loss
-    term.
-    """
+    """Return a function that computes the gradient estimate of the ELBO loss
+    term."""
 
     def grad_estimate(
         key: PRNGKey,
@@ -172,10 +169,8 @@ def IWELBO(
     make_target: Callable[[Any], Target],
     N: Int,
 ) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
-    """
-    Return a function that computes the gradient estimate of the IWELBO loss
-    term.
-    """
+    """Return a function that computes the gradient estimate of the IWELBO loss
+    term."""
 
     def grad_estimate(
         key: PRNGKey,
@@ -198,10 +193,8 @@ def PWake(
     posterior_approx: SampleDistribution,
     make_target: Callable[[Any], Target],
 ) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
-    """
-    Return a function that computes the gradient estimate of the PWake loss
-    term.
-    """
+    """Return a function that computes the gradient estimate of the PWake loss
+    term."""
 
     def grad_estimate(
         key: PRNGKey,
@@ -227,10 +220,8 @@ def QWake(
     posterior_approx: SampleDistribution,
     make_target: Callable[[Any], Target],
 ) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
-    """
-    Return a function that computes the gradient estimate of the QWake loss
-    term.
-    """
+    """Return a function that computes the gradient estimate of the QWake loss
+    term."""
 
     def grad_estimate(
         key: PRNGKey,

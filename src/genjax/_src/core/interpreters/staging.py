@@ -126,10 +126,8 @@ def stage(f):
 
 
 def get_data_shape(callable):
-    """
-    Returns a function that stages a function and returns the abstract
-    Pytree shapes of its return value.
-    """
+    """Returns a function that stages a function and returns the abstract
+    Pytree shapes of its return value."""
 
     def wrapped(*args):
         _, data_shape = make_jaxpr(callable, return_shape=True)(*args)
