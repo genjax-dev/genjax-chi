@@ -93,7 +93,8 @@ SelectionBuilder = _SelectionBuilder()
 
 class Selection(Pytree):
     """
-    The type `Selection` provides a lens-like interface for filtering the random choices in a `ChoiceMap`.
+    The type `Selection` provides a lens-like interface for filtering the
+    random choices in a `ChoiceMap`.
 
     Examples:
         (**Making selections**) Selections can be constructed using the `SelectionBuilder` interface
@@ -479,7 +480,8 @@ class ChoiceMapAddressIndex(Pytree):
 
 class ChoiceMap(Generic[V], Pytree):
     """
-    The type `ChoiceMap` denotes a map-like value which can be sampled from generative functions.
+    The type `ChoiceMap` denotes a map-like value which can be sampled from
+    generative functions.
 
     Generative functions which utilize `ChoiceMap` as their sample representation typically support a notion of _addressing_ for the random choices they make. `ChoiceMap` stores addressed random choices, and provides a data language for querying and manipulating these choices.
 
@@ -540,7 +542,8 @@ class ChoiceMap(Generic[V], Pytree):
         return check_none(self.get_value())
 
     def filter(self, selection: Selection) -> "ChoiceMap":
-        """Filter the choice map on the `Selection`. The resulting choice map only contains the addresses in the selection.
+        """Filter the choice map on the `Selection`. The resulting choice map
+        only contains the addresses in the selection.
 
         Examples:
             ```python exec="yes" source="material-block" session="core"
@@ -662,7 +665,8 @@ class ChoiceMap(Generic[V], Pytree):
     @property
     def at(self) -> ChoiceMapAddressIndex:
         """
-        Access the `ChoiceMapAddressIndex` mutation interface. This allows users to take an existing choice map, and mutate it _functionally_.
+        Access the `ChoiceMapAddressIndex` mutation interface. This allows
+        users to take an existing choice map, and mutate it _functionally_.
 
         Examples:
         ```python exec="yes" source="material-block" session="core"
@@ -670,7 +674,6 @@ class ChoiceMap(Generic[V], Pytree):
         chm = chm.at["x", "y"].set(4.0)
         print(chm["x", "y"])
         ```
-
         """
         return ChoiceMapAddressIndex(self, [])
 

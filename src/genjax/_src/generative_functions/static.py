@@ -185,7 +185,8 @@ def trace(
     gen_fn: GenerativeFunction,
     args: tuple,
 ):
-    """Invoke a generative function, binding its generative semantics with the current
+    """Invoke a generative function, binding its generative semantics with the
+    current
     caller.
 
     Arguments:
@@ -592,8 +593,10 @@ class StaticGenerativeFunction(
     ],
     GenerativeFunction[A, ChoiceMapSample, R],
 ):
-    """A `StaticGenerativeFunction` is a generative function which relies on program
-    transformations applied to JAX-compatible Python programs to implement the generative
+    """A `StaticGenerativeFunction` is a generative function which relies on
+    program
+    transformations applied to JAX-compatible Python programs to implement the
+    generative
     function interface.
 
     By virtue of the implementation, any source program which is provided to this generative function *must* be JAX traceable, meaning [all the footguns for programs that JAX exposes](https://jax.readthedocs.io/en/latest/notebooks/Common_Gotchas_in_JAX.html) apply to the source program.
@@ -619,7 +622,8 @@ class StaticGenerativeFunction(
 
     source: Closure
     """
-    The source program of the generative function. This is a JAX-compatible Python program.
+    The source program of the generative function. This is a JAX-compatible
+    Python program.
     """
 
     # To get the type of return value, just invoke

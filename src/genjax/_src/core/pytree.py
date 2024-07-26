@@ -11,7 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module contains an abstract data class (called `Pytree`) for implementing JAX's [`Pytree` interface](https://jax.readthedocs.io/en/latest/pytrees.html) on derived classes.
+"""This module contains an abstract data class (called `Pytree`) for
+implementing JAX's [`Pytree`
+interface](https://jax.readthedocs.io/en/latest/pytrees.html) on derived
+classes.
 
 The Pytree interface determines how data classes behave across JAX-transformed function boundaries - it provides a user with the freedom to declare subfields of a class as "static" (meaning, the value of the field cannot be a JAX traced value, it must be a Python literal, or a constant array - and the value is embedded in the `PyTreeDef` of any instance) or "dynamic" (meaning, the value may be a JAX traced value).
 """
@@ -51,8 +54,10 @@ _T = TypeVar("_T")
 
 
 class Pytree(pz.Struct):
-    """`Pytree` is an abstract base class which registers a class with JAX's `Pytree`
-    system. JAX's `Pytree` system tracks how data classes should behave across JAX-transformed function boundaries, like `jax.jit` or `jax.vmap`.
+    """`Pytree` is an abstract base class which registers a class with JAX's
+    `Pytree`
+    system. JAX's `Pytree` system tracks how data classes should behave across
+    JAX-transformed function boundaries, like `jax.jit` or `jax.vmap`.
 
     Inheriting this class provides the implementor with the freedom to declare how the subfields of a class should behave:
 
@@ -60,7 +65,6 @@ class Pytree(pz.Struct):
     * `Pytree.field(...)` or no annotation: the value may be a JAX traced value, and JAX will attempt to convert it to tracer values inside of its transformations.
 
     If a field _points to another `Pytree`_, it should not be declared as `Pytree.static()`, as the `Pytree` interface will automatically handle the `Pytree` fields as dynamic fields.
-
     """
 
     @classmethod
@@ -92,7 +96,9 @@ class Pytree(pz.Struct):
         **kwargs,
     ) -> type[_T] | Callable[[type[_T]], type[_T]]:
         """
-        Denote that a class (which is inheriting `Pytree`) should be treated as a dataclass, meaning it can hold data in fields which are declared as part of the class.
+        Denote that a class (which is inheriting `Pytree`) should be treated
+        as a dataclass, meaning it can hold data in fields which are declared
+        as part of the class.
 
         A dataclass is to be distinguished from a "methods only" `Pytree` class, which does not have fields, but may define methods.
         The latter cannot be instantiated, but can be inherited from, while the former can be instantiated:
@@ -127,9 +133,12 @@ class Pytree(pz.Struct):
 
     @staticmethod
     def static(**kwargs):
-        """Declare a field of a `Pytree` dataclass to be static. Users can provide additional keyword argument options,
-        like `default` or `default_factory`, to customize how the field is instantiated when an instance of
-        the dataclass is instantiated.` Fields which are provided with default values must come after required fields in the dataclass declaration.
+        """Declare a field of a `Pytree` dataclass to be static. Users can
+        provide additional keyword argument options,
+        like `default` or `default_factory`, to customize how the field is
+        instantiated when an instance of
+        the dataclass is instantiated.` Fields which are provided with default
+        values must come after required fields in the dataclass declaration.
 
         Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
@@ -142,13 +151,16 @@ class Pytree(pz.Struct):
 
             print(MyClass(jnp.array(5.0)).render_html())
             ```
-
         """
         return field(metadata={"pytree_node": False}, **kwargs)
 
     @staticmethod
     def field(**kwargs):
-        "Declare a field of a `Pytree` dataclass to be dynamic. Alternatively, one can leave the annotation off in the declaration."
+        """Declare a field of a `Pytree` dataclass to be dynamic.
+        Alternatively,
+        one can leave the annotation off in the declaratio
+        ""
+        """
         return field(**kwargs)
 
     ##############################
@@ -268,7 +280,8 @@ class Pytree(pz.Struct):
 
     @staticmethod
     def tree_unstack(tree):
-        """Takes a tree and turns it into a list of trees. Inverse of tree_stack.
+        """Takes a tree and turns it into a list of trees. Inverse of
+        tree_stack.
 
         For example, given a tree ((a, b), c), where a, b, and c all have
         first dimension k, will make k trees [((a[0], b[0]), c[0]), ...,
@@ -422,7 +435,9 @@ class Pytree(pz.Struct):
 @Pytree.dataclass
 class Const(Generic[V], Pytree):
     """
-    JAX-compatible way to tag a value as a constant. Valid constants include Python literals, strings, essentially anything **that won't hold JAX arrays** inside of a computation.
+    JAX-compatible way to tag a value as a constant. Valid constants include
+    Python literals, strings, essentially anything **that won't hold JAX
+    arrays** inside of a computation.
 
     Examples:
         Instances of `Const` can be created using a `Pytree` classmethod:
@@ -461,7 +476,9 @@ class Const(Generic[V], Pytree):
 @Pytree.dataclass
 class Closure(Pytree):
     """
-    JAX-compatible closure type. It's a closure _as a [`Pytree`][genjax.core.Pytree]_ - meaning the static _source code_ / _callable_ is separated from dynamic data (which must be tracked by JAX).
+    JAX-compatible closure type. It's a closure _as a
+    [`Pytree`][genjax.core.Pytree]_ - meaning the static _source code_ /
+    _callable_ is separated from dynamic data (which must be tracked by JAX).
 
     Examples:
         Instances of `Closure` can be created using `Pytree.partial` -- note the order of the "closed over" arguments:

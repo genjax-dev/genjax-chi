@@ -66,7 +66,8 @@ class DimapTrace(Trace, Generic[ArgTuple, S]):
 @Pytree.dataclass
 class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
     """
-    A combinator that transforms both the arguments and return values of a [`genjax.GenerativeFunction`][].
+    A combinator that transforms both the arguments and return values of a
+    [`genjax.GenerativeFunction`][].
 
     This combinator allows for the modification of input arguments and return values through specified mapping functions, enabling the adaptation of a generative function to different contexts or requirements.
 
@@ -206,7 +207,9 @@ def dimap(
     info: String | None = None,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
+    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and
+    applies pre- and post-processing functions to its arguments and return
+    value.
 
     !!! info
         Prefer [`genjax.map`][] if you only need to transform the return value, or [`genjax.contramap`][] if you need to transform the arguments.
@@ -260,7 +263,8 @@ def map(
     info: String | None = None,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies a post-processing function to its return value.
+    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and
+    applies a post-processing function to its return value.
 
     This is a specialized version of [`genjax.dimap`][] where only the post-processing function is applied.
 
@@ -308,7 +312,8 @@ def contramap(
     info: String | None = None,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies a pre-processing function to its arguments.
+    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and
+    applies a pre-processing function to its arguments.
 
     This is a specialized version of [`genjax.dimap`][] where only the pre-processing function is applied.
 

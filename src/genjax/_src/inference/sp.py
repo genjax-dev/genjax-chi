@@ -53,7 +53,8 @@ S = TypeVar("S", bound=Sample)
 @Pytree.dataclass
 class Target(Pytree):
     """
-    A `Target` represents an unnormalized target distribution induced by conditioning a generative function on a [`genjax.Constraint`][].
+    A `Target` represents an unnormalized target distribution induced by
+    conditioning a generative function on a [`genjax.Constraint`][].
 
     Targets are created by providing a generative function, arguments to the generative function, and a constraint.
 
@@ -101,7 +102,9 @@ class Target(Pytree):
 @Pytree.dataclass
 class SampleDistribution(Generic[A, S], Distribution[A, S]):
     """
-    The abstract class `SampleDistribution` represents the type of distributions whose return value type is a `Sample`. This is the abstract base class of `Algorithm`, as well as `Marginal`.
+    The abstract class `SampleDistribution` represents the type of
+    distributions whose return value type is a `Sample`. This is the abstract
+    base class of `Algorithm`, as well as `Marginal`.
     """
 
     @abstractmethod
@@ -129,7 +132,8 @@ class SampleDistribution(Generic[A, S], Distribution[A, S]):
 
 class Algorithm(SampleDistribution):
     """`Algorithm` is the type of inference
-    algorithms: probabilistic programs which provide interfaces for sampling from
+    algorithms: probabilistic programs which provide interfaces for sampling
+    from
     posterior approximations, and estimating densities.
 
     **The stochastic probability interface for `Algorithm`**
@@ -165,7 +169,10 @@ class Algorithm(SampleDistribution):
         target: Target,
     ) -> tuple[Weight, Sample]:
         """
-        Given a [`Target`][genjax.inference.Target], return a [`Sample`][genjax.core.Sample] from an approximation to the normalized distribution of the target, and a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
+        Given a [`Target`][genjax.inference.Target], return a
+        [`Sample`][genjax.core.Sample] from an approximation to the normalized
+        distribution of the target, and a random [`Weight`][genjax.core.Weight]
+        estimate of the normalized density of the target at the sample.
 
         The `sample` is a sample on the support of `target.gen_fn` which _are not in_ `target.constraints`, produced by running the inference algorithm.
 
@@ -187,7 +194,10 @@ class Algorithm(SampleDistribution):
         target: Target,
     ) -> Weight:
         """
-        Given a [`Sample`][genjax.core.Sample] and a [`Target`][genjax.inference.Target], return a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
+        Given a [`Sample`][genjax.core.Sample] and a
+        [`Target`][genjax.inference.Target], return a random
+        [`Weight`][genjax.core.Weight] estimate of the normalized density of
+        the target at the sample.
 
         Let $T_P(a, c)$ denote the target, with $P$ the distribution on samples represented by `target.gen_fn`, and $S$ denote the sample. Let $w$ denote the weight `w`. The weight $w$ is a random weight such that $w$ satisfies:
 

@@ -70,7 +70,10 @@ class MaskTrace(Trace):
 @Pytree.dataclass
 class MaskCombinator(GenerativeFunction):
     """
-    Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
+    Combinator which enables dynamic masking of generative functions. Takes
+    a [`genjax.GenerativeFunction`][] and returns a new
+    [`genjax.GenerativeFunction`][] which accepts an additional boolean first
+    argument.
 
     If `True`, the invocation of the generative function is masked, and its contribution to the score is ignored. If `False`, it has the same semantics as if one was invoking the generative function without masking.
 
@@ -248,7 +251,10 @@ class MaskCombinator(GenerativeFunction):
 
 def mask(f: GenerativeFunction) -> GenerativeFunction:
     """
-    Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
+    Combinator which enables dynamic masking of generative functions. Takes
+    a [`genjax.GenerativeFunction`][] and returns a new
+    [`genjax.GenerativeFunction`][] which accepts an additional boolean first
+    argument.
 
     If `True`, the invocation of the generative function is masked, and its contribution to the score is ignored. If `False`, it has the same semantics as if one was invoking the generative function without masking.
 

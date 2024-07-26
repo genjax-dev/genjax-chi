@@ -441,7 +441,8 @@ class ExactDensity(Distribution):
         *args,
     ) -> tuple[Score, Retval]:
         """
-        Given arguments to the distribution, sample from the distribution, and return the exact log density of the sample, and the sample.
+        Given arguments to the distribution, sample from the distribution,
+        and return the exact log density of the sample, and the sample.
         """
         v = self.sample(key, *args)
         w = self.estimate_logpdf(key, v, *args)
@@ -454,7 +455,8 @@ class ExactDensity(Distribution):
         *args,
     ) -> Weight:
         """
-        Given a sample and arguments to the distribution, return the exact log density of the sample.
+        Given a sample and arguments to the distribution, return the exact
+        log density of the sample.
         """
         w = self.logpdf(v, *args)
         if w.shape:

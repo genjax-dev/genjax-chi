@@ -23,7 +23,8 @@ def or_else(
     else_gen_fn: GenerativeFunction,
 ) -> GenerativeFunction:
     """
-    Given two [`genjax.GenerativeFunction`][]s `if_gen_fn` and `else_gen_fn`, returns a new [`genjax.GenerativeFunction`][] that accepts
+    Given two [`genjax.GenerativeFunction`][]s `if_gen_fn` and
+    `else_gen_fn`, returns a new [`genjax.GenerativeFunction`][] that accepts
 
     - a boolean argument
     - an argument tuple for `if_gen_fn`

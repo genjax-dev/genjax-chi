@@ -43,7 +43,8 @@ V = TypeVar("V")
 
 @Pytree.dataclass(match_args=True)
 class Mask(Generic[V], Pytree):
-    """The `Mask` datatype wraps a value in a Boolean flag which denotes whether the data is valid or invalid to use in inference computations.
+    """The `Mask` datatype wraps a value in a Boolean flag which denotes
+    whether the data is valid or invalid to use in inference computations.
 
     Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as `Sample` instances, and participate in generative and inference computations (like scores, and importance weights or density ratios). Invalid data **should** be considered unusable, and should be handled with care.
 
@@ -117,7 +118,8 @@ class Mask(Generic[V], Pytree):
 @Pytree.dataclass(match_args=True)
 class Sum(Pytree):
     """
-    A `Sum` instance represents a sum type, which is a union of possible values - which value is active is determined by the `Sum.idx` field.
+    A `Sum` instance represents a sum type, which is a union of possible
+    values - which value is active is determined by the `Sum.idx` field.
 
     The `Sum` type is used to represent a choice between multiple possible values, and is used in generative computations to represent uncertainty over values.
 
@@ -178,13 +180,9 @@ class Sum(Pytree):
     """
 
     idx: IntArray | Diff
-    """
-    The runtime index tag for which value in `Sum.values` is active.
-    """
+    """The runtime index tag for which value in `Sum.values` is active."""
     values: List
-    """
-    The possible values for the `Sum` instance.
-    """
+    """The possible values for the `Sum` instance."""
 
     @classmethod
     def maybe(

@@ -11,7 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The `VmapCombinator` is a generative function combinator which exposes vectorization
+"""The `VmapCombinator` is a generative function combinator which exposes
+vectorization
 on the input arguments of a provided generative function callee.
 
 This vectorization is implemented using `jax.vmap`, and the combinator expects the user to specify `in_axes` as part of the construction of an instance of this combinator.
@@ -78,7 +79,9 @@ class VmapTrace(Trace):
 
 @Pytree.dataclass
 class VmapCombinator(GenerativeFunction):
-    """`VmapCombinator` is a generative function which lifts another generative function to support `vmap`-based patterns of parallel (and generative) computation.
+    """`VmapCombinator` is a generative function which lifts another generative
+    function to support `vmap`-based patterns of parallel (and generative)
+    computation.
 
     In contrast to the full set of options which [`jax.vmap`](https://jax.readthedocs.io/en/latest/_autosummary/jax.vmap.html), this combinator expects an `in_axes: Tuple` configuration argument, which indicates how the underlying `vmap` patterns should be broadcast across the input arguments to the generative function.
 
@@ -321,7 +324,11 @@ class VmapCombinator(GenerativeFunction):
 
 def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
-    Returns a decorator that wraps a [`GenerativeFunction`][genjax.GenerativeFunction] and returns a new `GenerativeFunction` that performs a vectorized map over the argument specified by `in_axes`. Traced values are nested under an index, and the retval is vectorized.
+    Returns a decorator that wraps a
+    [`GenerativeFunction`][genjax.GenerativeFunction] and returns a new
+    `GenerativeFunction` that performs a vectorized map over the argument
+    specified by `in_axes`. Traced values are nested under an index, and the
+    retval is vectorized.
 
     Args:
         in_axes: Selector specifying which input arguments (or index into them) should be vectorized. `in_axes` must match (or prefix) the `Pytree` type of the argument tuple for the underlying `gen_fn`. Defaults to 0, i.e., the first argument. See [this link](https://jax.readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.

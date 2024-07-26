@@ -11,13 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module contains a set of types and type aliases which are used throughout the
+"""This module contains a set of types and type aliases which are used
+throughout the
 codebase.
 
 Type annotations in the codebase are exported out of this module for consistency.
 """
 
-from typing import Annotated  # noqa: F401, I001
+from typing import Annotated  # noqa: I001
 from types import EllipsisType
 
 import beartype.typing as btyping
@@ -89,7 +90,8 @@ def typecheck_with_config(**kwargs):
 
 typecheck = beartype(conf=global_conf)
 """
-Accepts a function, and returns a function which uses `beartype` to perform type checking.
+Accepts a function, and returns a function which uses `beartype` to perform
+type checking.
 
 Examples:
     The below examples are roughly what you should expect to see if you trip over `beartype` via `genjax.typing.typecheck`.
@@ -174,12 +176,11 @@ __all__ = [
     "Is",
     "List",
     "Literal",
-    "ParamSpec",
     "PRNGKey",
+    "ParamSpec",
     "ScalarBool",
     "ScalarShaped",
     "Sequence",
-    "tuple",
     "Type",
     "TypeVar",
     "Union",
@@ -188,6 +189,7 @@ __all__ = [
     "static_check_is_concrete",
     "static_check_shape_dtype_equivalence",
     "static_check_supports_grad",
+    "tuple",
     "typecheck",
     "typecheck_with_config",
 ]

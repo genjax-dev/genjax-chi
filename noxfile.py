@@ -153,7 +153,7 @@ def xdoctests(session) -> None:
 
 @session(python=python_version)
 def nbmake(session) -> None:
-    """Execute Jupyter notebooks as tests"""
+    """Execute Jupyter notebooks as tests."""
     prepare(session)
     session.run(
         "poetry",

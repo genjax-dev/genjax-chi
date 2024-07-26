@@ -65,7 +65,9 @@ def adev_distribution(
     differentiable_logpdf: Callable[..., Any],
 ) -> ExactDensity:
     """
-    Return an [`ExactDensity`][genjax.ExactDensity] distribution whose sampler invokes an ADEV sampling primitive, with a provided differentiable log density function.
+    Return an [`ExactDensity`][genjax.ExactDensity] distribution whose
+    sampler invokes an ADEV sampling primitive, with a provided differentiable
+    log density function.
 
     Exact densities created using this function can be used as distributions in variational guide programs.
     """
@@ -134,7 +136,8 @@ geometric_reinforce = adev_distribution(
 
 GradientEstimate = Any
 """
-The type of gradient estimates returned by sampling from gradient estimators for loss terms.
+The type of gradient estimates returned by sampling from gradient estimators
+for loss terms.
 """
 
 
@@ -143,7 +146,8 @@ def ELBO(
     make_target: Callable[..., Target],
 ) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
     """
-    Return a function that computes the gradient estimate of the ELBO loss term.
+    Return a function that computes the gradient estimate of the ELBO loss
+    term.
     """
 
     def grad_estimate(
@@ -169,7 +173,8 @@ def IWELBO(
     N: Int,
 ) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
     """
-    Return a function that computes the gradient estimate of the IWELBO loss term.
+    Return a function that computes the gradient estimate of the IWELBO loss
+    term.
     """
 
     def grad_estimate(
@@ -194,7 +199,8 @@ def PWake(
     make_target: Callable[[Any], Target],
 ) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
     """
-    Return a function that computes the gradient estimate of the PWake loss term.
+    Return a function that computes the gradient estimate of the PWake loss
+    term.
     """
 
     def grad_estimate(
@@ -222,7 +228,8 @@ def QWake(
     make_target: Callable[[Any], Target],
 ) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
     """
-    Return a function that computes the gradient estimate of the QWake loss term.
+    Return a function that computes the gradient estimate of the QWake loss
+    term.
     """
 
     def grad_estimate(

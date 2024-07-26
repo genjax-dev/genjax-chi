@@ -18,14 +18,16 @@ from dataclasses import dataclass
 from genjax._src.core.generative import GenerativeFunction, Trace
 from genjax._src.core.typing import tuple
 
-"""This module contains a trace serialization interface that interacts with different backend implementations.
+"""This module contains a trace serialization interface that interacts with
+different backend implementations.
 """
 
 
 @dataclass
 class SerializationBackend:
     """
-    This class supports serialization methods and provides pickle-like functions for convenience.
+    This class supports serialization methods and provides pickle-like
+    functions for convenience.
 
     Children of this class must override `serialize` which must output a raw byte representation of the trace. Similarly `deserialize` must take in the raw bytes along with the generative function to produce a trace. The *file* argument in `loads` and `dumps` must be a binary file descriptor which supports `read()` and `write()`.
     """

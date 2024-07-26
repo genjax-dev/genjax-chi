@@ -118,7 +118,8 @@ class TestIterate:
 
     def test_iterate_final(self, key):
         """
-        `iterate_final` returns a generative function that applies the original
+        `iterate_final` returns a generative function that applies the
+        original
         function `n` times and returns the final result.
         """
 
@@ -148,8 +149,8 @@ class TestIterate:
         assert jnp.array_equal(result, jnp.array((20, 2)))
 
     def test_iterate_array(self, key):
-        """
-        `iterate` on function with an array-shaped initial value works correctly.
+        """`iterate` on function with an array-shaped initial value works
+        correctly.
         """
 
         @genjax.gen
@@ -170,8 +171,8 @@ class TestIterate:
         )
 
     def test_iterate_matrix(self, key):
-        """
-        `iterate` on function with matrix-shaped initial value works correctly.
+        """`iterate` on function with matrix-shaped initial value works
+        correctly.
         """
 
         fibonacci_matrix = jnp.array([[1, 1], [1, 0]])
@@ -203,7 +204,7 @@ def add(carry, x):
 
 @genjax.gen
 def add_tupled(acc, x):
-    """accumulator state is a pair."""
+    """Accumulator state is a pair."""
     carry, offset = acc
     return (carry + x + offset, offset)
 
@@ -220,7 +221,9 @@ class TestAccumulateReduceMethods:
 
     def test_accumulate(self, key):
         """
-        `accumulate` on a generative function of signature `(accumulator, v) -> accumulator` returns a generative function that
+        `accumulate` on a generative function of signature `(accumulator, v)
+        ->
+        accumulator` returns a generative function that.
 
         - takes `(accumulator, jnp.array(v)) -> accumulator`
         - and returns an array of each intermediate accumulator value seen (not including the initial value).
@@ -237,7 +240,8 @@ class TestAccumulateReduceMethods:
 
     def test_reduce(self, key):
         """
-        `reduce` on a generative function of signature `(accumulator, v) -> accumulator` returns a generative function that
+        `reduce` on a generative function of signature `(accumulator, v) ->
+        accumulator` returns a generative function that.
 
         - takes `(accumulator, jnp.array(v)) -> accumulator`
         - and returns the final `accumulator` produces by folding in each element of `jnp.array(v)`.
@@ -252,8 +256,8 @@ class TestAccumulateReduceMethods:
         assert jnp.array_equal(result, jnp.array((12, 2)))
 
     def test_accumulate_tupled(self, key):
-        """
-        `accumulate` on function with tupled carry state works correctly.
+        """`accumulate` on function with tupled carry state works
+        correctly.
         """
         result = (
             add_tupled.accumulate().simulate(key, ((0, 2), jnp.ones(4))).get_retval()
@@ -262,15 +266,15 @@ class TestAccumulateReduceMethods:
         jax.numpy.hstack
 
     def test_reduce_tupled(self, key):
-        """
-        `reduce` on function with tupled carry state works correctly.
-        """
+        """`reduce` on function with tupled carry state works correctly."""
         result = add_tupled.reduce().simulate(key, ((0, 2), jnp.ones(10))).get_retval()
         assert jnp.array_equal(result, jnp.array((30, 2)))
 
     def test_accumulate_array(self, key):
         """
-        `accumulate` with an array-shaped accumulator works correctly, including the initial value.
+        `accumulate` with an array-shaped accumulator works correctly,
+        including the
+        initial value.
         """
         result = add.accumulate().simulate(key, (jnp.ones(4), jnp.eye(4))).get_retval()
 
@@ -287,7 +291,8 @@ class TestAccumulateReduceMethods:
 
     def test_accumulate_matrix(self, key):
         """
-        `accumulate` on function with matrix-shaped initial value works correctly.
+        `accumulate` on function with matrix-shaped initial value works
+        correctly.
         """
 
         fib = jnp.array([[1, 1], [1, 0]])

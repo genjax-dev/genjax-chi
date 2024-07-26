@@ -117,7 +117,9 @@ class CheckerboardProblem(UpdateRequest):
 @Pytree.dataclass
 class ScanCombinator(GenerativeFunction):
     """
-    `ScanCombinator` wraps a `kernel_gen_fn` [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)` in a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])`, where
+    `ScanCombinator` wraps a `kernel_gen_fn` [`genjax.GenerativeFunction`][]
+    of type `(c, a) -> (c, b)` in a new [`genjax.GenerativeFunction`][] of type
+    `(c, [a]) -> (c, [b])`, where
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `a` may be a primitive, an array type or a pytree (container) type with array leaves
@@ -538,7 +540,9 @@ def scan(
     *, n: Optional[Int] = None, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)`and returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])` where
+    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    `(c, a) -> (c, b)`and returns a new [`genjax.GenerativeFunction`][] of type
+    `(c, [a]) -> (c, [b])` where
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `a` may be a primitive, an array type or a pytree (container) type with array leaves
@@ -627,7 +631,8 @@ def scan(
 
 def prepend_initial_acc(args, ret):
     """
-    Prepends the initial accumulator value to the array of accumulated values.
+    Prepends the initial accumulator value to the array of accumulated
+    values.
 
     This function is used in the context of scan operations to include the initial
     accumulator state in the output, effectively providing a complete history of
@@ -656,7 +661,9 @@ def accumulate(
     *, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> [c]` where
+    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type
+    `(c, [a]) -> [c]` where
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `[c]` is an array of all loop-carried values seen during iteration (including the first)
@@ -725,7 +732,9 @@ def reduce(
     *, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> c` where
+    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type
+    `(c, [a]) -> c` where
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `a` may be a primitive, an array type or a pytree (container) type with array leaves
@@ -791,7 +800,9 @@ def iterate(
     *, n: Int, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> [a]` where
+    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a ->
+    [a]` where
 
     - `a` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `[a]` is an array of all `a`, `f(a)`, `f(f(a))` etc. values seen during iteration.
@@ -855,7 +866,9 @@ def iterate_final(
     *, n: Int, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a` where
+    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a`
+    where
 
     - `a` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - the original function is invoked `n` times with each input coming from the previous invocation's output, so that the new function returns $f^n(a)$
