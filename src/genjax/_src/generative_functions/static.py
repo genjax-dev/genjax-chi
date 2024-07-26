@@ -437,6 +437,9 @@ class GeneralUpdateHandler(
     ) -> Constraint:
         return self.choice_map_constraint(addr)
 
+    def handle_retval(self, v):
+        return jtu.tree_leaves(v)
+
     def handle_trace(
         self,
         addr: StaticAddress,

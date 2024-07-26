@@ -46,6 +46,9 @@ List = btyping.List
 Optional = btyping.Optional
 Type = btyping.Type
 Literal = btyping.Literal
+Protocol = btyping.Protocol
+
+runtime_checkable = btyping.runtime_checkable
 
 # JAX Type alias.
 InAxes = int | None | Sequence[Any]
@@ -179,6 +182,7 @@ __all__ = [
     "Literal",
     "PRNGKey",
     "ParamSpec",
+    "Protocol",
     "ScalarBool",
     "ScalarShaped",
     "Sequence",
@@ -186,6 +190,7 @@ __all__ = [
     "TypeVar",
     "Union",
     "Value",
+    "runtime_checkable",
     "static_check_is_array",
     "static_check_is_concrete",
     "static_check_shape_dtype_equivalence",

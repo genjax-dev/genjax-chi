@@ -38,6 +38,7 @@ from genjax._src.core.generative import (
     GenerativeFunction,
     IdentityProjection,
     ImportanceRequest,
+    Mask,
     MaskedConstraint,
     MaskedSample,
     Projection,
@@ -154,7 +155,7 @@ class Distribution(
         R,
     ],
     ProjectRequest.SupportsProject,
-    GeneralUpdateRequest[DistributionTrace[A, R],].UseAsDefaultUpdate[
+    GeneralUpdateRequest[DistributionTrace[A, R]].UseAsDefaultUpdate[
         DistributionTrace[A, R],
         SupportedGeneralConstraints,
         SupportedGeneralConstraints,
@@ -309,12 +310,35 @@ class Distribution(
                 return new_tr, inc_w, EmptyConstraint()
 
             case EqualityConstraint(v):
-                old_score = trace.get_score()
-                w = self.estimate_logpdf(key, v, *arguments)
-                inc_w = w - old_score
-                old_value = trace.get_retval()
-                new_tr = DistributionTrace(self, arguments, v, w)
-                return new_tr, inc_w, EqualityConstraint(old_value)
+                if isinstance(v, Mask):
+                    flag, value = v.flag, v.value
+
+                    def true_branch(key, tr, args):
+                        new_tr, inc_w, c = self.general_update(
+                            key, tr, EqualityConstraint(v.value), args
+                        )
+                        return new_tr, inc_w
+
+                    def false_branch(key, tr, args):
+                        new_tr, inc_w, c = self.general_update(
+                            key, tr, EmptyConstraint(), args
+                        )
+                        return new_tr, inc_w
+
+                    new_tr, inc_w = jax.lax.cond(
+                        flag, true_branch, false_branch, key, trace, arguments
+                    )
+                    shared_constraint = MaskedConstraint[
+                        "SupportedGeneralConstraints", ValueSample
+                    ](flag, EqualityConstraint(trace.get_retval()))
+                    return new_tr, inc_w, shared_constraint
+                else:
+                    old_score = trace.get_score()
+                    w = self.estimate_logpdf(key, v, *arguments)
+                    inc_w = w - old_score
+                    old_value = trace.get_retval()
+                    new_tr = DistributionTrace(self, arguments, v, w)
+                    return new_tr, inc_w, EqualityConstraint(old_value)
 
             case MaskedConstraint(flag, subconstraint):
                 raise NotImplementedError
@@ -326,11 +350,9 @@ class Distribution(
                 if isinstance(choice_map, EmptyChm):
                     constraint = EmptyConstraint()
                     return self.general_update(key, trace, constraint, arguments)
-                elif isinstance(choice_map, ValChm):
+                else:
                     constraint = EqualityConstraint(choice_map.get_value())
                     return self.general_update(key, trace, constraint, arguments)
-                else:
-                    raise NotImplementedError
 
     def general_regenerate(
         self,

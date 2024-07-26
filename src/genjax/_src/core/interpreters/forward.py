@@ -225,6 +225,15 @@ class ForwardInterpreter(Pytree):
                 outvals = eqn.primitive.bind(*arguments, **params)
             if not eqn.primitive.multiple_results:
                 outvals = [outvals]
+
+            # Number of variables in environment needs to match
+            # number of outvals.
+            assert len(eqn.outvars) == len(outvals), (
+                eqn.primitive,
+                len(eqn.outvars),
+                len(outvals),
+                arguments,
+            )
             jax_util.safe_map(env.write, eqn.outvars, outvals)
 
         return jax_util.safe_map(env.read, _jaxpr.outvars)

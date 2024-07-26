@@ -40,7 +40,6 @@ from genjax._src.core.generative import (
     Retdiff,
     Sample,
     Score,
-    Selection,
     SelectionProjection,
     Simulateable,
     Trace,
@@ -160,7 +159,7 @@ class IndexUpdateRequest(
         trace: ScanTrace[G, Tr, Ca, Sc1, Sc2, S],
     ) -> tuple[ScanTrace[G, Tr, Ca, Sc1, Sc2, S], Weight, Retdiff, UpdateRequest]:
         gen_fn = trace.get_gen_fn()
-        assert isinstance(gen_fn, IndexUpdateRequest.SupportsIndexUpdate)
+        assert isinstance(gen_fn, IndexUpdateRequest.SupportsIndexUpdate), type(gen_fn)
         new_trace, weight, retdiff, bwd_request = gen_fn.index_update(
             key,
             trace,
@@ -326,23 +325,25 @@ class ScanCombinator(
 
     # To get the type of return value, just invoke
     # the scanned over source (with abstract tracer arguments).
-    def __abstract_call__(self, *arguments) -> tuple[Ca, Sc2]:
-        (carry, scanned_in) = arguments
-
-        def _inner(carry, scanned_in):
-            assert isinstance(self.kernel_gen_fn, Simulateable)
-            v, scanned_out = self.kernel_gen_fn.__abstract_call__(carry, scanned_in)
+    def __abstract_call__(self, carry_in: Ca, scanned_in: Sc1) -> tuple[Ca, Sc2]:  # type:ignore
+        def _inner(
+            carry_in: Ca,
+            scanned_in: Sc1,
+        ):
+            assert isinstance(self.kernel_gen_fn, Simulateable), type(
+                self.kernel_gen_fn
+            )
+            v, scanned_out = self.kernel_gen_fn.__abstract_call__(carry_in, scanned_in)
             return v, scanned_out
 
         v, scanned_out = jax.lax.scan(
             _inner,
-            carry,
+            carry_in,
             scanned_in,
             length=self.length,
             reverse=self.reverse,
             unroll=self.unroll,
         )
-
         return v, scanned_out
 
     def simulate(
@@ -353,7 +354,9 @@ class ScanCombinator(
         carry, scanned_in = arguments
 
         def _inner_simulate(key, carry, scanned_in):
-            assert isinstance(self.kernel_gen_fn, Simulateable)
+            assert isinstance(self.kernel_gen_fn, Simulateable), type(
+                self.kernel_gen_fn
+            )
             tr = self.kernel_gen_fn.simulate(key, (carry, scanned_in))
             (carry, scanned_out) = tr.get_retval()
             score = tr.get_score()
@@ -399,7 +402,9 @@ class ScanCombinator(
             carry: Ca,
             scanned_in: Sc1,
         ):
-            assert isinstance(self.kernel_gen_fn, ImportanceRequest.SupportsImportance)
+            assert isinstance(
+                self.kernel_gen_fn, ImportanceRequest.SupportsImportance
+            ), type(self.kernel_gen_fn)
             tr, w, bwd_projection = self.kernel_gen_fn.importance_update(
                 key,
                 constraint,
@@ -409,7 +414,10 @@ class ScanCombinator(
             score = tr.get_score()
             return (carry, score), (tr, scanned_out, w, bwd_projection)
 
-        def _get_subconstraint(constraint: SupportedConstraints, idx):
+        def _get_subconstraint(
+            constraint: SupportedConstraints,
+            idx: IntArray,
+        ):
             match constraint:
                 case EmptyConstraint():
                     return constraint
@@ -452,22 +460,6 @@ class ScanCombinator(
             bwd_projections,
         )  # type:ignore
 
-    def _get_subrequest(
-        self,
-        problem: UpdateRequest,
-        idx: IntArray,
-    ) -> UpdateRequest:
-        match problem:
-            case ChoiceMap():
-                return problem(idx)
-
-            case Selection():
-                subrequest = problem(idx)
-                return subrequest
-
-            case _:
-                raise Exception(f"Not implemented subrequest: {problem}")
-
     def general_update(
         self,
         key: PRNGKey,
@@ -487,7 +479,7 @@ class ScanCombinator(
         ]:
             assert isinstance(
                 self.kernel_gen_fn, GeneralUpdateRequest.SupportsGeneralUpdate
-            )
+            ), type(self.kernel_gen_fn)
             (
                 new_subtrace,
                 w,
@@ -496,7 +488,7 @@ class ScanCombinator(
                 key, subtrace, subconstraint, (carry_in, scanned_in)
             )
             score = new_subtrace.get_score()
-            carry_out, scanned_out = new_subtrace.get_args()
+            carry_out, scanned_out = new_subtrace.get_retval()
             return (carry_out, score), (
                 new_subtrace,
                 scanned_out,
@@ -504,8 +496,18 @@ class ScanCombinator(
                 bwd_constraint,
             )
 
-        def _get_subconstraint(constraint: SupportedGeneralConstraints, idx: IntArray):
-            pass
+        def _get_subconstraint(
+            constraint: SupportedConstraints,
+            idx: IntArray,
+        ):
+            match constraint:
+                case EmptyConstraint():
+                    return constraint
+                case ChoiceMapConstraint():
+                    return constraint.get_submap(idx)
+                case MaskedConstraint(flag, subconstraint):
+                    sub = _get_subconstraint(subconstraint, idx)
+                    return MaskedConstraint(flag, sub)
 
         def _update(
             carry: tuple[PRNGKey, IntArray, Ca],
@@ -551,7 +553,6 @@ class ScanCombinator(
             unroll=self.unroll,
         )
         bwd_constraint = ChoiceMapConstraint(bwd_chm)
-
         return (
             ScanTrace(
                 self,
@@ -626,12 +627,12 @@ class ScanCombinator(
         self,
         key: PRNGKey,
         sample: ChoiceMapSample,
-        arguments: tuple[C, Sc1],
-    ) -> tuple[Score, tuple[C, Sc2]]:
+        arguments: tuple[Ca, Sc1],
+    ) -> tuple[Score, tuple[Ca, Sc2]]:
         (carry_in, else_to_scan) = arguments
 
         def _assess(carry, scanned_in):
-            assert isinstance(self.kernel_gen_fn, Assessable)
+            assert isinstance(self.kernel_gen_fn, Assessable), type(self.kernel_gen_fn)
             key, idx, carry_in = carry
             (sample, scanned_in) = scanned_in
             subsample = sample.get_submap(idx)
