@@ -16,17 +16,14 @@
 from genjax._src.core.generative import (
     Argdiffs,
     Arguments,
-    Assessable,
+    EditRequest,
     EmptyTrace,
     GenerativeFunction,
-    IncrementalUpdateRequest,
     Retdiff,
     Retval,
     Sample,
     Score,
-    Simulateable,
     Trace,
-    UpdateRequest,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff, incremental
@@ -76,9 +73,8 @@ class DimapTrace(
 
 @Pytree.dataclass
 class DimapCombinator(
-    Generic[Tr, A, A_, S, R_, R],
-    Simulateable["DimapTrace[Tr, A, S, R]", A, S, R],
-    GenerativeFunction[DimapTrace[Tr, A, S, R], A, S, R],
+    Generic[Tr, A, A_, S, R_, R, C, P, U],
+    GenerativeFunction[DimapTrace[Tr, A, S, R], A, S, R, C, P, U],
 ):
     """A combinator that transforms both the arguments and return values of a
     [`genjax.GenerativeFunction`][].
@@ -141,9 +137,9 @@ class DimapCombinator(
         self,
         key: PRNGKey,
         trace: Trace,
-        update_request: UpdateRequest,
+        update_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[DimapTrace[Tr, A, S, S], Weight, Retdiff, UpdateRequest]:
+    ) -> tuple[DimapTrace[Tr, A, S, S], Weight, Retdiff, EditRequest]:
         assert isinstance(trace, EmptyTrace | DimapTrace)
 
         primals = Diff.tree_primal(argdiffs)
@@ -162,7 +158,7 @@ class DimapCombinator(
                 inner_trace = EmptyTrace(self.inner)
 
         tr, w, inner_retdiff, bwd_problem = self.inner.update(
-            key, inner_trace, IncrementalUpdateRequest(inner_argdiffs, update_request)
+            key, inner_trace, IncrementalEditRequest(inner_argdiffs, update_request)
         )
 
         inner_retval_primals = Diff.tree_primal(inner_retdiff)

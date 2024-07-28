@@ -27,14 +27,15 @@ from genjax._src.core.generative import (
     ChoiceMapProjection,
     ChoiceMapSample,
     Constraint,
+    EditRequest,
     EmptyConstraint,
     EmptyProjection,
     EmptyTrace,
-    GeneralUpdateRequest,
+    GeneralConstrainedChangeRequest,
     GenerativeFunction,
     IdentityProjection,
     ImportanceRequest,
-    IncrementalUpdateRequest,
+    IncrementalEditRequest,
     MaskedConstraint,
     Projectable,
     Retdiff,
@@ -43,7 +44,6 @@ from genjax._src.core.generative import (
     SelectionProjection,
     Simulateable,
     Trace,
-    UpdateRequest,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import ChangeTangent, Diff, UnknownChange
@@ -132,15 +132,15 @@ class IndexTangent(ChangeTangent):
 
 
 @Pytree.dataclass(match_args=True)
-class IndexUpdateRequest(
+class IndexEditRequest(
     Generic[G, Tr, Ca, Sc1, Sc2, S, C],
-    UpdateRequest[
+    EditRequest[
         ScanTrace[G, Tr, Ca, Sc1, Sc2, S],
         ScanTrace[G, Tr, Ca, Sc1, Sc2, S],
     ],
 ):
     index: IntArray
-    subrequest: UpdateRequest
+    subrequest: EditRequest
 
     class SupportsIndexUpdate(GenerativeFunction):
         @abstractmethod
@@ -149,17 +149,17 @@ class IndexUpdateRequest(
             key: PRNGKey,
             trace: ScanTrace[G, Tr, Ca, Sc1, Sc2, S],
             idx: IntArray,
-            request: UpdateRequest,
-        ) -> tuple[ScanTrace[G, Tr, Ca, Sc1, Sc2, S], Weight, Retdiff, UpdateRequest]:
+            request: EditRequest,
+        ) -> tuple[ScanTrace[G, Tr, Ca, Sc1, Sc2, S], Weight, Retdiff, EditRequest]:
             raise NotImplementedError
 
     def update(
         self,
         key: PRNGKey,
         trace: ScanTrace[G, Tr, Ca, Sc1, Sc2, S],
-    ) -> tuple[ScanTrace[G, Tr, Ca, Sc1, Sc2, S], Weight, Retdiff, UpdateRequest]:
+    ) -> tuple[ScanTrace[G, Tr, Ca, Sc1, Sc2, S], Weight, Retdiff, EditRequest]:
         gen_fn = trace.get_gen_fn()
-        assert isinstance(gen_fn, IndexUpdateRequest.SupportsIndexUpdate), type(gen_fn)
+        assert isinstance(gen_fn, IndexEditRequest.SupportsIndexUpdate), type(gen_fn)
         new_trace, weight, retdiff, bwd_request = gen_fn.index_update(
             key,
             trace,
@@ -171,7 +171,7 @@ class IndexUpdateRequest(
             Diff.tree_primal(scanned_out_retdiff),
             IndexTangent(self.index, UnknownChange),
         )
-        bwd_move = IndexUpdateRequest(self.index, bwd_request)
+        bwd_move = IndexEditRequest(self.index, bwd_request)
         return new_trace, weight, (carry_out_retdiff, scanned_out_retdiff), bwd_move
 
 
@@ -223,7 +223,9 @@ class ScanCombinator(
         ChoiceMapSample,
         tuple[Ca, Sc2],
     ],
-    GeneralUpdateRequest[ScanTrace[G, Tr, Ca, Sc1, Sc2, S]].UseAsDefaultUpdate[
+    GeneralConstrainedChangeRequest[
+        ScanTrace[G, Tr, Ca, Sc1, Sc2, S]
+    ].UseAsDefaultUpdate[
         ScanTrace[G, Tr, Ca, Sc1, Sc2, S],
         SupportedGeneralConstraints,
         SupportedGeneralConstraints,
@@ -231,7 +233,7 @@ class ScanCombinator(
         ChoiceMapSample,
         tuple[Ca, Sc2],
     ],
-    IndexUpdateRequest[G, Tr, Ca, Sc1, Sc2, S, C].SupportsIndexUpdate,
+    IndexEditRequest[G, Tr, Ca, Sc1, Sc2, S, C].SupportsIndexUpdate,
     GenerativeFunction[
         ScanTrace[G, Tr, Ca, Sc1, Sc2, S],
         tuple[Ca, Sc1],
@@ -405,7 +407,7 @@ class ScanCombinator(
             assert isinstance(
                 self.kernel_gen_fn, ImportanceRequest.SupportsImportance
             ), type(self.kernel_gen_fn)
-            tr, w, bwd_projection = self.kernel_gen_fn.importance_update(
+            tr, w, bwd_projection = self.kernel_gen_fn.importance_edit(
                 key,
                 constraint,
                 (carry, scanned_in),
@@ -478,7 +480,7 @@ class ScanCombinator(
             tuple[Tr, Sc2, Weight, Constraint],
         ]:
             assert isinstance(
-                self.kernel_gen_fn, GeneralUpdateRequest.SupportsGeneralUpdate
+                self.kernel_gen_fn, GeneralConstrainedChangeRequest.SupportsGeneralEdit
             ), type(self.kernel_gen_fn)
             (
                 new_subtrace,
@@ -570,10 +572,10 @@ class ScanCombinator(
         key: PRNGKey,
         trace: ScanTrace,
         idx: IntArray,
-        request: UpdateRequest,
-    ) -> tuple[ScanTrace, Weight, Retdiff, IndexUpdateRequest]:
+        request: EditRequest,
+    ) -> tuple[ScanTrace, Weight, Retdiff, IndexEditRequest]:
         assert isinstance(
-            self.kernel_gen_fn, IncrementalUpdateRequest.SupportsIncrementalUpdate
+            self.kernel_gen_fn, IncrementalEditRequest.SupportsIncrementalUpdate
         )
         starting_subslice = jtu.tree_map(lambda v: v[idx], trace.inner)
         affected_subslice = jtu.tree_map(lambda v: v[idx + 1], trace.inner)
@@ -583,7 +585,7 @@ class ScanCombinator(
             start_w,
             starting_retdiff,
             bwd_problem,
-        ) = request.update(key, starting_subslice)
+        ) = request.edit(key, starting_subslice)
         (
             updated_end,
             end_w,
@@ -620,7 +622,7 @@ class ScanCombinator(
             ),
             start_w + end_w,
             Diff.unknown_change(new_retvals),
-            IndexUpdateRequest(idx, bwd_problem),
+            IndexEditRequest(idx, bwd_problem),
         )
 
     def assess(

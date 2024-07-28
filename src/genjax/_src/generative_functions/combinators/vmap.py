@@ -24,16 +24,16 @@ import jax.numpy as jnp
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
+    EditRequest,
     EmptyTrace,
     GenerativeFunction,
     ImportanceRequest,
-    IncrementalUpdateRequest,
+    IncrementalEditRequest,
     Retdiff,
     Retval,
     Score,
     Selection,
     Trace,
-    UpdateRequest,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -183,7 +183,7 @@ class VmapCombinator(GenerativeFunction):
         key: PRNGKey,
         choice_map: ChoiceMap,
         arguments: tuple,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
+    ) -> tuple[Trace, Weight, Retdiff, EditRequest]:
         self._static_check_broadcastable(arguments)
         broadcast_dim_length = self._static_broadcast_dim_length(arguments)
         idx_array = jnp.arange(0, broadcast_dim_length)
@@ -194,7 +194,7 @@ class VmapCombinator(GenerativeFunction):
             tr, w, rd, bwd_problem = self.gen_fn.update(
                 key,
                 EmptyTrace(self.gen_fn),
-                IncrementalUpdateRequest(
+                IncrementalEditRequest(
                     Diff.unknown_change(arguments),
                     ImportanceRequest(submap),
                 ),
@@ -226,7 +226,7 @@ class VmapCombinator(GenerativeFunction):
         def _update(key, idx, subtrace, argdiffs):
             subrequest = update_request(idx)
             new_subtrace, w, retdiff, bwd_problem = self.gen_fn.update(
-                key, subtrace, IncrementalUpdateRequest(argdiffs, subrequest)
+                key, subtrace, IncrementalEditRequest(argdiffs, subrequest)
             )
             return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_problem)
 
@@ -255,7 +255,7 @@ class VmapCombinator(GenerativeFunction):
         def _update(key, idx, subtrace, argdiffs):
             subrequest = selection(idx)
             new_subtrace, w, retdiff, bwd_problem = self.gen_fn.update(
-                key, subtrace, IncrementalUpdateRequest(argdiffs, subrequest)
+                key, subtrace, IncrementalEditRequest(argdiffs, subrequest)
             )
             return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_problem)
 
@@ -272,9 +272,9 @@ class VmapCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_request: UpdateRequest,
+        update_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
+    ) -> tuple[Trace, Weight, Retdiff, EditRequest]:
         match update_request:
             case ChoiceMap():
                 return self.update_choice_map(key, trace, update_request, argdiffs)
@@ -291,10 +291,10 @@ class VmapCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_request: UpdateRequest,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        update_request: EditRequest,
+    ) -> tuple[Trace, Weight, Retdiff, EditRequest]:
         match update_request:
-            case IncrementalUpdateRequest(argdiffs, subrequest):
+            case IncrementalEditRequest(argdiffs, subrequest):
                 return self.update_change_target(key, trace, subrequest, argdiffs)
             case _:
                 return self.update_change_target(

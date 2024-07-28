@@ -32,12 +32,12 @@ from jax.scipy.special import logsumexp
 from genjax._src.core.generative import (
     ChoiceMap,
     Constraint,
+    EditRequest,
     EmptySample,
     GenerativeFunction,
     Retdiff,
     Sample,
     Trace,
-    UpdateRequest,
     Weight,
 )
 from genjax._src.core.pytree import Pytree
@@ -550,23 +550,23 @@ class KernelGenerativeFunction(GenerativeFunction):
         key: PRNGKey,
         constraint: Constraint,
         arguments: tuple,
-    ) -> tuple[Trace, Weight, UpdateRequest]:
+    ) -> tuple[Trace, Weight, EditRequest]:
         raise NotImplementedError
 
     def update(
         self,
         key: PRNGKey,
         trace: KernelTrace,
-        update_request: UpdateRequest,
+        update_request: EditRequest,
         arguments: tuple,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
+    ) -> tuple[Trace, Weight, Retdiff, EditRequest]:
         raise NotImplementedError
 
 
 def kernel_gen_fn(
     source: Callable[
         [Sample, Target],
-        tuple[UpdateRequest, Sample],
+        tuple[EditRequest, Sample],
     ],
 ) -> KernelGenerativeFunction:
     return KernelGenerativeFunction(gen(source))
@@ -659,7 +659,7 @@ class AttachCombinator(GenerativeFunction):
         key: PRNGKey,
         constraint: Constraint,
         arguments: tuple,
-    ) -> tuple[Trace, Weight, UpdateRequest]:
+    ) -> tuple[Trace, Weight, EditRequest]:
         move = self.importance_move(constraint)
         match move:
             case SMCP3Move(K, _):
@@ -688,9 +688,9 @@ class AttachCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: AttachTrace,
-        update_request: UpdateRequest,
+        update_request: EditRequest,
         argdiffs: tuple,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
+    ) -> tuple[Trace, Weight, Retdiff, EditRequest]:
         gen_fn_trace = trace.inner
         move = self.update_move(update_request)
         previous_latents = move.get_previous_latents()

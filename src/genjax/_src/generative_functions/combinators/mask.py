@@ -18,18 +18,18 @@ import jax
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
+    EditRequest,
     EmptyTrace,
     GenerativeFunction,
     ImportanceRequest,
-    IncrementalUpdateRequest,
+    IncrementalEditRequest,
     Mask,
+    MaskedEditRequest,
     MaskedSample,
-    MaskedUpdateRequest,
     Retdiff,
     Sample,
     Score,
     Trace,
-    UpdateRequest,
     Weight,
 )
 from genjax._src.core.generative.core import Constraint
@@ -124,9 +124,9 @@ class MaskCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_request: UpdateRequest,
+        update_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
+    ) -> tuple[Trace, Weight, Retdiff, EditRequest]:
         (check, *_) = Diff.tree_primal(argdiffs)
         (check_diff, *inner_argdiffs) = argdiffs
         match trace:
@@ -140,7 +140,7 @@ class MaskCombinator(GenerativeFunction):
         premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
             key,
             inner_trace,
-            IncrementalUpdateRequest(tuple(inner_argdiffs), update_request),
+            IncrementalEditRequest(tuple(inner_argdiffs), update_request),
         )
 
         w = jax.lax.select(
@@ -153,16 +153,16 @@ class MaskCombinator(GenerativeFunction):
             MaskTrace(self, premasked_trace, check),
             w,
             Mask.maybe(check_diff, retdiff),
-            MaskedUpdateRequest(check, bwd_problem),
+            MaskedEditRequest(check, bwd_problem),
         )
 
     def update_change_target_from_false(
         self,
         key: PRNGKey,
         trace: Trace,
-        update_request: UpdateRequest,
+        update_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
+    ) -> tuple[Trace, Weight, Retdiff, EditRequest]:
         check = Diff.tree_primal(argdiffs)[0]
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
 
@@ -174,13 +174,13 @@ class MaskCombinator(GenerativeFunction):
         premasked_trace, w, _, _ = self.gen_fn.update(
             key,
             inner_trace,
-            IncrementalUpdateRequest(tuple(inner_argdiffs), imp_update_request),
+            IncrementalEditRequest(tuple(inner_argdiffs), imp_update_request),
         )
 
         _, _, retdiff, bwd_problem = self.gen_fn.update(
             key,
             premasked_trace,
-            IncrementalUpdateRequest(tuple(inner_argdiffs), update_request),
+            IncrementalEditRequest(tuple(inner_argdiffs), update_request),
         )
 
         w = jax.lax.select(
@@ -193,23 +193,23 @@ class MaskCombinator(GenerativeFunction):
             MaskTrace(self, premasked_trace, check),
             w,
             Mask.maybe(check_diff, retdiff),
-            MaskedUpdateRequest(check, bwd_problem),
+            MaskedEditRequest(check, bwd_problem),
         )
 
     def update(
         self,
         key: PRNGKey,
         trace: Trace,
-        update_request: UpdateRequest,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
+        update_request: EditRequest,
+    ) -> tuple[Trace, Weight, Retdiff, EditRequest]:
         assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
 
         match update_request:
-            case IncrementalUpdateRequest(argdiffs, subrequest) if isinstance(
+            case IncrementalEditRequest(argdiffs, subrequest) if isinstance(
                 subrequest, ImportanceRequest
             ):
                 return self.update_change_target(key, trace, subrequest, argdiffs)
-            case IncrementalUpdateRequest(argdiffs, subrequest):
+            case IncrementalEditRequest(argdiffs, subrequest):
                 assert isinstance(trace, MaskTrace)
 
                 if not trace.check:

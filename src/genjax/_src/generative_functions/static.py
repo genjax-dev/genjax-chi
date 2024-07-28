@@ -22,7 +22,6 @@ import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
     Arguments,
-    Assessable,
     ChoiceMap,
     ChoiceMapBuilder,
     ChoiceMapCoercable,
@@ -30,22 +29,19 @@ from genjax._src.core.generative import (
     ChoiceMapProjection,
     ChoiceMapSample,
     Constraint,
-    EmptyTrace,
+    EditRequest,
+    GeneralConstrainedChangeRequest,
     GeneralRegenerateRequest,
-    GeneralUpdateRequest,
     GenerativeFunction,
-    ImportanceRequest,
     Projection,
-    ProjectRequest,
+    Retdiff,
     Retval,
     Sample,
     Score,
     SelectionProjection,
-    Simulateable,
     StaticAddress,
     StaticAddressComponent,
     Trace,
-    UpdateRequest,
     Weight,
 )
 from genjax._src.core.generative.core import push_trace_overload_stack
@@ -176,8 +172,8 @@ Tr = TypeVar("Tr", bound=Trace)
 # get lifted to by `get_shaped_aval`.
 def _abstract_gen_fn_call(
     _: tuple[Const[StaticAddress], ...],
-    gen_fn: Simulateable[Tr, A, S, R],
-    arguments: A,
+    gen_fn: GenerativeFunction,
+    arguments: Arguments,
 ):
     return gen_fn.__abstract_call__(*arguments)
 
@@ -217,12 +213,12 @@ def trace(
 # e.g. it assumes if you are using `StaticHandler.get_submap`
 # in your code, that your derived instance has a `constraints` field.
 @dataclass
-class StaticHandler(Generic[G], StatefulHandler):
+class StaticHandler(StatefulHandler):
     @abstractmethod
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: G,
+        gen_fn: GenerativeFunction,
         arguments: Arguments,
     ):
         raise NotImplementedError
@@ -255,7 +251,7 @@ class StaticHandler(Generic[G], StatefulHandler):
 
 
 @dataclass
-class SimulateHandler(StaticHandler[Simulateable]):
+class SimulateHandler(StaticHandler):
     key: PRNGKey
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
@@ -274,7 +270,7 @@ class SimulateHandler(StaticHandler[Simulateable]):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: Simulateable,
+        gen_fn: GenerativeFunction,
         arguments: Arguments,
     ):
         self.visit(addr)
@@ -314,9 +310,7 @@ def simulate_transform(source_fn):
 
 
 @dataclass
-class ImportanceHandler(
-    StaticHandler[ImportanceRequest.SupportsImportance],
-):
+class ImportanceHandler(StaticHandler):
     key: PRNGKey
     choice_map_constraint: ChoiceMapConstraint
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
@@ -346,13 +340,13 @@ class ImportanceHandler(
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: ImportanceRequest.SupportsImportance,
+        gen_fn: GenerativeFunction,
         arguments: tuple,
     ):
         self.visit(addr)
         subconstraint = self.get_subconstraint(addr)
         self.key, sub_key = jax.random.split(self.key)
-        (tr, w, bwd_projection) = gen_fn.importance_update(
+        (tr, w, bwd_projection) = gen_fn.importance_edit(
             sub_key, subconstraint, arguments
         )
         self.score += tr.get_score()
@@ -400,9 +394,7 @@ def importance_transform(source_fn):
 
 
 @dataclass
-class GeneralUpdateHandler(
-    StaticHandler[GeneralUpdateRequest.SupportsGeneralUpdate],
-):
+class GeneralConstrainedChangeHandler(StaticHandler):
     key: PRNGKey
     previous_trace: StaticTrace
     choice_map_constraint: ChoiceMapConstraint
@@ -443,7 +435,7 @@ class GeneralUpdateHandler(
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GeneralUpdateRequest.SupportsGeneralUpdate,
+        gen_fn: GenerativeFunction,
         arguments: tuple,
     ):
         self.visit(addr)
@@ -464,7 +456,9 @@ class GeneralUpdateHandler(
 def general_update_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(key, previous_trace, constraints, arguments: tuple):
-        stateful_handler = GeneralUpdateHandler(key, previous_trace, constraints)
+        stateful_handler = GeneralConstrainedChangeHandler(
+            key, previous_trace, constraints
+        )
         retval = forward(source_fn)(stateful_handler, *arguments)
         (
             score,
@@ -518,7 +512,7 @@ class AssessHandler(StaticHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: Assessable,
+        gen_fn: GenerativeFunction,
         arguments: tuple,
     ):
         submap = self.get_subsample(addr)
@@ -561,44 +555,16 @@ SupportedProjections = SelectionProjection
 @Pytree.dataclass
 class StaticGenerativeFunction(
     Generic[A, R],
-    Simulateable[StaticTrace[A, R], A, ChoiceMapSample, R],
-    Assessable[StaticTrace[A, R], A, ChoiceMapSample, R],
-    ImportanceRequest[
-        EmptyTrace["StaticGenerativeFunction"], StaticTrace[A, R]
-    ].SupportsImportance[
+    GenerativeFunction[
         StaticTrace[A, R],
+        A,
+        ChoiceMapSample,
+        R,
         SupportedImportanceConstraints,
-        A,
-        ChoiceMapSample,
-        R,
-    ],
-    GeneralUpdateRequest[StaticTrace[A, R],].UseAsDefaultUpdate[
-        StaticTrace[A, R],
-        SupportedGeneralConstraints,
-        SupportedGeneralConstraints,
-        A,
-        ChoiceMapSample,
-        R,
-    ],
-    GeneralRegenerateRequest[
-        StaticTrace[A, R],
-        StaticTrace[A, R],
-    ].SupportsGeneralRegenerate[
-        StaticTrace[A, R],
-        StaticTrace[A, R],
-        A,
-        ChoiceMapSample,
-        R,
         SupportedProjections,
+        GeneralRegenerateRequest[A, SupportedProjections]
+        | GeneralConstrainedChangeRequest[A, SupportedGeneralConstraints],
     ],
-    ProjectRequest.SupportsProject[
-        StaticTrace[A, R],
-        A,
-        ChoiceMapSample,
-        R,
-        SupportedProjections,
-    ],
-    GenerativeFunction[StaticTrace[A, R], A, ChoiceMapSample, R],
 ):
     """A `StaticGenerativeFunction` is a generative function which relies on
     program transformations applied to JAX-compatible Python programs to
@@ -665,7 +631,22 @@ class StaticGenerativeFunction(
             score,
         )
 
-    def importance_update(
+    def assess(
+        self,
+        key: PRNGKey,
+        sample: ChoiceMap | ChoiceMapSample,
+        arguments: tuple,
+    ) -> tuple[Score, Retval]:
+        sample = (
+            sample if isinstance(sample, ChoiceMapSample) else ChoiceMapSample(sample)
+        )
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
+        (retval, score) = assess_transform(syntax_sugar_handled)(key, sample, arguments)
+        return (score, retval)
+
+    def importance_edit(
         self,
         key: PRNGKey,
         constraint: SupportedImportanceConstraints,
@@ -710,7 +691,7 @@ class StaticGenerativeFunction(
             bwd_proj,
         )
 
-    def general_update(
+    def general_constrained_change_edit(
         self,
         key: PRNGKey,
         trace: StaticTrace[A, R],
@@ -767,28 +748,21 @@ class StaticGenerativeFunction(
     ) -> tuple[Trace, Weight, Sample]:
         raise NotImplementedError
 
-    def project_update(
+    def project_edit(
         self,
         key: PRNGKey,
         trace: Trace,
         projection: SupportedProjections,
-    ) -> tuple[Weight, UpdateRequest]:
+    ) -> tuple[Weight, EditRequest]:
         raise NotImplementedError
 
-    def assess(
+    def edit(
         self,
         key: PRNGKey,
-        sample: ChoiceMap | ChoiceMapSample,
-        arguments: tuple,
-    ) -> tuple[Score, Retval]:
-        sample = (
-            sample if isinstance(sample, ChoiceMapSample) else ChoiceMapSample(sample)
-        )
-        syntax_sugar_handled = push_trace_overload_stack(
-            handler_trace_with_static, self.source
-        )
-        (retval, score) = assess_transform(syntax_sugar_handled)(key, sample, arguments)
-        return (score, retval)
+        trace: Trace,
+        request: EditRequest,
+    ) -> tuple[Trace, Weight, Retdiff, EditRequest]:
+        raise NotImplementedError
 
     def inline(self, *arguments):
         return self.source(*arguments)

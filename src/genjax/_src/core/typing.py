@@ -47,6 +47,7 @@ Optional = btyping.Optional
 Type = btyping.Type
 Literal = btyping.Literal
 Protocol = btyping.Protocol
+Self = btyping.Self
 
 runtime_checkable = btyping.runtime_checkable
 overload = btyping.overload
@@ -186,18 +187,19 @@ __all__ = [
     "Protocol",
     "ScalarBool",
     "ScalarShaped",
+    "Self",
     "Sequence",
     "Type",
     "TypeVar",
     "Union",
     "Value",
+    "overload",
     "runtime_checkable",
     "static_check_is_array",
     "static_check_is_concrete",
     "static_check_shape_dtype_equivalence",
     "static_check_supports_grad",
     "tuple",
-    "overload",
     "typecheck",
     "typecheck_with_config",
 ]

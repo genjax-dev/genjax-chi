@@ -68,9 +68,8 @@ class TestDistributions:
         tr = genjax.normal.simulate(sub_key, (0.0, 1.0))
 
         # No constraint, no change to arguments.
-        (new_tr, w, _, _) = genjax.normal.update(
+        (new_tr, w, _, _) = tr.update(
             sub_key,
-            tr,
             C.n(),
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )

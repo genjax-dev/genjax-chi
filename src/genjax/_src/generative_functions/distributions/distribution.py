@@ -20,37 +20,26 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
-    Argdiffs,
     Arguments,
-    Assessable,
     ChoiceMapCoercable,
     ChoiceMapConstraint,
     ChoiceMapSample,
-    Constraint,
     EmptyChm,
     EmptyConstraint,
     EmptySample,
-    EmptyTrace,
-    EmptyUpdateRequest,
     EqualityConstraint,
+    GeneralConstrainedChangeRequest,
     GeneralRegenerateRequest,
-    GeneralUpdateRequest,
     GenerativeFunction,
     IdentityProjection,
-    ImportanceRequest,
     Mask,
     MaskedConstraint,
     MaskedSample,
-    Projection,
-    ProjectRequest,
     Retdiff,
     Retval,
-    Sample,
     Score,
     SelectionProjection,
-    Simulateable,
     Trace,
-    UpdateRequest,
     ValChm,
     ValueSample,
     Weight,
@@ -112,17 +101,10 @@ class DistributionTrace(
 ################
 
 
-SupportedConstraints = (
+SupportedImportanceConstraints = (
     EmptyConstraint
     | EqualityConstraint
-    | MaskedConstraint["SupportedConstraints", ValueSample]
-    | ChoiceMapConstraint
-)
-
-SupportedIncrementalConstraints = (
-    EmptyConstraint
-    | EqualityConstraint
-    | MaskedConstraint["SupportedIncrementalConstraints", ValueSample]
+    | MaskedConstraint["SupportedImportanceConstraints", ValueSample]
     | ChoiceMapConstraint
 )
 
@@ -133,7 +115,6 @@ SupportedGeneralConstraints = (
     | ChoiceMapConstraint
 )
 
-
 SupportedProjections = (
     EmptyProjection[ValueSample]
     | IdentityProjection[ValueSample]
@@ -143,44 +124,16 @@ SupportedProjections = (
 
 class Distribution(
     Generic[A, R],
-    Simulateable[DistributionTrace[A, R], A, ValueSample[R], R],
-    Assessable[DistributionTrace[A, R], A, ValueSample[R], R],
-    ImportanceRequest[
-        EmptyTrace["Distribution"], DistributionTrace[A, R]
-    ].SupportsImportance[
-        DistributionTrace[A, R],
-        SupportedConstraints,
-        A,
-        ValueSample[R],
-        R,
-    ],
-    ProjectRequest.SupportsProject,
-    GeneralUpdateRequest[DistributionTrace[A, R]].UseAsDefaultUpdate[
-        DistributionTrace[A, R],
-        SupportedGeneralConstraints,
-        SupportedGeneralConstraints,
-        A,
-        ValueSample[R],
-        R,
-    ],
-    # TODO: fill in logic of incremental updates.
-    # IncrementalRequest.SupportsIncrementalUpdate[
-    #    SupportedIncrementalConstraints,
-    #    ValueSample[R],
-    #    R,
-    # ],
-    GeneralRegenerateRequest[
-        DistributionTrace[A, R],
-        DistributionTrace[A, R],
-    ].SupportsGeneralRegenerate[
-        DistributionTrace[A, R],
+    GenerativeFunction[
         DistributionTrace[A, R],
         A,
         ValueSample[R],
         R,
+        SupportedImportanceConstraints,
         SupportedProjections,
+        GeneralConstrainedChangeRequest[A, SupportedGeneralConstraints]
+        | GeneralRegenerateRequest[A, SupportedProjections],
     ],
-    GenerativeFunction[DistributionTrace[A, R], A, ValueSample[R], R],
 ):
     @abstractmethod
     def random_weighted(
@@ -208,12 +161,33 @@ class Distribution(
         tr = DistributionTrace(self, arguments, v, w)
         return tr
 
-    def importance_update(
+    def assess(
         self,
         key: PRNGKey,
-        constraint: SupportedConstraints,
+        sample: ValueSample
+        | ValChm
+        | ChoiceMapSample,  # TODO: the ValChm here is a type of paving over, to allow people to continue to use what they are used to.
         arguments: A,
-    ) -> tuple[DistributionTrace[A, R], Weight, Projection]:
+    ):
+        match sample:
+            case ValChm(v):
+                return self.assess(key, ValueSample(v), arguments)
+            case ChoiceMapSample():
+                key = jax.random.PRNGKey(0)
+                v = sample.get_value()
+                return self.assess(key, v, arguments)
+            case ValueSample():
+                key = jax.random.PRNGKey(0)
+                v = sample.val
+                w = self.estimate_logpdf(key, v, *arguments)
+                return w, v
+
+    def importance_edit(
+        self,
+        key: PRNGKey,
+        constraint: SupportedImportanceConstraints,
+        arguments: A,
+    ) -> tuple[DistributionTrace[A, R], Weight, SupportedProjections]:
         match constraint:
             case EmptyConstraint():
                 tr = self.simulate(key, arguments)
@@ -250,50 +224,28 @@ class Distribution(
             # but only a few types.
             case ChoiceMapConstraint(choice_map):
                 inner_constraint = constraint.get_value()
-                return self.importance_update(key, inner_constraint, arguments)
+                return self.importance_edit(key, inner_constraint, arguments)
 
-    def incremental_update(
+    def project_edit(
         self,
         key: PRNGKey,
-        trace: Trace,
-        constraint: SupportedIncrementalConstraints,
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateRequest]:
-        match constraint:
-            case EmptyConstraint():
-                weight = 0.0
-                return (
-                    trace,
-                    jnp.array(weight),
-                    Diff.no_change(trace.get_retval()),
-                    EmptyUpdateRequest(),
-                )
+        trace: DistributionTrace[A, R],
+        projection: SupportedProjections,
+    ) -> tuple[Weight, SupportedImportanceConstraints]:
+        sample = trace.get_sample()
+        projected = projection.project(sample)
+        match projected:
+            case EmptySample():
+                return jnp.array(0.0), EmptyConstraint()
 
-            case EqualityConstraint(v):
-                primals = Diff.tree_primal(argdiffs)
-                old_score = trace.get_score()
-                w = self.estimate_logpdf(key, v, *primals)
-                inc_w = w - old_score
-                new_tr = DistributionTrace(self, primals, v, w)
-                return new_tr, inc_w, Diff.unknown_change(v), None
+            case ValueSample(v):
+                weight = trace.get_score()
+                return weight, EqualityConstraint(v)
 
-            case MaskedConstraint(flag, subconstraint):
+            case MaskedSample(v):
                 raise NotImplementedError
 
-            # Compatibility with old usage:
-            # here, we allow users to utilize choice maps to specify constraints
-            # but only a few types.
-            case ChoiceMapConstraint(choice_map):
-                if isinstance(choice_map, EmptyChm):
-                    constraint = EmptyConstraint()
-                    return self.incremental_update(key, trace, constraint, argdiffs)
-                elif isinstance(choice_map, ValChm):
-                    constraint = EqualityConstraint(choice_map.get_value())
-                    return self.incremental_update(key, trace, constraint, argdiffs)
-                else:
-                    raise NotImplementedError
-
-    def general_update(
+    def general_edit(
         self,
         key: PRNGKey,
         trace: DistributionTrace[A, R],
@@ -314,13 +266,13 @@ class Distribution(
                     flag, value = v.flag, v.value
 
                     def true_branch(key, tr, args):
-                        new_tr, inc_w, c = self.general_update(
+                        new_tr, inc_w, c = self.general_edit(
                             key, tr, EqualityConstraint(v.value), args
                         )
                         return new_tr, inc_w
 
                     def false_branch(key, tr, args):
-                        new_tr, inc_w, c = self.general_update(
+                        new_tr, inc_w, c = self.general_edit(
                             key, tr, EmptyConstraint(), args
                         )
                         return new_tr, inc_w
@@ -349,10 +301,10 @@ class Distribution(
             case ChoiceMapConstraint(choice_map):
                 if isinstance(choice_map, EmptyChm):
                     constraint = EmptyConstraint()
-                    return self.general_update(key, trace, constraint, arguments)
+                    return self.general_edit(key, trace, constraint, arguments)
                 else:
                     constraint = EqualityConstraint(choice_map.get_value())
-                    return self.general_update(key, trace, constraint, arguments)
+                    return self.general_edit(key, trace, constraint, arguments)
 
     def general_regenerate(
         self,
@@ -360,7 +312,7 @@ class Distribution(
         trace: Trace,
         projection: SupportedProjections,
         arguments: Arguments,
-    ) -> tuple[Trace, Weight, Sample]:
+    ) -> tuple[Trace, Weight, SupportedGeneralConstraints]:
         match projection:
             case EmptyProjection():
                 old_score = trace.get_score()
@@ -369,7 +321,7 @@ class Distribution(
                 inc_w = w - old_score
                 old_value = trace.get_retval()
                 new_tr = DistributionTrace(self, arguments, v, w)
-                return new_tr, inc_w, EmptySample()
+                return new_tr, inc_w, EmptyConstraint()
 
             case IdentityProjection():
                 old_score = trace.get_score()
@@ -377,51 +329,50 @@ class Distribution(
                 inc_w = w - old_score
                 old_value = trace.get_retval()
                 new_tr = DistributionTrace(self, arguments, v, w)
-                return new_tr, inc_w, ValueSample(old_value)
+                return new_tr, inc_w, EqualityConstraint(old_value)
 
             # Compatibility with old usage:
             case SelectionProjection(selection):
                 raise NotImplementedError
 
-    def project_update(
+    def edit(
         self,
         key: PRNGKey,
-        trace: Trace,
-        projection: SupportedProjections,
-    ) -> tuple[Weight, Constraint]:
-        sample = trace.get_sample()
-        projected = projection.project(sample)
-        match projected:
-            case EmptySample():
-                return jnp.array(0.0), EmptyConstraint()
+        trace: DistributionTrace,
+        request: GeneralConstrainedChangeRequest[A, SupportedGeneralConstraints]
+        | GeneralRegenerateRequest[A, SupportedProjections],
+    ) -> tuple[
+        DistributionTrace,
+        Weight,
+        Retdiff,
+        GeneralConstrainedChangeRequest[A, SupportedGeneralConstraints]
+        | GeneralRegenerateRequest[A, SupportedProjections],
+    ]:
+        match request:
+            case GeneralConstrainedChangeRequest(arguments, constraint):
+                assert isinstance(trace, DistributionTrace), type(trace)
+                new_trace, weight, discard = self.general_edit(
+                    key, trace, constraint, arguments
+                )
+                original_arguments = trace.get_args()
+                return (
+                    new_trace,
+                    weight,
+                    Diff.unknown_change(new_trace.get_retval()),
+                    GeneralConstrainedChangeRequest(original_arguments, discard),
+                )
 
-            case ValueSample(v):
-                weight = trace.get_score()
-                return weight, EqualityConstraint(v)
-
-            case MaskedSample(v):
-                raise NotImplementedError
-
-    def assess(
-        self,
-        key: PRNGKey,
-        sample: ValueSample
-        | ValChm
-        | ChoiceMapSample,  # TODO: the ValChm here is a type of paving over, to allow people to continue to use what they are used to.
-        arguments: A,
-    ):
-        match sample:
-            case ValChm(v):
-                return self.assess(key, ValueSample(v), arguments)
-            case ChoiceMapSample():
-                key = jax.random.PRNGKey(0)
-                v = sample.get_value()
-                return self.assess(key, v, arguments)
-            case ValueSample():
-                key = jax.random.PRNGKey(0)
-                v = sample.val
-                w = self.estimate_logpdf(key, v, *arguments)
-                return w, v
+            case GeneralRegenerateRequest(arguments, projection):
+                new_trace, weight, bwd_constraint = self.general_regenerate(
+                    key, trace, projection, arguments
+                )
+                original_arguments = trace.get_args()
+                return (
+                    trace,
+                    weight,
+                    Diff.unknown_change(new_trace.get_retval()),
+                    GeneralConstrainedChangeRequest(original_arguments, bwd_constraint),
+                )
 
 
 ################

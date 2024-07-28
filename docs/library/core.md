@@ -1,7 +1,6 @@
 # Journey to the center of `genjax.core`
 
-
-This page describes the set of core concepts and datatypes in GenJAX, including Gen's generative datatypes and concepts ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`UpdateRequest`][genjax.core.UpdateRequest]), the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree], [`Const`][genjax.core.Const], and [`Closure`][genjax.core.Closure]), as well as functionally inspired `Pytree` extensions ([`Mask`][genjax.core.Mask], [`Sum`][genjax.core.Sum]), and GenJAX's approach to "static" (JAX tracing time) typechecking ([`typecheck`][genjax.typing.typecheck]).
+This page describes the set of core concepts and datatypes in GenJAX, including Gen's generative datatypes and concepts ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`EditRequest`][genjax.core.EditRequest]), the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree], [`Const`][genjax.core.Const], and [`Closure`][genjax.core.Closure]), as well as functionally inspired `Pytree` extensions ([`Mask`][genjax.core.Mask], [`Sum`][genjax.core.Sum]), and GenJAX's approach to "static" (JAX tracing time) typechecking ([`typecheck`][genjax.typing.typecheck]).
 
 ::: genjax.core.GenerativeFunction
 
@@ -9,7 +8,7 @@ Traces are data structures which record (execution and inference) data about the
 
 ::: genjax.core.Trace
 ::: genjax.core.Sample
-::: genjax.core.UpdateRequest
+::: genjax.core.EditRequest
 ::: genjax.core.Constraint
 
 ## Generative functions with addressed random choices
@@ -28,15 +27,13 @@ JAX natively works with arrays, and with instances of Python classes which can b
 GenJAX provides an abstract class called `Pytree` which automates the implementation of the `flatten` / `unflatten` methods for a class. GenJAX's `Pytree` inherits from [`penzai.Struct`](https://penzai.readthedocs.io/en/stable/_autosummary/leaf/penzai.core.struct.Struct.html), to support pretty printing, and some convenient methods to annotate what data should be part of the `Pytree` _type_ (static fields, won't be broken down into a JAX array) and what data should be considered dynamic.
 
 ::: genjax.core.Pytree
-    options:
-      members:
-        - dataclass
-        - static
-        - field
+options:
+members: - dataclass - static - field
 
 ::: genjax.core.Const
 
 ::: genjax.core.Closure
+
 ## Dynamism in JAX: masks and sum types
 
 The semantics of Gen are defined independently of any particular computational substrate or implementation - but JAX (and XLA through JAX) is a unique substrate, offering high performance, the ability to transformation code ahead-of-time via program transformations, and ... _a rather unique set of restrictions_.
@@ -45,9 +42,8 @@ The semantics of Gen are defined independently of any particular computational s
 
 While not yet formally modelled, it's appropriate to think of JAX as separating computation into two phases:
 
-* The _statics_ phase (which occurs at JAX tracing / transformation time).
-* The _runtime_ phase (which occurs when a computation written in JAX is actually deployed via XLA and executed on a physical device somewhere in the world).
-
+-   The _statics_ phase (which occurs at JAX tracing / transformation time).
+-   The _runtime_ phase (which occurs when a computation written in JAX is actually deployed via XLA and executed on a physical device somewhere in the world).
 
 JAX has different rules for handling values depending on which phase we are in.
 
@@ -60,17 +56,15 @@ The most primitive way to encode _runtime uncertainty_ about a piece of data is 
 GenJAX contains a system for tagging data with flags, to indicate if the data is valid or invalid during inference interface computations _at runtime_. The key data structure which supports this system is `genjax.core.Mask`.
 
 ::: genjax.core.Mask
-    options:
-        show_root_heading: true
-        members:
-          - unmask
-          - match
+options:
+show_root_heading: true
+members: - unmask - match
 
 Another mechanism to encode runtime uncertainty (again, inspired by functional programming) is the `Sum` type. This type encodes the possibility that the value inhabiting this type may actually be one of several options, and we can't statically determine which one it is. This type pairs an `idx: IntArray` with a list of values.
 
 ::: genjax.core.Sum
-    options:
-        show_root_heading: true
+options:
+show_root_heading: true
 
 ## Static typing with `genjax.typing` a.k.a 🐻`beartype`🐻
 
@@ -78,7 +72,7 @@ GenJAX uses [`beartype`](https://github.com/beartype/beartype) to perform type c
 
 ::: genjax.typing.typecheck
 
-###  Generative interface types
+### Generative interface types
 
 ::: genjax.core.Arguments
 ::: genjax.core.Retval
