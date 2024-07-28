@@ -49,6 +49,7 @@ Literal = btyping.Literal
 Protocol = btyping.Protocol
 
 runtime_checkable = btyping.runtime_checkable
+overload = btyping.overload
 
 # JAX Type alias.
 InAxes = int | None | Sequence[Any]
@@ -196,6 +197,7 @@ __all__ = [
     "static_check_shape_dtype_equivalence",
     "static_check_supports_grad",
     "tuple",
+    "overload",
     "typecheck",
     "typecheck_with_config",
 ]
