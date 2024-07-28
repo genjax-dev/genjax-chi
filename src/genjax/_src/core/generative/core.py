@@ -708,9 +708,9 @@ class GenerativeFunction(Generic[Tr, A, S, R, C, P, U], Pytree):
     def importance(
         self,
         key: PRNGKey,
-        constraint: ChoiceMap | Constraint,
+        constraint: ChoiceMap | C,
         arguments: A,
-    ) -> tuple[Trace, Weight]:
+    ) -> tuple[Tr, Weight]:
         constraint = (
             ChoiceMapConstraint(constraint)
             if not isinstance(constraint, Constraint)
@@ -732,7 +732,7 @@ class GenerativeFunction(Generic[Tr, A, S, R, C, P, U], Pytree):
             else projection
         )
         request = ProjectRequest(projection)
-        _, w, _, _ = request.update(key, EmptyTrace(self))
+        _, w, _, _ = request.edit(key, EmptyTrace(self))
         return w
 
     def propose(
@@ -777,14 +777,16 @@ class GenerativeFunction(Generic[Tr, A, S, R, C, P, U], Pytree):
         trace: Tr,
         choice_map: ChoiceMap,
         argdiffs: Argdiffs,
-    ) -> tuple[Tr, Weight, Retdiff, "EditRequest"]:
-        general_update_request = GeneralConstrainedChangeRequest(
+    ) -> tuple[Tr, Weight, Retdiff, ChoiceMap]:
+        choice_map_edit_request = GeneralChoiceMapConstraintChangeRequest(
             Diff.tree_primal(argdiffs), ChoiceMapConstraint(choice_map)
         )
-        new_trace, weight, retdiff, bwd_edit_request = general_update_request.edit(
+        new_trace, weight, retdiff, bwd_edit_request = choice_map_edit_request.edit(
             key, trace
         )
-        return new_trace, weight, retdiff, bwd_edit_request
+        constraint: ChoiceMapConstraint = bwd_edit_request.constraint
+        choice_map = constraint.choice_map
+        return new_trace, weight, retdiff, choice_map
 
     # NOTE: Supports pretty printing in penzai.
     def treescope_color(self):
@@ -1756,6 +1758,23 @@ class GeneralConstrainedChangeRequest(
 
 
 @Pytree.dataclass(match_args=True)
+class GeneralChoiceMapConstraintChangeRequest(
+    Generic[A],
+    EditRequest,
+):
+    arguments: A
+    constraint: "ChoiceMapConstraint"
+
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: Trace[G, A, S, R],
+    ) -> tuple[Trace[G, A, S, R], Weight, Retdiff, EditRequest]:
+        gen_fn = trace.get_gen_fn()
+        return gen_fn.edit(key, trace, self)
+
+
+@Pytree.dataclass(match_args=True)
 class GeneralRegenerateRequest(
     Generic[A, P],
     EditRequest,
@@ -1784,7 +1803,7 @@ class ImportanceRequest(
         self,
         key: PRNGKey,
         trace: EmptyTrace[GenerativeFunction[Tr, A, S, R, C, P, U]],
-    ) -> tuple[Trace, Weight, Retdiff, "ProjectRequest"]:
+    ) -> tuple[Tr, Weight, Retdiff, "ProjectRequest"]:
         gen_fn = trace.get_gen_fn()
         new_trace, w, bwd_projection = gen_fn.importance_edit(
             key, self.constraint, self.arguments
