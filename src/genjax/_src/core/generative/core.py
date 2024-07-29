@@ -419,9 +419,9 @@ class Trace(Generic[G, A, S, R], Pytree):
         whose invocation created the [`Trace`][genjax.core.Trace]."""
         raise NotImplementedError
 
-    ####################
-    # To be deprecated #
-    ####################
+    ##################
+    # old Gen update #
+    ##################
 
     def update(
         self,
@@ -1601,11 +1601,10 @@ U = TypeVar("U", bound="EditRequest")
 
 class EditRequest(Pytree):
     """An `EditRequest` is a request to edit a trace of a generative function.
-    Generative functions respond to instances of subtypes of `EditRequest` by
-    providing an [`update`][genjax.core.GenerativeFunction.update]
-    implementation.
 
-    The specification of this interface is parametric over the kind of `EditRequest` -- responding to an `EditRequest` instance requires that the generative function provides an implementation of a sequential Monte Carlo move in the [SMCP3](https://proceedings.mlr.press/v206/lew23a.html) framework. Users of inference algorithms are not expected to understand the ingredients, but inference algorithm developers are.
+    Edit requests are specified by a single interface called `edit`. The `edit` interface implements sequential Monte Carlo moves in the [SMCP3](https://proceedings.mlr.press/v206/lew23a.html) framework. These moves support "probability aware" mutations on traces.
+
+    `EditRequest` instances may require information from generative functions to perform edits, in which case a generative function must support the request explicitly, by annotating its generic `U` type with the set of supported edit requests, and providing an implementation for the request.
 
     Examples:
         Updating a trace in response to a request for a [`Target`][genjax.inference.Target] change induced by a change to the arguments:
@@ -2059,10 +2058,10 @@ class IgnoreKwargs(
 @Pytree.dataclass
 class GenerativeFunctionClosure(
     Generic[Tr, A, S, R, C, P, U],
-    GenerativeFunction[Tr, A, S, R, C, P, U],
+    GenerativeFunction[Tr, tuple[A, Dict], S, R, C, P, U],
 ):
     gen_fn: GenerativeFunction[Tr, A, S, R, C, P, U]
-    arguments: tuple
+    arguments: A
     kwargs: Dict
 
     def get_gen_fn_with_kwargs(self):
@@ -2181,4 +2180,4 @@ class GenerativeFunctionClosure(
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.edit(key, trace, request)
         else:
-            return self.gen_fn.project_edit(key, trace, request)
+            return self.gen_fn.edit(key, trace, request)
