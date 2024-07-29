@@ -716,14 +716,10 @@ class GenerativeFunction(Generic[Tr, A, S, R, C, P, U], Pytree):
     def importance(
         self,
         key: PRNGKey,
-        constraint: ChoiceMap | C,
+        choice_map: ChoiceMap,
         arguments: A,
     ) -> tuple[Tr, Weight]:
-        constraint = (
-            ChoiceMapConstraint(constraint)
-            if not isinstance(constraint, Constraint)
-            else constraint
-        )
+        constraint = ChoiceMapConstraint(choice_map)
         request = ImportanceRequest(arguments, constraint)
         new_trace, w, _, _ = request.edit(key, EmptyTrace(self))
         return new_trace, w
@@ -732,15 +728,11 @@ class GenerativeFunction(Generic[Tr, A, S, R, C, P, U], Pytree):
         self,
         key: PRNGKey,
         trace: Trace,
-        projection: Selection | Projection,
+        projection: Selection,
     ) -> Weight:
-        projection = (
-            SelectionProjection(projection)
-            if not isinstance(projection, Projection)
-            else projection
-        )
+        projection = SelectionProjection(projection)
         request = ProjectRequest(projection)
-        _, w, _, _ = request.edit(key, EmptyTrace(self))
+        _, w, _, _ = request.edit(key, trace)
         return w
 
     def propose(
@@ -768,14 +760,6 @@ class GenerativeFunction(Generic[Tr, A, S, R, C, P, U], Pytree):
         argdiffs: Argdiffs,
     ) -> tuple[Trace, Weight, Retdiff, "EditRequest"]:
         selection_projection = SelectionProjection(select)
-        # If possible, do an incremental update.
-        if isinstance(self, IncrementalRegenerateRequest.SupportsIncrementalRegenerate):
-            return IncrementalRegenerateRequest(argdiffs, selection_projection).edit(
-                key, trace
-            )
-
-        # Else, the generative function better support a general (non-incremental) update, do that.
-        assert isinstance(self, GeneralRegenerateRequest.SupportsGeneralRegenerate)
         primals = Diff.tree_primal(argdiffs)
         return GeneralRegenerateRequest(primals, selection_projection).edit(key, trace)
 
@@ -792,9 +776,9 @@ class GenerativeFunction(Generic[Tr, A, S, R, C, P, U], Pytree):
         new_trace, weight, retdiff, bwd_edit_request = choice_map_edit_request.edit(
             key, trace
         )
-        constraint: ChoiceMapConstraint = bwd_edit_request.constraint
-        choice_map = constraint.choice_map
-        return new_trace, weight, retdiff, choice_map
+        bwd_constraint: ChoiceMapConstraint = bwd_edit_request.constraint
+        discard = bwd_constraint.choice_map
+        return new_trace, weight, retdiff, discard
 
     # NOTE: Supports pretty printing in penzai.
     def treescope_color(self):
