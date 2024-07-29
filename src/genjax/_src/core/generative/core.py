@@ -420,7 +420,7 @@ class Trace(Generic[G, A, S, R], Pytree):
         key: PRNGKey,
         choice_map: ChoiceMap,
         argdiffs: Argdiffs,
-    ) -> tuple["Trace", Weight, Retdiff, "EditRequest"]:
+    ) -> tuple["Trace", Weight, Retdiff, ChoiceMap]:
         """This method calls out to the underlying.
 
         [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update]

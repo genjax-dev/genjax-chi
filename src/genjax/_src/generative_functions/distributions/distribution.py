@@ -56,6 +56,7 @@ from genjax._src.core.typing import (
     Generic,
     PRNGKey,
     TypeVar,
+    overload,
     tuple,
 )
 
@@ -252,7 +253,11 @@ class Distribution(
         constraint: ChoiceMapConstraint,
         arguments: A,
     ) -> tuple[DistributionTrace[A, R], Weight, ChoiceMapConstraint]:
-        raise NotImplementedError
+        value = constraint.get_value()
+        request = GeneralConstrainedChangeRequest(arguments, value)
+        new_trace, weight, retdiff, bwd_move = request.edit(key, trace)
+        bwd_choice_map = ValChm(bwd_move.constraint)
+        return new_trace, weight, ChoiceMapConstraint(bwd_choice_map)
 
     def general_constrained_change_edit(
         self,
@@ -347,6 +352,48 @@ class Distribution(
             # Compatibility with old usage:
             case SelectionProjection(selection):
                 raise NotImplementedError
+
+    @overload
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: DistributionTrace,
+        request: GeneralConstrainedChangeRequest[A, SupportedGeneralConstraints],
+    ) -> tuple[
+        DistributionTrace,
+        Weight,
+        Retdiff,
+        GeneralConstrainedChangeRequest[A, SupportedGeneralConstraints],
+    ]:
+        pass
+
+    @overload
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: DistributionTrace,
+        request: GeneralRegenerateRequest[A, SupportedProjections],
+    ) -> tuple[
+        DistributionTrace,
+        Weight,
+        Retdiff,
+        GeneralConstrainedChangeRequest[A, SupportedGeneralConstraints],
+    ]:
+        pass
+
+    @overload
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: DistributionTrace,
+        request: GeneralChoiceMapConstraintChangeRequest[A],
+    ) -> tuple[
+        DistributionTrace,
+        Weight,
+        Retdiff,
+        GeneralChoiceMapConstraintChangeRequest[A],
+    ]:
+        pass
 
     def edit(
         self,
