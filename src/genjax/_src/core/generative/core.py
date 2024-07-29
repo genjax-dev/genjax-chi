@@ -217,6 +217,14 @@ class EqualityConstraint(Generic[V], Constraint[ValueSample]):
 
     x: V
 
+    # Not used in the semantics of this type, but useful shorthand for
+    # tests and asserts.
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.x == other.x
+        else:
+            return self.x == other
+
 
 @Pytree.dataclass(match_args=True)
 class MaskedConstraint(Generic[C, S], Constraint[S]):
@@ -2134,15 +2142,59 @@ class GenerativeFunctionClosure(
 
     def assess(
         self,
-        sample: Sample,
-        arguments: tuple,
-    ) -> tuple[Score, Retval]:
+        key: PRNGKey,
+        sample: S,
+        arguments: A,
+    ) -> tuple[Score, R]:
         full_args = (*self.arguments, *arguments)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.assess(
+                key,
                 sample,
                 (full_args, self.kwargs),
             )
         else:
-            return self.gen_fn.assess(sample, full_args)
+            return self.gen_fn.assess(key, sample, full_args)
+
+    def importance_edit(
+        self,
+        key: PRNGKey,
+        constraint: C,
+        arguments: A,
+    ) -> tuple[Tr, Weight, P]:
+        full_args = (*self.arguments, *arguments)
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.importance_edit(
+                key,
+                constraint,
+                (full_args, self.kwargs),
+            )
+        else:
+            return self.gen_fn.importance_edit(key, constraint, full_args)
+
+    def project_edit(
+        self,
+        key: PRNGKey,
+        trace: Tr,
+        projection: P,
+    ) -> tuple[Weight, Constraint]:
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.project_edit(key, trace, projection)
+        else:
+            return self.gen_fn.project_edit(key, trace, projection)
+
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: Tr,
+        request: U,
+    ) -> tuple[Tr, Weight, Retdiff, U]:
+        raise NotImplementedError
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.edit(key, trace, request)
+        else:
+            return self.gen_fn.project_edit(key, trace, request)

@@ -44,13 +44,17 @@ from genjax._src.core.generative import (
     Trace,
     Weight,
 )
-from genjax._src.core.generative.core import push_trace_overload_stack
+from genjax._src.core.generative.core import (
+    GeneralChoiceMapConstraintChangeRequest,
+    push_trace_overload_stack,
+)
 from genjax._src.core.interpreters.forward import (
     InitialStylePrimitive,
     StatefulHandler,
     forward,
     initial_style_bind,
 )
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Closure, Const, Pytree
 from genjax._src.core.typing import (
     Any,
@@ -394,7 +398,7 @@ def importance_transform(source_fn):
 
 
 @dataclass
-class GeneralConstrainedChangeHandler(StaticHandler):
+class GeneralChoiceMapConstraintChangeHandler(StaticHandler):
     key: PRNGKey
     previous_trace: StaticTrace
     choice_map_constraint: ChoiceMapConstraint
@@ -426,7 +430,7 @@ class GeneralConstrainedChangeHandler(StaticHandler):
     def get_subconstraint(
         self,
         addr: StaticAddress,
-    ) -> Constraint:
+    ) -> ChoiceMapConstraint:
         return self.choice_map_constraint(addr)
 
     def handle_retval(self, v):
@@ -442,21 +446,21 @@ class GeneralConstrainedChangeHandler(StaticHandler):
         subtrace = self.get_subtrace(gen_fn, addr)
         subconstraint = self.get_subconstraint(addr)
         self.key, sub_key = jax.random.split(self.key)
-        (tr, w, bwd_discard_constraint) = gen_fn.general_update(
-            sub_key, subtrace, subconstraint, arguments
-        )
+        request = GeneralChoiceMapConstraintChangeRequest(arguments, subconstraint)
+        (tr, w, _, bwd_request) = request.edit(sub_key, subtrace)
+        discard = bwd_request.constraint.choice_map
         self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
-        self.bwd_discard_constraints.append(bwd_discard_constraint)
+        self.bwd_discard_constraints.append(discard)
 
         return tr.get_retval()
 
 
-def general_update_transform(source_fn):
+def choice_map_edit_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(key, previous_trace, constraints, arguments: tuple):
-        stateful_handler = GeneralConstrainedChangeHandler(
+        stateful_handler = GeneralChoiceMapConstraintChangeHandler(
             key, previous_trace, constraints
         )
         retval = forward(source_fn)(stateful_handler, *arguments)
@@ -691,11 +695,11 @@ class StaticGenerativeFunction(
             bwd_proj,
         )
 
-    def general_constrained_change_edit(
+    def choice_map_change_edit(
         self,
         key: PRNGKey,
         trace: StaticTrace[A, R],
-        constraint: SupportedGeneralConstraints,
+        constraint: ChoiceMapConstraint,
         arguments: A,
     ) -> tuple[StaticTrace[A, R], Weight, SupportedGeneralConstraints]:
         syntax_sugar_handled = push_trace_overload_stack(
@@ -713,7 +717,7 @@ class StaticGenerativeFunction(
                 ),
                 bwd_discard_constraints,
             ),
-        ) = general_update_transform(syntax_sugar_handled)(
+        ) = choice_map_edit_transform(syntax_sugar_handled)(
             key, trace, constraint, arguments
         )
 
@@ -760,9 +764,26 @@ class StaticGenerativeFunction(
         self,
         key: PRNGKey,
         trace: Trace,
-        request: EditRequest,
-    ) -> tuple[Trace, Weight, Retdiff, EditRequest]:
-        raise NotImplementedError
+        request: GeneralChoiceMapConstraintChangeRequest[A],
+    ) -> tuple[
+        Trace,
+        Weight,
+        Retdiff,
+        GeneralChoiceMapConstraintChangeRequest[A],
+    ]:
+        match request:
+            case GeneralChoiceMapConstraintChangeRequest(
+                arguments, choice_map_constraint
+            ):
+                new_trace, weight, bwd_move = self.choice_map_change_edit(
+                    key, trace, choice_map_constraint, arguments
+                )
+                return (
+                    new_trace,
+                    weight,
+                    Diff.unknown_change(new_trace.get_retval()),
+                    GeneralChoiceMapConstraintChangeRequest(trace.get_args(), bwd_move),
+                )
 
     def inline(self, *arguments):
         return self.source(*arguments)
