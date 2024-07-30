@@ -180,6 +180,10 @@ class Selection(Pytree):
     #################################################
 
     @classmethod
+    def empty(cls) -> "Selection":
+        return select_none()
+
+    @classmethod
     def all(cls) -> "Selection":
         return select_all()
 
@@ -414,11 +418,8 @@ class _ChoiceMapBuilder(Pytree):
     def v(self, v) -> "ValChm":
         return ChoiceMap.value(v)
 
-    def d(self, d: dict) -> "ChoiceMap":
-        return ChoiceMap.d(d)
-
-    def kw(self, **kwargs) -> "ChoiceMap":
-        return ChoiceMap.kw(**kwargs)
+    def m(self, flag: Bool | BoolArray, chm: "ChoiceMap") -> "ChoiceMap":
+        return ChoiceMap.maybe(flag, chm)
 
     def a(
         self, addr: ExtendedAddressComponent | ExtendedAddress, v: Any
@@ -431,6 +432,12 @@ class _ChoiceMapBuilder(Pytree):
             else:
                 new = ChoiceMap.idx(comp, new)
         return new
+
+    def d(self, d: dict) -> "ChoiceMap":
+        return ChoiceMap.dict(d)
+
+    def kw(self, **kwargs) -> "ChoiceMap":
+        return ChoiceMap.kwargs(**kwargs)
 
 
 ChoiceMapBuilder = _ChoiceMapBuilder(None)
@@ -652,7 +659,7 @@ class ChoiceMap(Generic[V], Pytree):
         )
 
     @classmethod
-    def d(cls, d: dict) -> "ChoiceMap":
+    def dict(cls, d: dict) -> "ChoiceMap":
         start = ChoiceMap.empty()
         if d:
             for k, v in d.items():
@@ -660,7 +667,7 @@ class ChoiceMap(Generic[V], Pytree):
         return start
 
     @classmethod
-    def kw(cls, **kwargs) -> "ChoiceMap":
+    def kwargs(cls, **kwargs) -> "ChoiceMap":
         return ChoiceMap.d(kwargs)
 
     @property

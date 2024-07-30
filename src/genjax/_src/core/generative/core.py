@@ -22,13 +22,13 @@ from penzai.core import formatting_util
 
 from genjax._src.core.generative.choice_map import (
     ChoiceMap,
+    ExtendedAddress,
     ExtendedAddressComponent,
     Selection,
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import (
     get_trace_shape,
-    staged_and,
     staged_not,
 )
 from genjax._src.core.pytree import Pytree
@@ -51,13 +51,12 @@ from genjax._src.core.typing import (
     Self,
     String,
     TypeVar,
-    static_check_is_concrete,
     tuple,
 )
 
 # Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
 if TYPE_CHECKING:
-    pass
+    import genjax.inference as inference
 
 A = TypeVar("A", bound="Arguments")
 A_ = TypeVar("A_", bound="Arguments")
@@ -1568,8 +1567,8 @@ class GenerativeFunction(
         *,
         selection: Optional[Any] = None,
         algorithm: Optional[Any] = None,
-    ) -> "GenerativeFunction":
-        from genjax import marginal
+    ) -> "inference.Marginal":
+        from genjax.inference import marginal
 
         if selection is None:
             selection = Selection.all()
@@ -1580,10 +1579,10 @@ class GenerativeFunction(
         self,
         /,
         *,
-        constraint: Constraint,
-        arguments: tuple,
-    ):
-        from genjax import Target
+        constraint: "ChoiceMapConstraint",
+        arguments: A,
+    ) -> "inference.Target":
+        from genjax.inference import Target
 
         return Target(
             self,
@@ -1599,7 +1598,11 @@ class GenerativeFunction(
 GLOBAL_TRACE_OP_HANDLER_STACK: List[Callable[..., Any]] = []
 
 
-def handle_off_trace_stack(addr, gen_fn: GenerativeFunction, arguments):
+def handle_off_trace_stack(
+    addr: ExtendedAddressComponent | ExtendedAddress,
+    gen_fn: GenerativeFunction[Tr, A, S, R, C, P, U],
+    arguments: A,
+) -> R:
     if GLOBAL_TRACE_OP_HANDLER_STACK:
         handler = GLOBAL_TRACE_OP_HANDLER_STACK[-1]
         return handler(addr, gen_fn, arguments)
@@ -1919,11 +1922,27 @@ class ChoiceMapEditRequest(Generic[A], EditRequest):
     arguments: A
     constraint: ChoiceMapConstraint
 
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+    ) -> tuple[Trace, Weight, Retdiff, "ChoiceMapEditRequest"]:
+        gen_fn = trace.get_gen_fn()
+        return gen_fn.edit(key, trace, self)
+
 
 @Pytree.dataclass(match_args=True)
 class SelectionRegenerateRequest(Generic[A], EditRequest):
     arguments: A
     projection: Selection
+
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+    ) -> tuple[Trace, Weight, Retdiff, ChoiceMapEditRequest]:
+        gen_fn = trace.get_gen_fn()
+        return gen_fn.edit(key, trace, self)
 
 
 @Pytree.dataclass(match_args=True)
@@ -1996,22 +2015,21 @@ class SumEditRequest(EditRequest):
 @Pytree.dataclass
 class MaskedEditRequest(EditRequest):
     flag: Bool | BoolArray
-    problem: EditRequest
+    request: EditRequest
 
-    @classmethod
-    def maybe_empty(cls, f: BoolArray, problem: EditRequest):
-        match problem:
-            case MaskedEditRequest(flag, subrequest):
-                return MaskedEditRequest(staged_and(f, flag), subrequest)
-            case _:
-                static_bool_check = static_check_is_concrete(f) and isinstance(f, Bool)
-                return (
-                    problem
-                    if static_bool_check and f
-                    else EmptyRequest()
-                    if static_bool_check
-                    else MaskedEditRequest(f, problem)
-                )
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+    ) -> tuple[Trace, Weight, Retdiff, "MaskedEditRequest"]:
+        new_trace, w, retdiff, bwd_request = self.request.edit(key, trace)
+        new_trace = jtu.tree_map(
+            lambda v1, v2: jnp.where(self.flag, v1, v2), new_trace, trace
+        )
+        w = self.flag * w
+        retdiff = Diff.force_unknown(retdiff)
+        bwd_request = MaskedEditRequest(self.flag, bwd_request)
+        return new_trace, w, retdiff, bwd_request
 
 
 @Pytree.dataclass
@@ -2089,7 +2107,10 @@ class GenerativeFunctionClosure(
         return self.gen_fn.handle_kwargs()
 
     # NOTE: Supports callee syntax, and the ability to overload it in callers.
-    def __matmul__(self, addr):
+    def __matmul__(
+        self,
+        addr: ExtendedAddressComponent | ExtendedAddress,
+    ):
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return handle_off_trace_stack(

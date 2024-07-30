@@ -72,9 +72,9 @@ R = TypeVar("R", bound=Retval)
 class DistributionTrace(
     Generic[A, R],
     SampleCoercableToChoiceMap,
-    Trace["Distribution[A, R]", A, "ValueSample[R]", R],
+    Trace["Distribution", A, "ValueSample[R]", R],
 ):
-    gen_fn: "Distribution[A, R]"
+    gen_fn: "Distribution"
     arguments: A
     value: R
     score: Score
@@ -267,16 +267,56 @@ class Distribution(
                         ),
                     )
 
-    def selection_regenerate(
+    def selection_regenerate_edit(
         self,
         key: PRNGKey,
         trace: Trace,
         selection: Selection,
         arguments: Arguments,
     ) -> tuple[
-        Trace, Weight, ChoiceMapConstraint[EmptyConstraint | EqualityConstraint[R]]
+        Trace,
+        Weight,
+        ChoiceMapConstraint[EmptyConstraint | EqualityConstraint[R]],
     ]:
-        raise NotImplementedError
+        match selection.check():
+            case True:
+                new_score, new_value = self.random_weighted(key, *arguments)
+                old_score = trace.get_score()
+                old_value = trace.get_retval()
+                return (
+                    DistributionTrace(self, arguments, new_value, new_score),
+                    new_score - old_score,
+                    ChoiceMapConstraint(ChoiceMap.value(old_value)),
+                )
+
+            case False:
+                return trace, jnp.array(0.0), ChoiceMapConstraint(ChoiceMap.empty())
+
+            case BoolArray:
+
+                def true_branch(key, tr, args):
+                    new_tr, inc_w, c = self.selection_regenerate_edit(
+                        key,
+                        tr,
+                        Selection.empty(),
+                        args,
+                    )
+                    return new_tr, inc_w
+
+                def false_branch(key, tr, args):
+                    new_tr, inc_w, c = self.selection_regenerate_edit(
+                        key, tr, Selection.all(), args
+                    )
+                    return new_tr, inc_w
+
+                flag = selection.check()
+                new_tr, inc_w = jax.lax.cond(
+                    flag, true_branch, false_branch, key, trace, arguments
+                )
+                shared_constraint = ChoiceMapConstraint(
+                    ChoiceMap.maybe(flag, ChoiceMap.value(trace.get_retval()))
+                )
+                return new_tr, inc_w, shared_constraint
 
     @overload
     def edit(
@@ -284,12 +324,7 @@ class Distribution(
         key: PRNGKey,
         trace: DistributionTrace,
         request: SelectionRegenerateRequest[A],
-    ) -> tuple[
-        DistributionTrace,
-        Weight,
-        Retdiff,
-        ChoiceMapEditRequest[A],
-    ]:
+    ) -> tuple[DistributionTrace, Weight, Retdiff, ChoiceMapEditRequest[A]]:
         pass
 
     @overload
@@ -298,12 +333,7 @@ class Distribution(
         key: PRNGKey,
         trace: DistributionTrace,
         request: ChoiceMapEditRequest[A],
-    ) -> tuple[
-        DistributionTrace,
-        Weight,
-        Retdiff,
-        ChoiceMapEditRequest[A],
-    ]:
+    ) -> tuple[DistributionTrace, Weight, Retdiff, ChoiceMapEditRequest[A]]:
         pass
 
     def edit(
@@ -332,7 +362,7 @@ class Distribution(
 
             case SelectionRegenerateRequest(arguments, projection):
                 new_trace, weight, bwd_choice_map_constraint = (
-                    self.selection_regenerate(key, trace, projection, arguments)
+                    self.selection_regenerate_edit(key, trace, projection, arguments)
                 )
                 original_arguments = trace.get_args()
                 return (

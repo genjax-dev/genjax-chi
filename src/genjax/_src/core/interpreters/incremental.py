@@ -127,21 +127,21 @@ def static_check_is_change_tangent(v):
 
 @Pytree.dataclass
 class Diff(Generic[V, CT], Pytree):
-    primal: V
-    tangent: CT
+    primal_value: V
+    tangent_value: CT
 
     def __post_init__(self):
-        assert not isinstance(self.primal, Diff)
-        static_check_is_change_tangent(self.tangent)
+        assert not isinstance(self.primal_value, Diff)
+        static_check_is_change_tangent(self.tangent_value)
 
     def get_primal(self) -> V:
-        return self.primal
+        return self.primal_value
 
     def get_tangent(self) -> CT:
-        return self.tangent
+        return self.tangent_value
 
     def unpack(self):
-        return self.primal, self.tangent
+        return self.primal_value, self.tangent_value
 
     #############
     # Utilities #
@@ -165,6 +165,11 @@ class Diff(Generic[V, CT], Pytree):
         return Diff.tree_diff_no_change(tree)
 
     @staticmethod
+    def force_unknown(tree):
+        primal = Diff.tree_primal(tree)
+        return Diff.unknown_change(tree)
+
+    @staticmethod
     def tree_diff_unknown_change(tree):
         primal_tree = Diff.tree_primal(tree)
         tangent_tree = jtu.tree_map(lambda _: UnknownChange, primal_tree)
@@ -185,6 +190,10 @@ class Diff(Generic[V, CT], Pytree):
         return jtu.tree_map(_inner, v, is_leaf=Diff.static_check_is_diff)
 
     @staticmethod
+    def primal(v):
+        return Diff.tree_primal(v)
+
+    @staticmethod
     def tree_tangent(v):
         def _inner(v):
             if Diff.static_check_is_diff(v):
@@ -193,6 +202,10 @@ class Diff(Generic[V, CT], Pytree):
                 return v
 
         return jtu.tree_map(_inner, v, is_leaf=Diff.static_check_is_diff)
+
+    @staticmethod
+    def tangent(v):
+        return Diff.tree_tangent(v)
 
     @staticmethod
     def tree_unpack(v):

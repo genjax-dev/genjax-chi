@@ -32,6 +32,7 @@ from genjax._src.core.generative import (
     Sample,
     SampleCoercableToChoiceMap,
     Score,
+    Selection,
     SelectionProjection,
     Trace,
     Weight,
@@ -50,6 +51,7 @@ from genjax._src.core.typing import (
     Optional,
     PRNGKey,
     TypeVar,
+    overload,
     tuple,
 )
 
@@ -417,7 +419,7 @@ class ScanCombinator(
         def _inner_update(
             key: PRNGKey,
             subtrace: Tr,
-            subconstraint: Constraint,
+            subconstraint: ChoiceMapConstraint,
             carry_in: Ca,
             scanned_in: Sc1,
         ) -> tuple[
@@ -434,7 +436,7 @@ class ScanCombinator(
                 scanned_out,
                 w,
                 bwd_constraint,
-            )
+            )  # type: ignore
 
         def _get_subconstraint(
             constraint: ChoiceMapConstraint,
@@ -497,6 +499,15 @@ class ScanCombinator(
             jnp.sum(ws),
             bwd_constraint,
         )
+
+    def selection_regenerate_edit(
+        self,
+        key: PRNGKey,
+        trace: ScanTrace[G, Tr, Ca, Sc1, Sc2, S],
+        selection: Selection,
+        arguments: tuple[Ca, Sc1],
+    ) -> tuple[ScanTrace[G, Tr, Ca, Sc1, Sc2, S], Weight, ChoiceMapConstraint]:
+        raise NotImplementedError
 
     def index_edit(
         self,
@@ -562,16 +573,43 @@ class ScanCombinator(
             bwd_move,
         )
 
+    @overload
     def edit(
         self,
         key: PRNGKey,
         trace: ScanTrace,
-        request: ChoiceMapEditRequest | IndexEditRequest,
+        request: ChoiceMapEditRequest,
+    ) -> tuple[ScanTrace, Weight, Retdiff, ChoiceMapEditRequest]:
+        pass
+
+    @overload
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: ScanTrace,
+        request: IndexEditRequest,
+    ) -> tuple[ScanTrace, Weight, Retdiff, IndexEditRequest]:
+        pass
+
+    @overload
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: ScanTrace,
+        request: SelectionRegenerateRequest,
+    ) -> tuple[ScanTrace, Weight, Retdiff, ChoiceMapEditRequest]:
+        pass
+
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: ScanTrace,
+        request: ChoiceMapEditRequest | IndexEditRequest | SelectionRegenerateRequest,
     ) -> tuple[
         ScanTrace,
         Weight,
         Retdiff,
-        ChoiceMapEditRequest | IndexEditRequest,
+        ChoiceMapEditRequest | IndexEditRequest | SelectionRegenerateRequest,
     ]:
         match request:
             case ChoiceMapEditRequest(arguments, choice_map_constraint):
@@ -586,6 +624,17 @@ class ScanCombinator(
                 )
             case IndexEditRequest(index, subrequest):
                 return self.index_edit(key, trace, index, subrequest)
+
+            case SelectionRegenerateRequest(arguments, selection):
+                new_trace, weight, bwd_constraint = self.selection_regenerate_edit(
+                    key, trace, selection, arguments
+                )
+                return (
+                    new_trace,
+                    weight,
+                    Diff.unknown_change(new_trace.get_retval()),
+                    ChoiceMapEditRequest(trace.get_args(), bwd_constraint),
+                )
 
 
 ##############
