@@ -590,19 +590,34 @@ class ChoiceMapEditRequestHandler(StaticHandler):
     weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: List[Trace] = Pytree.field(default_factory=list)
     bwd_discard_constraints: List[ChoiceMap] = Pytree.field(default_factory=list)
+    cache_addresses: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    cached_values: List[Any] = Pytree.field(default_factory=list)
 
     def visit(self, addr):
         self.address_visitor.visit(addr)
 
+    def cache_visit(self, addr: StaticAddress):
+        self.cache_addresses.visit(addr)
+
     def yield_state(
         self,
-    ) -> tuple[Score, Weight, AddressVisitor, List[Trace], List[ChoiceMap]]:
+    ) -> tuple[
+        Score,
+        Weight,
+        AddressVisitor,
+        List[Trace],
+        List[ChoiceMap],
+        AddressVisitor,
+        List[Any],
+    ]:
         return (
             self.score,
             self.weight,
             self.address_visitor,
             self.address_traces,
             self.bwd_discard_constraints,
+            self.cache_addresses,
+            self.cached_values,
         )
 
     def get_subtrace(
@@ -620,6 +635,17 @@ class ChoiceMapEditRequestHandler(StaticHandler):
 
     def handle_retval(self, v):
         return jtu.tree_leaves(v)
+
+    def handle_cache(
+        self,
+        addr: StaticAddress,
+        fn: Callable[[A], R],
+        arguments: A,
+    ) -> R:
+        self.cache_visit(addr)
+        r = fn(*arguments)
+        self.cached_values.append(r)
+        return r
 
     def handle_trace(
         self,
@@ -653,6 +679,8 @@ def choice_map_edit_transform(source_fn):
             address_visitor,
             address_traces,
             bwd_discards,
+            cache_addresses,
+            cached_values,
         ) = stateful_handler.yield_state()
         return (
             (
@@ -668,6 +696,8 @@ def choice_map_edit_transform(source_fn):
                 # Backward update problem.
                 bwd_discards,
             ),
+            cache_addresses,
+            cached_values,
         )
 
     return wrapper
@@ -688,19 +718,34 @@ class SelectionRegenerateEditHandler(StaticHandler):
     weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: List[Trace] = Pytree.field(default_factory=list)
     bwd_discards: List[ChoiceMap] = Pytree.field(default_factory=list)
+    cache_addresses: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    cached_values: List[Any] = Pytree.field(default_factory=list)
 
     def visit(self, addr):
         self.address_visitor.visit(addr)
 
+    def cache_visit(self, addr: StaticAddress):
+        self.cache_addresses.visit(addr)
+
     def yield_state(
         self,
-    ) -> tuple[Score, Weight, AddressVisitor, List[Trace], List[ChoiceMap]]:
+    ) -> tuple[
+        Score,
+        Weight,
+        AddressVisitor,
+        List[Trace],
+        List[ChoiceMap],
+        AddressVisitor,
+        List[Any],
+    ]:
         return (
             self.score,
             self.weight,
             self.address_visitor,
             self.address_traces,
             self.bwd_discards,
+            self.cache_addresses,
+            self.cached_values,
         )
 
     def get_subtrace(
@@ -718,6 +763,17 @@ class SelectionRegenerateEditHandler(StaticHandler):
 
     def handle_retval(self, v):
         return jtu.tree_leaves(v)
+
+    def handle_cache(
+        self,
+        addr: StaticAddress,
+        fn: Callable[[A], R],
+        arguments: A,
+    ) -> R:
+        self.cache_visit(addr)
+        r = fn(*arguments)
+        self.cached_values.append(r)
+        return r
 
     def handle_trace(
         self,
@@ -758,6 +814,8 @@ def selection_regenerate_edit_transform(source_fn):
             address_visitor,
             address_traces,
             bwd_discards,
+            cache_addresses,
+            cached_values,
         ) = stateful_handler.yield_state()
         return (
             (
@@ -773,6 +831,8 @@ def selection_regenerate_edit_transform(source_fn):
                 # Backward update problem.
                 bwd_discards,
             ),
+            cache_addresses,
+            cached_values,
         )
 
     return wrapper
@@ -972,6 +1032,8 @@ class StaticGenerativeFunction(
                 ),
                 bwd_discard_constraints,
             ),
+            cache_addresses,
+            cached_values,
         ) = choice_map_edit_transform(syntax_sugar_handled)(
             key, trace, constraint, arguments
         )
@@ -993,6 +1055,8 @@ class StaticGenerativeFunction(
                 address_visitor,
                 address_traces,
                 score,
+                cache_addresses,
+                cached_values,
             ),
             weight,
             bwd_discard,
@@ -1020,6 +1084,8 @@ class StaticGenerativeFunction(
                 ),
                 bwd_discard_constraints,
             ),
+            cache_addresses,
+            cached_values,
         ) = selection_regenerate_edit_transform(syntax_sugar_handled)(
             key, trace, selection, arguments
         )
@@ -1041,6 +1107,8 @@ class StaticGenerativeFunction(
                 address_visitor,
                 address_traces,
                 score,
+                cache_addresses,
+                cached_values,
             ),
             weight,
             bwd_discard,
