@@ -21,15 +21,18 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
+    Argdiffs,
     Arguments,
     ChoiceMap,
     ChoiceMapBuilder,
     ChoiceMapConstraint,
+    ChoiceMapEditRequest,
     ChoiceMapProjection,
     ChoiceMapSample,
     Constraint,
     EditRequest,
     GenerativeFunction,
+    IncrementalChoiceMapEditRequest,
     Projection,
     Retdiff,
     Retval,
@@ -45,7 +48,6 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.generative.core import (
-    ChoiceMapEditRequest,
     push_trace_overload_stack,
 )
 from genjax._src.core.interpreters.forward import (
@@ -54,10 +56,11 @@ from genjax._src.core.interpreters.forward import (
     forward,
     initial_style_bind,
 )
-from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.incremental import Diff, incremental
 from genjax._src.core.pytree import Closure, Const, Pytree
 from genjax._src.core.typing import (
     Any,
+    Bool,
     Callable,
     Generic,
     List,
@@ -703,6 +706,153 @@ def choice_map_edit_transform(source_fn):
     return wrapper
 
 
+@dataclass
+class IncrementalChoiceMapEditRequestHandler(StaticHandler):
+    key: PRNGKey
+    previous_trace: StaticTrace
+    choice_map_constraint: ChoiceMapConstraint
+    propagate_incremental: Bool = Pytree.static()
+    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    address_traces: List[Trace] = Pytree.field(default_factory=list)
+    bwd_discard_constraints: List[ChoiceMap] = Pytree.field(default_factory=list)
+    cache_addresses: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    cached_values: List[Any] = Pytree.field(default_factory=list)
+
+    def visit(self, addr):
+        self.address_visitor.visit(addr)
+
+    def cache_visit(self, addr: StaticAddress):
+        self.cache_addresses.visit(addr)
+
+    def yield_state(
+        self,
+    ) -> tuple[
+        Score,
+        Weight,
+        AddressVisitor,
+        List[Trace],
+        List[ChoiceMap],
+        AddressVisitor,
+        List[Any],
+    ]:
+        return (
+            self.score,
+            self.weight,
+            self.address_visitor,
+            self.address_traces,
+            self.bwd_discard_constraints,
+            self.cache_addresses,
+            self.cached_values,
+        )
+
+    def get_subtrace(
+        self,
+        sub_gen_fn: GenerativeFunction,
+        addr: StaticAddress,
+    ):
+        return self.previous_trace.get_subtrace(addr)
+
+    def get_subconstraint(
+        self,
+        addr: StaticAddress,
+    ) -> ChoiceMapConstraint:
+        return self.choice_map_constraint(addr)
+
+    def handle_retval(self, v):
+        return jtu.tree_leaves(v)
+
+    def handle_cache(
+        self,
+        addr: StaticAddress,
+        fn: Callable[[A], R],
+        arguments: A,
+    ) -> R:
+        self.cache_visit(addr)
+        r = fn(*arguments)
+        self.cached_values.append(r)
+        return r
+
+    def handle_trace(
+        self,
+        addr: StaticAddress,
+        gen_fn: GenerativeFunction,
+        arguments: Arguments,
+    ):
+        self.visit(addr)
+        subtrace = self.get_subtrace(gen_fn, addr)
+        subconstraint = self.get_subconstraint(addr)
+        self.key, sub_key = jax.random.split(self.key)
+        if self.propagate_incremental:
+            request = IncrementalChoiceMapEditRequest(subconstraint)
+        else:
+            request = ChoiceMapEditRequest(subconstraint)
+        (tr, w, _, bwd_request) = request.edit(sub_key, subtrace, arguments)
+        discard = bwd_request.constraint.choice_map
+        self.score += tr.get_score()
+        self.weight += w
+        self.address_traces.append(tr)
+        self.bwd_discard_constraints.append(discard)
+
+        return tr.get_retval()
+
+
+def incremental_choice_map_edit_transform(source_fn):
+    @functools.wraps(source_fn)
+    def wrapper(
+        key: PRNGKey,
+        previous_trace: StaticTrace,
+        constraint: ChoiceMapConstraint,
+        argdiffs: Argdiffs,
+        propagate_incremental: Bool,
+    ):
+        stateful_handler = IncrementalChoiceMapEditRequestHandler(
+            key,
+            previous_trace,
+            constraint,
+            propagate_incremental,
+        )
+        diff_primals = Diff.primal(argdiffs)
+        diff_tangents = Diff.tangent(argdiffs)
+        retdiff = incremental(source_fn)(
+            stateful_handler,
+            diff_primals,
+            diff_tangents,
+        )
+        (
+            score,
+            weight,
+            address_visitor,
+            address_traces,
+            bwd_discards,
+            cache_addresses,
+            cached_values,
+        ) = stateful_handler.yield_state()
+        retval = Diff.primal(retdiff)
+        return (
+            (
+                weight,
+                # Trace.
+                (
+                    diff_primals,
+                    retval,
+                    address_visitor,
+                    address_traces,
+                    score,
+                ),
+                # Retdiff.
+                retdiff,
+                # Backward update problem.
+                bwd_discards,
+            ),
+            cache_addresses,
+            cached_values,
+        )
+
+    return wrapper
+
+
 #############################
 # Selection regenerate edit #
 #############################
@@ -862,7 +1012,9 @@ class StaticGenerativeFunction(
         R,
         ChoiceMapConstraint,
         ChoiceMapProjection | SelectionProjection,
-        ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
+        ChoiceMapEditRequest[A]
+        | IncrementalChoiceMapEditRequest[A]
+        | SelectionRegenerateRequest[A],
     ],
 ):
     """A `StaticGenerativeFunction` is a generative function which relies on
@@ -1062,6 +1214,61 @@ class StaticGenerativeFunction(
             bwd_discard,
         )
 
+    def incremental_choice_map_edit(
+        self,
+        key: PRNGKey,
+        trace: StaticTrace[A, R],
+        constraint: ChoiceMapConstraint,
+        argdiffs: Argdiffs,
+        propagate_incremental: Bool,
+    ) -> tuple[StaticTrace[A, R], Weight, Retdiff, ChoiceMapConstraint]:
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
+        (
+            (
+                weight,
+                (
+                    arguments,
+                    retval,
+                    address_visitor,
+                    address_traces,
+                    score,
+                ),
+                retdiff,
+                bwd_discard_constraints,
+            ),
+            cache_addresses,
+            cached_values,
+        ) = incremental_choice_map_edit_transform(syntax_sugar_handled)(
+            key, trace, constraint, argdiffs, propagate_incremental
+        )
+
+        def make_bwd_discard(visitor, subdiscards) -> ChoiceMapConstraint:
+            addresses = visitor.get_visited()
+            addresses = Pytree.tree_unwrap_const(addresses)
+            chm = ChoiceMap.empty()
+            for addr, subdiscard in zip(addresses, subdiscards):
+                chm = chm ^ ChoiceMapBuilder.a(addr, subdiscard)
+            return ChoiceMapConstraint(chm)
+
+        bwd_discard = make_bwd_discard(address_visitor, bwd_discard_constraints)
+        return (
+            StaticTrace(
+                self,
+                arguments,
+                retval,
+                address_visitor,
+                address_traces,
+                score,
+                cache_addresses,
+                cached_values,
+            ),
+            weight,
+            retdiff,
+            bwd_discard,
+        )
+
     def selection_regenerate_edit(
         self,
         key: PRNGKey,
@@ -1129,6 +1336,16 @@ class StaticGenerativeFunction(
         self,
         key: PRNGKey,
         trace: StaticTrace[A, R],
+        request: IncrementalChoiceMapEditRequest[A],
+        arguments: A,
+    ) -> tuple[StaticTrace[A, R], Weight, Retdiff, IncrementalChoiceMapEditRequest[A]]:
+        pass
+
+    @overload
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: StaticTrace[A, R],
         request: SelectionRegenerateRequest[A],
         arguments: A,
     ) -> tuple[StaticTrace[A, R], Weight, Retdiff, ChoiceMapEditRequest[A]]:
@@ -1138,30 +1355,50 @@ class StaticGenerativeFunction(
         self,
         key: PRNGKey,
         trace: StaticTrace[A, R],
-        request: ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
+        request: ChoiceMapEditRequest[A]
+        | IncrementalChoiceMapEditRequest[A]
+        | SelectionRegenerateRequest[A],
         arguments: A,
-    ) -> tuple[StaticTrace[A, R], Weight, Retdiff, ChoiceMapEditRequest[A]]:
+    ) -> tuple[
+        StaticTrace[A, R],
+        Weight,
+        Retdiff,
+        ChoiceMapEditRequest[A] | IncrementalChoiceMapEditRequest[A],
+    ]:
         match request:
             case ChoiceMapEditRequest(choice_map_constraint):
-                new_trace, weight, bwd_move = self.choice_map_edit(
+                new_trace, weight, bwd_constraint = self.choice_map_edit(
                     key, trace, choice_map_constraint, arguments
                 )
                 return (
                     new_trace,
                     weight,
                     Diff.unknown_change(new_trace.get_retval()),
-                    ChoiceMapEditRequest(bwd_move),
+                    ChoiceMapEditRequest(bwd_constraint),
+                )
+
+            case IncrementalChoiceMapEditRequest(choice_map_constraint):
+                new_trace, weight, retdiff, bwd_constraint = (
+                    self.incremental_choice_map_edit(
+                        key, trace, choice_map_constraint, arguments
+                    )
+                )
+                return (
+                    new_trace,
+                    weight,
+                    Diff.unknown_change(new_trace.get_retval()),
+                    IncrementalChoiceMapEditRequest(bwd_constraint),
                 )
 
             case SelectionRegenerateRequest(selection):
-                new_trace, weight, bwd_move = self.selection_regenerate_edit(
+                new_trace, weight, bwd_constraint = self.selection_regenerate_edit(
                     key, trace, selection, arguments
                 )
                 return (
                     new_trace,
                     weight,
                     Diff.unknown_change(new_trace.get_retval()),
-                    ChoiceMapEditRequest(bwd_move),
+                    ChoiceMapEditRequest(bwd_constraint),
                 )
 
     def inline(self, *arguments):

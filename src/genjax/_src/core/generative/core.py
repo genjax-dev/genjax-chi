@@ -1941,6 +1941,21 @@ class ChoiceMapEditRequest(Generic[A], EditRequest):
 
 
 @Pytree.dataclass(match_args=True)
+class IncrementalChoiceMapEditRequest(Generic[A], EditRequest):
+    constraint: ChoiceMapConstraint
+    propagate_incremental: Bool = Pytree.static(default=False)
+
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        arguments: A,
+    ) -> tuple[Trace, Weight, Retdiff, "IncrementalChoiceMapEditRequest"]:
+        gen_fn = trace.get_gen_fn()
+        return gen_fn.edit(key, trace, self, arguments)
+
+
+@Pytree.dataclass(match_args=True)
 class SelectionRegenerateRequest(Generic[A], EditRequest):
     projection: Selection
 
