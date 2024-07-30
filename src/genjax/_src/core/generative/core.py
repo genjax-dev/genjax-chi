@@ -1987,7 +1987,7 @@ class ChoiceMapProjectionProjectRequest(EditRequest):
             EmptyTrace(gen_fn),
             w,
             Diff.unknown_change(trace.get_retval()),
-            ChoiceMapImportanceRequest(trace.get_args(), bwd_choice_map_constraint),
+            ChoiceMapImportanceRequest(bwd_choice_map_constraint),
         )
 
 
@@ -2009,7 +2009,7 @@ class SelectionProjectRequest(EditRequest):
             EmptyTrace(gen_fn),
             w,
             Diff.unknown_change(trace.get_retval()),
-            ChoiceMapImportanceRequest(trace.get_args(), bwd_choice_map_constraint),
+            ChoiceMapImportanceRequest(bwd_choice_map_constraint),
         )
 
 
