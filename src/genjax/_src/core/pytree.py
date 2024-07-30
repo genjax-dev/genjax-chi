@@ -38,6 +38,7 @@ from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
+    Int,
     List,
     Tuple,
     TypeVar,
@@ -494,3 +495,45 @@ class Closure(Pytree):
 
     def __call__(self, *args, **kwargs):
         return self.fn(*self.dyn_args, *args, **kwargs)
+
+
+def nth(x: Pytree, idx: Int):
+    """Returns a Pytree in which `[idx]` has been applied to every leaf."""
+    return jtu.tree_map(lambda v: v[idx], x)
+
+
+class PythonicPytree(Pytree):
+    """
+    A class that adds support for bracket indexing/slicing, sequence-like operations,
+    and concatenation to make working with Pytrees more Pythonic. The base class is
+    appropriate for Pytrees which have a unform shape over leaves (or at least each
+    leaf's initial axis should have the same length).
+    """
+
+    def __getitem__(self, idx):
+        """Return a pytree in which each leaf has been sliced by `idx`."""
+        return nth(self, idx)
+
+    def __len__(self):
+        """Return the "length" of the Pytree. This should only be used on
+        Pytrees which have a uniform shape over leaves; it operates by
+        returning the length of the "first" leaf."""
+        return len(jtu.tree_leaves(self)[0])
+
+    def __iter__(self):
+        """Returs an iterator which generates each self[i] in order"""
+        return (self[i] for i in range(len(self)))
+
+    def __add__(self, other):
+        """Concatenates two pytrees, leaf-wise."""
+        if not isinstance(other, type(self)):
+            raise TypeError(f"Cannot add {type(self)} and {type(other)}")
+
+        def concat_leaves(x, y):
+            return jnp.concatenate([x, y])
+
+        return jtu.tree_map(concat_leaves, self, other)
+
+    def prepend(self, child):
+        """Prepends a scalar element to the front of each leaf in a Pytree."""
+        return jtu.tree_map(lambda x: x[jnp.newaxis], child) + self
