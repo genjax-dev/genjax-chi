@@ -124,6 +124,7 @@ wrap-descriptions = 79
 blank = true
 
 [tool.pyright]
+pythonVersion = "3.11"
 venvPath = "."
 venv = ".venv"
 include = ["src", "tests"]

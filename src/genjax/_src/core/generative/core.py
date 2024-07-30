@@ -284,8 +284,10 @@ class BijectiveConstraint(Constraint):
 # Projections #
 ###############
 
+Pj = TypeVar("Pj", bound="Projection")
 
-class Projection(Generic[P, S1, S2], Pytree):
+
+class Projection(Generic[Pj, S1, S2], Pytree):
     """A projection is a mapping from a [`Sample`] space into a subspace."""
 
     @abstractmethod
@@ -293,7 +295,7 @@ class Projection(Generic[P, S1, S2], Pytree):
         raise NotImplementedError
 
     @abstractmethod
-    def complement(self) -> P:
+    def complement(self) -> Pj:
         raise NotImplementedError
 
     def __call__(self, sample: S1) -> S2:
@@ -587,7 +589,7 @@ class GenerativeFunction(
         return self.simulate(jax.random.PRNGKey(0), arguments).get_retval()
 
     def handle_kwargs(self) -> "GenerativeFunction":
-        return IgnoreKwargs(self)
+        return IgnoreKwargsCombinator(self)
 
     def get_trace_shape(self, *arguments) -> Any:
         return get_trace_shape(self, arguments)
@@ -2066,9 +2068,9 @@ class SampleCoercableToChoiceMap(Trace):
 
 
 @Pytree.dataclass
-class IgnoreKwargs(
+class IgnoreKwargsCombinator(
     Generic[Tr, A, S, R, C, P, U],
-    GenerativeFunction[Tr, A, S, R, C, P, U],
+    GenerativeFunction[Tr, tuple[A, Dict], S, R, C, P, U],
 ):
     wrapped: GenerativeFunction[Tr, A, S, R, C, P, U]
 
@@ -2078,10 +2080,10 @@ class IgnoreKwargs(
     def simulate(
         self,
         key: PRNGKey,
-        arguments: A,
+        arguments: tuple[A, Dict],
     ) -> Tr:
-        (arguments, _kwargs) = arguments
-        return self.wrapped.simulate(key, arguments)
+        args: A = arguments[0]
+        return self.wrapped.simulate(key, args)
 
     def update(
         self,

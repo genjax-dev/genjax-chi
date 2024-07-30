@@ -379,6 +379,10 @@ class Distribution(
 
 
 class ExactDensity(Distribution):
+    def __abstract_call__(self, *arguments):
+        key = jax.random.PRNGKey(0)
+        return self.sample(key, *arguments)
+
     @abstractmethod
     def sample(self, key: PRNGKey, *arguments):
         raise NotImplementedError
@@ -386,10 +390,6 @@ class ExactDensity(Distribution):
     @abstractmethod
     def logpdf(self, v: Retval, *arguments):
         raise NotImplementedError
-
-    def __abstract_call__(self, *arguments):
-        key = jax.random.PRNGKey(0)
-        return self.sample(key, *arguments)
 
     def handle_kwargs(self) -> GenerativeFunction:
         @Pytree.partial(self)
