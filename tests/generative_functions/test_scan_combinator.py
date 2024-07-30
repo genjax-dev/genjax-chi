@@ -22,7 +22,9 @@ from genjax import (
     ChoiceMapConstraint,
     ChoiceMapEditRequest,
     IndexEditRequest,
+    SelectionRegenerateRequest,
 )
+from genjax import SelectionBuilder as S
 from genjax.typing import FloatArray
 
 
@@ -72,4 +74,27 @@ class TestScanIndexEdit:
             ChoiceMapEditRequest(ChoiceMapConstraint(C["b"].set(99.0))),
             validate=False,
         )
-        u, w, _, _ = tr.edit(k2, request)
+        new_tr, fwd_weight, _, bwd_request = tr.edit(k2, request)
+        old_tr, bwd_weight, _, _ = new_tr.edit(k2, bwd_request)
+        assert fwd_weight + bwd_weight == 0.0
+
+    def test_scan_index_regenerate(self, key):
+        @genjax.gen
+        def step(z, a):
+            new_z = genjax.normal(z, 1e-6) @ "z"
+            new_o = genjax.normal(new_z, 1e-6) @ "o"
+            return new_z, None
+
+        model = step.scan(n=3)
+
+        k1, k2 = jax.random.split(key)
+        tr = model.simulate(k1, (0.0, jnp.array([0.0, 1.0, 2.0])))
+        request = IndexEditRequest(
+            jnp.array(1),
+            SelectionRegenerateRequest(S["z"]),
+            validate=False,
+        )
+        k4, k3 = jax.random.split(k2)
+        new_tr, fwd_weight, _, bwd_request = tr.edit(k3, request)
+        old_tr, bwd_weight, _, _ = new_tr.edit(k3, bwd_request)
+        assert fwd_weight + bwd_weight == 0.0

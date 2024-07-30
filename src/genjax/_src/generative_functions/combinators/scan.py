@@ -531,7 +531,8 @@ class ScanCombinator(
         trace: ScanTrace,
         idx: IntArray,
         subrequest: EditRequest,
-    ) -> tuple[ScanTrace, Weight, Retdiff, IndexEditRequest]:
+        validate: Bool,
+    ) -> tuple[ScanTrace, Weight, Retdiff, EditRequest]:
         starting_subslice = jtu.tree_map(lambda v: v[idx], trace.inner)
         affected_subslice = jtu.tree_map(lambda v: v[idx + 1], trace.inner)
         starting_args = starting_subslice.get_args()
@@ -553,10 +554,9 @@ class ScanCombinator(
             _,
         ) = request.edit(key, affected_subslice, next_slice_args)
 
-        # Must be true for this type of update to be valid.
-        # assert Diff.static_check_no_change(
-        #    (ending_carry_diff, ending_scanned_out_diff),
-        # )
+        if validate:
+            # Must be true for this type of update to be valid.
+            assert Diff.static_check_no_change(ending_carry_diff)
 
         def _mutate_in_place(arr, updated_start, updated_end):
             arr = arr.at[idx].set(updated_start)
@@ -573,7 +573,6 @@ class ScanCombinator(
             IndexTangent(idx, UnknownChange),
         )
         carry_out_retdiff = Diff.unknown_change(carry_out)
-        bwd_move = IndexEditRequest(idx, bwd_request)
 
         return (
             ScanTrace(
@@ -585,7 +584,7 @@ class ScanCombinator(
             ),
             start_w + end_w,
             (carry_out_retdiff, scanned_out_retdiff),
-            bwd_move,
+            bwd_request,
         )
 
     @overload
@@ -641,8 +640,16 @@ class ScanCombinator(
                     Diff.unknown_change(new_trace.get_retval()),
                     ChoiceMapEditRequest(bwd_constraint),
                 )
-            case IndexEditRequest(index, subrequest):
-                return self.index_edit(key, trace, index, subrequest)
+            case IndexEditRequest(index, subrequest, validate):
+                new_trace, weight, retdiff, bwd_request = self.index_edit(
+                    key, trace, index, subrequest, validate
+                )
+                return (
+                    new_trace,
+                    weight,
+                    retdiff,
+                    IndexEditRequest(index, bwd_request, validate),
+                )
 
             case SelectionRegenerateRequest(selection):
                 new_trace, weight, bwd_constraint = self.selection_regenerate_edit(
@@ -652,7 +659,7 @@ class ScanCombinator(
                     new_trace,
                     weight,
                     Diff.unknown_change(new_trace.get_retval()),
-                    ChoiceMapEditRequest(trace.get_args(), bwd_constraint),
+                    ChoiceMapEditRequest(bwd_constraint),
                 )
 
 

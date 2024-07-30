@@ -601,8 +601,8 @@ class SelectionRegenerateEditHandler(StaticHandler):
         subtrace = self.get_subtrace(gen_fn, addr)
         subselection = self.get_subselection(addr)
         self.key, sub_key = jax.random.split(self.key)
-        request = SelectionRegenerateRequest(arguments, subselection)
-        (tr, w, _, bwd_request) = request.edit(sub_key, subtrace)
+        request = SelectionRegenerateRequest(subselection)
+        (tr, w, _, bwd_request) = request.edit(sub_key, subtrace, arguments)
         discard = bwd_request.constraint.choice_map
         self.score += tr.get_score()
         self.weight += w
