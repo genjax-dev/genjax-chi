@@ -503,8 +503,8 @@ class ChoiceMapEditRequestHandler(StaticHandler):
         subtrace = self.get_subtrace(gen_fn, addr)
         subconstraint = self.get_subconstraint(addr)
         self.key, sub_key = jax.random.split(self.key)
-        request = ChoiceMapEditRequest(arguments, subconstraint)
-        (tr, w, _, bwd_request) = request.edit(sub_key, subtrace)
+        request = ChoiceMapEditRequest(subconstraint)
+        (tr, w, _, bwd_request) = request.edit(sub_key, subtrace, arguments)
         discard = bwd_request.constraint.choice_map
         self.score += tr.get_score()
         self.weight += w
@@ -916,6 +916,7 @@ class StaticGenerativeFunction(
         key: PRNGKey,
         trace: StaticTrace[A, R],
         request: ChoiceMapEditRequest[A],
+        arguments: A,
     ) -> tuple[StaticTrace[A, R], Weight, Retdiff, ChoiceMapEditRequest[A]]:
         pass
 
@@ -925,6 +926,7 @@ class StaticGenerativeFunction(
         key: PRNGKey,
         trace: StaticTrace[A, R],
         request: SelectionRegenerateRequest[A],
+        arguments: A,
     ) -> tuple[StaticTrace[A, R], Weight, Retdiff, ChoiceMapEditRequest[A]]:
         pass
 
@@ -933,9 +935,10 @@ class StaticGenerativeFunction(
         key: PRNGKey,
         trace: StaticTrace[A, R],
         request: ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
+        arguments: A,
     ) -> tuple[StaticTrace[A, R], Weight, Retdiff, ChoiceMapEditRequest[A]]:
         match request:
-            case ChoiceMapEditRequest(arguments, choice_map_constraint):
+            case ChoiceMapEditRequest(choice_map_constraint):
                 new_trace, weight, bwd_move = self.choice_map_edit(
                     key, trace, choice_map_constraint, arguments
                 )
@@ -943,10 +946,10 @@ class StaticGenerativeFunction(
                     new_trace,
                     weight,
                     Diff.unknown_change(new_trace.get_retval()),
-                    ChoiceMapEditRequest(trace.get_args(), bwd_move),
+                    ChoiceMapEditRequest(bwd_move),
                 )
 
-            case SelectionRegenerateRequest(arguments, selection):
+            case SelectionRegenerateRequest(selection):
                 new_trace, weight, bwd_move = self.selection_regenerate_edit(
                     key, trace, selection, arguments
                 )
@@ -954,7 +957,7 @@ class StaticGenerativeFunction(
                     new_trace,
                     weight,
                     Diff.unknown_change(new_trace.get_retval()),
-                    ChoiceMapEditRequest(trace.get_args(), bwd_move),
+                    ChoiceMapEditRequest(bwd_move),
                 )
 
     def inline(self, *arguments):

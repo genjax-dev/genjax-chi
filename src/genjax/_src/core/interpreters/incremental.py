@@ -126,6 +126,11 @@ def static_check_is_change_tangent(v):
 
 
 @Pytree.dataclass
+class NoChangeTangentInformation(Generic[V], Pytree):
+    v: V
+
+
+@Pytree.dataclass
 class Diff(Generic[V, CT], Pytree):
     primal_value: V
     tangent_value: CT
@@ -199,7 +204,7 @@ class Diff(Generic[V, CT], Pytree):
             if Diff.static_check_is_diff(v):
                 return v.get_tangent()
             else:
-                return v
+                return NoChangeTangentInformation(v)
 
         return jtu.tree_map(_inner, v, is_leaf=Diff.static_check_is_diff)
 
@@ -236,7 +241,7 @@ class Diff(Generic[V, CT], Pytree):
             if static_check_is_change_tangent(v):
                 return isinstance(v, _NoChange)
             else:
-                return True
+                return False
 
         return all(
             jtu.tree_leaves(

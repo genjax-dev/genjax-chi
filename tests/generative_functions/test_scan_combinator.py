@@ -22,7 +22,6 @@ from genjax import (
     ChoiceMapConstraint,
     ChoiceMapEditRequest,
     IndexEditRequest,
-    LambdaEditRequest,
 )
 from genjax.typing import FloatArray
 
@@ -70,10 +69,7 @@ class TestScanIndexEdit:
         tr = model.simulate(k1, (0.0, jnp.array([0.0, 1.0, 2.0])))
         request = IndexEditRequest(
             jnp.array(1),
-            LambdaEditRequest(
-                lambda trace_args: ChoiceMapEditRequest(
-                    trace_args, ChoiceMapConstraint(C["b"].set(99.0))
-                )
-            ),
+            ChoiceMapEditRequest(ChoiceMapConstraint(C["b"].set(99.0))),
+            validate=False,
         )
         u, w, _, _ = tr.edit(k2, request)

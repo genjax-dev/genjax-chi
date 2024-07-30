@@ -193,6 +193,7 @@ class Distribution(
         trace: DistributionTrace[A, R],
         projection: ChoiceMapProjection[EmptySample | ValueSample[R]]
         | SelectionProjection[EmptySample | ValueSample[R]],
+        arguments: A,
     ) -> tuple[Weight, ChoiceMapConstraint]:
         sample = trace.get_choices()
         projected = projection.project(ChoiceMapSample(sample))
@@ -324,6 +325,7 @@ class Distribution(
         key: PRNGKey,
         trace: DistributionTrace,
         request: SelectionRegenerateRequest[A],
+        arguments: A,
     ) -> tuple[DistributionTrace, Weight, Retdiff, ChoiceMapEditRequest[A]]:
         pass
 
@@ -333,6 +335,7 @@ class Distribution(
         key: PRNGKey,
         trace: DistributionTrace,
         request: ChoiceMapEditRequest[A],
+        arguments: A,
     ) -> tuple[DistributionTrace, Weight, Retdiff, ChoiceMapEditRequest[A]]:
         pass
 
@@ -341,6 +344,7 @@ class Distribution(
         key: PRNGKey,
         trace: DistributionTrace,
         request: ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
+        arguments: A,
     ) -> tuple[
         DistributionTrace,
         Weight,
@@ -348,7 +352,7 @@ class Distribution(
         ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
     ]:
         match request:
-            case ChoiceMapEditRequest(arguments, chm_constraint):
+            case ChoiceMapEditRequest(chm_constraint):
                 new_trace, weight, discard_chm = self.choice_map_edit(
                     key, trace, chm_constraint, arguments
                 )
@@ -357,19 +361,19 @@ class Distribution(
                     new_trace,
                     weight,
                     Diff.unknown_change(new_trace.get_retval()),
-                    ChoiceMapEditRequest(original_arguments, discard_chm),
+                    ChoiceMapEditRequest(discard_chm),
                 )
 
-            case SelectionRegenerateRequest(arguments, projection):
+            case SelectionRegenerateRequest(projection):
                 new_trace, weight, bwd_choice_map_constraint = (
                     self.selection_regenerate_edit(key, trace, projection, arguments)
                 )
                 original_arguments = trace.get_args()
                 return (
-                    trace,
+                    new_trace,
                     weight,
                     Diff.unknown_change(new_trace.get_retval()),
-                    ChoiceMapEditRequest(original_arguments, bwd_choice_map_constraint),
+                    ChoiceMapEditRequest(bwd_choice_map_constraint),
                 )
 
 

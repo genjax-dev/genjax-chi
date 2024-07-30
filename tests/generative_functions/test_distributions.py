@@ -16,7 +16,8 @@ import genjax
 import jax
 from genjax import ChoiceMap as CM
 from genjax import ChoiceMapBuilder as C
-from genjax import ValueSample
+from genjax import Selection as S
+from genjax import SelectionRegenerateRequest, ValueSample
 from genjax.incremental import Diff, NoChange, UnknownChange
 
 
@@ -196,3 +197,23 @@ class TestDistributions:
             == genjax.normal.assess(key, tr.get_choices(), (1.0, 1.0))[0]
             - genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0))[0]
         )
+
+    def test_edit(self):
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = genjax.normal.simulate(sub_key, (0.0, 1.0))
+        previous_value = tr.get_retval()
+
+        # No constraint, no change to arguments.
+        (new_tr, fwd_weight, _, bwd_request) = tr.edit(
+            key, SelectionRegenerateRequest(S.all())
+        )
+        new_value = new_tr.get_retval()
+        assert previous_value != new_value
+        (old_tr, bwd_weight, _, _) = new_tr.edit(
+            key,
+            bwd_request,
+        )
+        previous_value_ = old_tr.get_retval()
+        assert previous_value_ == previous_value
+        assert fwd_weight + bwd_weight == 0.0

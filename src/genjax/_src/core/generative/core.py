@@ -425,8 +425,13 @@ class Trace(Generic[G, A, S, R], Pytree):
         self,
         key: PRNGKey,
         request: "EditRequest",
+        arguments: Optional[Arguments] = None,
     ) -> tuple[Self, Weight, Retdiff, "EditRequest"]:
-        return request.edit(key, self)
+        if arguments:
+            return request.edit(key, self, arguments)
+        else:
+            arguments = self.get_args()
+            return request.edit(key, self, arguments)
 
     ######################
     # old Gen interfaces #
@@ -723,6 +728,7 @@ class GenerativeFunction(
         key: PRNGKey,
         trace: Tr,
         projection: P,
+        arguments: A,
     ) -> tuple[Weight, Constraint]:
         raise NotImplementedError
 
@@ -732,6 +738,7 @@ class GenerativeFunction(
         key: PRNGKey,
         trace: Tr,
         request: U,
+        arguments: A,
     ) -> tuple[Tr, Weight, Retdiff, U]:
         raise NotImplementedError
 
@@ -746,8 +753,8 @@ class GenerativeFunction(
         arguments: A,
     ) -> tuple[Tr, Weight]:
         constraint = ChoiceMapConstraint(choice_map)
-        request = ChoiceMapImportanceRequest(arguments, constraint)
-        new_trace, w, _, _ = request.edit(key, EmptyTrace(self))
+        request = ChoiceMapImportanceRequest(constraint)
+        new_trace, w, _, _ = request.edit(key, EmptyTrace(self), arguments)
         return new_trace, w
 
     def project(
@@ -758,7 +765,8 @@ class GenerativeFunction(
     ) -> Weight:
         projection = SelectionProjection(projection)
         request = SelectionProjectRequest(projection)
-        _, w, _, _ = request.edit(key, trace)
+        arguments = trace.get_args()
+        _, w, _, _ = request.edit(key, trace, arguments)
         return w
 
     def propose(
@@ -787,8 +795,8 @@ class GenerativeFunction(
     ) -> tuple[Trace, Weight, Retdiff, "EditRequest"]:
         selection_projection = SelectionProjection(select)
         primals = Diff.tree_primal(argdiffs)
-        return SelectionRegenerateRequest(primals, selection_projection).edit(
-            key, trace
+        return SelectionRegenerateRequest(selection_projection).edit(
+            key, trace, primals
         )
 
     def update(
@@ -798,11 +806,9 @@ class GenerativeFunction(
         choice_map: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[Trace, Weight, Retdiff, ChoiceMap]:
-        choice_map_edit_request = ChoiceMapEditRequest(
-            Diff.tree_primal(argdiffs), ChoiceMapConstraint(choice_map)
-        )
+        choice_map_edit_request = ChoiceMapEditRequest(ChoiceMapConstraint(choice_map))
         new_trace, weight, retdiff, bwd_edit_request = choice_map_edit_request.edit(
-            key, trace
+            key, trace, Diff.primal(argdiffs)
         )
         bwd_constraint: ChoiceMapConstraint = bwd_edit_request.constraint
         discard = bwd_constraint.choice_map
@@ -1873,6 +1879,7 @@ class EditRequest(Pytree):
         self,
         key: PRNGKey,
         trace: Trace,
+        arguments: Arguments,
     ) -> tuple[Trace, Weight, Retdiff, "EditRequest"]:
         """Update a trace in response to an
         [`EditRequest`][genjax.core.EditRequest], returning a new
@@ -1882,7 +1889,7 @@ class EditRequest(Pytree):
         information, and a backward [`EditRequest`][genjax.core.EditRequest]
         which requests the reverse move (to go back to the original trace)."""
         gen_fn = trace.get_gen_fn()
-        return gen_fn.edit(key, trace, self)
+        return gen_fn.edit(key, trace, self, arguments)
 
 
 #########################################################
@@ -1898,17 +1905,17 @@ class EditRequest(Pytree):
 
 @Pytree.dataclass(match_args=True)
 class ChoiceMapImportanceRequest(Generic[A], EditRequest):
-    arguments: A
     constraint: ChoiceMapConstraint
 
     def edit(
         self,
         key: PRNGKey,
         trace: EmptyTrace,
+        arguments: A,
     ) -> tuple[Trace, Weight, Retdiff, "ChoiceMapProjectionProjectRequest"]:
         gen_fn = trace.get_gen_fn()
         new_trace, w, bwd_projection = gen_fn.importance_edit(
-            key, self.constraint, self.arguments
+            key, self.constraint, arguments
         )
         assert isinstance(bwd_projection, ChoiceMapProjection), type(bwd_projection)
         return (
@@ -1921,30 +1928,30 @@ class ChoiceMapImportanceRequest(Generic[A], EditRequest):
 
 @Pytree.dataclass(match_args=True)
 class ChoiceMapEditRequest(Generic[A], EditRequest):
-    arguments: A
     constraint: ChoiceMapConstraint
 
     def edit(
         self,
         key: PRNGKey,
         trace: Trace,
+        arguments: A,
     ) -> tuple[Trace, Weight, Retdiff, "ChoiceMapEditRequest"]:
         gen_fn = trace.get_gen_fn()
-        return gen_fn.edit(key, trace, self)
+        return gen_fn.edit(key, trace, self, arguments)
 
 
 @Pytree.dataclass(match_args=True)
 class SelectionRegenerateRequest(Generic[A], EditRequest):
-    arguments: A
     projection: Selection
 
     def edit(
         self,
         key: PRNGKey,
         trace: Trace,
+        arguments: A,
     ) -> tuple[Trace, Weight, Retdiff, ChoiceMapEditRequest]:
         gen_fn = trace.get_gen_fn()
-        return gen_fn.edit(key, trace, self)
+        return gen_fn.edit(key, trace, self, arguments)
 
 
 @Pytree.dataclass(match_args=True)
@@ -1955,9 +1962,12 @@ class ChoiceMapProjectionProjectRequest(EditRequest):
         self,
         key: PRNGKey,
         trace: Trace,
+        arguments: Arguments,
     ) -> tuple[EmptyTrace, Weight, Retdiff, ChoiceMapImportanceRequest]:
         gen_fn = trace.get_gen_fn()
-        w, bwd_choice_map_constraint = gen_fn.project_edit(key, trace, self.projection)
+        w, bwd_choice_map_constraint = gen_fn.project_edit(
+            key, trace, self.projection, arguments
+        )
         return (
             EmptyTrace(gen_fn),
             w,
@@ -1974,10 +1984,11 @@ class SelectionProjectRequest(EditRequest):
         self,
         key: PRNGKey,
         trace: Trace,
+        arguments: Arguments,
     ) -> tuple[EmptyTrace, Weight, Retdiff, ChoiceMapImportanceRequest]:
         gen_fn = trace.get_gen_fn()
         w, bwd_choice_map_constraint = gen_fn.project_edit(
-            key, trace, SelectionProjection(self.projection)
+            key, trace, SelectionProjection(self.projection), arguments
         )
         return (
             EmptyTrace(gen_fn),
@@ -1998,7 +2009,10 @@ class SelectionProjectRequest(EditRequest):
 @Pytree.dataclass
 class EmptyRequest(EditRequest):
     def edit(
-        self, key: PRNGKey, trace: Tr
+        self,
+        key: PRNGKey,
+        trace: Tr,
+        arguments: Arguments,
     ) -> tuple[Tr, Weight, Retdiff, "EditRequest"]:
         return (
             trace,
@@ -2023,8 +2037,9 @@ class MaskedEditRequest(EditRequest):
         self,
         key: PRNGKey,
         trace: Trace,
+        arguments: Arguments,
     ) -> tuple[Trace, Weight, Retdiff, "MaskedEditRequest"]:
-        new_trace, w, retdiff, bwd_request = self.request.edit(key, trace)
+        new_trace, w, retdiff, bwd_request = self.request.edit(key, trace, arguments)
         new_trace = jtu.tree_map(
             lambda v1, v2: jnp.where(self.flag, v1, v2), new_trace, trace
         )
@@ -2032,21 +2047,6 @@ class MaskedEditRequest(EditRequest):
         retdiff = Diff.force_unknown(retdiff)
         bwd_request = MaskedEditRequest(self.flag, bwd_request)
         return new_trace, w, retdiff, bwd_request
-
-
-@Pytree.dataclass
-class LambdaEditRequest(EditRequest):
-    edit_callable: Callable[[Any], EditRequest] = Pytree.static()
-
-    def edit(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-    ) -> tuple[Trace, Weight, Retdiff, "EditRequest"]:
-        args = trace.get_args()
-        request = self.edit_callable(args)
-        gen_fn = trace.get_gen_fn()
-        return gen_fn.edit(key, trace, request)
 
 
 ################
