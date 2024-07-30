@@ -33,6 +33,7 @@ from genjax._src.generative_functions.combinators.repeat import (
     repeat,
 )
 from genjax._src.generative_functions.combinators.scan import (
+    IndexEditRequest,
     ScanCombinator,
     accumulate,
     iterate,
@@ -51,6 +52,7 @@ from genjax._src.generative_functions.combinators.vmap import (
 
 __all__ = [
     "DimapCombinator",
+    "IndexEditRequest",
     "MaskCombinator",
     "RepeatCombinator",
     "ScanCombinator",

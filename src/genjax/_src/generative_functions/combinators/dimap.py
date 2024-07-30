@@ -16,9 +16,11 @@
 from genjax._src.core.generative import (
     Argdiffs,
     Arguments,
+    Constraint,
     EditRequest,
     EmptyTrace,
     GenerativeFunction,
+    Projection,
     Retdiff,
     Retval,
     Sample,
@@ -43,6 +45,9 @@ R_ = TypeVar("R_", bound=Retval)
 G = TypeVar("G", bound=GenerativeFunction)
 S = TypeVar("S", bound=Sample)
 Tr = TypeVar("Tr", bound=Trace)
+C = TypeVar("C", bound=Constraint)
+P = TypeVar("P", bound=Projection)
+U = TypeVar("U", bound=EditRequest)
 
 
 @Pytree.dataclass
@@ -72,10 +77,7 @@ class DimapTrace(
 
 
 @Pytree.dataclass
-class DimapCombinator(
-    Generic[Tr, A, A_, S, R_, R, C, P, U],
-    GenerativeFunction[DimapTrace[Tr, A, S, R], A, S, R, C, P, U],
-):
+class DimapCombinator(GenerativeFunction):
     """A combinator that transforms both the arguments and return values of a
     [`genjax.GenerativeFunction`][].
 
@@ -116,7 +118,7 @@ class DimapCombinator(
 
     """
 
-    inner: GenerativeFunction[Tr, A_, S, R_]
+    inner: GenerativeFunction[Tr, A_, S, R_, C, P, U]
     argument_mapping: Callable[[A], A_] = Pytree.static()
     retval_mapping: Callable[[A_, R], R_] = Pytree.static()
     info: String | None = Pytree.static(default=None)
@@ -187,7 +189,6 @@ class DimapCombinator(
         sample: S,
         arguments: A,
     ) -> tuple[Score, R]:
-        assert isinstance(self.inner, Assessable), type(self.inner)
         inner_args = self.argument_mapping(*arguments)
         w, inner_retval = self.inner.assess(sample, inner_args)
         retval = self.retval_mapping(inner_args, inner_retval)
@@ -251,7 +252,7 @@ def dimap(
     """
 
     def decorator(f) -> GenerativeFunction:
-        return DimapCombinator[Tr, A, A_, S, R_, R](f, pre, post, info)
+        return DimapCombinator(f, pre, post, info)
 
     return decorator
 

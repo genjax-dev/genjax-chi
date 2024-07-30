@@ -18,11 +18,10 @@ import jax
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
+    ChoiceMapImportanceRequest,
     EditRequest,
     EmptyTrace,
     GenerativeFunction,
-    ImportanceRequest,
-    IncrementalEditRequest,
     Mask,
     MaskedEditRequest,
     MaskedSample,
@@ -169,7 +168,7 @@ class MaskCombinator(GenerativeFunction):
         inner_trace = EmptyTrace(self.gen_fn)
 
         assert isinstance(update_request, Constraint)
-        imp_update_request = ImportanceRequest(update_request)
+        imp_update_request = ChoiceMapImportanceRequest(update_request)
 
         premasked_trace, w, _, _ = self.gen_fn.update(
             key,
@@ -206,7 +205,7 @@ class MaskCombinator(GenerativeFunction):
 
         match update_request:
             case IncrementalEditRequest(argdiffs, subrequest) if isinstance(
-                subrequest, ImportanceRequest
+                subrequest, ChoiceMapImportanceRequest
             ):
                 return self.update_change_target(key, trace, subrequest, argdiffs)
             case IncrementalEditRequest(argdiffs, subrequest):

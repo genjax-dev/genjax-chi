@@ -17,20 +17,17 @@ from abc import abstractmethod
 
 import jax
 import jax.numpy as jnp
-import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
     Arguments,
-    ChoiceMapCoercable,
+    ChoiceMap,
     ChoiceMapConstraint,
+    ChoiceMapEditRequest,
+    ChoiceMapProjection,
     ChoiceMapSample,
-    EmptyChm,
     EmptyConstraint,
     EmptySample,
     EqualityConstraint,
-    GeneralChoiceMapConstraintChangeRequest,
-    GeneralConstrainedChangeRequest,
-    GeneralRegenerateRequest,
     GenerativeFunction,
     IdentityProjection,
     Mask,
@@ -38,8 +35,11 @@ from genjax._src.core.generative import (
     MaskedSample,
     Retdiff,
     Retval,
+    SampleCoercableToChoiceMap,
     Score,
+    Selection,
     SelectionProjection,
+    SelectionRegenerateRequest,
     Trace,
     ValChm,
     ValueSample,
@@ -71,7 +71,7 @@ R = TypeVar("R", bound=Retval)
 @Pytree.dataclass
 class DistributionTrace(
     Generic[A, R],
-    ChoiceMapCoercable,
+    SampleCoercableToChoiceMap,
     Trace["Distribution[A, R]", A, "ValueSample[R]", R],
 ):
     gen_fn: "Distribution[A, R]"
@@ -103,27 +103,6 @@ class DistributionTrace(
 ################
 
 
-SupportedImportanceConstraints = (
-    EmptyConstraint
-    | EqualityConstraint
-    | MaskedConstraint["SupportedImportanceConstraints", ValueSample]
-    | ChoiceMapConstraint
-)
-
-SupportedGeneralConstraints = (
-    EmptyConstraint
-    | EqualityConstraint
-    | MaskedConstraint["SupportedGeneralConstraints", ValueSample]
-    | ChoiceMapConstraint
-)
-
-SupportedProjections = (
-    EmptyProjection[ValueSample]
-    | IdentityProjection[ValueSample]
-    | SelectionProjection[ValueSample]
-)
-
-
 class Distribution(
     Generic[A, R],
     GenerativeFunction[
@@ -131,11 +110,9 @@ class Distribution(
         A,
         ValueSample[R],
         R,
-        SupportedImportanceConstraints,
-        SupportedProjections,
-        GeneralConstrainedChangeRequest[A, SupportedGeneralConstraints]
-        | GeneralRegenerateRequest[A, SupportedProjections]
-        | GeneralChoiceMapConstraintChangeRequest[A],
+        ChoiceMapConstraint[EmptyConstraint | EqualityConstraint[R]],
+        SelectionProjection | ChoiceMapProjection,
+        ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
     ],
 ):
     @abstractmethod
@@ -188,60 +165,45 @@ class Distribution(
     def importance_edit(
         self,
         key: PRNGKey,
-        constraint: SupportedImportanceConstraints,
+        constraint: ChoiceMapConstraint[EmptyConstraint | EqualityConstraint[R]],
         arguments: A,
-    ) -> tuple[DistributionTrace[A, R], Weight, SupportedProjections]:
-        match constraint:
+    ) -> tuple[DistributionTrace[A, R], Weight, ChoiceMapProjection]:
+        inner_constraint = constraint.get_value()
+        match inner_constraint:
             case EmptyConstraint():
                 tr = self.simulate(key, arguments)
                 weight = 0.0
-                return tr, jnp.array(weight), EmptyProjection()
+                return (
+                    tr,
+                    jnp.array(weight),
+                    ChoiceMapProjection(ChoiceMap.value(EmptyProjection())),
+                )
 
             case EqualityConstraint(v):
                 w = self.estimate_logpdf(key, v, *arguments)
                 tr = DistributionTrace(self, arguments, v, w)
-                return tr, w, IdentityProjection()
+                return tr, w, ChoiceMapProjection(ChoiceMap.value(IdentityProjection()))
 
             case MaskedConstraint(flag, subconstraint):
-                # If it is valid.
-                im_tr, weight, bwd = self.importance_edit(key, subconstraint, arguments)
-                # If it is not.
-                sim_tr, empty_weight, empty_bwd = self.importance_edit(
-                    key, EmptyConstraint(), arguments
-                )
-
-                tr, w = jtu.tree_map(
-                    lambda v1, v2: jnp.where(flag, v1, v2),
-                    (im_tr, weight),
-                    (sim_tr, empty_weight),
-                )
-
-                # TODO: how to handle this?
-                bwd_request = OrElseRequest(flag, bwd, empty_bwd)
-                return (tr, w, bwd_request)
-
-            # Compatibility with old usage:
-            # here, we allow users to utilize choice maps to specify constraints
-            # but only a few types.
-            case ChoiceMapConstraint(choice_map):
-                inner_constraint = constraint.get_value()
-                return self.importance_edit(key, inner_constraint, arguments)
+                raise NotImplementedError
 
     def project_edit(
         self,
         key: PRNGKey,
         trace: DistributionTrace[A, R],
-        projection: SupportedProjections,
-    ) -> tuple[Weight, SupportedImportanceConstraints]:
-        sample = trace.get_sample()
-        projected = projection.project(sample)
-        match projected:
+        projection: ChoiceMapProjection[EmptySample | ValueSample[R]]
+        | SelectionProjection[EmptySample | ValueSample[R]],
+    ) -> tuple[Weight, ChoiceMapConstraint]:
+        sample = trace.get_choices()
+        projected = projection.project(ChoiceMapSample(sample))
+        value = projected.get_value()
+        match value:
             case EmptySample():
-                return jnp.array(0.0), EmptyConstraint()
+                return jnp.array(0.0), ChoiceMapConstraint(ChoiceMap.empty())
 
             case ValueSample(v):
                 weight = trace.get_score()
-                return weight, EqualityConstraint(v)
+                return weight, ChoiceMapConstraint(ChoiceMap.value(v))
 
             case MaskedSample(v):
                 raise NotImplementedError
@@ -250,53 +212,46 @@ class Distribution(
         self,
         key: PRNGKey,
         trace: DistributionTrace[A, R],
-        constraint: ChoiceMapConstraint,
+        constraint: ChoiceMapConstraint[EmptyConstraint | EqualityConstraint[R]],
         arguments: A,
     ) -> tuple[DistributionTrace[A, R], Weight, ChoiceMapConstraint]:
         value = constraint.get_value()
-        request = GeneralConstrainedChangeRequest(arguments, value)
-        new_trace, weight, retdiff, bwd_move = request.edit(key, trace)
-        bwd_choice_map = ValChm(bwd_move.constraint)
-        return new_trace, weight, ChoiceMapConstraint(bwd_choice_map)
-
-    def general_constrained_change_edit(
-        self,
-        key: PRNGKey,
-        trace: DistributionTrace[A, R],
-        constraint: SupportedGeneralConstraints,
-        arguments: A,
-    ) -> tuple[DistributionTrace[A, R], Weight, SupportedGeneralConstraints]:
-        match constraint:
+        match value:
             case EmptyConstraint():
                 old_score = trace.get_score()
                 v = trace.get_retval()
                 w = self.estimate_logpdf(key, v, *arguments)
                 inc_w = w - old_score
                 new_tr = DistributionTrace(self, arguments, v, w)
-                return new_tr, inc_w, EmptyConstraint()
+                return new_tr, inc_w, ChoiceMapConstraint(ChoiceMap.empty())
 
             case EqualityConstraint(v):
                 if isinstance(v, Mask):
                     flag, value = v.flag, v.value
 
                     def true_branch(key, tr, args):
-                        new_tr, inc_w, c = self.general_constrained_change_edit(
-                            key, tr, EqualityConstraint(v.value), args
+                        new_tr, inc_w, c = self.choice_map_edit(
+                            key,
+                            tr,
+                            ChoiceMapConstraint(
+                                ChoiceMap.value(EqualityConstraint(v.value))
+                            ),
+                            args,
                         )
                         return new_tr, inc_w
 
                     def false_branch(key, tr, args):
-                        new_tr, inc_w, c = self.general_constrained_change_edit(
-                            key, tr, EmptyConstraint(), args
+                        new_tr, inc_w, c = self.choice_map_edit(
+                            key, tr, ChoiceMapConstraint(ChoiceMap.empty()), args
                         )
                         return new_tr, inc_w
 
                     new_tr, inc_w = jax.lax.cond(
                         flag, true_branch, false_branch, key, trace, arguments
                     )
-                    shared_constraint = MaskedConstraint[
-                        "SupportedGeneralConstraints", ValueSample
-                    ](flag, EqualityConstraint(trace.get_retval()))
+                    shared_constraint = ChoiceMapConstraint(
+                        ChoiceMap.maybe(flag, ChoiceMap.value(trace.get_retval()))
+                    )
                     return new_tr, inc_w, shared_constraint
                 else:
                     old_score = trace.get_score()
@@ -304,66 +259,36 @@ class Distribution(
                     inc_w = w - old_score
                     old_value = trace.get_retval()
                     new_tr = DistributionTrace(self, arguments, v, w)
-                    return new_tr, inc_w, EqualityConstraint(old_value)
-
-            case MaskedConstraint(flag, subconstraint):
-                raise NotImplementedError
-
-            # Compatibility with old usage:
-            # here, we allow users to utilize choice maps to specify constraints
-            # but only a few types.
-            case ChoiceMapConstraint(choice_map):
-                if isinstance(choice_map, EmptyChm):
-                    constraint = EmptyConstraint()
-                    return self.general_constrained_change_edit(
-                        key, trace, constraint, arguments
-                    )
-                else:
-                    constraint = EqualityConstraint(choice_map.get_value())
-                    return self.general_constrained_change_edit(
-                        key, trace, constraint, arguments
+                    return (
+                        new_tr,
+                        inc_w,
+                        ChoiceMapConstraint(
+                            ChoiceMap.value(EqualityConstraint(old_value))
+                        ),
                     )
 
-    def general_regenerate(
+    def selection_regenerate(
         self,
         key: PRNGKey,
         trace: Trace,
-        projection: SupportedProjections,
+        selection: Selection,
         arguments: Arguments,
-    ) -> tuple[Trace, Weight, SupportedGeneralConstraints]:
-        match projection:
-            case EmptyProjection():
-                old_score = trace.get_score()
-                v = trace.get_retval()
-                w = self.estimate_logpdf(key, v, *arguments)
-                inc_w = w - old_score
-                old_value = trace.get_retval()
-                new_tr = DistributionTrace(self, arguments, v, w)
-                return new_tr, inc_w, EmptyConstraint()
-
-            case IdentityProjection():
-                old_score = trace.get_score()
-                w, v = self.random_weighted(key, *arguments)
-                inc_w = w - old_score
-                old_value = trace.get_retval()
-                new_tr = DistributionTrace(self, arguments, v, w)
-                return new_tr, inc_w, EqualityConstraint(old_value)
-
-            # Compatibility with old usage:
-            case SelectionProjection(selection):
-                raise NotImplementedError
+    ) -> tuple[
+        Trace, Weight, ChoiceMapConstraint[EmptyConstraint | EqualityConstraint[R]]
+    ]:
+        raise NotImplementedError
 
     @overload
     def edit(
         self,
         key: PRNGKey,
         trace: DistributionTrace,
-        request: GeneralConstrainedChangeRequest[A, SupportedGeneralConstraints],
+        request: SelectionRegenerateRequest[A],
     ) -> tuple[
         DistributionTrace,
         Weight,
         Retdiff,
-        GeneralConstrainedChangeRequest[A, SupportedGeneralConstraints],
+        ChoiceMapEditRequest[A],
     ]:
         pass
 
@@ -372,26 +297,12 @@ class Distribution(
         self,
         key: PRNGKey,
         trace: DistributionTrace,
-        request: GeneralRegenerateRequest[A, SupportedProjections],
+        request: ChoiceMapEditRequest[A],
     ) -> tuple[
         DistributionTrace,
         Weight,
         Retdiff,
-        GeneralConstrainedChangeRequest[A, SupportedGeneralConstraints],
-    ]:
-        pass
-
-    @overload
-    def edit(
-        self,
-        key: PRNGKey,
-        trace: DistributionTrace,
-        request: GeneralChoiceMapConstraintChangeRequest[A],
-    ) -> tuple[
-        DistributionTrace,
-        Weight,
-        Retdiff,
-        GeneralChoiceMapConstraintChangeRequest[A],
+        ChoiceMapEditRequest[A],
     ]:
         pass
 
@@ -399,19 +310,15 @@ class Distribution(
         self,
         key: PRNGKey,
         trace: DistributionTrace,
-        request: GeneralConstrainedChangeRequest[A, SupportedGeneralConstraints]
-        | GeneralRegenerateRequest[A, SupportedProjections]
-        | GeneralChoiceMapConstraintChangeRequest[A],
+        request: ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
     ) -> tuple[
         DistributionTrace,
         Weight,
         Retdiff,
-        GeneralConstrainedChangeRequest[A, SupportedGeneralConstraints]
-        | GeneralRegenerateRequest[A, SupportedProjections]
-        | GeneralChoiceMapConstraintChangeRequest[A],
+        ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
     ]:
         match request:
-            case GeneralChoiceMapConstraintChangeRequest(arguments, chm_constraint):
+            case ChoiceMapEditRequest(arguments, chm_constraint):
                 new_trace, weight, discard_chm = self.choice_map_edit(
                     key, trace, chm_constraint, arguments
                 )
@@ -420,33 +327,19 @@ class Distribution(
                     new_trace,
                     weight,
                     Diff.unknown_change(new_trace.get_retval()),
-                    GeneralChoiceMapConstraintChangeRequest(
-                        original_arguments, discard_chm
-                    ),
+                    ChoiceMapEditRequest(original_arguments, discard_chm),
                 )
 
-            case GeneralConstrainedChangeRequest(arguments, constraint):
-                new_trace, weight, discard = self.general_constrained_change_edit(
-                    key, trace, constraint, arguments
-                )
-                original_arguments = trace.get_args()
-                return (
-                    new_trace,
-                    weight,
-                    Diff.unknown_change(new_trace.get_retval()),
-                    GeneralConstrainedChangeRequest(original_arguments, discard),
-                )
-
-            case GeneralRegenerateRequest(arguments, projection):
-                new_trace, weight, bwd_constraint = self.general_regenerate(
-                    key, trace, projection, arguments
+            case SelectionRegenerateRequest(arguments, projection):
+                new_trace, weight, bwd_choice_map_constraint = (
+                    self.selection_regenerate(key, trace, projection, arguments)
                 )
                 original_arguments = trace.get_args()
                 return (
                     trace,
                     weight,
                     Diff.unknown_change(new_trace.get_retval()),
-                    GeneralConstrainedChangeRequest(original_arguments, bwd_constraint),
+                    ChoiceMapEditRequest(original_arguments, bwd_choice_map_constraint),
                 )
 
 

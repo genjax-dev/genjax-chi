@@ -24,28 +24,27 @@ from genjax._src.core.generative import (
     Arguments,
     ChoiceMap,
     ChoiceMapBuilder,
-    ChoiceMapCoercable,
     ChoiceMapConstraint,
     ChoiceMapProjection,
     ChoiceMapSample,
     Constraint,
-    EditRequest,
-    GeneralConstrainedChangeRequest,
-    GeneralRegenerateRequest,
     GenerativeFunction,
     Projection,
     Retdiff,
     Retval,
     Sample,
+    SampleCoercableToChoiceMap,
     Score,
+    Selection,
     SelectionProjection,
+    SelectionRegenerateRequest,
     StaticAddress,
     StaticAddressComponent,
     Trace,
     Weight,
 )
 from genjax._src.core.generative.core import (
-    GeneralChoiceMapConstraintChangeRequest,
+    ChoiceMapEditRequest,
     push_trace_overload_stack,
 )
 from genjax._src.core.interpreters.forward import (
@@ -64,6 +63,7 @@ from genjax._src.core.typing import (
     List,
     PRNGKey,
     TypeVar,
+    overload,
     tuple,
 )
 
@@ -96,7 +96,7 @@ class AddressVisitor(Pytree):
 @Pytree.dataclass
 class StaticTrace(
     Generic[A, R],
-    ChoiceMapCoercable,
+    SampleCoercableToChoiceMap,
     Trace["StaticGenerativeFunction", A, ChoiceMapSample, R],
 ):
     gen_fn: "StaticGenerativeFunction"
@@ -127,7 +127,7 @@ class StaticTrace(
         addresses = self.addresses.get_visited()
         chm = ChoiceMap.empty()
         for addr, subtrace in zip(addresses, self.subtraces):
-            assert isinstance(subtrace, ChoiceMapCoercable)
+            assert isinstance(subtrace, SampleCoercableToChoiceMap)
             chm = chm ^ ChoiceMapBuilder.a(addr, subtrace.get_choices())
 
         return chm
@@ -398,7 +398,7 @@ def importance_transform(source_fn):
 
 
 @dataclass
-class GeneralChoiceMapConstraintChangeHandler(StaticHandler):
+class ChoiceMapEditRequestHandler(StaticHandler):
     key: PRNGKey
     previous_trace: StaticTrace
     choice_map_constraint: ChoiceMapConstraint
@@ -446,7 +446,7 @@ class GeneralChoiceMapConstraintChangeHandler(StaticHandler):
         subtrace = self.get_subtrace(gen_fn, addr)
         subconstraint = self.get_subconstraint(addr)
         self.key, sub_key = jax.random.split(self.key)
-        request = GeneralChoiceMapConstraintChangeRequest(arguments, subconstraint)
+        request = ChoiceMapEditRequest(arguments, subconstraint)
         (tr, w, _, bwd_request) = request.edit(sub_key, subtrace)
         discard = bwd_request.constraint.choice_map
         self.score += tr.get_score()
@@ -460,9 +460,7 @@ class GeneralChoiceMapConstraintChangeHandler(StaticHandler):
 def choice_map_edit_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(key, previous_trace, constraints, arguments: tuple):
-        stateful_handler = GeneralChoiceMapConstraintChangeHandler(
-            key, previous_trace, constraints
-        )
+        stateful_handler = ChoiceMapEditRequestHandler(key, previous_trace, constraints)
         retval = forward(source_fn)(stateful_handler, *arguments)
         (
             score,
@@ -551,11 +549,6 @@ def handler_trace_with_static(
     return trace(addr if isinstance(addr, tuple) else (addr,), gen_fn, arguments)
 
 
-SupportedGeneralConstraints = ChoiceMapConstraint
-SupportedImportanceConstraints = ChoiceMapConstraint
-SupportedProjections = SelectionProjection
-
-
 @Pytree.dataclass
 class StaticGenerativeFunction(
     Generic[A, R],
@@ -564,10 +557,9 @@ class StaticGenerativeFunction(
         A,
         ChoiceMapSample,
         R,
-        SupportedImportanceConstraints,
-        SupportedProjections,
-        GeneralRegenerateRequest[A, SupportedProjections]
-        | GeneralConstrainedChangeRequest[A, SupportedGeneralConstraints],
+        ChoiceMapConstraint,
+        ChoiceMapProjection | SelectionProjection,
+        ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
     ],
 ):
     """A `StaticGenerativeFunction` is a generative function which relies on
@@ -653,9 +645,9 @@ class StaticGenerativeFunction(
     def importance_edit(
         self,
         key: PRNGKey,
-        constraint: SupportedImportanceConstraints,
+        constraint: ChoiceMapConstraint,
         arguments: A,
-    ) -> tuple[StaticTrace[A, R], Weight, Projection]:
+    ) -> tuple[StaticTrace[A, R], Weight, ChoiceMapProjection]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -673,7 +665,7 @@ class StaticGenerativeFunction(
             ),
         ) = importance_transform(syntax_sugar_handled)(key, constraint, arguments)
 
-        def make_bwd_proj(visitor, subrequests) -> Projection:
+        def make_bwd_proj(visitor, subrequests) -> ChoiceMapProjection:
             addresses = visitor.get_visited()
             addresses = Pytree.tree_unwrap_const(addresses)
             chm = ChoiceMap.empty()
@@ -695,13 +687,21 @@ class StaticGenerativeFunction(
             bwd_proj,
         )
 
-    def choice_map_change_edit(
+    def project_edit(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+        projection: ChoiceMapProjection | SelectionProjection,
+    ) -> tuple[Weight, ChoiceMapConstraint]:
+        raise NotImplementedError
+
+    def choice_map_edit(
         self,
         key: PRNGKey,
         trace: StaticTrace[A, R],
         constraint: ChoiceMapConstraint,
         arguments: A,
-    ) -> tuple[StaticTrace[A, R], Weight, SupportedGeneralConstraints]:
+    ) -> tuple[StaticTrace[A, R], Weight, ChoiceMapConstraint]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -743,46 +743,60 @@ class StaticGenerativeFunction(
             bwd_discard,
         )
 
-    def general_regenerate(
+    def selection_regenerate_edit(
         self,
         key: PRNGKey,
-        trace: Trace,
-        projection: SupportedProjections,
+        trace: StaticTrace[A, R],
+        projection: Selection,
         arguments: Arguments,
-    ) -> tuple[Trace, Weight, Sample]:
+    ) -> tuple[StaticTrace[A, R], Weight, ChoiceMapConstraint]:
         raise NotImplementedError
 
-    def project_edit(
+    @overload
+    def edit(
         self,
         key: PRNGKey,
-        trace: Trace,
-        projection: SupportedProjections,
-    ) -> tuple[Weight, EditRequest]:
-        raise NotImplementedError
+        trace: StaticTrace[A, R],
+        request: ChoiceMapEditRequest[A],
+    ) -> tuple[StaticTrace[A, R], Weight, Retdiff, ChoiceMapEditRequest[A]]:
+        pass
+
+    @overload
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: StaticTrace[A, R],
+        request: SelectionRegenerateRequest[A],
+    ) -> tuple[StaticTrace[A, R], Weight, Retdiff, ChoiceMapEditRequest[A]]:
+        pass
 
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace,
-        request: GeneralChoiceMapConstraintChangeRequest[A],
-    ) -> tuple[
-        Trace,
-        Weight,
-        Retdiff,
-        GeneralChoiceMapConstraintChangeRequest[A],
-    ]:
+        trace: StaticTrace[A, R],
+        request: ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
+    ) -> tuple[StaticTrace[A, R], Weight, Retdiff, ChoiceMapEditRequest[A]]:
         match request:
-            case GeneralChoiceMapConstraintChangeRequest(
-                arguments, choice_map_constraint
-            ):
-                new_trace, weight, bwd_move = self.choice_map_change_edit(
+            case ChoiceMapEditRequest(arguments, choice_map_constraint):
+                new_trace, weight, bwd_move = self.choice_map_edit(
                     key, trace, choice_map_constraint, arguments
                 )
                 return (
                     new_trace,
                     weight,
                     Diff.unknown_change(new_trace.get_retval()),
-                    GeneralChoiceMapConstraintChangeRequest(trace.get_args(), bwd_move),
+                    ChoiceMapEditRequest(trace.get_args(), bwd_move),
+                )
+
+            case SelectionRegenerateRequest(arguments, selection):
+                new_trace, weight, bwd_move = self.selection_regenerate_edit(
+                    key, trace, selection, arguments
+                )
+                return (
+                    new_trace,
+                    weight,
+                    Diff.unknown_change(new_trace.get_retval()),
+                    ChoiceMapEditRequest(trace.get_args(), bwd_move),
                 )
 
     def inline(self, *arguments):

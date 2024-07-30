@@ -20,11 +20,10 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
+    ChoiceMapImportanceRequest,
     EditRequest,
     EmptyTrace,
     GenerativeFunction,
-    ImportanceRequest,
-    IncrementalEditRequest,
     Retdiff,
     Sample,
     Score,
@@ -455,7 +454,7 @@ class SwitchCombinator(GenerativeFunction):
 
     def _empty_importance_defs(
         self,
-        problem: ImportanceRequest,
+        problem: ChoiceMapImportanceRequest,
         argdiffs: Argdiffs,
     ):
         trace_defs = []
@@ -520,7 +519,7 @@ class SwitchCombinator(GenerativeFunction):
     def update_importance(
         self,
         key: PRNGKey,
-        problem: ImportanceRequest,
+        problem: ChoiceMapImportanceRequest,
         argdiffs: tuple,
     ) -> tuple[SwitchTrace, Weight, Retdiff, EditRequest]:
         arguments = Diff.tree_primal(argdiffs)

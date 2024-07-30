@@ -48,6 +48,7 @@ from genjax._src.core.typing import (
     List,
     Optional,
     PRNGKey,
+    Self,
     String,
     TypeVar,
     static_check_is_concrete,
@@ -419,25 +420,38 @@ class Trace(Generic[G, A, S, R], Pytree):
         whose invocation created the [`Trace`][genjax.core.Trace]."""
         raise NotImplementedError
 
-    ##################
-    # old Gen update #
-    ##################
+    def edit(
+        self,
+        key: PRNGKey,
+        request: "EditRequest",
+    ) -> tuple[Self, Weight, Retdiff, "EditRequest"]:
+        return request.edit(key, self)
+
+    ######################
+    # old Gen interfaces #
+    ######################
 
     def update(
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
-        argdiffs: Argdiffs,
-    ) -> tuple["Trace", Weight, Retdiff, ChoiceMap]:
-        """This method calls out to the underlying.
-
-        [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update]
-        method - see [`EditRequest`][genjax.core.EditRequest] and
-        [`update`][genjax.core.GenerativeFunction.update] for more information.
-
-        """
+        argdiffs: Optional[Argdiffs] = None,
+    ) -> tuple[Self, Weight, Retdiff, ChoiceMap]:
         gen_fn = self.get_gen_fn()
-        return gen_fn.update(key, self, choice_map, argdiffs)
+        if argdiffs:
+            return gen_fn.update(key, self, choice_map, argdiffs)  # type: ignore
+        else:
+            argdiffs = Diff.no_change(self.get_args())
+            return gen_fn.update(key, self, choice_map, argdiffs)  # type: ignore
+
+    def project(
+        self,
+        key: PRNGKey,
+        selection: Selection,
+    ) -> Weight:
+        gen_fn = self.get_gen_fn()
+        _, w, _, _ = SelectionProjectRequest(selection).edit(key, self)
+        return w
 
     ###################
     # Pretty printing #
@@ -493,7 +507,18 @@ class EmptyTrace(
 #######################
 
 
-class GenerativeFunction(Generic[Tr, A, S, R, C, P, U], Pytree):
+class GenerativeFunction(
+    Generic[
+        Tr,  # the trace type which the generative function produces
+        A,  # the space of arguments to the generative function
+        S,  # the sample space for the generative function's P distribution
+        R,  # the space of return values
+        C,  # the space of constraints to `GenerativeFunction.importance_edit`
+        P,  # the space of projections to `GenerativeFunction.project_edit`
+        U,  # the space of `EditRequest` types which this generative function provides implementations for
+    ],
+    Pytree,
+):
     """`GenerativeFunction` is the type of _generative functions_, the main
     computational object in Gen.
 
@@ -720,18 +745,18 @@ class GenerativeFunction(Generic[Tr, A, S, R, C, P, U], Pytree):
         arguments: A,
     ) -> tuple[Tr, Weight]:
         constraint = ChoiceMapConstraint(choice_map)
-        request = ImportanceRequest(arguments, constraint)
+        request = ChoiceMapImportanceRequest(arguments, constraint)
         new_trace, w, _, _ = request.edit(key, EmptyTrace(self))
         return new_trace, w
 
     def project(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Tr,
         projection: Selection,
     ) -> Weight:
         projection = SelectionProjection(projection)
-        request = ProjectRequest(projection)
+        request = SelectionProjectRequest(projection)
         _, w, _, _ = request.edit(key, trace)
         return w
 
@@ -761,16 +786,18 @@ class GenerativeFunction(Generic[Tr, A, S, R, C, P, U], Pytree):
     ) -> tuple[Trace, Weight, Retdiff, "EditRequest"]:
         selection_projection = SelectionProjection(select)
         primals = Diff.tree_primal(argdiffs)
-        return GeneralRegenerateRequest(primals, selection_projection).edit(key, trace)
+        return SelectionRegenerateRequest(primals, selection_projection).edit(
+            key, trace
+        )
 
     def update(
         self,
         key: PRNGKey,
-        trace: Tr,
+        trace: Trace,
         choice_map: ChoiceMap,
         argdiffs: Argdiffs,
-    ) -> tuple[Tr, Weight, Retdiff, ChoiceMap]:
-        choice_map_edit_request = GeneralChoiceMapConstraintChangeRequest(
+    ) -> tuple[Trace, Weight, Retdiff, ChoiceMap]:
+        choice_map_edit_request = ChoiceMapEditRequest(
             Diff.tree_primal(argdiffs), ChoiceMapConstraint(choice_map)
         )
         new_trace, weight, retdiff, bwd_edit_request = choice_map_edit_request.edit(
@@ -1592,11 +1619,133 @@ def push_trace_overload_stack(handler, fn):
     return wrapped
 
 
-#########################
-# Update specifications #
-#########################
+##################################
+# Choice map specific extensions #
+##################################
 
-U = TypeVar("U", bound="EditRequest")
+
+@Pytree.dataclass(match_args=True)
+class ChoiceMapSample(Generic[S], Sample, ChoiceMap[Sample]):
+    choice_map: ChoiceMap[Any]
+
+    def to_constraint(self) -> "ChoiceMapConstraint":
+        return ChoiceMapConstraint(self.choice_map)
+
+    def get_value(self) -> S:
+        v = self.choice_map.get_value()
+        v = EmptySample() if v is None else v
+        return v if isinstance(v, Sample) else ValueSample(v)  # type: ignore
+
+    def get_submap(self, addr: ExtendedAddressComponent) -> "ChoiceMapSample":
+        submap = self.choice_map(addr)
+        return ChoiceMapSample(submap)
+
+
+@Pytree.dataclass(match_args=True)
+class ChoiceMapConstraint(Generic[C], Constraint, ChoiceMap[Constraint]):
+    choice_map: ChoiceMap[Any]
+
+    def get_value(self) -> C:
+        v = self.choice_map.get_value()
+        v = EmptyConstraint() if v is None else v
+        return v if isinstance(v, Constraint) else EqualityConstraint(v)  # type: ignore
+
+    def get_submap(self, addr: ExtendedAddressComponent) -> "ChoiceMapConstraint":
+        submap = self.choice_map(addr)
+        return ChoiceMapConstraint(submap)
+
+
+@Pytree.dataclass
+class ProjectedChoiceMap(ChoiceMap[Sample]):
+    choice_map_projection: ChoiceMap[Projection]
+    choice_map: ChoiceMap[Sample]
+
+    def get_value(self) -> Sample:
+        leaf = self.choice_map.get_value()
+        leaf_proj = self.choice_map_projection.get_value()
+        return leaf_proj.project(leaf)
+
+    def get_submap(self, addr: ExtendedAddressComponent) -> "ProjectedChoiceMap":
+        submap = self.choice_map.get_submap(addr)
+        submap_proj = self.choice_map_projection.get_submap(addr)
+        return ProjectedChoiceMap(submap_proj, submap)
+
+
+@Pytree.dataclass
+class ChoiceMapProjection(
+    Generic[S],
+    Projection["ChoiceMapProjectionComplement", ChoiceMapSample[S], ChoiceMapSample[S]],
+    ChoiceMap[Projection],
+):
+    choice_map: ChoiceMap[Any]
+
+    def get_value(self) -> Projection:
+        v = self.choice_map.get_value()
+        return EmptyProjection() if v is None else v
+
+    def get_submap(self, addr: ExtendedAddressComponent) -> "ChoiceMapProjection":
+        submap = self.choice_map(addr)
+        return ChoiceMapProjection(submap)
+
+    def project(self, sample: ChoiceMapSample[S]) -> ChoiceMapSample[S]:
+        return ChoiceMapSample(ProjectedChoiceMap(self, sample))
+
+    def complement(self) -> "ChoiceMapProjectionComplement":
+        return ChoiceMapProjectionComplement(self)
+
+
+@Pytree.dataclass
+class ChoiceMapProjectionComplement(
+    Projection["ChoiceMapProjection", ChoiceMapSample, ChoiceMapSample],
+    ChoiceMap[Projection],
+):
+    choice_map_projection: ChoiceMapProjection
+
+    def get_value(self) -> Projection:
+        v = self.choice_map_projection.get_value()
+        return IdentityProjection() if v is None else v.complement()
+
+    def get_submap(
+        self, addr: ExtendedAddressComponent
+    ) -> "ChoiceMapProjectionComplement":
+        submap = self.choice_map_projection.get_submap(addr)
+        return submap.complement()
+
+    def project(self, sample: ChoiceMapSample) -> ChoiceMapSample:
+        return ChoiceMapSample(ProjectedChoiceMap(self, sample))
+
+    def complement(self) -> "ChoiceMapProjection":
+        return self.choice_map_projection
+
+
+@Pytree.dataclass
+class SelectionProjection(
+    Generic[S],
+    Projection["SelectionProjection", ChoiceMapSample[S], ChoiceMapSample[S]],
+    Selection,
+):
+    selection: Selection
+
+    def check(self) -> Bool | BoolArray:
+        return self.selection.check()
+
+    def get_subselection(self, addr: ExtendedAddressComponent) -> "SelectionProjection":
+        return SelectionProjection(self.selection.get_subselection(addr))
+
+    def project(self, sample: ChoiceMapSample[S]) -> ChoiceMapSample[S]:
+        check = self.check()
+        if check:
+            return sample
+        else:
+            return ChoiceMapSample(ChoiceMap.empty())
+
+    def complement(self) -> "SelectionProjection":
+        return SelectionProjection(~self.selection)
+
+
+#######################
+# Edit specifications #
+#######################
 
 
 class EditRequest(Pytree):
@@ -1715,7 +1864,6 @@ class EditRequest(Pytree):
 
     """
 
-    @abstractmethod
     def edit(
         self,
         key: PRNGKey,
@@ -1728,117 +1876,114 @@ class EditRequest(Pytree):
         [`Retdiff`][genjax.core.Retdiff] return value tagged with change
         information, and a backward [`EditRequest`][genjax.core.EditRequest]
         which requests the reverse move (to go back to the original trace)."""
-        raise NotImplementedError
-
-
-@Pytree.dataclass(match_args=True)
-class GeneralConstrainedChangeRequest(
-    Generic[A, C],
-    EditRequest,
-):
-    arguments: A
-    constraint: C
-
-    def edit(
-        self,
-        key: PRNGKey,
-        trace: Trace[G, A, S, R],
-    ) -> tuple[Trace[G, A, S, R], Weight, Retdiff, EditRequest]:
         gen_fn = trace.get_gen_fn()
         return gen_fn.edit(key, trace, self)
 
 
+#########################################################
+# Standard "trait-like" edit requests using choice maps #
+#########################################################
+
+# These are the update requests which correspond to the behavior
+# of several of the interfaces (project, update, regenerate)
+# in old Gen.
+#
+# These require explicit support by generative functions.
+
+
 @Pytree.dataclass(match_args=True)
-class GeneralChoiceMapConstraintChangeRequest(
-    Generic[A],
-    EditRequest,
-):
+class ChoiceMapImportanceRequest(Generic[A], EditRequest):
     arguments: A
-    constraint: "ChoiceMapConstraint"
+    constraint: ChoiceMapConstraint
 
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace[G, A, S, R],
-    ) -> tuple[Trace[G, A, S, R], Weight, Retdiff, EditRequest]:
-        gen_fn = trace.get_gen_fn()
-        return gen_fn.edit(key, trace, self)
-
-
-@Pytree.dataclass(match_args=True)
-class GeneralRegenerateRequest(
-    Generic[A, P],
-    EditRequest,
-):
-    arguments: A
-    projection: P
-
-    def edit(
-        self,
-        key: PRNGKey,
-        trace: Trace[G, A, S, R],
-    ) -> tuple[Trace[G, A, S, R], Weight, Retdiff, EditRequest]:
-        gen_fn = trace.get_gen_fn()
-        return gen_fn.edit(key, trace, self)
-
-
-@Pytree.dataclass(match_args=True)
-class ImportanceRequest(
-    Generic[A, C],
-    EditRequest,
-):
-    arguments: A
-    constraint: C
-
-    def edit(
-        self,
-        key: PRNGKey,
-        trace: EmptyTrace[GenerativeFunction[Tr, A, S, R, C, P, U]],
-    ) -> tuple[Tr, Weight, Retdiff, "ProjectRequest"]:
+        trace: EmptyTrace,
+    ) -> tuple[Trace, Weight, Retdiff, "ChoiceMapProjectionProjectRequest"]:
         gen_fn = trace.get_gen_fn()
         new_trace, w, bwd_projection = gen_fn.importance_edit(
             key, self.constraint, self.arguments
         )
+        assert isinstance(bwd_projection, ChoiceMapProjection), type(bwd_projection)
         return (
             new_trace,
             w,
             Diff.unknown_change(new_trace.get_retval()),
-            ProjectRequest(bwd_projection),
+            ChoiceMapProjectionProjectRequest(bwd_projection),
         )
 
 
 @Pytree.dataclass(match_args=True)
-class ProjectRequest(
-    Generic[P],
-    EditRequest,
-):
-    projection: P
+class ChoiceMapEditRequest(Generic[A], EditRequest):
+    arguments: A
+    constraint: ChoiceMapConstraint
+
+
+@Pytree.dataclass(match_args=True)
+class SelectionRegenerateRequest(Generic[A], EditRequest):
+    arguments: A
+    projection: Selection
+
+
+@Pytree.dataclass(match_args=True)
+class ChoiceMapProjectionProjectRequest(EditRequest):
+    projection: ChoiceMapProjection | ChoiceMapProjectionComplement
 
     def edit(
         self,
         key: PRNGKey,
         trace: Trace,
-    ) -> tuple[EmptyTrace, Weight, Retdiff, ImportanceRequest]:
+    ) -> tuple[EmptyTrace, Weight, Retdiff, ChoiceMapImportanceRequest]:
         gen_fn = trace.get_gen_fn()
-        w, bwd_constraint = gen_fn.project_edit(key, trace, self.projection)
+        w, bwd_choice_map_constraint = gen_fn.project_edit(key, trace, self.projection)
         return (
             EmptyTrace(gen_fn),
             w,
             Diff.unknown_change(trace.get_retval()),
-            ImportanceRequest(trace.get_args(), bwd_constraint),
+            ChoiceMapImportanceRequest(trace.get_args(), bwd_choice_map_constraint),
         )
 
 
+@Pytree.dataclass(match_args=True)
+class SelectionProjectRequest(EditRequest):
+    projection: Selection
+
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+    ) -> tuple[EmptyTrace, Weight, Retdiff, ChoiceMapImportanceRequest]:
+        gen_fn = trace.get_gen_fn()
+        w, bwd_choice_map_constraint = gen_fn.project_edit(
+            key, trace, SelectionProjection(self.projection)
+        )
+        return (
+            EmptyTrace(gen_fn),
+            w,
+            Diff.unknown_change(trace.get_retval()),
+            ChoiceMapImportanceRequest(trace.get_args(), bwd_choice_map_constraint),
+        )
+
+
+###########################
+# "Generic" edit requests #
+###########################
+
+# These don't require any specialized support, or defer
+# specialized support to internal requests.
+
+
 @Pytree.dataclass
-class EmptyEditRequest(EditRequest):
-    def update(
+class EmptyRequest(EditRequest):
+    def edit(
         self, key: PRNGKey, trace: Tr
     ) -> tuple[Tr, Weight, Retdiff, "EditRequest"]:
         return (
             trace,
             jnp.array(0.0),
             Diff.no_change(trace.get_retval()),
-            EmptyEditRequest(),
+            EmptyRequest(),
         )
 
 
@@ -1863,10 +2008,25 @@ class MaskedEditRequest(EditRequest):
                 return (
                     problem
                     if static_bool_check and f
-                    else EmptyEditRequest()
+                    else EmptyRequest()
                     if static_bool_check
                     else MaskedEditRequest(f, problem)
                 )
+
+
+@Pytree.dataclass
+class LambdaEditRequest(EditRequest):
+    edit_callable: Callable[[Any], EditRequest] = Pytree.static()
+
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: Trace,
+    ) -> tuple[Trace, Weight, Retdiff, "EditRequest"]:
+        args = trace.get_args()
+        request = self.edit_callable(args)
+        gen_fn = trace.get_gen_fn()
+        return gen_fn.edit(key, trace, request)
 
 
 ################
@@ -1874,151 +2034,12 @@ class MaskedEditRequest(EditRequest):
 ################
 
 
-class Projectable(
-    Generic[G, A, S, R],
-    Trace[G, A, S, R],
-):
-    def project(
-        self,
-        key: PRNGKey,
-        selection: Selection,
-    ) -> Weight:
-        gen_fn = self.get_gen_fn()
-        projection = SelectionProjection(selection)
-        _, w, _, _ = ProjectRequest(projection).update(key, self)
-        return w
-
-
-class ChoiceMapCoercable(Trace):
+class SampleCoercableToChoiceMap(Trace):
     @abstractmethod
     def get_choices(
         self,
     ) -> ChoiceMap:
-        """Version of [`genjax.Trace.get_sample`][] for traces where the sample
-        is an instance of [`genjax.ChoiceMap`][]."""
         raise NotImplementedError
-
-
-#######################
-# Choice map specific #
-#######################
-
-
-@Pytree.dataclass(match_args=True)
-class ChoiceMapSample(Sample, ChoiceMap[Sample]):
-    choice_map: ChoiceMap[Any]
-
-    def to_constraint(self) -> "ChoiceMapConstraint":
-        return ChoiceMapConstraint(self.choice_map)
-
-    def get_value(self) -> Sample:
-        v = self.choice_map.get_value()
-        return v if isinstance(v, Sample) else ValueSample(v)
-
-    def get_submap(self, addr: ExtendedAddressComponent) -> "ChoiceMapSample":
-        submap = self.choice_map(addr)
-        return ChoiceMapSample(submap)
-
-
-@Pytree.dataclass(match_args=True)
-class ChoiceMapConstraint(Constraint, ChoiceMap[Constraint]):
-    choice_map: ChoiceMap[Any]
-
-    def get_value(self) -> Constraint:
-        v = self.choice_map.get_value()
-        v = EmptyConstraint() if v is None else v
-        return v if isinstance(v, Constraint) else EqualityConstraint(v)
-
-    def get_submap(self, addr: ExtendedAddressComponent) -> "ChoiceMapConstraint":
-        submap = self.choice_map(addr)
-        return ChoiceMapConstraint(submap)
-
-
-@Pytree.dataclass
-class ProjectedChoiceMap(ChoiceMap[Sample]):
-    choice_map_projection: ChoiceMap[Projection]
-    choice_map: ChoiceMap[Sample]
-
-    def get_value(self) -> Sample:
-        leaf = self.choice_map.get_value()
-        leaf_proj = self.choice_map_projection.get_value()
-        return leaf_proj.project(leaf)
-
-    def get_submap(self, addr: ExtendedAddressComponent) -> "ProjectedChoiceMap":
-        submap = self.choice_map.get_submap(addr)
-        submap_proj = self.choice_map_projection.get_submap(addr)
-        return ProjectedChoiceMap(submap_proj, submap)
-
-
-@Pytree.dataclass
-class ChoiceMapProjection(
-    Projection["ChoiceMapProjectionComplement", ChoiceMapSample, ChoiceMapSample],
-    ChoiceMap[Projection],
-):
-    choice_map: ChoiceMap[Any]
-
-    def get_value(self) -> Projection:
-        v = self.choice_map.get_value()
-        return EmptyProjection() if v is None else v
-
-    def get_submap(self, addr: ExtendedAddressComponent) -> "ChoiceMapProjection":
-        submap = self.choice_map(addr)
-        return ChoiceMapProjection(submap)
-
-    def project(self, sample: ChoiceMapSample) -> ChoiceMapSample:
-        return ChoiceMapSample(ProjectedChoiceMap(self, sample))
-
-    def complement(self) -> "ChoiceMapProjectionComplement":
-        return ChoiceMapProjectionComplement(self)
-
-
-@Pytree.dataclass
-class ChoiceMapProjectionComplement(
-    Projection["ChoiceMapProjection", ChoiceMapSample, ChoiceMapSample],
-    ChoiceMap[Projection],
-):
-    choice_map_projection: ChoiceMapProjection
-
-    def get_value(self) -> Projection:
-        v = self.choice_map_projection.get_value()
-        return IdentityProjection() if v is None else v.complement()
-
-    def get_submap(
-        self, addr: ExtendedAddressComponent
-    ) -> "ChoiceMapProjectionComplement":
-        submap = self.choice_map_projection.get_submap(addr)
-        return submap.complement()
-
-    def project(self, sample: ChoiceMapSample) -> ChoiceMapSample:
-        return ChoiceMapSample(ProjectedChoiceMap(self, sample))
-
-    def complement(self) -> "ChoiceMapProjection":
-        return self.choice_map_projection
-
-
-@Pytree.dataclass
-class SelectionProjection(
-    Generic[S1],
-    Projection["SelectionProjection", S1, EmptySample | S1 | MaskedSample[S1]],
-    Selection,
-):
-    selection: Selection
-
-    def check(self) -> Bool | BoolArray:
-        return self.selection.check()
-
-    def get_subselection(self, addr: ExtendedAddressComponent) -> "SelectionProjection":
-        return SelectionProjection(self.selection.get_subselection(addr))
-
-    def project(self, sample: S1) -> EmptySample | S1 | MaskedSample[S1]:
-        check = self.check()
-        if check:
-            return sample
-        else:
-            return EmptySample()
-
-    def complement(self) -> "SelectionProjection":
-        return SelectionProjection(~self.selection)
 
 
 ####################################

@@ -24,11 +24,10 @@ import jax.numpy as jnp
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
+    ChoiceMapImportanceRequest,
     EditRequest,
     EmptyTrace,
     GenerativeFunction,
-    ImportanceRequest,
-    IncrementalEditRequest,
     Retdiff,
     Retval,
     Score,
@@ -196,7 +195,7 @@ class VmapCombinator(GenerativeFunction):
                 EmptyTrace(self.gen_fn),
                 IncrementalEditRequest(
                     Diff.unknown_change(arguments),
-                    ImportanceRequest(submap),
+                    ChoiceMapImportanceRequest(submap),
                 ),
             )
             return tr, w, rd, ChoiceMap.idx(idx, bwd_problem)
@@ -279,7 +278,7 @@ class VmapCombinator(GenerativeFunction):
             case ChoiceMap():
                 return self.update_choice_map(key, trace, update_request, argdiffs)
 
-            case ImportanceRequest(constraint) if isinstance(
+            case ChoiceMapImportanceRequest(constraint) if isinstance(
                 constraint, ChoiceMap
             ) and isinstance(trace, EmptyTrace):
                 return self.update_importance(key, constraint, argdiffs)

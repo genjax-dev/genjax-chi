@@ -13,6 +13,6 @@
 # limitations under the License.
 
 
-# from .combinators import *
+from .combinators import *
 from .distributions import *
 from .static import *
