@@ -15,12 +15,10 @@
 import genjax
 import jax
 import jax.numpy as jnp
-import penzai.pz as pz
 import pytest
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import SelectionBuilder as S
-from genjax.typing import FloatArray
 
 
 @genjax.iterate(n=10)
