@@ -787,6 +787,7 @@ class IncrementalChoiceMapEditRequestHandler(StaticHandler):
         if self.propagate_incremental:
             request = IncrementalChoiceMapEditRequest(subconstraint)
         else:
+            arguments = Diff.primal(arguments)
             request = ChoiceMapEditRequest(subconstraint)
         (tr, w, _, bwd_request) = request.edit(sub_key, subtrace, arguments)
         discard = bwd_request.constraint.choice_map
@@ -1377,10 +1378,16 @@ class StaticGenerativeFunction(
                     ChoiceMapEditRequest(bwd_constraint),
                 )
 
-            case IncrementalChoiceMapEditRequest(choice_map_constraint):
+            case IncrementalChoiceMapEditRequest(
+                choice_map_constraint, propagate_incremental
+            ):
                 new_trace, weight, retdiff, bwd_constraint = (
                     self.incremental_choice_map_edit(
-                        key, trace, choice_map_constraint, arguments
+                        key,
+                        trace,
+                        choice_map_constraint,
+                        arguments,
+                        propagate_incremental,
                     )
                 )
                 return (

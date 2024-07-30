@@ -20,7 +20,13 @@ import jax.numpy as jnp
 import pytest
 from beartype.roar import BeartypeCallHintParamViolation
 from genjax import ChoiceMapBuilder as C
-from genjax import Diff, Pytree
+from genjax import (
+    ChoiceMapConstraint,
+    ChoiceMapEditRequest,
+    Diff,
+    IncrementalChoiceMapEditRequest,
+    Pytree,
+)
 from genjax.generative_functions.static import AddressReuse
 from genjax.typing import Float, FloatArray
 
@@ -519,6 +525,59 @@ class TestStaticGenFnUpdate:
             (Diff.tree_diff_unknown_change(new_tree),),
         )
         assert updated.get_choices()["y1"] == new_y1
+
+
+class TestStaticGenFnEdit:
+    def test_simple_normal_edit(self):
+        @genjax.gen
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(simple_normal.simulate)(sub_key, ())
+        jitted = jax.jit(simple_normal.edit)
+
+        original_choice = tr.get_choices()
+        original_score = tr.get_score()
+        key, sub_key = jax.random.split(key)
+
+        # Non-incremental request
+        request = ChoiceMapEditRequest(ChoiceMapConstraint(C["y1"].set(2.0)))
+        (updated_, w, _, _) = jitted(sub_key, tr, request, ())
+        updated_choice = updated_.get_choices()
+        _y1 = updated_choice["y1"]
+        _y2 = updated_choice["y2"]
+        (_, score1) = genjax.normal.importance(
+            key, updated_choice.get_submap("y1"), (0.0, 1.0)
+        )
+        (_, score2) = genjax.normal.importance(
+            key, updated_choice.get_submap("y2"), (0.0, 1.0)
+        )
+        test_score = score1 + score2
+        assert updated_.get_score() == original_score + w
+        assert updated_.get_score() == pytest.approx(test_score, 0.01)
+
+        # Incremental request
+        request = IncrementalChoiceMapEditRequest(ChoiceMapConstraint(C["y1"].set(2.0)))
+        (updated, w, _, _) = jitted(sub_key, tr, request, ())
+        updated_choice = updated.get_choices()
+        _y1 = updated_choice["y1"]
+        _y2 = updated_choice["y2"]
+        (_, score1) = genjax.normal.importance(
+            key, updated_choice.get_submap("y1"), (0.0, 1.0)
+        )
+        (_, score2) = genjax.normal.importance(
+            key, updated_choice.get_submap("y2"), (0.0, 1.0)
+        )
+        test_score = score1 + score2
+        assert updated.get_score() == original_score + w
+        assert updated.get_score() == pytest.approx(test_score, 0.01)
+
+        # Test equivalence of the two updates.
+        assert updated.get_score() == updated_.get_score()
 
 
 #####################
