@@ -237,7 +237,12 @@ class VmapCombinator(
         scores, retvals = jax.vmap(_assess, in_axes=(0, 0, self.in_axes))(
             sub_keys, idx_array, arguments
         )
-        return Mask.lift(jnp.sum)(scores), retvals
+        if isinstance(scores, Mask):
+            acc_flag = jnp.all(scores.flag)
+            score = jnp.sum(scores.value)
+            return Mask(acc_flag, score), retvals
+        else:
+            return jnp.sum(scores), retvals
 
     def importance_edit(
         self,

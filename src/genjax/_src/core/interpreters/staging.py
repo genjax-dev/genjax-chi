@@ -25,7 +25,13 @@ from jax.lax import cond
 from jax.util import safe_map
 
 from genjax._src.checkify import optional_check
-from genjax._src.core.typing import Bool, Int, static_check_is_concrete
+from genjax._src.core.typing import (
+    Bool,
+    BoolArray,
+    Int,
+    overload,
+    static_check_is_concrete,
+)
 
 ###############################
 # Concrete Boolean arithmetic #
@@ -36,7 +42,10 @@ def staged_check(v):
     return static_check_is_concrete(v) and v
 
 
-def staged_and(x, y):
+def staged_and(
+    x: Bool | BoolArray,
+    y: Bool | BoolArray,
+) -> Bool | BoolArray:
     if (
         static_check_is_concrete(x)
         and static_check_is_concrete(y)
@@ -48,7 +57,42 @@ def staged_and(x, y):
         return jnp.logical_and(x, y)
 
 
-def staged_or(x, y):
+@overload
+def staged_or(
+    x: Bool,
+    y: Bool,
+) -> Bool:
+    pass
+
+
+@overload
+def staged_or(
+    x: BoolArray,
+    y: Bool,
+) -> BoolArray:
+    pass
+
+
+@overload
+def staged_or(
+    x: Bool,
+    y: BoolArray,
+) -> BoolArray:
+    pass
+
+
+@overload
+def staged_or(
+    x: BoolArray,
+    y: BoolArray,
+) -> BoolArray:
+    pass
+
+
+def staged_or(
+    x: Bool | BoolArray,
+    y: Bool | BoolArray,
+) -> Bool | BoolArray:
     # Static scalar land.
     if (
         static_check_is_concrete(x)

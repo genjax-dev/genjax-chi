@@ -16,6 +16,7 @@ import genjax
 import jax
 import jax.numpy as jnp
 from genjax import ChoiceMapBuilder as C
+from genjax import Mask
 
 
 class TestVmapCombinator:
@@ -116,6 +117,11 @@ class TestVmapCombinator:
         map_over = jnp.arange(0, 50, dtype=float)
         tr = jax.jit(model.simulate)(key, (map_over,))
         sample = tr.get_sample()
-        print(sample)
         map_score = tr.get_score()
-        assert model.assess(key, sample, (map_over,))[0] == map_score
+        assess_score = model.assess(key, sample, (map_over,))[0]
+        match assess_score:
+            case Mask(flag, value):
+                assert flag
+                assert value == map_score
+            case value:
+                assert value == map_score

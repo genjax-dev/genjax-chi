@@ -24,6 +24,7 @@ from genjax._src.core.interpreters.staging import (
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    Bool,
     BoolArray,
     Callable,
     Generic,
@@ -66,11 +67,11 @@ class Mask(Generic[V], Pytree):
 
     """
 
-    flag: BoolArray
+    flag: Bool | BoolArray
     value: V
 
     @classmethod
-    def maybe(cls, f: BoolArray, v: Any):
+    def maybe(cls, f: Bool | BoolArray, v: V) -> V | None | "Mask[V]":
         match v:
             case Mask(flag, value):
                 return Mask.maybe_none(staged_and(f, flag), value)
@@ -100,6 +101,29 @@ class Mask(Generic[V], Pytree):
                     return Mask(flag, f(value))
                 case _:
                     return f(v)
+
+        return wrapped
+
+    @classmethod
+    def lift2(
+        cls,
+        f: Callable[[V, V], R],
+    ) -> Callable[[V | "Mask[V]", V | "Mask[V]"], R | "Mask[R]"]:
+        def wrapped(v1: V | "Mask[V]", v2: V | "Mask[V]") -> R | "Mask[R]":
+            match v1:
+                case Mask(flag1, value1):
+                    match v2:
+                        case Mask(flag2, value2):
+                            return Mask(staged_and(flag1, flag2), f(value1, value2))
+                        case _:
+                            return Mask(flag1, f(value1, v2))
+
+                case _:
+                    match v2:
+                        case Mask(flag2, value2):
+                            return Mask(flag2, f(v1, value2))
+                        case _:
+                            return f(v1, v2)
 
         return wrapped
 
