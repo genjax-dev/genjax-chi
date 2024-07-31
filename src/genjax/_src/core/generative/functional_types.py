@@ -25,6 +25,7 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     BoolArray,
+    Callable,
     Generic,
     Int,
     IntArray,
@@ -35,6 +36,7 @@ from genjax._src.core.typing import (
 )
 
 V = TypeVar("V")
+R = TypeVar("R")
 
 #########################
 # Masking and sum types #
@@ -86,6 +88,20 @@ class Mask(Generic[V], Pytree):
             if static_check_bool(f)
             else Mask.maybe(f, v)
         )
+
+    @classmethod
+    def lift(
+        cls,
+        f: Callable[[V], R],
+    ) -> Callable[[V | "Mask[V]"], R | "Mask[R]"]:
+        def wrapped(v: V | "Mask[V]") -> R | "Mask[R]":
+            match v:
+                case Mask(flag, value):
+                    return Mask(flag, f(value))
+                case _:
+                    return f(v)
+
+        return wrapped
 
     ######################
     # Masking interfaces #

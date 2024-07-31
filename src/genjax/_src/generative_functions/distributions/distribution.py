@@ -35,6 +35,7 @@ from genjax._src.core.generative import (
     MaskedSample,
     Retdiff,
     Retval,
+    Sample,
     SampleCoercableToChoiceMap,
     Score,
     Selection,
@@ -144,23 +145,32 @@ class Distribution(
     def assess(
         self,
         key: PRNGKey,
-        sample: ValueSample
-        | ValChm
-        | ChoiceMapSample,  # TODO: the ValChm here is a type of paving over, to allow people to continue to use what they are used to.
+        # TODO: the ValChm here is a type of paving over, to allow people to continue to use what they are used to.
+        sample: ValChm | ChoiceMapSample[ValueSample | MaskedSample] | ValueSample,
         arguments: A,
-    ):
+    ) -> tuple[Score | Mask[Score], R | Mask[R]]:
         match sample:
             case ValChm(v):
                 return self.assess(key, ValueSample(v), arguments)
+
             case ChoiceMapSample():
-                key = jax.random.PRNGKey(0)
-                v = sample.get_value()
-                return self.assess(key, v, arguments)
+                v: Sample = sample.get_value()
+                match v:
+                    case MaskedSample(flag, sample_value):
+                        score, return_value = self.assess(key, sample_value, arguments)
+                        return Mask.maybe(flag, score), Mask.maybe(flag, return_value)
+                    case ValueSample():
+                        return self.assess(key, v, arguments)
+
             case ValueSample():
-                key = jax.random.PRNGKey(0)
-                v = sample.val
-                w = self.estimate_logpdf(key, v, *arguments)
-                return w, v
+                v = sample.get_value()
+                match v:
+                    case Mask(flag, value):
+                        w = self.estimate_logpdf(key, value, *arguments)
+                        return Mask(flag, w), Mask(flag, value)
+                    case _:
+                        w = self.estimate_logpdf(key, v, *arguments)
+                        return w, v
 
     def importance_edit(
         self,

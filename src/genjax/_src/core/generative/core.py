@@ -26,6 +26,7 @@ from genjax._src.core.generative.choice_map import (
     ExtendedAddressComponent,
     Selection,
 )
+from genjax._src.core.generative.functional_types import Mask
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import (
     get_trace_shape,
@@ -170,6 +171,9 @@ class EmptySample(Sample["EmptyConstraint"]):
 @Pytree.dataclass(match_args=True)
 class ValueSample(Generic[V], Sample["EqualityConstraint[V]"]):
     val: V
+
+    def get_value(self) -> V:
+        return self.val
 
     def to_constraint(self) -> "EqualityConstraint[V]":
         return EqualityConstraint(self.val)
@@ -670,7 +674,7 @@ class GenerativeFunction(
         key: PRNGKey,
         sample: S,
         arguments: A,
-    ) -> tuple[Score, R]:
+    ) -> tuple[Score | Mask[Score], R | Mask[R]]:
         """Return [the score][genjax.core.Trace.get_score] and [the return
         value][genjax.core.Trace.get_retval] when the generative function is
         invoked with the provided arguments, and constrained to take the
@@ -1634,15 +1638,25 @@ def push_trace_overload_stack(handler, fn):
 
 @Pytree.dataclass(match_args=True)
 class ChoiceMapSample(Generic[S], Sample, ChoiceMap[Sample]):
-    choice_map: ChoiceMap[Any]
+    # TODO: Any here is to maintain backwards compatibility.
+    choice_map: ChoiceMap[Sample | Any]
 
     def to_constraint(self) -> "ChoiceMapConstraint":
         return ChoiceMapConstraint(self.choice_map)
 
     def get_value(self) -> S:
         v = self.choice_map.get_value()
-        v = EmptySample() if v is None else v
-        return v if isinstance(v, Sample) else ValueSample(v)  # type: ignore
+        match v:
+            case Sample():
+                return v
+            case _:
+                return (
+                    MaskedSample(v.flag, v.value)
+                    if isinstance(v, Mask)
+                    else EmptySample()
+                    if v is None
+                    else ValueSample(v)
+                )  # type: ignore
 
     def get_submap(self, addr: ExtendedAddressComponent) -> "ChoiceMapSample":
         submap = self.choice_map(addr)
@@ -1651,12 +1665,27 @@ class ChoiceMapSample(Generic[S], Sample, ChoiceMap[Sample]):
 
 @Pytree.dataclass(match_args=True)
 class ChoiceMapConstraint(Generic[C], Constraint, ChoiceMap[Constraint]):
-    choice_map: ChoiceMap[Any]
+    # TODO: Any here is to maintain backwards compatibility.
+    choice_map: ChoiceMap[Sample | Constraint | Any]
 
     def get_value(self) -> C:
         v = self.choice_map.get_value()
-        v = EmptyConstraint() if v is None else v
-        return v if isinstance(v, Constraint) else EqualityConstraint(v)  # type: ignore
+        match v:
+            case Sample():
+                return v.to_constraint()
+            case Constraint():
+                return (
+                    MaskedConstraint(v.flag, v.value)
+                    if isinstance(v, Mask)
+                    else EmptyConstraint()
+                    if v is None
+                    else v
+                )  # type: ignore
+            case _:
+                if v is None:
+                    return EmptyConstraint()
+                else:
+                    return EqualityConstraint(v)
 
     def get_submap(self, addr: ExtendedAddressComponent) -> "ChoiceMapConstraint":
         submap = self.choice_map(addr)
@@ -1930,9 +1959,9 @@ class ChoiceMapEditRequest(Generic[A], EditRequest):
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Tr,
         arguments: A,
-    ) -> tuple[Trace, Weight, Retdiff, "ChoiceMapEditRequest"]:
+    ) -> tuple[Tr, Weight, Retdiff, "ChoiceMapEditRequest"]:
         gen_fn = trace.get_gen_fn()
         return gen_fn.edit(key, trace, self, arguments)
 
