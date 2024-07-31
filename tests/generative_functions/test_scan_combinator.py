@@ -338,3 +338,40 @@ class TestScanUpdate:
             u.get_choices()["steps", ..., "b"], jnp.array([2.0, 99.0, 7.0]), atol=0.1
         )
         assert w < -100.0
+
+
+class TestScanWithParameters:
+    @pytest.fixture
+    def key(self):
+        return jax.random.PRNGKey(314159)
+
+    @genjax.gen
+    @staticmethod
+    def step(data, state, update):
+        new_state = state + genjax.normal(update, data["noise"]) @ "state"
+        return new_state, new_state
+
+    @genjax.gen
+    @staticmethod
+    def model(data):
+        stepper = genjax.gen(
+            genjax.Pytree.partial(data)(TestScanWithParameters.step.inline)
+        )
+        return stepper.scan(n=3)(data["initial"], data["updates"]) @ "s"
+
+    def test_scan_with_parameters(self, key):
+        tr = TestScanWithParameters.model.simulate(
+            key,
+            (
+                {
+                    "initial": jnp.array(3.0),
+                    "updates": jnp.array([5.0, 6.0, 7.0]),
+                    "noise": 1e-6,
+                },
+            ),
+        )
+
+        end, steps = tr.get_retval()
+
+        assert jnp.allclose(steps, jnp.array([8.0, 14.0, 21.0]), atol=0.1)
+        assert jnp.allclose(end, jnp.array(21.0), atol=0.1)
