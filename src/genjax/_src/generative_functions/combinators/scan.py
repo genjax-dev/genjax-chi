@@ -420,6 +420,7 @@ class ScanCombinator(
         key: PRNGKey,
         trace: Trace,
         projection: SelectionProjection | ChoiceMapProjection,
+        arguments: Arguments,
     ) -> tuple[Weight, ChoiceMapConstraint]:
         raise NotImplementedError
 

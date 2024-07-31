@@ -70,10 +70,8 @@ class TestIterateSimpleNormal:
             new_tr, _w, _rd, _bwd_problem = jax.jit(scanner.update)(
                 sub_key,
                 tr,
-                U.g(
-                    Diff.no_change((0.01,)),
-                    C[i, "z"].set(1.0),
-                ),
+                C[i, "z"].set(1.0),
+                Diff.no_change((0.01,)),
             )
             assert new_tr.get_sample()[i, "z"].unmask() == 1.0
 

@@ -110,7 +110,7 @@ class Distribution(
         A,
         ValueSample[R],
         R,
-        ChoiceMapConstraint[EmptyConstraint | EqualityConstraint[R]],
+        ChoiceMapConstraint[EmptyConstraint | EqualityConstraint[R | Mask[R]]],
         SelectionProjection | ChoiceMapProjection,
         ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
     ],
@@ -165,7 +165,9 @@ class Distribution(
     def importance_edit(
         self,
         key: PRNGKey,
-        constraint: ChoiceMapConstraint[EmptyConstraint | EqualityConstraint[R]],
+        constraint: ChoiceMapConstraint[
+            EmptyConstraint | EqualityConstraint[R | Mask[R]]
+        ],
         arguments: A,
     ) -> tuple[DistributionTrace[A, R], Weight, ChoiceMapProjection]:
         inner_constraint = constraint.get_value()
@@ -180,9 +182,37 @@ class Distribution(
                 )
 
             case EqualityConstraint(v):
-                w = self.estimate_logpdf(key, v, *arguments)
-                tr = DistributionTrace(self, arguments, v, w)
-                return tr, w, ChoiceMapProjection(ChoiceMap.value(IdentityProjection()))
+                if isinstance(v, Mask):
+
+                    def true_branch(key, value, args):
+                        w = self.estimate_logpdf(key, value, *args)
+                        return w, value
+
+                    def false_branch(key, value, args):
+                        w, v = self.random_weighted(key, *args)
+                        return w, v
+
+                    w, value = jax.lax.cond(
+                        v.flag, true_branch, false_branch, key, v.value, arguments
+                    )
+                    tr = DistributionTrace(self, arguments, value, w)
+                    return (
+                        tr,
+                        w,
+                        ChoiceMapProjection(
+                            ChoiceMap.maybe(
+                                v.flag, ChoiceMap.value(IdentityProjection())
+                            )
+                        ),
+                    )
+                else:
+                    w = self.estimate_logpdf(key, v, *arguments)
+                    tr = DistributionTrace(self, arguments, v, w)
+                    return (
+                        tr,
+                        w,
+                        ChoiceMapProjection(ChoiceMap.value(IdentityProjection())),
+                    )
 
             case MaskedConstraint(flag, subconstraint):
                 raise NotImplementedError

@@ -456,7 +456,8 @@ class Trace(Generic[G, A, S, R], Pytree):
         selection: Selection,
     ) -> Weight:
         gen_fn = self.get_gen_fn()
-        _, w, _, _ = SelectionProjectRequest(selection).edit(key, self)
+        arguments = self.get_args()
+        _, w, _, _ = SelectionProjectRequest(selection).edit(key, self, arguments)
         return w
 
     ###################
