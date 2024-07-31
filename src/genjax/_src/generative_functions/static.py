@@ -1452,7 +1452,7 @@ class StaticGenerativeFunction(
 #############
 
 
-def gen(f: Callable[..., Any]) -> StaticGenerativeFunction:
+def gen(f: Callable[..., R]) -> StaticGenerativeFunction[Any, R]:
     if isinstance(f, Closure):
         return StaticGenerativeFunction(f)
     else:
