@@ -271,7 +271,11 @@ class StaticSel(Selection):
         return False
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
-        check = addr == self.addr or isinstance(addr, EllipsisType)
+        check = (
+            addr == self.addr
+            or isinstance(addr, EllipsisType)
+            or isinstance(self.addr, EllipsisType)
+        )
         return select_defer(check, self.s)
 
 

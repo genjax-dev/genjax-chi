@@ -167,7 +167,7 @@ class EmptySample(Sample["EmptyConstraint"]):
         return EmptyConstraint()
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class ValueSample(Generic[V], Sample["EqualityConstraint[V]"]):
     val: V
 
@@ -1738,7 +1738,7 @@ class SelectionProjection(
         return self.selection.check()
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> "SelectionProjection":
-        return SelectionProjection(self.selection.get_subselection(addr))
+        return SelectionProjection(self.selection(addr))
 
     def project(self, sample: ChoiceMapSample[S]) -> ChoiceMapSample[S]:
         check = self.check()

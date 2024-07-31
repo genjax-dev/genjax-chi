@@ -436,10 +436,10 @@ class ScanCombinator(
         def _get_subprojection(
             projection: SelectionProjection | ChoiceMapProjection,
             idx: IntArray,
-        ):
-            return projection(idx)
+        ) -> SelectionProjection | ChoiceMapProjection:
+            return projection(idx)  # type: ignore
 
-        def _importance(carry, scanned):
+        def _project(carry, scanned):
             key, idx = carry
             inner_trace = scanned
             key = jax.random.fold_in(key, idx)
@@ -453,7 +453,7 @@ class ScanCombinator(
             return (key, idx + 1), (w, bwd_constraint)
 
         (_, _), (ws, bwd_constraints) = jax.lax.scan(
-            _importance,
+            _project,
             (key, 0),
             trace.inner,
             length=self.length,

@@ -198,6 +198,16 @@ class TestDistributions:
             - genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0))[0]
         )
 
+    def test_project(self):
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = genjax.normal.simulate(sub_key, (0.0, 1.0))
+        previous_value = tr.get_retval()
+
+        # No constraint, no change to arguments.
+        fwd_weight = tr.project(key, S.all())
+        assert fwd_weight == tr.get_score()
+
     def test_edit(self):
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)

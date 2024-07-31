@@ -27,6 +27,7 @@ from genjax import (
     IncrementalChoiceMapEditRequest,
     Pytree,
 )
+from genjax import SelectionBuilder as S
 from genjax.generative_functions.static import AddressReuse
 from genjax.typing import Float, FloatArray
 
@@ -528,6 +529,21 @@ class TestStaticGenFnUpdate:
 
 
 class TestStaticGenFnEdit:
+    def test_simple_normal_project(self):
+        @genjax.gen
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = jax.jit(simple_normal.simulate)(sub_key, ())
+        w = tr.project(key, S["y1"])
+        assert w == tr.get_subtrace(("y1",)).get_score()
+        w = tr.project(key, S["y2"])
+        assert w == tr.get_subtrace(("y2",)).get_score()
+
     def test_simple_normal_edit(self):
         @genjax.gen
         def simple_normal():
