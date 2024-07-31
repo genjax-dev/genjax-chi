@@ -1158,10 +1158,33 @@ class StaticGenerativeFunction(
     def project_edit(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: StaticTrace,
         projection: ChoiceMapProjection | SelectionProjection,
     ) -> tuple[Weight, ChoiceMapConstraint]:
-        raise NotImplementedError
+        addresses = trace.traced_addresses.get_visited()
+        w = jnp.array(0.0)
+        bwd_constraints: List[ChoiceMapConstraint] = []
+        for addr in addresses:
+            subprojection = projection(addr)
+            subtrace = trace.get_subtrace(addr)
+            sub_gen_fn = subtrace.get_gen_fn()
+            _w, bwd_constraint = sub_gen_fn.project_edit(
+                key,
+                subtrace,
+                subprojection,
+            )
+            bwd_constraints.append(bwd_constraint)
+            w += _w
+
+        def make_bwd_constraint(visitor, subconstraints) -> ChoiceMapConstraint:
+            addresses = visitor.get_visited()
+            addresses = Pytree.tree_unwrap_const(addresses)
+            chm = ChoiceMap.empty()
+            for addr, subconstraint in zip(addresses, subconstraints):
+                chm = chm ^ ChoiceMapBuilder.a(addr, subconstraint)
+            return ChoiceMapConstraint(chm)
+
+        return w, make_bwd_constraint(trace.traced_addresses, bwd_constraints)
 
     def choice_map_edit(
         self,
@@ -1368,6 +1391,7 @@ class StaticGenerativeFunction(
     ]:
         match request:
             case ChoiceMapEditRequest(choice_map_constraint):
+                arguments = Diff.primal(arguments)
                 new_trace, weight, bwd_constraint = self.choice_map_edit(
                     key, trace, choice_map_constraint, arguments
                 )

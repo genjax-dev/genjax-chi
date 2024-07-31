@@ -162,27 +162,36 @@ class Diff(Generic[V, CT], Pytree):
 
     @staticmethod
     def tree_diff_no_change(tree):
-        tangent_tree = jtu.tree_map(lambda _: NoChange, tree)
-        return Diff.tree_diff(tree, tangent_tree)
+        def _inner(v):
+            if Diff.static_check_is_diff(v):
+                return v
+            else:
+                return Diff(v, NoChange)
+
+        return jtu.tree_map(_inner, tree, is_leaf=Diff.static_check_is_diff)
+
+    @staticmethod
+    def tree_diff_unknown_change(tree):
+        def _inner(v):
+            if Diff.static_check_is_diff(v):
+                return v
+            else:
+                return Diff(v, UnknownChange)
+
+        return jtu.tree_map(_inner, tree, is_leaf=Diff.static_check_is_diff)
 
     @staticmethod
     def no_change(tree):
         return Diff.tree_diff_no_change(tree)
 
     @staticmethod
+    def unknown_change(tree):
+        return Diff.tree_diff_unknown_change(tree)
+
+    @staticmethod
     def force_unknown(tree):
         primal = Diff.tree_primal(tree)
         return Diff.unknown_change(tree)
-
-    @staticmethod
-    def tree_diff_unknown_change(tree):
-        primal_tree = Diff.tree_primal(tree)
-        tangent_tree = jtu.tree_map(lambda _: UnknownChange, primal_tree)
-        return Diff.tree_diff(primal_tree, tangent_tree)
-
-    @staticmethod
-    def unknown_change(tree):
-        return Diff.tree_diff_unknown_change(tree)
 
     @staticmethod
     def tree_primal(v):
@@ -195,10 +204,6 @@ class Diff(Generic[V, CT], Pytree):
         return jtu.tree_map(_inner, v, is_leaf=Diff.static_check_is_diff)
 
     @staticmethod
-    def primal(v):
-        return Diff.tree_primal(v)
-
-    @staticmethod
     def tree_tangent(v):
         def _inner(v):
             if Diff.static_check_is_diff(v):
@@ -207,6 +212,10 @@ class Diff(Generic[V, CT], Pytree):
                 return NoChangeTangentInformation(v)
 
         return jtu.tree_map(_inner, v, is_leaf=Diff.static_check_is_diff)
+
+    @staticmethod
+    def primal(v):
+        return Diff.tree_primal(v)
 
     @staticmethod
     def tangent(v):

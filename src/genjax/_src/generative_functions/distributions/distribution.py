@@ -189,8 +189,8 @@ class Distribution(
                         return w, value
 
                     def false_branch(key, value, args):
-                        w, v = self.random_weighted(key, *args)
-                        return w, v
+                        _, v = self.random_weighted(key, *args)
+                        return jnp.array(0.0), v
 
                     w, value = jax.lax.cond(
                         v.flag, true_branch, false_branch, key, v.value, arguments
@@ -223,7 +223,6 @@ class Distribution(
         trace: DistributionTrace[A, R],
         projection: ChoiceMapProjection[EmptySample | ValueSample[R]]
         | SelectionProjection[EmptySample | ValueSample[R]],
-        arguments: A,
     ) -> tuple[Weight, ChoiceMapConstraint]:
         sample = trace.get_choices()
         projected = projection.project(ChoiceMapSample(sample))

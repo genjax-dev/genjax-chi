@@ -298,9 +298,6 @@ class Projection(Generic[Pj, S1, S2], Pytree):
     def complement(self) -> Pj:
         raise NotImplementedError
 
-    def __call__(self, sample: S1) -> S2:
-        return self.project(sample)
-
 
 @Pytree.dataclass
 class IdentityProjection(Generic[S], Projection["EmptyProjection", S, S]):
@@ -729,8 +726,7 @@ class GenerativeFunction(
         key: PRNGKey,
         trace: Tr,
         projection: P,
-        arguments: A,
-    ) -> tuple[Weight, Constraint]:
+    ) -> tuple[Weight, C]:
         raise NotImplementedError
 
     @abstractmethod
@@ -2004,7 +2000,9 @@ class SelectionProjectRequest(EditRequest):
     ) -> tuple[EmptyTrace, Weight, Retdiff, ChoiceMapImportanceRequest]:
         gen_fn = trace.get_gen_fn()
         w, bwd_choice_map_constraint = gen_fn.project_edit(
-            key, trace, SelectionProjection(self.projection), arguments
+            key,
+            trace,
+            SelectionProjection(self.projection),
         )
         return (
             EmptyTrace(gen_fn),

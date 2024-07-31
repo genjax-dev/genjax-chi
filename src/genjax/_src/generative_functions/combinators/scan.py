@@ -245,7 +245,7 @@ class ScanCombinator(
         S,
         tuple[Ca, Sc2],
         ChoiceMapConstraint,
-        SelectionProjection,
+        SelectionProjection | ChoiceMapProjection,
         ChoiceMapEditRequest,
     ]
 
@@ -418,11 +418,52 @@ class ScanCombinator(
     def project_edit(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: ScanTrace,
         projection: SelectionProjection | ChoiceMapProjection,
-        arguments: Arguments,
     ) -> tuple[Weight, ChoiceMapConstraint]:
-        raise NotImplementedError
+        def _inner_project(
+            key: PRNGKey,
+            inner_trace: Tr,
+            projection: SelectionProjection | ChoiceMapProjection,
+        ):
+            w, constraint = self.kernel_gen_fn.project_edit(
+                key,
+                inner_trace,
+                projection,
+            )
+            return w, constraint
+
+        def _get_subprojection(
+            projection: SelectionProjection | ChoiceMapProjection,
+            idx: IntArray,
+        ):
+            return projection(idx)
+
+        def _importance(carry, scanned):
+            key, idx = carry
+            inner_trace = scanned
+            key = jax.random.fold_in(key, idx)
+            subprojection = _get_subprojection(projection, idx)
+            (w, bwd_constraint) = _inner_project(
+                key,
+                inner_trace,
+                subprojection,
+            )
+
+            return (key, idx + 1), (w, bwd_constraint)
+
+        (_, _), (ws, bwd_constraints) = jax.lax.scan(
+            _importance,
+            (key, 0),
+            trace.inner,
+            length=self.length,
+            reverse=self.reverse,
+            unroll=self.unroll,
+        )
+        return (
+            jnp.sum(ws),
+            bwd_constraints,
+        )  # type:ignore
 
     def choice_map_edit(
         self,
@@ -632,6 +673,7 @@ class ScanCombinator(
     ]:
         match request:
             case ChoiceMapEditRequest(choice_map_constraint):
+                arguments = Diff.primal(arguments)
                 new_trace, weight, bwd_constraint = self.choice_map_edit(
                     key, trace, choice_map_constraint, arguments
                 )

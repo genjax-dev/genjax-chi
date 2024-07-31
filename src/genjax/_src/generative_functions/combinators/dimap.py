@@ -15,6 +15,7 @@
 
 from genjax._src.core.generative import (
     Arguments,
+    ChoiceMap,
     Constraint,
     EditRequest,
     GenerativeFunction,
@@ -26,6 +27,8 @@ from genjax._src.core.generative import (
     Trace,
     Weight,
 )
+from genjax._src.core.generative.core import SampleCoercableToChoiceMap
+from genjax._src.core.interpreters.incremental import Diff, incremental
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Callable,
@@ -50,6 +53,7 @@ U = TypeVar("U", bound=EditRequest)
 @Pytree.dataclass
 class DimapTrace(
     Generic[Tr, A, S, R],
+    SampleCoercableToChoiceMap,
     Trace["DimapCombinator", A, S, R],
 ):
     gen_fn: "DimapCombinator"
@@ -65,6 +69,10 @@ class DimapTrace(
 
     def get_sample(self) -> S:
         return self.inner.get_sample()
+
+    def get_choices(self) -> ChoiceMap:
+        assert isinstance(self.inner, SampleCoercableToChoiceMap), type(self.inner)
+        return self.inner.get_choices()
 
     def get_retval(self) -> R:
         return self.retval
@@ -170,21 +178,9 @@ class DimapCombinator(
         key: PRNGKey,
         trace: DimapTrace,
         projection: P,
-        arguments: A,
     ) -> tuple[Weight, C]:
-        inner_args = self.argument_mapping(*arguments)
         inner_tr = trace.inner
-        w, bwd_constraint = self.inner.project_edit(
-            key, inner_tr, projection, inner_args
-        )
-        inner_retval = inner_tr.get_retval()
-        retval = self.retval_mapping(inner_args, inner_retval)
-        trace = DimapTrace(
-            self,
-            inner_tr,
-            arguments,
-            retval,
-        )
+        w, bwd_constraint = self.inner.project_edit(key, inner_tr, projection)
         return w, bwd_constraint
 
     def edit(
@@ -194,20 +190,27 @@ class DimapCombinator(
         request: U,
         arguments: Arguments,
     ) -> tuple[DimapTrace, Weight, Retdiff, U]:
-        inner_args = self.argument_mapping(*arguments)
-        inner_tr = trace.inner
-        new_inner_tr, w, retdiff, bwd_request = self.inner.edit(
-            key, inner_tr, request, inner_args
+        argdiffs = Diff.unknown_change(arguments)
+        inner_argdiffs = incremental(self.argument_mapping)(
+            None, Diff.primal(argdiffs), Diff.tangent(argdiffs)
         )
-        inner_retval = inner_tr.get_retval()
-        retval = self.retval_mapping(inner_args, inner_retval)
-        trace = DimapTrace(
+        inner_tr = trace.inner
+        new_inner_tr, w, inner_retdiff, bwd_request = self.inner.edit(
+            key, inner_tr, request, inner_argdiffs
+        )
+        retdiff = incremental(self.retval_mapping)(
+            None,
+            Diff.primal((inner_argdiffs, inner_retdiff)),
+            Diff.tangent((inner_argdiffs, inner_retdiff)),
+        )
+        retval = Diff.primal(retdiff)
+        new_trace = DimapTrace(
             self,
-            inner_tr,
-            arguments,
+            new_inner_tr,
+            Diff.primal(arguments),
             retval,
         )
-        return trace, w, retval, bwd_request
+        return new_trace, w, retdiff, bwd_request
 
 
 #############
