@@ -26,7 +26,8 @@ class TestDistributions:
         key = jax.random.PRNGKey(314159)
         tr = genjax.normal.simulate(key, (0.0, 1.0))
         assert (
-            tr.get_score() == genjax.normal.assess(key, tr.get_sample(), (0.0, 1.0))[0]
+            tr.get_score()
+            == genjax.normal.assess(key, tr.get_sample(), (0.0, 1.0)).unwrap()[0]
         )
 
     def test_importance(self):
@@ -39,7 +40,7 @@ class TestDistributions:
         # Constraint, no mask.
         (tr, w) = genjax.normal.importance(key, C.v(1.0), (0.0, 1.0))
         v = tr.get_sample()
-        assert w == genjax.normal.assess(key, v, (0.0, 1.0))[0]
+        assert w == genjax.normal.assess(key, v, (0.0, 1.0)).unwrap()[0]
 
         # Constraint, mask with True flag.
         (tr, w) = genjax.normal.importance(
@@ -50,7 +51,7 @@ class TestDistributions:
         v = tr.get_sample()
         assert isinstance(v, ValueSample)
         assert v.val == 1.0
-        assert w == genjax.normal.assess(key, v, (0.0, 1.0))[0]
+        assert w == genjax.normal.assess(key, v, (0.0, 1.0)).unwrap()[0]
 
         # Constraint, mask with False flag.
         (tr, w) = genjax.normal.importance(
@@ -77,7 +78,7 @@ class TestDistributions:
         assert new_tr.get_sample().val == tr.get_sample().val
         assert (
             new_tr.get_score()
-            == genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0))[0]
+            == genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0)).unwrap()[0]
         )
         assert w == 0.0
 
@@ -90,11 +91,14 @@ class TestDistributions:
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_sample().val == 1.0
-        assert new_tr.get_score() == genjax.normal.assess(key, C.v(1.0), (0.0, 1.0))[0]
+        assert (
+            new_tr.get_score()
+            == genjax.normal.assess(key, C.v(1.0), (0.0, 1.0)).unwrap()[0]
+        )
         assert (
             w
-            == genjax.normal.assess(key, C.v(1.0), (0.0, 1.0))[0]
-            - genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0))[0]
+            == genjax.normal.assess(key, C.v(1.0), (0.0, 1.0)).unwrap()[0]
+            - genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0)).unwrap()[0]
         )
 
         # No constraint, change to arguments.
@@ -108,12 +112,12 @@ class TestDistributions:
         assert new_tr.get_sample() == tr.get_sample()
         assert (
             new_tr.get_score()
-            == genjax.normal.assess(key, tr.get_choices(), (1.0, 1.0))[0]
+            == genjax.normal.assess(key, tr.get_choices(), (1.0, 1.0)).unwrap()[0]
         )
         assert (
             w
-            == genjax.normal.assess(key, tr.get_choices(), (1.0, 1.0))[0]
-            - genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0))[0]
+            == genjax.normal.assess(key, tr.get_choices(), (1.0, 1.0)).unwrap()[0]
+            - genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0)).unwrap()[0]
         )
 
         # Constraint, change to arguments.
@@ -125,11 +129,14 @@ class TestDistributions:
             (Diff(1.0, UnknownChange), Diff(2.0, UnknownChange)),
         )
         assert new_tr.get_sample().val == 1.0
-        assert new_tr.get_score() == genjax.normal.assess(key, C.v(1.0), (1.0, 2.0))[0]
+        assert (
+            new_tr.get_score()
+            == genjax.normal.assess(key, C.v(1.0), (1.0, 2.0)).unwrap()[0]
+        )
         assert (
             w
-            == genjax.normal.assess(key, C.v(1.0), (1.0, 2.0))[0]
-            - genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0))[0]
+            == genjax.normal.assess(key, C.v(1.0), (1.0, 2.0)).unwrap()[0]
+            - genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0)).unwrap()[0]
         )
 
         # Constraint is masked (True), no change to arguments.
@@ -141,11 +148,14 @@ class TestDistributions:
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_sample().val == 1.0
-        assert new_tr.get_score() == genjax.normal.assess(key, C.v(1.0), (0.0, 1.0))[0]
+        assert (
+            new_tr.get_score()
+            == genjax.normal.assess(key, C.v(1.0), (0.0, 1.0)).unwrap()[0]
+        )
         assert (
             w
-            == genjax.normal.assess(key, C.v(1.0), (0.0, 1.0))[0]
-            - genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0))[0]
+            == genjax.normal.assess(key, C.v(1.0), (0.0, 1.0)).unwrap()[0]
+            - genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0)).unwrap()[0]
         )
 
         # Constraint is masked (True), change to arguments.
@@ -157,11 +167,14 @@ class TestDistributions:
             (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_choices().get_value() == 1.0
-        assert new_tr.get_score() == genjax.normal.assess(key, C.v(1.0), (1.0, 1.0))[0]
+        assert (
+            new_tr.get_score()
+            == genjax.normal.assess(key, C.v(1.0), (1.0, 1.0)).unwrap()[0]
+        )
         assert (
             w
-            == genjax.normal.assess(key, C.v(1.0), (1.0, 1.0))[0]
-            - genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0))[0]
+            == genjax.normal.assess(key, C.v(1.0), (1.0, 1.0)).unwrap()[0]
+            - genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0)).unwrap()[0]
         )
 
         # Constraint is masked (False), no change to arguments.
@@ -175,7 +188,7 @@ class TestDistributions:
         assert new_tr.get_choices().get_value() == tr.get_choices().get_value()
         assert (
             new_tr.get_score()
-            == genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0))[0]
+            == genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0)).unwrap()[0]
         )
         assert w == 0.0
 
@@ -190,12 +203,12 @@ class TestDistributions:
         assert new_tr.get_choices().get_value() == tr.get_choices().get_value()
         assert (
             new_tr.get_score()
-            == genjax.normal.assess(key, tr.get_choices(), (1.0, 1.0))[0]
+            == genjax.normal.assess(key, tr.get_choices(), (1.0, 1.0)).unwrap()[0]
         )
         assert (
             w
-            == genjax.normal.assess(key, tr.get_choices(), (1.0, 1.0))[0]
-            - genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0))[0]
+            == genjax.normal.assess(key, tr.get_choices(), (1.0, 1.0)).unwrap()[0]
+            - genjax.normal.assess(key, tr.get_choices(), (0.0, 1.0)).unwrap()[0]
         )
 
     def test_project(self):

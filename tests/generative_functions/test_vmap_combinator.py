@@ -49,9 +49,9 @@ class TestVmapCombinator:
         (_, w) = jax.jit(kernel.importance)(key, chm, (map_over,))
         assert (
             w
-            == genjax.normal.assess(key, C.v(3.0), (0.0, 1.0))[0]
-            + genjax.normal.assess(key, C.v(2.0), (1.0, 1.0))[0]
-            + genjax.normal.assess(key, C.v(3.0), (2.0, 1.0))[0]
+            == genjax.normal.assess(key, C.v(3.0), (0.0, 1.0)).unwrap()[0]
+            + genjax.normal.assess(key, C.v(2.0), (1.0, 1.0)).unwrap()[0]
+            + genjax.normal.assess(key, C.v(3.0), (2.0, 1.0)).unwrap()[0]
         )
 
     def test_vmap_combinator_indexed_choice_map_importance(self):
@@ -66,7 +66,7 @@ class TestVmapCombinator:
         chm = C[0, "z"].set(3.0)
         key, sub_key = jax.random.split(key)
         (_, w) = jax.jit(kernel.importance)(sub_key, chm, (map_over,))
-        assert w == genjax.normal.assess(key, C.v(3.0), (0.0, 1.0))[0]
+        assert w == genjax.normal.assess(key, C.v(3.0), (0.0, 1.0)).unwrap()[0]
 
         key, sub_key = jax.random.split(key)
         zv = jnp.array([3.0, -1.0, 2.0])
@@ -92,7 +92,7 @@ class TestVmapCombinator:
         map_over = jnp.ones((3, 3), dtype=float)
         chm = C[0, "outer", 1, "z"].set(1.0)
         (_, w) = jax.jit(higher_model.importance)(key, chm, (map_over,))
-        assert w == genjax.normal.assess(key, C.v(1.0), (1.0, 1.0))[0]
+        assert w == genjax.normal.assess(key, C.v(1.0), (1.0, 1.0)).unwrap()[0]
 
     def test_vmap_combinator_vmap_pytree(self):
         @genjax.vmap(in_axes=(None, (0, None)))
@@ -117,7 +117,9 @@ class TestVmapCombinator:
         tr = jax.jit(model.simulate)(key, (map_over,))
         sample = tr.get_sample()
         map_score = tr.get_score()
-        assess_score = model.assess(key, sample, (map_over,))[0]
+        maybe_err = model.assess(key, sample, (map_over,))
+        print(maybe_err)
+        assess_score = maybe_err.unwrap()[0]
         match assess_score:
             case Masked(flag, value):
                 assert flag

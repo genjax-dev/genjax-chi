@@ -13,18 +13,16 @@
 # limitations under the License.
 
 import jax.numpy as jnp
-from jax.experimental import checkify
 from jax.tree_util import tree_map
 
-from genjax._src.checkify import optional_check
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import (
     staged_and,
     staged_check,
+    staged_or,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
-    Any,
     Bool,
     BoolArray,
     Callable,
@@ -32,6 +30,7 @@ from genjax._src.core.typing import (
     Int,
     IntArray,
     List,
+    String,
     TypeVar,
     static_check_bool,
     static_check_is_concrete,
@@ -40,9 +39,62 @@ from genjax._src.core.typing import (
 V = TypeVar("V")
 R = TypeVar("R")
 
-#########################
-# Masking and sum types #
-#########################
+
+@Pytree.dataclass(match_args=True)
+class CouldPanic(Generic[V], Pytree):
+    triggered: Bool | BoolArray
+    value: V
+    msg: String = Pytree.static(default="")
+
+    @classmethod
+    def maybe_urgent(
+        cls,
+        f: Bool | BoolArray,
+        v: V,
+        msg: String = "",
+    ) -> V | "CouldPanic[V]":
+        match v:
+            case CouldPanic(triggered, value):
+                return CouldPanic(staged_or(f, triggered), value, msg)
+            case _:
+                if staged_check(f):
+                    raise Exception(msg)
+                else:
+                    return CouldPanic(f, v, msg)
+
+    @classmethod
+    def pure(cls, v: V) -> "CouldPanic[V]":
+        return CouldPanic.maybe_urgent(False, v)
+
+    @classmethod
+    def innards(
+        cls,
+        err: "CouldPanic[V]",
+        f: Callable[[Bool | BoolArray], BoolArray],
+    ) -> "CouldPanic[V]":
+        triggered = err.triggered
+        new_triggered = f(triggered)
+        return CouldPanic.maybe_urgent(new_triggered, err.value, err.msg)
+
+    def collapse(self) -> "CouldPanic[V]":
+        return CouldPanic.innards(self, lambda triggered: jnp.any(triggered))
+
+    @classmethod
+    def bind(
+        cls,
+        err: "CouldPanic[V]",
+        f: Callable[[V], "CouldPanic[R]"],
+    ) -> "CouldPanic[R]":
+        val = err.value
+        could_panic_r = f(val)
+        return CouldPanic.maybe_urgent(
+            staged_or(could_panic_r.triggered, err.triggered),
+            could_panic_r.value,
+        )
+
+    def unwrap(self) -> "V":
+        assert staged_check(jnp.logical_not(jnp.all(self.triggered))), self.msg
+        return self.value
 
 
 @Pytree.dataclass(match_args=True)
@@ -83,7 +135,7 @@ class Masked(Generic[V], Pytree):
                     return Masked(f, v)
 
     @classmethod
-    def maybe_none(cls, f: BoolArray, v: Any):
+    def maybe_none(cls, f: BoolArray, v: V) -> None | V | "Masked[V]":
         return (
             None
             if v is None
@@ -93,6 +145,16 @@ class Masked(Generic[V], Pytree):
             if static_check_bool(f)
             else Masked.maybe(f, v)
         )
+
+    @classmethod
+    def bind(
+        cls,
+        v: "Masked[V]",
+        f: Callable[[V], "Masked[R]"],
+    ) -> "Masked[R]":
+        val = v.value
+        masked_r = f(val)
+        return Masked.maybe(v.flag, masked_r)
 
     @classmethod
     def lift(
@@ -130,35 +192,6 @@ class Masked(Generic[V], Pytree):
                             return f(v1, v2)
 
         return wrapped
-
-    ######################
-    # Masking interfaces #
-    ######################
-
-    def unmask(self) -> V:
-        """Unmask the `Masked`, returning the value within.
-
-        This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Masked` wraps valid data at runtime.
-
-        """
-
-        # If a user chooses to `unmask`, require that they
-        # jax.experimental.checkify.checkify their call in transformed
-        # contexts.
-        def _check():
-            check_flag = jnp.all(self.flag)
-            checkify.check(
-                check_flag,
-                "Attempted to unmask when a mask flag is False: the masked value is invalid.\n",
-            )
-
-        optional_check(_check)
-        return self.value
-
-    def unsafe_unmask(self) -> V:
-        # Unsafe version of unmask -- should only be used internally,
-        # or carefully.
-        return self.value
 
 
 @Pytree.dataclass(match_args=True)

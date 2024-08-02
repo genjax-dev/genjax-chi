@@ -65,7 +65,7 @@ from .core import (
     ValueSample,
     Weight,
 )
-from .functional_types import Masked, Sum
+from .functional_types import CouldPanic, Masked, Sum
 
 __all__ = [
     "Address",
@@ -83,6 +83,7 @@ __all__ = [
     "ChoiceMapProjectionProjectRequest",
     "ChoiceMapSample",
     "Constraint",
+    "CouldPanic",
     "EditRequest",
     "EmptyChm",
     "EmptyConstraint",

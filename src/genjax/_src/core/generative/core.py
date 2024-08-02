@@ -26,7 +26,7 @@ from genjax._src.core.generative.choice_map import (
     ExtendedAddressComponent,
     Selection,
 )
-from genjax._src.core.generative.functional_types import Masked
+from genjax._src.core.generative.functional_types import CouldPanic, Masked
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import (
     get_trace_shape,
@@ -674,7 +674,7 @@ class GenerativeFunction(
         key: PRNGKey,
         sample: S,
         arguments: A,
-    ) -> tuple[Score | Masked[Score], R | Masked[R]]:
+    ) -> CouldPanic[tuple[Score, R]]:
         """Return [the score][genjax.core.Trace.get_score] and [the return
         value][genjax.core.Trace.get_retval] when the generative function is
         invoked with the provided arguments, and constrained to take the
@@ -1963,7 +1963,15 @@ class ChoiceMapEditRequest(Generic[A], EditRequest):
         arguments: A,
     ) -> tuple[Tr, Weight, Retdiff, "ChoiceMapEditRequest"]:
         gen_fn = trace.get_gen_fn()
-        return gen_fn.edit(key, trace, self, arguments)
+        new_tr, weight, retdiff, bwd_request = gen_fn.edit(key, trace, self, arguments)
+        match bwd_request:
+            case MaskedEditRequest(flag, subrequest):
+                new_request = ChoiceMapEditRequest(
+                    ChoiceMapConstraint(ChoiceMap.maybe(flag, subrequest.constraint))
+                )
+                return new_tr, weight, retdiff, new_request
+            case _:
+                return new_tr, weight, retdiff, bwd_request
 
 
 @Pytree.dataclass(match_args=True)
@@ -2071,7 +2079,7 @@ class SumEditRequest(EditRequest):
     requests: List[EditRequest]
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class MaskedEditRequest(Generic[U], EditRequest):
     flag: Bool | BoolArray
     request: U
@@ -2081,7 +2089,7 @@ class MaskedEditRequest(Generic[U], EditRequest):
         key: PRNGKey,
         trace: Trace,
         arguments: Arguments,
-    ) -> tuple[Trace, Weight, Retdiff, "MaskedEditRequest[U]"]:
+    ) -> tuple[Trace, Weight, Retdiff, "MaskedEditRequest"]:
         new_trace, w, retdiff, bwd_request = self.request.edit(key, trace, arguments)
         new_trace = jtu.tree_map(
             lambda v1, v2: jnp.where(self.flag, v1, v2), new_trace, trace

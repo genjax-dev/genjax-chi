@@ -25,6 +25,7 @@ from genjax._src.core.generative import (
     ChoiceMapEditRequest,
     ChoiceMapProjection,
     ChoiceMapSample,
+    CouldPanic,
     EmptyConstraint,
     EmptySample,
     EqualityConstraint,
@@ -50,6 +51,7 @@ from genjax._src.core.generative.core import (
     EmptyProjection,
 )
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.staging import staged_not
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
@@ -148,7 +150,7 @@ class Distribution(
         # TODO: the ValChm here is a type of paving over, to allow people to continue to use what they are used to.
         sample: ValChm | ChoiceMapSample[ValueSample | MaskedSample] | ValueSample,
         arguments: A,
-    ) -> tuple[Score | Masked[Score], R | Masked[R]]:
+    ) -> CouldPanic[tuple[Score, R]]:
         match sample:
             case ValChm(v):
                 return self.assess(key, ValueSample(v), arguments)
@@ -157,9 +159,13 @@ class Distribution(
                 v: Sample = sample.get_value()
                 match v:
                     case MaskedSample(flag, sample_value):
-                        score, return_value = self.assess(key, sample_value, arguments)
-                        return Masked.maybe(flag, score), Masked.maybe(
-                            flag, return_value
+                        err = self.assess(key, sample_value, arguments)
+                        return CouldPanic.bind(
+                            err,
+                            lambda v: CouldPanic.maybe_urgent(
+                                staged_not(flag),
+                                (v[0], v[1]),
+                            ),
                         )
                     case ValueSample():
                         return self.assess(key, v, arguments)
@@ -169,10 +175,10 @@ class Distribution(
                 match v:
                     case Masked(flag, value):
                         w = self.estimate_logpdf(key, value, *arguments)
-                        return Masked.maybe(flag, w), Masked.maybe(flag, value)
+                        return CouldPanic.maybe_urgent(staged_not(flag), (w, value))
                     case _:
                         w = self.estimate_logpdf(key, v, *arguments)
-                        return w, v
+                        return CouldPanic.maybe_urgent(False, (w, v))
 
     def importance_edit(
         self,

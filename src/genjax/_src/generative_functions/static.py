@@ -30,10 +30,10 @@ from genjax._src.core.generative import (
     ChoiceMapProjection,
     ChoiceMapSample,
     Constraint,
+    CouldPanic,
     EditRequest,
     GenerativeFunction,
     IncrementalChoiceMapEditRequest,
-    Masked,
     Projection,
     Retdiff,
     Retval,
@@ -58,7 +58,7 @@ from genjax._src.core.interpreters.forward import (
     initial_style_bind,
 )
 from genjax._src.core.interpreters.incremental import Diff, incremental
-from genjax._src.core.interpreters.staging import staged_and
+from genjax._src.core.interpreters.staging import staged_or
 from genjax._src.core.pytree import Closure, Const, Pytree
 from genjax._src.core.typing import (
     Any,
@@ -411,7 +411,7 @@ class AssessHandler(StaticHandler):
     key: PRNGKey
     sample: ChoiceMapSample
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    valid: Bool | BoolArray = Pytree.field(default=True)
+    triggered: Bool | BoolArray = Pytree.field(default=False)
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     cache_addresses: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
@@ -422,7 +422,7 @@ class AssessHandler(StaticHandler):
         self.cache_addresses.visit(addr)
 
     def yield_state(self) -> tuple[Score, Bool | BoolArray]:
-        return (self.score, self.valid)
+        return (self.score, self.triggered)
 
     def get_subsample(self, addr: StaticAddress) -> ChoiceMapSample:
         return self.sample(addr)
@@ -446,14 +446,11 @@ class AssessHandler(StaticHandler):
         self.visit(addr)
         submap = self.get_subsample(addr)
         self.key, sub_key = jax.random.split(self.key)
-        (score, v) = gen_fn.assess(sub_key, submap, arguments)
-        if isinstance(score, Masked) and isinstance(v, Masked):
-            self.valid = staged_and(self.valid, staged_and(score.flag, v.flag))
-            self.score += score.value
-            return v.value
-        else:
-            self.score += score
-            return v
+        err: CouldPanic = gen_fn.assess(sub_key, submap, arguments)
+        self.triggered = staged_or(self.triggered, err.triggered)
+        (score, retval) = err.value
+        self.score += score
+        return retval
 
 
 def assess_transform(source_fn):
@@ -461,8 +458,8 @@ def assess_transform(source_fn):
     def wrapper(key: PRNGKey, constraints, arguments):
         stateful_handler = AssessHandler(key, constraints)
         retval = forward(source_fn)(stateful_handler, *arguments)
-        (score, valid) = stateful_handler.yield_state()
-        return (retval, score), valid
+        (score, triggered) = stateful_handler.yield_state()
+        return (retval, score), triggered
 
     return wrapper
 
@@ -1101,17 +1098,17 @@ class StaticGenerativeFunction(
         key: PRNGKey,
         sample: ChoiceMap | ChoiceMapSample,
         arguments: A,
-    ) -> tuple[Score | Masked[Score], R | Masked[R]]:
+    ) -> CouldPanic[tuple[Score, R]]:
         sample = (
             sample if isinstance(sample, ChoiceMapSample) else ChoiceMapSample(sample)
         )
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (retval, score), valid = assess_transform(syntax_sugar_handled)(
+        (retval, score), triggered = assess_transform(syntax_sugar_handled)(
             key, sample, arguments
         )
-        return (Masked.maybe(valid, score), Masked.maybe(valid, retval))
+        return CouldPanic.maybe_urgent(triggered, (score, retval))
 
     def importance_edit(
         self,

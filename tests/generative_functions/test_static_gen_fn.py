@@ -85,8 +85,8 @@ class TestStaticGenFnSimulate:
         y1, y2 = tr.get_retval()
         assert y1 == y1_
         assert y2 == y2_
-        (score1, _) = genjax.normal.assess(key, C.v(y1), (0.0, 1.0))
-        (score2, _) = genjax.normal.assess(key, C.v(y2), (0.0, 1.0))
+        (score1, _) = genjax.normal.assess(key, C.v(y1), (0.0, 1.0)).unwrap()
+        (score2, _) = genjax.normal.assess(key, C.v(y2), (0.0, 1.0)).unwrap()
         test_score = score1 + score2
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
@@ -111,8 +111,8 @@ class TestStaticGenFnSimulate:
         y1, y2 = tr.get_retval()
         assert y1 == y1_
         assert y2 == y2_
-        (score1, _) = genjax.normal.assess(key, C.v(y1), (0.0, 1.0))
-        (score2, _) = genjax.normal.assess(key, C.v(y2), (0.0, 1.0))
+        (score1, _) = genjax.normal.assess(key, C.v(y1), (0.0, 1.0)).unwrap()
+        (score2, _) = genjax.normal.assess(key, C.v(y2), (0.0, 1.0)).unwrap()
         test_score = score1 + score2
         assert tr.get_score() == pytest.approx(test_score, 0.01)
 
@@ -128,7 +128,7 @@ class TestStaticGenFnAssess:
         tr = jax.jit(empty.simulate)(sub_key, (jnp.ones(4),))
         jitted = jax.jit(empty.assess)
         chm = tr.get_choices()
-        (score, _retval) = jitted(key, chm, (jnp.ones(4),))
+        (score, _retval) = jitted(key, chm, (jnp.ones(4),)).unwrap()
         assert score == tr.get_score()
 
     def test_simple_normal_assess(self):
@@ -143,7 +143,7 @@ class TestStaticGenFnAssess:
         tr = jax.jit(simple_normal.simulate)(sub_key, ())
         jitted = jax.jit(simple_normal.assess)
         choice = tr.get_choices()
-        (score, _retval) = jitted(key, choice, ())
+        (score, _retval) = jitted(key, choice, ()).unwrap()
         assert score == tr.get_score()
 
 
@@ -163,7 +163,7 @@ def simple_normal(custom_tree):
 @Pytree.dataclass
 class _CustomNormal(genjax.Distribution):
     def estimate_logpdf(self, key, v, custom_tree):
-        w, _ = genjax.normal.assess(v, custom_tree.x, custom_tree.y)
+        w, _ = genjax.normal.assess(v, custom_tree.x, custom_tree.y).unwrap()
         return w
 
     def random_weighted(self, key, custom_tree):
@@ -237,7 +237,7 @@ class TestStaticGenFnGradients:
         tr = jax.jit(simple_normal.simulate)(key, ())
         jitted = jax.jit(simple_normal.assess)
         choice = tr.get_choices()
-        (score, _) = jitted(key, choice, ())
+        (score, _) = jitted(key, choice, ()).unwrap()
         assert score == tr.get_score()
 
 
@@ -297,8 +297,8 @@ class TestStaticGenFnImportance:
         y1 = tr_chm.get_submap("y1")
         y2 = tr_chm.get_submap("y2")
         assert tr_chm["y2"] == 0.5
-        score_1, _ = genjax.normal.assess(key, y1, (0.0, 1.0))
-        score_2, _ = genjax.normal.assess(key, y2, (0.0, 1.0))
+        score_1, _ = genjax.normal.assess(key, y1, (0.0, 1.0)).unwrap()
+        score_2, _ = genjax.normal.assess(key, y2, (0.0, 1.0)).unwrap()
         test_score = score_1 + score_2
         assert tr.get_score() == pytest.approx(test_score, 0.0001)
         assert w == pytest.approx(score_2, 0.0001)
@@ -309,8 +309,8 @@ class TestStaticGenFnImportance:
         tr_chm = tr.get_choices()
         y1 = tr_chm.get_submap("y1")
         y2 = tr_chm.get_submap("y2")
-        score_1, _ = genjax.normal.assess(key, y1, (0.0, 1.0))
-        score_2, _ = genjax.normal.assess(key, y2, (0.0, 1.0))
+        score_1, _ = genjax.normal.assess(key, y1, (0.0, 1.0)).unwrap()
+        score_2, _ = genjax.normal.assess(key, y2, (0.0, 1.0)).unwrap()
         test_score = score_1 + score_2
         assert tr.get_score() == pytest.approx(test_score, 0.0001)
         assert w == 0.0
@@ -392,9 +392,9 @@ class TestStaticGenFnUpdate:
         y1 = updated_choice["y1"]
         y2 = updated_choice["y2"]
         y3 = updated_choice.get_submap("y3")
-        score1, _ = genjax.normal.assess(key, C.v(y1), (0.0, 1.0))
-        score2, _ = genjax.normal.assess(key, C.v(y2), (y1, 1.0))
-        score3, _ = genjax.normal.assess(key, y3, (y1 + y2, 1.0))
+        score1, _ = genjax.normal.assess(key, C.v(y1), (0.0, 1.0)).unwrap()
+        score2, _ = genjax.normal.assess(key, C.v(y2), (y1, 1.0)).unwrap()
+        score3, _ = genjax.normal.assess(key, y3, (y1 + y2, 1.0)).unwrap()
         test_score = score1 + score2 + score3
         assert original_choice["y1"] == discard["y1"]
         assert updated.get_score() == pytest.approx(original_score + w, 0.01)
@@ -430,9 +430,9 @@ class TestStaticGenFnUpdate:
         assert y1 == new["y1"]
         assert y2 == original_choice["y2", "y1"]
         assert y3 == original_choice["y3", "y1"]
-        score1, _ = genjax.normal.assess(key, C.v(y1), (0.0, 1.0))
-        score2, _ = genjax.normal.assess(key, C.v(y2), (y1, 1.0))
-        score3, _ = genjax.normal.assess(key, C.v(y3), (y1 + y2, 1.0))
+        score1, _ = genjax.normal.assess(key, C.v(y1), (0.0, 1.0)).unwrap()
+        score2, _ = genjax.normal.assess(key, C.v(y2), (y1, 1.0)).unwrap()
+        score3, _ = genjax.normal.assess(key, C.v(y3), (y1 + y2, 1.0)).unwrap()
         test_score = score1 + score2 + score3
         assert original_choice["y1"] == discard["y1"]
         assert updated.get_score() == original_score + w
@@ -464,16 +464,16 @@ class TestStaticGenFnUpdate:
         assert updated_sample["y1"] == new_y1
 
         δ_y3 = (
-            genjax.normal.assess(key, C.v(old_y3), (new_y1 + old_y2, 1.0))[0]
-            - genjax.normal.assess(key, C.v(old_y3), (old_y1 + old_y2, 1.0))[0]
+            genjax.normal.assess(key, C.v(old_y3), (new_y1 + old_y2, 1.0)).unwrap()[0]
+            - genjax.normal.assess(key, C.v(old_y3), (old_y1 + old_y2, 1.0)).unwrap()[0]
         )
         δ_y2 = (
-            genjax.normal.assess(key, C.v(old_y2), (new_y1, 1.0))[0]
-            - genjax.normal.assess(key, C.v(old_y2), (old_y1, 1.0))[0]
+            genjax.normal.assess(key, C.v(old_y2), (new_y1, 1.0)).unwrap()[0]
+            - genjax.normal.assess(key, C.v(old_y2), (old_y1, 1.0)).unwrap()[0]
         )
         δ_y1 = (
-            genjax.normal.assess(key, C.v(new_y1), (0.0, 1.0))[0]
-            - genjax.normal.assess(key, C.v(old_y1), (0.0, 1.0))[0]
+            genjax.normal.assess(key, C.v(new_y1), (0.0, 1.0)).unwrap()[0]
+            - genjax.normal.assess(key, C.v(old_y1), (0.0, 1.0)).unwrap()[0]
         )
         assert w == pytest.approx((δ_y3 + δ_y2 + δ_y1), 0.0001)
 
@@ -484,8 +484,8 @@ class TestStaticGenFnUpdate:
         (updated, w, _, _) = jitted(sub_key, updated, new, ())
         assert updated.get_choices()["y3"] == 2.0
         correct_w = (
-            genjax.normal.assess(key, C.v(new_y3), (new_y1 + old_y2, 1.0))[0]
-            - genjax.normal.assess(key, C.v(old_y3), (new_y1 + old_y2, 1.0))[0]
+            genjax.normal.assess(key, C.v(new_y3), (new_y1 + old_y2, 1.0)).unwrap()[0]
+            - genjax.normal.assess(key, C.v(old_y3), (new_y1 + old_y2, 1.0)).unwrap()[0]
         )
         assert w == pytest.approx(correct_w, 0.0001)
 
@@ -699,10 +699,20 @@ class TestStaticGenFnInline:
         key, sub_key = jax.random.split(key)
         (tr, w) = jax.jit(higher_model.importance)(sub_key, choice, ())
         choices = tr.get_choices()
-        assert w == genjax.normal.assess(key, choices.get_submap("y1"), (0.0, 1.0))[0]
+        assert (
+            w
+            == genjax.normal.assess(key, choices.get_submap("y1"), (0.0, 1.0)).unwrap()[
+                0
+            ]
+        )
         (tr, w) = jax.jit(higher_higher_model.importance)(key, choice, ())
         choices = tr.get_choices()
-        assert w == genjax.normal.assess(key, choices.get_submap("y1"), (0.0, 1.0))[0]
+        assert (
+            w
+            == genjax.normal.assess(key, choices.get_submap("y1"), (0.0, 1.0)).unwrap()[
+                0
+            ]
+        )
 
     def test_inline_update(self):
         @genjax.gen
@@ -731,8 +741,10 @@ class TestStaticGenFnInline:
         choices = tr.get_choices()
         assert (
             w
-            == genjax.normal.assess(key, choices.get_submap("y1"), (0.0, 1.0))[0]
-            - genjax.normal.assess(key, old_value, (0.0, 1.0))[0]
+            == genjax.normal.assess(key, choices.get_submap("y1"), (0.0, 1.0)).unwrap()[
+                0
+            ]
+            - genjax.normal.assess(key, old_value, (0.0, 1.0)).unwrap()[0]
         )
         key, sub_key = jax.random.split(key)
         tr = jax.jit(higher_higher_model.simulate)(sub_key, ())
@@ -740,8 +752,8 @@ class TestStaticGenFnInline:
         (tr, w, _rd, _) = jax.jit(higher_higher_model.update)(key, tr, choice, ())
         choices = tr.get_choices()
         assert w == pytest.approx(
-            genjax.normal.assess(key, choices.get_submap("y1"), (0.0, 1.0))[0]
-            - genjax.normal.assess(key, old_value, (0.0, 1.0))[0],
+            genjax.normal.assess(key, choices.get_submap("y1"), (0.0, 1.0)).unwrap()[0]
+            - genjax.normal.assess(key, old_value, (0.0, 1.0)).unwrap()[0],
             0.0001,
         )
 
@@ -764,15 +776,23 @@ class TestStaticGenFnInline:
 
         _key = jax.random.PRNGKey(314159)
         choice = C["y1"].set(3.0).at["y2"].set(3.0)
-        (score, _ret) = jax.jit(higher_model.assess)(_key, choice, ())
+        (score, _ret) = jax.jit(higher_model.assess)(_key, choice, ()).unwrap()
         assert (
             score
-            == genjax.normal.assess(_key, choice.get_submap("y1"), (0.0, 1.0))[0]
-            + genjax.normal.assess(_key, choice.get_submap("y2"), (0.0, 1.0))[0]
+            == genjax.normal.assess(_key, choice.get_submap("y1"), (0.0, 1.0)).unwrap()[
+                0
+            ]
+            + genjax.normal.assess(_key, choice.get_submap("y2"), (0.0, 1.0)).unwrap()[
+                0
+            ]
         )
-        (score, _ret) = jax.jit(higher_higher_model.assess)(_key, choice, ())
+        (score, _ret) = jax.jit(higher_higher_model.assess)(_key, choice, ()).unwrap()
         assert (
             score
-            == genjax.normal.assess(_key, choice.get_submap("y1"), (0.0, 1.0))[0]
-            + genjax.normal.assess(_key, choice.get_submap("y2"), (0.0, 1.0))[0]
+            == genjax.normal.assess(_key, choice.get_submap("y1"), (0.0, 1.0)).unwrap()[
+                0
+            ]
+            + genjax.normal.assess(_key, choice.get_submap("y2"), (0.0, 1.0)).unwrap()[
+                0
+            ]
         )

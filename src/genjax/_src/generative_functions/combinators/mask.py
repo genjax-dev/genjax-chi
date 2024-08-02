@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import jax.numpy as jnp
 
 from genjax._src.core.generative import (
     Arguments,
@@ -30,7 +31,8 @@ from genjax._src.core.generative import (
     Trace,
     Weight,
 )
-from genjax._src.core.generative.core import Constraint
+from genjax._src.core.generative.core import Constraint, SampleCoercableToChoiceMap
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Bool,
@@ -54,25 +56,27 @@ U = TypeVar("U", bound=EditRequest)
 class MaskedTrace(Trace):
     mask_combinator: "MaskedCombinator"
     inner: Trace
-    check: BoolArray
+    check: Bool | BoolArray
 
     def get_args(self):
         return (self.check, *self.inner.get_args())
 
-    def get_gen_fn(self):
+    def get_gen_fn(self) -> "MaskedCombinator":
         return self.mask_combinator
 
-    def get_sample(self):
+    def get_sample(self) -> MaskedSample:
         inner_sample = self.inner.get_sample()
-        if isinstance(inner_sample, ChoiceMap):
-            return ChoiceMap.maybe(self.check, inner_sample)
-        else:
-            return MaskedSample(self.check, self.inner.get_sample())
+        return MaskedSample(self.check, self.inner.get_sample())
 
-    def get_retval(self):
+    def get_choices(self) -> ChoiceMap:
+        assert isinstance(self.inner, SampleCoercableToChoiceMap), type(self.inner)
+        inner_chm = self.inner.get_choices()
+        return ChoiceMap.maybe(self.check, inner_chm)
+
+    def get_retval(self) -> Masked:
         return Masked(self.check, self.inner.get_retval())
 
-    def get_score(self):
+    def get_score(self) -> Score:
         return self.check * self.inner.get_score()
 
 
@@ -146,16 +150,26 @@ class MaskedCombinator(
         key: PRNGKey,
         sample: S | MaskedSample[S],
         arguments: A,
-    ) -> tuple[Score | Masked[Score], Masked[R]]:
+    ) -> CouldPanic[tuple[Score, Masked[R]]]:
         (check, *inner_args) = arguments
         match sample:
             case MaskedSample(flag, inner_sample):
                 score, retval = self.gen_fn.assess(key, inner_sample, tuple(inner_args))
+                check_empty = jnp.logical_and(
+                    jnp.logical_not(flag), jnp.logical_not(check)
+                )
+                check_nonempty = jnp.logical_and(flag, check)
+                # If the argument check is False, and the sample is not empty
+                # that's an error in the semantics of assess.
                 return (
-                    Masked.maybe(check, score),
-                    Masked.maybe(check, retval),
+                    Masked.maybe(
+                        jnp.logical_or(check_empty, check_nonempty), check * score
+                    ),
+                    Masked.maybe(check_nonempty, retval),
                 )
             case _:
+                # If the argument check is False, and the sample is not empty
+                # that's an error in the semantics of assess.
                 score, retval = self.gen_fn.assess(key, sample, tuple(inner_args))
                 return (
                     Masked.maybe(check, score),
@@ -185,7 +199,36 @@ class MaskedCombinator(
         request: U | MaskedEditRequest[U],
         arguments: A,
     ) -> tuple[MaskedTrace, Weight, Retdiff, U | MaskedEditRequest[U]]:
-        raise NotImplementedError
+        (flag_argument, *rest_args) = arguments
+        match request:
+            case _:
+                # Assume trace was valid before, and is valid now -- so just compute the update.
+                # We have a weight for valid -> valid, let's correct it after.
+                new_inner_tr, weight, retdiff, bwd = request.edit(
+                    key, trace.inner, tuple(rest_args)
+                )
+
+                # If the trace was invalid before, and is now valid -- then this is
+                # equivalent from a move from the empty target, to the final target
+                # defined by subrequest.
+                weight_correction = (
+                    weight
+                    + jnp.logical_and(flag_argument, jnp.logical_not(trace.check))
+                    * new_inner_tr.get_score()
+                )
+
+                # If the trace was valid before, and is now invalid -- then this is
+                # equivalent to a move to the empty target.
+                weight_correction = (
+                    -1.0 * jnp.logical_not(flag_argument)
+                ) * weight_correction
+
+                return (
+                    MaskedTrace(self, new_inner_tr, flag_argument),
+                    weight_correction,
+                    Masked(Diff.unknown_change(flag_argument), retdiff),
+                    MaskedEditRequest(flag_argument, bwd),
+                )
 
 
 #############

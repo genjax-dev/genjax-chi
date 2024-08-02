@@ -54,7 +54,7 @@ class TestIterateSimpleNormal:
             assert tr.get_choices()[i, "z"] == 0.5
             value = tr.get_choices()[i, "z"]
             prev = tr.get_choices()[i - 1, "z"]
-            assert w == genjax.normal.assess(key, C.v(value), (prev, 1.0))[0]
+            assert w == genjax.normal.assess(key, C.v(value), (prev, 1.0)).unwrap()[0]
 
     def test_iterate_simple_normal_update(self):
         @genjax.iterate(n=10)

@@ -28,9 +28,9 @@ from genjax._src.core.generative import (
     ChoiceMapProjection,
     ChoiceMapSample,
     Constraint,
+    CouldPanic,
     EditRequest,
     GenerativeFunction,
-    Masked,
     Projection,
     Retdiff,
     Retval,
@@ -224,7 +224,7 @@ class VmapCombinator(
         key: PRNGKey,
         sample: ChoiceMapSample,
         arguments: A,
-    ) -> tuple[Score | Masked[Score], R | Masked[R]]:
+    ) -> CouldPanic[tuple[Score, R]]:
         self._static_check_broadcastable(arguments)
         broadcast_dim_length = self._static_broadcast_dim_length(arguments)
         idx_array = jnp.arange(0, broadcast_dim_length)
@@ -234,15 +234,13 @@ class VmapCombinator(
             return self.gen_fn.assess(key, submap, arguments)
 
         sub_keys = jax.random.split(key, broadcast_dim_length)
-        scores, retvals = jax.vmap(_assess, in_axes=(0, 0, self.in_axes))(
+        maybe_err: CouldPanic = jax.vmap(_assess, in_axes=(0, 0, self.in_axes))(
             sub_keys, idx_array, arguments
         )
-        if isinstance(scores, Masked):
-            acc_flag = jnp.all(scores.flag)
-            score = jnp.sum(scores.value)
-            return Masked(acc_flag, score), retvals
-        else:
-            return jnp.sum(scores), retvals
+        return CouldPanic.bind(
+            maybe_err.collapse(),
+            lambda v: CouldPanic.pure((jnp.sum(v[0]), v[1])),
+        )
 
     def importance_edit(
         self,
