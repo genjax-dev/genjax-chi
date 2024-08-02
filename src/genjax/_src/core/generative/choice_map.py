@@ -21,7 +21,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.generative.functional_types import Mask, Sum
+from genjax._src.core.generative.functional_types import Masked, Sum
 from genjax._src.core.interpreters.staging import (
     staged_and,
     staged_err,
@@ -450,7 +450,7 @@ ChoiceMapBuilder = _ChoiceMapBuilder(None)
 def check_none(v):
     if v is None:
         return False
-    elif isinstance(v, Mask):
+    elif isinstance(v, Masked):
         return v.flag
     else:
         return True
@@ -872,7 +872,7 @@ class MaskChm(ChoiceMap):
 
     def get_value(self) -> Optional[Any]:
         v = self.c.get_value()
-        return Mask.maybe_none(self.flag, v)
+        return Masked.maybe_none(self.flag, v)
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap = self.c.get_submap(addr)
@@ -895,14 +895,14 @@ def choice_map_masked(
 
 
 @Pytree.dataclass
-class FilteredChm(ChoiceMap[V | Mask[V]]):
+class FilteredChm(ChoiceMap[V | Masked[V]]):
     selection: Selection
     c: ChoiceMap[V]
 
-    def get_value(self) -> V | Mask[V]:
+    def get_value(self) -> V | Masked[V]:
         v = self.c.get_value()
         sel_check = self.selection[()]
-        return Mask.maybe_none(sel_check, v)
+        return Masked.maybe_none(sel_check, v)
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap[V]:
         submap = self.c.get_submap(addr)

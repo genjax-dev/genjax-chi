@@ -13,36 +13,46 @@
 # limitations under the License.
 
 
-import jax
-
 from genjax._src.core.generative import (
-    Argdiffs,
+    Arguments,
     ChoiceMap,
-    ChoiceMapImportanceRequest,
     EditRequest,
-    EmptyTrace,
     GenerativeFunction,
-    Mask,
+    Masked,
+    MaskedConstraint,
     MaskedEditRequest,
     MaskedSample,
+    Projection,
     Retdiff,
+    Retval,
     Sample,
     Score,
     Trace,
     Weight,
 )
 from genjax._src.core.generative.core import Constraint
-from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Bool,
     BoolArray,
+    Generic,
     PRNGKey,
+    TypeVar,
 )
+
+G = TypeVar("G", bound=GenerativeFunction)
+A = TypeVar("A", bound=Arguments)
+R = TypeVar("R", bound=Retval)
+C = TypeVar("C", bound=Constraint)
+S = TypeVar("S", bound=Sample)
+P = TypeVar("P", bound=Projection)
+Tr = TypeVar("Tr", bound=Trace)
+U = TypeVar("U", bound=EditRequest)
 
 
 @Pytree.dataclass
-class MaskTrace(Trace):
-    mask_combinator: "MaskCombinator"
+class MaskedTrace(Trace):
+    mask_combinator: "MaskedCombinator"
     inner: Trace
     check: BoolArray
 
@@ -60,22 +70,34 @@ class MaskTrace(Trace):
             return MaskedSample(self.check, self.inner.get_sample())
 
     def get_retval(self):
-        return Mask(self.check, self.inner.get_retval())
+        return Masked(self.check, self.inner.get_retval())
 
     def get_score(self):
         return self.check * self.inner.get_score()
 
 
 @Pytree.dataclass
-class MaskCombinator(GenerativeFunction):
+class MaskedCombinator(
+    Generic[Tr, A, S, R, C, P, U],
+    GenerativeFunction[
+        MaskedTrace,
+        tuple[Bool | BoolArray, A],
+        S | MaskedSample[S],
+        Masked[R],
+        C | MaskedConstraint[C, S],
+        P,
+        U | MaskedEditRequest[U],
+    ],
+):
     """Combinator which enables dynamic masking of generative functions. Takes
     a [`genjax.GenerativeFunction`][] and returns a new
     [`genjax.GenerativeFunction`][] which accepts an additional boolean first
-    argument.
+    argument to indicate whether an invocation of the provided generative
+    function should be masked (turning off the generative effects) or not.
 
-    If `True`, the invocation of the generative function is masked, and its contribution to the score is ignored. If `False`, it has the same semantics as if one was invoking the generative function without masking.
+    If `True`, the invocation of the generative function is masked, and its contribution to generative computations is ignored. If `False`, it has the same semantics as if one was invoking the generative function without masking.
 
-    The return value type is a `Mask`, with a flag value equal to the supplied boolean.
+    The return value type is a `Masked`, with a flag value equal to the supplied boolean.
 
     Parameters:
         gen_fn: The generative function to be masked.
@@ -108,139 +130,62 @@ class MaskCombinator(GenerativeFunction):
 
     """
 
-    gen_fn: GenerativeFunction
+    gen_fn: GenerativeFunction[Tr, A, S, R, C, P, U]
 
     def simulate(
         self,
         key: PRNGKey,
-        arguments: tuple,
-    ) -> MaskTrace:
+        arguments: A,
+    ) -> MaskedTrace:
         check, *inner_args = arguments
         tr = self.gen_fn.simulate(key, tuple(inner_args))
-        return MaskTrace(self, tr, check)
-
-    def update_change_target(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        update_request: EditRequest,
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, EditRequest]:
-        (check, *_) = Diff.tree_primal(argdiffs)
-        (check_diff, *inner_argdiffs) = argdiffs
-        match trace:
-            case MaskTrace():
-                inner_trace = trace.inner
-            case EmptyTrace():
-                inner_trace = EmptyTrace(self.gen_fn)
-            case _:
-                raise NotImplementedError(f"Unexpected trace type: {trace}")
-
-        premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
-            key,
-            inner_trace,
-            IncrementalEditRequest(tuple(inner_argdiffs), update_request),
-        )
-
-        w = jax.lax.select(
-            check,
-            w,
-            -trace.get_score(),
-        )
-
-        return (
-            MaskTrace(self, premasked_trace, check),
-            w,
-            Mask.maybe(check_diff, retdiff),
-            MaskedEditRequest(check, bwd_problem),
-        )
-
-    def update_change_target_from_false(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        update_request: EditRequest,
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, EditRequest]:
-        check = Diff.tree_primal(argdiffs)[0]
-        check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
-
-        inner_trace = EmptyTrace(self.gen_fn)
-
-        assert isinstance(update_request, Constraint)
-        imp_update_request = ChoiceMapImportanceRequest(update_request)
-
-        premasked_trace, w, _, _ = self.gen_fn.update(
-            key,
-            inner_trace,
-            IncrementalEditRequest(tuple(inner_argdiffs), imp_update_request),
-        )
-
-        _, _, retdiff, bwd_problem = self.gen_fn.update(
-            key,
-            premasked_trace,
-            IncrementalEditRequest(tuple(inner_argdiffs), update_request),
-        )
-
-        w = jax.lax.select(
-            check,
-            premasked_trace.get_score(),
-            0.0,
-        )
-
-        return (
-            MaskTrace(self, premasked_trace, check),
-            w,
-            Mask.maybe(check_diff, retdiff),
-            MaskedEditRequest(check, bwd_problem),
-        )
-
-    def update(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        update_request: EditRequest,
-    ) -> tuple[Trace, Weight, Retdiff, EditRequest]:
-        assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
-
-        match update_request:
-            case IncrementalEditRequest(argdiffs, subrequest) if isinstance(
-                subrequest, ChoiceMapImportanceRequest
-            ):
-                return self.update_change_target(key, trace, subrequest, argdiffs)
-            case IncrementalEditRequest(argdiffs, subrequest):
-                assert isinstance(trace, MaskTrace)
-
-                if not trace.check:
-                    raise Exception(
-                        "This move is not currently supported! See https://github.com/probcomp/genjax/issues/1230 for notes."
-                    )
-
-                return jax.lax.cond(
-                    trace.check,
-                    self.update_change_target,
-                    self.update_change_target_from_false,
-                    key,
-                    trace,
-                    subrequest,
-                    argdiffs,
-                )
-            case _:
-                return self.update_change_target(
-                    key, trace, update_request, Diff.no_change(trace.get_args())
-                )
+        return MaskedTrace(self, tr, check)
 
     def assess(
         self,
-        sample: Sample,
-        arguments: tuple,
-    ) -> tuple[Score, Mask]:
+        key: PRNGKey,
+        sample: S | MaskedSample[S],
+        arguments: A,
+    ) -> tuple[Score | Masked[Score], Masked[R]]:
         (check, *inner_args) = arguments
-        score, retval = self.gen_fn.assess(sample, tuple(inner_args))
-        return (
-            check * score,
-            Mask(check, retval),
-        )
+        match sample:
+            case MaskedSample(flag, inner_sample):
+                score, retval = self.gen_fn.assess(key, inner_sample, tuple(inner_args))
+                return (
+                    Masked.maybe(check, score),
+                    Masked.maybe(check, retval),
+                )
+            case _:
+                score, retval = self.gen_fn.assess(key, sample, tuple(inner_args))
+                return (
+                    Masked.maybe(check, score),
+                    Masked.maybe(check, retval),
+                )
+
+    def importance_edit(
+        self,
+        key: PRNGKey,
+        constraint: C,
+        arguments: A,
+    ) -> tuple[MaskedTrace, Weight, P]:
+        raise NotImplementedError
+
+    def project_edit(
+        self,
+        key: PRNGKey,
+        trace: MaskedTrace,
+        projection: P,
+    ) -> tuple[Weight, C]:
+        raise NotImplementedError
+
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: MaskedTrace,
+        request: U | MaskedEditRequest[U],
+        arguments: A,
+    ) -> tuple[MaskedTrace, Weight, Retdiff, U | MaskedEditRequest[U]]:
+        raise NotImplementedError
 
 
 #############
@@ -256,7 +201,7 @@ def mask(f: GenerativeFunction) -> GenerativeFunction:
 
     If `True`, the invocation of the generative function is masked, and its contribution to the score is ignored. If `False`, it has the same semantics as if one was invoking the generative function without masking.
 
-    The return value type is a `Mask`, with a flag value equal to the supplied boolean.
+    The return value type is a `Masked`, with a flag value equal to the supplied boolean.
 
     Args:
         f: The generative function to be masked.
@@ -288,4 +233,4 @@ def mask(f: GenerativeFunction) -> GenerativeFunction:
         ```
 
     """
-    return MaskCombinator(f)
+    return MaskedCombinator(f)

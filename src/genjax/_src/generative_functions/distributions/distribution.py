@@ -30,7 +30,7 @@ from genjax._src.core.generative import (
     EqualityConstraint,
     GenerativeFunction,
     IdentityProjection,
-    Mask,
+    Masked,
     MaskedConstraint,
     MaskedSample,
     Retdiff,
@@ -111,7 +111,7 @@ class Distribution(
         A,
         ValueSample[R],
         R,
-        ChoiceMapConstraint[EmptyConstraint | EqualityConstraint[R | Mask[R]]],
+        ChoiceMapConstraint[EmptyConstraint | EqualityConstraint[R | Masked[R]]],
         SelectionProjection | ChoiceMapProjection,
         ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
     ],
@@ -148,7 +148,7 @@ class Distribution(
         # TODO: the ValChm here is a type of paving over, to allow people to continue to use what they are used to.
         sample: ValChm | ChoiceMapSample[ValueSample | MaskedSample] | ValueSample,
         arguments: A,
-    ) -> tuple[Score | Mask[Score], R | Mask[R]]:
+    ) -> tuple[Score | Masked[Score], R | Masked[R]]:
         match sample:
             case ValChm(v):
                 return self.assess(key, ValueSample(v), arguments)
@@ -158,16 +158,18 @@ class Distribution(
                 match v:
                     case MaskedSample(flag, sample_value):
                         score, return_value = self.assess(key, sample_value, arguments)
-                        return Mask.maybe(flag, score), Mask.maybe(flag, return_value)
+                        return Masked.maybe(flag, score), Masked.maybe(
+                            flag, return_value
+                        )
                     case ValueSample():
                         return self.assess(key, v, arguments)
 
             case ValueSample():
                 v = sample.get_value()
                 match v:
-                    case Mask(flag, value):
+                    case Masked(flag, value):
                         w = self.estimate_logpdf(key, value, *arguments)
-                        return Mask(flag, w), Mask(flag, value)
+                        return Masked.maybe(flag, w), Masked.maybe(flag, value)
                     case _:
                         w = self.estimate_logpdf(key, v, *arguments)
                         return w, v
@@ -176,7 +178,7 @@ class Distribution(
         self,
         key: PRNGKey,
         constraint: ChoiceMapConstraint[
-            EmptyConstraint | EqualityConstraint[R | Mask[R]]
+            EmptyConstraint | EqualityConstraint[R | Masked[R]]
         ],
         arguments: A,
     ) -> tuple[DistributionTrace[A, R], Weight, ChoiceMapProjection]:
@@ -192,7 +194,7 @@ class Distribution(
                 )
 
             case EqualityConstraint(v):
-                if isinstance(v, Mask):
+                if isinstance(v, Masked):
 
                     def true_branch(key, value, args):
                         w = self.estimate_logpdf(key, value, *args)
@@ -266,7 +268,7 @@ class Distribution(
                 return new_tr, inc_w, ChoiceMapConstraint(ChoiceMap.empty())
 
             case EqualityConstraint(v):
-                if isinstance(v, Mask):
+                if isinstance(v, Masked):
                     flag, value = v.flag, v.value
 
                     def true_branch(key, tr, args):

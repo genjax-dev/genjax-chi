@@ -26,7 +26,7 @@ from genjax._src.core.generative.choice_map import (
     ExtendedAddressComponent,
     Selection,
 )
-from genjax._src.core.generative.functional_types import Mask
+from genjax._src.core.generative.functional_types import Masked
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import (
     get_trace_shape,
@@ -674,7 +674,7 @@ class GenerativeFunction(
         key: PRNGKey,
         sample: S,
         arguments: A,
-    ) -> tuple[Score | Mask[Score], R | Mask[R]]:
+    ) -> tuple[Score | Masked[Score], R | Masked[R]]:
         """Return [the score][genjax.core.Trace.get_score] and [the return
         value][genjax.core.Trace.get_retval] when the generative function is
         invoked with the provided arguments, and constrained to take the
@@ -1250,7 +1250,7 @@ class GenerativeFunction(
 
         If `True`, the invocation of `self` is masked, and its contribution to the score is ignored. If `False`, it has the same semantics as if one was invoking `self` without masking.
 
-        The return value type is a `Mask`, with a flag value equal to the supplied boolean.
+        The return value type is a `Masked`, with a flag value equal to the supplied boolean.
 
         Returns:
             The masked version of the original [`genjax.GenerativeFunction`][].
@@ -1652,7 +1652,7 @@ class ChoiceMapSample(Generic[S], Sample, ChoiceMap[Sample]):
             case _:
                 return (
                     MaskedSample(v.flag, v.value)
-                    if isinstance(v, Mask)
+                    if isinstance(v, Masked)
                     else EmptySample()
                     if v is None
                     else ValueSample(v)
@@ -1676,7 +1676,7 @@ class ChoiceMapConstraint(Generic[C], Constraint, ChoiceMap[Constraint]):
             case Constraint():
                 return (
                     MaskedConstraint(v.flag, v.value)
-                    if isinstance(v, Mask)
+                    if isinstance(v, Masked)
                     else EmptyConstraint()
                     if v is None
                     else v
@@ -2072,16 +2072,16 @@ class SumEditRequest(EditRequest):
 
 
 @Pytree.dataclass
-class MaskedEditRequest(EditRequest):
+class MaskedEditRequest(Generic[U], EditRequest):
     flag: Bool | BoolArray
-    request: EditRequest
+    request: U
 
     def edit(
         self,
         key: PRNGKey,
         trace: Trace,
         arguments: Arguments,
-    ) -> tuple[Trace, Weight, Retdiff, "MaskedEditRequest"]:
+    ) -> tuple[Trace, Weight, Retdiff, "MaskedEditRequest[U]"]:
         new_trace, w, retdiff, bwd_request = self.request.edit(key, trace, arguments)
         new_trace = jtu.tree_map(
             lambda v1, v2: jnp.where(self.flag, v1, v2), new_trace, trace

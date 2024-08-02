@@ -65,7 +65,7 @@ from .core import (
     ValueSample,
     Weight,
 )
-from .functional_types import Mask, Sum
+from .functional_types import Masked, Sum
 
 __all__ = [
     "Address",
@@ -96,7 +96,7 @@ __all__ = [
     "IdentityProjection",
     "IgnoreKwargsCombinator",
     "IncrementalChoiceMapEditRequest",
-    "Mask",
+    "Masked",
     "MaskedConstraint",
     "MaskedConstraint",
     "MaskedEditRequest",

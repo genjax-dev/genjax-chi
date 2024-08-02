@@ -30,7 +30,7 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    Mask,
+    Masked,
     Projection,
     Retdiff,
     Retval,
@@ -224,7 +224,7 @@ class VmapCombinator(
         key: PRNGKey,
         sample: ChoiceMapSample,
         arguments: A,
-    ) -> tuple[Score | Mask[Score], R | Mask[R]]:
+    ) -> tuple[Score | Masked[Score], R | Masked[R]]:
         self._static_check_broadcastable(arguments)
         broadcast_dim_length = self._static_broadcast_dim_length(arguments)
         idx_array = jnp.arange(0, broadcast_dim_length)
@@ -237,10 +237,10 @@ class VmapCombinator(
         scores, retvals = jax.vmap(_assess, in_axes=(0, 0, self.in_axes))(
             sub_keys, idx_array, arguments
         )
-        if isinstance(scores, Mask):
+        if isinstance(scores, Masked):
             acc_flag = jnp.all(scores.flag)
             score = jnp.sum(scores.value)
-            return Mask(acc_flag, score), retvals
+            return Masked(acc_flag, score), retvals
         else:
             return jnp.sum(scores), retvals
 

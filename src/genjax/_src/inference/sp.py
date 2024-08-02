@@ -20,7 +20,10 @@ from genjax._src.core.generative import (
     Arguments,
     ChoiceMap,
     ChoiceMapSample,
+    Constraint,
+    EditRequest,
     GenerativeFunction,
+    Projection,
     Retval,
     Sample,
     Score,
@@ -44,6 +47,9 @@ Tr = TypeVar("Tr", bound=Trace)
 A = TypeVar("A", bound=Arguments)
 R = TypeVar("R", bound=Retval)
 S = TypeVar("S", bound=Sample)
+C = TypeVar("C", bound=Constraint)
+P = TypeVar("P", bound=Projection)
+U = TypeVar("U", bound=EditRequest)
 
 
 ####################
@@ -241,36 +247,66 @@ class Algorithm(SampleDistribution):
 
 
 @Pytree.dataclass
+class MarginalTrace(Trace):
+    gen_fn: "Marginal"
+    inner: Trace
+    score: Score
+
+    def get_gen_fn(self) -> "Marginal":
+        return self.gen_fn
+
+    def get_args(self):
+        return self.inner.get_args()
+
+    def get_retval(self):
+        return self.inner.get_retval()
+
+    def get_score(self):
+        return self.score
+
+    def get_sample(self):
+        return self.inner.get_sample()
+
+
+@Pytree.dataclass
 class Marginal(
-    Generic[Tr, A, R],
-    GenerativeFunction[Tr, A, ChoiceMapSample, R],
+    Generic[Tr, A, R, C, P, U],
+    GenerativeFunction[Tr, A, ChoiceMapSample, R, C, P, U],
 ):
-    gen_fn: GenerativeFunction[Tr, A, ChoiceMapSample, R]
+    gen_fn: GenerativeFunction[Tr, A, ChoiceMapSample, R, C, P, U]
     selection: Selection = Pytree.field(default=Selection.all())
     algorithm: Optional[Algorithm] = Pytree.field(default=None)
 
     def simulate(
         self,
         key: PRNGKey,
-        arguments: Arguments,
+        arguments: A,
     ) -> Trace:
         key, sub_key = jax.random.split(key)
         tr = self.gen_fn.simulate(sub_key, arguments)
-        choices: ChoiceMap = tr.get_choices()
+        choices: ChoiceMapSample = tr.get_sample()
         latent_choices = choices.filter(self.selection)
         key, sub_key = jax.random.split(key)
         bwd_problem = ~self.selection
-        weight = tr.project(sub_key, bwd_problem)
         if self.algorithm is None:
-            return weight, latent_choices
+            weight = tr.project(sub_key, bwd_problem)
+            return MarginalTrace(
+                self,
+                tr,
+                tr.get_score() - weight,
+            )
         else:
             target = Target(self.gen_fn, arguments, latent_choices)
+            weight = tr.project(sub_key, bwd_problem)
             other_choices = choices.filter(~self.selection)
             Z = self.algorithm.estimate_reciprocal_normalizing_constant(
                 key, target, other_choices, weight
             )
-
-            return (Z, latent_choices)
+            return MarginalTrace(
+                self,
+                tr,
+                Z,
+            )
 
     def estimate_logpdf(
         self,

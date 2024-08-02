@@ -20,6 +20,7 @@ from genjax._src.checkify import optional_check
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import (
     staged_and,
+    staged_check,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -45,25 +46,25 @@ R = TypeVar("R")
 
 
 @Pytree.dataclass(match_args=True)
-class Mask(Generic[V], Pytree):
-    """The `Mask` datatype wraps a value in a Boolean flag which denotes
+class Masked(Generic[V], Pytree):
+    """The `Masked` datatype wraps a value in a Boolean flag which denotes
     whether the data is valid or invalid to use in inference computations.
 
     Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as `Sample` instances, and participate in generative and inference computations (like scores, and importance weights or density ratios). Invalid data **should** be considered unusable, and should be handled with care.
 
     Masks are also used internally by generative function combinators which include uncertainty over structure.
 
-    ## Encountering `Mask` in your computation
+    ## Encountering `Masked` in your computation
 
-    When users see `Mask` in their computations, they are expected to interact with them by either:
+    When users see `Masked` in their computations, they are expected to interact with them by either:
 
-    * Unmasking them using the `Mask.unmask` interface, a potentially unsafe operation.
+    * Unmasking them using the `Masked.unmask` interface, a potentially unsafe operation.
 
     * Destructuring them manually, and handling the cases.
 
     ## Usage of invalid data
 
-    If you use invalid `Mask(False, data)` data in inference computations, you may encounter silently incorrect results.
+    If you use invalid `Masked(False, data)` data in inference computations, you may encounter silently incorrect results.
 
     """
 
@@ -71,12 +72,15 @@ class Mask(Generic[V], Pytree):
     value: V
 
     @classmethod
-    def maybe(cls, f: Bool | BoolArray, v: V) -> V | None | "Mask[V]":
+    def maybe(cls, f: Bool | BoolArray, v: V) -> V | "Masked[V]":
         match v:
-            case Mask(flag, value):
-                return Mask.maybe_none(staged_and(f, flag), value)
+            case Masked(flag, value):
+                return Masked(staged_and(f, flag), value)
             case _:
-                return Mask(f, v)
+                if staged_check(f):
+                    return v
+                else:
+                    return Masked(f, v)
 
     @classmethod
     def maybe_none(cls, f: BoolArray, v: Any):
@@ -87,18 +91,18 @@ class Mask(Generic[V], Pytree):
             if static_check_bool(f) and f
             else None
             if static_check_bool(f)
-            else Mask.maybe(f, v)
+            else Masked.maybe(f, v)
         )
 
     @classmethod
     def lift(
         cls,
         f: Callable[[V], R],
-    ) -> Callable[[V | "Mask[V]"], R | "Mask[R]"]:
-        def wrapped(v: V | "Mask[V]") -> R | "Mask[R]":
+    ) -> Callable[[V | "Masked[V]"], R | "Masked[R]"]:
+        def wrapped(v: V | "Masked[V]") -> R | "Masked[R]":
             match v:
-                case Mask(flag, value):
-                    return Mask(flag, f(value))
+                case Masked(flag, value):
+                    return Masked(flag, f(value))
                 case _:
                     return f(v)
 
@@ -108,20 +112,20 @@ class Mask(Generic[V], Pytree):
     def lift2(
         cls,
         f: Callable[[V, V], R],
-    ) -> Callable[[V | "Mask[V]", V | "Mask[V]"], R | "Mask[R]"]:
-        def wrapped(v1: V | "Mask[V]", v2: V | "Mask[V]") -> R | "Mask[R]":
+    ) -> Callable[[V | "Masked[V]", V | "Masked[V]"], R | "Masked[R]"]:
+        def wrapped(v1: V | "Masked[V]", v2: V | "Masked[V]") -> R | "Masked[R]":
             match v1:
-                case Mask(flag1, value1):
+                case Masked(flag1, value1):
                     match v2:
-                        case Mask(flag2, value2):
-                            return Mask(staged_and(flag1, flag2), f(value1, value2))
+                        case Masked(flag2, value2):
+                            return Masked(staged_and(flag1, flag2), f(value1, value2))
                         case _:
-                            return Mask(flag1, f(value1, v2))
+                            return Masked(flag1, f(value1, v2))
 
                 case _:
                     match v2:
-                        case Mask(flag2, value2):
-                            return Mask(flag2, f(v1, value2))
+                        case Masked(flag2, value2):
+                            return Masked(flag2, f(v1, value2))
                         case _:
                             return f(v1, v2)
 
@@ -132,9 +136,9 @@ class Mask(Generic[V], Pytree):
     ######################
 
     def unmask(self) -> V:
-        """Unmask the `Mask`, returning the value within.
+        """Unmask the `Masked`, returning the value within.
 
-        This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` wraps valid data at runtime.
+        This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Masked` wraps valid data at runtime.
 
         """
 
@@ -206,7 +210,7 @@ class Sum(Pytree):
         print(x)
         ```
 
-        Users can index into the `Sum` type using a **static** integer index, creating a `Mask` type:
+        Users can index into the `Sum` type using a **static** integer index, creating a `Masked` type:
         ```python exec="yes" html="true" source="material-block" session="core"
         from genjax import Sum
 
@@ -247,7 +251,7 @@ class Sum(Pytree):
         possibles = []
         for _idx, v in enumerate(vs):
             if v is not None:
-                possibles.append(Mask.maybe_none(idx == _idx, v))
+                possibles.append(Masked.maybe_none(idx == _idx, v))
         if not possibles:
             return None
         if len(possibles) == 1:
@@ -263,4 +267,4 @@ class Sum(Pytree):
             return self
 
     def __getitem__(self, idx: Int):
-        return Mask.maybe_none(idx == self.idx, self.values[idx])
+        return Masked.maybe_none(idx == self.idx, self.values[idx])

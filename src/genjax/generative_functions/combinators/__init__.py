@@ -19,7 +19,7 @@ from genjax._src.generative_functions.combinators.dimap import (
     map,
 )
 from genjax._src.generative_functions.combinators.mask import (
-    MaskCombinator,
+    MaskedCombinator,
     mask,
 )
 from genjax._src.generative_functions.combinators.mixture import (
@@ -53,7 +53,7 @@ from genjax._src.generative_functions.combinators.vmap import (
 __all__ = [
     "DimapCombinator",
     "IndexEditRequest",
-    "MaskCombinator",
+    "MaskedCombinator",
     "RepeatCombinator",
     "ScanCombinator",
     "SwitchCombinator",

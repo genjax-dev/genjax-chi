@@ -33,7 +33,7 @@ from genjax._src.core.generative import (
     EditRequest,
     GenerativeFunction,
     IncrementalChoiceMapEditRequest,
-    Mask,
+    Masked,
     Projection,
     Retdiff,
     Retval,
@@ -447,7 +447,7 @@ class AssessHandler(StaticHandler):
         submap = self.get_subsample(addr)
         self.key, sub_key = jax.random.split(self.key)
         (score, v) = gen_fn.assess(sub_key, submap, arguments)
-        if isinstance(score, Mask) and isinstance(v, Mask):
+        if isinstance(score, Masked) and isinstance(v, Masked):
             self.valid = staged_and(self.valid, staged_and(score.flag, v.flag))
             self.score += score.value
             return v.value
@@ -1101,7 +1101,7 @@ class StaticGenerativeFunction(
         key: PRNGKey,
         sample: ChoiceMap | ChoiceMapSample,
         arguments: A,
-    ) -> tuple[Score | Mask[Score], R | Mask[R]]:
+    ) -> tuple[Score | Masked[Score], R | Masked[R]]:
         sample = (
             sample if isinstance(sample, ChoiceMapSample) else ChoiceMapSample(sample)
         )
@@ -1111,7 +1111,7 @@ class StaticGenerativeFunction(
         (retval, score), valid = assess_transform(syntax_sugar_handled)(
             key, sample, arguments
         )
-        return (Mask.maybe(valid, score), Mask.maybe(valid, retval))
+        return (Masked.maybe(valid, score), Masked.maybe(valid, retval))
 
     def importance_edit(
         self,

@@ -33,7 +33,7 @@ __all__ = [
     "GenerativeFunctionClosure",
     "IdentityProjection",
     "IncrementalChoiceMapEditRequest",
-    "Mask",
+    "Masked",
     "MaskedConstraint",
     "MaskedEditRequest",
     "MaskedSample",
