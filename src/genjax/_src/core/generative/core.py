@@ -674,7 +674,7 @@ class GenerativeFunction(
         key: PRNGKey,
         sample: S,
         arguments: A,
-    ) -> tuple[Score | Masked[Score], R | Masked[R]]:
+    ) -> tuple[Score, R]:
         """Return [the score][genjax.core.Trace.get_score] and [the return
         value][genjax.core.Trace.get_retval] when the generative function is
         invoked with the provided arguments, and constrained to take the
@@ -2081,7 +2081,7 @@ class MaskedEditRequest(Generic[U], EditRequest):
         key: PRNGKey,
         trace: Trace,
         arguments: Arguments,
-    ) -> tuple[Trace, Weight, Retdiff, "MaskedEditRequest[U]"]:
+    ) -> tuple[Trace, Weight, Retdiff, "MaskedEditRequest"]:
         new_trace, w, retdiff, bwd_request = self.request.edit(key, trace, arguments)
         new_trace = jtu.tree_map(
             lambda v1, v2: jnp.where(self.flag, v1, v2), new_trace, trace

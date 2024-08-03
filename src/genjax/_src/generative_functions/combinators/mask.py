@@ -16,10 +16,12 @@
 from genjax._src.core.generative import (
     Arguments,
     ChoiceMap,
+    ChoiceMapConstraint,
+    ChoiceMapProjection,
+    ChoiceMapSample,
     EditRequest,
     GenerativeFunction,
     Masked,
-    MaskedConstraint,
     MaskedEditRequest,
     MaskedSample,
     Projection,
@@ -27,6 +29,7 @@ from genjax._src.core.generative import (
     Retval,
     Sample,
     Score,
+    SelectionProjection,
     Trace,
     Weight,
 )
@@ -78,15 +81,15 @@ class MaskedTrace(Trace):
 
 @Pytree.dataclass
 class MaskedCombinator(
-    Generic[Tr, A, S, R, C, P, U],
+    Generic[Tr, A, R, U],
     GenerativeFunction[
         MaskedTrace,
         tuple[Bool | BoolArray, A],
-        S | MaskedSample[S],
+        ChoiceMapSample,
         Masked[R],
-        C | MaskedConstraint[C, S],
-        P,
-        U | MaskedEditRequest[U],
+        ChoiceMapConstraint,
+        SelectionProjection | ChoiceMapProjection,
+        U,
     ],
 ):
     """Combinator which enables dynamic masking of generative functions. Takes
@@ -130,7 +133,15 @@ class MaskedCombinator(
 
     """
 
-    gen_fn: GenerativeFunction[Tr, A, S, R, C, P, U]
+    gen_fn: GenerativeFunction[
+        Tr,
+        A,
+        ChoiceMapSample,
+        R,
+        ChoiceMapConstraint,
+        SelectionProjection | ChoiceMapProjection,
+        U,
+    ]
 
     def simulate(
         self,
@@ -144,23 +155,15 @@ class MaskedCombinator(
     def assess(
         self,
         key: PRNGKey,
-        sample: S | MaskedSample[S],
+        sample: ChoiceMapSample,
         arguments: A,
-    ) -> tuple[Score | Masked[Score], Masked[R]]:
+    ) -> tuple[Score, Masked[R]]:
         (check, *inner_args) = arguments
-        match sample:
-            case MaskedSample(flag, inner_sample):
-                score, retval = self.gen_fn.assess(key, inner_sample, tuple(inner_args))
-                return (
-                    Masked.maybe(check, score),
-                    Masked.maybe(check, retval),
-                )
-            case _:
-                score, retval = self.gen_fn.assess(key, sample, tuple(inner_args))
-                return (
-                    Masked.maybe(check, score),
-                    Masked.maybe(check, retval),
-                )
+        score, retval = self.gen_fn.assess(key, sample, tuple(inner_args))
+        return (
+            score * check,
+            Masked.maybe(check, retval),
+        )
 
     def importance_edit(
         self,

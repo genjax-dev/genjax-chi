@@ -148,7 +148,7 @@ class Distribution(
         # TODO: the ValChm here is a type of paving over, to allow people to continue to use what they are used to.
         sample: ValChm | ChoiceMapSample[ValueSample | MaskedSample] | ValueSample,
         arguments: A,
-    ) -> tuple[Score | Masked[Score], R | Masked[R]]:
+    ) -> tuple[Score, R]:
         match sample:
             case ValChm(v):
                 return self.assess(key, ValueSample(v), arguments)
@@ -158,9 +158,7 @@ class Distribution(
                 match v:
                     case MaskedSample(flag, sample_value):
                         score, return_value = self.assess(key, sample_value, arguments)
-                        return Masked.maybe(flag, score), Masked.maybe(
-                            flag, return_value
-                        )
+                        return jnp.where(flag, score, -jnp.inf), return_value
                     case ValueSample():
                         return self.assess(key, v, arguments)
 
@@ -169,7 +167,7 @@ class Distribution(
                 match v:
                     case Masked(flag, value):
                         w = self.estimate_logpdf(key, value, *arguments)
-                        return Masked.maybe(flag, w), Masked.maybe(flag, value)
+                        return jnp.where(flag, w, -jnp.inf), value
                     case _:
                         w = self.estimate_logpdf(key, v, *arguments)
                         return w, v

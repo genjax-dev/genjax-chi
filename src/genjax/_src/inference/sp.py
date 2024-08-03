@@ -19,7 +19,6 @@ import jax
 from genjax._src.core.generative import (
     Arguments,
     ChoiceMap,
-    ChoiceMapSample,
     Constraint,
     EditRequest,
     GenerativeFunction,
@@ -269,58 +268,59 @@ class MarginalTrace(Trace):
 
 
 @Pytree.dataclass
-class Marginal(
-    Generic[Tr, A, R, C, P, U],
-    GenerativeFunction[Tr, A, ChoiceMapSample, R, C, P, U],
-):
-    gen_fn: GenerativeFunction[Tr, A, ChoiceMapSample, R, C, P, U]
+class Marginal(SampleDistribution):
+    """The `Marginal` class represents the marginal distribution of a
+    generative function over a selection of addresses.
+
+    The return value type is a subtype of `Sample`.
+
+    """
+
+    gen_fn: GenerativeFunction
     selection: Selection = Pytree.field(default=Selection.all())
     algorithm: Optional[Algorithm] = Pytree.field(default=None)
 
-    def simulate(
+    def random_weighted(
         self,
         key: PRNGKey,
-        arguments: A,
-    ) -> Trace:
+        *args,
+    ) -> tuple[Score, Sample]:
         key, sub_key = jax.random.split(key)
-        tr = self.gen_fn.simulate(sub_key, arguments)
-        choices: ChoiceMapSample = tr.get_sample()
+        tr = self.gen_fn.simulate(sub_key, args)
+        choices: ChoiceMap = tr.get_choices()
         latent_choices = choices.filter(self.selection)
         key, sub_key = jax.random.split(key)
         bwd_problem = ~self.selection
+        weight = tr.project(sub_key, bwd_problem)
         if self.algorithm is None:
-            weight = tr.project(sub_key, bwd_problem)
-            return MarginalTrace(
-                self,
-                tr,
-                tr.get_score() - weight,
-            )
+            return weight, latent_choices
         else:
-            target = Target(self.gen_fn, arguments, latent_choices)
-            weight = tr.project(sub_key, bwd_problem)
+            target = Target(self.gen_fn, args, latent_choices)
             other_choices = choices.filter(~self.selection)
             Z = self.algorithm.estimate_reciprocal_normalizing_constant(
                 key, target, other_choices, weight
             )
-            return MarginalTrace(
-                self,
-                tr,
-                Z,
-            )
+
+            return (Z, latent_choices)
 
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        constraint: ChoiceMap,
-        *arguments,
+        v: ChoiceMap,
+        *args,
     ) -> Weight:
         if self.algorithm is None:
-            _, weight = self.gen_fn.importance(key, constraint, arguments)
+            _, weight = self.gen_fn.importance(key, constraint, args)
             return weight
         else:
-            target = Target(self.gen_fn, arguments, constraint)
+            target = Target(self.gen_fn, args, constraint)
             Z = self.algorithm.estimate_normalizing_constant(key, target)
             return Z
+
+
+################################
+# Inference construct language #
+################################
 
 
 def marginal(
