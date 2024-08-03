@@ -174,7 +174,7 @@ preview = true
 extend-select = ["I", "RUF"]
 select = ["E4", "E7", "E9", "F"]
 # F403 disables errors from `*` imports, which we currently use heavily.
-ignore = ["F403", "E402", "RUF009"]
+ignore = ["F403", "F405", "F811", "E402", "RUF009", "RUF003"]
 fixable = ["ALL"]
 unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
