@@ -83,7 +83,7 @@ class Masked(Generic[V], Pytree):
                     return Masked(f, v)
 
     @classmethod
-    def maybe_none(cls, f: BoolArray, v: Any):
+    def maybe_none(cls, f: Bool | BoolArray, v: Any):
         return (
             None
             if v is None

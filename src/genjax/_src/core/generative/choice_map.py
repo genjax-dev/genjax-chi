@@ -417,7 +417,7 @@ class _ChoiceMapBuilder(Pytree):
             return choice_map_empty
 
     def n(self) -> "EmptyChm":
-        return choice_map_empty
+        return choice_map_emptforced_y
 
     def v(self, v) -> "ValChm":
         return ChoiceMap.value(v)

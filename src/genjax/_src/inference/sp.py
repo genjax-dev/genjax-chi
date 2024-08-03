@@ -19,6 +19,8 @@ import jax
 from genjax._src.core.generative import (
     Arguments,
     ChoiceMap,
+    ChoiceMapConstraint,
+    ChoiceMapSample,
     Constraint,
     EditRequest,
     GenerativeFunction,
@@ -86,10 +88,19 @@ class Target(Pytree):
 
     p: GenerativeFunction
     arguments: tuple
-    constraint: ChoiceMap
+    constraint: ChoiceMapConstraint
 
-    def importance(self, key: PRNGKey, constraint: ChoiceMap):
-        merged = self.constraint.merge(constraint)
+    def importance(
+        self,
+        key: PRNGKey,
+        constraint: ChoiceMap | ChoiceMapConstraint,
+    ):
+        forced_constraint: ChoiceMapConstraint = (
+            ChoiceMapConstraint(constraint)
+            if not isinstance(constraint, ChoiceMapConstraint)
+            else constraint
+        )
+        merged = self.constraint.merge(forced_constraint)
         return self.p.importance(key, merged, self.arguments)
 
     def filter_to_unconstrained(self, choice_map):
@@ -97,7 +108,7 @@ class Target(Pytree):
         return choice_map.filter(selection)
 
     def __getitem__(self, addr):
-        return self.constraint[addr]
+        return self.constraint.choice_map[addr]
 
 
 #######################
@@ -293,7 +304,7 @@ class Marginal(SampleDistribution):
         bwd_problem = ~self.selection
         weight = tr.project(sub_key, bwd_problem)
         if self.algorithm is None:
-            return weight, latent_choices
+            return weight, ChoiceMapSample(latent_choices)
         else:
             target = Target(self.gen_fn, args, latent_choices)
             other_choices = choices.filter(~self.selection)
@@ -301,7 +312,7 @@ class Marginal(SampleDistribution):
                 key, target, other_choices, weight
             )
 
-            return (Z, latent_choices)
+            return (Z, ChoiceMapSample(latent_choices))
 
     def estimate_logpdf(
         self,

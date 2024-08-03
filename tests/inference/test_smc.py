@@ -17,11 +17,12 @@ import jax
 import jax.numpy as jnp
 import pytest
 from genjax import ChoiceMapBuilder as C
+from genjax import ChoiceMapConstraint
 from jax.scipy.special import logsumexp
 
 
 def logpdf(v):
-    return lambda c, *arguments: v.assess(C.v(c), arguments)[0]
+    return lambda c, *arguments: v.assess(jax.random.PRNGKey(0), C.v(c), arguments)[0]
 
 
 class TestSMC:
@@ -32,11 +33,13 @@ class TestSMC:
             _ = genjax.flip(0.7) @ "y"
 
         def flip_flip_exact_log_marginal_density(target: genjax.Target):
-            y = target.constraint.get_submap("y")
-            return genjax.flip.assess(y, (0.7,))[0]
+            y = target["y"]
+            return genjax.flip.assess(jax.random.PRNGKey(0), C.v(y), (0.7,))[0]
 
         key = jax.random.PRNGKey(314159)
-        inference_problem = genjax.Target(flip_flip_trivial, (), C["y"].set(True))
+        inference_problem = genjax.Target(
+            flip_flip_trivial, (), ChoiceMapConstraint(C["y"].set(True))
+        )
 
         # Single sample IS.
         Z_est = genjax.inference.smc.Importance(
@@ -73,7 +76,9 @@ class TestSMC:
             return y_marginal
 
         key = jax.random.PRNGKey(314159)
-        inference_problem = genjax.Target(flip_flip, (), C["y"].set(True))
+        inference_problem = genjax.Target(
+            flip_flip, (), ChoiceMapConstraint(C["y"].set(True))
+        )
 
         # K-sample IS.
         Z_est = genjax.inference.smc.ImportanceK(

@@ -88,7 +88,11 @@ def adev_distribution(
 
 
 def logpdf(gen_fn):
-    return lambda v, *arguments: gen_fn.assess(ChoiceMap.value(v), arguments)[0]
+    return lambda v, *arguments: gen_fn.assess(
+        jax.random.PRNGKey(0),
+        ChoiceMap.value(v),
+        arguments,
+    )[0]
 
 
 # We import ADEV specific sampling primitives, but then wrap them in

@@ -16,6 +16,7 @@ import genjax
 import jax
 import pytest
 from genjax import ChoiceMapBuilder as C
+from genjax import ChoiceMapConstraint
 
 
 class TestVI:
@@ -33,7 +34,8 @@ class TestVI:
 
         key = jax.random.PRNGKey(314159)
         elbo_grad = genjax.vi.ELBO(
-            guide, lambda v: genjax.Target(model, (v,), C["v"].set(3.0))
+            guide,
+            lambda v: genjax.Target(model, (v,), ChoiceMapConstraint(C["v"].set(3.0))),
         )
         v = 0.1
         jitted = jax.jit(elbo_grad)

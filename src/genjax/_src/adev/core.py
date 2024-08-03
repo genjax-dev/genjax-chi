@@ -432,7 +432,7 @@ class ADInterpreter(Pytree):
 
     @staticmethod
     def forward_mode(f, kont=lambda v: v):
-        def _inner(key, dual_tree: Pytree):
+        def _inner(key, dual_tree: DualTree):
             primals = jtu.tree_leaves(Dual.tree_primal(dual_tree))
             closed_jaxpr, (_, _, out_tree) = stage(f)(*primals)
             jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
@@ -510,7 +510,7 @@ class ADEVProgram(Pytree):
 class Expectation(Pytree):
     prog: ADEVProgram
 
-    def jvp_estimate(self, key: PRNGKey, dual_tree: Pytree):
+    def jvp_estimate(self, key: PRNGKey, dual_tree: DualTree):
         # Trivial continuation.
         def _identity(v):
             return v

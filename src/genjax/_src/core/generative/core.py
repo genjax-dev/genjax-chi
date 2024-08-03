@@ -1644,6 +1644,16 @@ class ChoiceMapSample(Generic[S], Sample, ChoiceMap[Sample]):
     def to_constraint(self) -> "ChoiceMapConstraint":
         return ChoiceMapConstraint(self.choice_map)
 
+    def has_value(self) -> Bool | BoolArray:
+        v = self.get_value()
+        match v:
+            case EmptySample():
+                return False
+            case MaskedSample(flag, value):
+                return flag
+            case _:
+                return True
+
     def get_value(self) -> S:
         v = self.choice_map.get_value()
         match v:
@@ -1667,6 +1677,16 @@ class ChoiceMapSample(Generic[S], Sample, ChoiceMap[Sample]):
 class ChoiceMapConstraint(Generic[C], Constraint, ChoiceMap[Constraint]):
     # TODO: Any here is to maintain backwards compatibility.
     choice_map: ChoiceMap[Sample | Constraint | Any]
+
+    def has_value(self) -> Bool | BoolArray:
+        v = self.get_value()
+        match v:
+            case EmptyConstraint():
+                return False
+            case MaskedConstraint(flag, _):
+                return flag
+            case _:
+                return True
 
     def get_value(self) -> C:
         v = self.choice_map.get_value()
