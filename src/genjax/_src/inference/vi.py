@@ -47,7 +47,6 @@ from genjax._src.generative_functions.distributions.distribution import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     flip,
     geometric,
-    normal,
 )
 from genjax._src.inference.smc import Importance, ImportanceK
 from genjax._src.inference.sp import SampleDistribution, Target
@@ -114,12 +113,12 @@ categorical_enum = adev_distribution(
 
 normal_reinforce = adev_distribution(
     normal_reinforce,
-    logpdf(normal),
+    lambda v, mu, sigma: tfd.Normal(loc=mu, scale=sigma).log_prob(v),
 )
 
 normal_reparam = adev_distribution(
     normal_reparam,
-    logpdf(normal),
+    lambda v, mu, sigma: tfd.Normal(loc=mu, scale=sigma).log_prob(v),
 )
 
 mv_normal_diag_reparam = adev_distribution(
@@ -148,8 +147,8 @@ def ELBO(
     guide: SampleDistribution,
     make_target: Callable[..., Target],
 ) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
-    """Return a function that computes the gradient estimate of the ELBO loss
-    term."""
+    """Return a function that computes the value and gradient estimate of the
+    ELBO loss term."""
 
     def grad_estimate(
         key: PRNGKey,
@@ -163,7 +162,7 @@ def ELBO(
             w = guide_alg.estimate_normalizing_constant(key, target)
             return -w
 
-        return _loss.grad_estimate(key, arguments)
+        return _loss.value_and_grad_estimate(key, arguments)
 
     return grad_estimate
 

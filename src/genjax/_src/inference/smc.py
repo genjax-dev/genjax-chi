@@ -263,9 +263,12 @@ class Importance(SMCAlgorithm):
 
     def run_smc(self, key: PRNGKey):
         key, sub_key = jrandom.split(key)
-        if not Pytree.static_check_none(self.q):
-            log_weight, choice = self.q.random_weighted(sub_key, self.target)
-            tr, target_score = self.target.importance(key, choice)
+        if self.q is not None:
+            log_weight, sample = self.q.random_weighted(sub_key, self.target)
+            tr, target_score = self.target.importance(
+                key,
+                sample.to_constraint(),
+            )
         else:
             log_weight = 0.0
             tr, target_score = self.target.importance(key, ChoiceMap.empty())

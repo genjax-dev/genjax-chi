@@ -375,7 +375,7 @@ class ChmSel(Selection):
     c: "ChoiceMap"
 
     def check(self) -> Bool | BoolArray:
-        return check_none(self.c.get_value())
+        return self.c.has_value()
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         submap = self.c.get_submap(addr)

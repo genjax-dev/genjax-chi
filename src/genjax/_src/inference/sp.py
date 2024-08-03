@@ -257,28 +257,6 @@ class Algorithm(SampleDistribution):
 
 
 @Pytree.dataclass
-class MarginalTrace(Trace):
-    gen_fn: "Marginal"
-    inner: Trace
-    score: Score
-
-    def get_gen_fn(self) -> "Marginal":
-        return self.gen_fn
-
-    def get_args(self):
-        return self.inner.get_args()
-
-    def get_retval(self):
-        return self.inner.get_retval()
-
-    def get_score(self):
-        return self.score
-
-    def get_sample(self):
-        return self.inner.get_sample()
-
-
-@Pytree.dataclass
 class Marginal(SampleDistribution):
     """The `Marginal` class represents the marginal distribution of a
     generative function over a selection of addresses.
@@ -300,10 +278,8 @@ class Marginal(SampleDistribution):
         tr = self.gen_fn.simulate(sub_key, args)
         choices: ChoiceMap = tr.get_choices()
         latent_choices = choices.filter(self.selection)
-        key, sub_key = jax.random.split(key)
-        bwd_problem = ~self.selection
-        weight = tr.project(sub_key, bwd_problem)
         if self.algorithm is None:
+            weight = tr.project(key, self.selection)
             return weight, ChoiceMapSample(latent_choices)
         else:
             target = Target(self.gen_fn, args, latent_choices)

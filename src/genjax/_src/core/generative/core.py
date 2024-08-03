@@ -750,10 +750,14 @@ class GenerativeFunction(
     def importance(
         self,
         key: PRNGKey,
-        choice_map: ChoiceMap,
+        choice_map: "ChoiceMap | ChoiceMapConstraint",
         arguments: A,
     ) -> tuple[Tr, Weight]:
-        constraint = ChoiceMapConstraint(choice_map)
+        constraint = (
+            ChoiceMapConstraint(choice_map)
+            if not isinstance(choice_map, ChoiceMapConstraint)
+            else choice_map
+        )
         request = ChoiceMapImportanceRequest(constraint)
         new_trace, w, _, _ = request.edit(key, EmptyTrace(self), arguments)
         return new_trace, w
