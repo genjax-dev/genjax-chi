@@ -59,7 +59,6 @@ from genjax._src.core.typing import (
     Callable,
     FloatArray,
     PRNGKey,
-    list,
     typecheck,
 )
 

@@ -45,7 +45,6 @@ from genjax._src.core.typing import (
     IntArray,
     PRNGKey,
     Sequence,
-    list,
     typecheck,
 )
 
