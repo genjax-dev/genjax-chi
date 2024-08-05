@@ -572,9 +572,9 @@ class TestStaticGenFnForwardRef:
 
         key = jax.random.PRNGKey(314159)
         proposal = make_gen_fn()
-        _tr = proposal.simulate(key, (0.3,))
-        # TODO
-        assert True
+        tr = proposal.simulate(key, (0.3,))
+
+        assert -0.55435526 == tr.get_score()
 
 
 class TestStaticGenFnInline:

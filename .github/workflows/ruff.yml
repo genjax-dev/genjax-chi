@@ -18,5 +18,5 @@ jobs:
 
     - uses: chartboost/ruff-action@v1
       with:
-        version: 0.3.0
-        args: --output-format github
+        version: 0.5.4
+        args: check --output-format github
