@@ -141,19 +141,19 @@ def xdoctests(session) -> None:
     """Run examples with xdoctest."""
     prepare(session)
     if session.posargs:
-        arguments = [package, *session.posargs]
+        args = [package, *session.posargs]
     else:
-        arguments = [f"--modname={package}", "--command=all"]
+        args = [f"--modname={package}", "--command=all"]
         if "FORCE_COLOR" in os.environ:
-            arguments.append("--colored=1")
+            args.append("--colored=1")
 
     session.install("xdoctest[colors]")
-    session.run("python", "-m", "xdoctest", *arguments)
+    session.run("python", "-m", "xdoctest", *args)
 
 
 @session(python=python_version)
 def nbmake(session) -> None:
-    """Execute Jupyter notebooks as tests."""
+    """Execute Jupyter notebooks as tests"""
     prepare(session)
     session.run(
         "poetry",
