@@ -45,7 +45,6 @@ from genjax._src.core.typing import (
     Int,
     Optional,
     PRNGKey,
-    Tuple,
     typecheck,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
@@ -107,7 +106,7 @@ class ParticleCollection(Pytree):
     def get_log_marginal_likelihood_estimate(self) -> FloatArray:
         return logsumexp(self.log_weights) - jnp.log(len(self.log_weights))
 
-    def __getitem__(self, idx) -> Tuple:
+    def __getitem__(self, idx) -> tuple:
         return jtu.tree_map(lambda v: v[idx], (self.particles, self.log_weights))
 
     def check_valid(self) -> BoolArray:
@@ -174,7 +173,7 @@ class SMCAlgorithm(Algorithm):
         self,
         key: PRNGKey,
         target: Target,
-    ) -> Tuple[FloatArray, Sample]:
+    ) -> tuple[FloatArray, Sample]:
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
         particle_collection = algorithm.run_smc(key)
@@ -514,7 +513,7 @@ class KernelTrace(Trace):
     gen_fn: "KernelGenerativeFunction"
     inner: Trace
 
-    def get_args(self) -> Tuple:
+    def get_args(self) -> tuple:
         return self.inner.get_args()
 
     def get_retval(self) -> Any:
@@ -537,7 +536,7 @@ class KernelGenerativeFunction(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
+        args: tuple,
     ) -> Trace:
         gen_fn = gen(self.source)
         tr = gen_fn.simulate(key, args)
@@ -547,8 +546,8 @@ class KernelGenerativeFunction(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: Constraint,
-        args: Tuple,
-    ) -> Tuple[Trace, Weight, UpdateProblem]:
+        args: tuple,
+    ) -> tuple[Trace, Weight, UpdateProblem]:
         raise NotImplementedError
 
     def update(
@@ -556,8 +555,8 @@ class KernelGenerativeFunction(GenerativeFunction):
         key: PRNGKey,
         trace: KernelTrace,
         update_problem: UpdateProblem,
-        args: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        args: tuple,
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         raise NotImplementedError
 
 
@@ -565,7 +564,7 @@ class KernelGenerativeFunction(GenerativeFunction):
 def kernel_gen_fn(
     source: Callable[
         [Sample, Target],
-        Tuple[UpdateProblem, Sample],
+        tuple[UpdateProblem, Sample],
     ],
 ) -> KernelGenerativeFunction:
     return KernelGenerativeFunction(gen(source))
@@ -632,7 +631,7 @@ class AttachTrace(Trace):
     gen_fn: "AttachCombinator"
     inner: Trace
 
-    def get_args(self) -> Tuple:
+    def get_args(self) -> tuple:
         return self.inner.get_args()
 
     def get_retval(self) -> Any:
@@ -654,7 +653,7 @@ class AttachCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
+        args: tuple,
     ) -> Trace:
         tr = self.gen_fn.simulate(key, args)
         return AttachTrace(self, tr)
@@ -665,8 +664,8 @@ class AttachCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: Constraint,
-        args: Tuple,
-    ) -> Tuple[Trace, Weight, UpdateProblem]:
+        args: tuple,
+    ) -> tuple[Trace, Weight, UpdateProblem]:
         move = self.importance_move(constraint)
         match move:
             case SMCP3Move(K, _):
@@ -698,8 +697,8 @@ class AttachCombinator(GenerativeFunction):
         key: PRNGKey,
         trace: AttachTrace,
         update_problem: UpdateProblem,
-        argdiffs: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        argdiffs: tuple,
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         gen_fn_trace = trace.inner
         move = self.update_move(update_problem)
         previous_latents = move.get_previous_latents()

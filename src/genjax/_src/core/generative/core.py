@@ -30,17 +30,14 @@ from genjax._src.core.typing import (
     Bool,
     BoolArray,
     Callable,
-    Dict,
     FloatArray,
     InAxes,
     Int,
     IntArray,
     Is,
-    List,
     Optional,
     PRNGKey,
     String,
-    Tuple,
     TypeVar,
     static_check_is_concrete,
     typecheck,
@@ -74,7 +71,7 @@ A _score_ is a density ratio, described fully in [`simulate`][genjax.core.Genera
 The type `Score` does not enforce any meaningful mathematical invariants, but is used to denote the type of scores in the GenJAX system, to improve readability and parsing of interface specifications.
 """
 
-Arguments = Tuple
+Arguments = tuple
 """
 `Arguments` is the type of argument values to generative functions. It is a type alias for `Tuple`, and is used to improve readability and parsing of interface specifications.
 """
@@ -85,7 +82,7 @@ Retval = Any
 """
 
 Argdiffs = Annotated[
-    Tuple,
+    tuple,
     Is[Diff.static_check_tree_diff],
 ]
 """
@@ -148,7 +145,7 @@ class MaskedProblem(UpdateProblem):
 @Pytree.dataclass
 class SumProblem(UpdateProblem):
     idx: Int | IntArray
-    problems: List[UpdateProblem]
+    problems: list[UpdateProblem]
 
 
 @Pytree.dataclass(match_args=True)
@@ -241,7 +238,7 @@ class SumConstraint(Constraint):
     """
 
     idx: IntArray
-    constraint: List[Constraint]
+    constraint: list[Constraint]
 
 
 @Pytree.dataclass
@@ -380,7 +377,7 @@ class Trace(Pytree):
         self,
         key: PRNGKey,
         problem: UpdateProblem,
-    ) -> Tuple["Trace", Weight, Retdiff, UpdateProblem]:
+    ) -> tuple["Trace", Weight, Retdiff, UpdateProblem]:
         """
         This method calls out to the underlying [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update] method - see [`UpdateProblem`][genjax.core.UpdateProblem] and [`update`][genjax.core.GenerativeFunction.update] for more information.
         """
@@ -431,7 +428,7 @@ class EmptyTraceRetval(Pytree):
 class EmptyTrace(Trace):
     gen_fn: "GenerativeFunction"
 
-    def get_args(self) -> Tuple:
+    def get_args(self) -> tuple:
         return (EmptyTraceArg(),)
 
     def get_retval(self) -> Retval:
@@ -596,7 +593,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         trace: Trace,
         update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         """
         Update a trace in response to an [`UpdateProblem`][genjax.core.UpdateProblem], returning a new [`Trace`][genjax.core.Trace], an incremental [`Weight`][genjax.core.Weight] for the new target, a [`Retdiff`][genjax.core.Retdiff] return value tagged with change information, and a backward [`UpdateProblem`][genjax.core.UpdateProblem] which requests the reverse move (to go back to the original trace).
 
@@ -716,7 +713,7 @@ class GenerativeFunction(Pytree):
         self,
         sample: Sample,
         args: Arguments,
-    ) -> Tuple[Score, Retval]:
+    ) -> tuple[Score, Retval]:
         """
         Return [the score][genjax.core.Trace.get_score] and [the return value][genjax.core.Trace.get_retval] when the generative function is invoked with the provided arguments, and constrained to take the provided sample as the sampled value.
 
@@ -760,7 +757,7 @@ class GenerativeFunction(Pytree):
         key: PRNGKey,
         constraint: Constraint,
         args: Arguments,
-    ) -> Tuple[Trace, Weight]:
+    ) -> tuple[Trace, Weight]:
         """
         Returns a properly weighted pair, a [`Trace`][genjax.core.Trace] and a [`Weight`][genjax.core.Weight], properly weighted for the target induced by the generative function for the provided constraint and arguments.
 
@@ -808,7 +805,7 @@ class GenerativeFunction(Pytree):
         self,
         key: PRNGKey,
         args: Arguments,
-    ) -> Tuple[Sample, Score, Retval]:
+    ) -> tuple[Sample, Score, Retval]:
         """
         Samples a [`Sample`][genjax.core.Sample] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the [`Retval`][genjax.core.Retval] of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
         """
@@ -1568,7 +1565,7 @@ class GenerativeFunction(Pytree):
         /,
         *,
         constraint: Constraint,
-        args: Tuple,
+        args: tuple,
     ):
         from genjax import Target
 
@@ -1583,7 +1580,7 @@ class GenerativeFunction(Pytree):
 # C.f. above.
 # This stack will not interact with JAX tracers at all
 # so it's safe, and will be resolved at JAX tracing time.
-GLOBAL_TRACE_OP_HANDLER_STACK: List[Callable[..., Any]] = []
+GLOBAL_TRACE_OP_HANDLER_STACK: list[Callable[..., Any]] = []
 
 
 def handle_off_trace_stack(addr, gen_fn: GenerativeFunction, args):
@@ -1639,8 +1636,8 @@ class IgnoreKwargs(GenerativeFunction):
 @Pytree.dataclass
 class GenerativeFunctionClosure(GenerativeFunction):
     gen_fn: GenerativeFunction
-    args: Tuple
-    kwargs: Dict
+    args: tuple
+    kwargs: dict
 
     def get_gen_fn_with_kwargs(self):
         return self.gen_fn.handle_kwargs()
@@ -1688,7 +1685,7 @@ class GenerativeFunctionClosure(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
+        args: tuple,
     ) -> Trace:
         full_args = (*self.args, *args)
         if self.kwargs:
@@ -1707,7 +1704,7 @@ class GenerativeFunctionClosure(GenerativeFunction):
         key: PRNGKey,
         trace: Trace,
         update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 full_argdiffs = (*self.args, *argdiffs)
@@ -1729,8 +1726,8 @@ class GenerativeFunctionClosure(GenerativeFunction):
     def assess(
         self,
         sample: Sample,
-        args: Tuple,
-    ) -> Tuple[Score, Retval]:
+        args: tuple,
+    ) -> tuple[Score, Retval]:
         full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
