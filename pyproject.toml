@@ -105,24 +105,6 @@ omit = [".*", "*/site-packages/*"]
 show_missing = true
 fail_under = 45
 
-[tool.pydocstringformatter]
-write = true
-strip-whitespaces = true
-linewrap-full-docstring = true
-split-summary-body = false
-numpydoc-section-hyphen-length = false
-final-period = false
-max-line-length = 79
-style = "pep257"
-
-[tool.docformatter]
-recursive = true
-black = true
-non-strict = false
-wrap-summaries = 79
-wrap-descriptions = 79
-blank = true
-
 [tool.pyright]
 pythonVersion = "3.11"
 venvPath = "."
