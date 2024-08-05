@@ -44,7 +44,6 @@ from genjax._src.core.typing import (
     FloatArray,
     InAxes,
     PRNGKey,
-    Tuple,
     typecheck,
 )
 
@@ -55,11 +54,11 @@ register_exclusion(__file__)
 class VmapTrace(Trace):
     gen_fn: GenerativeFunction
     inner: Trace
-    args: Tuple
+    args: tuple
     retval: Any
     score: FloatArray
 
-    def get_args(self) -> Tuple:
+    def get_args(self) -> tuple:
         return self.args
 
     def get_retval(self):
@@ -138,7 +137,7 @@ class VmapCombinator(GenerativeFunction):
 
         return jax.vmap(inner, in_axes=self.in_axes)(*args)
 
-    def _static_check_broadcastable(self, args: Tuple) -> None:
+    def _static_check_broadcastable(self, args: tuple) -> None:
         # Argument broadcast semantics must be fully specified
         # in `in_axes`.
         if self.in_axes is not None:
@@ -168,7 +167,7 @@ class VmapCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
+        args: tuple,
     ) -> VmapTrace:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
@@ -183,8 +182,8 @@ class VmapCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
-        args: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        args: tuple,
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         idx_array = jnp.arange(0, broadcast_dim_length)
@@ -217,7 +216,7 @@ class VmapCombinator(GenerativeFunction):
         prev: VmapTrace,
         update_problem: ChoiceMap,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, ChoiceMap]:
+    ) -> tuple[Trace, Weight, Retdiff, ChoiceMap]:
         primals = Diff.tree_primal(argdiffs)
         self._static_check_broadcastable(primals)
         broadcast_dim_length = self._static_broadcast_dim_length(primals)
@@ -246,7 +245,7 @@ class VmapCombinator(GenerativeFunction):
         trace: VmapTrace,
         selection: Selection,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, ChoiceMap]:
+    ) -> tuple[Trace, Weight, Retdiff, ChoiceMap]:
         primals = Diff.tree_primal(argdiffs)
         self._static_check_broadcastable(primals)
         broadcast_dim_length = self._static_broadcast_dim_length(primals)
@@ -276,7 +275,7 @@ class VmapCombinator(GenerativeFunction):
         trace: Trace,
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match update_problem:
             case ChoiceMap():
                 return self.update_choice_map(key, trace, update_problem, argdiffs)
@@ -295,7 +294,7 @@ class VmapCombinator(GenerativeFunction):
         key: PRNGKey,
         trace: Trace,
         update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
@@ -308,8 +307,8 @@ class VmapCombinator(GenerativeFunction):
     def assess(
         self,
         sample: ChoiceMap,
-        args: Tuple,
-    ) -> Tuple[Score, Retval]:
+        args: tuple,
+    ) -> tuple[Score, Retval]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         idx_array = jnp.arange(0, broadcast_dim_length)

@@ -27,7 +27,7 @@ from jax.interpreters import partial_eval as pe
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import Any, Bool, Callable, List, Union, Value, typecheck
+from genjax._src.core.typing import Any, Bool, Callable, Value, typecheck
 
 register_exclusion(__file__)
 
@@ -138,7 +138,7 @@ def initial_style_bind(prim, **params):
 # Forward interpreter #
 #######################
 
-VarOrLiteral = Union[jc.Var, jc.Literal]
+VarOrLiteral = jc.Var | jc.Literal
 
 
 @Pytree.dataclass
@@ -203,7 +203,7 @@ class StatefulHandler:
         primitive: jc.Primitive,
         *args,
         **kwargs,
-    ) -> List:
+    ) -> list:
         pass
 
 
@@ -213,8 +213,8 @@ class ForwardInterpreter(Pytree):
         self,
         stateful_handler,
         _jaxpr: jc.Jaxpr,
-        consts: List,
-        args: List,
+        consts: list,
+        args: list,
     ):
         env = Environment()
         jax_util.safe_map(env.write, _jaxpr.constvars, consts)

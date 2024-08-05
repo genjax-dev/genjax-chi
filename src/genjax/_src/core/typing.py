@@ -36,17 +36,12 @@ Any = btyping.Any
 PRNGKey = jtyping.PRNGKeyArray
 Array = jtyping.Array
 ArrayLike = jtyping.ArrayLike
-Union = btyping.Union
 IntArray = jtyping.Int[jtyping.Array, "..."]
 FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
 Sequence = btyping.Sequence
-Tuple = btyping.Tuple
-Dict = btyping.Dict
-List = btyping.List
 Optional = btyping.Optional
-Type = btyping.Type
 
 # JAX Type alias.
 InAxes = int | None | Sequence[Any]
@@ -153,7 +148,7 @@ def static_check_supports_grad(v):
 
 
 @typecheck
-def static_check_shape_dtype_equivalence(vs: List[Array]) -> Bool:
+def static_check_shape_dtype_equivalence(vs: list[Array]) -> Bool:
     shape_dtypes = [(v.shape, v.dtype) for v in vs]
     num_unique = set(shape_dtypes)
     return len(num_unique) == 1
@@ -167,7 +162,6 @@ __all__ = [
     "Bool",
     "BoolArray",
     "Callable",
-    "Dict",
     "EllipsisType",
     "Float",
     "FloatArray",
@@ -176,16 +170,12 @@ __all__ = [
     "Int",
     "IntArray",
     "Is",
-    "List",
     "ParamSpec",
     "PRNGKey",
     "ScalarBool",
     "ScalarShaped",
     "Sequence",
-    "Tuple",
-    "Type",
     "TypeVar",
-    "Union",
     "Value",
     "static_check_is_array",
     "static_check_is_concrete",

@@ -39,8 +39,6 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     Int,
-    List,
-    Tuple,
     TypeVar,
     static_check_is_array,
     static_check_is_concrete,
@@ -210,7 +208,7 @@ class Pytree(pz.Struct):
     #################
 
     @staticmethod
-    def static_check_tree_structure_equivalence(trees: List):
+    def static_check_tree_structure_equivalence(trees: list):
         if not trees:
             return True
         else:
@@ -490,7 +488,7 @@ class Closure(Pytree):
         ```
     """
 
-    dyn_args: Tuple
+    dyn_args: tuple
     fn: Callable[..., Any] = Pytree.static()
 
     def __call__(self, *args, **kwargs):
