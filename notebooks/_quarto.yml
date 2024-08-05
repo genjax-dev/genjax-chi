@@ -21,21 +21,31 @@ book:
     - active/intro.ipynb
     # - combinators.ipynb
     # - inference_libraries.ipynb
-    - cookbook/basics/generative_fun.ipynb
-    - cookbook/basics/methods_of_generative_fun.ipynb
-    - cookbook/basics/choicemap_creation_selection.ipynb
-    - cookbook/basics/debugging.ipynb
-    - cookbook/basics/saving_traces.ipynb
-    - cookbook/basics/some_oddities.ipynb
-    - cookbook/expressivity/conditionals.ipynb
-    - cookbook/expressivity/iterating_computation.ipynb
-    - cookbook/expressivity/mixture.ipynb
-    - cookbook/expressivity/custom_distribution.ipynb
-    - cookbook/expressivity/stochastic_probabilities.ipynb
-    - cookbook/inference/importance_sampling.ipynb
-    - cookbook/inference/custom_proposal.ipynb
-    - cookbook/inference/mcmc.ipynb
-    - cookbook/library_author/dimap_combinator.ipynb
+    - part: basics.qmd
+      chapters:
+        - cookbook/basics/generative_fun.ipynb
+        - cookbook/basics/methods_of_generative_fun.ipynb
+        - cookbook/basics/choicemap_creation_selection.ipynb
+        - cookbook/basics/debugging.ipynb
+        - cookbook/basics/saving_traces.ipynb
+        - cookbook/basics/some_oddities.ipynb
+    - part: expressivity.qmd
+      chapters:
+        - cookbook/expressivity/conditionals.ipynb
+        - cookbook/expressivity/iterating_computation.ipynb
+        - cookbook/expressivity/mixture.ipynb
+        - cookbook/expressivity/custom_distribution.ipynb
+        - cookbook/expressivity/stochastic_probabilities.ipynb
+    - part: inference.qmd
+      chapters:
+        - cookbook/inference/importance_sampling.ipynb
+        - cookbook/inference/custom_proposal.ipynb
+        - cookbook/inference/mcmc.ipynb
+    - part: speed.qmd
+    - part: variance_reduction.qmd
+    - part: library_author.qmd
+      chapters:
+        - cookbook/library_author/dimap_combinator.ipynb
 
 bibliography: references.bib
 
