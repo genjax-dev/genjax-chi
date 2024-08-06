@@ -29,7 +29,7 @@ class TestVI:
         @genjax.marginal()
         @genjax.gen
         def guide(target):
-            (v,) = target.arguments
+            (v,) = target.args
             _ = genjax.vi.normal_reparam(v, 0.1) @ "mu"
 
         key = jax.random.PRNGKey(314159)

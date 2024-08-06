@@ -58,11 +58,11 @@ class DimapTrace(
 ):
     gen_fn: "DimapCombinator"
     inner: Tr
-    arguments: A
+    args: A
     retval: R
 
     def get_args(self) -> A:
-        return self.arguments
+        return self.args
 
     def get_gen_fn(self) -> "DimapCombinator":
         return self.gen_fn
@@ -134,21 +134,21 @@ class DimapCombinator(
     def simulate(
         self,
         key: PRNGKey,
-        arguments: A,
+        args: A,
     ) -> DimapTrace[Tr, A, S, R]:
-        inner_args = self.argument_mapping(*arguments)
+        inner_args = self.argument_mapping(*args)
         tr = self.inner.simulate(key, inner_args)
         inner_retval = tr.get_retval()
         retval = self.retval_mapping(inner_args, inner_retval)
-        return DimapTrace(self, tr, arguments, retval)  # type:ignore
+        return DimapTrace(self, tr, args, retval)  # type:ignore
 
     def assess(
         self,
         key: PRNGKey,
         sample: S,
-        arguments: A,
+        args: A,
     ) -> tuple[Score, R]:
-        inner_args = self.argument_mapping(*arguments)
+        inner_args = self.argument_mapping(*args)
         w, inner_retval = self.inner.assess(key, sample, inner_args)
         retval = self.retval_mapping(inner_args, inner_retval)
         return w, retval
@@ -157,9 +157,9 @@ class DimapCombinator(
         self,
         key: PRNGKey,
         constraint: C,
-        arguments: A,
+        args: A,
     ) -> tuple[DimapTrace, Weight, P]:
-        inner_args = self.argument_mapping(*arguments)
+        inner_args = self.argument_mapping(*args)
         inner_tr, w, bwd_projection = self.inner.importance_edit(
             key, constraint, inner_args
         )
@@ -168,7 +168,7 @@ class DimapCombinator(
         trace = DimapTrace(
             self,
             inner_tr,
-            arguments,
+            args,
             retval,
         )
         return trace, w, bwd_projection
@@ -188,9 +188,9 @@ class DimapCombinator(
         key: PRNGKey,
         trace: DimapTrace,
         request: U,
-        arguments: Arguments,
+        args: Arguments,
     ) -> tuple[DimapTrace, Weight, Retdiff, U]:
-        argdiffs = Diff.unknown_change(arguments)
+        argdiffs = Diff.unknown_change(args)
         inner_argdiffs = incremental(self.argument_mapping)(
             None, Diff.primal(argdiffs), Diff.tangent(argdiffs)
         )
@@ -207,7 +207,7 @@ class DimapCombinator(
         new_trace = DimapTrace(
             self,
             new_inner_tr,
-            Diff.primal(arguments),
+            Diff.primal(args),
             retval,
         )
         return new_trace, w, retdiff, bwd_request
@@ -220,7 +220,7 @@ class DimapCombinator(
 
 def dimap(
     *,
-    pre: Callable[..., A] = lambda *arguments: arguments,
+    pre: Callable[..., A] = lambda *args: args,
     post: Callable[[A, R_], R] = lambda _, retval: retval,
     info: String | None = None,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
@@ -321,7 +321,7 @@ def map(
     def post(_, x: R_) -> R:
         return f(x)
 
-    return dimap(pre=lambda *arguments: arguments, post=post, info=info)
+    return dimap(pre=lambda *args: args, post=post, info=info)
 
 
 def contramap(

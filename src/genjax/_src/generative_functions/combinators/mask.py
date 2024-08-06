@@ -145,9 +145,9 @@ class MaskedCombinator(
     def simulate(
         self,
         key: PRNGKey,
-        arguments: A,
+        args: A,
     ) -> MaskedTrace:
-        check, *inner_args = arguments
+        check, *inner_args = args
         tr = self.gen_fn.simulate(key, tuple(inner_args))
         return MaskedTrace(self, tr, check)
 
@@ -155,9 +155,9 @@ class MaskedCombinator(
         self,
         key: PRNGKey,
         sample: ChoiceMapSample,
-        arguments: A,
+        args: A,
     ) -> tuple[Score, Masked[R]]:
-        (check, *inner_args) = arguments
+        (check, *inner_args) = args
         score, retval = self.gen_fn.assess(key, sample, tuple(inner_args))
         return (
             score * check,
@@ -168,7 +168,7 @@ class MaskedCombinator(
         self,
         key: PRNGKey,
         constraint: C,
-        arguments: A,
+        args: A,
     ) -> tuple[MaskedTrace, Weight, P]:
         raise NotImplementedError
 
@@ -185,7 +185,7 @@ class MaskedCombinator(
         key: PRNGKey,
         trace: MaskedTrace,
         request: U | MaskedEditRequest[U],
-        arguments: A,
+        args: A,
     ) -> tuple[MaskedTrace, Weight, Retdiff, U | MaskedEditRequest[U]]:
         raise NotImplementedError
 

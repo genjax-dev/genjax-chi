@@ -78,12 +78,12 @@ class ScanTrace(
 ):
     scan_gen_fn: "ScanCombinator[G, Tr, Ca, Sc1, Sc2, S]"
     inner: Tr
-    arguments: tuple[Ca, Sc1]
+    args: tuple[Ca, Sc1]
     retval: tuple[Ca, Sc2]
     score: Score
 
     def get_args(self) -> tuple[Ca, Sc1]:
-        return self.arguments
+        return self.args
 
     def get_retval(self) -> tuple[Ca, Sc2]:
         return self.retval
@@ -132,13 +132,13 @@ class IndexEditRequest(
         self,
         key: PRNGKey,
         trace: Trace,
-        arguments: Arguments,
+        args: Arguments,
     ) -> tuple[Trace, Weight, Retdiff, "EditRequest"]:
         if self.validate:
-            (carry_in, scanned_in) = arguments
+            (carry_in, scanned_in) = args
             assert Diff.static_check_no_change(carry_in), Diff.tangent(carry_in)
         gen_fn = trace.get_gen_fn()
-        return gen_fn.edit(key, trace, self, arguments)
+        return gen_fn.edit(key, trace, self, args)
 
 
 ###################
@@ -274,9 +274,9 @@ class ScanCombinator(
     def simulate(
         self,
         key: PRNGKey,
-        arguments: tuple[Ca, Sc1],
+        args: tuple[Ca, Sc1],
     ) -> ScanTrace[G, Tr, Ca, Sc1, Sc2, S]:
-        carry, scanned_in = arguments
+        carry, scanned_in = args
 
         def _inner_simulate(key, carry, scanned_in):
             tr = self.kernel_gen_fn.simulate(key, (carry, scanned_in))
@@ -305,7 +305,7 @@ class ScanCombinator(
         return ScanTrace(
             self,  # type:ignore
             tr,
-            arguments,
+            args,
             (carried_out, scanned_out),
             jnp.sum(scores),
         )  # type:ignore
@@ -314,9 +314,9 @@ class ScanCombinator(
         self,
         key: PRNGKey,
         sample: ChoiceMapSample,
-        arguments: tuple[Ca, Sc1],
+        args: tuple[Ca, Sc1],
     ) -> tuple[Score, tuple[Ca, Sc2]]:
-        (carry_in, else_to_scan) = arguments
+        (carry_in, else_to_scan) = args
 
         def _assess(carry, scanned_in):
             key, idx, carry_in = carry
@@ -347,9 +347,9 @@ class ScanCombinator(
         self,
         key: PRNGKey,
         constraint: ChoiceMapConstraint,
-        arguments: tuple[Ca, Sc1],
+        args: tuple[Ca, Sc1],
     ) -> tuple[ScanTrace[G, Tr, Ca, Sc1, Sc2, S], Weight, ChoiceMapProjection]:
-        (carry, scanned_in) = arguments
+        (carry, scanned_in) = args
 
         def _inner_importance(
             key: PRNGKey,
@@ -404,7 +404,7 @@ class ScanCombinator(
             ScanTrace(
                 self,  # type:ignore
                 tr,
-                arguments,
+                args,
                 (carried_out, scanned_out),
                 jnp.sum(scores),
             ),
@@ -467,7 +467,7 @@ class ScanCombinator(
         key: PRNGKey,
         trace: ScanTrace[G, Tr, Ca, Sc1, Sc2, S],
         constraint: ChoiceMapConstraint,
-        arguments: tuple[Ca, Sc1],
+        args: tuple[Ca, Sc1],
     ) -> tuple[ScanTrace[G, Tr, Ca, Sc1, Sc2, S], Weight, ChoiceMapConstraint]:
         def _inner_update(
             key: PRNGKey,
@@ -530,7 +530,7 @@ class ScanCombinator(
                 bwd_constraint,
             )
 
-        (carry_in, scanned_in) = arguments
+        (carry_in, scanned_in) = args
         (
             (_, _, carry_out),
             (new_subtraces, scanned_out, scores, ws, bwd_chm),
@@ -547,7 +547,7 @@ class ScanCombinator(
             ScanTrace(
                 self,
                 new_subtraces,
-                arguments,
+                args,
                 (carry_out, scanned_out),
                 jnp.sum(scores),
             ),
@@ -560,7 +560,7 @@ class ScanCombinator(
         key: PRNGKey,
         trace: ScanTrace[G, Tr, Ca, Sc1, Sc2, S],
         selection: Selection,
-        arguments: tuple[Ca, Sc1],
+        args: tuple[Ca, Sc1],
     ) -> tuple[ScanTrace[G, Tr, Ca, Sc1, Sc2, S], Weight, ChoiceMapConstraint]:
         raise NotImplementedError
 
@@ -632,7 +632,7 @@ class ScanCombinator(
         key: PRNGKey,
         trace: ScanTrace,
         request: ChoiceMapEditRequest,
-        arguments: tuple[Ca, Sc1],
+        args: tuple[Ca, Sc1],
     ) -> tuple[ScanTrace, Weight, Retdiff, ChoiceMapEditRequest]:
         pass
 
@@ -642,7 +642,7 @@ class ScanCombinator(
         key: PRNGKey,
         trace: ScanTrace,
         request: IndexEditRequest,
-        arguments: tuple[Ca, Sc1],
+        args: tuple[Ca, Sc1],
     ) -> tuple[ScanTrace, Weight, Retdiff, IndexEditRequest]:
         pass
 
@@ -652,7 +652,7 @@ class ScanCombinator(
         key: PRNGKey,
         trace: ScanTrace,
         request: SelectionRegenerateRequest,
-        arguments: tuple[Ca, Sc1],
+        args: tuple[Ca, Sc1],
     ) -> tuple[ScanTrace, Weight, Retdiff, ChoiceMapEditRequest]:
         pass
 
@@ -661,7 +661,7 @@ class ScanCombinator(
         key: PRNGKey,
         trace: ScanTrace,
         request: ChoiceMapEditRequest | IndexEditRequest | SelectionRegenerateRequest,
-        arguments: tuple[Ca, Sc1],
+        args: tuple[Ca, Sc1],
     ) -> tuple[
         ScanTrace,
         Weight,
@@ -670,9 +670,9 @@ class ScanCombinator(
     ]:
         match request:
             case ChoiceMapEditRequest(choice_map_constraint):
-                arguments = Diff.primal(arguments)
+                args = Diff.primal(args)
                 new_trace, weight, bwd_constraint = self.choice_map_edit(
-                    key, trace, choice_map_constraint, arguments
+                    key, trace, choice_map_constraint, args
                 )
                 return (
                     new_trace,
@@ -693,7 +693,7 @@ class ScanCombinator(
 
             case SelectionRegenerateRequest(selection):
                 new_trace, weight, bwd_constraint = self.selection_regenerate_edit(
-                    key, trace, selection, arguments
+                    key, trace, selection, args
                 )
                 return (
                     new_trace,
@@ -809,7 +809,7 @@ def scan(
     return decorator
 
 
-def prepend_initial_acc(arguments, ret):
+def prepend_initial_acc(args, ret):
     """Prepends the initial accumulator value to the array of accumulated
     values.
 
@@ -818,7 +818,7 @@ def prepend_initial_acc(arguments, ret):
     the accumulator's values throughout the scan.
 
     Args:
-        arguments: A tuple containing the initial arguments to the scan operation. The first element is expected to be the initial accumulator value.
+        args: A tuple containing the initial arguments to the scan operation. The first element is expected to be the initial accumulator value.
         ret: A tuple containing the final accumulator value and an array of intermediate accumulator values from the scan operation.
 
     Returns:
@@ -828,7 +828,7 @@ def prepend_initial_acc(arguments, ret):
         This function uses JAX's tree mapping to handle nested structures in the accumulator, allowing it to work with complex accumulator types.
 
     """
-    init_acc = arguments[0]
+    init_acc = args[0]
     xs = ret[1]
 
     def cat(init, arr):
@@ -902,7 +902,7 @@ def accumulate(
         return (
             f.map(lambda ret: (ret, ret))
             .scan(reverse=reverse, unroll=unroll)
-            .dimap(pre=lambda *arguments: arguments, post=prepend_initial_acc)
+            .dimap(pre=lambda *args: args, post=prepend_initial_acc)
         )
 
     return decorator
@@ -1034,11 +1034,9 @@ def iterate(
     def decorator(f: GenerativeFunction):
         # strip off the JAX-supplied `None` on the way in, accumulate `ret` on the way out.
         return (
-            f.dimap(
-                pre=lambda *arguments: arguments[:-1], post=lambda _, ret: (ret, ret)
-            )
+            f.dimap(pre=lambda *args: args[:-1], post=lambda _, ret: (ret, ret))
             .scan(n=n, unroll=unroll)
-            .dimap(pre=lambda *arguments: (*arguments, None), post=prepend_initial_acc)
+            .dimap(pre=lambda *args: (*args, None), post=prepend_initial_acc)
         )
 
     return decorator
@@ -1102,13 +1100,9 @@ def iterate_final(
     def decorator(f: GenerativeFunction):
         # strip off the JAX-supplied `None` on the way in, no accumulation on the way out.
         return (
-            f.dimap(
-                pre=lambda *arguments: arguments[:-1], post=lambda _, ret: (ret, None)
-            )
+            f.dimap(pre=lambda *args: args[:-1], post=lambda _, ret: (ret, None))
             .scan(n=n, unroll=unroll)
-            .dimap(
-                pre=lambda *arguments: (*arguments, None), post=lambda _, ret: ret[0]
-            )
+            .dimap(pre=lambda *args: (*args, None), post=lambda _, ret: ret[0])
         )
 
     return decorator

@@ -36,18 +36,18 @@ class SerializationBackend:
         pass
 
     @abc.abstractmethod
-    def deserialize(self, bytes, gen_fn: GenerativeFunction, arguments: tuple):
+    def deserialize(self, bytes, gen_fn: GenerativeFunction, args: tuple):
         pass
 
     def dumps(self, tr: Trace):
         return self.serialize(tr)
 
-    def loads(self, bytes, gen_fn: GenerativeFunction, arguments: tuple):
-        return self.deserialize(bytes, gen_fn, arguments)
+    def loads(self, bytes, gen_fn: GenerativeFunction, args: tuple):
+        return self.deserialize(bytes, gen_fn, args)
 
     def dump(self, tr: Trace, file):
         file.write(self.dumps(tr))
 
-    def load(self, file, gen_fn: GenerativeFunction, arguments: tuple):
+    def load(self, file, gen_fn: GenerativeFunction, args: tuple):
         bytes = file.read()
-        return self.loads(bytes, gen_fn, arguments)
+        return self.loads(bytes, gen_fn, args)

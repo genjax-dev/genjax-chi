@@ -75,12 +75,12 @@ class DistributionTrace(
     Trace["Distribution", A, "ValueSample[R]", R],
 ):
     gen_fn: "Distribution"
-    arguments: A
+    args: A
     value: R
     score: Score
 
     def get_args(self) -> A:
-        return self.arguments
+        return self.args
 
     def get_retval(self) -> R:
         return self.value
@@ -119,7 +119,7 @@ class Distribution(
     def random_weighted(
         self,
         key: PRNGKey,
-        *arguments,
+        *args,
     ) -> tuple[Score, R]:
         pass
 
@@ -128,17 +128,17 @@ class Distribution(
         self,
         key: PRNGKey,
         v: R,
-        *arguments,
+        *args,
     ) -> Weight:
         pass
 
     def simulate(
         self,
         key: PRNGKey,
-        arguments: A,
+        args: A,
     ) -> DistributionTrace[A, R]:
-        (w, v) = self.random_weighted(key, *arguments)
-        tr = DistributionTrace(self, arguments, v, w)
+        (w, v) = self.random_weighted(key, *args)
+        tr = DistributionTrace(self, args, v, w)
         return tr
 
     def assess(
@@ -146,29 +146,29 @@ class Distribution(
         key: PRNGKey,
         # TODO: the ValChm here is a type of paving over, to allow people to continue to use what they are used to.
         sample: ValChm | ChoiceMapSample[ValueSample | MaskedSample] | ValueSample,
-        arguments: A,
+        args: A,
     ) -> tuple[Score, R]:
         match sample:
             case ValChm(v):
-                return self.assess(key, ValueSample(v), arguments)
+                return self.assess(key, ValueSample(v), args)
 
             case ChoiceMapSample():
                 v: Sample = sample.get_value()
                 match v:
                     case MaskedSample(flag, sample_value):
-                        score, return_value = self.assess(key, sample_value, arguments)
+                        score, return_value = self.assess(key, sample_value, args)
                         return jnp.where(flag, score, -jnp.inf), return_value
                     case ValueSample():
-                        return self.assess(key, v, arguments)
+                        return self.assess(key, v, args)
 
             case ValueSample():
                 v = sample.get_value()
                 match v:
                     case Masked(flag, value):
-                        w = self.estimate_logpdf(key, value, *arguments)
+                        w = self.estimate_logpdf(key, value, *args)
                         return jnp.where(flag, w, -jnp.inf), value
                     case _:
-                        w = self.estimate_logpdf(key, v, *arguments)
+                        w = self.estimate_logpdf(key, v, *args)
                         return w, v
 
     def importance_edit(
@@ -177,12 +177,12 @@ class Distribution(
         constraint: ChoiceMapConstraint[
             EmptyConstraint | EqualityConstraint[R | Masked[R]]
         ],
-        arguments: A,
+        args: A,
     ) -> tuple[DistributionTrace[A, R], Weight, ChoiceMapProjection]:
         inner_constraint = constraint.get_value()
         match inner_constraint:
             case EmptyConstraint():
-                tr = self.simulate(key, arguments)
+                tr = self.simulate(key, args)
                 weight = 0.0
                 return (
                     tr,
@@ -202,9 +202,9 @@ class Distribution(
                         return jnp.array(0.0), v
 
                     w, value = jax.lax.cond(
-                        v.flag, true_branch, false_branch, key, v.value, arguments
+                        v.flag, true_branch, false_branch, key, v.value, args
                     )
-                    tr = DistributionTrace(self, arguments, value, w)
+                    tr = DistributionTrace(self, args, value, w)
                     return (
                         tr,
                         w,
@@ -215,8 +215,8 @@ class Distribution(
                         ),
                     )
                 else:
-                    w = self.estimate_logpdf(key, v, *arguments)
-                    tr = DistributionTrace(self, arguments, v, w)
+                    w = self.estimate_logpdf(key, v, *args)
+                    tr = DistributionTrace(self, args, v, w)
                     return (
                         tr,
                         w,
@@ -252,16 +252,16 @@ class Distribution(
         key: PRNGKey,
         trace: DistributionTrace[A, R],
         constraint: ChoiceMapConstraint[EmptyConstraint | EqualityConstraint[R]],
-        arguments: A,
+        args: A,
     ) -> tuple[DistributionTrace[A, R], Weight, ChoiceMapConstraint]:
         value = constraint.get_value()
         match value:
             case EmptyConstraint():
                 old_score = trace.get_score()
                 v = trace.get_retval()
-                w = self.estimate_logpdf(key, v, *arguments)
+                w = self.estimate_logpdf(key, v, *args)
                 inc_w = w - old_score
-                new_tr = DistributionTrace(self, arguments, v, w)
+                new_tr = DistributionTrace(self, args, v, w)
                 return new_tr, inc_w, ChoiceMapConstraint(ChoiceMap.empty())
 
             case EqualityConstraint(v):
@@ -286,7 +286,7 @@ class Distribution(
                         return new_tr, inc_w
 
                     new_tr, inc_w = jax.lax.cond(
-                        flag, true_branch, false_branch, key, trace, arguments
+                        flag, true_branch, false_branch, key, trace, args
                     )
                     shared_constraint = ChoiceMapConstraint(
                         ChoiceMap.maybe(flag, ChoiceMap.value(trace.get_retval()))
@@ -294,10 +294,10 @@ class Distribution(
                     return new_tr, inc_w, shared_constraint
                 else:
                     old_score = trace.get_score()
-                    w = self.estimate_logpdf(key, v, *arguments)
+                    w = self.estimate_logpdf(key, v, *args)
                     inc_w = w - old_score
                     old_value = trace.get_retval()
-                    new_tr = DistributionTrace(self, arguments, v, w)
+                    new_tr = DistributionTrace(self, args, v, w)
                     return (
                         new_tr,
                         inc_w,
@@ -311,7 +311,7 @@ class Distribution(
         key: PRNGKey,
         trace: Trace,
         selection: Selection,
-        arguments: Arguments,
+        args: Arguments,
     ) -> tuple[
         Trace,
         Weight,
@@ -319,11 +319,11 @@ class Distribution(
     ]:
         match selection.check():
             case True:
-                new_score, new_value = self.random_weighted(key, *arguments)
+                new_score, new_value = self.random_weighted(key, *args)
                 old_score = trace.get_score()
                 old_value = trace.get_retval()
                 return (
-                    DistributionTrace(self, arguments, new_value, new_score),
+                    DistributionTrace(self, args, new_value, new_score),
                     new_score - old_score,
                     ChoiceMapConstraint(ChoiceMap.value(old_value)),
                 )
@@ -350,7 +350,7 @@ class Distribution(
 
                 flag = selection.check()
                 new_tr, inc_w = jax.lax.cond(
-                    flag, true_branch, false_branch, key, trace, arguments
+                    flag, true_branch, false_branch, key, trace, args
                 )
                 shared_constraint = ChoiceMapConstraint(
                     ChoiceMap.maybe(flag, ChoiceMap.value(trace.get_retval()))
@@ -363,7 +363,7 @@ class Distribution(
         key: PRNGKey,
         trace: DistributionTrace,
         request: SelectionRegenerateRequest[A],
-        arguments: A,
+        args: A,
     ) -> tuple[DistributionTrace, Weight, Retdiff, ChoiceMapEditRequest[A]]:
         pass
 
@@ -373,7 +373,7 @@ class Distribution(
         key: PRNGKey,
         trace: DistributionTrace,
         request: ChoiceMapEditRequest[A],
-        arguments: A,
+        args: A,
     ) -> tuple[DistributionTrace, Weight, Retdiff, ChoiceMapEditRequest[A]]:
         pass
 
@@ -382,7 +382,7 @@ class Distribution(
         key: PRNGKey,
         trace: DistributionTrace,
         request: ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
-        arguments: A,
+        args: A,
     ) -> tuple[
         DistributionTrace,
         Weight,
@@ -392,7 +392,7 @@ class Distribution(
         match request:
             case ChoiceMapEditRequest(chm_constraint):
                 new_trace, weight, discard_chm = self.choice_map_edit(
-                    key, trace, chm_constraint, arguments
+                    key, trace, chm_constraint, args
                 )
                 original_arguments = trace.get_args()
                 return (
@@ -404,7 +404,7 @@ class Distribution(
 
             case SelectionRegenerateRequest(projection):
                 new_trace, weight, bwd_choice_map_constraint = (
-                    self.selection_regenerate_edit(key, trace, projection, arguments)
+                    self.selection_regenerate_edit(key, trace, projection, args)
                 )
                 original_arguments = trace.get_args()
                 return (
@@ -421,26 +421,26 @@ class Distribution(
 
 
 class ExactDensity(Distribution):
-    def __abstract_call__(self, *arguments):
+    def __abstract_call__(self, *args):
         key = jax.random.PRNGKey(0)
-        return self.sample(key, *arguments)
+        return self.sample(key, *args)
 
     @abstractmethod
-    def sample(self, key: PRNGKey, *arguments):
+    def sample(self, key: PRNGKey, *args):
         raise NotImplementedError
 
     @abstractmethod
-    def logpdf(self, v: Retval, *arguments):
+    def logpdf(self, v: Retval, *args):
         raise NotImplementedError
 
     def handle_kwargs(self) -> GenerativeFunction:
         @Pytree.partial(self)
-        def sample_with_kwargs(self, key, arguments, kwargs):
-            return self.sample(key, *arguments, **kwargs)
+        def sample_with_kwargs(self, key, args, kwargs):
+            return self.sample(key, *args, **kwargs)
 
         @Pytree.partial(self)
-        def logpdf_with_kwargs(self, v, arguments, kwargs):
-            return self.logpdf(v, *arguments, **kwargs)
+        def logpdf_with_kwargs(self, v, args, kwargs):
+            return self.logpdf(v, *args, **kwargs)
 
         return ExactDensityFromCallables(
             sample_with_kwargs,
@@ -450,23 +450,23 @@ class ExactDensity(Distribution):
     def random_weighted(
         self,
         key: PRNGKey,
-        *arguments,
+        *args,
     ) -> tuple[Score, Retval]:
         """Given arguments to the distribution, sample from the distribution,
         and return the exact log density of the sample, and the sample."""
-        v = self.sample(key, *arguments)
-        w = self.estimate_logpdf(key, v, *arguments)
+        v = self.sample(key, *args)
+        w = self.estimate_logpdf(key, v, *args)
         return (w, v)
 
     def estimate_logpdf(
         self,
         key: PRNGKey,
         v: Any,
-        *arguments,
+        *args,
     ) -> Weight:
         """Given a sample and arguments to the distribution, return the exact
         log density of the sample."""
-        w = self.logpdf(v, *arguments)
+        w = self.logpdf(v, *args)
         if w.shape:
             return jnp.sum(w)
         else:
@@ -478,11 +478,11 @@ class ExactDensityFromCallables(ExactDensity):
     sampler: Closure
     logpdf_evaluator: Closure
 
-    def sample(self, key, *arguments):
-        return self.sampler(key, *arguments)
+    def sample(self, key, *args):
+        return self.sampler(key, *args)
 
-    def logpdf(self, v, *arguments):
-        return self.logpdf_evaluator(v, *arguments)
+    def logpdf(self, v, *args):
+        return self.logpdf_evaluator(v, *args)
 
 
 def exact_density(

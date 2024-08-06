@@ -22,7 +22,7 @@ from jax.scipy.special import logsumexp
 
 
 def logpdf(v):
-    return lambda c, *arguments: v.assess(jax.random.PRNGKey(0), C.v(c), arguments)[0]
+    return lambda c, *args: v.assess(jax.random.PRNGKey(0), C.v(c), args)[0]
 
 
 class TestSMC:

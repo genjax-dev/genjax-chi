@@ -69,13 +69,13 @@ class HeterogeneousSwitchSample(Sample):
 @Pytree.dataclass
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
-    arguments: tuple
+    args: tuple
     subtraces: list[Trace]
     retval: Any
     score: FloatArray
 
     def get_args(self) -> tuple:
-        return self.arguments
+        return self.args
 
     def get_sample(self) -> Sample:
         subsamples = list(map(lambda v: v.get_sample(), self.subtraces))
@@ -88,7 +88,7 @@ class SwitchTrace(Trace):
                 chm = chm ^ masked_submap
             return chm
         else:
-            (idx, *_) = self.arguments
+            (idx, *_) = self.args
             return HeterogeneousSwitchSample(
                 idx,
                 list(
@@ -161,21 +161,21 @@ class SwitchCombinator(GenerativeFunction):
 
     branches: tuple[GenerativeFunction, ...]
 
-    def __abstract_call__(self, idx, *arguments):
+    def __abstract_call__(self, idx, *args):
         retvals = []
         for _idx in range(len(self.branches)):
             branch_gen_fn = self.branches[_idx]
-            branch_args = arguments[_idx]
+            branch_args = args[_idx]
             retval = branch_gen_fn.__abstract_call__(*branch_args)
             retvals.append(retval)
         return Sum.maybe(idx, retvals)
 
-    def static_check_num_arguments_equals_num_branches(self, arguments):
-        assert len(arguments) == len(self.branches)
+    def static_check_num_arguments_equals_num_branches(self, args):
+        assert len(args) == len(self.branches)
 
     def _empty_simulate_defs(
         self,
-        arguments: tuple,
+        args: tuple,
     ):
         trace_defs = []
         trace_leaves = []
@@ -184,7 +184,7 @@ class SwitchCombinator(GenerativeFunction):
         for static_idx in range(len(self.branches)):
             key = jax.random.PRNGKey(0)
             branch_gen_fn = self.branches[static_idx]
-            branch_args = arguments[static_idx]
+            branch_args = args[static_idx]
             trace_shape = get_data_shape(branch_gen_fn.simulate)(key, branch_args)
             empty_trace = jtu.tree_map(
                 lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
@@ -197,10 +197,10 @@ class SwitchCombinator(GenerativeFunction):
             retval_leaves.append(retval_leaf)
         return (trace_leaves, trace_defs), (retval_leaves, retval_defs)
 
-    def _simulate(self, trace_leaves, retval_leaves, key, static_idx, arguments):
+    def _simulate(self, trace_leaves, retval_leaves, key, static_idx, args):
         branch_gen_fn = self.branches[static_idx]
-        arguments = arguments[static_idx]
-        tr = branch_gen_fn.simulate(key, arguments)
+        args = args[static_idx]
+        tr = branch_gen_fn.simulate(key, args)
         trace_leaves[static_idx] = jtu.tree_leaves(tr)
         retval_leaves[static_idx] = jtu.tree_leaves(tr.get_retval())
         score = tr.get_score()
@@ -209,14 +209,14 @@ class SwitchCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        arguments: tuple,
+        args: tuple,
     ) -> SwitchTrace:
-        (idx, *branch_args) = arguments
+        (idx, *branch_args) = args
         self.static_check_num_arguments_equals_num_branches(branch_args)
 
         def _inner(idx: int):
-            return lambda trace_leaves, retval_leaves, key, arguments: self._simulate(
-                trace_leaves, retval_leaves, key, idx, arguments
+            return lambda trace_leaves, retval_leaves, key, args: self._simulate(
+                trace_leaves, retval_leaves, key, idx, args
             )
 
         branch_functions = list(map(_inner, range(len(self.branches))))
@@ -240,7 +240,7 @@ class SwitchCombinator(GenerativeFunction):
             )
         )
         retval = Sum.maybe_none(idx, retvals)
-        return SwitchTrace(self, arguments, subtraces, retval, score)
+        return SwitchTrace(self, args, subtraces, retval, score)
 
     def _empty_update_defs(
         self,
@@ -519,8 +519,8 @@ class SwitchCombinator(GenerativeFunction):
         problem: ChoiceMapImportanceRequest,
         argdiffs: tuple,
     ) -> tuple[SwitchTrace, Weight, Retdiff, EditRequest]:
-        arguments = Diff.tree_primal(argdiffs)
-        (idx, *branch_args) = arguments
+        args = Diff.tree_primal(argdiffs)
+        (idx, *branch_args) = args
         (_, *branch_argdiffs) = argdiffs
         branch_argdiffs = tuple(branch_argdiffs)
         self.static_check_num_arguments_equals_num_branches(branch_args)
@@ -582,7 +582,7 @@ class SwitchCombinator(GenerativeFunction):
         )
         retval = Sum.maybe_none(idx, retvals)
         return (
-            SwitchTrace(self, arguments, subtraces, retval, score),
+            SwitchTrace(self, args, subtraces, retval, score),
             w,
             Diff.unknown_change(retval),
             SumEditRequest(idx, bwd_problems),
@@ -616,12 +616,12 @@ class SwitchCombinator(GenerativeFunction):
                     key, trace, problem, Diff.no_change(trace.get_args())
                 )
 
-    def _empty_assess_defs(self, sample: Sample, arguments: tuple):
+    def _empty_assess_defs(self, sample: Sample, args: tuple):
         retval_defs = []
         retval_leaves = []
         for static_idx in range(len(self.branches)):
             branch_gen_fn = self.branches[static_idx]
-            _, retval_shape = get_data_shape(branch_gen_fn.assess)(sample, arguments)
+            _, retval_shape = get_data_shape(branch_gen_fn.assess)(sample, args)
             empty_retval = jtu.tree_map(
                 lambda v: jnp.zeros(v.shape, v.dtype), retval_shape
             )
@@ -630,30 +630,30 @@ class SwitchCombinator(GenerativeFunction):
             retval_leaves.append(retval_leaf)
         return (retval_leaves, retval_defs)
 
-    def _assess(self, static_idx, sample, arguments):
+    def _assess(self, static_idx, sample, args):
         branch_gen_fn = self.branches[static_idx]
-        score, retval = branch_gen_fn.assess(sample, arguments)
-        (retval_leaves, _) = self._empty_assess_defs(sample, arguments)
+        score, retval = branch_gen_fn.assess(sample, args)
+        (retval_leaves, _) = self._empty_assess_defs(sample, args)
         retval_leaves[static_idx] = jtu.tree_leaves(retval)
         return retval_leaves, score
 
     def assess(
         self,
         sample: Sample,
-        arguments: tuple,
+        args: tuple,
     ) -> tuple[Score, Any]:
-        (idx, *branch_args) = arguments
+        (idx, *branch_args) = args
         self.static_check_num_arguments_equals_num_branches(branch_args)
 
         def _inner(static_idx: int):
-            return lambda sample, arguments: self._assess(static_idx, sample, arguments)
+            return lambda sample, args: self._assess(static_idx, sample, args)
 
         branch_functions = list(map(_inner, range(len(self.branches))))
 
         retval_leaves, score = jax.lax.switch(
             idx, branch_functions, sample, branch_args
         )
-        (_, retval_defs) = self._empty_assess_defs(sample, arguments)
+        (_, retval_defs) = self._empty_assess_defs(sample, args)
         retvals = list(
             map(
                 lambda x: jtu.tree_unflatten(retval_defs[x], retval_leaves[x]),

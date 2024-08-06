@@ -72,12 +72,12 @@ class VmapTrace(
 ):
     gen_fn: "VmapCombinator"
     inner: Trace[G, A, S, R]
-    arguments: A
+    args: A
     retval: R
     score: Score
 
     def get_args(self) -> A:
-        return self.arguments
+        return self.args
 
     def get_retval(self) -> R:
         return self.retval
@@ -172,23 +172,23 @@ class VmapCombinator(
     gen_fn: GenerativeFunction[Tr, A, S, R, ChoiceMapConstraint, P, U]
     in_axes: InAxes = Pytree.static()
 
-    def __abstract_call__(self, *arguments) -> Any:
-        def inner(*arguments):
-            return self.gen_fn.__abstract_call__(*arguments)
+    def __abstract_call__(self, *args) -> Any:
+        def inner(*args):
+            return self.gen_fn.__abstract_call__(*args)
 
-        return jax.vmap(inner, in_axes=self.in_axes)(*arguments)
+        return jax.vmap(inner, in_axes=self.in_axes)(*args)
 
-    def _static_check_broadcastable(self, arguments: tuple) -> None:
+    def _static_check_broadcastable(self, args: tuple) -> None:
         # Argument broadcast semantics must be fully specified
         # in `in_axes`.
         if self.in_axes is not None:
             axes_length = 1 if isinstance(self.in_axes, int) else len(self.in_axes)
-            if not len(arguments) == axes_length:
+            if not len(args) == axes_length:
                 raise Exception(
-                    f"VmapCombinator requires that length of the provided in_axes kwarg match the number of arguments provided to the invocation.\nA mismatch occured with len(arguments) = {len(arguments)} and len(self.in_axes) = {axes_length}"
+                    f"VmapCombinator requires that length of the provided in_axes kwarg match the number of arguments provided to the invocation.\nA mismatch occured with len(arguments) = {len(args)} and len(self.in_axes) = {axes_length}"
                 )
 
-    def _static_broadcast_dim_length(self, arguments):
+    def _static_broadcast_dim_length(self, args):
         def find_axis_size(axis, x):
             if axis is not None:
                 leaves = jax.tree_util.tree_leaves(x)
@@ -196,7 +196,7 @@ class VmapCombinator(
                     return leaves[0].shape[axis]
             return ()
 
-        axis_sizes = jax.tree_util.tree_map(find_axis_size, self.in_axes, arguments)
+        axis_sizes = jax.tree_util.tree_map(find_axis_size, self.in_axes, args)
         axis_sizes = set(jax.tree_util.tree_leaves(axis_sizes))
         if len(axis_sizes) == 1:
             (d_axis_size,) = axis_sizes
@@ -207,34 +207,34 @@ class VmapCombinator(
     def simulate(
         self,
         key: PRNGKey,
-        arguments: A,
+        args: A,
     ) -> VmapTrace:
-        self._static_check_broadcastable(arguments)
-        broadcast_dim_length = self._static_broadcast_dim_length(arguments)
+        self._static_check_broadcastable(args)
+        broadcast_dim_length = self._static_broadcast_dim_length(args)
         sub_keys = jax.random.split(key, broadcast_dim_length)
-        tr = jax.vmap(self.gen_fn.simulate, (0, self.in_axes))(sub_keys, arguments)
+        tr = jax.vmap(self.gen_fn.simulate, (0, self.in_axes))(sub_keys, args)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VmapTrace(self, tr, arguments, retval, jnp.sum(scores))
+        map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
         return map_tr
 
     def assess(
         self,
         key: PRNGKey,
         sample: ChoiceMapSample,
-        arguments: A,
+        args: A,
     ) -> tuple[Score | Masked[Score], R | Masked[R]]:
-        self._static_check_broadcastable(arguments)
-        broadcast_dim_length = self._static_broadcast_dim_length(arguments)
+        self._static_check_broadcastable(args)
+        broadcast_dim_length = self._static_broadcast_dim_length(args)
         idx_array = jnp.arange(0, broadcast_dim_length)
 
-        def _assess(key, idx, arguments):
+        def _assess(key, idx, args):
             submap: ChoiceMapSample = sample(idx)  # type: ignore
-            return self.gen_fn.assess(key, submap, arguments)
+            return self.gen_fn.assess(key, submap, args)
 
         sub_keys = jax.random.split(key, broadcast_dim_length)
         scores, retvals = jax.vmap(_assess, in_axes=(0, 0, self.in_axes))(
-            sub_keys, idx_array, arguments
+            sub_keys, idx_array, args
         )
         if isinstance(scores, Masked):
             acc_flag = jnp.all(scores.flag)
@@ -247,29 +247,29 @@ class VmapCombinator(
         self,
         key: PRNGKey,
         constraint: ChoiceMapConstraint,
-        arguments: Arguments,
+        args: Arguments,
     ) -> tuple[VmapTrace, Weight, ChoiceMapProjection]:
-        self._static_check_broadcastable(arguments)
-        broadcast_dim_length = self._static_broadcast_dim_length(arguments)
+        self._static_check_broadcastable(args)
+        broadcast_dim_length = self._static_broadcast_dim_length(args)
         idx_array = jnp.arange(0, broadcast_dim_length)
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
-        def _importance(key, idx, choice_map, arguments):
+        def _importance(key, idx, choice_map, args):
             subconstraint: ChoiceMapConstraint = constraint(idx)  # type:ignore
             tr, w, bwd_projection = self.gen_fn.importance_edit(
                 key,
                 subconstraint,
-                arguments,
+                args,
             )
             return tr, w, ChoiceMapProjection(ChoiceMap.idx(idx, bwd_projection))
 
         (tr, w, bwd_projection) = jax.vmap(
             _importance, in_axes=(0, 0, None, self.in_axes)
-        )(sub_keys, idx_array, constraint, arguments)
+        )(sub_keys, idx_array, constraint, args)
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VmapTrace(self, tr, arguments, retval, jnp.sum(scores))
+        map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
         return map_tr, w, bwd_projection
 
     def project_edit(
@@ -285,9 +285,9 @@ class VmapCombinator(
         key: PRNGKey,
         prev: VmapTrace,
         update_request: ChoiceMap,
-        arguments: Arguments,
+        args: Arguments,
     ) -> tuple[Trace, Weight, Retdiff, ChoiceMap]:
-        primals = Diff.tree_primal(arguments)
+        primals = Diff.tree_primal(args)
         self._static_check_broadcastable(primals)
         broadcast_dim_length = self._static_broadcast_dim_length(primals)
         idx_array = jnp.arange(0, broadcast_dim_length)

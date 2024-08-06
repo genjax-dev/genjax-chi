@@ -86,7 +86,7 @@ class Target(Pytree):
     """
 
     p: GenerativeFunction
-    arguments: tuple
+    args: tuple
     constraint: ChoiceMapConstraint
 
     def importance(
@@ -100,7 +100,7 @@ class Target(Pytree):
             else constraint
         )
         merged = self.constraint.merge(forced_constraint)
-        return self.p.importance(key, merged, self.arguments)
+        return self.p.importance(key, merged, self.args)
 
     def filter_to_unconstrained(self, choice_map):
         selection = ~self.constraint.get_selection()
@@ -129,7 +129,7 @@ class SampleDistribution(Generic[A, S], Distribution[A, S]):
     def random_weighted(
         self,
         key: PRNGKey,
-        *arguments: Any,
+        *args: Any,
     ) -> tuple[Score, S]:
         raise NotImplementedError
 
@@ -138,7 +138,7 @@ class SampleDistribution(Generic[A, S], Distribution[A, S]):
         self,
         key: PRNGKey,
         v: S,
-        *arguments: Any,
+        *args: Any,
     ) -> Weight:
         raise NotImplementedError
 

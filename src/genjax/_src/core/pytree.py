@@ -210,8 +210,8 @@ class Pytree(pz.Struct):
         )
 
     @staticmethod
-    def partial(*arguments):
-        return lambda fn: Closure(arguments, fn)
+    def partial(*args):
+        return lambda fn: Closure(args, fn)
 
     def treedef(self):
         return jtu.tree_structure(self)
@@ -322,8 +322,8 @@ class Pytree(pz.Struct):
 
     @staticmethod
     def tree_grad_zip(grad, nograd):
-        def _zipper(*arguments):
-            for arg in arguments:
+        def _zipper(*args):
+            for arg in args:
                 if arg is not None:
                     return arg
             return None
@@ -470,8 +470,8 @@ class Const(Generic[V], Pytree):
 
     val: V = Pytree.static()
 
-    def __call__(self, *arguments):
-        return self.val(*arguments)
+    def __call__(self, *args):
+        return self.val(*args)
 
 
 # Construct for a type of closure which closes over dynamic values.
