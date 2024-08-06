@@ -46,7 +46,7 @@ class TestMaskCombinator:
         assert tr.get_score() == 0.0
         assert not tr.get_retval().flag
 
-        score, retval = jax.jit(model.assess)(tr.get_sample(), tr.get_args())
+        score, retval = jax.jit(model.assess)(key, tr.get_sample(), tr.get_args())
         assert score == 0.0
         assert not retval.flag
 
@@ -57,34 +57,37 @@ class TestMaskCombinator:
         # pre-update mask arg is True
         tr = jax.jit(model.simulate)(key, (True, 2.0))
         # mask check arg transition: True --> True
-        argdiffs = U.g(
-            (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1])), C.n()
-        )
-        w = tr.update(key, argdiffs)[1]
+        w = tr.update(
+            key,
+            C.n(),
+            (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1])),
+        )[1]
         assert w == tr.inner.update(key, C.n())[1]
         assert w == 0.0
         # mask check arg transition: True --> False
-        argdiffs = U.g(
-            (Diff.unknown_change(False), Diff.no_change(tr.get_args()[1])), C.n()
-        )
-        w = tr.update(key, argdiffs)[1]
+        w = tr.update(
+            key,
+            C.n(),
+            (Diff.unknown_change(False), Diff.no_change(tr.get_args()[1])),
+        )[1]
         assert w == -tr.get_score()
 
-    @pytest.mark.skip(reason="This test is currently skipped")
     def test_mask_update_weight_to_argdiffs_from_false(self, key):
         # pre-update mask arg is False
         tr = jax.jit(model.simulate)(key, (False, 2.0))
         # mask check arg transition: False --> True
-        argdiffs = U.g(
-            (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1])), C.n()
-        )
-        w = tr.update(key, argdiffs)[1]
+        w = tr.update(
+            key,
+            C.n(),
+            (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1])),
+        )[1]
         assert w == tr.inner.update(key, C.n())[1] + tr.inner.get_score()
         assert w == tr.inner.update(key, C.n())[0].get_score()
         # mask check arg transition: False --> False
-        argdiffs = U.g(
-            (Diff.unknown_change(False), Diff.no_change(tr.get_args()[1])), C.n()
-        )
-        w = tr.update(key, argdiffs)[1]
+        w = tr.update(
+            key,
+            C.n(),
+            (Diff.unknown_change(False), Diff.no_change(tr.get_args()[1])),
+        )[1]
         assert w == 0.0
         assert w == tr.get_score()

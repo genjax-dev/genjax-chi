@@ -12,18 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import jax.numpy as jnp
+import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
     Arguments,
     ChoiceMap,
     ChoiceMapConstraint,
+    ChoiceMapEditRequest,
     ChoiceMapProjection,
     ChoiceMapSample,
     EditRequest,
     GenerativeFunction,
     Masked,
-    MaskedEditRequest,
-    MaskedSample,
     Projection,
     Retdiff,
     Retval,
@@ -40,6 +41,7 @@ from genjax._src.core.typing import (
     Generic,
     PRNGKey,
     TypeVar,
+    overload,
 )
 
 G = TypeVar("G", bound=GenerativeFunction)
@@ -53,41 +55,46 @@ U = TypeVar("U", bound=EditRequest)
 
 
 @Pytree.dataclass
-class MaskedTrace(Trace):
-    mask_combinator: "MaskedCombinator"
-    inner: Trace
-    check: BoolArray
+class MaskedTrace(
+    Generic[G, A, R, U],
+    Trace[
+        "MaskedCombinator[A, R, U]",
+        tuple[bool | BoolArray, A],
+        ChoiceMapSample,
+        Masked[R],
+    ],
+):
+    mask_combinator: "MaskedCombinator[A, R, U]"
+    inner: Trace[G, A, ChoiceMapSample, R]
+    check: bool | BoolArray
 
-    def get_args(self):
+    def get_args(self) -> tuple:
         return (self.check, *self.inner.get_args())
 
-    def get_gen_fn(self):
+    def get_gen_fn(self) -> "MaskedCombinator[A, R, U]":
         return self.mask_combinator
 
-    def get_sample(self):
+    def get_sample(self) -> ChoiceMapSample:
         inner_sample = self.inner.get_sample()
-        if isinstance(inner_sample, ChoiceMap):
-            return ChoiceMap.maybe(self.check, inner_sample)
-        else:
-            return MaskedSample(self.check, self.inner.get_sample())
+        return ChoiceMapSample(ChoiceMap.maybe(self.check, inner_sample))
 
-    def get_retval(self):
+    def get_retval(self) -> Masked[R]:
         return Masked(self.check, self.inner.get_retval())
 
-    def get_score(self):
+    def get_score(self) -> Score:
         return self.check * self.inner.get_score()
 
 
 @Pytree.dataclass
 class MaskedCombinator(
-    Generic[Tr, A, R, U],
+    Generic[A, R, U],
     GenerativeFunction[
         tuple[bool | BoolArray, A],
         ChoiceMapSample,
         Masked[R],
         ChoiceMapConstraint,
         SelectionProjection | ChoiceMapProjection,
-        U,
+        ChoiceMapEditRequest,
     ],
 ):
     """Combinator which enables dynamic masking of generative functions. Takes
@@ -144,7 +151,19 @@ class MaskedCombinator(
         self,
         key: PRNGKey,
         args: A,
-    ) -> MaskedTrace:
+    ) -> MaskedTrace[
+        GenerativeFunction[
+            A,
+            ChoiceMapSample,
+            R,
+            ChoiceMapConstraint,
+            SelectionProjection | ChoiceMapProjection,
+            U,
+        ],
+        A,
+        R,
+        U,
+    ]:
         check, *inner_args = args
         tr = self.gen_fn.simulate(key, tuple(inner_args))
         return MaskedTrace(self, tr, check)
@@ -192,14 +211,76 @@ class MaskedCombinator(
             ChoiceMapConstraint(ChoiceMap.maybe(check, fwd_constraint)),
         )
 
+    @overload
     def edit(
         self,
         key: PRNGKey,
         trace: MaskedTrace,
-        request: U | MaskedEditRequest[U],
+        request: ChoiceMapEditRequest,
         args: A,
-    ) -> tuple[MaskedTrace, Weight, Retdiff, U | MaskedEditRequest[U]]:
-        raise NotImplementedError
+    ) -> tuple[MaskedTrace, Weight, Retdiff, ChoiceMapEditRequest]:
+        pass
+
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: MaskedTrace,
+        request: ChoiceMapEditRequest,
+        args: A,
+    ) -> tuple[MaskedTrace, Weight, Retdiff, ChoiceMapEditRequest]:
+        (check_arg, *rest) = args
+        inner_trace = trace.inner
+        edited_trace, weight, retdiff, bwd_move = request.edit(
+            key, inner_trace, tuple(rest)
+        )
+
+        #       What's the math for the weight term here?
+        #
+        # Well, if we started with a "masked false trace",
+        # and then we flip the check_arg to True, we can re-use
+        # the sampling process which created the original trace as
+        # part of the move. The weight is the entire new trace's score.
+        #
+        # That's the transition False -> True:
+        #
+        #               w' = final_trace.score()
+        #
+        # On the other hand, if we started True, and went False, no matter
+        # the update, we can make the choice that this move is just removing
+        # the samples from the original trace, and ignoring the move.
+        #
+        # That's the transition True -> False:
+        #
+        #               w' = -original_trace.score()
+        #
+        # For the transition False -> False, we just ignore the move entirely.
+        #
+        #               w' = 0.0
+        #
+        # For the transition True -> True, we apply the move to the existing
+        # unmasked trace. In that case, the weight is just the weight of the move.
+        #
+        #               w' = w
+        #
+        # In any case, we always apply the move... we're not avoiding
+        # that computation
+
+        check = trace.check
+        final_trace = jtu.tree_map(
+            lambda v1, v2: jnp.where(check_arg, v1, v2), edited_trace, inner_trace
+        )
+        inner_chm = bwd_move.constraint.choice_map
+        return (
+            MaskedTrace(self, final_trace, trace.check),
+            (check and check_arg) * weight
+            + (check and not check_arg) * (-inner_trace.get_score())
+            + (not check and not check_arg) * 0.0
+            + (not check and check_arg) * final_trace.get_score(),
+            retdiff,
+            ChoiceMapEditRequest(
+                ChoiceMapConstraint(ChoiceMap.maybe(check_arg, inner_chm))
+            ),
+        )
 
 
 #############
