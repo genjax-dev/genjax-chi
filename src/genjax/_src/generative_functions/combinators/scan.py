@@ -67,17 +67,17 @@ U = TypeVar("U", bound=EditRequest)
 
 @Pytree.dataclass
 class ScanTrace(
-    Generic[G, Tr, Ca, Sc1, Sc2, S],
+    Generic[G, Ca, Sc1, Sc2, S, U],
     SampleCoercableToChoiceMap,
     Trace[
-        "ScanCombinator[G, Tr, Ca, Sc1, Sc2, S]",
+        "ScanCombinator[G, Ca, Sc1, Sc2, S, U]",
         tuple[Ca, Sc1],
         ChoiceMapSample,
         tuple[Ca, Sc2],
     ],
 ):
-    scan_gen_fn: "ScanCombinator[G, Tr, Ca, Sc1, Sc2, S]"
-    inner: Tr
+    scan_gen_fn: "ScanCombinator[G, Ca, Sc1, Sc2, S, U]"
+    inner: Trace[G, tuple[Ca, Sc1], S, tuple[Ca, Sc2]]
     args: tuple[Ca, Sc1]
     retval: tuple[Ca, Sc2]
     score: Score
@@ -101,7 +101,7 @@ class ScanTrace(
             lambda idx, subtrace: ChoiceMap.idx(idx, subtrace.get_choices())
         )(jnp.arange(self.scan_gen_fn.length), self.inner)
 
-    def get_gen_fn(self) -> "ScanCombinator[G, Tr, Ca, Sc1, Sc2, S]":
+    def get_gen_fn(self) -> "ScanCombinator[G, Ca, Sc1, Sc2, S, U]":
         return self.scan_gen_fn
 
     def get_score(self) -> Score:
