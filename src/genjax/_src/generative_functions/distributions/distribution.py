@@ -471,7 +471,7 @@ class ExactDensity(Distribution):
             return jnp.sum(w)
         else:
             return w
-          
+
 
 @Pytree.dataclass
 class ExactDensityFromCallables(ExactDensity):
