@@ -108,9 +108,8 @@ class VmapTrace(
 
 @Pytree.dataclass
 class VmapCombinator(
-    Generic[Tr, A, S, R, C, P, U],
+    Generic[A, S, R, C, P, U],
     GenerativeFunction[
-        VmapTrace,
         A,
         ChoiceMapSample,
         R,
@@ -169,7 +168,7 @@ class VmapCombinator(
 
     """
 
-    gen_fn: GenerativeFunction[Tr, A, S, R, ChoiceMapConstraint, P, U]
+    gen_fn: GenerativeFunction[A, S, R, ChoiceMapConstraint, P, U]
     in_axes: InAxes = Pytree.static()
 
     def __abstract_call__(self, *args) -> Any:

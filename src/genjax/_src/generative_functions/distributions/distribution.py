@@ -106,13 +106,12 @@ class DistributionTrace(
 class Distribution(
     Generic[A, R],
     GenerativeFunction[
-        DistributionTrace[A, R],
         A,
         ValueSample[R],
         R,
         ChoiceMapConstraint[EmptyConstraint | EqualityConstraint[R | Masked[R]]],
         SelectionProjection | ChoiceMapProjection,
-        ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
+        ChoiceMapEditRequest | SelectionRegenerateRequest,
     ],
 ):
     @abstractmethod
@@ -362,9 +361,9 @@ class Distribution(
         self,
         key: PRNGKey,
         trace: DistributionTrace,
-        request: SelectionRegenerateRequest[A],
+        request: SelectionRegenerateRequest,
         args: A,
-    ) -> tuple[DistributionTrace, Weight, Retdiff, ChoiceMapEditRequest[A]]:
+    ) -> tuple[DistributionTrace, Weight, Retdiff, ChoiceMapEditRequest]:
         pass
 
     @overload
@@ -372,22 +371,22 @@ class Distribution(
         self,
         key: PRNGKey,
         trace: DistributionTrace,
-        request: ChoiceMapEditRequest[A],
+        request: ChoiceMapEditRequest,
         args: A,
-    ) -> tuple[DistributionTrace, Weight, Retdiff, ChoiceMapEditRequest[A]]:
+    ) -> tuple[DistributionTrace, Weight, Retdiff, ChoiceMapEditRequest]:
         pass
 
     def edit(
         self,
         key: PRNGKey,
         trace: DistributionTrace,
-        request: ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
+        request: ChoiceMapEditRequest | SelectionRegenerateRequest,
         args: A,
     ) -> tuple[
         DistributionTrace,
         Weight,
         Retdiff,
-        ChoiceMapEditRequest[A] | SelectionRegenerateRequest[A],
+        ChoiceMapEditRequest | SelectionRegenerateRequest,
     ]:
         match request:
             case ChoiceMapEditRequest(chm_constraint):

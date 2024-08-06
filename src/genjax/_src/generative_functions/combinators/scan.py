@@ -148,9 +148,8 @@ class IndexEditRequest(
 
 @Pytree.dataclass
 class ScanCombinator(
-    Generic[G, Tr, Ca, Sc1, Sc2, S, U],
+    Generic[G, Ca, Sc1, Sc2, S, U],
     GenerativeFunction[
-        ScanTrace[G, Tr, Ca, Sc1, Sc2, S],
         tuple[Ca, Sc1],
         ChoiceMapSample,
         tuple[Ca, Sc2],
@@ -237,7 +236,6 @@ class ScanCombinator(
     """
 
     kernel_gen_fn: GenerativeFunction[
-        Tr,
         tuple[Ca, Sc1],
         S,
         tuple[Ca, Sc2],

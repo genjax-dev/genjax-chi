@@ -192,7 +192,7 @@ cache_p = InitialStylePrimitive("cache")
 # get lifted to by `get_shaped_aval`.
 def _abstract_gen_fn_call(
     _: tuple[Const[StaticAddress], ...],
-    gen_fn: GenerativeFunction[Tr, A, S, R, C, P, U],
+    gen_fn: GenerativeFunction[A, S, R, C, P, U],
     args: A,
 ):
     return gen_fn.__abstract_call__(*args)
@@ -200,7 +200,7 @@ def _abstract_gen_fn_call(
 
 def trace(
     addr: StaticAddress,
-    gen_fn: GenerativeFunction[Tr, A, S, R, C, P, U],
+    gen_fn: GenerativeFunction[A, S, R, C, P, U],
     args: A,
 ):
     """Invoke a generative function, binding its generative semantics with the
@@ -1003,15 +1003,14 @@ def handler_trace_with_static(
 class StaticGenerativeFunction(
     Generic[A, R],
     GenerativeFunction[
-        StaticTrace[A, R],
         A,
         ChoiceMapSample,
         R,
         ChoiceMapConstraint,
         ChoiceMapProjection | SelectionProjection,
-        ChoiceMapEditRequest[A]
-        | IncrementalChoiceMapEditRequest[A]
-        | SelectionRegenerateRequest[A],
+        ChoiceMapEditRequest
+        | IncrementalChoiceMapEditRequest
+        | SelectionRegenerateRequest,
     ],
 ):
     """A `StaticGenerativeFunction` is a generative function which relies on
@@ -1346,9 +1345,9 @@ class StaticGenerativeFunction(
         self,
         key: PRNGKey,
         trace: StaticTrace[A, R],
-        request: ChoiceMapEditRequest[A],
+        request: ChoiceMapEditRequest,
         args: A,
-    ) -> tuple[StaticTrace[A, R], Weight, Retdiff, ChoiceMapEditRequest[A]]:
+    ) -> tuple[StaticTrace[A, R], Weight, Retdiff, ChoiceMapEditRequest]:
         pass
 
     @overload
@@ -1356,9 +1355,9 @@ class StaticGenerativeFunction(
         self,
         key: PRNGKey,
         trace: StaticTrace[A, R],
-        request: IncrementalChoiceMapEditRequest[A],
+        request: IncrementalChoiceMapEditRequest,
         args: A,
-    ) -> tuple[StaticTrace[A, R], Weight, Retdiff, IncrementalChoiceMapEditRequest[A]]:
+    ) -> tuple[StaticTrace[A, R], Weight, Retdiff, IncrementalChoiceMapEditRequest]:
         pass
 
     @overload
@@ -1366,24 +1365,24 @@ class StaticGenerativeFunction(
         self,
         key: PRNGKey,
         trace: StaticTrace[A, R],
-        request: SelectionRegenerateRequest[A],
+        request: SelectionRegenerateRequest,
         args: A,
-    ) -> tuple[StaticTrace[A, R], Weight, Retdiff, ChoiceMapEditRequest[A]]:
+    ) -> tuple[StaticTrace[A, R], Weight, Retdiff, ChoiceMapEditRequest]:
         pass
 
     def edit(
         self,
         key: PRNGKey,
         trace: StaticTrace[A, R],
-        request: ChoiceMapEditRequest[A]
-        | IncrementalChoiceMapEditRequest[A]
-        | SelectionRegenerateRequest[A],
+        request: ChoiceMapEditRequest
+        | IncrementalChoiceMapEditRequest
+        | SelectionRegenerateRequest,
         args: A,
     ) -> tuple[
         StaticTrace[A, R],
         Weight,
         Retdiff,
-        ChoiceMapEditRequest[A] | IncrementalChoiceMapEditRequest[A],
+        ChoiceMapEditRequest | IncrementalChoiceMapEditRequest,
     ]:
         match request:
             case ChoiceMapEditRequest(choice_map_constraint):

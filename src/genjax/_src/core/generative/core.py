@@ -66,10 +66,10 @@ S_ = TypeVar("S_", bound="Sample")
 S1 = TypeVar("S1", bound="Sample")
 S2 = TypeVar("S2", bound="Sample")
 P = TypeVar("P", bound="Projection")
+P1 = TypeVar("P1", bound="Projection")
+P2 = TypeVar("P2", bound="Projection")
 Tr = TypeVar("Tr", bound="Trace")
 Tr_ = TypeVar("Tr_", bound="Trace")
-_Tr = TypeVar("_Tr", bound="Trace")
-_Tr_ = TypeVar("_Tr_", bound="Trace")
 U = TypeVar("U", bound="EditRequest")
 
 #####################################
@@ -509,13 +509,21 @@ class EmptyTrace(
 
 class GenerativeFunction(
     Generic[
-        Tr,  # the trace type which the generative function produces
-        A,  # the space of arguments to the generative function
-        S,  # the sample space for the generative function's P distribution
-        R,  # the space of return values
-        C,  # the space of constraints to `GenerativeFunction.importance_edit`
-        P,  # the space of projections to `GenerativeFunction.project_edit`
-        U,  # the space of `EditRequest` types which this generative function provides implementations for
+        # the space of arguments to the generative function
+        A,
+        # a type which characterizes what spaces we can assess the density of the generative
+        # function's P distribution on -- formally, this type is always restricted to be the type
+        # of samples from P -- but in the code, S can sometimes be a larger set of types.
+        S,
+        # the space of return values
+        R,
+        # the space of constraints to `GenerativeFunction.importance_edit`
+        C,
+        # the space of projections returned by `GenerativeFunction.importance_edit`
+        # and the space of projections to `GenerativeFunction.project_edit`
+        P,
+        # the space of `EditRequest` types which this generative function provides implementations for
+        U,
     ],
     Pytree,
 ):
@@ -593,20 +601,16 @@ class GenerativeFunction(
     def get_trace_shape(self, *args) -> Any:
         return get_trace_shape(self, args)
 
-    def get_empty_trace(self, *args) -> Trace:
+    def get_empty_trace(self, *args) -> Trace[Self, A, S, R]:
         data_shape = self.get_trace_shape(*args)
         return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), data_shape)
-
-    #############
-    # Interface #
-    #############
 
     @abstractmethod
     def simulate(
         self,
         key: PRNGKey,
         args: A,
-    ) -> Tr:
+    ) -> Trace[Self, A, S, R]:
         """Execute the generative function, sampling from its distribution over
         samples, and return a [`Trace`][genjax.core.Trace].
 
@@ -712,14 +716,14 @@ class GenerativeFunction(
         key: PRNGKey,
         constraint: C,
         args: A,
-    ) -> tuple[Tr, Weight, P]:
+    ) -> tuple[Trace[Self, A, S, R], Weight, P]:
         raise NotImplementedError
 
     @abstractmethod
     def project_edit(
         self,
         key: PRNGKey,
-        trace: Tr,
+        trace: Trace[Self, A, S, R],
         projection: P,
     ) -> tuple[Weight, C]:
         raise NotImplementedError
@@ -728,10 +732,10 @@ class GenerativeFunction(
     def edit(
         self,
         key: PRNGKey,
-        trace: Tr,
+        trace: Trace[Self, A, S, R],
         request: U,
         args: A,
-    ) -> tuple[Tr, Weight, Retdiff, U]:
+    ) -> tuple[Trace[Self, A, S, R], Weight, Retdiff, U]:
         raise NotImplementedError
 
     ################################
@@ -743,20 +747,20 @@ class GenerativeFunction(
         key: PRNGKey,
         choice_map: "ChoiceMap | ChoiceMapConstraint",
         args: A,
-    ) -> tuple[Tr, Weight]:
+    ) -> tuple[Trace[Self, A, S, R], Weight]:
         constraint = (
             ChoiceMapConstraint(choice_map)
             if not isinstance(choice_map, ChoiceMapConstraint)
             else choice_map
         )
         request = ChoiceMapImportanceRequest(constraint)
-        new_trace, w, _, _ = request.edit(key, EmptyTrace(self), args)
+        new_trace, w, _, _ = request.edit(key, EmptyTrace(self), args)  # type: ignore
         return new_trace, w
 
     def project(
         self,
         key: PRNGKey,
-        trace: Tr,
+        trace: Trace[Self, A, S, R],
         projection: Selection,
     ) -> Weight:
         projection = SelectionProjection(projection)
@@ -785,7 +789,7 @@ class GenerativeFunction(
     def regenerate(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[Self, A, S, R],
         select: Selection,
         argdiffs: Argdiffs,
     ) -> tuple[Trace, Weight, Retdiff, "EditRequest"]:
@@ -798,7 +802,7 @@ class GenerativeFunction(
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[Self, A, S, R],
         choice_map: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[Trace, Weight, Retdiff, ChoiceMap]:
@@ -1604,7 +1608,7 @@ GLOBAL_TRACE_OP_HANDLER_STACK: list[Callable[..., Any]] = []
 
 def handle_off_trace_stack(
     addr: ExtendedAddressComponent | ExtendedAddress,
-    gen_fn: GenerativeFunction[Tr, A, S, R, C, P, U],
+    gen_fn: GenerativeFunction[A, S, R, C, P, U],
     args: A,
 ) -> R:
     if GLOBAL_TRACE_OP_HANDLER_STACK:
@@ -1945,20 +1949,24 @@ class EditRequest(Pytree):
 
 
 @Pytree.dataclass(match_args=True)
-class ChoiceMapImportanceRequest(Generic[A], EditRequest):
+class ChoiceMapImportanceRequest(EditRequest):
     constraint: ChoiceMapConstraint
 
     def edit(
         self,
         key: PRNGKey,
-        trace: EmptyTrace,
+        trace: EmptyTrace[G],
         args: A,
-    ) -> tuple[Trace, Weight, Retdiff, "ChoiceMapProjectionProjectRequest"]:
+    ) -> tuple[
+        Trace[G, A, Sample, Retval],
+        Weight,
+        Retdiff,
+        "ChoiceMapProjectionProjectRequest",
+    ]:
         gen_fn = trace.get_gen_fn()
         new_trace, w, bwd_projection = gen_fn.importance_edit(
             key, self.constraint, args
         )
-        assert isinstance(bwd_projection, ChoiceMapProjection), type(bwd_projection)
         return (
             new_trace,
             w,
@@ -1968,44 +1976,44 @@ class ChoiceMapImportanceRequest(Generic[A], EditRequest):
 
 
 @Pytree.dataclass(match_args=True)
-class ChoiceMapEditRequest(Generic[A], EditRequest):
+class ChoiceMapEditRequest(EditRequest):
     constraint: ChoiceMapConstraint
 
     def edit(
         self,
         key: PRNGKey,
-        trace: Tr,
+        trace: Trace[G, A, S, R],
         args: A,
-    ) -> tuple[Tr, Weight, Retdiff, "ChoiceMapEditRequest"]:
+    ) -> tuple[Trace[G, A, S, R], Weight, Retdiff, "ChoiceMapEditRequest"]:
         gen_fn = trace.get_gen_fn()
         return gen_fn.edit(key, trace, self, args)
 
 
 @Pytree.dataclass(match_args=True)
-class IncrementalChoiceMapEditRequest(Generic[A], EditRequest):
+class IncrementalChoiceMapEditRequest(EditRequest):
     constraint: ChoiceMapConstraint
     propagate_incremental: bool = Pytree.static(default=False)
 
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[G, A, S, R],
         args: A,
-    ) -> tuple[Trace, Weight, Retdiff, "IncrementalChoiceMapEditRequest"]:
+    ) -> tuple[Trace[G, A, S, R], Weight, Retdiff, "IncrementalChoiceMapEditRequest"]:
         gen_fn = trace.get_gen_fn()
         return gen_fn.edit(key, trace, self, args)
 
 
 @Pytree.dataclass(match_args=True)
-class SelectionRegenerateRequest(Generic[A], EditRequest):
+class SelectionRegenerateRequest(EditRequest):
     projection: Selection
 
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[G, A, S, R],
         args: A,
-    ) -> tuple[Trace, Weight, Retdiff, ChoiceMapEditRequest]:
+    ) -> tuple[Trace[G, A, S, R], Weight, Retdiff, ChoiceMapEditRequest]:
         gen_fn = trace.get_gen_fn()
         return gen_fn.edit(key, trace, self, args)
 
@@ -2017,13 +2025,11 @@ class ChoiceMapProjectionProjectRequest(EditRequest):
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace,
-        args: Arguments,
-    ) -> tuple[EmptyTrace, Weight, Retdiff, ChoiceMapImportanceRequest]:
+        trace: Trace[G, A, S, R],
+        args: A,
+    ) -> tuple[EmptyTrace[G], Weight, Retdiff, ChoiceMapImportanceRequest]:
         gen_fn = trace.get_gen_fn()
-        w, bwd_choice_map_constraint = gen_fn.project_edit(
-            key, trace, self.projection, args
-        )
+        w, bwd_choice_map_constraint = gen_fn.project_edit(key, trace, self.projection)
         return (
             EmptyTrace(gen_fn),
             w,
@@ -2039,9 +2045,9 @@ class SelectionProjectRequest(EditRequest):
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace,
-        args: Arguments,
-    ) -> tuple[EmptyTrace, Weight, Retdiff, ChoiceMapImportanceRequest]:
+        trace: Trace[G, A, S, R],
+        args: A,
+    ) -> tuple[EmptyTrace[G], Weight, Retdiff, ChoiceMapImportanceRequest]:
         gen_fn = trace.get_gen_fn()
         w, bwd_choice_map_constraint = gen_fn.project_edit(
             key,
@@ -2069,9 +2075,9 @@ class EmptyRequest(EditRequest):
     def edit(
         self,
         key: PRNGKey,
-        trace: Tr,
+        trace: Trace[G, A, S, R],
         args: Arguments,
-    ) -> tuple[Tr, Weight, Retdiff, "EditRequest"]:
+    ) -> tuple[Trace[G, A, S, R], Weight, Retdiff, "EditRequest"]:
         return (
             trace,
             jnp.array(0.0),
@@ -2094,9 +2100,9 @@ class MaskedEditRequest(Generic[U], EditRequest):
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[G, A, S, R],
         args: Arguments,
-    ) -> tuple[Trace, Weight, Retdiff, "MaskedEditRequest"]:
+    ) -> tuple[Trace[G, A, S, R], Weight, Retdiff, "MaskedEditRequest"]:
         new_trace, w, retdiff, bwd_request = self.request.edit(key, trace, args)
         new_trace = jtu.tree_map(
             lambda v1, v2: jnp.where(self.flag, v1, v2), new_trace, trace
@@ -2127,10 +2133,10 @@ class SampleCoercableToChoiceMap(Trace):
 
 @Pytree.dataclass
 class IgnoreKwargsCombinator(
-    Generic[Tr, A, S, R, C, P, U],
-    GenerativeFunction[Tr, tuple[A, dict], S, R, C, P, U],
+    Generic[A, S, R, C, P, U],
+    GenerativeFunction[tuple[A, dict], S, R, C, P, U],
 ):
-    wrapped: GenerativeFunction[Tr, A, S, R, C, P, U]
+    wrapped: GenerativeFunction[A, S, R, C, P, U]
 
     def handle_kwargs(self) -> "GenerativeFunction":
         raise NotImplementedError
@@ -2139,7 +2145,7 @@ class IgnoreKwargsCombinator(
         self,
         key: PRNGKey,
         args: tuple[A, dict],
-    ) -> Tr:
+    ) -> Trace:
         args: A = args[0]
         return self.wrapped.simulate(key, args)
 
@@ -2156,10 +2162,10 @@ class IgnoreKwargsCombinator(
 
 @Pytree.dataclass
 class GenerativeFunctionClosure(
-    Generic[Tr, A, S, R, C, P, U],
-    GenerativeFunction[Tr, tuple[A, dict], S, R, C, P, U],
+    Generic[A, S, R, C, P, U],
+    GenerativeFunction[tuple[A, dict], S, R, C, P, U],
 ):
-    gen_fn: GenerativeFunction[Tr, A, S, R, C, P, U]
+    gen_fn: GenerativeFunction[A, S, R, C, P, U]
     args: A
     kwargs: dict
 

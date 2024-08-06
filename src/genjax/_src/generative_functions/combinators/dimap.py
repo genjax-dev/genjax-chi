@@ -83,8 +83,8 @@ class DimapTrace(
 
 @Pytree.dataclass
 class DimapCombinator(
-    Generic[Tr, A, A_, S, R_, R, C, P, U],
-    GenerativeFunction[DimapTrace, A, S, R, C, P, U],
+    Generic[A, A_, S, R_, R, C, P, U],
+    GenerativeFunction[A, S, R, C, P, U],
 ):
     """A combinator that transforms both the arguments and return values of a
     [`genjax.GenerativeFunction`][].
@@ -126,7 +126,7 @@ class DimapCombinator(
 
     """
 
-    inner: GenerativeFunction[Tr, A_, S, R_, C, P, U]
+    inner: GenerativeFunction[A_, S, R_, C, P, U]
     argument_mapping: Callable[[A], A_] = Pytree.static()
     retval_mapping: Callable[[A_, R_], R] = Pytree.static()
     info: String | None = Pytree.static(default=None)

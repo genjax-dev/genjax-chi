@@ -82,7 +82,6 @@ class MaskedTrace(Trace):
 class MaskedCombinator(
     Generic[Tr, A, R, U],
     GenerativeFunction[
-        MaskedTrace,
         tuple[bool | BoolArray, A],
         ChoiceMapSample,
         Masked[R],
@@ -133,7 +132,6 @@ class MaskedCombinator(
     """
 
     gen_fn: GenerativeFunction[
-        Tr,
         A,
         ChoiceMapSample,
         R,
@@ -167,18 +165,32 @@ class MaskedCombinator(
     def importance_edit(
         self,
         key: PRNGKey,
-        constraint: C,
+        constraint: ChoiceMapConstraint,
         args: A,
-    ) -> tuple[MaskedTrace, Weight, P]:
-        raise NotImplementedError
+    ) -> tuple[MaskedTrace, Weight, Projection]:
+        (check, *inner_args) = args
+        inner_trace, weight, bwd_projection = self.gen_fn.importance_edit(
+            key, constraint, tuple(inner_args)
+        )
+        return (
+            MaskedTrace(self, inner_trace, check),
+            weight * check,
+            ChoiceMapProjection(ChoiceMap.maybe(check, bwd_projection)),
+        )
 
     def project_edit(
         self,
         key: PRNGKey,
         trace: MaskedTrace,
-        projection: P,
-    ) -> tuple[Weight, C]:
-        raise NotImplementedError
+        projection: ChoiceMapProjection | SelectionProjection,
+    ) -> tuple[Weight, ChoiceMapConstraint]:
+        inner_trace = trace.inner
+        weight, fwd_constraint = self.gen_fn.project_edit(key, inner_trace, projection)
+        check = trace.check
+        return (
+            weight * check,
+            ChoiceMapConstraint(ChoiceMap.maybe(check, fwd_constraint)),
+        )
 
     def edit(
         self,
@@ -195,7 +207,7 @@ class MaskedCombinator(
 #############
 
 
-def mask(f: GenerativeFunction) -> GenerativeFunction:
+def mask(f: GenerativeFunction) -> MaskedCombinator:
     """Combinator which enables dynamic masking of generative functions. Takes
     a [`genjax.GenerativeFunction`][] and returns a new
     [`genjax.GenerativeFunction`][] which accepts an additional boolean first
