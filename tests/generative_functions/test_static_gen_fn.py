@@ -29,7 +29,7 @@ from genjax import (
 )
 from genjax import SelectionBuilder as S
 from genjax.generative_functions.static import AddressReuse
-from genjax.typing import Float, FloatArray
+from genjax.typing import FloatArray
 
 #############
 # Datatypes #
@@ -492,8 +492,8 @@ class TestStaticGenFnUpdate:
     def test_update_pytree_argument(self):
         @Pytree.dataclass
         class SomePytree(genjax.Pytree):
-            x: Float | FloatArray
-            y: Float | FloatArray
+            x: float | FloatArray
+            y: float | FloatArray
 
         @genjax.gen
         def simple_linked_normal_with_tree_argument(tree):

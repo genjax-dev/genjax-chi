@@ -161,7 +161,6 @@ __all__ = [
     "BoolArray",
     "Callable",
     "EllipsisType",
-    "Float",
     "FloatArray",
     "Generic",
     "InAxes",
