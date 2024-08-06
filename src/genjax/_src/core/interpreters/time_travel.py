@@ -30,10 +30,8 @@ from genjax._src.core.typing import (
     Any,
     ArrayLike,
     Callable,
-    Int,
     Optional,
     String,
-    tuple,
 )
 
 record_p = InitialStylePrimitive("record_p")
@@ -202,7 +200,7 @@ class TimeTravelingDebugger(Pytree):
     final_retval: Any
     sequence: list[FrameRecording]
     jump_points: dict = Pytree.static()
-    ptr: Int = Pytree.static()
+    ptr: int = Pytree.static()
 
     def frame(self) -> tuple[Optional[String], FrameRecording]:
         frame = self.sequence[self.ptr]

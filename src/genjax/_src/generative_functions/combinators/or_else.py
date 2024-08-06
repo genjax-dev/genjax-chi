@@ -15,7 +15,7 @@
 import jax.numpy as jnp
 
 from genjax._src.core.generative import GenerativeFunction
-from genjax._src.core.typing import ScalarBool, tuple
+from genjax._src.core.typing import ScalarBool
 
 
 def or_else(

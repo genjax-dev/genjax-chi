@@ -25,9 +25,7 @@ from jax.util import safe_map
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.typing import (
-    Bool,
     BoolArray,
-    Int,
     overload,
     static_check_is_concrete,
 )
@@ -42,14 +40,14 @@ def staged_check(v):
 
 
 def staged_and(
-    x: Bool | BoolArray,
-    y: Bool | BoolArray,
-) -> Bool | BoolArray:
+    x: bool | BoolArray,
+    y: bool | BoolArray,
+) -> bool | BoolArray:
     if (
         static_check_is_concrete(x)
         and static_check_is_concrete(y)
-        and isinstance(x, Bool)
-        and isinstance(y, Bool)
+        and isinstance(x, bool)
+        and isinstance(y, bool)
     ):
         return x and y
     else:
@@ -58,23 +56,23 @@ def staged_and(
 
 @overload
 def staged_or(
-    x: Bool,
-    y: Bool,
-) -> Bool:
+    x: bool,
+    y: bool,
+) -> bool:
     pass
 
 
 @overload
 def staged_or(
     x: BoolArray,
-    y: Bool,
+    y: bool,
 ) -> BoolArray:
     pass
 
 
 @overload
 def staged_or(
-    x: Bool,
+    x: bool,
     y: BoolArray,
 ) -> BoolArray:
     pass
@@ -89,15 +87,15 @@ def staged_or(
 
 
 def staged_or(
-    x: Bool | BoolArray,
-    y: Bool | BoolArray,
-) -> Bool | BoolArray:
+    x: bool | BoolArray,
+    y: bool | BoolArray,
+) -> bool | BoolArray:
     # Static scalar land.
     if (
         static_check_is_concrete(x)
         and static_check_is_concrete(y)
-        and isinstance(x, Bool)
-        and isinstance(y, Bool)
+        and isinstance(x, bool)
+        and isinstance(y, bool)
     ):
         return x or y
     # Array land.
@@ -106,7 +104,7 @@ def staged_or(
 
 
 def staged_not(x):
-    if static_check_is_concrete(x) and isinstance(x, Bool):
+    if static_check_is_concrete(x) and isinstance(x, bool):
         return not x
     else:
         return jnp.logical_not(x)
@@ -125,7 +123,7 @@ def staged_switch(idx, v1, v2):
 
 
 def staged_err(check, msg, **kwargs):
-    if static_check_is_concrete(check) and isinstance(check, Bool):
+    if static_check_is_concrete(check) and isinstance(check, bool):
         if check:
             raise Exception(msg)
         else:

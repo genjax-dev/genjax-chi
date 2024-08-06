@@ -26,7 +26,7 @@ from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import Any, Bool, Callable, List, Union, Value
+from genjax._src.core.typing import Any, Callable, Value
 
 #########################
 # Custom JAX primitives #
@@ -186,7 +186,7 @@ class Environment(Pytree):
 
 class StatefulHandler:
     @abc.abstractmethod
-    def handles(self, primitive: jc.Primitive) -> Bool:
+    def handles(self, primitive: jc.Primitive) -> bool:
         pass
 
     @abc.abstractmethod
@@ -205,8 +205,8 @@ class ForwardInterpreter(Pytree):
         self,
         stateful_handler,
         _jaxpr: jc.Jaxpr,
-        consts: List,
-        arguments: List,
+        consts: list,
+        arguments: list,
     ):
         env = Environment()
         jax_util.safe_map(env.write, _jaxpr.constvars, consts)

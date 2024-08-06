@@ -19,11 +19,10 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.typing import (
     Callable,
-    Int,
 )
 
 
-def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> GenerativeFunction:
+def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: int) -> GenerativeFunction:
     """A combinator that samples from a supplied
     [`genjax.GenerativeFunction`][] `gen_fn` a fixed number of times, returning
     a vector of `n` results.
@@ -38,7 +37,7 @@ def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> GenerativeFunc
     )
 
 
-def repeat(*, n: Int) -> Callable[[GenerativeFunction], GenerativeFunction]:
+def repeat(*, n: int) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][]
 
     `gen_fn` of type `a -> b` and returns a new `GenerativeFunction` of type `a

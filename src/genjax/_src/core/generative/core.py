@@ -36,13 +36,11 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Annotated,
     Any,
-    Bool,
     BoolArray,
     Callable,
     FloatArray,
     Generic,
     InAxes,
-    Int,
     IntArray,
     Is,
     Optional,
@@ -50,7 +48,6 @@ from genjax._src.core.typing import (
     Self,
     String,
     TypeVar,
-    tuple,
 )
 
 # Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
@@ -176,7 +173,7 @@ class ValueSample(Generic[V], Sample["EqualityConstraint[V]"]):
 
 @Pytree.dataclass(match_args=True)
 class MaskedSample(Generic[S], Sample["MaskedConstraint[S]"]):
-    flag: Bool | BoolArray
+    flag: bool | BoolArray
     sample: S
 
     def to_constraint(self) -> "MaskedConstraint[S]":
@@ -229,12 +226,12 @@ class EqualityConstraint(Generic[V], Constraint[ValueSample]):
 class MaskedConstraint(Generic[C, S], Constraint[S]):
     """A `MaskedConstraint` encodes a possible constraint.
 
-    Formally, `MaskedConstraint(f: Bool, c: Constraint)` represents the constraint `Option((x $\\mapsto$ x, x))`,
+    Formally, `MaskedConstraint(f: bool | BoolArray, c: Constraint)` represents the constraint `Option((x $\\mapsto$ x, x))`,
     where the None case is represented by `EmptyConstraint`.
 
     """
 
-    flag: Bool | BoolArray
+    flag: bool | BoolArray
     constraint: C
 
 
@@ -243,7 +240,7 @@ class SumConstraint(Constraint):
     """A `SumConstraint` encodes that one of a set of possible constraints is
     active _at runtime_, using a provided index.
 
-    Formally, `SumConstraint(idx: IntArray, cs: List[Constraint])` represents the constraint (`x` $\\mapsto$ `xs[idx]`, `ys[idx]`).
+    Formally, `SumConstraint(idx: IntArray, cs: list[Constraint])` represents the constraint (`x` $\\mapsto$ `xs[idx]`, `ys[idx]`).
 
     """
 
@@ -320,7 +317,7 @@ class EmptyProjection(Generic[S], Projection["IdentityProjection", S, EmptySampl
 class MaskedProjection(
     Generic[P, S1, S2], Projection["MaskedProjection[P, S1, S2]", S1, MaskedSample[S2]]
 ):
-    flag: Bool | BoolArray
+    flag: bool | BoolArray
     proj: Projection[P, S1, S2]
 
     def project(self, sample: S1) -> MaskedSample[S2]:
@@ -867,7 +864,7 @@ class GenerativeFunction(
 
         return genjax.vmap(in_axes=in_axes)(self)
 
-    def repeat(self, /, *, n: Int) -> "GenerativeFunction":
+    def repeat(self, /, *, n: int) -> "GenerativeFunction":
         """Returns a [`genjax.GenerativeFunction`][] that samples from `self`
         `n` times, returning a vector of `n` results.
 
@@ -909,7 +906,7 @@ class GenerativeFunction(
         self,
         /,
         *,
-        n: Optional[Int] = None,
+        n: Optional[int] = None,
         reverse: bool = False,
         unroll: int | bool = 1,
     ) -> "GenerativeFunction":
@@ -1130,7 +1127,7 @@ class GenerativeFunction(
 
         return genjax.reduce(reverse=reverse, unroll=unroll)(self)
 
-    def iterate(self, /, *, n: Int, unroll: int | bool = 1) -> "GenerativeFunction":
+    def iterate(self, /, *, n: int, unroll: int | bool = 1) -> "GenerativeFunction":
         """When called on a [`genjax.GenerativeFunction`][] of type `a -> a`,
         returns a new [`genjax.GenerativeFunction`][] of type `a -> [a]` where.
 
@@ -1186,7 +1183,7 @@ class GenerativeFunction(
         return genjax.iterate(n=n, unroll=unroll)(self)
 
     def iterate_final(
-        self, /, *, n: Int, unroll: int | bool = 1
+        self, /, *, n: int, unroll: int | bool = 1
     ) -> "GenerativeFunction":
         """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of
         type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type
@@ -1642,7 +1639,7 @@ class ChoiceMapSample(Generic[S], Sample, ChoiceMap[Sample]):
     def to_constraint(self) -> "ChoiceMapConstraint":
         return ChoiceMapConstraint(self.choice_map)
 
-    def has_value(self) -> Bool | BoolArray:
+    def has_value(self) -> bool | BoolArray:
         v = self.get_value()
         match v:
             case EmptySample():
@@ -1676,7 +1673,7 @@ class ChoiceMapConstraint(Generic[C], Constraint, ChoiceMap[Constraint]):
     # TODO: Any here is to maintain backwards compatibility.
     choice_map: ChoiceMap[Sample | Constraint | Any]
 
-    def has_value(self) -> Bool | BoolArray:
+    def has_value(self) -> bool | BoolArray:
         v = self.get_value()
         match v:
             case EmptyConstraint():
@@ -1781,7 +1778,7 @@ class SelectionProjection(
 ):
     selection: Selection
 
-    def check(self) -> Bool | BoolArray:
+    def check(self) -> bool | BoolArray:
         return self.selection.check()
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> "SelectionProjection":
@@ -1987,7 +1984,7 @@ class ChoiceMapEditRequest(Generic[A], EditRequest):
 @Pytree.dataclass(match_args=True)
 class IncrementalChoiceMapEditRequest(Generic[A], EditRequest):
     constraint: ChoiceMapConstraint
-    propagate_incremental: Bool = Pytree.static(default=False)
+    propagate_incremental: bool = Pytree.static(default=False)
 
     def edit(
         self,
@@ -2085,13 +2082,13 @@ class EmptyRequest(EditRequest):
 
 @Pytree.dataclass
 class SumEditRequest(EditRequest):
-    idx: Int | IntArray
-    requests: List[EditRequest]
+    idx: int | IntArray
+    requests: list[EditRequest]
 
 
 @Pytree.dataclass
 class MaskedEditRequest(Generic[U], EditRequest):
-    flag: Bool | BoolArray
+    flag: bool | BoolArray
     request: U
 
     def edit(
@@ -2131,7 +2128,7 @@ class SampleCoercableToChoiceMap(Trace):
 @Pytree.dataclass
 class IgnoreKwargsCombinator(
     Generic[Tr, A, S, R, C, P, U],
-    GenerativeFunction[Tr, tuple[A, Dict], S, R, C, P, U],
+    GenerativeFunction[Tr, tuple[A, dict], S, R, C, P, U],
 ):
     wrapped: GenerativeFunction[Tr, A, S, R, C, P, U]
 
@@ -2141,7 +2138,7 @@ class IgnoreKwargsCombinator(
     def simulate(
         self,
         key: PRNGKey,
-        arguments: tuple[A, Dict],
+        arguments: tuple[A, dict],
     ) -> Tr:
         args: A = arguments[0]
         return self.wrapped.simulate(key, args)
@@ -2160,11 +2157,11 @@ class IgnoreKwargsCombinator(
 @Pytree.dataclass
 class GenerativeFunctionClosure(
     Generic[Tr, A, S, R, C, P, U],
-    GenerativeFunction[Tr, tuple[A, Dict], S, R, C, P, U],
+    GenerativeFunction[Tr, tuple[A, dict], S, R, C, P, U],
 ):
     gen_fn: GenerativeFunction[Tr, A, S, R, C, P, U]
     arguments: A
-    kwargs: Dict
+    kwargs: dict
 
     def get_gen_fn_with_kwargs(self):
         return self.gen_fn.handle_kwargs()

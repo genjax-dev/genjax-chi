@@ -40,7 +40,6 @@ from genjax._src.core.typing import (
     Callable,
     Is,
     PRNGKey,
-    tuple,
 )
 
 DualTree = Annotated[

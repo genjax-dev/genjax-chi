@@ -39,7 +39,6 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     FloatArray,
-    Int,
     IntArray,
     PRNGKey,
     Sequence,
@@ -71,7 +70,7 @@ class HeterogeneousSwitchSample(Sample):
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
     arguments: tuple
-    subtraces: List[Trace]
+    subtraces: list[Trace]
     retval: Any
     score: FloatArray
 
@@ -290,7 +289,7 @@ class SwitchCombinator(GenerativeFunction):
     def _specialized_update_idx_no_change(
         self,
         key: PRNGKey,
-        static_idx: Int,
+        static_idx: int,
         trace: SwitchTrace,
         problem: EditRequest,
         idx: IntArray,
@@ -316,7 +315,7 @@ class SwitchCombinator(GenerativeFunction):
     def _generic_update_idx_change(
         self,
         key: PRNGKey,
-        static_idx: Int,
+        static_idx: int,
         trace: SwitchTrace,
         problem: EditRequest,
         idx: IntArray,

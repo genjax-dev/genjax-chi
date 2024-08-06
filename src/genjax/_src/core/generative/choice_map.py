@@ -31,16 +31,13 @@ from genjax._src.core.interpreters.staging import (
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    Bool,
     BoolArray,
     EllipsisType,
     Generic,
-    Int,
     IntArray,
     Optional,
     String,
     TypeVar,
-    Union,
     static_check_bool,
 )
 
@@ -51,7 +48,7 @@ V = TypeVar("V")
 #################
 
 StaticAddressComponent = String
-DynamicAddressComponent = Int | IntArray
+DynamicAddressComponent = int | IntArray
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
 Address = tuple[()] | tuple[AddressComponent, ...]
 StaticAddress = tuple[()] | tuple[StaticAddressComponent, ...]
@@ -155,18 +152,18 @@ class Selection(Pytree):
     def __getitem__(
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
-    ) -> Bool | BoolArray:
+    ) -> bool | BoolArray:
         subselection = self(addr)
         return subselection.check()
 
     def __contains__(
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
-    ) -> Bool | BoolArray:
+    ) -> bool | BoolArray:
         return self[addr]
 
     @abstractmethod
-    def check(self) -> Bool | BoolArray:
+    def check(self) -> bool | BoolArray:
         raise NotImplementedError
 
     @abstractmethod
@@ -194,7 +191,7 @@ class Selection(Pytree):
         return select_idx(comp, sel)
 
     @classmethod
-    def maybe(cls, flag: Bool | BoolArray, s: "Selection") -> "Selection":
+    def maybe(cls, flag: bool | BoolArray, s: "Selection") -> "Selection":
         return select_defer(flag, s)
 
 
@@ -205,7 +202,7 @@ class Selection(Pytree):
 
 @Pytree.dataclass
 class AllSel(Selection):
-    def check(self) -> Bool | BoolArray:
+    def check(self) -> bool | BoolArray:
         return True
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
@@ -218,10 +215,10 @@ def select_all():
 
 @Pytree.dataclass
 class DeferSel(Selection):
-    flag: Bool | BoolArray
+    flag: bool | BoolArray
     s: Selection
 
-    def check(self) -> Bool | BoolArray:
+    def check(self) -> bool | BoolArray:
         ch = self.s.check()
         return staged_and(self.flag, ch)
 
@@ -231,7 +228,7 @@ class DeferSel(Selection):
 
 
 def select_defer(
-    flag: Bool | BoolArray,
+    flag: bool | BoolArray,
     s: Selection,
 ) -> Selection:
     return DeferSel(flag, s)
@@ -241,7 +238,7 @@ def select_defer(
 class CompSel(Selection):
     s: Selection
 
-    def check(self) -> Bool | BoolArray:
+    def check(self) -> bool | BoolArray:
         ch = self.s.check()
         return staged_not(ch)
 
@@ -265,7 +262,7 @@ class StaticSel(Selection):
     addr: ExtendedStaticAddressComponent = Pytree.static()
     s: Selection = Pytree.field()
 
-    def check(self) -> Bool | BoolArray:
+    def check(self) -> bool | BoolArray:
         return False
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
@@ -289,7 +286,7 @@ class IdxSel(Selection):
     idxs: DynamicAddressComponent
     s: Selection
 
-    def check(self) -> Bool | BoolArray:
+    def check(self) -> bool | BoolArray:
         return False
 
     def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
@@ -327,7 +324,7 @@ class AndSel(Selection):
     s1: Selection
     s2: Selection
 
-    def check(self) -> Bool | BoolArray:
+    def check(self) -> bool | BoolArray:
         check1 = self.s1.check()
         check2 = self.s2.check()
         return staged_and(check1, check2)
@@ -350,7 +347,7 @@ class OrSel(Selection):
     s1: Selection
     s2: Selection
 
-    def check(self) -> Bool | BoolArray:
+    def check(self) -> bool | BoolArray:
         check1 = self.s1.check()
         check2 = self.s2.check()
         return staged_or(check1, check2)
@@ -372,7 +369,7 @@ def select_or(
 class ChmSel(Selection):
     c: "ChoiceMap"
 
-    def check(self) -> Bool | BoolArray:
+    def check(self) -> bool | BoolArray:
         return self.c.has_value()
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
@@ -420,7 +417,7 @@ class _ChoiceMapBuilder(Pytree):
     def v(self, v) -> "ValChm":
         return ChoiceMap.value(v)
 
-    def m(self, flag: Bool | BoolArray, chm: "ChoiceMap") -> "ChoiceMap":
+    def m(self, flag: bool | BoolArray, chm: "ChoiceMap") -> "ChoiceMap":
         return ChoiceMap.maybe(flag, chm)
 
     def a(
@@ -462,7 +459,7 @@ def check_none(v):
 @Pytree.dataclass
 class ChoiceMapAddressIndex(Pytree):
     choice_map: "ChoiceMap"
-    addrs: List[Address]
+    addrs: list[Address]
 
     def __getitem__(self, addr: AddressComponent | Address) -> "ChoiceMapAddressIndex":
         addr = addr if isinstance(addr, tuple) else (addr,)
@@ -547,7 +544,7 @@ class ChoiceMap(Generic[V], Pytree):
     ) -> "ChoiceMap":
         raise NotImplementedError
 
-    def has_value(self) -> Bool | BoolArray:
+    def has_value(self) -> bool | BoolArray:
         return check_none(self.get_value())
 
     def filter(self, selection: Selection) -> "ChoiceMap":
@@ -587,7 +584,7 @@ class ChoiceMap(Generic[V], Pytree):
         """Convert a `ChoiceMap` to a `Selection`."""
         return select_choice_map(self)
 
-    def static_is_empty(self) -> Bool:
+    def static_is_empty(self) -> bool:
         return False
 
     ###########
@@ -645,7 +642,7 @@ class ChoiceMap(Generic[V], Pytree):
         return choice_map_value(v)
 
     @classmethod
-    def maybe(cls, f: Bool | BoolArray, c: "ChoiceMap") -> "ChoiceMap":
+    def maybe(cls, f: bool | BoolArray, c: "ChoiceMap") -> "ChoiceMap":
         return choice_map_masked(f, c)
 
     @classmethod
@@ -695,7 +692,7 @@ class EmptyChm(ChoiceMap):
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         return EmptyChm()
 
-    def static_is_empty(self) -> Bool:
+    def static_is_empty(self) -> bool:
         return True
 
 
@@ -864,7 +861,7 @@ def choice_map_or(
 
 @Pytree.dataclass
 class MaskChm(ChoiceMap):
-    flag: Bool | BoolArray
+    flag: bool | BoolArray
     c: ChoiceMap
 
     def get_value(self) -> Optional[Any]:
@@ -877,7 +874,7 @@ class MaskChm(ChoiceMap):
 
 
 def choice_map_masked(
-    flag: Bool | BoolArray,
+    flag: bool | BoolArray,
     c: ChoiceMap,
 ) -> ChoiceMap:
     return (

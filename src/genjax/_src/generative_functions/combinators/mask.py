@@ -36,7 +36,6 @@ from genjax._src.core.generative import (
 from genjax._src.core.generative.core import Constraint
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
-    Bool,
     BoolArray,
     Generic,
     PRNGKey,
@@ -84,7 +83,7 @@ class MaskedCombinator(
     Generic[Tr, A, R, U],
     GenerativeFunction[
         MaskedTrace,
-        tuple[Bool | BoolArray, A],
+        tuple[bool | BoolArray, A],
         ChoiceMapSample,
         Masked[R],
         ChoiceMapConstraint,

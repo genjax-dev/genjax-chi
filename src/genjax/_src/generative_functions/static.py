@@ -61,10 +61,8 @@ from genjax._src.core.interpreters.incremental import Diff, incremental
 from genjax._src.core.pytree import Closure, Const, Pytree
 from genjax._src.core.typing import (
     Any,
-    Bool,
     Callable,
     Generic,
-    List,
     PRNGKey,
     TypeVar,
     overload,
@@ -111,10 +109,10 @@ class StaticTrace(
     arguments: A
     retval: R
     traced_addresses: AddressVisitor
-    subtraces: List[Trace]
+    subtraces: list[Trace]
     score: Score
     cached_addresses: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    cached_values: List[Any] = Pytree.field(default_factory=list)
+    cached_values: list[Any] = Pytree.field(default_factory=list)
 
     def get_args(self) -> A:
         return self.arguments
@@ -323,9 +321,9 @@ class SimulateHandler(StaticHandler):
     key: PRNGKey
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    address_traces: List[Trace] = Pytree.field(default_factory=list)
+    address_traces: list[Trace] = Pytree.field(default_factory=list)
     cache_addresses: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    cached_values: List[Any] = Pytree.field(default_factory=list)
+    cached_values: list[Any] = Pytree.field(default_factory=list)
 
     def visit(self, addr: StaticAddress):
         self.address_visitor.visit(addr)
@@ -335,7 +333,7 @@ class SimulateHandler(StaticHandler):
 
     def yield_state(
         self,
-    ) -> tuple[AddressVisitor, List[Trace], Score, AddressVisitor, List[Any]]:
+    ) -> tuple[AddressVisitor, list[Trace], Score, AddressVisitor, list[Any]]:
         return (
             self.address_visitor,
             self.address_traces,
@@ -470,10 +468,10 @@ class ChoiceMapImportanceEditHandler(StaticHandler):
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_traces: List[Trace] = Pytree.field(default_factory=list)
-    bwd_projections: List[Projection] = Pytree.field(default_factory=list)
+    address_traces: list[Trace] = Pytree.field(default_factory=list)
+    bwd_projections: list[Projection] = Pytree.field(default_factory=list)
     cache_addresses: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    cached_values: List[Any] = Pytree.field(default_factory=list)
+    cached_values: list[Any] = Pytree.field(default_factory=list)
 
     def visit(self, addr: StaticAddress):
         self.address_visitor.visit(addr)
@@ -487,10 +485,10 @@ class ChoiceMapImportanceEditHandler(StaticHandler):
         Score,
         Weight,
         AddressVisitor,
-        List[Trace],
-        List[Projection],
+        list[Trace],
+        list[Projection],
         AddressVisitor,
-        List[Any],
+        list[Any],
     ]:
         return (
             self.score,
@@ -591,10 +589,10 @@ class ChoiceMapEditRequestHandler(StaticHandler):
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_traces: List[Trace] = Pytree.field(default_factory=list)
-    bwd_discard_constraints: List[ChoiceMap] = Pytree.field(default_factory=list)
+    address_traces: list[Trace] = Pytree.field(default_factory=list)
+    bwd_discard_constraints: list[ChoiceMap] = Pytree.field(default_factory=list)
     cache_addresses: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    cached_values: List[Any] = Pytree.field(default_factory=list)
+    cached_values: list[Any] = Pytree.field(default_factory=list)
 
     def visit(self, addr):
         self.address_visitor.visit(addr)
@@ -608,10 +606,10 @@ class ChoiceMapEditRequestHandler(StaticHandler):
         Score,
         Weight,
         AddressVisitor,
-        List[Trace],
-        List[ChoiceMap],
+        list[Trace],
+        list[ChoiceMap],
         AddressVisitor,
-        List[Any],
+        list[Any],
     ]:
         return (
             self.score,
@@ -711,14 +709,14 @@ class IncrementalChoiceMapEditRequestHandler(StaticHandler):
     key: PRNGKey
     previous_trace: StaticTrace
     choice_map_constraint: ChoiceMapConstraint
-    propagate_incremental: Bool = Pytree.static()
+    propagate_incremental: bool = Pytree.static()
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_traces: List[Trace] = Pytree.field(default_factory=list)
-    bwd_discard_constraints: List[ChoiceMap] = Pytree.field(default_factory=list)
+    address_traces: list[Trace] = Pytree.field(default_factory=list)
+    bwd_discard_constraints: list[ChoiceMap] = Pytree.field(default_factory=list)
     cache_addresses: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    cached_values: List[Any] = Pytree.field(default_factory=list)
+    cached_values: list[Any] = Pytree.field(default_factory=list)
 
     def visit(self, addr):
         self.address_visitor.visit(addr)
@@ -732,10 +730,10 @@ class IncrementalChoiceMapEditRequestHandler(StaticHandler):
         Score,
         Weight,
         AddressVisitor,
-        List[Trace],
-        List[ChoiceMap],
+        list[Trace],
+        list[ChoiceMap],
         AddressVisitor,
-        List[Any],
+        list[Any],
     ]:
         return (
             self.score,
@@ -806,7 +804,7 @@ def incremental_choice_map_edit_transform(source_fn):
         previous_trace: StaticTrace,
         constraint: ChoiceMapConstraint,
         argdiffs: Argdiffs,
-        propagate_incremental: Bool,
+        propagate_incremental: bool,
     ):
         stateful_handler = IncrementalChoiceMapEditRequestHandler(
             key,
@@ -867,10 +865,10 @@ class SelectionRegenerateEditHandler(StaticHandler):
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_traces: List[Trace] = Pytree.field(default_factory=list)
-    bwd_discards: List[ChoiceMap] = Pytree.field(default_factory=list)
+    address_traces: list[Trace] = Pytree.field(default_factory=list)
+    bwd_discards: list[ChoiceMap] = Pytree.field(default_factory=list)
     cache_addresses: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    cached_values: List[Any] = Pytree.field(default_factory=list)
+    cached_values: list[Any] = Pytree.field(default_factory=list)
 
     def visit(self, addr):
         self.address_visitor.visit(addr)
@@ -884,10 +882,10 @@ class SelectionRegenerateEditHandler(StaticHandler):
         Score,
         Weight,
         AddressVisitor,
-        List[Trace],
-        List[ChoiceMap],
+        list[Trace],
+        list[ChoiceMap],
         AddressVisitor,
-        List[Any],
+        list[Any],
     ]:
         return (
             self.score,
@@ -1163,7 +1161,7 @@ class StaticGenerativeFunction(
     ) -> tuple[Weight, ChoiceMapConstraint]:
         addresses = trace.traced_addresses.get_visited()
         w = jnp.array(0.0)
-        bwd_constraints: List[ChoiceMapConstraint] = []
+        bwd_constraints: list[ChoiceMapConstraint] = []
         for addr in addresses:
             subprojection = projection(addr)
             subtrace = trace.get_subtrace(addr)
@@ -1244,7 +1242,7 @@ class StaticGenerativeFunction(
         trace: StaticTrace[A, R],
         constraint: ChoiceMapConstraint,
         argdiffs: Argdiffs,
-        propagate_incremental: Bool,
+        propagate_incremental: bool,
     ) -> tuple[StaticTrace[A, R], Weight, Retdiff, ChoiceMapConstraint]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source

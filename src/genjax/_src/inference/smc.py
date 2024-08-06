@@ -47,7 +47,6 @@ from genjax._src.core.typing import (
     BoolArray,
     Callable,
     FloatArray,
-    Int,
     Optional,
     PRNGKey,
 )
@@ -299,7 +298,7 @@ class ImportanceK(SMCAlgorithm):
 
     target: Target
     q: Optional[SampleDistribution] = Pytree.field(default=Pytree.const(None))
-    k_particles: Int = Pytree.static(default=2)
+    k_particles: int = Pytree.static(default=2)
 
     def get_num_particles(self):
         return self.k_particles

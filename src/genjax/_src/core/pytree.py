@@ -41,12 +41,10 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     Generic,
-    List,
     TypeVar,
     static_check_is_array,
     static_check_is_concrete,
     static_check_supports_grad,
-    tuple,
 )
 
 V = TypeVar("V")
@@ -517,7 +515,7 @@ class Closure(Pytree):
         return self.fn(*self.dyn_args, *args, **kwargs)
 
 
-def nth(x: Pytree, idx: Int):
+def nth(x: Pytree, idx: int):
     """Returns a Pytree in which `[idx]` has been applied to every leaf."""
     return jtu.tree_map(lambda v: v[idx], x)
 

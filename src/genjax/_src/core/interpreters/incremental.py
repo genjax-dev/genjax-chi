@@ -41,7 +41,6 @@ from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    Bool,
     Callable,
     Generic,
     IntArray,
@@ -49,7 +48,6 @@ from genjax._src.core.typing import (
     TypeVar,
     Value,
     static_check_is_concrete,
-    tuple,
 )
 
 V = TypeVar("V")
@@ -65,7 +63,7 @@ CT = TypeVar("CT", bound="ChangeTangent")
 
 
 class ChangeTangent(Pytree):
-    def should_flatten(self) -> Bool:
+    def should_flatten(self) -> bool:
         return False
 
     def widen(self):

@@ -44,10 +44,8 @@ from genjax._src.core.generative.core import (
 from genjax._src.core.interpreters.incremental import ChangeTangent, Diff, UnknownChange
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
-    Bool,
     Callable,
     Generic,
-    Int,
     IntArray,
     Optional,
     PRNGKey,
@@ -128,7 +126,7 @@ class IndexEditRequest(
 ):
     index: IntArray
     subrequest: U
-    validate: Bool = Pytree.static(default=True)
+    validate: bool = Pytree.static(default=True)
 
     def edit(
         self,
@@ -249,7 +247,7 @@ class ScanCombinator(
     ]
 
     # Only required for `None` carry inputs
-    length: Optional[Int] = Pytree.static()
+    length: Optional[int] = Pytree.static()
     reverse: bool = Pytree.static(default=False)
     unroll: int | bool = Pytree.static(default=1)
 
@@ -572,7 +570,7 @@ class ScanCombinator(
         trace: ScanTrace,
         idx: IntArray,
         subrequest: EditRequest,
-        validate: Bool,
+        validate: bool,
     ) -> tuple[ScanTrace, Weight, Retdiff, EditRequest]:
         starting_subslice = jtu.tree_map(lambda v: v[idx], trace.inner)
         affected_subslice = jtu.tree_map(lambda v: v[idx + 1], trace.inner)
@@ -712,7 +710,7 @@ class ScanCombinator(
 
 def scan(
     *,
-    n: Optional[Int] = None,
+    n: Optional[int] = None,
     reverse: bool = False,
     unroll: int | bool = 1,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
@@ -979,7 +977,7 @@ def reduce(
 
 
 def iterate(
-    *, n: Int, unroll: int | bool = 1
+    *, n: int, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a ->
@@ -1048,7 +1046,7 @@ def iterate(
 
 def iterate_final(
     *,
-    n: Int,
+    n: int,
     unroll: int | bool = 1,
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type

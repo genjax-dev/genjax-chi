@@ -25,13 +25,10 @@ from genjax._src.core.interpreters.staging import (
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    Bool,
     BoolArray,
     Callable,
     Generic,
-    Int,
     IntArray,
-    List,
     TypeVar,
     static_check_bool,
     static_check_is_concrete,
@@ -68,11 +65,11 @@ class Masked(Generic[V], Pytree):
 
     """
 
-    flag: Bool | BoolArray
+    flag: bool | BoolArray
     value: V
 
     @classmethod
-    def maybe(cls, f: Bool | BoolArray, v: V) -> V | "Masked[V]":
+    def maybe(cls, f: bool | BoolArray, v: V) -> V | "Masked[V]":
         match v:
             case Masked(flag, value):
                 return Masked(staged_and(f, flag), value)
@@ -83,7 +80,7 @@ class Masked(Generic[V], Pytree):
                     return Masked(f, v)
 
     @classmethod
-    def maybe_none(cls, f: Bool | BoolArray, v: Any):
+    def maybe_none(cls, f: bool | BoolArray, v: Any):
         return (
             None
             if v is None
@@ -227,25 +224,25 @@ class Sum(Pytree):
 
     idx: IntArray | Diff
     """The runtime index tag for which value in `Sum.values` is active."""
-    values: List
+    values: list
     """The possible values for the `Sum` instance."""
 
     @classmethod
     def maybe(
         cls,
-        idx: Int | IntArray | Diff,
+        idx: int | IntArray | Diff,
         vs: list,
     ):
         return (
             vs[idx]
-            if static_check_is_concrete(idx) and isinstance(idx, Int)
+            if static_check_is_concrete(idx) and isinstance(idx, int)
             else Sum(idx, list(vs)).maybe_collapse()
         )
 
     @classmethod
     def maybe_none(
         cls,
-        idx: Int | IntArray | Diff,
+        idx: int | IntArray | Diff,
         vs: list,
     ):
         possibles = []
@@ -266,5 +263,5 @@ class Sum(Pytree):
         else:
             return self
 
-    def __getitem__(self, idx: Int):
+    def __getitem__(self, idx: int):
         return Masked.maybe_none(idx == self.idx, self.values[idx])

@@ -39,8 +39,6 @@ FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
 Sequence = btyping.Sequence
-Dict = btyping.Dict
-List = btyping.List
 Optional = btyping.Optional
 Type = btyping.Type
 Literal = btyping.Literal
@@ -53,10 +51,7 @@ overload = btyping.overload
 # JAX Type alias.
 InAxes = int | None | Sequence[Any]
 
-# Types of Python literals.
-Int = int
-Float = float
-Bool = bool
+
 String = str
 
 Value = Any
@@ -66,7 +61,7 @@ Value = Any
 #################################
 
 ScalarShaped = Is[lambda arr: jnp.array(arr, copy=False).shape == ()]
-ScalarBool = Annotated[Bool | BoolArray, ScalarShaped]
+ScalarBool = Annotated[bool | BoolArray, ScalarShaped]
 
 ############
 # Generics #
@@ -100,11 +95,9 @@ Examples:
     The below examples are roughly what you should expect to see if you trip over `beartype` via `genjax.typing.typecheck`.
 
     ```python exec="yes" source="material-block" session="core"
-    from genjax.typing import Int
     from genjax.typing import typecheck_with_config as typecheck
 
-    (is_color=False, violation_type=TypeError)
-    def f(x: Int) -> Int:
+    def f(x: int) -> int:
         return x + 1.0
 
     try:
@@ -116,8 +109,7 @@ Examples:
     This also works for the return values:
 
     ```python exec="yes" source="material-block" session="core"
-    (is_color=False, violation_type=TypeError)
-    def f(x: Int) -> Int:
+    def f(x: int) -> int:
         return x + 1.0
 
     try:
@@ -133,7 +125,7 @@ Examples:
 #################
 
 
-def static_check_is_array(v: Any) -> Bool:
+def static_check_is_array(v: Any) -> bool:
     return (
         isinstance(v, jnp.ndarray)
         or isinstance(v, np.ndarray)
@@ -141,12 +133,12 @@ def static_check_is_array(v: Any) -> Bool:
     )
 
 
-def static_check_is_concrete(x: Any) -> Bool:
+def static_check_is_concrete(x: Any) -> bool:
     return not isinstance(x, jc.Tracer)
 
 
-def static_check_bool(x: Any) -> Bool:
-    return static_check_is_concrete(x) and isinstance(x, Bool)
+def static_check_bool(x: Any) -> bool:
+    return static_check_is_concrete(x) and isinstance(x, bool)
 
 
 # TODO: the dtype comparison needs to be replaced with something
@@ -155,7 +147,7 @@ def static_check_supports_grad(v):
     return static_check_is_array(v) and v.dtype == np.float32
 
 
-def static_check_shape_dtype_equivalence(vs: List[Array]) -> Bool:
+def static_check_shape_dtype_equivalence(vs: list[Array]) -> bool:
     shape_dtypes = [(v.shape, v.dtype) for v in vs]
     num_unique = set(shape_dtypes)
     return len(num_unique) == 1
@@ -166,7 +158,6 @@ __all__ = [
     "Any",
     "Array",
     "ArrayLike",
-    "Bool",
     "BoolArray",
     "Callable",
     "EllipsisType",
@@ -174,10 +165,8 @@ __all__ = [
     "FloatArray",
     "Generic",
     "InAxes",
-    "Int",
     "IntArray",
     "Is",
-    "List",
     "Literal",
     "PRNGKey",
     "ParamSpec",
@@ -195,7 +184,6 @@ __all__ = [
     "static_check_is_concrete",
     "static_check_shape_dtype_equivalence",
     "static_check_supports_grad",
-    "tuple",
     "typecheck",
     "typecheck_with_config",
 ]
