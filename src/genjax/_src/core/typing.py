@@ -34,13 +34,11 @@ Any = btyping.Any
 PRNGKey = jtyping.PRNGKeyArray
 Array = jtyping.Array
 ArrayLike = jtyping.ArrayLike
-Union = btyping.Union
 IntArray = jtyping.Int[jtyping.Array, "..."]
 FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
 Sequence = btyping.Sequence
-tuple = btyping.Tuple
 Dict = btyping.Dict
 List = btyping.List
 Optional = btyping.Optional
@@ -171,7 +169,6 @@ __all__ = [
     "Bool",
     "BoolArray",
     "Callable",
-    "Dict",
     "EllipsisType",
     "Float",
     "FloatArray",
@@ -191,7 +188,6 @@ __all__ = [
     "Sequence",
     "Type",
     "TypeVar",
-    "Union",
     "Value",
     "overload",
     "runtime_checkable",

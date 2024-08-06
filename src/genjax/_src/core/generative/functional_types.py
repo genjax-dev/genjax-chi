@@ -234,7 +234,7 @@ class Sum(Pytree):
     def maybe(
         cls,
         idx: Int | IntArray | Diff,
-        vs: List,
+        vs: list,
     ):
         return (
             vs[idx]
@@ -246,7 +246,7 @@ class Sum(Pytree):
     def maybe_none(
         cls,
         idx: Int | IntArray | Diff,
-        vs: List,
+        vs: list,
     ):
         possibles = []
         for _idx, v in enumerate(vs):

@@ -41,10 +41,8 @@ from genjax._src.core.typing import (
     FloatArray,
     Int,
     IntArray,
-    List,
     PRNGKey,
     Sequence,
-    tuple,
 )
 
 #######################

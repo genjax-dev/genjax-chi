@@ -45,7 +45,6 @@ from genjax._src.core.typing import (
     Callable,
     Generic,
     IntArray,
-    List,
     Optional,
     TypeVar,
     Value,
@@ -286,9 +285,9 @@ class IncrementalInterpreter(Pytree):
         self,
         _stateful_handler,
         _jaxpr: jc.Jaxpr,
-        consts: List[Value],
-        primals: List[Value],
-        tangents: List[ChangeTangent],
+        consts: list[Value],
+        primals: list[Value],
+        tangents: list[ChangeTangent],
     ):
         dual_env = Environment()
         jax_util.safe_map(

@@ -42,11 +42,7 @@ def batch_fun(fun: lu.WrappedFun, in_dims):
 def _batch_fun(in_dims, *in_vals, **params):
     with jc.new_main(batching.BatchTrace, axis_name=jc.no_axis_name) as main:
         out_vals = yield (
-            (
-                main,
-                in_dims,
-            )
-            + in_vals,
+            (main, in_dims, *in_vals),
             params,
         )
         del main
@@ -134,7 +130,7 @@ def initial_style_bind(prim, **params):
 # Forward interpreter #
 #######################
 
-VarOrLiteral = Union[jc.Var, jc.Literal]
+VarOrLiteral = jc.Var | jc.Literal
 
 
 @Pytree.dataclass
@@ -199,7 +195,7 @@ class StatefulHandler:
         primitive: jc.Primitive,
         *arguments,
         **kwargs,
-    ) -> List:
+    ) -> list:
         pass
 
 

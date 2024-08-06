@@ -38,7 +38,6 @@ from genjax._src.core.typing import (
     FloatArray,
     Int,
     PRNGKey,
-    tuple,
 )
 from genjax._src.generative_functions.distributions.distribution import (
     ExactDensity,

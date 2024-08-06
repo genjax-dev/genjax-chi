@@ -53,7 +53,6 @@ from genjax._src.core.typing import (
     PRNGKey,
     TypeVar,
     overload,
-    tuple,
 )
 
 C = TypeVar("C", bound=Constraint)

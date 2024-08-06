@@ -31,7 +31,6 @@ from genjax._src.core.typing import (
     ArrayLike,
     Callable,
     Int,
-    List,
     Optional,
     String,
     tuple,
@@ -104,8 +103,8 @@ class TimeTravelCPSInterpreter(Pytree):
     @staticmethod
     def _eval_jaxpr_hybrid_cps(
         jaxpr: jc.Jaxpr,
-        consts: List[ArrayLike],
-        flat_args: List[ArrayLike],
+        consts: list[ArrayLike],
+        flat_args: list[ArrayLike],
         out_tree,
     ):
         env = Environment()
@@ -201,7 +200,7 @@ def time_travel(f):
 @Pytree.dataclass
 class TimeTravelingDebugger(Pytree):
     final_retval: Any
-    sequence: List[FrameRecording]
+    sequence: list[FrameRecording]
     jump_points: dict = Pytree.static()
     ptr: Int = Pytree.static()
 

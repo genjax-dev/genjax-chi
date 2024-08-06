@@ -19,8 +19,6 @@ import numpy as np
 
 from genjax._src.core.generative import GenerativeFunction, Trace
 from genjax._src.core.serialization.backend import SerializationBackend
-from genjax._src.core.typing import tuple
-
 
 class MsgPackSerializeBackend(SerializationBackend):
     """A class that supports serialization using the MsgPack protocol."""

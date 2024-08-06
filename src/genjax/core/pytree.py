@@ -12,10 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.pytree import Closure, Const, Pytree
+from genjax._src.core.pytree import Closure, Const, PythonicPytree, Pytree, nth
 
-__all__ = [
-    "Closure",
-    "Const",
-    "Pytree",
-]
+__all__ = ["Closure", "Const", "PythonicPytree", "Pytree", "nth"]

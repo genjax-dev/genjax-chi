@@ -29,7 +29,6 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     PRNGKey,
-    tuple,
 )
 
 tfd = tfp.distributions

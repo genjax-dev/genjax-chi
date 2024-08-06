@@ -37,13 +37,11 @@ from genjax._src.core.typing import (
     Generic,
     Int,
     IntArray,
-    List,
     Optional,
     String,
     TypeVar,
     Union,
     static_check_bool,
-    tuple,
 )
 
 V = TypeVar("V")
@@ -196,7 +194,7 @@ class Selection(Pytree):
         return select_idx(comp, sel)
 
     @classmethod
-    def maybe(cls, flag: Union[Bool, BoolArray], s: "Selection") -> "Selection":
+    def maybe(cls, flag: Bool | BoolArray, s: "Selection") -> "Selection":
         return select_defer(flag, s)
 
 
@@ -220,7 +218,7 @@ def select_all():
 
 @Pytree.dataclass
 class DeferSel(Selection):
-    flag: Union[Bool, BoolArray]
+    flag: Bool | BoolArray
     s: Selection
 
     def check(self) -> Bool | BoolArray:
@@ -233,7 +231,7 @@ class DeferSel(Selection):
 
 
 def select_defer(
-    flag: Union[Bool, BoolArray],
+    flag: Bool | BoolArray,
     s: Selection,
 ) -> Selection:
     return DeferSel(flag, s)
@@ -685,7 +683,6 @@ class ChoiceMap(Generic[V], Pytree):
         chm = chm.at["x", "y"].set(4.0)
         print(chm["x", "y"])
         ```
-
         """
         return ChoiceMapAddressIndex(self, [])
 

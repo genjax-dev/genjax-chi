@@ -36,9 +36,8 @@ class TestSwitchCombinator:
 
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        _tr = model.simulate(sub_key, ())
-        # TODO
-        assert True
+        tr = model.simulate(sub_key, ())
+        assert 0.5672885 == tr.get_retval()
 
     def test_switch_combinator_simulate(self):
         @genjax.gen
@@ -244,6 +243,5 @@ class TestSwitchCombinator:
 
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        _tr = model.simulate(sub_key, ())
-        # TODO
-        assert True
+        tr = model.simulate(sub_key, ())
+        assert 0.0 == tr.get_retval()

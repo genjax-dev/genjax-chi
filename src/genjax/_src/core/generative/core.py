@@ -39,14 +39,12 @@ from genjax._src.core.typing import (
     Bool,
     BoolArray,
     Callable,
-    Dict,
     FloatArray,
     Generic,
     InAxes,
     Int,
     IntArray,
     Is,
-    List,
     Optional,
     PRNGKey,
     Self,
@@ -95,7 +93,6 @@ Score = FloatArray
 [`simulate`][genjax.core.GenerativeFunction.simulate].
 
 The type `Score` does not enforce any meaningful mathematical invariants, but is used to denote the type of scores in the GenJAX system, to improve readability and parsing of interface specifications.
-
 """
 
 Arguments = tuple
@@ -104,7 +101,6 @@ Arguments = tuple
 It is a
 type alias for `Tuple`, and is used to improve readability and parsing of
 interface specifications.
-
 """
 
 Retval = Any
@@ -113,7 +109,6 @@ generative function.
 
 It is a type alias for `Any`, and is used to improve
 readability and parsing of interface specifications.
-
 """
 
 Argdiffs = Annotated[
@@ -253,7 +248,7 @@ class SumConstraint(Constraint):
     """
 
     idx: IntArray
-    constraint: List[Constraint]
+    constraint: list[Constraint]
 
 
 @Pytree.dataclass
@@ -664,7 +659,6 @@ class GenerativeFunction(
             tr = jit(vmap(sim, in_axes=(0, None)))(sub_keys, ())
             print(tr.render_html())
             ```
-
         """
         raise NotImplementedError
 
@@ -1608,7 +1602,7 @@ class GenerativeFunction(
 # C.f. above.
 # This stack will not interact with JAX tracers at all
 # so it's safe, and will be resolved at JAX tracing time.
-GLOBAL_TRACE_OP_HANDLER_STACK: List[Callable[..., Any]] = []
+GLOBAL_TRACE_OP_HANDLER_STACK: list[Callable[..., Any]] = []
 
 
 def handle_off_trace_stack(

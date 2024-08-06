@@ -16,7 +16,6 @@ import abc
 from dataclasses import dataclass
 
 from genjax._src.core.generative import GenerativeFunction, Trace
-from genjax._src.core.typing import tuple
 
 """This module contains a trace serialization interface that interacts with
 different backend implementations.

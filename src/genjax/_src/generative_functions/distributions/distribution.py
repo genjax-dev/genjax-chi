@@ -58,7 +58,6 @@ from genjax._src.core.typing import (
     PRNGKey,
     TypeVar,
     overload,
-    tuple,
 )
 
 A = TypeVar("A", bound=Arguments)
@@ -472,7 +471,7 @@ class ExactDensity(Distribution):
             return jnp.sum(w)
         else:
             return w
-
+          
 
 @Pytree.dataclass
 class ExactDensityFromCallables(ExactDensity):

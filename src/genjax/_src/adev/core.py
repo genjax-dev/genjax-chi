@@ -39,7 +39,6 @@ from genjax._src.core.typing import (
     ArrayLike,
     Callable,
     Is,
-    List,
     PRNGKey,
     tuple,
 )
@@ -276,7 +275,7 @@ class ADInterpreter(Pytree):
     """
 
     @staticmethod
-    def flat_unzip(duals: List):
+    def flat_unzip(duals: list):
         primals, tangents = jax_util.unzip2((t.primal, t.tangent) for t in duals)
         return list(primals), list(tangents)
 
@@ -284,8 +283,8 @@ class ADInterpreter(Pytree):
     def _eval_jaxpr_adev_jvp(
         key: PRNGKey,
         jaxpr: jc.Jaxpr,
-        consts: List[ArrayLike],
-        flat_duals: List[Dual],
+        consts: list[ArrayLike],
+        flat_duals: list[Dual],
     ):
         dual_env = Environment()
         jax_util.safe_map(dual_env.write, jaxpr.constvars, Dual.tree_pure(consts))
@@ -365,7 +364,7 @@ class ADInterpreter(Pytree):
                         pure_env = Dual.tree_primal(dual_env)
 
                         # Create dual continuation for the computation after the cond_p.
-                        def _cond_dual_kont(dual_tree: List):
+                        def _cond_dual_kont(dual_tree: list):
                             dual_leaves = Dual.tree_pure(dual_tree)
                             return eval_jaxpr_iterate_dual(
                                 key,

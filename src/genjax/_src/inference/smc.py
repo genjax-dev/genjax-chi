@@ -50,7 +50,6 @@ from genjax._src.core.typing import (
     Int,
     Optional,
     PRNGKey,
-    tuple,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,

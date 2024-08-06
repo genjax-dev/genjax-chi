@@ -68,7 +68,6 @@ from genjax._src.core.typing import (
     PRNGKey,
     TypeVar,
     overload,
-    tuple,
 )
 
 A = TypeVar("A", bound=Arguments)
@@ -85,7 +84,7 @@ U = TypeVar("U", bound=EditRequest)
 # Usage in transforms: checks for duplicate addresses.
 @Pytree.dataclass
 class AddressVisitor(Pytree):
-    visited: List[StaticAddress] = Pytree.static(default_factory=list)
+    visited: list[StaticAddress] = Pytree.static(default_factory=list)
 
     def visit(self, addr: StaticAddress):
         if addr in self.visited:

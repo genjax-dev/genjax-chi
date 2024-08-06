@@ -40,7 +40,6 @@ from genjax._src.core.typing import (
     Optional,
     PRNGKey,
     TypeVar,
-    tuple,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
 
