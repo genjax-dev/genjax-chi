@@ -17,7 +17,6 @@ import jax
 import pytest
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
-from genjax import EditRequestBuilder as U
 from jax import numpy as jnp
 
 
@@ -59,9 +58,9 @@ class TestSwitchCombinator:
         v2 = tr.get_sample()["y2"]
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        v1_score, _ = genjax.normal.assess(C.v(v1), (0.0, 1.0))
+        v1_score, _ = genjax.normal.assess(key, C.v(v1), (0.0, 1.0))
         key, sub_key = jax.random.split(key)
-        v2_score, _ = genjax.normal.assess(C.v(v2), (0.0, 1.0))
+        v2_score, _ = genjax.normal.assess(key, C.v(v2), (0.0, 1.0))
         assert score == v1_score + v2_score
         assert tr.get_args() == (0, (), ())
         key, sub_key = jax.random.split(key)
@@ -69,7 +68,7 @@ class TestSwitchCombinator:
         b = tr.get_sample().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (flip_score, _) = genjax.flip.assess(b, (0.3,))
+        (flip_score, _) = genjax.flip.assess(key, b, (0.3,))
         assert score == flip_score
         (idx, *_) = tr.get_args()
         assert idx == 1
@@ -114,9 +113,9 @@ class TestSwitchCombinator:
         v2 = tr.get_sample().get_submap("y2")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        v1_score, _ = genjax.normal.assess(v1, (0.0, 1.0))
+        v1_score, _ = genjax.normal.assess(key, v1, (0.0, 1.0))
         key, sub_key = jax.random.split(key)
-        v2_score, _ = genjax.normal.assess(v2, (0.0, 1.0))
+        v2_score, _ = genjax.normal.assess(key, v2, (0.0, 1.0))
         assert score == v1_score + v2_score
         assert w == 0.0
         key, sub_key = jax.random.split(key)
@@ -124,7 +123,7 @@ class TestSwitchCombinator:
         b = tr.get_sample().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (flip_score, _) = genjax.flip.assess(b, (0.3,))
+        (flip_score, _) = genjax.flip.assess(key, b, (0.3,))
         assert score == flip_score
         assert w == 0.0
         chm = C["y3"].set(1)
@@ -133,7 +132,7 @@ class TestSwitchCombinator:
         b = tr.get_sample().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (flip_score, _) = genjax.flip.assess(b, (0.3,))
+        (flip_score, _) = genjax.flip.assess(key, b, (0.3,))
         assert score == flip_score
         assert w == score
 
@@ -154,10 +153,8 @@ class TestSwitchCombinator:
         (tr, _, _, _) = jax.jit(switch.update)(
             sub_key,
             tr,
-            U.g(
-                (Diff.no_change(0), ()),
-                C.n(),
-            ),
+            C.n(),
+            (Diff.no_change(0), ()),
         )
         assert score == tr.get_score()
         assert v1 == tr.get_sample()["y1"]
@@ -189,7 +186,7 @@ class TestSwitchCombinator:
         assert idx == 0
         assert (
             tr.get_score()
-            == genjax.normal.assess(C.v(sample_value), (0.0, regular_stddev))[0]
+            == genjax.normal.assess(key, C.v(sample_value), (0.0, regular_stddev))[0]
         )
         assert wt == tr.get_score()
 
@@ -197,10 +194,8 @@ class TestSwitchCombinator:
         (new_tr, new_wt, _, _) = switch.update(
             update_key,
             tr,
-            U.g(
-                (Diff.unknown_change(1), (), ()),
-                C.n(),
-            ),
+            C.n(),
+            (Diff.unknown_change(1), (), ()),
         )
         (idx, *_) = new_tr.get_args()
         assert idx == 1

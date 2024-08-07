@@ -19,16 +19,20 @@ import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
     Argdiffs,
+    Arguments,
     ChoiceMap,
     ChoiceMapImportanceRequest,
+    ChoiceMapSample,
+    Constraint,
     EditRequest,
     EmptyTrace,
     GenerativeFunction,
+    Projection,
     Retdiff,
+    Retval,
     Sample,
     Score,
     Sum,
-    SumConstraint,
     SumEditRequest,
     Trace,
     Weight,
@@ -41,25 +45,17 @@ from genjax._src.core.typing import (
     FloatArray,
     IntArray,
     PRNGKey,
-    Sequence,
+    TypeVar,
 )
 
-#######################
-# Switch sample types #
-#######################
-
-
-@Pytree.dataclass
-class HeterogeneousSwitchSample(Sample):
-    index: IntArray
-    subtraces: Sequence[Sample]
-
-    def get_constraint(self):
-        return SumConstraint(
-            self.index,
-            list(map(lambda x: x.get_constraint(), self.subtraces)),
-        )
-
+G = TypeVar("G", bound=GenerativeFunction)
+A = TypeVar("A", bound=Arguments)
+R = TypeVar("R", bound=Retval)
+C = TypeVar("C", bound=Constraint)
+S = TypeVar("S", bound=Sample)
+P = TypeVar("P", bound=Projection)
+Tr = TypeVar("Tr", bound=Trace)
+U = TypeVar("U", bound=EditRequest)
 
 ################
 # Switch trace #
@@ -78,23 +74,14 @@ class SwitchTrace(Trace):
         return self.args
 
     def get_sample(self) -> Sample:
-        subsamples = list(map(lambda v: v.get_sample(), self.subtraces))
-        if all(map(lambda v: isinstance(v, ChoiceMap), subsamples)):
-            (idx, *_) = self.get_args()
-            chm = ChoiceMap.empty()
-            for _idx, _chm in enumerate(subsamples):
-                assert isinstance(_chm, ChoiceMap)
-                masked_submap = ChoiceMap.maybe(_idx == idx, _chm)
-                chm = chm ^ masked_submap
-            return chm
-        else:
-            (idx, *_) = self.args
-            return HeterogeneousSwitchSample(
-                idx,
-                list(
-                    map(lambda tr: tr.get_sample(), self.subtraces),
-                ),
-            )
+        subsamples = list(map(lambda v: v.get_choices(), self.subtraces))
+        (idx, *_) = self.get_args()
+        chm = ChoiceMap.empty()
+        for _idx, _chm in enumerate(subsamples):
+            assert isinstance(_chm, ChoiceMap)
+            masked_submap = ChoiceMap.maybe(_idx == idx, _chm)
+            chm = chm ^ masked_submap
+        return ChoiceMapSample(chm)
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -112,7 +99,7 @@ class SwitchTrace(Trace):
 
 
 @Pytree.dataclass
-class SwitchCombinator(GenerativeFunction):
+class SwitchCombinator(GenerativeFunction[A, S, R, C, P, U]):
     """`SwitchCombinator` accepts `n` generative functions as input and returns
     a new [`genjax.GenerativeFunction`][] that accepts `n+1` arguments:
 
