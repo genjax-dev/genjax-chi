@@ -67,7 +67,7 @@ class TestIterateSimpleNormal:
         key, sub_key = jax.random.split(key)
         for i in range(1, 5):
             tr, _w = jax.jit(scanner.importance)(sub_key, C[i, "z"].set(0.5), (0.01,))
-            new_tr, _w, _rd, _bwd_problem = jax.jit(scanner.update)(
+            new_tr, _w, _rd, _bwd_request = jax.jit(scanner.update)(
                 sub_key,
                 tr,
                 C[i, "z"].set(1.0),

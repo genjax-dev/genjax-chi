@@ -166,7 +166,7 @@ def stage(f):
     return wrapped
 
 
-def get_data_shape(callable):
+def get_static_data_shape(callable):
     """Returns a function that stages a function and returns the abstract
     Pytree shapes of its return value."""
 
@@ -179,17 +179,17 @@ def get_data_shape(callable):
 
 def get_trace_shape(gen_fn, args):
     key = jax.random.PRNGKey(0)
-    return get_data_shape(gen_fn.simulate)(key, args)
+    return get_static_data_shape(gen_fn.simulate)(key, args)
 
 
 def get_importance_shape(gen_fn, constraint, args):
     key = jax.random.PRNGKey(0)
-    return get_data_shape(gen_fn.importance)(key, constraint, args)
+    return get_static_data_shape(gen_fn.importance)(key, constraint, args)
 
 
 def get_update_shape(gen_fn, tr, problem):
     key = jax.random.PRNGKey(0)
-    return get_data_shape(gen_fn.update)(key, tr, problem)
+    return get_static_data_shape(gen_fn.update)(key, tr, problem)
 
 
 def make_zero_trace(gen_fn, *args):

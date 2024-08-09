@@ -21,7 +21,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-from genjax._src.core.generative.functional_types import Masked, Sum
+from genjax._src.core.generative.functional_types import DynamicEnum, Masked
 from genjax._src.core.interpreters.staging import (
     staged_and,
     staged_err,
@@ -796,7 +796,7 @@ class XorChm(ChoiceMap):
             return (1 * bool1 + 2 * bool2 - 3 * (bool1 & bool2)) - 1
 
         idx = pair_bool_to_idx(check1, check2)
-        return Sum.maybe_none(idx, [v1, v2])
+        return DynamicEnum.maybe_none(idx, [v1, v2])
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         remaining_1 = self.c1.get_submap(addr)
@@ -835,7 +835,7 @@ class OrChm(ChoiceMap):
             return output
 
         idx = pair_bool_to_idx(check1, check2)
-        return Sum.maybe_none(idx, [v1, v2])
+        return DynamicEnum.maybe_none(idx, [v1, v2])
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap1 = self.c1.get_submap(addr)

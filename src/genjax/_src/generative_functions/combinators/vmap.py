@@ -294,19 +294,19 @@ class VmapCombinator(
 
         def _update(key, idx, subtrace, argdiffs):
             subrequest = update_request(idx)
-            new_subtrace, w, retdiff, bwd_problem = self.gen_fn.update(
+            new_subtrace, w, retdiff, bwd_request = self.gen_fn.update(
                 key, subtrace, IncrementalEditRequest(argdiffs, subrequest)
             )
-            return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_problem)
+            return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_request)
 
-        new_subtraces, w, retdiff, bwd_problems = jax.vmap(
+        new_subtraces, w, retdiff, bwd_requests = jax.vmap(
             _update, in_axes=(0, 0, 0, self.in_axes)
         )(sub_keys, idx_array, prev.inner, argdiffs)
         w = jnp.sum(w)
         retval = new_subtraces.get_retval()
         scores = new_subtraces.get_score()
         map_tr = VmapTrace(self, new_subtraces, primals, retval, jnp.sum(scores))
-        return map_tr, w, retdiff, bwd_problems
+        return map_tr, w, retdiff, bwd_requests
 
     def edit(
         self,

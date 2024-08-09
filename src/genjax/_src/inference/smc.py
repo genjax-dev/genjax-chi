@@ -708,13 +708,13 @@ class AttachCombinator(GenerativeFunction):
                     K_aux,  # aux from K
                     K_aux_score,
                 )
-                tr, w, retdiff, bwd_problem = self.gen_fn.update(
+                tr, w, retdiff, bwd_request = self.gen_fn.update(
                     key,
                     gen_fn_trace,
                     new_latents,
                     argdiffs,
                 )
-                return tr, w + w_smc, retdiff, bwd_problem
+                return tr, w + w_smc, retdiff, bwd_request
 
             case DirectOverload(update_impl):
                 return update_impl(key)

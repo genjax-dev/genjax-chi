@@ -65,7 +65,7 @@ from .core import (
     ValueSample,
     Weight,
 )
-from .functional_types import Masked, Sum
+from .functional_types import DynamicEnum, Masked
 
 __all__ = [
     "Address",
@@ -83,6 +83,7 @@ __all__ = [
     "ChoiceMapProjectionProjectRequest",
     "ChoiceMapSample",
     "Constraint",
+    "DynamicEnum",
     "EditRequest",
     "EmptyChm",
     "EmptyConstraint",
@@ -114,7 +115,6 @@ __all__ = [
     "SelectionRegenerateRequest",
     "StaticAddress",
     "StaticAddressComponent",
-    "Sum",
     "SumConstraint",
     "SumEditRequest",
     "Trace",

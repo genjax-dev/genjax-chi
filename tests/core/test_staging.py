@@ -38,6 +38,6 @@ class TestStaging:
 
         key = PRNGKey(0)
         trace = model.simulate(key, ())
-        new_trace, _w, _rd, bwd_problem = get_update_shape(model, trace, U.g((), C.n()))
+        new_trace, _w, _rd, bwd_request = get_update_shape(model, trace, U.g((), C.n()))
         assert isinstance(new_trace.get_sample(), Chm)
-        assert isinstance(bwd_problem, Chm)
+        assert isinstance(bwd_request, Chm)

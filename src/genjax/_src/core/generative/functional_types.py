@@ -159,15 +159,15 @@ class Masked(Generic[V], Pytree):
 
 
 @Pytree.dataclass(match_args=True)
-class Sum(Pytree):
+class DynamicEnum(Pytree):
     """
-    A `Sum` instance represents a sum type, which is a union of possible
-    values - which value is active is determined by the `Sum.idx` field.
+    A `DynamicEnum` instance represents a sum type, which is a union of possible
+    values - which value is active is determined by the `DynamicEnum.idx` field.
 
-    The `Sum` type is used to represent a choice between multiple possible values, and is used in generative computations to represent uncertainty over values.
+    The `DynamicEnum` type is used to represent a choice between multiple possible values, and is used in generative computations to represent uncertainty over values.
 
     Examples:
-        A common scenario which will produce `Sum` types is when using a `SwitchCombinator` with branches that have
+        A common scenario which will produce `DynamicEnum` types is when using a `SwitchCombinator` with branches that have
         multiple possible return value types:
         ```python exec="yes" html="true" source="material-block" session="core"
         from genjax import gen, normal, bernoulli
@@ -188,7 +188,7 @@ class Sum(Pytree):
         print(tr.get_retval().render_html())
         ```
 
-        Users can collapse the `Sum` type by consuming it via [`jax.lax.switch`](https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html), for instance:
+        Users can collapse the `DynamicEnum` type by consuming it via [`jax.lax.switch`](https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html), for instance:
         ```python exec="yes" html="true" source="material-block" session="core"
         def collapsing_a_sum_type(key, idx):
             tr = model1.switch(model2).simulate(key, (idx, (), ()))
@@ -207,13 +207,13 @@ class Sum(Pytree):
         print(x)
         ```
 
-        Users can index into the `Sum` type using a **static** integer index, creating a `Masked` type:
+        Users can index into the `DynamicEnum` type using a **static** integer index, creating a `Masked` type:
         ```python exec="yes" html="true" source="material-block" session="core"
-        from genjax import Sum
+        from genjax import DynamicEnum
 
 
         def uncertain_idx(idx):
-            s = Sum(idx, [1, 2, 3])
+            s = DynamicEnum(idx, [1, 2, 3])
             return s[2]
 
 
@@ -223,9 +223,9 @@ class Sum(Pytree):
     """
 
     idx: IntArray | Diff
-    """The runtime index tag for which value in `Sum.values` is active."""
+    """The runtime index tag for which value in `DynamicEnum.values` is active."""
     values: list
-    """The possible values for the `Sum` instance."""
+    """The possible values for the `DynamicEnum` instance."""
 
     @classmethod
     def maybe(
@@ -236,7 +236,7 @@ class Sum(Pytree):
         return (
             vs[idx]
             if static_check_is_concrete(idx) and isinstance(idx, int)
-            else Sum(idx, list(vs)).maybe_collapse()
+            else DynamicEnum(idx, list(vs)).maybe_collapse()
         )
 
     @classmethod
@@ -254,7 +254,7 @@ class Sum(Pytree):
         if len(possibles) == 1:
             return possibles[0]
         else:
-            return Sum.maybe(idx, vs)
+            return DynamicEnum.maybe(idx, vs)
 
     def maybe_collapse(self):
         if Pytree.static_check_tree_structure_equivalence(self.values):
