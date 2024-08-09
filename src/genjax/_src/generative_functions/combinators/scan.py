@@ -43,7 +43,6 @@ from genjax._src.core.typing import (
     IntArray,
     Optional,
     PRNGKey,
-    Tuple,
     typecheck,
 )
 
@@ -54,11 +53,11 @@ register_exclusion(__file__)
 class ScanTrace(Trace):
     scan_gen_fn: "ScanCombinator"
     inner: Trace
-    args: Tuple
+    args: tuple
     retval: Any
     score: FloatArray
 
-    def get_args(self) -> Tuple:
+    def get_args(self) -> tuple:
         return self.args
 
     def get_retval(self):
@@ -118,8 +117,9 @@ class CheckerboardProblem(UpdateProblem):
 
 @Pytree.dataclass
 class ScanCombinator(GenerativeFunction):
-    """
-    `ScanCombinator` wraps a `kernel_gen_fn` [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)` in a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])`, where
+    """`ScanCombinator` wraps a `kernel_gen_fn` [`genjax.GenerativeFunction`][]
+    of type `(c, a) -> (c, b)` in a new [`genjax.GenerativeFunction`][] of type
+    `(c, [a]) -> (c, [b])`, where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `a` may be a primitive, an array type or a pytree (container) type with array leaves
@@ -224,7 +224,7 @@ class ScanCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
+        args: tuple,
     ) -> ScanTrace:
         carry, scanned_in = args
 
@@ -259,8 +259,8 @@ class ScanCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: ChoiceMap,
-        args: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        args: tuple,
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         (carry, scanned_in) = args
 
         def _inner_importance(key, constraint, carry, scanned_in):
@@ -325,7 +325,7 @@ class ScanCombinator(GenerativeFunction):
         trace: Trace,
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[ScanTrace, Weight, Retdiff, UpdateProblem]:
         carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(
             Diff.tree_primal(argdiffs)
         )
@@ -462,7 +462,7 @@ class ScanCombinator(GenerativeFunction):
         trace: Trace,
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         assert isinstance(trace, EmptyTrace | ScanTrace)
         match update_problem:
             case ImportanceProblem(constraint) if isinstance(constraint, ChoiceMap):
@@ -486,7 +486,7 @@ class ScanCombinator(GenerativeFunction):
         key: PRNGKey,
         trace: Trace,
         update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
@@ -506,8 +506,8 @@ class ScanCombinator(GenerativeFunction):
     def assess(
         self,
         sample: Sample,
-        args: Tuple,
-    ) -> Tuple[Score, Any]:
+        args: tuple,
+    ) -> tuple[Score, Any]:
         (carry, scanned_in) = args
         assert isinstance(sample, ChoiceMap)
 
@@ -548,8 +548,9 @@ class ScanCombinator(GenerativeFunction):
 def scan(
     *, n: Optional[Int] = None, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)`and returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])` where
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    `(c, a) -> (c, b)`and returns a new [`genjax.GenerativeFunction`][] of type
+    `(c, [a]) -> (c, [b])` where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `a` may be a primitive, an array type or a pytree (container) type with array leaves
@@ -637,8 +638,8 @@ def scan(
 
 
 def prepend_initial_acc(args, ret):
-    """
-    Prepends the initial accumulator value to the array of accumulated values.
+    """Prepends the initial accumulator value to the array of accumulated
+    values.
 
     This function is used in the context of scan operations to include the initial
     accumulator state in the output, effectively providing a complete history of
@@ -667,8 +668,9 @@ def prepend_initial_acc(args, ret):
 def accumulate(
     *, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> [c]` where
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type
+    `(c, [a]) -> [c]` where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `[c]` is an array of all loop-carried values seen during iteration (including the first)
@@ -737,8 +739,9 @@ def accumulate(
 def reduce(
     *, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> c` where
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type
+    `(c, [a]) -> c` where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `a` may be a primitive, an array type or a pytree (container) type with array leaves
@@ -804,8 +807,9 @@ def reduce(
 def iterate(
     *, n: Int, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> [a]` where
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a ->
+    [a]` where.
 
     - `a` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `[a]` is an array of all `a`, `f(a)`, `f(f(a))` etc. values seen during iteration.
@@ -869,8 +873,9 @@ def iterate(
 def iterate_final(
     *, n: Int, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a` where
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a`
+    where.
 
     - `a` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - the original function is invoked `n` times with each input coming from the previous invocation's output, so that the new function returns $f^n(a)$

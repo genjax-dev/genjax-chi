@@ -27,7 +27,6 @@ from genjax._src.core.typing import (
     BoolArray,
     Int,
     IntArray,
-    List,
     static_check_bool,
     static_check_is_concrete,
     typecheck,
@@ -178,7 +177,7 @@ class Sum(Pytree):
     """
     The runtime index tag for which value in `Sum.values` is active.
     """
-    values: List
+    values: list
     """
     The possible values for the `Sum` instance.
     """
@@ -188,7 +187,7 @@ class Sum(Pytree):
     def maybe(
         cls,
         idx: Int | IntArray | Diff,
-        vs: List,
+        vs: list,
     ):
         return (
             vs[idx]
@@ -201,7 +200,7 @@ class Sum(Pytree):
     def maybe_none(
         cls,
         idx: Int | IntArray | Diff,
-        vs: List,
+        vs: list,
     ):
         possibles = []
         for _idx, v in enumerate(vs):

@@ -38,11 +38,8 @@ from genjax._src.core.typing import (
     EllipsisType,
     Int,
     IntArray,
-    List,
     Optional,
     String,
-    Tuple,
-    Union,
     static_check_bool,
     typecheck,
 )
@@ -56,12 +53,12 @@ register_exclusion(__file__)
 StaticAddressComponent = String
 DynamicAddressComponent = Int | IntArray
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
-Address = Tuple[()] | Tuple[AddressComponent, ...]
-StaticAddress = Tuple[()] | Tuple[StaticAddressComponent, ...]
+Address = tuple[()] | tuple[AddressComponent, ...]
+StaticAddress = tuple[()] | tuple[StaticAddressComponent, ...]
 ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
 ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
-ExtendedStaticAddress = Tuple[()] | Tuple[ExtendedStaticAddressComponent, ...]
-ExtendedAddress = Tuple[()] | Tuple[ExtendedAddressComponent, ...]
+ExtendedStaticAddress = tuple[()] | tuple[ExtendedStaticAddressComponent, ...]
+ExtendedAddress = tuple[()] | tuple[ExtendedAddressComponent, ...]
 
 
 ##############
@@ -77,7 +74,7 @@ ExtendedAddress = Tuple[()] | Tuple[ExtendedAddressComponent, ...]
 @Pytree.dataclass
 class _SelectionBuilder(Pytree):
     def __getitem__(self, addr_comps):
-        if not isinstance(addr_comps, Tuple):
+        if not isinstance(addr_comps, tuple):
             addr_comps = (addr_comps,)
 
         sel = Selection.all()
@@ -93,8 +90,8 @@ SelectionBuilder = _SelectionBuilder()
 
 
 class Selection(ProjectProblem):
-    """
-    The type `Selection` provides a lens-like interface for filtering the random choices in a `ChoiceMap`.
+    """The type `Selection` provides a lens-like interface for filtering the
+    random choices in a `ChoiceMap`.
 
     Examples:
         (**Making selections**) Selections can be constructed using the `SelectionBuilder` interface
@@ -199,7 +196,7 @@ class Selection(ProjectProblem):
 
     @classmethod
     @typecheck
-    def maybe(cls, flag: Union[Bool, BoolArray], s: "Selection") -> "Selection":
+    def maybe(cls, flag: Bool | BoolArray, s: "Selection") -> "Selection":
         return select_defer(flag, s)
 
 
@@ -223,7 +220,7 @@ def select_all():
 
 @Pytree.dataclass
 class DeferSel(Selection):
-    flag: Union[Bool, BoolArray]
+    flag: Bool | BoolArray
     s: Selection
 
     def check(self) -> Bool | BoolArray:
@@ -237,7 +234,7 @@ class DeferSel(Selection):
 
 @typecheck
 def select_defer(
-    flag: Union[Bool, BoolArray],
+    flag: Bool | BoolArray,
     s: Selection,
 ) -> Selection:
     return DeferSel(flag, s)
@@ -462,8 +459,8 @@ def check_none(v):
 
 
 class ChoiceMap(Sample, Constraint):
-    """
-    The type `ChoiceMap` denotes a map-like value which can be sampled from generative functions.
+    """The type `ChoiceMap` denotes a map-like value which can be sampled from
+    generative functions.
 
     Generative functions which utilize `ChoiceMap` as their sample representation typically support a notion of _addressing_ for the random choices they make. `ChoiceMap` stores addressed random choices, and provides a data language for querying and manipulating these choices.
 
@@ -656,7 +653,7 @@ class ChoiceMap(Sample, Constraint):
     @Pytree.dataclass
     class AddressIndex(Pytree):
         choice_map: "ChoiceMap"
-        addrs: List[Address]
+        addrs: list[Address]
 
         def __getitem__(
             self, addr: AddressComponent | Address
@@ -684,8 +681,8 @@ class ChoiceMap(Sample, Constraint):
 
     @property
     def at(self) -> AddressIndex:
-        """
-        Access the `ChoiceMap.AddressIndex` mutation interface. This allows users to take an existing choice map, and mutate it _functionally_.
+        """Access the `ChoiceMap.AddressIndex` mutation interface. This allows
+        users to take an existing choice map, and mutate it _functionally_.
 
         Examples:
         ```python exec="yes" source="material-block" session="core"
@@ -693,7 +690,6 @@ class ChoiceMap(Sample, Constraint):
         chm = chm.at["x", "y"].set(4.0)
         print(chm["x", "y"])
         ```
-
         """
         return ChoiceMap.AddressIndex(self, [])
 
