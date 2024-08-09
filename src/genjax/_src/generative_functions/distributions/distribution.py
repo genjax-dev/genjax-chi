@@ -53,7 +53,6 @@ from genjax._src.core.typing import (
     Callable,
     FloatArray,
     PRNGKey,
-    Tuple,
     static_check_is_concrete,
     typecheck,
 )
@@ -68,11 +67,11 @@ class DistributionTrace(
     Trace,
 ):
     gen_fn: GenerativeFunction
-    args: Tuple
+    args: tuple
     value: Any
     score: FloatArray
 
-    def get_args(self) -> Tuple:
+    def get_args(self) -> tuple:
         return self.args
 
     def get_retval(self) -> Any:
@@ -99,7 +98,7 @@ class Distribution(GenerativeFunction):
         self,
         key: PRNGKey,
         *args,
-    ) -> Tuple[Score, Retval]:
+    ) -> tuple[Score, Retval]:
         pass
 
     @abstractmethod
@@ -116,7 +115,7 @@ class Distribution(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
+        args: tuple,
     ) -> Trace:
         (w, v) = self.random_weighted(key, *args)
         tr = DistributionTrace(self, args, v, w)
@@ -127,7 +126,7 @@ class Distribution(GenerativeFunction):
         self,
         key: PRNGKey,
         chm: ChoiceMap,
-        args: Tuple,
+        args: tuple,
     ):
         v = chm.get_value()
         match v:
@@ -162,8 +161,8 @@ class Distribution(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: MaskedConstraint,
-        args: Tuple,
-    ) -> Tuple[Trace, Weight, UpdateProblem]:
+        args: tuple,
+    ) -> tuple[Trace, Weight, UpdateProblem]:
         def simulate_branch(key, _, args):
             tr = self.simulate(key, args)
             return (
@@ -190,8 +189,8 @@ class Distribution(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: Constraint,
-        args: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        args: tuple,
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match constraint:
             case ChoiceMap():
                 tr, w, bwd_problem = self.importance_choice_map(key, constraint, args)
@@ -214,7 +213,7 @@ class Distribution(GenerativeFunction):
         self,
         trace: Trace,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         sample = trace.get_choices()
         primals = Diff.tree_primal(argdiffs)
         new_score, _ = self.assess(sample, primals)
@@ -232,7 +231,7 @@ class Distribution(GenerativeFunction):
         trace: Trace,
         constraint: MaskedConstraint,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         old_sample = trace.get_choices()
 
         def update_branch(key, trace, constraint, argdiffs):
@@ -271,7 +270,7 @@ class Distribution(GenerativeFunction):
         trace: Trace,
         constraint: Constraint,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         primals = Diff.tree_primal(argdiffs)
         match constraint:
             case EmptyConstraint():
@@ -368,7 +367,7 @@ class Distribution(GenerativeFunction):
         flag: Bool | BoolArray,
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         old_value = trace.get_retval()
         primals = Diff.tree_primal(argdiffs)
         possible_trace, w, retdiff, bwd_problem = self.update(
@@ -391,7 +390,7 @@ class Distribution(GenerativeFunction):
     def update_project(
         self,
         trace: Trace,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         original = trace.get_score()
         removed_value = trace.get_retval()
         retdiff = Diff.tree_diff_unknown_change(trace.get_retval())
@@ -408,7 +407,7 @@ class Distribution(GenerativeFunction):
         trace: Trace,
         selection: Selection,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         check = () in selection
 
         return self.update(
@@ -427,7 +426,7 @@ class Distribution(GenerativeFunction):
         trace: Trace,
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match update_problem:
             case EmptyProblem():
                 return self.update_empty(trace, argdiffs)
@@ -460,7 +459,7 @@ class Distribution(GenerativeFunction):
         key: PRNGKey,
         trace: Trace,
         update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
@@ -473,7 +472,7 @@ class Distribution(GenerativeFunction):
     def assess(
         self,
         sample: Sample,
-        args: Tuple,
+        args: tuple,
     ):
         raise NotImplementedError
 
@@ -514,7 +513,7 @@ class ExactDensity(Distribution):
         self,
         key: PRNGKey,
         *args,
-    ) -> Tuple[Score, Retval]:
+    ) -> tuple[Score, Retval]:
         """
         Given arguments to the distribution, sample from the distribution, and return the exact log density of the sample, and the sample.
         """
@@ -542,7 +541,7 @@ class ExactDensity(Distribution):
     def assess(
         self,
         sample: ChoiceMap,
-        args: Tuple,
+        args: tuple,
     ):
         key = jax.random.PRNGKey(0)
         v = sample.get_value()

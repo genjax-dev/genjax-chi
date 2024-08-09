@@ -42,9 +42,7 @@ from genjax._src.core.typing import (
     Bool,
     Callable,
     IntArray,
-    List,
     Optional,
-    Tuple,
     Value,
     static_check_is_concrete,
     typecheck,
@@ -253,9 +251,9 @@ class IncrementalInterpreter(Pytree):
         self,
         _stateful_handler,
         _jaxpr: jc.Jaxpr,
-        consts: List[Value],
-        primals: List[Value],
-        tangents: List[ChangeTangent],
+        consts: list[Value],
+        primals: list[Value],
+        tangents: list[ChangeTangent],
     ):
         dual_env = Environment()
         jax_util.safe_map(
@@ -308,8 +306,8 @@ def incremental(f: Callable[..., Any]):
     @typecheck
     def wrapped(
         _stateful_handler: Optional[StatefulHandler],
-        primals: Tuple,
-        tangents: Tuple,
+        primals: tuple,
+        tangents: tuple,
     ):
         interpreter = IncrementalInterpreter()
         return interpreter.run_interpreter(

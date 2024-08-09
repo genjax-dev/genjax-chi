@@ -32,10 +32,8 @@ from genjax._src.core.typing import (
     ArrayLike,
     Callable,
     Int,
-    List,
     Optional,
     String,
-    Tuple,
     typecheck,
 )
 
@@ -48,7 +46,7 @@ record_p = InitialStylePrimitive("record_p")
 @Pytree.dataclass
 class FrameRecording(Pytree):
     f: Callable[..., Any]
-    args: Tuple
+    args: tuple
     local_retval: Any
     cont: Callable[..., Any]
 
@@ -111,8 +109,8 @@ class TimeTravelCPSInterpreter(Pytree):
     @staticmethod
     def _eval_jaxpr_hybrid_cps(
         jaxpr: jc.Jaxpr,
-        consts: List[ArrayLike],
-        flat_args: List[ArrayLike],
+        consts: list[ArrayLike],
+        flat_args: list[ArrayLike],
         out_tree,
     ):
         env = Environment()
@@ -206,17 +204,17 @@ def time_travel(f):
 @Pytree.dataclass
 class TimeTravelingDebugger(Pytree):
     final_retval: Any
-    sequence: List[FrameRecording]
+    sequence: list[FrameRecording]
     jump_points: dict = Pytree.static()
     ptr: Int = Pytree.static()
 
-    def frame(self) -> Tuple[Optional[String], FrameRecording]:
+    def frame(self) -> tuple[Optional[String], FrameRecording]:
         frame = self.sequence[self.ptr]
         reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
         jump_tag = reverse_jump_points.get(self.ptr, None)
         return jump_tag, frame
 
-    def summary(self) -> Tuple[Any, Tuple[Optional[String], FrameRecording]]:
+    def summary(self) -> tuple[Any, tuple[Optional[String], FrameRecording]]:
         frame = self.sequence[self.ptr]
         reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
         jump_tag = reverse_jump_points.get(self.ptr, None)
@@ -274,7 +272,7 @@ class TimeTravelingDebugger(Pytree):
 
 @typecheck
 def _record(source: Callable[..., Any]):
-    def inner(*args) -> Tuple[Any, TimeTravelingDebugger]:
+    def inner(*args) -> tuple[Any, TimeTravelingDebugger]:
         retval, next = time_travel(source)(*args)
         sequence = []
         jump_points = {}
