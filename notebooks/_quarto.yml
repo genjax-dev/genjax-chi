@@ -43,6 +43,9 @@ book:
         - cookbook/inference/custom_proposal.ipynb
         - cookbook/inference/mcmc.ipynb
     - part: speed.qmd
+    - part: differentiation
+      chapters:
+        - cookbook/differentiation/adev_example.ipynb
     - part: variance_reduction.qmd
     - part: library_author.qmd
       chapters:
