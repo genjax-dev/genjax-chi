@@ -30,7 +30,6 @@ from genjax._src.core.typing import (
     FloatArray,
     Optional,
     PRNGKey,
-    Tuple,
     typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
@@ -68,7 +67,7 @@ class Target(Pytree):
     """
 
     p: GenerativeFunction
-    args: Tuple
+    args: tuple
     constraint: ChoiceMap
 
     def importance(self, key: PRNGKey, constraint: ChoiceMap):
@@ -99,7 +98,7 @@ class SampleDistribution(Distribution):
         self,
         key: PRNGKey,
         *args: Any,
-    ) -> Tuple[FloatArray, Sample]:
+    ) -> tuple[FloatArray, Sample]:
         raise NotImplementedError
 
     @abstractmethod
@@ -153,7 +152,7 @@ class Algorithm(SampleDistribution):
         self,
         key: PRNGKey,
         target: Target,
-    ) -> Tuple[Weight, Sample]:
+    ) -> tuple[Weight, Sample]:
         """
         Given a [`Target`][genjax.inference.Target], return a [`Sample`][genjax.core.Sample] from an approximation to the normalized distribution of the target, and a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
 
@@ -233,7 +232,7 @@ class Marginal(SampleDistribution):
         self,
         key: PRNGKey,
         *args,
-    ) -> Tuple[FloatArray, Sample]:
+    ) -> tuple[FloatArray, Sample]:
         key, sub_key = jax.random.split(key)
         tr = self.gen_fn.simulate(sub_key, args)
         choices: ChoiceMap = tr.get_choices()

@@ -43,10 +43,8 @@ from genjax._src.core.typing import (
     FloatArray,
     Int,
     IntArray,
-    List,
     PRNGKey,
     Sequence,
-    Tuple,
     typecheck,
 )
 
@@ -78,12 +76,12 @@ class HeterogeneousSwitchSample(Sample):
 @Pytree.dataclass
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
-    args: Tuple
-    subtraces: List[Trace]
+    args: tuple
+    subtraces: list[Trace]
     retval: Any
     score: FloatArray
 
-    def get_args(self) -> Tuple:
+    def get_args(self) -> tuple:
         return self.args
 
     def get_sample(self) -> Sample:
@@ -167,7 +165,7 @@ class SwitchCombinator(GenerativeFunction):
         ```
     """
 
-    branches: Tuple[GenerativeFunction, ...]
+    branches: tuple[GenerativeFunction, ...]
 
     def __abstract_call__(self, idx, *args):
         retvals = []
@@ -184,7 +182,7 @@ class SwitchCombinator(GenerativeFunction):
     @typecheck
     def _empty_simulate_defs(
         self,
-        args: Tuple,
+        args: tuple,
     ):
         trace_defs = []
         trace_leaves = []
@@ -220,7 +218,7 @@ class SwitchCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
+        args: tuple,
     ) -> SwitchTrace:
         (idx, *branch_args) = args
         self.static_check_num_arguments_equals_num_branches(branch_args)
@@ -393,7 +391,7 @@ class SwitchCombinator(GenerativeFunction):
         trace: SwitchTrace,
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         (idx_argdiff, *branch_argdiffs) = argdiffs
         self.static_check_num_arguments_equals_num_branches(branch_argdiffs)
 
@@ -533,8 +531,8 @@ class SwitchCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         problem: ImportanceProblem,
-        argdiffs: Tuple,
-    ) -> Tuple[SwitchTrace, Weight, Retdiff, UpdateProblem]:
+        argdiffs: tuple,
+    ) -> tuple[SwitchTrace, Weight, Retdiff, UpdateProblem]:
         args = Diff.tree_primal(argdiffs)
         (idx, *branch_args) = args
         (_, *branch_argdiffs) = argdiffs
@@ -611,7 +609,7 @@ class SwitchCombinator(GenerativeFunction):
         trace: Trace,
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         assert isinstance(trace, EmptyTrace | SwitchTrace)
         match trace:
             case EmptyTrace():
@@ -626,7 +624,7 @@ class SwitchCombinator(GenerativeFunction):
         key: PRNGKey,
         trace: Trace,
         problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
@@ -635,7 +633,7 @@ class SwitchCombinator(GenerativeFunction):
                     key, trace, problem, Diff.no_change(trace.get_args())
                 )
 
-    def _empty_assess_defs(self, sample: Sample, args: Tuple):
+    def _empty_assess_defs(self, sample: Sample, args: tuple):
         retval_defs = []
         retval_leaves = []
         for static_idx in range(len(self.branches)):
@@ -660,8 +658,8 @@ class SwitchCombinator(GenerativeFunction):
     def assess(
         self,
         sample: Sample,
-        args: Tuple,
-    ) -> Tuple[Score, Any]:
+        args: tuple,
+    ) -> tuple[Score, Any]:
         (idx, *branch_args) = args
         self.static_check_num_arguments_equals_num_branches(branch_args)
 
