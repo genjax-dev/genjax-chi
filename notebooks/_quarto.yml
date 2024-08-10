@@ -36,6 +36,7 @@ book:
         - cookbook/expressivity/mixture.ipynb
         - cookbook/expressivity/custom_distribution.ipynb
         - cookbook/expressivity/stochastic_probabilities.ipynb
+        - cookbook/expressivity/ravi_stack.ipynb
     - part: inference.qmd
       chapters:
         - cookbook/inference/importance_sampling.ipynb
