@@ -1583,6 +1583,7 @@ class GenerativeFunction(
 
         return marginal(selection=selection, algorithm=algorithm)(self)
 
+
 # NOTE: Setup a global handler stack for the `trace` callee sugar.
 # C.f. above.
 # This stack will not interact with JAX tracers at all
