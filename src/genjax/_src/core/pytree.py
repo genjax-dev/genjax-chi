@@ -232,7 +232,7 @@ class Pytree(pz.Struct):
 
     @staticmethod
     def static_check_none(v):
-        return v == Const(None)
+        return v is None or v == Const(None)
 
     @staticmethod
     def static_check_tree_leaves_have_matching_leading_dim(tree):

@@ -3,7 +3,7 @@ name = "genjax"
 
 # Leave this at 0.0.0; this key can't be missing, but it's subbed out
 # dynamically by `poetry.dynamic-versioning`.
-version = "0.0.0"
+version = "0.5.1"
 
 description = "Probabilistic programming with Gen, built on top of JAX."
 authors = [
@@ -178,7 +178,7 @@ show_error_codes = true
 show_error_context = true
 
 [tool.poetry-dynamic-versioning]
-enable = true
+enable = false
 vcs = "git"
 style = "pep440"
 

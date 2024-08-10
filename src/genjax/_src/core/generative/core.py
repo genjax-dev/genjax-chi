@@ -1583,22 +1583,6 @@ class GenerativeFunction(
 
         return marginal(selection=selection, algorithm=algorithm)(self)
 
-    def target(
-        self,
-        /,
-        *,
-        constraint: "ChoiceMapConstraint",
-        args: A,
-    ) -> "inference.Target":
-        from genjax.inference import Target
-
-        return Target(
-            self,
-            args,
-            constraint,
-        )
-
-
 # NOTE: Setup a global handler stack for the `trace` callee sugar.
 # C.f. above.
 # This stack will not interact with JAX tracers at all
