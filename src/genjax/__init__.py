@@ -20,10 +20,6 @@ JAX."""
 
 from importlib import metadata
 
-from beartype.claw import beartype_this_package
-
-beartype_this_package()
-
 from .checkify import *
 from .core import *
 from .experimental import *
