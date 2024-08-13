@@ -577,6 +577,23 @@ class TestStaticGenFnForwardRef:
         assert -0.55435526 == tr.get_score()
 
 
+class TestGenFnClosure:
+    def test_gen_fn_closure(self):
+        @genjax.gen
+        def model():
+            return genjax.normal(1.0, 0.001) @ "x"
+
+        gfc = model()
+        tr = gfc.simulate(jax.random.PRNGKey(0), ())
+        assert tr.get_retval() == 0.9987485
+        assert tr.get_score() == 5.205658
+        # This failed in GEN-420
+        tr_u, w = gfc.importance(jax.random.PRNGKey(1), C.kw(x=1.1), ())
+        assert tr_u.get_score() == -4994.0176
+        assert tr_u.get_retval() == 1.1
+        assert w == tr_u.get_score()
+
+
 class TestStaticGenFnInline:
     def test_inline_simulate(self):
         @genjax.gen
