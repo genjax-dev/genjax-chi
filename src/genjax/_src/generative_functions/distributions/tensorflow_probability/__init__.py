@@ -97,6 +97,11 @@ inverse_gamma = tfp_distribution(tfd.InverseGamma)
 A `tfp_distribution` generative function which wraps the [`tfd.InverseGamma`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/InverseGamma) distribution from TensorFlow Probability distributions.
 """
 
+gamma = tfp_distribution(tfd.Gamma)
+"""
+A `tfp_distribution` generative function which wraps the [`tfd.Gamma`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Gamma) distribution from TensorFlow Probability distributions.
+"""
+
 kumaraswamy = tfp_distribution(tfd.Kumaraswamy)
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Kumaraswamy`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Kumaraswamy) distribution from TensorFlow Probability distributions.

@@ -43,6 +43,8 @@ book:
         - cookbook/inference/custom_proposal.ipynb
         - cookbook/inference/mcmc.ipynb
     - part: speed.qmd
+      chapters:
+        - cookbook/speed/update.ipynb
     - part: variance_reduction.qmd
     - part: library_author.qmd
       chapters:
