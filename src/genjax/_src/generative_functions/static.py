@@ -614,7 +614,7 @@ class StaticGenerativeFunction(GenerativeFunction):
     def inline(self, *args):
         return self.source(*args)
 
-    def curry(self, *args) -> "StaticGenerativeFunction":
+    def partial_apply(self, *args) -> "StaticGenerativeFunction":
         """
         Returns a new [`StaticGenerativeFunction`][] with the given arguments partially applied.
 

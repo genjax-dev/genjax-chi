@@ -354,9 +354,7 @@ class TestScanWithParameters:
     @genjax.gen
     @staticmethod
     def model(data):
-        stepper = genjax.gen(
-            genjax.Pytree.partial(data)(TestScanWithParameters.step.inline)
-        )
+        stepper = TestScanWithParameters.step.partial_apply(data)
         return stepper.scan(n=3)(data["initial"], data["updates"]) @ "s"
 
     def test_scan_with_parameters(self, key):
