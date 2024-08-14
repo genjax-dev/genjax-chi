@@ -187,9 +187,9 @@ def get_importance_shape(gen_fn, constraint, args):
     return get_static_data_shape(gen_fn.importance)(key, constraint, args)
 
 
-def get_update_shape(gen_fn, tr, problem):
+def get_update_shape(gen_fn, tr, request, argdiffs):
     key = jax.random.PRNGKey(0)
-    return get_static_data_shape(gen_fn.update)(key, tr, problem)
+    return get_static_data_shape(gen_fn.update)(key, tr, request, argdiffs)
 
 
 def make_zero_trace(gen_fn, *args):

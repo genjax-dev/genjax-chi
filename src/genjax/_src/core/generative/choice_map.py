@@ -395,7 +395,7 @@ class ChoiceMapNoValueAtAddress(Exception):
 
 @Pytree.dataclass
 class _ChoiceMapBuilder(Pytree):
-    addr: Optional[ExtendedAddress]
+    addr: Optional[ExtendedAddress] = Pytree.field(default=None)
 
     def __getitem__(
         self, addr: ExtendedAddressComponent | ExtendedAddress
@@ -667,7 +667,7 @@ class ChoiceMap(Generic[V], Pytree):
 
     @classmethod
     def kwargs(cls, **kwargs) -> "ChoiceMap":
-        return ChoiceMap.d(kwargs)
+        return ChoiceMap.dict(kwargs)
 
     @property
     def at(self) -> ChoiceMapAddressIndex:

@@ -46,7 +46,7 @@ class TestDimapCombinator:
         ), "initial retval is a square of random draw"
 
         assert (trace.get_score(), trace.get_retval()) == dimap_model.assess(
-            trace.get_sample(), (2.0, 3.0)
+            key, trace.get_sample(), (2.0, 3.0)
         ), "assess with the same arguments returns score, retval"
 
         assert (

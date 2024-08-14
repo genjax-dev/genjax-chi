@@ -85,7 +85,7 @@ def _dtype_from_name(name: str):
         return np.dtype(name)
 
 
-def _ndarray_from_bytes(data: bytes) -> np.ndarray:
+def _ndarray_from_bytes(data: bytes) -> jnp.ndarray:
     """Load ndarray from simple msgpack encoding."""
     shape, dtype_name, buffer = msgpack.unpackb(data)
     return jnp.asarray(

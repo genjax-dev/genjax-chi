@@ -14,7 +14,6 @@
 
 from genjax import ChoiceMap as Chm
 from genjax import ChoiceMapBuilder as C
-from genjax import EditRequestBuilder as U
 from genjax import gen, normal
 from genjax.core.interpreters import get_importance_shape, get_update_shape
 from jax.random import PRNGKey
@@ -38,6 +37,6 @@ class TestStaging:
 
         key = PRNGKey(0)
         trace = model.simulate(key, ())
-        new_trace, _w, _rd, bwd_request = get_update_shape(model, trace, U.g((), C.n()))
+        new_trace, _w, _rd, bwd_request = get_update_shape(model, trace, C.n(), ())
         assert isinstance(new_trace.get_sample(), Chm)
         assert isinstance(bwd_request, Chm)
