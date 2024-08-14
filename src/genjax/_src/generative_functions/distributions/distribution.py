@@ -25,6 +25,7 @@ from genjax._src.core.generative import (
     ChoiceMapEditRequest,
     ChoiceMapProjection,
     ChoiceMapSample,
+    DynamicEnum,
     EmptyConstraint,
     EmptySample,
     EqualityConstraint,
@@ -144,13 +145,10 @@ class Distribution(
         self,
         key: PRNGKey,
         # TODO: the ValChm here is a type of paving over, to allow people to continue to use what they are used to.
-        sample: ValChm | ChoiceMapSample[ValueSample | MaskedSample] | ValueSample,
+        sample: ChoiceMap | ChoiceMapSample[ValueSample | MaskedSample] | ValueSample,
         args: A,
     ) -> tuple[Score, R]:
         match sample:
-            case ValChm(v):
-                return self.assess(key, ValueSample(v), args)
-
             case ChoiceMapSample():
                 v: Sample = sample.get_value()
                 match v:
@@ -160,12 +158,23 @@ class Distribution(
                     case ValueSample():
                         return self.assess(key, v, args)
 
+            case ChoiceMap():
+                v = sample.get_value()
+                return self.assess(key, ValueSample(v), args)
+
             case ValueSample():
                 v = sample.get_value()
                 match v:
                     case Masked(flag, value):
                         w = self.estimate_logpdf(key, value, *args)
                         return jnp.where(flag, w, -jnp.inf), value
+
+                    case DynamicEnum(idx, values):
+                        branches = map(
+                            lambda v: self.assess(key, ValueSample(v), args), values
+                        )
+                        raise NotImplementedError
+
                     case _:
                         w = self.estimate_logpdf(key, v, *args)
                         return w, v

@@ -13,6 +13,9 @@
 # limitations under the License.
 
 
+from functools import reduce
+from operator import xor
+
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -301,7 +304,7 @@ class SwitchCombinator(GenerativeFunction[A, S, R, C, P, U]):
         key: PRNGKey,
         constraint: ChoiceMapConstraint,
         argdiffs: tuple,
-    ) -> tuple[SwitchTrace, Weight, EditRequest]:
+    ) -> tuple[SwitchTrace, Weight, ChoiceMapProjection]:
         args = Diff.tree_primal(argdiffs)
         (idx, *all_branch_args) = args
         (_, *all_branch_argdiffs) = argdiffs
@@ -424,10 +427,19 @@ class SwitchCombinator(GenerativeFunction[A, S, R, C, P, U]):
             )
         )
         retval = DynamicEnum.maybe_none(idx, retvals)
+        bwd_projection = ChoiceMapProjection(
+            reduce(
+                xor,
+                (
+                    ChoiceMap.maybe(idx_ == idx, bwd_request.projection)
+                    for (idx_, bwd_request) in enumerate(bwd_requests)
+                ),
+            )
+        )
         return (
             SwitchTrace(self, args, subtraces, retval, score),
             w,
-            SumEditRequest(idx, bwd_requests),
+            bwd_projection,
         )
 
     def project_edit(

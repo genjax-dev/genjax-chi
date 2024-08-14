@@ -222,7 +222,10 @@ class EqualityConstraint(Generic[V], Constraint[ValueSample]):
 
 
 @Pytree.dataclass(match_args=True)
-class MaskedConstraint(Generic[C, S], Constraint[S]):
+class MaskedConstraint(
+    Generic[C, S],
+    Constraint[S],
+):
     """A `MaskedConstraint` encodes a possible constraint.
 
     Formally, `MaskedConstraint(f: bool | BoolArray, c: Constraint)` represents the constraint `Option((x $\\mapsto$ x, x))`,
@@ -1339,7 +1342,7 @@ class GenerativeFunction(
         The returned generative function takes the following arguments:
 
         - `mixture_logits`: Logits for the categorical distribution used to select a component.
-        - `*arguments`: Argument tuples for `self` and each of the input generative functions
+        - `*args`: Argument tuples for `self` and each of the input generative functions
 
         and samples from `self` or one of the input generative functions based on a draw from a categorical distribution defined by the provided mixture logits.
 
@@ -1413,7 +1416,7 @@ class GenerativeFunction(
                 return (x + 1, y * 2)
 
 
-            def post_process(arguments, retval):
+            def post_process(args, retval):
                 return retval**2
 
 
@@ -2010,7 +2013,7 @@ class SelectionProjectRequest(EditRequest):
 ###########################
 
 # These don't require any specialized support, or defer
-# specialized support to internal requests.
+# specialized support to internal requests that they wrap around.
 
 
 @Pytree.dataclass
@@ -2032,7 +2035,7 @@ class EmptyRequest(EditRequest):
 @Pytree.dataclass
 class MaskedEditRequest(Generic[U], EditRequest):
     flag: bool | BoolArray
-    request: U
+    request: U  # EditRequest
 
     def edit(
         self,

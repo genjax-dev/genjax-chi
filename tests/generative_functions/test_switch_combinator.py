@@ -54,8 +54,8 @@ class TestSwitchCombinator:
         jitted = jax.jit(switch.simulate)
         key, sub_key = jax.random.split(key)
         tr = jitted(sub_key, (0, (), ()))
-        v1 = tr.get_sample()["y1"]
-        v2 = tr.get_sample()["y2"]
+        v1 = tr.get_choices()["y1"]
+        v2 = tr.get_choices()["y2"]
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         v1_score, _ = genjax.normal.assess(key, C.v(v1), (0.0, 1.0))
@@ -65,7 +65,7 @@ class TestSwitchCombinator:
         assert tr.get_args() == (0, (), ())
         key, sub_key = jax.random.split(key)
         tr = jitted(sub_key, (1, (), ()))
-        b = tr.get_sample().get_submap("y3")
+        b = tr.get_choices().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (flip_score, _) = genjax.flip.assess(key, b, (0.3,))
@@ -88,9 +88,9 @@ class TestSwitchCombinator:
         key = jax.random.PRNGKey(314159)
         jitted = jax.jit(switch.simulate)
         tr = jitted(key, (0, (), ()))
-        assert "y1" in tr.get_sample()
-        assert "y2" in tr.get_sample()
-        assert "y3" not in tr.get_sample()
+        assert "y1" in tr.get_choices()
+        assert "y2" in tr.get_choices()
+        assert "y3" not in tr.get_choices()
 
     def test_switch_combinator_importance(self):
         @genjax.gen
@@ -109,8 +109,8 @@ class TestSwitchCombinator:
         jitted = jax.jit(switch.importance)
         key, sub_key = jax.random.split(key)
         (tr, w) = jitted(sub_key, chm, (0, (), ()))
-        v1 = tr.get_sample().get_submap("y1")
-        v2 = tr.get_sample().get_submap("y2")
+        v1 = tr.get_choices().get_submap("y1")
+        v2 = tr.get_choices().get_submap("y2")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         v1_score, _ = genjax.normal.assess(key, v1, (0.0, 1.0))
@@ -120,7 +120,7 @@ class TestSwitchCombinator:
         assert w == 0.0
         key, sub_key = jax.random.split(key)
         (tr, w) = jitted(sub_key, chm, (1, (), ()))
-        b = tr.get_sample().get_submap("y3")
+        b = tr.get_choices().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (flip_score, _) = genjax.flip.assess(key, b, (0.3,))
@@ -129,7 +129,7 @@ class TestSwitchCombinator:
         chm = C["y3"].set(1)
         key, sub_key = jax.random.split(key)
         (tr, w) = jitted(sub_key, chm, (1, (), ()))
-        b = tr.get_sample().get_submap("y3")
+        b = tr.get_choices().get_submap("y3")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (flip_score, _) = genjax.flip.assess(key, b, (0.3,))
@@ -146,8 +146,8 @@ class TestSwitchCombinator:
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         tr = jax.jit(switch.simulate)(sub_key, (0, ()))
-        v1 = tr.get_sample()["y1"]
-        v2 = tr.get_sample()["y2"]
+        v1 = tr.get_choices()["y1"]
+        v2 = tr.get_choices()["y2"]
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (tr, _, _, _) = jax.jit(switch.update)(
@@ -157,8 +157,8 @@ class TestSwitchCombinator:
             (Diff.no_change(0), ()),
         )
         assert score == tr.get_score()
-        assert v1 == tr.get_sample()["y1"]
-        assert v2 == tr.get_sample()["y2"]
+        assert v1 == tr.get_choices()["y1"]
+        assert v2 == tr.get_choices()["y2"]
 
     def test_switch_combinator_update_updates_score(self):
         regular_stddev = 1.0

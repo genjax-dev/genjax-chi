@@ -864,7 +864,7 @@ class MaskChm(ChoiceMap):
     flag: bool | BoolArray
     c: ChoiceMap
 
-    def get_value(self) -> Optional[Any]:
+    def get_value(self) -> Any | Masked[Any]:
         v = self.c.get_value()
         return Masked.maybe_none(self.flag, v)
 

@@ -241,7 +241,7 @@ def cache(
     Arguments:
         addr: An address denoting the site of a generative function invocation.
         fn: A function invoked as a callee of `StaticGenerativeFunction`.
-        arguments: The arguments to the invocation.
+        args: The arguments to the invocation.
 
     """
     addr = Pytree.tree_const(addr)

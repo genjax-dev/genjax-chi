@@ -184,7 +184,7 @@ class VmapCombinator(
             axes_length = 1 if isinstance(self.in_axes, int) else len(self.in_axes)
             if not len(args) == axes_length:
                 raise Exception(
-                    f"VmapCombinator requires that length of the provided in_axes kwarg match the number of arguments provided to the invocation.\nA mismatch occured with len(arguments) = {len(args)} and len(self.in_axes) = {axes_length}"
+                    f"VmapCombinator requires that length of the provided in_axes kwarg match the number of arguments provided to the invocation.\nA mismatch occured with len(args) = {len(args)} and len(self.in_axes) = {axes_length}"
                 )
 
     def _static_broadcast_dim_length(self, args):
