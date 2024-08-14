@@ -13,9 +13,9 @@
 # limitations under the License.
 
 
+import jax.numpy as jnp
 from genjax import ChoiceMapBuilder as C
 from genjax import SelectionBuilder as S
-import jax.numpy as jnp
 
 
 class TestChoiceMap:
