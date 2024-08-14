@@ -329,7 +329,7 @@ class AndSel(Selection):
         check2 = self.s2.check()
         return staged_and(check1, check2)
 
-    def get_subselection(self, addr: AddressComponent) -> Selection:
+    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining1 = self.s1(addr)
         remaining2 = self.s2(addr)
         return select_and(remaining1, remaining2)
@@ -352,7 +352,7 @@ class OrSel(Selection):
         check2 = self.s2.check()
         return staged_or(check1, check2)
 
-    def get_subselection(self, addr: AddressComponent) -> Selection:
+    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining1 = self.s1(addr)
         remaining2 = self.s2(addr)
         return select_or(remaining1, remaining2)
@@ -439,7 +439,7 @@ class _ChoiceMapBuilder(Pytree):
         return ChoiceMap.kwargs(**kwargs)
 
 
-ChoiceMapBuilder = _ChoiceMapBuilder(None)
+ChoiceMapBuilder = _ChoiceMapBuilder()
 
 
 def check_none(v):
