@@ -1400,7 +1400,7 @@ class StaticGenerativeFunction(
             case IncrementalChoiceMapEditRequest(
                 choice_map_constraint, propagate_incremental
             ):
-                new_trace, weight, retdiff, bwd_constraint = (
+                new_trace, weight, _retdiff, bwd_constraint = (
                     self.incremental_choice_map_edit(
                         key,
                         trace,

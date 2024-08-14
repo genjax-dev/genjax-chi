@@ -36,7 +36,6 @@ from genjax._src.core.generative import (
     Sample,
     Score,
     SelectionProjection,
-    SumEditRequest,
     Trace,
     Weight,
 )
@@ -454,8 +453,8 @@ class SwitchCombinator(GenerativeFunction[A, S, R, C, P, U]):
         retdiff_leaves = []
         for static_idx in range(len(self.branches)):
             subtrace = trace.subtraces[static_idx]
-            gen_fn = self.branches[static_idx]
-            branch_argdiffs = argdiffs[static_idx]
+            self.branches[static_idx]
+            argdiffs[static_idx]
             key = jax.random.PRNGKey(0)
             trace_shape, _, retdiff_shape, bwd_request_shape = get_static_data_shape(
                 request.edit

@@ -202,7 +202,7 @@ class TestDistributions:
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         tr = genjax.normal.simulate(sub_key, (0.0, 1.0))
-        previous_value = tr.get_retval()
+        tr.get_retval()
 
         # No constraint, no change to arguments.
         fwd_weight = tr.project(key, S.all())

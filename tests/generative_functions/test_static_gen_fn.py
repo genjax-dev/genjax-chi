@@ -556,7 +556,7 @@ class TestStaticGenFnEdit:
         tr = jax.jit(simple_normal.simulate)(sub_key, ())
         jitted = jax.jit(simple_normal.edit)
 
-        original_choice = tr.get_choices()
+        tr.get_choices()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
 

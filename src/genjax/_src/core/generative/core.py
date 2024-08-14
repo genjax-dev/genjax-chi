@@ -41,7 +41,6 @@ from genjax._src.core.typing import (
     FloatArray,
     Generic,
     InAxes,
-    IntArray,
     Is,
     Optional,
     PRNGKey,
@@ -235,47 +234,6 @@ class MaskedConstraint(Generic[C, S], Constraint[S]):
     constraint: C
 
 
-@Pytree.dataclass
-class SumConstraint(Constraint):
-    """A `SumConstraint` encodes that one of a set of possible constraints is
-    active _at runtime_, using a provided index.
-
-    Formally, `SumConstraint(idx: IntArray, cs: list[Constraint])` represents the constraint (`x` $\\mapsto$ `xs[idx]`, `ys[idx]`).
-
-    """
-
-    idx: IntArray
-    constraint: list[Constraint]
-
-
-@Pytree.dataclass
-class IntervalConstraint(Constraint):
-    """An IntervalConstraint encodes the constraint that the value output by a
-    distribution on the reals lies within a given interval.
-
-    Formally, `IntervalConstraint(a, b)` represents the constraint (`x` $\\mapsto$ `a` $\\leq$ `x` $\\leq$ `b`, `True`).
-
-    """
-
-    a: FloatArray
-    b: FloatArray
-
-
-@Pytree.dataclass
-class BijectiveConstraint(Constraint):
-    """A `BijectiveConstraint` encodes the constraint that the value output by
-    a distribution must, under a bijective transformation, be equal to the
-    value provided to the constraint.
-
-    Formally, `BijectiveConstraint(bwd, v)` represents the constraint `(x
-    $\\mapsto$ inverse(bwd)(x), v)`.
-
-    """
-
-    bwd: Callable[[Any], "Sample"]
-    v: Any
-
-
 ###############
 # Projections #
 ###############
@@ -448,7 +406,7 @@ class Trace(Generic[G, A, S, R], Pytree):
         key: PRNGKey,
         selection: Selection,
     ) -> Weight:
-        gen_fn = self.get_gen_fn()
+        self.get_gen_fn()
         args = self.get_args()
         _, w, _, _ = SelectionProjectRequest(selection).edit(key, self, args)
         return w
@@ -2084,12 +2042,6 @@ class EmptyRequest(EditRequest):
             Diff.no_change(trace.get_retval()),
             EmptyRequest(),
         )
-
-
-@Pytree.dataclass
-class SumEditRequest(EditRequest):
-    idx: int | IntArray
-    requests: list[EditRequest]
 
 
 @Pytree.dataclass

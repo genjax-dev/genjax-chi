@@ -135,7 +135,7 @@ class IndexEditRequest(
         args: Arguments,
     ) -> tuple[Trace, Weight, Retdiff, "EditRequest"]:
         if self.validate:
-            (carry_in, scanned_in) = args
+            (carry_in, _scanned_in) = args
             assert Diff.static_check_no_change(carry_in), Diff.tangent(carry_in)
         gen_fn = trace.get_gen_fn()
         return gen_fn.edit(key, trace, self, args)
@@ -478,7 +478,7 @@ class ScanCombinator(
             tuple[Tr, Sc2, Weight, Constraint],
         ]:
             request = ChoiceMapEditRequest(subconstraint)
-            new_subtrace, w, retdiff, bwd_move = request.edit(
+            new_subtrace, w, _retdiff, bwd_move = request.edit(
                 key, subtrace, (carry_in, scanned_in)
             )
             score = new_subtrace.get_score()
@@ -587,7 +587,7 @@ class ScanCombinator(
         (
             updated_end,
             end_w,
-            (ending_carry_diff, ending_scanned_out_diff),
+            (ending_carry_diff, _ending_scanned_out_diff),
             _,
         ) = request.edit(key, affected_subslice, next_slice_args)
 

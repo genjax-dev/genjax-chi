@@ -268,7 +268,7 @@ class Distribution(
                     flag, value = v.flag, v.value
 
                     def true_branch(key, tr, args):
-                        new_tr, inc_w, c = self.choice_map_edit(
+                        new_tr, inc_w, _c = self.choice_map_edit(
                             key,
                             tr,
                             ChoiceMapConstraint(
@@ -279,7 +279,7 @@ class Distribution(
                         return new_tr, inc_w
 
                     def false_branch(key, tr, args):
-                        new_tr, inc_w, c = self.choice_map_edit(
+                        new_tr, inc_w, _c = self.choice_map_edit(
                             key, tr, ChoiceMapConstraint(ChoiceMap.empty()), args
                         )
                         return new_tr, inc_w
@@ -333,7 +333,7 @@ class Distribution(
             case BoolArray:
 
                 def true_branch(key, tr, args):
-                    new_tr, inc_w, c = self.selection_regenerate_edit(
+                    new_tr, inc_w, _c = self.selection_regenerate_edit(
                         key,
                         tr,
                         Selection.empty(),
@@ -342,7 +342,7 @@ class Distribution(
                     return new_tr, inc_w
 
                 def false_branch(key, tr, args):
-                    new_tr, inc_w, c = self.selection_regenerate_edit(
+                    new_tr, inc_w, _c = self.selection_regenerate_edit(
                         key, tr, Selection.all(), args
                     )
                     return new_tr, inc_w
@@ -393,7 +393,7 @@ class Distribution(
                 new_trace, weight, discard_chm = self.choice_map_edit(
                     key, trace, chm_constraint, args
                 )
-                original_arguments = trace.get_args()
+                trace.get_args()
                 return (
                     new_trace,
                     weight,
@@ -405,7 +405,7 @@ class Distribution(
                 new_trace, weight, bwd_choice_map_constraint = (
                     self.selection_regenerate_edit(key, trace, projection, args)
                 )
-                original_arguments = trace.get_args()
+                trace.get_args()
                 return (
                     new_trace,
                     weight,

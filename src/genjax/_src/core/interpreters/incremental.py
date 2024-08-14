@@ -187,7 +187,7 @@ class Diff(Generic[V, CT], Pytree):
 
     @staticmethod
     def force_unknown(tree):
-        primal = Diff.tree_primal(tree)
+        Diff.tree_primal(tree)
         return Diff.unknown_change(tree)
 
     @staticmethod
