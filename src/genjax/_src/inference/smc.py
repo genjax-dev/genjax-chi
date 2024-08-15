@@ -35,6 +35,7 @@ from genjax._src.core.generative import (
     UpdateProblem,
     Weight,
 )
+from genjax._src.core.generative.core import GenericProblem
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -189,12 +190,12 @@ class SMCAlgorithm(Algorithm):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: Sample,
+        sample: Sample,
         target: Target,
     ) -> FloatArray:
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
-        particle_collection = algorithm.run_csmc(key, latent_choices)
+        particle_collection = algorithm.run_csmc(key, sample)
         particle = particle_collection.sample_particle(sub_key)
         log_density_estimate = (
             particle.get_score()
@@ -665,7 +666,7 @@ class AttachCombinator(GenerativeFunction):
         key: PRNGKey,
         constraint: Constraint,
         args: tuple,
-    ) -> tuple[Trace, Weight, UpdateProblem]:
+    ) -> tuple[Trace, Weight]:
         move = self.importance_move(constraint)
         match move:
             case SMCP3Move(K, _):
@@ -678,8 +679,8 @@ class AttachCombinator(GenerativeFunction):
                     aux,  # aux from K
                     K_aux_score,
                 )
-                tr, w, bwd = self.gen_fn.importance(key, new_latents, args)
-                return tr, w + w_smc, bwd
+                tr, w = self.gen_fn.importance(key, new_latents, args)
+                return tr, w + w_smc
 
             case DirectOverload(importance_impl):
                 return importance_impl(key, constraint, args)
@@ -696,8 +697,7 @@ class AttachCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: AttachTrace,
-        update_problem: UpdateProblem,
-        argdiffs: tuple,
+        update_problem: GenericProblem,
     ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         gen_fn_trace = trace.inner
         move = self.update_move(update_problem)
@@ -709,7 +709,7 @@ class AttachCombinator(GenerativeFunction):
                 K_aux_score = K_tr.get_score()
                 (new_latents, K_aux) = K_tr.get_retval()
                 old_latents = trace.get_sample()
-                w_smc = move.weight(
+                w_smc = move.weight_correction(
                     old_latents,  # old latents
                     new_latents,  # new latents
                     K_aux,  # aux from K
@@ -718,8 +718,7 @@ class AttachCombinator(GenerativeFunction):
                 tr, w, retdiff, bwd_problem = self.gen_fn.update(
                     key,
                     gen_fn_trace,
-                    new_latents,
-                    argdiffs,
+                    GenericProblem(update_problem.argdiffs, new_latents),
                 )
                 return tr, w + w_smc, retdiff, bwd_problem
 

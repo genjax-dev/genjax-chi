@@ -322,7 +322,7 @@ class ScanCombinator(GenerativeFunction):
     def update_generic(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: ScanTrace,
         problem: UpdateProblem,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace, Weight, Retdiff, UpdateProblem]:
@@ -418,16 +418,10 @@ class ScanCombinator(GenerativeFunction):
             starting_retdiff,
             bwd_problem,
         ) = self.kernel_gen_fn.update(
-            key,
-            starting_subslice,
-            update_problem,
-            starting_argdiffs,
+            key, starting_subslice, GenericProblem(starting_argdiffs, update_problem)
         )
         updated_end, end_w, ending_retdiff, _ = self.kernel_gen_fn.update(
-            key,
-            affected_subslice,
-            EmptyProblem(),
-            starting_retdiff,
+            key, affected_subslice, GenericProblem(starting_retdiff, EmptyProblem())
         )
 
         # Must be true for this type of update to be valid.
@@ -470,7 +464,9 @@ class ScanCombinator(GenerativeFunction):
                     key, constraint, Diff.tree_primal(argdiffs)
                 )
             case IndexProblem(index, subproblem):
-                if Diff.static_check_no_change(argdiffs):
+                if Diff.static_check_no_change(argdiffs) and isinstance(
+                    trace, ScanTrace
+                ):
                     return self.update_index(key, trace, index, subproblem)
                 else:
                     return self.update_generic(

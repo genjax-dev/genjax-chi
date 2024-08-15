@@ -105,7 +105,7 @@ class SampleDistribution(Distribution):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: Sample,
+        v: Sample,
         *args: Any,
     ) -> FloatArray:
         raise NotImplementedError

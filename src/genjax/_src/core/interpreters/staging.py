@@ -25,7 +25,7 @@ from jax.util import safe_map
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import Bool, Int, static_check_is_concrete
+from genjax._src.core.typing import Bool, BoolArray, Int, static_check_is_concrete
 
 register_exclusion(__file__)
 
@@ -38,37 +38,16 @@ def staged_check(v):
     return static_check_is_concrete(v) and v
 
 
-def staged_and(x, y):
-    if (
-        static_check_is_concrete(x)
-        and static_check_is_concrete(y)
-        and isinstance(x, Bool)
-        and isinstance(y, Bool)
-    ):
-        return x and y
-    else:
-        return jnp.logical_and(x, y)
+def staged_and(x, y) -> BoolArray:
+    return jnp.logical_and(x, y)
 
 
-def staged_or(x, y):
-    # Static scalar land.
-    if (
-        static_check_is_concrete(x)
-        and static_check_is_concrete(y)
-        and isinstance(x, Bool)
-        and isinstance(y, Bool)
-    ):
-        return x or y
-    # Array land.
-    else:
-        return jnp.logical_or(x, y)
+def staged_or(x, y) -> BoolArray:
+    return jnp.logical_or(x, y)
 
 
-def staged_not(x):
-    if static_check_is_concrete(x) and isinstance(x, Bool):
-        return not x
-    else:
-        return jnp.logical_not(x)
+def staged_not(x) -> BoolArray:
+    return jnp.logical_not(x)
 
 
 def staged_switch(idx, v1, v2):

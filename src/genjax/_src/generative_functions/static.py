@@ -604,7 +604,7 @@ class StaticGenerativeFunction(GenerativeFunction):
         self,
         sample: ChoiceMap,
         args: tuple,
-    ) -> tuple[ArrayLike, Any]:
+    ) -> tuple[Score, ArrayLike]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )

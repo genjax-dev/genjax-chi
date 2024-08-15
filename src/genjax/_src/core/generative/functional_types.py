@@ -24,9 +24,9 @@ from genjax._src.core.interpreters.staging import (
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    ArrayLike,
     BoolArray,
     Int,
-    IntArray,
     static_check_bool,
     static_check_is_concrete,
     typecheck,
@@ -62,15 +62,15 @@ class Mask(Pytree):
     value: Any
 
     @classmethod
-    def maybe(cls, f: BoolArray, v: Any):
+    def maybe(cls, f: ArrayLike, v: Any):
         match v:
             case Mask(flag, value):
                 return Mask.maybe_none(staged_and(f, flag), value)
             case _:
-                return Mask(f, v)
+                return Mask(jnp.array(f), v)
 
     @classmethod
-    def maybe_none(cls, f: BoolArray, v: Any):
+    def maybe_none(cls, f: ArrayLike, v: Any):
         return (
             None
             if v is None
@@ -173,7 +173,7 @@ class Sum(Pytree):
         ```
     """
 
-    idx: IntArray | Diff
+    idx: ArrayLike | Diff
     """
     The runtime index tag for which value in `Sum.values` is active.
     """
@@ -186,7 +186,7 @@ class Sum(Pytree):
     @typecheck
     def maybe(
         cls,
-        idx: Int | IntArray | Diff,
+        idx: ArrayLike | Diff,
         vs: list,
     ):
         return (
@@ -199,7 +199,7 @@ class Sum(Pytree):
     @typecheck
     def maybe_none(
         cls,
-        idx: Int | IntArray | Diff,
+        idx: ArrayLike | Diff,
         vs: list,
     ):
         possibles = []

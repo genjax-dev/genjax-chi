@@ -27,6 +27,7 @@ from genjax._src.core.traceback_util import gfi_boundary, register_exclusion
 from genjax._src.core.typing import (
     Annotated,
     Any,
+    ArrayLike,
     Bool,
     BoolArray,
     Callable,
@@ -49,7 +50,7 @@ register_exclusion(__file__)
 if TYPE_CHECKING:
     import genjax
 
-_C = TypeVar("_C", bound=Callable)
+_C = TypeVar("_C", bound=Callable[..., Any])
 ArgTuple = TypeVar("ArgTuple", bound=tuple)
 R = TypeVar("R")
 S = TypeVar("S")
@@ -123,7 +124,7 @@ class EmptyProblem(UpdateProblem):
 
 @Pytree.dataclass(match_args=True)
 class MaskedProblem(UpdateProblem):
-    flag: Bool | BoolArray
+    flag: ArrayLike
     problem: UpdateProblem
 
     @classmethod
@@ -376,13 +377,24 @@ class Trace(Pytree):
     def update(
         self,
         key: PRNGKey,
-        problem: UpdateProblem,
+        problem: GenericProblem | UpdateProblem,
+        argdiffs: tuple | None = None,
     ) -> tuple["Trace", Weight, Retdiff, UpdateProblem]:
         """
         This method calls out to the underlying [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update] method - see [`UpdateProblem`][genjax.core.UpdateProblem] and [`update`][genjax.core.GenerativeFunction.update] for more information.
         """
-        gen_fn = self.get_gen_fn()
-        return gen_fn.update(key, self, problem)
+        if isinstance(problem, GenericProblem) and argdiffs is None:
+            return self.get_gen_fn().update(key, self, problem)
+        elif isinstance(problem, UpdateProblem):
+            return self.get_gen_fn().update(
+                key,
+                self,
+                GenericProblem(Diff.tree_diff_no_change(self.get_args()), problem),
+            )
+        else:
+            raise NotImplementedError(
+                "Supply either a GenericProblem or an UpdateProblem, possibly with argdiffs"
+            )
 
     @typecheck
     def project(
@@ -592,7 +604,7 @@ class GenerativeFunction(Pytree):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
+        update_problem: GenericProblem,
     ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         """
         Update a trace in response to an [`UpdateProblem`][genjax.core.UpdateProblem], returning a new [`Trace`][genjax.core.Trace], an incremental [`Weight`][genjax.core.Weight] for the new target, a [`Retdiff`][genjax.core.Retdiff] return value tagged with change information, and a backward [`UpdateProblem`][genjax.core.UpdateProblem] which requests the reverse move (to go back to the original trace).
@@ -711,7 +723,7 @@ class GenerativeFunction(Pytree):
     @abstractmethod
     def assess(
         self,
-        sample: Sample,
+        sample: "genjax.ChoiceMap",
         args: Arguments,
     ) -> tuple[Score, Retval]:
         """
@@ -1607,15 +1619,11 @@ class IgnoreKwargs(GenerativeFunction):
 
     @GenerativeFunction.gfi_boundary
     @typecheck
-    def update(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        update_problem: UpdateProblem,
-        argdiffs: Argdiffs,
-    ):
-        (argdiffs, _kwargdiffs) = argdiffs
-        return self.wrapped.update(key, trace, update_problem, argdiffs)
+    def update(self, key: PRNGKey, trace: Trace, update_problem: GenericProblem):
+        (argdiffs, _kwargdiffs) = update_problem.argdiffs
+        return self.wrapped.update(
+            key, trace, GenericProblem(argdiffs, update_problem.subproblem)
+        )
 
 
 @Pytree.dataclass
@@ -1712,7 +1720,7 @@ class GenerativeFunctionClosure(GenerativeFunction):
     @typecheck
     def assess(
         self,
-        sample: Sample,
+        sample: "genjax.ChoiceMap",
         args: tuple,
     ) -> tuple[Score, Retval]:
         full_args = (*self.args, *args)

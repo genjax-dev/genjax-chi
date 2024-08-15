@@ -24,7 +24,7 @@ class TestDistributions:
     def test_simulate(self):
         key = jax.random.PRNGKey(314159)
         tr = genjax.normal(0.0, 1.0).simulate(key, ())
-        assert tr.get_score() == genjax.normal(0.0, 1.0).assess(tr.get_sample(), ())[0]
+        assert tr.get_score() == genjax.normal(0.0, 1.0).assess(tr.get_choices(), ())[0]
 
     def test_importance(self):
         key = jax.random.PRNGKey(314159)
@@ -35,7 +35,7 @@ class TestDistributions:
 
         # Constraint, no mask.
         (tr, w) = genjax.normal.importance(key, C.v(1.0), (0.0, 1.0))
-        v = tr.get_sample()
+        v = tr.get_choices()
         assert w == genjax.normal(0.0, 1.0).assess(v, ())[0]
 
         # Constraint, mask with True flag.

@@ -498,6 +498,12 @@ class ADEVProgram(Pytree):
 
         return self._jvp_estimate(key, dual_tree, _identity)
 
+    @typecheck
+    def debug_transform_adev(
+        self, key: PRNGKey, primals: tuple, tangents: tuple, mapping: Callable[..., Any]
+    ):
+        raise NotImplementedError()
+
 
 ###############
 # Expectation #
@@ -517,8 +523,7 @@ class Expectation(Pytree):
 
     def estimate(self, key, args):
         tangents = jtu.tree_map(lambda _: 0.0, args)
-        primal, _ = self.jvp_estimate(key, args, tangents)
-        return primal
+        return self.jvp_estimate(key, tangents).primal
 
     ##################################
     # JAX's native `grad` interface. #

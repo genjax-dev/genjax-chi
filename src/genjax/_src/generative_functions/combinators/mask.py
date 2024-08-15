@@ -26,7 +26,6 @@ from genjax._src.core.generative import (
     MaskedProblem,
     MaskedSample,
     Retdiff,
-    Sample,
     Score,
     Trace,
     UpdateProblem,
@@ -233,7 +232,7 @@ class MaskCombinator(GenerativeFunction):
     @typecheck
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple,
     ) -> tuple[Score, Mask]:
         (check, *inner_args) = args

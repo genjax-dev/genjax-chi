@@ -48,8 +48,7 @@ from genjax._src.core.interpreters.staging import staged_check
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
-    Bool,
-    BoolArray,
+    ArrayLike,
     Callable,
     FloatArray,
     PRNGKey,
@@ -305,7 +304,7 @@ class Distribution(GenerativeFunction):
                     bwd = trace.get_score()
                     w = fwd - bwd
                     new_tr = DistributionTrace(self, primals, v, fwd)
-                    discard = trace.get_sample()
+                    discard = trace.get_choices()
                     retval_diff = Diff.tree_diff_unknown_change(v)
                     return (
                         new_tr,
@@ -364,7 +363,7 @@ class Distribution(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        flag: Bool | BoolArray,
+        flag: ArrayLike,
         problem: UpdateProblem,
         argdiffs: Argdiffs,
     ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:

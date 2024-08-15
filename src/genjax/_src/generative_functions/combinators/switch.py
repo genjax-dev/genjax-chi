@@ -167,7 +167,8 @@ class SwitchCombinator(GenerativeFunction):
 
     branches: tuple[GenerativeFunction, ...]
 
-    def __abstract_call__(self, idx, *args):
+    def __abstract_call__(self, *args):
+        idx, *args = args
         retvals = []
         for _idx in range(len(self.branches)):
             branch_gen_fn = self.branches[_idx]
