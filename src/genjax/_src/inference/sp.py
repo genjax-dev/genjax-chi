@@ -98,7 +98,7 @@ class SampleDistribution(Distribution):
         self,
         key: PRNGKey,
         *args: Any,
-    ) -> tuple[FloatArray, Sample]:
+    ) -> tuple[FloatArray, ChoiceMap]:
         raise NotImplementedError
 
     @abstractmethod
@@ -172,7 +172,7 @@ class Algorithm(SampleDistribution):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        sample: Sample,
+        v: ChoiceMap,
         target: Target,
     ) -> Weight:
         """

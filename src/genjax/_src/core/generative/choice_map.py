@@ -205,9 +205,8 @@ class Selection(ProjectProblem):
 
 @Pytree.dataclass
 class AllSel(Selection):
-    def check(self) -> Bool | BoolArray:
-        # TODO (colin) fix to BoolArray
-        return True
+    def check(self) -> BoolArray:
+        return jnp.array(True)
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         return AllSel()
@@ -454,7 +453,7 @@ def check_none(v) -> Bool | BoolArray:
     elif isinstance(v, Mask):
         return v.flag
     else:
-        return True  # jnp.array(True)
+        return True
 
 
 class ChoiceMap(Sample, Constraint):

@@ -67,7 +67,7 @@ class Mask(Pytree):
             case Mask(flag, value):
                 return Mask.maybe_none(staged_and(f, flag), value)
             case _:
-                return Mask(jnp.array(f), v)
+                return Mask(f, v)
 
     @classmethod
     def maybe_none(cls, f: ArrayLike, v: Any):

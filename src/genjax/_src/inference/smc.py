@@ -150,7 +150,7 @@ class SMCAlgorithm(Algorithm):
     def run_csmc(
         self,
         key: PRNGKey,
-        retained: Sample,
+        retained: ChoiceMap,
     ) -> ParticleCollection:
         raise NotImplementedError
 
@@ -190,12 +190,12 @@ class SMCAlgorithm(Algorithm):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        sample: Sample,
+        v: ChoiceMap,
         target: Target,
     ) -> FloatArray:
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
-        particle_collection = algorithm.run_csmc(key, sample)
+        particle_collection = algorithm.run_csmc(key, v)
         particle = particle_collection.sample_particle(sub_key)
         log_density_estimate = (
             particle.get_score()
@@ -261,7 +261,7 @@ class Importance(SMCAlgorithm):
 
     def run_smc(self, key: PRNGKey):
         key, sub_key = jrandom.split(key)
-        if not Pytree.static_check_none(self.q):
+        if self.q is not None:
             log_weight, choice = self.q.random_weighted(sub_key, self.target)
             tr, target_score = self.target.importance(key, choice)
         else:
@@ -273,7 +273,7 @@ class Importance(SMCAlgorithm):
             jnp.array(True),
         )
 
-    def run_csmc(self, key: PRNGKey, retained: Sample):
+    def run_csmc(self, key: PRNGKey, retained: ChoiceMap):
         key, sub_key = jrandom.split(key)
         if self.q:
             q_score = self.q.estimate_logpdf(sub_key, retained, self.target)
@@ -322,7 +322,7 @@ class ImportanceK(SMCAlgorithm):
             jnp.array(True),
         )
 
-    def run_csmc(self, key: PRNGKey, retained: Sample):
+    def run_csmc(self, key: PRNGKey, retained: ChoiceMap):
         key, sub_key = jrandom.split(key)
         sub_keys = jrandom.split(sub_key, self.get_num_particles() - 1)
         if self.q:
@@ -437,7 +437,7 @@ class ChangeTarget(SMCAlgorithm):
     def run_csmc(
         self,
         key: PRNGKey,
-        retained: Sample,
+        retained: ChoiceMap,
     ) -> ParticleCollection:
         collection = self.prev.run_csmc(key, retained)
 
@@ -471,7 +471,7 @@ class ChangeTarget(SMCAlgorithm):
     def run_csmc_for_normalizing_constant(
         self,
         key: PRNGKey,
-        latent_choices: Sample,
+        latent_choices: ChoiceMap,
         w: FloatArray,
     ) -> FloatArray:
         key, sub_key = jrandom.split(key)
@@ -548,15 +548,14 @@ class KernelGenerativeFunction(GenerativeFunction):
         key: PRNGKey,
         constraint: Constraint,
         args: tuple,
-    ) -> tuple[Trace, Weight, UpdateProblem]:
+    ) -> tuple[Trace, Weight]:
         raise NotImplementedError
 
     def update(
         self,
         key: PRNGKey,
-        trace: KernelTrace,
+        trace: Trace,
         update_problem: UpdateProblem,
-        args: tuple,
     ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         raise NotImplementedError
 
@@ -673,7 +672,7 @@ class AttachCombinator(GenerativeFunction):
                 K_tr = K.simulate(key, (EmptySample(), constraint))
                 K_aux_score = K_tr.get_score()
                 (new_latents, aux) = K_tr.get_retval()
-                w_smc = move.weight(
+                w_smc = move.weight_correction(
                     EmptySample(),  # old latents
                     new_latents,  # new latents
                     aux,  # aux from K
@@ -726,12 +725,7 @@ class AttachCombinator(GenerativeFunction):
                 return update_impl(key)
 
             case DeferToInternal():
-                return self.gen_fn.update(
-                    key,
-                    gen_fn_trace,
-                    update_problem,
-                    argdiffs,
-                )
+                return self.gen_fn.update(key, gen_fn_trace, update_problem)
 
             case _:
                 raise Exception("Invalid move type")
