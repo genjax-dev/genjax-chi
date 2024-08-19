@@ -40,6 +40,7 @@ from genjax._src.core.typing import (
     PRNGKey,
     String,
     TypeVar,
+    static_check_bool,
     static_check_is_concrete,
     typecheck,
 )
@@ -133,7 +134,7 @@ class MaskedProblem(UpdateProblem):
             case MaskedProblem(flag, subproblem):
                 return MaskedProblem(staged_and(f, flag), subproblem)
             case _:
-                static_bool_check = static_check_is_concrete(f) and isinstance(f, Bool)
+                static_bool_check = static_check_bool(f)
                 return (
                     problem
                     if static_bool_check and f

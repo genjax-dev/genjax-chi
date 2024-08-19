@@ -62,7 +62,7 @@ class Mask(Pytree):
     value: Any
 
     @classmethod
-    def maybe(cls, f: ArrayLike, v: Any):
+    def maybe(cls, f: BoolArray, v: Any):
         match v:
             case Mask(flag, value):
                 return Mask.maybe_none(staged_and(f, flag), value)

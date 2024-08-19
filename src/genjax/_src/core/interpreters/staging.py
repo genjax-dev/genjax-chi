@@ -25,7 +25,7 @@ from jax.util import safe_map
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import Bool, BoolArray, Int, static_check_is_concrete
+from genjax._src.core.typing import Bool, BoolArray, Int, static_check_bool, static_check_is_concrete
 
 register_exclusion(__file__)
 
@@ -63,7 +63,7 @@ def staged_switch(idx, v1, v2):
 
 
 def staged_err(check, msg, **kwargs):
-    if static_check_is_concrete(check) and isinstance(check, Bool):
+    if static_check_bool(check):
         if check:
             raise Exception(msg)
         else:

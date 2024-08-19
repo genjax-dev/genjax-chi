@@ -138,6 +138,7 @@ def static_check_is_concrete(x: Any) -> bool:
 
 
 def static_check_bool(x: Any) -> bool:
+    #return static_check_is_concrete(x) and (isinstance(x, Bool) or (isinstance(x, jnp.ndarray) and x.dtype == 'bool'))
     return static_check_is_concrete(x) and isinstance(x, Bool)
 
 

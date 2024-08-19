@@ -129,7 +129,7 @@ class MaskCombinator(GenerativeFunction):
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
     ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        check = argdiffs[0].primal
+        check = Diff.tree_primal(argdiffs)[0]
         (check_diff, *inner_argdiffs) = argdiffs
         match trace:
             case MaskTrace():
