@@ -25,7 +25,13 @@ from jax.util import safe_map
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import Bool, BoolArray, Int, static_check_bool, static_check_is_concrete
+from genjax._src.core.typing import (
+    Bool,
+    BoolArray,
+    Int,
+    static_check_bool,
+    static_check_is_concrete,
+)
 
 register_exclusion(__file__)
 
