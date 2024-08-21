@@ -322,7 +322,7 @@ class ScanCombinator(GenerativeFunction):
     def update_generic(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: ScanTrace,
         problem: UpdateProblem,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace, Weight, Retdiff, UpdateProblem]:
@@ -418,16 +418,10 @@ class ScanCombinator(GenerativeFunction):
             starting_retdiff,
             bwd_problem,
         ) = self.kernel_gen_fn.update(
-            key,
-            starting_subslice,
-            update_problem,
-            starting_argdiffs,
+            key, starting_subslice, GenericProblem(starting_argdiffs, update_problem)
         )
         updated_end, end_w, ending_retdiff, _ = self.kernel_gen_fn.update(
-            key,
-            affected_subslice,
-            EmptyProblem(),
-            starting_retdiff,
+            key, affected_subslice, GenericProblem(starting_retdiff, EmptyProblem())
         )
 
         # Must be true for this type of update to be valid.
@@ -470,13 +464,21 @@ class ScanCombinator(GenerativeFunction):
                     key, constraint, Diff.tree_primal(argdiffs)
                 )
             case IndexProblem(index, subproblem):
-                if Diff.static_check_no_change(argdiffs):
+                assert isinstance(
+                    trace, ScanTrace
+                ), "You cannot perform an index update upon the EmptyTrace"
+                if Diff.static_check_no_change(argdiffs) and isinstance(
+                    trace, ScanTrace
+                ):
                     return self.update_index(key, trace, index, subproblem)
                 else:
                     return self.update_generic(
                         key, trace, ChoiceMap.idx(index, subproblem), argdiffs
                     )
             case _:
+                assert isinstance(
+                    trace, ScanTrace
+                ), "You cannot operate on the EmptyTrace in this context"
                 return self.update_generic(key, trace, update_problem, argdiffs)
 
     @GenerativeFunction.gfi_boundary
@@ -794,11 +796,13 @@ def reduce(
     """
 
     def decorator(f: GenerativeFunction):
-        return (
-            f.map(lambda ret: (ret, None))
-            .scan(reverse=reverse, unroll=unroll)
-            .map(lambda ret: ret[0])
-        )
+        def pre(ret):
+            return ret, None
+
+        def post(ret):
+            return ret[0]
+
+        return f.map(pre).scan(reverse=reverse, unroll=unroll).map(post)
 
     return decorator
 
@@ -924,10 +928,16 @@ def iterate_final(
 
     def decorator(f: GenerativeFunction):
         # strip off the JAX-supplied `None` on the way in, no accumulation on the way out.
+        def pre_post(_, ret):
+            return ret, None
+
+        def post_post(_, ret):
+            return ret[0]
+
         return (
-            f.dimap(pre=lambda *args: args[:-1], post=lambda _, ret: (ret, None))
+            f.dimap(pre=lambda *args: args[:-1], post=pre_post)
             .scan(n=n, unroll=unroll)
-            .dimap(pre=lambda *args: (*args, None), post=lambda _, ret: ret[0])
+            .dimap(pre=lambda *args: (*args, None), post=post_post)
         )
 
     return decorator

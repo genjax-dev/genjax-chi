@@ -28,14 +28,13 @@ from genjax._src.core.generative import (
     Sample,
     Score,
     Sum,
-    SumConstraint,
     SumProblem,
     Trace,
     UpdateProblem,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
-from genjax._src.core.interpreters.staging import get_data_shape
+from genjax._src.core.interpreters.staging import flag, get_data_shape
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
@@ -59,13 +58,7 @@ register_exclusion(__file__)
 @Pytree.dataclass
 class HeterogeneousSwitchSample(Sample):
     index: IntArray
-    subtraces: Sequence[Sample]
-
-    def get_constraint(self):
-        return SumConstraint(
-            self.index,
-            list(map(lambda x: x.get_constraint(), self.subtraces)),
-        )
+    subtraces: Sequence[ChoiceMap]
 
 
 ################
@@ -91,7 +84,7 @@ class SwitchTrace(Trace):
             chm = ChoiceMap.empty()
             for _idx, _chm in enumerate(subsamples):
                 assert isinstance(_chm, ChoiceMap)
-                masked_submap = ChoiceMap.maybe(_idx == idx, _chm)
+                masked_submap = ChoiceMap.maybe(flag(jnp.all(_idx == idx)), _chm)
                 chm = chm ^ masked_submap
             return chm
         else:
@@ -99,7 +92,7 @@ class SwitchTrace(Trace):
             return HeterogeneousSwitchSample(
                 idx,
                 list(
-                    map(lambda tr: tr.get_sample(), self.subtraces),
+                    map(lambda tr: tr.get_choices(), self.subtraces),
                 ),
             )
 
@@ -167,7 +160,8 @@ class SwitchCombinator(GenerativeFunction):
 
     branches: tuple[GenerativeFunction, ...]
 
-    def __abstract_call__(self, idx, *args):
+    def __abstract_call__(self, *args):
+        idx, *args = args
         retvals = []
         for _idx in range(len(self.branches)):
             branch_gen_fn = self.branches[_idx]
@@ -613,6 +607,9 @@ class SwitchCombinator(GenerativeFunction):
         assert isinstance(trace, EmptyTrace | SwitchTrace)
         match trace:
             case EmptyTrace():
+                assert isinstance(
+                    problem, ImportanceProblem
+                ), f"update_change_target of an EmptyTrace requires an ImportanceProblem, not {problem}"
                 return self.update_importance(key, problem, argdiffs)
             case SwitchTrace():
                 return self.update_generic(key, trace, problem, argdiffs)
@@ -623,14 +620,14 @@ class SwitchCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        problem: UpdateProblem,
+        update_problem: UpdateProblem,
     ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        match problem:
+        match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
             case _:
                 return self.update_change_target(
-                    key, trace, problem, Diff.no_change(trace.get_args())
+                    key, trace, update_problem, Diff.no_change(trace.get_args())
                 )
 
     def _empty_assess_defs(self, sample: Sample, args: tuple):

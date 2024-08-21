@@ -19,7 +19,6 @@ import jax
 from genjax._src.core.generative import (
     ChoiceMap,
     GenerativeFunction,
-    Sample,
     Selection,
     Weight,
 )
@@ -98,14 +97,14 @@ class SampleDistribution(Distribution):
         self,
         key: PRNGKey,
         *args: Any,
-    ) -> tuple[FloatArray, Sample]:
+    ) -> tuple[FloatArray, ChoiceMap]:
         raise NotImplementedError
 
     @abstractmethod
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: Sample,
+        v: ChoiceMap,
         *args: Any,
     ) -> FloatArray:
         raise NotImplementedError
@@ -151,8 +150,8 @@ class Algorithm(SampleDistribution):
     def random_weighted(
         self,
         key: PRNGKey,
-        target: Target,
-    ) -> tuple[Weight, Sample]:
+        *args: Target,
+    ) -> tuple[Weight, ChoiceMap]:
         """
         Given a [`Target`][genjax.inference.Target], return a [`Sample`][genjax.core.Sample] from an approximation to the normalized distribution of the target, and a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
 
@@ -169,12 +168,7 @@ class Algorithm(SampleDistribution):
         pass
 
     @abstractmethod
-    def estimate_logpdf(
-        self,
-        key: PRNGKey,
-        sample: Sample,
-        target: Target,
-    ) -> Weight:
+    def estimate_logpdf(self, key: PRNGKey, v: ChoiceMap, *args: Any) -> Weight:
         """
         Given a [`Sample`][genjax.core.Sample] and a [`Target`][genjax.inference.Target], return a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
 
@@ -205,7 +199,7 @@ class Algorithm(SampleDistribution):
         self,
         key: PRNGKey,
         target: Target,
-        latent_choices: Sample,
+        latent_choices: ChoiceMap,
         w: Weight,
     ) -> Weight:
         pass
@@ -232,7 +226,7 @@ class Marginal(SampleDistribution):
         self,
         key: PRNGKey,
         *args,
-    ) -> tuple[FloatArray, Sample]:
+    ) -> tuple[FloatArray, ChoiceMap]:
         key, sub_key = jax.random.split(key)
         tr = self.gen_fn.simulate(sub_key, args)
         choices: ChoiceMap = tr.get_choices()
@@ -255,14 +249,14 @@ class Marginal(SampleDistribution):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        constraint: ChoiceMap,
+        v: ChoiceMap,
         *args,
     ) -> Weight:
         if self.algorithm is None:
-            _, weight = self.gen_fn.importance(key, constraint, args)
+            _, weight = self.gen_fn.importance(key, v, args)
             return weight
         else:
-            target = Target(self.gen_fn, args, constraint)
+            target = Target(self.gen_fn, args, v)
             Z = self.algorithm.estimate_normalizing_constant(key, target)
             return Z
 

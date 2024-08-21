@@ -87,8 +87,9 @@ def reinforce(sample_func, logpdf_func):
 
 @Pytree.dataclass
 class FlipEnum(ADEVPrimitive):
-    def sample(self, key, p):
-        return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
+    def sample(self, key, *args):
+        (probs,) = args
+        return 1 == tfd.Bernoulli(probs=probs).sample(seed=key)
 
     def jvp_estimate(
         self,
@@ -127,7 +128,7 @@ flip_enum = FlipEnum()
 @Pytree.dataclass
 class FlipMVD(ADEVPrimitive):
     def sample(self, key, *args):
-        p = args[0]
+        p = (args,)
         return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
 
     def jvp_estimate(
@@ -153,7 +154,8 @@ flip_mvd = FlipMVD()
 
 @Pytree.dataclass
 class FlipEnumParallel(ADEVPrimitive):
-    def sample(self, key, p):
+    def sample(self, key, *args):
+        (p,) = args
         return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
 
     def jvp_estimate(
@@ -189,7 +191,8 @@ flip_enum_parallel = FlipEnumParallel()
 
 @Pytree.dataclass
 class CategoricalEnumParallel(ADEVPrimitive):
-    def sample(self, key, probs):
+    def sample(self, key, *args):
+        (probs,) = args
         return tfd.Categorical(probs=probs).sample(seed=key)
 
     def jvp_estimate(
@@ -239,7 +242,8 @@ normal_reinforce = reinforce(
 
 @Pytree.dataclass
 class NormalREPARAM(TailCallADEVPrimitive):
-    def sample(self, key, loc, scale_diag):
+    def sample(self, key, *args):
+        loc, scale_diag = args
         return tfd.Normal(loc=loc, scale=scale_diag).sample(seed=key)
 
     def before_tail_call(
@@ -268,7 +272,8 @@ normal_reparam = NormalREPARAM()
 
 @Pytree.dataclass
 class MvNormalDiagREPARAM(TailCallADEVPrimitive):
-    def sample(self, key, loc, scale_diag):
+    def sample(self, key, *args):
+        loc, scale_diag = args
         return tfd.MultivariateNormalDiag(loc=loc, scale_diag=scale_diag).sample(
             seed=key
         )
@@ -304,7 +309,8 @@ mv_normal_diag_reparam = MvNormalDiagREPARAM()
 
 @Pytree.dataclass
 class MvNormalREPARAM(TailCallADEVPrimitive):
-    def sample(self, key, mu, sigma):
+    def sample(self, key, *args):
+        mu, sigma = args
         v = tfd.MultivariateNormalFullCovariance(
             loc=mu, covariance_matrix=sigma
         ).sample(seed=key)
@@ -338,10 +344,7 @@ mv_normal_reparam = MvNormalREPARAM()
 
 @Pytree.dataclass
 class Uniform(TailCallADEVPrimitive):
-    def sample(
-        self,
-        key: PRNGKey,
-    ):
+    def sample(self, key: PRNGKey, *_args):
         v = tfd.Uniform(low=0.0, high=1.0).sample(seed=key)
         return v
 
@@ -360,7 +363,8 @@ uniform = Uniform()
 
 @Pytree.dataclass
 class BetaIMPLICIT(TailCallADEVPrimitive):
-    def sample(self, key, alpha, beta):
+    def sample(self, key, *args):
+        alpha, beta = args
         v = tfd.Beta(concentration1=alpha, concentration0=beta).sample(seed=key)
         return v
 
@@ -392,8 +396,8 @@ beta_implicit = BetaIMPLICIT()
 class Baseline(ADEVPrimitive):
     prim: ADEVPrimitive
 
-    def sample(self, key, b, *args):
-        return self.prim.sample(key, *args)
+    def sample(self, key, *args):
+        return self.prim.sample(key, *args[1:])
 
     def jvp_estimate(
         self,
@@ -447,7 +451,8 @@ def baseline(prim):
 
 @Pytree.dataclass
 class AddCost(ADEVPrimitive):
-    def sample(self, key, w):
+    def sample(self, key, *args):
+        (w,) = args
         return w
 
     def jvp_estimate(

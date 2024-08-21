@@ -109,7 +109,10 @@ pythonVersion = "3.11"
 venvPath = "."
 venv = ".venv"
 include = ["src", "tests"]
-exclude = ["**/__pycache__"]
+# TODO: inference has been excluded because this code my not be ready for type-correctness.
+#       msgpack dependency is optional, so it doesn't typecheck
+#       typecheck doesn't see noxfiles's import of nox
+exclude = ["**/__pycache__", "noxfile.py", "src/genjax/_src/inference/*.py", "src/genjax/_src/core/serialization/msgpack.py"]
 defineConstant = { DEBUG = true }
 typeCheckingMode = "standard"
 reportMatchNotExhaustive = true

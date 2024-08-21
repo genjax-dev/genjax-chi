@@ -218,10 +218,6 @@ class Pytree(pz.Struct):
             return check
 
     @staticmethod
-    def static_check_none(v):
-        return v is None or v == Const(None)
-
-    @staticmethod
     def static_check_tree_leaves_have_matching_leading_dim(tree):
         def _inner(v):
             if static_check_is_array(v):
@@ -335,19 +331,21 @@ class Pytree(pz.Struct):
                         "background_color must be provided if background_pattern is"
                     )
 
-                def wrap_block(block):
+                def wrapper1(block):
                     return common_styles.WithBlockPattern(
                         block, color=background_color, pattern=background_pattern
                     )
 
+                wrap_block = wrapper1
                 wrap_topline = common_styles.PatternedTopLineSpanGroup
                 wrap_bottomline = common_styles.PatternedBottomLineSpanGroup
 
             elif background_color is not None and background_color != "transparent":
 
-                def wrap_block(block):
+                def wrapper2(block):
                     return common_styles.WithBlockColor(block, color=background_color)
 
+                wrap_block = wrapper2
                 wrap_topline = common_styles.ColoredTopLineSpanGroup
                 wrap_bottomline = common_styles.ColoredBottomLineSpanGroup
 

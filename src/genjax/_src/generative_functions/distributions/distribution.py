@@ -36,7 +36,6 @@ from genjax._src.core.generative import (
     ProjectProblem,
     Retdiff,
     Retval,
-    Sample,
     Score,
     Selection,
     Trace,
@@ -44,16 +43,13 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import staged_check
+from genjax._src.core.interpreters.staging import Flag, flag, staged_check
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
-    Bool,
-    BoolArray,
     Callable,
     FloatArray,
     PRNGKey,
-    static_check_is_concrete,
     typecheck,
 )
 
@@ -145,7 +141,9 @@ class Distribution(GenerativeFunction):
                     w = self.estimate_logpdf(key, v, *args)
                     return (w, w, v)
 
-                score, w, new_v = jax.lax.cond(flag, _importance, _simulate, key, value)
+                score, w, new_v = jax.lax.cond(
+                    flag.f, _importance, _simulate, key, value
+                )
                 tr = DistributionTrace(self, args, new_v, score)
                 bwd_problem = MaskedProblem(flag, ProjectProblem())
                 return tr, w, bwd_problem
@@ -168,15 +166,15 @@ class Distribution(GenerativeFunction):
             return (
                 tr,
                 jnp.array(0.0),
-                MaskedProblem(False, ProjectProblem()),
+                MaskedProblem(flag(False), ProjectProblem()),
             )
 
         def importance_branch(key, constraint, args):
             tr, w = self.importance(key, constraint, args)
-            return tr, w, MaskedProblem(True, ProjectProblem())
+            return tr, w, MaskedProblem(flag(True), ProjectProblem())
 
         return jax.lax.cond(
-            constraint.flag,
+            constraint.flag.f,
             importance_branch,
             simulate_branch,
             key,
@@ -240,7 +238,7 @@ class Distribution(GenerativeFunction):
                 tr,
                 w,
                 rd,
-                MaskedProblem(True, old_sample),
+                MaskedProblem(flag(True), old_sample),
             )
 
         def do_nothing_branch(key, trace, _, argdiffs):
@@ -251,11 +249,11 @@ class Distribution(GenerativeFunction):
                 tr,
                 w,
                 Diff.tree_diff_unknown_change(tr.get_retval()),
-                MaskedProblem(False, old_sample),
+                MaskedProblem(flag(False), old_sample),
             )
 
         return jax.lax.cond(
-            constraint.flag,
+            constraint.flag.f,
             update_branch,
             do_nothing_branch,
             key,
@@ -300,12 +298,12 @@ class Distribution(GenerativeFunction):
                 v = constraint.get_value()
                 if isinstance(v, UpdateProblem):
                     return self.update(key, trace, GenericProblem(argdiffs, v))
-                elif static_check_is_concrete(check) and check:
+                elif check.concrete_true():
                     fwd = self.estimate_logpdf(key, v, *primals)
                     bwd = trace.get_score()
                     w = fwd - bwd
                     new_tr = DistributionTrace(self, primals, v, fwd)
-                    discard = trace.get_sample()
+                    discard = trace.get_choices()
                     retval_diff = Diff.tree_diff_unknown_change(v)
                     return (
                         new_tr,
@@ -313,7 +311,7 @@ class Distribution(GenerativeFunction):
                         retval_diff,
                         discard,
                     )
-                elif static_check_is_concrete(check):
+                elif check.concrete_false():
                     value_chm = trace.get_choices()
                     v = value_chm.get_value()
                     fwd = self.estimate_logpdf(key, v, *primals)
@@ -343,7 +341,7 @@ class Distribution(GenerativeFunction):
                     old_value = trace.get_choices().get_value()
 
                     new_value, w, score = jax.lax.cond(
-                        flag,
+                        flag.f,
                         _true_branch,
                         _false_branch,
                         key,
@@ -364,7 +362,7 @@ class Distribution(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: Trace,
-        flag: Bool | BoolArray,
+        flag: Flag,
         problem: UpdateProblem,
         argdiffs: Argdiffs,
     ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
@@ -381,8 +379,8 @@ class Distribution(GenerativeFunction):
         new_trace = DistributionTrace(
             self,
             primals,
-            jax.lax.select(flag, new_value, old_value),
-            jax.lax.select(flag, possible_trace.get_score(), trace.get_score()),
+            jax.lax.select(flag.f, new_value, old_value),
+            jax.lax.select(flag.f, possible_trace.get_score(), trace.get_score()),
         )
 
         return new_trace, w, retdiff, bwd_problem
@@ -415,7 +413,7 @@ class Distribution(GenerativeFunction):
             trace,
             GenericProblem(
                 argdiffs,
-                MaskedProblem.maybe(check, ProjectProblem()),
+                MaskedProblem(flag(check), ProjectProblem()),
             ),
         )
 
@@ -471,7 +469,7 @@ class Distribution(GenerativeFunction):
     @typecheck
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple,
     ):
         raise NotImplementedError
@@ -549,9 +547,8 @@ class ExactDensity(Distribution):
             case Mask(flag, value):
 
                 def _check():
-                    check_flag = jnp.all(flag)
                     checkify.check(
-                        check_flag,
+                        bool(flag),
                         "Attempted to unmask when a mask flag is False: the masked value is invalid.\n",
                     )
 

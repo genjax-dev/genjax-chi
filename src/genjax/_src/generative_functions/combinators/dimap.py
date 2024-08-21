@@ -25,6 +25,7 @@ from genjax._src.core.generative import (
     UpdateProblem,
     Weight,
 )
+from genjax._src.core.generative.choice_map import ChoiceMap
 from genjax._src.core.interpreters.incremental import Diff, incremental
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
@@ -194,7 +195,7 @@ class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
     @typecheck
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple,
     ) -> tuple[Score, S]:
         inner_args = self.argument_mapping(*args)

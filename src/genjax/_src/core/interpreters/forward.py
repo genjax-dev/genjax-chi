@@ -82,9 +82,9 @@ class FlatPrimitive(jc.Primitive):
 
         batching.primitive_batchers[self] = _batch
 
-        def _mlir(c, *mlir_args, **params):
+        def _mlir(ctx: mlir.LoweringRuleContext, *mlir_args, **params):
             lowering = mlir.lower_fun(self.impl, multiple_results=True)
-            return lowering(c, *mlir_args, **params)
+            return lowering(ctx, *mlir_args, **params)
 
         mlir.register_lowering(self, _mlir)
 
