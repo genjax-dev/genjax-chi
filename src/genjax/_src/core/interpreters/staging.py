@@ -45,20 +45,51 @@ def flag(b: bool | BoolArray):
 
 @Pytree.dataclass(eq=False)
 class Flag(Pytree):
+    """JAX compilation imposes restrictions on the control flow used in the compiled code.
+    Branches gated by booleans must use GPU-compatible branching (e.g., `jax.lax.cond`).
+    However, the GPU must compute both sides of the branch, wasting effort in the case
+    where the gating boolean is constant. In such cases, if-based flow control will
+    conceal the branch not taken from the JAX compiler, decreasing compilation time and
+    code size for the result by not including the code for the branch that cannot be taken.
+
+    This class contains a boolean value `f`, which is either native Python `True` or `False`,
+    or a `jnp` array (typically of boolean dtype although this is not enforced either here
+    or by JAX), together with a concreteness flag. Boolean operations are provided which
+    preserve concreteness _when possible_ (i.e., admixture of a dynamic boolean with a concrete
+    boolean may result in a dynamic boolean, if the value of the concrete boolean does not
+    determine the result).
+    """
+
     f: bool | BoolArray
     concrete: bool = Pytree.static()
 
     def and_(self, f: "Flag") -> "Flag":
-        if self.concrete and f.concrete:
-            return Flag(self.f and f.f, True)
-        else:
-            return Flag(jnp.logical_and(self.f, f.f), False)
+        # True and X => X. False and X => False.
+        if self.concrete:
+            if self.f:
+                return f
+            else:
+                return self
+        if f.concrete:
+            if f.f:
+                return self
+            else:
+                return f
+        return Flag(jnp.logical_and(self.f, f.f), False)
 
     def or_(self, f: "Flag") -> "Flag":
-        if self.concrete and f.concrete:
-            return Flag(self.f or f.f, True)
-        else:
-            return Flag(jnp.logical_or(self.f, f.f), False)
+        # True or X => True. False or X => X.
+        if self.concrete:
+            if self.f:
+                return self
+            else:
+                return f
+        if f.concrete:
+            if f.f:
+                return f
+            else:
+                return self
+        return Flag(jnp.logical_or(self.f, f.f), False)
 
     def not_(self) -> "Flag":
         if self.concrete:
@@ -73,6 +104,10 @@ class Flag(Pytree):
         return self.concrete and not self.f
 
     def __eq__(self, other) -> bool:
+        """Note that this equality lowers both sides to scalar boolean. This means that
+        Python `True` is equal to a `jnp` array of values which are all true, resulting
+        in a coarser definition of equality than you may need, but for the cases of
+        concrete control flow, this is the sensible choice"""
         if not isinstance(other, Flag):
             return False
         return bool(self) == bool(other)
@@ -85,7 +120,7 @@ class Flag(Pytree):
 
     def choose(self, t, f):
         """Return t or f according to the truth value contained in this flag
-        in a manner that works in either the concrete or traced context"""
+        in a manner that works in either the concrete or dynamic context"""
         return jax.lax.select(jnp.all(self.f), t, f)
 
 
