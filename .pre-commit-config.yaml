@@ -1,5 +1,5 @@
 ci:
-    skip: [ruff]
+    skip: [ruff, pyright]
 
 default_install_hook_types:
   - pre-commit
