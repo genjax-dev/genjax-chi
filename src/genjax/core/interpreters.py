@@ -20,9 +20,6 @@ from genjax._src.core.interpreters.staging import (
     get_shaped_aval,
     get_update_shape,
     stage,
-    staged_and,
-    staged_not,
-    staged_or,
 )
 
 __all__ = [
@@ -34,7 +31,4 @@ __all__ = [
     "get_update_shape",
     "incremental",
     "stage",
-    "staged_and",
-    "staged_not",
-    "staged_or",
 ]

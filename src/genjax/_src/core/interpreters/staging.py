@@ -117,18 +117,6 @@ def staged_check(v):
     return static_check_is_concrete(v) and v
 
 
-def staged_and(x, y) -> BoolArray:
-    return jnp.logical_and(x, y)
-
-
-def staged_or(x, y) -> BoolArray:
-    return jnp.logical_or(x, y)
-
-
-def staged_not(x) -> BoolArray:
-    return jnp.logical_not(x)
-
-
 def staged_switch(idx, v1, v2):
     if static_check_is_concrete(idx) and isinstance(idx, Int):
         return [v1, v2][idx]

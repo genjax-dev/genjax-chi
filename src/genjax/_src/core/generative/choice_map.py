@@ -26,7 +26,6 @@ from genjax._src.core.generative.functional_types import Mask, Sum
 from genjax._src.core.interpreters.staging import (
     Flag,
     flag,
-    staged_and,
     staged_err,
 )
 from genjax._src.core.pytree import Pytree
@@ -299,7 +298,7 @@ class IdxSel(Selection):
         else:
 
             def check_fn(v):
-                return staged_and(
+                return jnp.logical_and(
                     v,
                     jnp.any(v == self.idxs),
                 )
