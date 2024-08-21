@@ -28,7 +28,6 @@ from genjax._src.core.interpreters.staging import (
     flag,
     staged_and,
     staged_err,
-    staged_not,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
@@ -840,7 +839,7 @@ class OrChm(ChoiceMap):
         v2 = self.c2.get_value()
 
         def pair_bool_to_idx(first, second):
-            output = -1 + first + 2 * (staged_not(first) & second)
+            output = -1 + first.f + 2 * first.not_().and_(second).f
             return output
 
         idx = pair_bool_to_idx(check1, check2)
