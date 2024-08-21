@@ -66,7 +66,7 @@ class TestMaskCombinator:
         assert w == 0.0
         # mask check arg transition: True --> False
         argdiffs = U.g(
-            (Diff.unknown_change(False), Diff.no_change(tr.get_args()[1])), C.n()
+            (Diff.unknown_change(flag(False)), Diff.no_change(tr.get_args()[1])), C.n()
         )
         w = tr.update(key, argdiffs)[1]
         assert w == -tr.get_score()

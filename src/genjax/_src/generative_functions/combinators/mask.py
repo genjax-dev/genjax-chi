@@ -118,8 +118,8 @@ class MaskCombinator(GenerativeFunction):
         key: PRNGKey,
         args: tuple,
     ) -> MaskTrace:
-        check, *inner_args = args
-        tr = self.gen_fn.simulate(key, tuple(inner_args))
+        check, inner_args = args[0], args[1:]
+        tr = self.gen_fn.simulate(key, inner_args)
         return MaskTrace(self, tr, flag(check))
 
     @typecheck
@@ -131,7 +131,7 @@ class MaskCombinator(GenerativeFunction):
         argdiffs: Argdiffs,
     ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         check = Diff.tree_primal(argdiffs)[0]
-        (check_diff, *inner_argdiffs) = argdiffs
+        check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
         match trace:
             case MaskTrace():
                 inner_trace = trace.inner
@@ -154,7 +154,7 @@ class MaskCombinator(GenerativeFunction):
             MaskTrace(self, premasked_trace, check),
             w,
             Mask.maybe(check_diff, retdiff),
-            MaskedProblem(flag(check), bwd_problem),
+            MaskedProblem(check, bwd_problem),
         )
 
     @typecheck
