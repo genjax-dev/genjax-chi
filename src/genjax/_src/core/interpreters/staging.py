@@ -118,18 +118,15 @@ def staged_check(v):
 
 
 def staged_and(x, y) -> BoolArray:
-    with jax.ensure_compile_time_eval():
-        return jnp.logical_and(x, y)
+    return jnp.logical_and(x, y)
 
 
 def staged_or(x, y) -> BoolArray:
-    with jax.ensure_compile_time_eval():
-        return jnp.logical_or(x, y)
+    return jnp.logical_or(x, y)
 
 
 def staged_not(x) -> BoolArray:
-    with jax.ensure_compile_time_eval():
-        return jnp.logical_not(x)
+    return jnp.logical_not(x)
 
 
 def staged_switch(idx, v1, v2):
@@ -150,7 +147,6 @@ def staged_err(check: Flag, msg, **kwargs):
     elif check.concrete_false():
         pass
     else:
-
         def _check():
             checkify.check(check.f, msg, **kwargs)
 
