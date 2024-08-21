@@ -14,11 +14,12 @@
 
 import genjax
 import jax
+import jax.numpy as jnp
 import pytest
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import UpdateProblemBuilder as U
-from genjax._src.core.interpreters.staging import flag
+from genjax._src.core.interpreters.staging import Flag, flag
 
 
 @genjax.mask
@@ -36,11 +37,15 @@ class TestMaskCombinator:
     def test_mask_simple_normal_true(self, key):
         tr = jax.jit(model.simulate)(key, (True, -4.0))
         assert tr.get_score() == tr.inner.get_score()
-        assert tr.get_retval() == genjax.Mask(flag(True), tr.inner.get_retval())
+        assert tr.get_retval() == genjax.Mask(
+            Flag(jnp.array(True), concrete=False), tr.inner.get_retval()
+        )
 
         tr = jax.jit(model.simulate)(key, (False, -4.0))
         assert tr.get_score() == 0.0
-        assert tr.get_retval() == genjax.Mask(flag(False), tr.inner.get_retval())
+        assert tr.get_retval() == genjax.Mask(
+            Flag(jnp.array(False), concrete=False), tr.inner.get_retval()
+        )
 
     def test_mask_simple_normal_false(self, key):
         tr = jax.jit(model.simulate)(key, (False, 2.0))

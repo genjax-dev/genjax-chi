@@ -43,7 +43,7 @@ def flag(b: bool | BoolArray):
     return Flag(b, not isinstance(b, jc.Tracer))
 
 
-@Pytree.dataclass(eq=False)
+@Pytree.dataclass
 class Flag(Pytree):
     """JAX compilation imposes restrictions on the control flow used in the compiled code.
     Branches gated by booleans must use GPU-compatible branching (e.g., `jax.lax.cond`).
@@ -102,15 +102,6 @@ class Flag(Pytree):
 
     def concrete_false(self):
         return self.concrete and not self.f
-
-    def __eq__(self, other) -> bool:
-        """Note that this equality lowers both sides to scalar boolean. This means that
-        Python `True` is equal to a `jnp` array of values which are all true, resulting
-        in a coarser definition of equality than you may need, but for the cases of
-        concrete control flow, this is the sensible choice"""
-        if not isinstance(other, Flag):
-            return False
-        return bool(self) == bool(other)
 
     def __bool__(self) -> bool:
         if self.concrete:
