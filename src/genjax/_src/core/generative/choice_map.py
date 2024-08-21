@@ -24,10 +24,11 @@ import jax.tree_util as jtu
 from genjax._src.core.generative.core import Constraint, ProjectProblem, Sample
 from genjax._src.core.generative.functional_types import Mask, Sum
 from genjax._src.core.interpreters.staging import (
+    Flag,
+    flag,
     staged_and,
     staged_err,
     staged_not,
-    staged_or,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
@@ -38,7 +39,6 @@ from genjax._src.core.typing import (
     BoolArray,
     EllipsisType,
     String,
-    static_check_bool,
     typecheck,
 )
 
@@ -154,7 +154,7 @@ class Selection(ProjectProblem):
     def __getitem__(
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
-    ) -> BoolArray:
+    ) -> Flag:
         subselection = self(addr)
         return subselection.check()
 
@@ -162,11 +162,11 @@ class Selection(ProjectProblem):
     def __contains__(
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
-    ) -> Bool | BoolArray:
+    ) -> Flag:
         return self[addr]
 
     @abstractmethod
-    def check(self) -> BoolArray:
+    def check(self) -> Flag:
         raise NotImplementedError
 
     @abstractmethod
@@ -194,7 +194,7 @@ class Selection(ProjectProblem):
 
     @classmethod
     @typecheck
-    def maybe(cls, flag: Bool | BoolArray, s: "Selection") -> "Selection":
+    def maybe(cls, flag: Flag, s: "Selection") -> "Selection":
         return select_defer(flag, s)
 
 
@@ -205,8 +205,8 @@ class Selection(ProjectProblem):
 
 @Pytree.dataclass
 class AllSel(Selection):
-    def check(self) -> BoolArray:
-        return jnp.array(True)
+    def check(self) -> Flag:
+        return flag(True)
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         return AllSel()
@@ -218,12 +218,12 @@ def select_all():
 
 @Pytree.dataclass
 class DeferSel(Selection):
-    flag: Bool | BoolArray
+    flag: Flag
     s: Selection
 
-    def check(self) -> BoolArray:
+    def check(self) -> Flag:
         ch = self.s.check()
-        return staged_and(self.flag, ch)
+        return self.flag.and_(ch)
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining = self.s(addr)
@@ -232,7 +232,7 @@ class DeferSel(Selection):
 
 @typecheck
 def select_defer(
-    flag: Bool | BoolArray,
+    flag: Flag,
     s: Selection,
 ) -> Selection:
     return DeferSel(flag, s)
@@ -242,9 +242,8 @@ def select_defer(
 class CompSel(Selection):
     s: Selection
 
-    def check(self) -> BoolArray:
-        ch = self.s.check()
-        return staged_not(ch)
+    def check(self) -> Flag:
+        return self.s.check().not_()
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining = self.s(addr)
@@ -267,11 +266,11 @@ class StaticSel(Selection):
     addr: ExtendedStaticAddressComponent = Pytree.static()
     s: Selection = Pytree.field()
 
-    def check(self) -> BoolArray:
-        return jnp.array(False)
+    def check(self) -> Flag:
+        return flag(False)
 
     def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
-        check = addr == self.addr or isinstance(addr, EllipsisType)
+        check = flag(addr == self.addr or isinstance(addr, EllipsisType))
         return select_defer(check, self.s)
 
 
@@ -288,8 +287,8 @@ class IdxSel(Selection):
     idxs: DynamicAddressComponent
     s: Selection
 
-    def check(self) -> BoolArray:
-        return jnp.array(False)
+    def check(self) -> Flag:
+        return flag(False)
 
     def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
         if isinstance(addr, EllipsisType):
@@ -306,7 +305,7 @@ class IdxSel(Selection):
                     jnp.any(v == self.idxs),
                 )
 
-            check = (
+            check = flag(
                 jax.vmap(check_fn)(addr)
                 if jnp.array(addr, copy=False).shape
                 else check_fn(addr)
@@ -327,10 +326,8 @@ class AndSel(Selection):
     s1: Selection
     s2: Selection
 
-    def check(self) -> BoolArray:
-        check1 = self.s1.check()
-        check2 = self.s2.check()
-        return staged_and(check1, check2)
+    def check(self) -> Flag:
+        return self.s1.check().and_(self.s2.check())
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining1 = self.s1(addr)
@@ -351,10 +348,8 @@ class OrSel(Selection):
     s1: Selection
     s2: Selection
 
-    def check(self) -> BoolArray:
-        check1 = self.s1.check()
-        check2 = self.s2.check()
-        return staged_or(check1, check2)
+    def check(self) -> Flag:
+        return self.s1.check().or_(self.s2.check())
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining1 = self.s1(addr)
@@ -374,7 +369,7 @@ def select_or(
 class ChmSel(Selection):
     c: "ChoiceMap"
 
-    def check(self) -> BoolArray:
+    def check(self) -> Flag:
         return check_none(self.c.get_value())
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
@@ -447,13 +442,13 @@ class _ChoiceMapBuilder(Pytree):
 ChoiceMapBuilder = _ChoiceMapBuilder()
 
 
-def check_none(v) -> Bool | BoolArray:
+def check_none(v) -> Flag:
     if v is None:
-        return False
+        return flag(False)
     elif isinstance(v, Mask):
         return v.flag
     else:
-        return True
+        return flag(True)
 
 
 class ChoiceMap(Sample, Constraint):
@@ -516,7 +511,7 @@ class ChoiceMap(Sample, Constraint):
         raise NotImplementedError
 
     @typecheck
-    def has_value(self) -> Bool | BoolArray:
+    def has_value(self) -> Flag:
         return check_none(self.get_value())
 
     @typecheck
@@ -617,7 +612,7 @@ class ChoiceMap(Sample, Constraint):
         return choice_map_value(v)
 
     @classmethod
-    def maybe(cls, f: BoolArray, c: "ChoiceMap") -> "ChoiceMap":
+    def maybe(cls, f: Flag, c: "ChoiceMap") -> "ChoiceMap":
         return choice_map_masked(f, c)
 
     @classmethod
@@ -752,9 +747,11 @@ class IdxChm(ChoiceMap):
             )
 
             return (
-                choice_map_masked(check[addr], jtu.tree_map(lambda v: v[addr], self.c))
+                choice_map_masked(
+                    flag(check[addr]), jtu.tree_map(lambda v: v[addr], self.c)
+                )
                 if jnp.array(check, copy=False).shape
-                else choice_map_masked(check, self.c)
+                else choice_map_masked(flag(check), self.c)
             )
 
 
@@ -775,7 +772,7 @@ class StaticChm(ChoiceMap):
         return None
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        check = addr == self.addr
+        check = flag(addr == self.addr)
         return choice_map_masked(check, self.c)
 
 
@@ -795,7 +792,7 @@ class XorChm(ChoiceMap):
     def get_value(self) -> Any:
         check1 = self.c1.has_value()
         check2 = self.c2.has_value()
-        err_check = staged_and(check1, check2)
+        err_check = check1.and_(check2)
         staged_err(
             err_check,
             f"The disjoint union of two choice maps have a value collision:\nc1 = {self.c1}\nc2 = {self.c2}",
@@ -806,7 +803,7 @@ class XorChm(ChoiceMap):
         def pair_bool_to_idx(bool1, bool2):
             return (1 * bool1 + 2 * bool2 - 3 * (bool1 & bool2)) - 1
 
-        idx = pair_bool_to_idx(check1, check2)
+        idx = pair_bool_to_idx(bool(check1), bool(check2))
         return Sum.maybe_none(idx, [v1, v2])
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
@@ -874,7 +871,7 @@ def choice_map_or(
 
 @Pytree.dataclass
 class MaskChm(ChoiceMap):
-    flag: ArrayLike
+    flag: Flag
     c: ChoiceMap
 
     def get_value(self) -> Any:
@@ -888,16 +885,16 @@ class MaskChm(ChoiceMap):
 
 @typecheck
 def choice_map_masked(
-    flag: ArrayLike,
+    flag: Flag,
     c: ChoiceMap,
 ) -> ChoiceMap:
     return (
         c
         if c.static_is_empty()
         else c
-        if static_check_bool(flag) and flag
+        if flag.concrete_true()
         else choice_map_empty
-        if static_check_bool(flag) and not flag
+        if flag.concrete_false()
         else MaskChm(flag, c)
     )
 

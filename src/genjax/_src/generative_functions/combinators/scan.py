@@ -464,6 +464,9 @@ class ScanCombinator(GenerativeFunction):
                     key, constraint, Diff.tree_primal(argdiffs)
                 )
             case IndexProblem(index, subproblem):
+                assert isinstance(
+                    trace, ScanTrace
+                ), "You cannot perform an index update upon the EmptyTrace"
                 if Diff.static_check_no_change(argdiffs) and isinstance(
                     trace, ScanTrace
                 ):
@@ -473,6 +476,9 @@ class ScanCombinator(GenerativeFunction):
                         key, trace, ChoiceMap.idx(index, subproblem), argdiffs
                     )
             case _:
+                assert isinstance(
+                    trace, ScanTrace
+                ), "You cannot operate on the EmptyTrace in this context"
                 return self.update_generic(key, trace, update_problem, argdiffs)
 
     @GenerativeFunction.gfi_boundary
@@ -790,11 +796,13 @@ def reduce(
     """
 
     def decorator(f: GenerativeFunction):
-        return (
-            f.map(lambda ret: (ret, None))
-            .scan(reverse=reverse, unroll=unroll)
-            .map(lambda ret: ret[0])
-        )
+        def pre(ret):
+            return ret, None
+
+        def post(ret):
+            return ret[0]
+
+        return f.map(pre).scan(reverse=reverse, unroll=unroll).map(post)
 
     return decorator
 
@@ -920,10 +928,16 @@ def iterate_final(
 
     def decorator(f: GenerativeFunction):
         # strip off the JAX-supplied `None` on the way in, no accumulation on the way out.
+        def pre_post(_, ret):
+            return ret, None
+
+        def post_post(_, ret):
+            return ret[0]
+
         return (
-            f.dimap(pre=lambda *args: args[:-1], post=lambda _, ret: (ret, None))
+            f.dimap(pre=lambda *args: args[:-1], post=pre_post)
             .scan(n=n, unroll=unroll)
-            .dimap(pre=lambda *args: (*args, None), post=lambda _, ret: ret[0])
+            .dimap(pre=lambda *args: (*args, None), post=post_post)
         )
 
     return decorator

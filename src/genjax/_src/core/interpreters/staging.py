@@ -15,8 +15,8 @@
 
 import jax
 import jax.numpy as jnp
-from jax import api_util, make_jaxpr
 from jax import core as jc
+from jax import make_jaxpr
 from jax import tree_util as jtu
 from jax.experimental import checkify
 from jax.extend import linear_util as lu
@@ -24,12 +24,11 @@ from jax.interpreters import partial_eval as pe
 from jax.util import safe_map
 
 from genjax._src.checkify import optional_check
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
-    Bool,
     BoolArray,
     Int,
-    static_check_bool,
     static_check_is_concrete,
 )
 
@@ -40,20 +39,68 @@ register_exclusion(__file__)
 ###############################
 
 
+def flag(b: bool | BoolArray):
+    return Flag(b, not isinstance(b, jc.Tracer))
+
+
+@Pytree.dataclass(eq=False)
+class Flag(Pytree):
+    f: bool | BoolArray
+    concrete: bool = Pytree.static()
+
+    def and_(self, f: "Flag") -> "Flag":
+        if self.concrete and f.concrete:
+            return Flag(self.f and f.f, True)
+        else:
+            return Flag(jnp.logical_and(self.f, f.f), False)
+
+    def or_(self, f: "Flag") -> "Flag":
+        if self.concrete and f.concrete:
+            return Flag(self.f or f.f, True)
+        else:
+            return Flag(jnp.logical_or(self.f, f.f), False)
+
+    def not_(self) -> "Flag":
+        if self.concrete:
+            return Flag(not self.f, True)
+        else:
+            return Flag(jnp.logical_not(self.f), False)
+
+    def concrete_true(self):
+        return self.concrete and self.f
+
+    def concrete_false(self):
+        return self.concrete and not self.f
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Flag):
+            return False
+        return bool(self) == bool(other)
+
+    def __bool__(self) -> bool:
+        if self.concrete:
+            return bool(self.f)
+        else:
+            return bool(jnp.all(self.f))
+
+
 def staged_check(v):
     return static_check_is_concrete(v) and v
 
 
 def staged_and(x, y) -> BoolArray:
-    return jnp.logical_and(x, y)
+    with jax.ensure_compile_time_eval():
+        return jnp.logical_and(x, y)
 
 
 def staged_or(x, y) -> BoolArray:
-    return jnp.logical_or(x, y)
+    with jax.ensure_compile_time_eval():
+        return jnp.logical_or(x, y)
 
 
 def staged_not(x) -> BoolArray:
-    return jnp.logical_not(x)
+    with jax.ensure_compile_time_eval():
+        return jnp.logical_not(x)
 
 
 def staged_switch(idx, v1, v2):
@@ -68,16 +115,15 @@ def staged_switch(idx, v1, v2):
 #########################
 
 
-def staged_err(check, msg, **kwargs):
-    if static_check_bool(check):
-        if check:
-            raise Exception(msg)
-        else:
-            return None
+def staged_err(check: Flag, msg, **kwargs):
+    if check.concrete_true():
+        raise Exception(msg)
+    elif check.concrete_false():
+        pass
     else:
 
         def _check():
-            checkify.check(check, msg, **kwargs)
+            checkify.check(check.f, msg, **kwargs)
 
         optional_check(_check)
 
@@ -98,13 +144,21 @@ def cached_stage_dynamic(flat_fun, in_avals):
     return typed_jaxpr
 
 
+# This function has been cloned from api_util, since it is not exported from that module
+@lu.transformation_with_aux
+def flatten_fun_nokwargs(in_tree, *args_flat):
+    py_args = jtu.tree_unflatten(in_tree, args_flat)
+    ans = yield py_args, {}
+    yield jtu.tree_flatten(ans)
+
+
 def stage(f):
     """Returns a function that stages a function to a ClosedJaxpr."""
 
     def wrapped(*args, **kwargs):
         fun = lu.wrap_init(f, kwargs)
         flat_args, in_tree = jtu.tree_flatten(args)
-        flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
+        flat_fun, out_tree = flatten_fun_nokwargs(fun, in_tree)
         flat_avals = safe_map(get_shaped_aval, flat_args)
         typed_jaxpr = cached_stage_dynamic(flat_fun, tuple(flat_avals))
         return typed_jaxpr, (flat_args, in_tree, out_tree)

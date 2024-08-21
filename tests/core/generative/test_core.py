@@ -44,13 +44,9 @@ class TestCombinators:
         assert jnp.array_equal(chm[..., "q"], qarr)
 
         # check alternate access route:
-        assert jnp.array_equal(
-            jnp.array([chm(0)["v"].value, chm(1)["v"].value, chm(2)["v"].value]), varr
-        )
+        assert jnp.array_equal(jnp.array([chm(0)["v"], chm(1)["v"], chm(2)["v"]]), varr)
 
-        assert jnp.array_equal(
-            jnp.array([chm(0)["q"].value, chm(1)["q"].value, chm(2)["q"].value]), qarr
-        )
+        assert jnp.array_equal(jnp.array([chm(0)["q"], chm(1)["q"], chm(2)["q"]]), qarr)
 
     def test_repeat(self):
         key = jax.random.PRNGKey(314159)

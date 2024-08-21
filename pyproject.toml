@@ -109,7 +109,7 @@ pythonVersion = "3.11"
 venvPath = "."
 venv = ".venv"
 include = ["src", "tests"]
-exclude = ["**/__pycache__"]
+exclude = ["**/__pycache__", "noxfile.py", "src/genjax/_src/inference/*.py"]
 defineConstant = { DEBUG = true }
 typeCheckingMode = "standard"
 reportMatchNotExhaustive = true

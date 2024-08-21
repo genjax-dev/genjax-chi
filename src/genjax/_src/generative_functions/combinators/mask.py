@@ -14,6 +14,7 @@
 
 
 import jax
+import jax.numpy as jnp
 
 from genjax._src.core.generative import (
     Argdiffs,
@@ -33,10 +34,10 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.core import Constraint
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.staging import Flag, flag
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
-    BoolArray,
     PRNGKey,
     typecheck,
 )
@@ -48,7 +49,7 @@ register_exclusion(__file__)
 class MaskTrace(Trace):
     mask_combinator: "MaskCombinator"
     inner: Trace
-    check: BoolArray
+    check: Flag
 
     def get_args(self):
         return (self.check, *self.inner.get_args())
@@ -67,7 +68,7 @@ class MaskTrace(Trace):
         return Mask(self.check, self.inner.get_retval())
 
     def get_score(self):
-        return self.check * self.inner.get_score()
+        return self.inner.get_score() if self.check else jnp.array(0.0)
 
 
 @Pytree.dataclass
@@ -119,7 +120,7 @@ class MaskCombinator(GenerativeFunction):
     ) -> MaskTrace:
         check, *inner_args = args
         tr = self.gen_fn.simulate(key, tuple(inner_args))
-        return MaskTrace(self, tr, check)
+        return MaskTrace(self, tr, flag(check))
 
     @typecheck
     def update_change_target(
@@ -144,16 +145,16 @@ class MaskCombinator(GenerativeFunction):
         )
 
         w = jax.lax.select(
-            check,
+            check.f,
             w,
             -trace.get_score(),
         )
 
         return (
-            MaskTrace(self, premasked_trace, check),
+            MaskTrace(self, premasked_trace, flag(check)),
             w,
             Mask.maybe(check_diff, retdiff),
-            MaskedProblem(check, bwd_problem),
+            MaskedProblem(flag(check), bwd_problem),
         )
 
     @typecheck
@@ -210,13 +211,13 @@ class MaskCombinator(GenerativeFunction):
             case GenericProblem(argdiffs, subproblem):
                 assert isinstance(trace, MaskTrace)
 
-                if not trace.check:
+                if trace.check.concrete_false():
                     raise Exception(
                         "This move is not currently supported! See https://github.com/probcomp/genjax/issues/1230 for notes."
                     )
 
                 return jax.lax.cond(
-                    trace.check,
+                    trace.check.f,
                     self.update_change_target,
                     self.update_change_target_from_false,
                     key,
@@ -238,7 +239,7 @@ class MaskCombinator(GenerativeFunction):
         (check, *inner_args) = args
         score, retval = self.gen_fn.assess(sample, tuple(inner_args))
         return (
-            check * score,
+            check.f * score,
             Mask(check, retval),
         )
 

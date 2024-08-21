@@ -173,8 +173,9 @@ class SMCAlgorithm(Algorithm):
     def random_weighted(
         self,
         key: PRNGKey,
-        target: Target,
-    ) -> tuple[FloatArray, Sample]:
+        *args: Target,
+    ) -> tuple[FloatArray, ChoiceMap]:
+        (target,) = args
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
         particle_collection = algorithm.run_smc(key)
@@ -191,8 +192,9 @@ class SMCAlgorithm(Algorithm):
         self,
         key: PRNGKey,
         v: ChoiceMap,
-        target: Target,
+        *args: Target,
     ) -> FloatArray:
+        (target,) = args
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
         particle_collection = algorithm.run_csmc(key, v)
@@ -223,7 +225,7 @@ class SMCAlgorithm(Algorithm):
         self,
         key: PRNGKey,
         target: Target,
-        latent_choices: Sample,
+        latent_choices: ChoiceMap,
         w: FloatArray,
     ) -> FloatArray:
         algorithm = ChangeTarget(self, target)
@@ -306,7 +308,7 @@ class ImportanceK(SMCAlgorithm):
     def run_smc(self, key: PRNGKey):
         key, sub_key = jrandom.split(key)
         sub_keys = jrandom.split(sub_key, self.get_num_particles())
-        if not Pytree.static_check_none(self.q):
+        if self.q is not None:
             log_weights, choices = vmap(self.q.random_weighted, in_axes=(0, None))(
                 sub_keys, self.target
             )

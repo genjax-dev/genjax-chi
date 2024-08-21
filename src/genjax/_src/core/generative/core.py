@@ -21,15 +21,12 @@ import jax.tree_util as jtu
 from penzai.core import formatting_util
 
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import get_trace_shape, staged_and
+from genjax._src.core.interpreters.staging import Flag, get_trace_shape
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import gfi_boundary, register_exclusion
 from genjax._src.core.typing import (
     Annotated,
     Any,
-    ArrayLike,
-    Bool,
-    BoolArray,
     Callable,
     FloatArray,
     InAxes,
@@ -40,8 +37,6 @@ from genjax._src.core.typing import (
     PRNGKey,
     String,
     TypeVar,
-    static_check_bool,
-    static_check_is_concrete,
     typecheck,
 )
 
@@ -125,21 +120,20 @@ class EmptyProblem(UpdateProblem):
 
 @Pytree.dataclass(match_args=True)
 class MaskedProblem(UpdateProblem):
-    flag: ArrayLike
+    flag: Flag
     problem: UpdateProblem
 
     @classmethod
-    def maybe_empty(cls, f: BoolArray, problem: UpdateProblem):
+    def maybe_empty(cls, f: Flag, problem: UpdateProblem):
         match problem:
             case MaskedProblem(flag, subproblem):
-                return MaskedProblem(staged_and(f, flag), subproblem)
+                return MaskedProblem(f.and_(flag), subproblem)
             case _:
-                static_bool_check = static_check_bool(f)
                 return (
                     problem
-                    if static_bool_check and f
+                    if f.concrete_true()
                     else EmptyProblem()
-                    if static_bool_check
+                    if f.concrete_false()
                     else MaskedProblem(f, problem)
                 )
 
@@ -172,11 +166,11 @@ class UpdateProblemBuilder(Pytree):
         return EmptyProblem()
 
     @classmethod
-    def maybe(cls, flag: Bool | BoolArray, problem: "UpdateProblem"):
-        return MaskedProblem.maybe_empty(jnp.array(flag), problem)
+    def maybe(cls, flag: Flag, problem: "UpdateProblem"):
+        return MaskedProblem.maybe_empty(flag, problem)
 
     @classmethod
-    def g(cls, argdiffs: Argdiffs, subproblem: "UpdateProblem") -> "UpdateProblem":
+    def g(cls, argdiffs: Argdiffs, subproblem: "UpdateProblem") -> "GenericProblem":
         return GenericProblem(argdiffs, subproblem)
 
 
@@ -227,7 +221,7 @@ class MaskedConstraint(Constraint):
     where the None case is represented by `EmptyConstraint`.
     """
 
-    flag: Bool | BoolArray
+    flag: Flag
     constraint: Constraint
 
 
@@ -285,7 +279,7 @@ class EmptySample(Sample):
 
 @Pytree.dataclass(match_args=True)
 class MaskedSample(Sample):
-    flag: Bool | BoolArray
+    flag: Flag
     sample: Sample
 
 
