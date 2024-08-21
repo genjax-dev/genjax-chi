@@ -40,7 +40,7 @@ register_exclusion(__file__)
 
 
 def flag(b: bool | BoolArray):
-    return Flag(b, not isinstance(b, jc.Tracer))
+    return Flag(b, concrete=not isinstance(b, jc.Tracer))
 
 
 @Pytree.dataclass
@@ -61,7 +61,7 @@ class Flag(Pytree):
     """
 
     f: bool | BoolArray
-    concrete: bool = Pytree.static()
+    concrete: bool = Pytree.static(kw_only=True)
 
     def and_(self, f: "Flag") -> "Flag":
         # True and X => X. False and X => False.
@@ -75,7 +75,7 @@ class Flag(Pytree):
                 return self
             else:
                 return f
-        return Flag(jnp.logical_and(self.f, f.f), False)
+        return Flag(jnp.logical_and(self.f, f.f), concrete=False)
 
     def or_(self, f: "Flag") -> "Flag":
         # True or X => True. False or X => X.
@@ -89,13 +89,13 @@ class Flag(Pytree):
                 return f
             else:
                 return self
-        return Flag(jnp.logical_or(self.f, f.f), False)
+        return Flag(jnp.logical_or(self.f, f.f), concrete=False)
 
     def not_(self) -> "Flag":
         if self.concrete:
-            return Flag(not self.f, True)
+            return Flag(not self.f, concrete=True)
         else:
-            return Flag(jnp.logical_not(self.f), False)
+            return Flag(jnp.logical_not(self.f), concrete=False)
 
     def concrete_true(self):
         return self.concrete and self.f
@@ -104,14 +104,12 @@ class Flag(Pytree):
         return self.concrete and not self.f
 
     def __bool__(self) -> bool:
-        if self.concrete:
-            return bool(self.f)
-        else:
-            return bool(jnp.all(self.f))
+        return bool(jnp.all(self.f))
 
     def choose(self, t, f):
         """Return t or f according to the truth value contained in this flag
         in a manner that works in either the concrete or dynamic context"""
+
         return jax.lax.select(jnp.all(self.f), t, f)
 
 
