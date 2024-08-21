@@ -222,7 +222,6 @@ class TestSwitchCombinator:
         # Just select 0 in all branches for simplicity:
         tr = jax.vmap(s.simulate, in_axes=(0, None))(keys, (0, (), ()))
         y = tr.get_choices()["y"]
-        y = y.unmask()
         assert y.shape == (3,)
 
     def test_switch_combinator_with_empty_gen_fn(self):

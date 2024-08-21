@@ -83,6 +83,11 @@ class Flag(Pytree):
         else:
             return bool(jnp.all(self.f))
 
+    def choose(self, t, f):
+        """Return t or f according to the truth value contained in this flag
+        in a manner that works in either the concrete or traced context"""
+        return jax.lax.select(jnp.all(self.f), t, f)
+
 
 def staged_check(v):
     return static_check_is_concrete(v) and v

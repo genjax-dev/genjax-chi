@@ -278,6 +278,9 @@ class VmapCombinator(GenerativeFunction):
     ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         match update_problem:
             case ChoiceMap():
+                assert isinstance(
+                    trace, VmapTrace
+                ), "To change the target with a ChoiceMap, a VmapTrace is required here"
                 return self.update_choice_map(key, trace, update_problem, argdiffs)
 
             case ImportanceProblem(constraint) if isinstance(
