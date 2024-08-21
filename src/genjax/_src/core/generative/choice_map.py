@@ -800,9 +800,9 @@ class XorChm(ChoiceMap):
         v2 = self.c2.get_value()
 
         def pair_bool_to_idx(bool1, bool2):
-            return (1 * bool1 + 2 * bool2 - 3 * (bool1 & bool2)) - 1
+            return 1 * bool1.f + 2 * bool2.f - 3 * bool1.and_(bool2).f - 1
 
-        idx = pair_bool_to_idx(bool(check1), bool(check2))
+        idx = pair_bool_to_idx(check1, check2)
         return Sum.maybe_none(idx, [v1, v2])
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
