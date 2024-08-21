@@ -155,7 +155,7 @@ flip_mvd = FlipMVD()
 @Pytree.dataclass
 class FlipEnumParallel(ADEVPrimitive):
     def sample(self, key, *args):
-        p, = args
+        (p,) = args
         return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
 
     def jvp_estimate(
@@ -192,7 +192,7 @@ flip_enum_parallel = FlipEnumParallel()
 @Pytree.dataclass
 class CategoricalEnumParallel(ADEVPrimitive):
     def sample(self, key, *args):
-        probs, = args
+        (probs,) = args
         return tfd.Categorical(probs=probs).sample(seed=key)
 
     def jvp_estimate(
