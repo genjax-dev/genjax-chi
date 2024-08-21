@@ -147,6 +147,7 @@ def staged_err(check: Flag, msg, **kwargs):
     elif check.concrete_false():
         pass
     else:
+
         def _check():
             checkify.check(check.f, msg, **kwargs)
 
