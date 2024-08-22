@@ -46,6 +46,7 @@ from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import Flag, flag, staged_check
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
+    ArrayLike,
     Callable,
     Generic,
     PRNGKey,
@@ -359,13 +360,13 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 raise Exception("Unhandled constraint in update.")
 
     def update_masked(
-        self,
+        self: "Distribution[ArrayLike]",
         key: PRNGKey,
-        trace: Trace[R],
+        trace: Trace[ArrayLike],
         flag: Flag,
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[ArrayLike], Weight, Retdiff, UpdateProblem]:
         old_value = trace.get_retval()
         primals = Diff.tree_primal(argdiffs)
         possible_trace, w, retdiff, bwd_problem = self.update(
@@ -380,7 +381,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             self,
             primals,
             flag.where(new_value, old_value),
-            flag.where(possible_trace.get_score(), trace.get_score()),
+            jnp.asarray(flag.where(possible_trace.get_score(), trace.get_score())),
         )
 
         return new_trace, w, retdiff, bwd_problem
@@ -433,7 +434,9 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 return self.update_constraint(key, trace, update_problem, argdiffs)
 
             case MaskedProblem(flag, subproblem):
-                return self.update_masked(key, trace, flag, subproblem, argdiffs)
+                # TODO (#1239): see if `MaskedProblem` can handle this update,
+                # without infecting all of `Distribution`
+                return self.update_masked(key, trace, flag, subproblem, argdiffs)  # pyright: ignore[reportAttributeAccessIssue]
 
             case ProjectProblem():
                 return self.update_project(trace)

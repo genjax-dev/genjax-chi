@@ -27,6 +27,7 @@ from genjax._src.checkify import optional_check
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
+    ArrayLike,
     BoolArray,
     Int,
     static_check_is_concrete,
@@ -106,11 +107,13 @@ class Flag(Pytree):
     def __bool__(self) -> bool:
         return bool(jnp.all(self.f))
 
-    def where(self, t, f):
+    def where(self, t: ArrayLike, f: ArrayLike) -> ArrayLike:
         """Return t or f according to the truth value contained in this flag
         in a manner that works in either the concrete or dynamic context"""
-
-        return jax.lax.select(jnp.all(self.f), t, f)
+        if self.concrete:
+            return t if self.f else f
+        else:
+            return jax.lax.select(jnp.all(self.f), t, f)
 
 
 def staged_check(v):
