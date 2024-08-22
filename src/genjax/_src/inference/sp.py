@@ -277,7 +277,6 @@ def marginal(
     def decorator(
         gen_fn: GenerativeFunction[R],
     ) -> Marginal[R]:
-        # TODO R goes onto marginal
         return Marginal(
             gen_fn,
             selection,

@@ -1735,25 +1735,3 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
             )
         else:
             return self.gen_fn.assess(sample, full_args)
-
-
-# import genjax
-# import jax.random
-
-# @genjax.gen
-# def cake(x: int) -> int:
-#     return x
-
-# @genjax.gen
-# def cake2(x: int) -> bool:
-#     return True
-
-# k = jax.random.PRNGKey(0)
-
-# # this case returns True
-# genjax.switch(cake, cake2)(1, (10,), (10,))(k)
-
-# f = cake.or_else(cake2)
-
-# # this case returns 1
-# genjax.switch(cake, cake2)(jnp.array(1), (10,), (10,))(k)
