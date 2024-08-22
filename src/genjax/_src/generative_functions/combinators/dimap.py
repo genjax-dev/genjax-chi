@@ -41,7 +41,8 @@ from genjax._src.core.typing import (
 register_exclusion(__file__)
 
 ArgTuple = TypeVar("ArgTuple", bound=tuple)
-R = TypeVar("R")
+R = TypeVar("R", covariant=True)
+R2 = TypeVar("R2", covariant=True)
 S = TypeVar("S")
 
 
@@ -69,7 +70,7 @@ class DimapTrace(Trace, Generic[ArgTuple, S]):
 
 
 @Pytree.dataclass
-class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
+class DimapCombinator(GenerativeFunction[S], Generic[ArgTuple, R, S]):
     """
     A combinator that transforms both the arguments and return values of a [`genjax.GenerativeFunction`][].
 
@@ -109,7 +110,7 @@ class DimapCombinator(GenerativeFunction, Generic[ArgTuple, R, S]):
         ```
     """
 
-    inner: GenerativeFunction
+    inner: GenerativeFunction[R]
     argument_mapping: Callable[[tuple], ArgTuple] = Pytree.static()
     retval_mapping: Callable[[ArgTuple, R], S] = Pytree.static()
     info: String | None = Pytree.static(default=None)
@@ -214,7 +215,7 @@ def dimap(
     pre: Callable[..., ArgTuple] = lambda *args: args,
     post: Callable[[ArgTuple, R], S] = lambda _, retval: retval,
     info: String | None = None,
-) -> Callable[[GenerativeFunction], GenerativeFunction]:
+) -> Callable[[GenerativeFunction[R]], GenerativeFunction[S]]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
 
@@ -258,7 +259,7 @@ def dimap(
         ```
     """
 
-    def decorator(f) -> GenerativeFunction:
+    def decorator(f: GenerativeFunction[R]) -> GenerativeFunction[S]:
         return DimapCombinator[ArgTuple, R, S](f, pre, post, info)
 
     return decorator
@@ -268,7 +269,7 @@ def map(
     f: Callable[[R], S],
     *,
     info: String | None = None,
-) -> Callable[[GenerativeFunction], GenerativeFunction]:
+) -> Callable[[GenerativeFunction[R]], GenerativeFunction[S]]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies a post-processing function to its return value.
 

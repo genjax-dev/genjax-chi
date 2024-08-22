@@ -29,6 +29,7 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     FloatArray,
+    Generic,
     InAxes,
     Int,
     IntArray,
@@ -48,8 +49,18 @@ if TYPE_CHECKING:
 
 _C = TypeVar("_C", bound=Callable[..., Any])
 ArgTuple = TypeVar("ArgTuple", bound=tuple)
-R = TypeVar("R")
+
+# Generative Function type variables
+R = TypeVar("R", covariant=True)
+"""
+Generic denoting the return type of a generative function.
+"""
+
 S = TypeVar("S")
+
+Carry = TypeVar("Carry")
+X = TypeVar("X")
+Y = TypeVar("Y")
 
 #####################################
 # Special generative function types #
@@ -73,11 +84,6 @@ Arguments = tuple
 `Arguments` is the type of argument values to generative functions. It is a type alias for `Tuple`, and is used to improve readability and parsing of interface specifications.
 """
 
-Retval = Any
-"""
-`Retval` is the type of return values from the return value function of a generative function. It is a type alias for `Any`, and is used to improve readability and parsing of interface specifications.
-"""
-
 Argdiffs = Annotated[
     tuple,
     Is[Diff.static_check_tree_diff],
@@ -90,7 +96,7 @@ When used under type checking, `Retdiff` assumes that the argument values are `P
 
 
 Retdiff = Annotated[
-    Retval,
+    R,
     Is[Diff.static_check_tree_diff],
 ]
 """
@@ -303,8 +309,9 @@ class Trace(Pytree):
     def get_args(self) -> Arguments:
         """Returns the [`Arguments`][genjax.core.Arguments] for the [`GenerativeFunction`][genjax.core.GenerativeFunction] invocation which created the [`Trace`][genjax.core.Trace]."""
 
+    # TODO change Any  => R once that becomes generic
     @abstractmethod
-    def get_retval(self) -> Retval:
+    def get_retval(self) -> Any:
         """Returns the [`Retval`][genjax.core.Retval] from the [`GenerativeFunction`][genjax.core.GenerativeFunction] invocation which created the [`Trace`][genjax.core.Trace]."""
 
     @abstractmethod
@@ -438,7 +445,7 @@ class EmptyTrace(Trace):
     def get_args(self) -> tuple:
         return (EmptyTraceArg(),)
 
-    def get_retval(self) -> Retval:
+    def get_retval(self) -> R:
         return EmptyTraceRetval()
 
     def get_score(self) -> Score:
@@ -456,7 +463,7 @@ class EmptyTrace(Trace):
 #######################
 
 
-class GenerativeFunction(Pytree):
+class GenerativeFunction(Generic[R], Pytree):
     """
     `GenerativeFunction` is the type of _generative functions_, the main computational object in Gen.
 
@@ -514,7 +521,7 @@ class GenerativeFunction(Pytree):
     def __call__(self, *args, **kwargs) -> "GenerativeFunctionClosure":
         return GenerativeFunctionClosure(self, args, kwargs)
 
-    def __abstract_call__(self, *args) -> Retval:
+    def __abstract_call__(self, *args) -> R:
         """Used to support JAX tracing, although this default implementation involves no
         JAX operations (it takes a fixed-key sample from the return value).
 
@@ -522,7 +529,7 @@ class GenerativeFunction(Pytree):
         """
         return self.simulate(jax.random.PRNGKey(0), args).get_retval()
 
-    def handle_kwargs(self) -> "GenerativeFunction":
+    def handle_kwargs(self) -> "GenerativeFunction[R]":
         return IgnoreKwargs(self)
 
     def get_trace_shape(self, *args) -> Any:
@@ -720,7 +727,7 @@ class GenerativeFunction(Pytree):
         self,
         sample: "genjax.ChoiceMap",
         args: Arguments,
-    ) -> tuple[Score, Retval]:
+    ) -> tuple[Score, R]:
         """
         Return [the score][genjax.core.Trace.get_score] and [the return value][genjax.core.Trace.get_retval] when the generative function is invoked with the provided arguments, and constrained to take the provided sample as the sampled value.
 
@@ -812,7 +819,7 @@ class GenerativeFunction(Pytree):
         self,
         key: PRNGKey,
         args: Arguments,
-    ) -> tuple[Sample, Score, Retval]:
+    ) -> tuple[Sample, Score, R]:
         """
         Samples a [`Sample`][genjax.core.Sample] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the [`Retval`][genjax.core.Retval] of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
         """
@@ -835,7 +842,8 @@ class GenerativeFunction(Pytree):
     # Combinators #
     ###############
 
-    def vmap(self, /, *, in_axes: InAxes = 0) -> "GenerativeFunction":
+    # TODO think through, or note, that the R that comes out will have to be bounded by pytree.
+    def vmap(self, /, *, in_axes: InAxes = 0) -> "GenerativeFunction[R]":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that performs a vectorized map over the argument specified by `in_axes`. Traced values are nested under an index, and the retval is vectorized.
 
@@ -912,13 +920,13 @@ class GenerativeFunction(Pytree):
         return genjax.repeat(n=n)(self)
 
     def scan(
-        self,
+        self: "GenerativeFunction[tuple[Carry, Y]]",
         /,
         *,
-        n: Optional[Int] = None,
+        n: Int | None = None,
         reverse: bool = False,
         unroll: int | bool = 1,
-    ) -> "GenerativeFunction":
+    ) -> "GenerativeFunction[tuple[Carry, Y]]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)`, returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])` where
 
@@ -1008,7 +1016,7 @@ class GenerativeFunction(Pytree):
 
     def accumulate(
         self, /, *, reverse: bool = False, unroll: int | bool = 1
-    ) -> "GenerativeFunction":
+    ) -> "GenerativeFunction[R]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `(c, a) -> c`, returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> [c]` where
 
@@ -1069,7 +1077,7 @@ class GenerativeFunction(Pytree):
 
     def reduce(
         self, /, *, reverse: bool = False, unroll: int | bool = 1
-    ) -> "GenerativeFunction":
+    ) -> "GenerativeFunction[R]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `(c, a) -> c`, returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> c` where
 
@@ -1126,7 +1134,7 @@ class GenerativeFunction(Pytree):
 
         return genjax.reduce(reverse=reverse, unroll=unroll)(self)
 
-    def iterate(self, /, *, n: Int, unroll: int | bool = 1) -> "GenerativeFunction":
+    def iterate(self, /, *, n: Int, unroll: int | bool = 1) -> "GenerativeFunction[R]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `a -> a`, returns a new [`genjax.GenerativeFunction`][] of type `a -> [a]` where
 
@@ -1182,7 +1190,7 @@ class GenerativeFunction(Pytree):
 
     def iterate_final(
         self, /, *, n: Int, unroll: int | bool = 1
-    ) -> "GenerativeFunction":
+    ) -> "GenerativeFunction[R]":
         """
         Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a` where
 
@@ -1234,7 +1242,7 @@ class GenerativeFunction(Pytree):
 
         return genjax.iterate_final(n=n, unroll=unroll)(self)
 
-    def mask(self, /) -> "GenerativeFunction":
+    def mask(self, /) -> "GenerativeFunction[genjax.Mask]":
         """
         Enables dynamic masking of generative functions. Returns a new [`genjax.GenerativeFunction`][] like `self`, but which accepts an additional boolean first argument.
 
@@ -1417,7 +1425,7 @@ class GenerativeFunction(Pytree):
         pre: Callable[..., ArgTuple],
         post: Callable[[ArgTuple, R], S],
         info: String | None = None,
-    ) -> "GenerativeFunction":
+    ) -> "GenerativeFunction[S]":
         """
         Returns a new [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
 
@@ -1468,7 +1476,7 @@ class GenerativeFunction(Pytree):
 
     def map(
         self, f: Callable[[R], S], *, info: String | None = None
-    ) -> "GenerativeFunction":
+    ) -> "GenerativeFunction[S]":
         """
         Specialized version of [`genjax.dimap`][] where only the post-processing function is applied.
 
@@ -1509,7 +1517,7 @@ class GenerativeFunction(Pytree):
 
     def contramap(
         self, f: Callable[..., ArgTuple], *, info: String | None = None
-    ) -> "GenerativeFunction":
+    ) -> "GenerativeFunction[R]":
         """
         Specialized version of [`genjax.GenerativeFunction.dimap`][] where only the pre-processing function is applied.
 
@@ -1622,8 +1630,8 @@ class IgnoreKwargs(GenerativeFunction):
 
 
 @Pytree.dataclass
-class GenerativeFunctionClosure(GenerativeFunction):
-    gen_fn: GenerativeFunction
+class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
+    gen_fn: GenerativeFunction[R]
     args: tuple
     kwargs: dict
 
@@ -1717,7 +1725,7 @@ class GenerativeFunctionClosure(GenerativeFunction):
         self,
         sample: "genjax.ChoiceMap",
         args: tuple,
-    ) -> tuple[Score, Retval]:
+    ) -> tuple[Score, R]:
         full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()

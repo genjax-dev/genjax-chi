@@ -28,7 +28,7 @@ from genjax._src.core.generative import (
     GenericProblem,
     ImportanceProblem,
     Retdiff,
-    Retval,
+    R,
     Score,
     Selection,
     Trace,
@@ -77,7 +77,6 @@ class VmapTrace(Trace):
 
     def get_score(self):
         return self.score
-
 
 @Pytree.dataclass
 class VmapCombinator(GenerativeFunction):
@@ -311,7 +310,7 @@ class VmapCombinator(GenerativeFunction):
         self,
         sample: ChoiceMap,
         args: tuple,
-    ) -> tuple[Score, Retval]:
+    ) -> tuple[Score, R]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         idx_array = jnp.arange(0, broadcast_dim_length)

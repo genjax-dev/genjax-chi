@@ -35,7 +35,7 @@ from genjax._src.core.generative import (
     MaskedProblem,
     ProjectProblem,
     Retdiff,
-    Retval,
+    R,
     Score,
     Selection,
     Trace,
@@ -94,7 +94,7 @@ class Distribution(GenerativeFunction):
         self,
         key: PRNGKey,
         *args,
-    ) -> tuple[Score, Retval]:
+    ) -> tuple[Score, R]:
         pass
 
     @abstractmethod
@@ -486,7 +486,7 @@ class ExactDensity(Distribution):
         raise NotImplementedError
 
     @abstractmethod
-    def logpdf(self, v: Retval, *args):
+    def logpdf(self, v: R, *args):
         raise NotImplementedError
 
     def __abstract_call__(self, *args):
@@ -511,7 +511,7 @@ class ExactDensity(Distribution):
         self,
         key: PRNGKey,
         *args,
-    ) -> tuple[Score, Retval]:
+    ) -> tuple[Score, R]:
         """
         Given arguments to the distribution, sample from the distribution, and return the exact log density of the sample, and the sample.
         """
