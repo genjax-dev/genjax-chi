@@ -27,8 +27,8 @@ from genjax._src.core.generative import (
     GenerativeFunction,
     GenericProblem,
     ImportanceProblem,
-    Retdiff,
     R,
+    Retdiff,
     Score,
     Selection,
     Trace,
@@ -77,6 +77,7 @@ class VmapTrace(Trace):
 
     def get_score(self):
         return self.score
+
 
 @Pytree.dataclass
 class VmapCombinator(GenerativeFunction):

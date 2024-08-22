@@ -48,7 +48,7 @@ from genjax._src.core.typing import (
 
 register_exclusion(__file__)
 
-R = TypeVar("R", covariant=True)
+R = TypeVar("R")
 _T = TypeVar("_T")
 
 

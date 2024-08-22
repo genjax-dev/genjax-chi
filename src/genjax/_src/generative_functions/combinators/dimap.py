@@ -41,8 +41,8 @@ from genjax._src.core.typing import (
 register_exclusion(__file__)
 
 ArgTuple = TypeVar("ArgTuple", bound=tuple)
-R = TypeVar("R", covariant=True)
-R2 = TypeVar("R2", covariant=True)
+R = TypeVar("R")
+R2 = TypeVar("R2")
 S = TypeVar("S")
 
 

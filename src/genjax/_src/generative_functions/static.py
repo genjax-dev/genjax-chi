@@ -65,7 +65,7 @@ from genjax._src.core.typing import (
 
 register_exclusion(__file__)
 
-R = TypeVar("R", covariant=True)
+R = TypeVar("R")
 
 
 # Usage in transforms: checks for duplicate addresses.

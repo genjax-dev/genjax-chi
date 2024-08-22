@@ -33,7 +33,7 @@ from genjax._src.core.typing import (
     typecheck,
 )
 
-R = TypeVar("R", covariant = True)
+R = TypeVar("R")
 
 #########################
 # Masking and sum types #

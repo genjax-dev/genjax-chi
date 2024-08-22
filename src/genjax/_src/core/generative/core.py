@@ -51,7 +51,7 @@ _C = TypeVar("_C", bound=Callable[..., Any])
 ArgTuple = TypeVar("ArgTuple", bound=tuple)
 
 # Generative Function type variables
-R = TypeVar("R", covariant=True)
+R = TypeVar("R")
 """
 Generic denoting the return type of a generative function.
 """
@@ -430,6 +430,7 @@ class Trace(Generic[R], Pytree):
 @Pytree.dataclass
 class EmptyTraceArg(Pytree):
     pass
+
 
 # TODO figure out if / how we can remove this idea, this is masquerading as a trace!
 @Pytree.dataclass
@@ -876,7 +877,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.vmap(in_axes=in_axes)(self)
 
-    def repeat(self, /, *, n: Int) -> "GenerativeFunction":
+    def repeat(self, /, *, n: Int) -> "GenerativeFunction[R]":
         """
         Returns a [`genjax.GenerativeFunction`][] that samples from `self` `n` times, returning a vector of `n` results.
 
@@ -1275,7 +1276,9 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.mask(self)
 
-    def or_else(self, gen_fn: "GenerativeFunction", /) -> "GenerativeFunction":
+    def or_else(
+        self, gen_fn: "GenerativeFunction[S]", /
+    ) -> "GenerativeFunction[R | S]":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that accepts
 
@@ -1323,7 +1326,9 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.or_else(self, gen_fn)
 
-    def switch(self, *branches: "GenerativeFunction") -> "GenerativeFunction":
+    # TODO for this to be correct we need to either figure out how to splat
+    # a bunch of type params, or change switch to have one return value.
+    def switch(self, *branches: "GenerativeFunction[R]") -> "GenerativeFunction[R]":
         """
         Given `n` [`genjax.GenerativeFunction`][] inputs, returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
 
@@ -1364,7 +1369,8 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.switch(self, *branches)
 
-    def mix(self, *fns: "GenerativeFunction") -> "GenerativeFunction":
+    # TODO mix should also force the same return type.
+    def mix(self, *fns: "GenerativeFunction[R]") -> "GenerativeFunction[R]":
         """
         Takes any number of [`genjax.GenerativeFunction`][]s and returns a new [`genjax.GenerativeFunction`][] that represents a mixture model.
 
@@ -1730,10 +1736,24 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         else:
             return self.gen_fn.assess(sample, full_args)
 
+
 # import genjax
+# import jax.random
 
 # @genjax.gen
 # def cake(x: int) -> int:
-#     return (x, None)
+#     return x
 
-# cake.scan()
+# @genjax.gen
+# def cake2(x: int) -> bool:
+#     return True
+
+# k = jax.random.PRNGKey(0)
+
+# # this case returns True
+# genjax.switch(cake, cake2)(1, (10,), (10,))(k)
+
+# f = cake.or_else(cake2)
+
+# # this case returns 1
+# genjax.switch(cake, cake2)(jnp.array(1), (10,), (10,))(k)

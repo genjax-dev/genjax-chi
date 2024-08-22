@@ -46,13 +46,13 @@ from genjax._src.core.typing import (
 
 register_exclusion(__file__)
 
-R = TypeVar("R", covariant = True)
+R = TypeVar("R")
 
 
 @Pytree.dataclass
-class MaskTrace(Generic[R], Trace):
+class MaskTrace(Generic[R], Trace[Mask[R]]):
     mask_combinator: "MaskCombinator[R]"
-    inner: Trace
+    inner: Trace[R]
     check: Flag
 
     def get_args(self):
