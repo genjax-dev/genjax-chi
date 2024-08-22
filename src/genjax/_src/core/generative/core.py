@@ -294,7 +294,7 @@ class MaskedSample(Sample):
 #########
 
 
-class Trace(Pytree):
+class Trace(Generic[R], Pytree):
     """
     `Trace` is the type of traces of generative functions.
 
@@ -309,9 +309,8 @@ class Trace(Pytree):
     def get_args(self) -> Arguments:
         """Returns the [`Arguments`][genjax.core.Arguments] for the [`GenerativeFunction`][genjax.core.GenerativeFunction] invocation which created the [`Trace`][genjax.core.Trace]."""
 
-    # TODO change Any  => R once that becomes generic
     @abstractmethod
-    def get_retval(self) -> Any:
+    def get_retval(self) -> R:
         """Returns the [`Retval`][genjax.core.Retval] from the [`GenerativeFunction`][genjax.core.GenerativeFunction] invocation which created the [`Trace`][genjax.core.Trace]."""
 
     @abstractmethod
@@ -372,7 +371,7 @@ class Trace(Pytree):
         return self.get_sample()  # type: ignore
 
     @abstractmethod
-    def get_gen_fn(self) -> "GenerativeFunction":
+    def get_gen_fn(self) -> "GenerativeFunction[R]":
         """Returns the [`GenerativeFunction`][genjax.core.GenerativeFunction] whose invocation created the [`Trace`][genjax.core.Trace]."""
         raise NotImplementedError
 
@@ -381,7 +380,7 @@ class Trace(Pytree):
         key: PRNGKey,
         problem: GenericProblem | UpdateProblem,
         argdiffs: tuple | None = None,
-    ) -> tuple["Trace", Weight, Retdiff, UpdateProblem]:
+    ) -> tuple["Trace[R]", Weight, Retdiff, UpdateProblem]:
         """
         This method calls out to the underlying [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update] method - see [`UpdateProblem`][genjax.core.UpdateProblem] and [`update`][genjax.core.GenerativeFunction.update] for more information.
         """
@@ -432,21 +431,16 @@ class Trace(Pytree):
 class EmptyTraceArg(Pytree):
     pass
 
-
+# TODO figure out if / how we can remove this idea, this is masquerading as a trace!
 @Pytree.dataclass
-class EmptyTraceRetval(Pytree):
-    pass
+class EmptyTrace(Trace[R]):
+    gen_fn: "GenerativeFunction[R]"
 
-
-@Pytree.dataclass
-class EmptyTrace(Trace):
-    gen_fn: "GenerativeFunction"
-
-    def get_args(self) -> tuple:
+    def get_args(self) -> tuple[EmptyTraceArg]:
         return (EmptyTraceArg(),)
 
     def get_retval(self) -> R:
-        return EmptyTraceRetval()
+        raise NotImplementedError("Not gonna happen!")
 
     def get_score(self) -> Score:
         return jnp.array(0.0)
@@ -454,7 +448,7 @@ class EmptyTrace(Trace):
     def get_sample(self) -> Sample:
         return EmptySample()
 
-    def get_gen_fn(self) -> "GenerativeFunction":
+    def get_gen_fn(self) -> "GenerativeFunction[R]":
         return self.gen_fn
 
 
@@ -518,7 +512,7 @@ class GenerativeFunction(Generic[R], Pytree):
         ```
     """
 
-    def __call__(self, *args, **kwargs) -> "GenerativeFunctionClosure":
+    def __call__(self, *args, **kwargs) -> "GenerativeFunctionClosure[R]":
         return GenerativeFunctionClosure(self, args, kwargs)
 
     def __abstract_call__(self, *args) -> R:
@@ -535,9 +529,9 @@ class GenerativeFunction(Generic[R], Pytree):
     def get_trace_shape(self, *args) -> Any:
         return get_trace_shape(self, args)
 
-    def get_empty_trace(self, *args) -> Trace:
-        data_shape = self.get_trace_shape(*args)
-        return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), data_shape)
+    def get_empty_trace(self, *args) -> Trace[R]:
+        trace_template = self.get_trace_shape(*args)
+        return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), trace_template)
 
     @classmethod
     def gfi_boundary(cls, c: _C) -> _C:
@@ -548,7 +542,7 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         key: PRNGKey,
         args: Arguments,
-    ) -> Trace:
+    ) -> Trace[R]:
         """
         Execute the generative function, sampling from its distribution over samples, and return a [`Trace`][genjax.core.Trace].
 
@@ -605,9 +599,9 @@ class GenerativeFunction(Generic[R], Pytree):
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         update_problem: GenericProblem,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
         """
         Update a trace in response to an [`UpdateProblem`][genjax.core.UpdateProblem], returning a new [`Trace`][genjax.core.Trace], an incremental [`Weight`][genjax.core.Weight] for the new target, a [`Retdiff`][genjax.core.Retdiff] return value tagged with change information, and a backward [`UpdateProblem`][genjax.core.UpdateProblem] which requests the reverse move (to go back to the original trace).
 
@@ -771,7 +765,7 @@ class GenerativeFunction(Generic[R], Pytree):
         key: PRNGKey,
         constraint: Constraint,
         args: Arguments,
-    ) -> tuple[Trace, Weight]:
+    ) -> tuple[Trace[R], Weight]:
         """
         Returns a properly weighted pair, a [`Trace`][genjax.core.Trace] and a [`Weight`][genjax.core.Weight], properly weighted for the target induced by the generative function for the provided constraint and arguments.
 
@@ -1242,7 +1236,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.iterate_final(n=n, unroll=unroll)(self)
 
-    def mask(self, /) -> "GenerativeFunction[genjax.Mask]":
+    def mask(self, /) -> "GenerativeFunction[genjax.Mask[R]]":
         """
         Enables dynamic masking of generative functions. Returns a new [`genjax.GenerativeFunction`][] like `self`, but which accepts an additional boolean first argument.
 
@@ -1735,3 +1729,11 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
             )
         else:
             return self.gen_fn.assess(sample, full_args)
+
+# import genjax
+
+# @genjax.gen
+# def cake(x: int) -> int:
+#     return (x, None)
+
+# cake.scan()
