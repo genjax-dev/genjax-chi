@@ -379,8 +379,8 @@ class Distribution(GenerativeFunction):
         new_trace = DistributionTrace(
             self,
             primals,
-            jax.lax.select(flag.f, new_value, old_value),
-            jax.lax.select(flag.f, possible_trace.get_score(), trace.get_score()),
+            flag.where(new_value, old_value),
+            flag.where(possible_trace.get_score(), trace.get_score()),
         )
 
         return new_trace, w, retdiff, bwd_problem

@@ -68,7 +68,7 @@ class MaskTrace(Trace):
         return Mask(self.check, self.inner.get_retval())
 
     def get_score(self):
-        return self.check.choose(self.inner.get_score(), jnp.array(0.0))
+        return self.check.where(self.inner.get_score(), jnp.array(0.0))
 
 
 @Pytree.dataclass
@@ -144,11 +144,7 @@ class MaskCombinator(GenerativeFunction):
             key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
         )
 
-        w = jax.lax.select(
-            check.f,
-            w,
-            -trace.get_score(),
-        )
+        w = check.where(w, -trace.get_score())
 
         return (
             MaskTrace(self, premasked_trace, check),
@@ -181,11 +177,7 @@ class MaskCombinator(GenerativeFunction):
             key, premasked_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
         )
 
-        w = jax.lax.select(
-            check.f,
-            premasked_trace.get_score(),
-            0.0,
-        )
+        w = check.where(premasked_trace.get_score(), 0.0)
 
         return (
             MaskTrace(self, premasked_trace, check),
