@@ -199,7 +199,7 @@ def forward_filtering_backward_sampling(
 
 def latent_marginals(config: DiscreteHMMConfiguration, observation_sequence):
     init = int(config.linear_grid_dim / 2)
-    initial_distribution = tfd.Categorical(logits=config.transition_tensor[init, :])
+    initial_distribution = tfd.Categorical(logits=config.transition_tensor()[init, :])
     transition_distribution = tfd.Categorical(logits=config.transition_tensor)
     observation_distribution = tfd.Categorical(logits=config.observation_tensor)
     hmm = tfd.HiddenMarkovModel(
@@ -241,7 +241,8 @@ def latent_sequence_posterior(
 
 @Pytree.dataclass
 class _DiscreteHMMLatentSequencePosterior(Distribution):
-    def random_weighted(self, key, config, observation_sequence, **kwargs):
+    def random_weighted(self, key, *args, **kwargs):
+        config, observation_sequence = args
         key, sub_key = jax.random.split(key)
         _, (v, _) = forward_filtering_backward_sampling(
             sub_key, config, observation_sequence
@@ -251,9 +252,10 @@ class _DiscreteHMMLatentSequencePosterior(Distribution):
         )
         return key, (w, v)
 
-    def estimate_logpdf(self, key, v, config, observation_sequence, **kwargs):
+    def estimate_logpdf(self, key, v, *args, **kwargs):
+        config, observation_sequence = args
         prob, _ = latent_sequence_posterior(config, v, observation_sequence)
-        return key, (prob, v)
+        return prob
 
     def data_logpdf(self, config, observation_sequence):
         return log_data_marginal(config, observation_sequence)

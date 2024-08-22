@@ -21,14 +21,12 @@ import jax.tree_util as jtu
 from penzai.core import formatting_util
 
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import get_trace_shape, staged_and
+from genjax._src.core.interpreters.staging import Flag, get_trace_shape
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import gfi_boundary, register_exclusion
 from genjax._src.core.typing import (
     Annotated,
     Any,
-    Bool,
-    BoolArray,
     Callable,
     FloatArray,
     InAxes,
@@ -39,7 +37,6 @@ from genjax._src.core.typing import (
     PRNGKey,
     String,
     TypeVar,
-    static_check_is_concrete,
     typecheck,
 )
 
@@ -49,7 +46,7 @@ register_exclusion(__file__)
 if TYPE_CHECKING:
     import genjax
 
-_C = TypeVar("_C", bound=Callable)
+_C = TypeVar("_C", bound=Callable[..., Any])
 ArgTuple = TypeVar("ArgTuple", bound=tuple)
 R = TypeVar("R")
 S = TypeVar("S")
@@ -123,21 +120,20 @@ class EmptyProblem(UpdateProblem):
 
 @Pytree.dataclass(match_args=True)
 class MaskedProblem(UpdateProblem):
-    flag: Bool | BoolArray
+    flag: Flag
     problem: UpdateProblem
 
     @classmethod
-    def maybe_empty(cls, f: BoolArray, problem: UpdateProblem):
+    def maybe_empty(cls, f: Flag, problem: UpdateProblem):
         match problem:
             case MaskedProblem(flag, subproblem):
-                return MaskedProblem(staged_and(f, flag), subproblem)
+                return MaskedProblem(f.and_(flag), subproblem)
             case _:
-                static_bool_check = static_check_is_concrete(f) and isinstance(f, Bool)
                 return (
                     problem
-                    if static_bool_check and f
+                    if f.concrete_true()
                     else EmptyProblem()
-                    if static_bool_check
+                    if f.concrete_false()
                     else MaskedProblem(f, problem)
                 )
 
@@ -170,11 +166,11 @@ class UpdateProblemBuilder(Pytree):
         return EmptyProblem()
 
     @classmethod
-    def maybe(cls, flag: Bool | BoolArray, problem: "UpdateProblem"):
-        return MaskedProblem.maybe_empty(jnp.array(flag), problem)
+    def maybe(cls, flag: Flag, problem: "UpdateProblem"):
+        return MaskedProblem.maybe_empty(flag, problem)
 
     @classmethod
-    def g(cls, argdiffs: Argdiffs, subproblem: "UpdateProblem") -> "UpdateProblem":
+    def g(cls, argdiffs: Argdiffs, subproblem: "UpdateProblem") -> "GenericProblem":
         return GenericProblem(argdiffs, subproblem)
 
 
@@ -225,7 +221,7 @@ class MaskedConstraint(Constraint):
     where the None case is represented by `EmptyConstraint`.
     """
 
-    flag: Bool | BoolArray
+    flag: Flag
     constraint: Constraint
 
 
@@ -283,7 +279,7 @@ class EmptySample(Sample):
 
 @Pytree.dataclass(match_args=True)
 class MaskedSample(Sample):
-    flag: Bool | BoolArray
+    flag: Flag
     sample: Sample
 
 
@@ -376,13 +372,24 @@ class Trace(Pytree):
     def update(
         self,
         key: PRNGKey,
-        problem: UpdateProblem,
+        problem: GenericProblem | UpdateProblem,
+        argdiffs: tuple | None = None,
     ) -> tuple["Trace", Weight, Retdiff, UpdateProblem]:
         """
         This method calls out to the underlying [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update] method - see [`UpdateProblem`][genjax.core.UpdateProblem] and [`update`][genjax.core.GenerativeFunction.update] for more information.
         """
-        gen_fn = self.get_gen_fn()
-        return gen_fn.update(key, self, problem)
+        if isinstance(problem, GenericProblem) and argdiffs is None:
+            return self.get_gen_fn().update(key, self, problem)
+        elif isinstance(problem, UpdateProblem):
+            return self.get_gen_fn().update(
+                key,
+                self,
+                GenericProblem(Diff.tree_diff_no_change(self.get_args()), problem),
+            )
+        else:
+            raise NotImplementedError(
+                "Supply either a GenericProblem or an UpdateProblem, possibly with argdiffs"
+            )
 
     @typecheck
     def project(
@@ -592,7 +599,7 @@ class GenerativeFunction(Pytree):
         self,
         key: PRNGKey,
         trace: Trace,
-        update_problem: UpdateProblem,
+        update_problem: GenericProblem,
     ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         """
         Update a trace in response to an [`UpdateProblem`][genjax.core.UpdateProblem], returning a new [`Trace`][genjax.core.Trace], an incremental [`Weight`][genjax.core.Weight] for the new target, a [`Retdiff`][genjax.core.Retdiff] return value tagged with change information, and a backward [`UpdateProblem`][genjax.core.UpdateProblem] which requests the reverse move (to go back to the original trace).
@@ -711,7 +718,7 @@ class GenerativeFunction(Pytree):
     @abstractmethod
     def assess(
         self,
-        sample: Sample,
+        sample: "genjax.ChoiceMap",
         args: Arguments,
     ) -> tuple[Score, Retval]:
         """
@@ -1607,15 +1614,11 @@ class IgnoreKwargs(GenerativeFunction):
 
     @GenerativeFunction.gfi_boundary
     @typecheck
-    def update(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        update_problem: UpdateProblem,
-        argdiffs: Argdiffs,
-    ):
-        (argdiffs, _kwargdiffs) = argdiffs
-        return self.wrapped.update(key, trace, update_problem, argdiffs)
+    def update(self, key: PRNGKey, trace: Trace, update_problem: GenericProblem):
+        (argdiffs, _kwargdiffs) = update_problem.argdiffs
+        return self.wrapped.update(
+            key, trace, GenericProblem(argdiffs, update_problem.subproblem)
+        )
 
 
 @Pytree.dataclass
@@ -1712,7 +1715,7 @@ class GenerativeFunctionClosure(GenerativeFunction):
     @typecheck
     def assess(
         self,
-        sample: Sample,
+        sample: "genjax.ChoiceMap",
         args: tuple,
     ) -> tuple[Score, Retval]:
         full_args = (*self.args, *args)

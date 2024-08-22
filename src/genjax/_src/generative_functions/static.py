@@ -40,7 +40,7 @@ from genjax._src.core.generative import (
     UpdateProblem,
     Weight,
 )
-from genjax._src.core.generative.core import push_trace_overload_stack
+from genjax._src.core.generative.core import Retval, push_trace_overload_stack
 from genjax._src.core.interpreters.forward import (
     InitialStylePrimitive,
     StatefulHandler,
@@ -55,7 +55,6 @@ from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
-    ArrayLike,
     Callable,
     FloatArray,
     PRNGKey,
@@ -604,7 +603,7 @@ class StaticGenerativeFunction(GenerativeFunction):
         self,
         sample: ChoiceMap,
         args: tuple,
-    ) -> tuple[ArrayLike, Any]:
+    ) -> tuple[Score, Retval]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )

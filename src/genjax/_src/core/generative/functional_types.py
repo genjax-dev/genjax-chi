@@ -19,15 +19,14 @@ from jax.tree_util import tree_map
 from genjax._src.checkify import optional_check
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import (
-    staged_and,
+    Flag,
+    flag,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    BoolArray,
+    ArrayLike,
     Int,
-    IntArray,
-    static_check_bool,
     static_check_is_concrete,
     typecheck,
 )
@@ -58,26 +57,26 @@ class Mask(Pytree):
     If you use invalid `Mask(False, data)` data in inference computations, you may encounter silently incorrect results.
     """
 
-    flag: BoolArray
+    flag: Flag
     value: Any
 
     @classmethod
-    def maybe(cls, f: BoolArray, v: Any):
+    def maybe(cls, f: Flag, v: Any):
         match v:
             case Mask(flag, value):
-                return Mask.maybe_none(staged_and(f, flag), value)
+                return Mask.maybe_none(f.and_(flag), value)
             case _:
                 return Mask(f, v)
 
     @classmethod
-    def maybe_none(cls, f: BoolArray, v: Any):
+    def maybe_none(cls, f: Flag, v: Any):
         return (
             None
             if v is None
             else v
-            if static_check_bool(f) and f
+            if f.concrete_true()
             else None
-            if static_check_bool(f)
+            if f.concrete_false()
             else Mask.maybe(f, v)
         )
 
@@ -95,9 +94,8 @@ class Mask(Pytree):
         # jax.experimental.checkify.checkify their call in transformed
         # contexts.
         def _check():
-            check_flag = jnp.all(self.flag)
             checkify.check(
-                check_flag,
+                self.flag.f,
                 "Attempted to unmask when a mask flag is False: the masked value is invalid.\n",
             )
 
@@ -173,7 +171,7 @@ class Sum(Pytree):
         ```
     """
 
-    idx: IntArray | Diff
+    idx: ArrayLike | Diff
     """
     The runtime index tag for which value in `Sum.values` is active.
     """
@@ -186,7 +184,7 @@ class Sum(Pytree):
     @typecheck
     def maybe(
         cls,
-        idx: Int | IntArray | Diff,
+        idx: ArrayLike | Diff,
         vs: list,
     ):
         return (
@@ -199,13 +197,13 @@ class Sum(Pytree):
     @typecheck
     def maybe_none(
         cls,
-        idx: Int | IntArray | Diff,
+        idx: ArrayLike | Diff,
         vs: list,
     ):
         possibles = []
         for _idx, v in enumerate(vs):
             if v is not None:
-                possibles.append(Mask.maybe_none(idx == _idx, v))
+                possibles.append(Mask.maybe_none(flag(idx == _idx), v))
         if not possibles:
             return None
         if len(possibles) == 1:
@@ -222,4 +220,4 @@ class Sum(Pytree):
 
     @typecheck
     def __getitem__(self, idx: Int):
-        return Mask.maybe_none(idx == self.idx, self.values[idx])
+        return Mask.maybe_none(flag(idx == self.idx), self.values[idx])
