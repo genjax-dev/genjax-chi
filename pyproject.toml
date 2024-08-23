@@ -104,6 +104,9 @@ omit = [".*", "*/site-packages/*"]
 show_missing = true
 fail_under = 45
 
+[tool.vulture]
+paths = ["src"]
+
 [tool.pyright]
 pythonVersion = "3.11"
 venvPath = "."
