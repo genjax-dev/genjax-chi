@@ -117,7 +117,7 @@ defineConstant = { DEBUG = true }
 typeCheckingMode = "standard"
 reportMatchNotExhaustive = true
 reportMissingImports = true
-# reportMissingTypeArgument = true
+reportMissingTypeArgument = true
 reportInvalidTypeVarUse = "error"
 reportMissingTypeStubs = false
 analyzeUnannotatedFunctions = true
