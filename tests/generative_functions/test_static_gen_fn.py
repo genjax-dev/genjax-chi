@@ -14,10 +14,11 @@
 
 from typing import Any
 
-import genjax
 import jax
 import jax.numpy as jnp
 import pytest
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff, Pytree
 from genjax import UpdateProblemBuilder as U

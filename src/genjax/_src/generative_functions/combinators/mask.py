@@ -53,7 +53,7 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     inner: Trace[R]
     check: Flag
 
-    def get_args(self):
+    def get_args(self) -> tuple[Flag, ...]:
         return (self.check, *self.inner.get_args())
 
     def get_gen_fn(self):
@@ -128,10 +128,10 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     def update_change_target(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[Mask[R]],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[MaskTrace[R], Weight, Retdiff, UpdateProblem]:
         check = Diff.tree_primal(argdiffs)[0]
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
         match trace:
@@ -159,10 +159,10 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     def update_change_target_from_false(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[Mask[R]],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[MaskTrace[R], Weight, Retdiff, UpdateProblem]:
         check = Diff.tree_primal(argdiffs)[0]
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
 
@@ -192,9 +192,9 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[Mask[R]],
         update_problem: UpdateProblem,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[MaskTrace[R], Weight, Retdiff, UpdateProblem]:
         assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
 
         match update_problem:
@@ -244,7 +244,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
 
 @typecheck
-def mask(f: GenerativeFunction[R]) -> GenerativeFunction:
+def mask(f: GenerativeFunction[R]) -> MaskCombinator[R]:
     """
     Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
 
