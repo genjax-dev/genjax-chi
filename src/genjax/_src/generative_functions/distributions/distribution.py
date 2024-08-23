@@ -46,6 +46,7 @@ from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import Flag, flag, staged_check
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
+    Any,
     ArrayLike,
     Callable,
     Generic,
@@ -64,11 +65,11 @@ class DistributionTrace(
     Trace[R],
 ):
     gen_fn: GenerativeFunction[R]
-    args: tuple
+    args: tuple[Any, ...]
     value: R
     score: Score
 
-    def get_args(self) -> tuple:
+    def get_args(self) -> tuple[Any, ...]:
         return self.args
 
     def get_retval(self) -> R:
@@ -112,7 +113,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> Trace[R]:
         (w, v) = self.random_weighted(key, *args)
         tr = DistributionTrace(self, args, v, w)
@@ -123,7 +124,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         chm: ChoiceMap,
-        args: tuple,
+        args: tuple[Any, ...],
     ):
         v = chm.get_value()
         match v:
@@ -160,7 +161,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         constraint: MaskedConstraint,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Trace[R], Weight, UpdateProblem]:
         def simulate_branch(key, _, args):
             tr = self.simulate(key, args)
@@ -188,7 +189,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         constraint: Constraint,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
         match constraint:
             case ChoiceMap():
@@ -473,7 +474,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     def assess(
         self,
         sample: ChoiceMap,
-        args: tuple,
+        args: tuple[Any, ...],
     ):
         raise NotImplementedError
 
@@ -542,7 +543,7 @@ class ExactDensity(Generic[R], Distribution[R]):
     def assess(
         self,
         sample: ChoiceMap,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Weight, R]:
         key = jax.random.PRNGKey(0)
         v = sample.get_value()

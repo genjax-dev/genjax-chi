@@ -150,7 +150,7 @@ class Sum(Pytree):
     """
     The runtime index tag for which value in `Sum.values` is active.
     """
-    values: list
+    values: list[Any]
     """
     The possible values for the `Sum` instance.
     """
@@ -160,7 +160,7 @@ class Sum(Pytree):
     def maybe(
         cls,
         idx: ArrayLike | Diff,
-        vs: list,
+        vs: list[Any],
     ):
         return (
             vs[idx]
@@ -173,7 +173,7 @@ class Sum(Pytree):
     def maybe_none(
         cls,
         idx: ArrayLike | Diff,
-        vs: list,
+        vs: list[Any],
     ):
         possibles = []
         for _idx, v in enumerate(vs):

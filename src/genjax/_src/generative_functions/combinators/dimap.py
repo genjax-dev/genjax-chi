@@ -29,6 +29,7 @@ from genjax._src.core.generative.choice_map import ChoiceMap
 from genjax._src.core.interpreters.incremental import Diff, incremental
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Any,
     Callable,
     Generic,
     PRNGKey,
@@ -37,7 +38,7 @@ from genjax._src.core.typing import (
     typecheck,
 )
 
-ArgTuple = TypeVar("ArgTuple", bound=tuple)
+ArgTuple = TypeVar("ArgTuple", bound=tuple[Any, ...])
 R = TypeVar("R")
 S = TypeVar("S")
 
@@ -107,7 +108,7 @@ class DimapCombinator(GenerativeFunction[S], Generic[ArgTuple, R, S]):
     """
 
     inner: GenerativeFunction[R]
-    argument_mapping: Callable[[tuple], ArgTuple] = Pytree.static()
+    argument_mapping: Callable[[tuple[Any, ...]], ArgTuple] = Pytree.static()
     retval_mapping: Callable[[ArgTuple, R], S] = Pytree.static()
     info: String | None = Pytree.static(default=None)
 
@@ -116,8 +117,8 @@ class DimapCombinator(GenerativeFunction[S], Generic[ArgTuple, R, S]):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
-    ) -> DimapTrace[tuple, S]:
+        args: tuple[Any, ...],
+    ) -> DimapTrace[tuple[Any, ...], S]:
         inner_args = self.argument_mapping(*args)
         tr = self.inner.simulate(key, inner_args)
         inner_retval = tr.get_retval()
@@ -131,7 +132,7 @@ class DimapCombinator(GenerativeFunction[S], Generic[ArgTuple, R, S]):
         trace: Trace,
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[DimapTrace[tuple, S], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[DimapTrace[tuple[Any, ...], S], Weight, Retdiff, UpdateProblem]:
         assert isinstance(trace, EmptyTrace | DimapTrace)
 
         primals = Diff.tree_primal(argdiffs)
@@ -156,7 +157,7 @@ class DimapCombinator(GenerativeFunction[S], Generic[ArgTuple, R, S]):
         inner_retval_primals = Diff.tree_primal(inner_retdiff)
         inner_retval_tangents = Diff.tree_tangent(inner_retdiff)
 
-        def closed_mapping(args: tuple, retval: R) -> S:
+        def closed_mapping(args: tuple[Any, ...], retval: R) -> S:
             xformed_args = self.argument_mapping(*args)
             return self.retval_mapping(xformed_args, retval)
 
@@ -180,7 +181,7 @@ class DimapCombinator(GenerativeFunction[S], Generic[ArgTuple, R, S]):
         key: PRNGKey,
         trace: Trace,
         update_problem: UpdateProblem,
-    ) -> tuple[DimapTrace[tuple, S], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[DimapTrace[tuple[Any, ...], S], Weight, Retdiff, UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
@@ -193,7 +194,7 @@ class DimapCombinator(GenerativeFunction[S], Generic[ArgTuple, R, S]):
     def assess(
         self,
         sample: ChoiceMap,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Score, S]:
         inner_args = self.argument_mapping(*args)
         w, inner_retval = self.inner.assess(sample, inner_args)
