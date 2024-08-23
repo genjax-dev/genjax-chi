@@ -42,7 +42,6 @@ from genjax._src.core.typing import (
     Bool,
     Callable,
     IntArray,
-    Optional,
     Value,
     static_check_is_concrete,
     typecheck,
@@ -305,7 +304,7 @@ def incremental(f: Callable[..., Any]):
     @functools.wraps(f)
     @typecheck
     def wrapped(
-        _stateful_handler: Optional[StatefulHandler],
+        _stateful_handler: StatefulHandler | None,
         primals: tuple,
         tangents: tuple,
     ):

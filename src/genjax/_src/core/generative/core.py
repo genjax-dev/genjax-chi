@@ -34,7 +34,6 @@ from genjax._src.core.typing import (
     Int,
     IntArray,
     Is,
-    Optional,
     PRNGKey,
     String,
     TypeVar,
@@ -1564,8 +1563,8 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         /,
         *,
-        selection: Optional[Any] = None,
-        algorithm: Optional[Any] = None,
+        selection: Any | None = None,
+        algorithm: Any | None = None,
     ) -> "GenerativeFunction":
         from genjax import Selection, marginal
 
