@@ -23,7 +23,7 @@ from penzai.core import formatting_util
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import Flag, get_trace_shape
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import gfi_boundary, register_exclusion
+from genjax._src.core.traceback_util import gfi_boundary
 from genjax._src.core.typing import (
     Annotated,
     Any,
@@ -34,14 +34,11 @@ from genjax._src.core.typing import (
     Int,
     IntArray,
     Is,
-    Optional,
     PRNGKey,
     String,
     TypeVar,
     typecheck,
 )
-
-register_exclusion(__file__)
 
 # Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
 if TYPE_CHECKING:
@@ -1564,8 +1561,8 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         /,
         *,
-        selection: Optional[Any] = None,
-        algorithm: Optional[Any] = None,
+        selection: Any | None = None,
+        algorithm: Any | None = None,
     ) -> "GenerativeFunction":
         from genjax import Selection, marginal
 

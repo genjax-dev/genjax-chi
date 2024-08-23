@@ -36,7 +36,6 @@ from genjax._src.core.generative import (
 from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
 from genjax._src.core.interpreters.staging import flag, get_data_shape
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     FloatArray,
@@ -46,9 +45,6 @@ from genjax._src.core.typing import (
     Sequence,
     typecheck,
 )
-
-register_exclusion(__file__)
-
 
 #######################
 # Switch sample types #

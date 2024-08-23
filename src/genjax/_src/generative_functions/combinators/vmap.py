@@ -37,7 +37,6 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -47,8 +46,6 @@ from genjax._src.core.typing import (
     PRNGKey,
     typecheck,
 )
-
-register_exclusion(__file__)
 
 
 @Pytree.dataclass

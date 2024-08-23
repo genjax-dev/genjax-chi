@@ -26,19 +26,14 @@ from genjax._src.core.interpreters.forward import (
 )
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Closure, Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
     Callable,
     Int,
-    Optional,
     String,
     typecheck,
 )
-
-register_exclusion(__file__)
-
 
 record_p = InitialStylePrimitive("record_p")
 
@@ -54,7 +49,7 @@ class FrameRecording(Pytree):
 @Pytree.dataclass
 class RecordPoint(Pytree):
     callable: Closure
-    debug_tag: Optional[String] = Pytree.static()
+    debug_tag: String | None = Pytree.static()
 
     def default_call(self, *args):
         return self.callable(*args)
@@ -84,7 +79,7 @@ class RecordPoint(Pytree):
 @typecheck
 def rec(
     callable: Callable[..., Any],
-    debug_tag: Optional[String] = None,
+    debug_tag: String | None = None,
 ):
     if not isinstance(callable, Closure):
         callable = Pytree.partial()(callable)
@@ -208,13 +203,13 @@ class TimeTravelingDebugger(Pytree):
     jump_points: dict = Pytree.static()
     ptr: Int = Pytree.static()
 
-    def frame(self) -> tuple[Optional[String], FrameRecording]:
+    def frame(self) -> tuple[String | None, FrameRecording]:
         frame = self.sequence[self.ptr]
         reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
         jump_tag = reverse_jump_points.get(self.ptr, None)
         return jump_tag, frame
 
-    def summary(self) -> tuple[Any, tuple[Optional[String], FrameRecording]]:
+    def summary(self) -> tuple[Any, tuple[String | None, FrameRecording]]:
         frame = self.sequence[self.ptr]
         reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
         jump_tag = reverse_jump_points.get(self.ptr, None)

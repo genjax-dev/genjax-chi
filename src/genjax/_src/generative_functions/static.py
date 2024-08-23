@@ -52,7 +52,6 @@ from genjax._src.core.interpreters.incremental import (
     incremental,
 )
 from genjax._src.core.pytree import Closure, Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -62,8 +61,6 @@ from genjax._src.core.typing import (
     TypeVar,
     typecheck,
 )
-
-register_exclusion(__file__)
 
 R = TypeVar("R")
 

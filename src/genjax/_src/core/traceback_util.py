@@ -18,10 +18,5 @@ from beartype.typing import Callable, TypeVar
 _C = TypeVar("_C", bound=Callable)
 
 
-# register_exclusion = traceback_util.register_exclusion
-def register_exclusion(_) -> None:
-    return None
-
-
 def gfi_boundary(c: _C) -> _C:
     return traceback_util.api_boundary(c)
