@@ -26,6 +26,7 @@ from jax.util import safe_map
 from genjax._src.checkify import optional_check
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Any,
     ArrayLike,
     BoolArray,
     Callable,
