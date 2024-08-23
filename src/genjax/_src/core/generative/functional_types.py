@@ -18,7 +18,6 @@ from jax.tree_util import tree_map
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import (
     Flag,
-    flag,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -178,7 +177,7 @@ class Sum(Pytree):
         possibles = []
         for _idx, v in enumerate(vs):
             if v is not None:
-                possibles.append(Mask.maybe_none(flag(idx == _idx), v))
+                possibles.append(Mask.maybe_none(Flag(idx == _idx), v))
         if not possibles:
             return None
         if len(possibles) == 1:
@@ -195,4 +194,4 @@ class Sum(Pytree):
 
     @typecheck
     def __getitem__(self, idx: Int):
-        return Mask.maybe_none(flag(idx == self.idx), self.values[idx])
+        return Mask.maybe_none(Flag(idx == self.idx), self.values[idx])
