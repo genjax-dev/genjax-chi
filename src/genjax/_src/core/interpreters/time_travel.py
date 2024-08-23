@@ -26,7 +26,6 @@ from genjax._src.core.interpreters.forward import (
 )
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Closure, Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
@@ -36,9 +35,6 @@ from genjax._src.core.typing import (
     String,
     typecheck,
 )
-
-register_exclusion(__file__)
-
 
 record_p = InitialStylePrimitive("record_p")
 

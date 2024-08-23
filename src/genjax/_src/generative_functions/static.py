@@ -40,7 +40,7 @@ from genjax._src.core.generative import (
     UpdateProblem,
     Weight,
 )
-from genjax._src.core.generative.core import Retval, push_trace_overload_stack
+from genjax._src.core.generative.core import R, push_trace_overload_stack
 from genjax._src.core.interpreters.forward import (
     InitialStylePrimitive,
     StatefulHandler,
@@ -52,16 +52,17 @@ from genjax._src.core.interpreters.incremental import (
     incremental,
 )
 from genjax._src.core.pytree import Closure, Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
     FloatArray,
+    Generic,
     PRNGKey,
+    TypeVar,
     typecheck,
 )
 
-register_exclusion(__file__)
+R = TypeVar("R")
 
 
 # Usage in transforms: checks for duplicate addresses.
@@ -465,7 +466,7 @@ def handler_trace_with_static(
 
 
 @Pytree.dataclass
-class StaticGenerativeFunction(GenerativeFunction):
+class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     """A `StaticGenerativeFunction` is a generative function which relies on program
     transformations applied to JAX-compatible Python programs to implement the generative
     function interface.
@@ -491,7 +492,7 @@ class StaticGenerativeFunction(GenerativeFunction):
         ```
     """
 
-    source: Closure
+    source: Closure[R]
     """
     The source program of the generative function. This is a JAX-compatible Python program.
     """
@@ -501,7 +502,7 @@ class StaticGenerativeFunction(GenerativeFunction):
     def __abstract_call__(self, *args) -> Any:
         return self.source(*args)
 
-    def handle_kwargs(self) -> GenerativeFunction:
+    def handle_kwargs(self) -> "StaticGenerativeFunction[R]":
         @Pytree.partial()
         def kwarged_source(args, kwargs):
             return self.source(*args, **kwargs)
@@ -603,7 +604,7 @@ class StaticGenerativeFunction(GenerativeFunction):
         self,
         sample: ChoiceMap,
         args: tuple,
-    ) -> tuple[Score, Retval]:
+    ) -> tuple[Score, R]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -613,7 +614,7 @@ class StaticGenerativeFunction(GenerativeFunction):
     def inline(self, *args):
         return self.source(*args)
 
-    def partial_apply(self, *args) -> "StaticGenerativeFunction":
+    def partial_apply(self, *args) -> "StaticGenerativeFunction[R]":
         """
         Returns a new [`StaticGenerativeFunction`][] with the given arguments partially applied.
 
@@ -633,8 +634,8 @@ class StaticGenerativeFunction(GenerativeFunction):
                 return y * z
 
 
-            curried_model = my_model.curry(2.0)
-            # Now `curried_model` is equivalent to a model that only takes 'y' as an argument
+            partially_applied_model = my_model.partial_apply(2.0)
+            # Now `partially_applied_model` is equivalent to a model that only takes 'y' as an argument
             ```
         """
         return gen(Pytree.partial(*args)(self.inline))
@@ -646,12 +647,12 @@ class StaticGenerativeFunction(GenerativeFunction):
 
 
 @typecheck
-def gen(f: Callable[..., Any]) -> StaticGenerativeFunction:
+def gen(f: Callable[..., R]) -> StaticGenerativeFunction[R]:
     if isinstance(f, Closure):
-        return StaticGenerativeFunction(f)
+        return StaticGenerativeFunction[R](f)
     else:
         closure = Pytree.partial()(f)
-        return StaticGenerativeFunction(closure)
+        return StaticGenerativeFunction[R](closure)
 
 
 ###########

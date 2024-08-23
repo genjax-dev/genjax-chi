@@ -81,7 +81,6 @@ GenJAX uses [`beartype`](https://github.com/beartype/beartype) to perform type c
 ###  Generative interface types
 
 ::: genjax.core.Arguments
-::: genjax.core.Retval
 ::: genjax.core.Score
 ::: genjax.core.Weight
 ::: genjax.core.Retdiff

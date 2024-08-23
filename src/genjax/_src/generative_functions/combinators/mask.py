@@ -36,19 +36,20 @@ from genjax._src.core.generative.core import Constraint
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import Flag, flag
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
+    Generic,
     PRNGKey,
+    TypeVar,
     typecheck,
 )
 
-register_exclusion(__file__)
+R = TypeVar("R")
 
 
 @Pytree.dataclass
-class MaskTrace(Trace):
-    mask_combinator: "MaskCombinator"
-    inner: Trace
+class MaskTrace(Generic[R], Trace[Mask[R]]):
+    mask_combinator: "MaskCombinator[R]"
+    inner: Trace[R]
     check: Flag
 
     def get_args(self):
@@ -68,11 +69,11 @@ class MaskTrace(Trace):
         return Mask(self.check, self.inner.get_retval())
 
     def get_score(self):
-        return self.check.where(self.inner.get_score(), jnp.array(0.0))
+        return jnp.asarray(self.check.where(self.inner.get_score(), jnp.array(0.0)))
 
 
 @Pytree.dataclass
-class MaskCombinator(GenerativeFunction):
+class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     """
     Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
 
@@ -110,14 +111,14 @@ class MaskCombinator(GenerativeFunction):
         ```
     """
 
-    gen_fn: GenerativeFunction
+    gen_fn: GenerativeFunction[R]
 
     @typecheck
     def simulate(
         self,
         key: PRNGKey,
         args: tuple,
-    ) -> MaskTrace:
+    ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
         tr = self.gen_fn.simulate(key, inner_args)
         return MaskTrace(self, tr, flag(check))
@@ -227,7 +228,7 @@ class MaskCombinator(GenerativeFunction):
         self,
         sample: ChoiceMap,
         args: tuple,
-    ) -> tuple[Score, Mask]:
+    ) -> tuple[Score, Mask[R]]:
         (check, *inner_args) = args
         score, retval = self.gen_fn.assess(sample, tuple(inner_args))
         return (
@@ -242,7 +243,7 @@ class MaskCombinator(GenerativeFunction):
 
 
 @typecheck
-def mask(f: GenerativeFunction) -> GenerativeFunction:
+def mask(f: GenerativeFunction[R]) -> GenerativeFunction:
     """
     Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
 
