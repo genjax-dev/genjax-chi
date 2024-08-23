@@ -107,19 +107,13 @@ class Flag(Pytree):
             return f
         return jax.lax.select(jnp.all(self.f), t, f)
 
-    def cond(self, tf: Callable[..., Any], ff: Callable[...,Any], *args: Any):
+    def cond(self, tf: Callable[..., Any], ff: Callable[..., Any], *args: Any):
         """Invokes `tf` with `args` if flag is true, else `ff`"""
         if self.f is True:
             return tf(*args)
         if self.f is False:
             return ff(*args)
-        return jax.lax.cond(
-            self.f,
-            tf,
-            ff,
-            *args
-        )
-
+        return jax.lax.cond(self.f, tf, ff, *args)
 
 
 def staged_check(v):

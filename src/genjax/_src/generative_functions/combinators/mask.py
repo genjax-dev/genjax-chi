@@ -209,7 +209,14 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                         "This move is not currently supported! See https://github.com/probcomp/genjax/issues/1230 for notes."
                     )
 
-                return trace.check.cond(self.update_change_target, self.update_change_target_from_false, key, trace, subproblem, argdiffs)
+                return trace.check.cond(
+                    self.update_change_target,
+                    self.update_change_target_from_false,
+                    key,
+                    trace,
+                    subproblem,
+                    argdiffs,
+                )
 
             case _:
                 return self.update_change_target(
