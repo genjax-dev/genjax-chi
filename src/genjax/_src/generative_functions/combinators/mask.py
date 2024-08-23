@@ -38,6 +38,7 @@ from genjax._src.core.interpreters.staging import Flag, flag
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
+    Any,
     Generic,
     PRNGKey,
     TypeVar,
@@ -120,7 +121,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
         tr = self.gen_fn.simulate(key, inner_args)
@@ -230,7 +231,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     def assess(
         self,
         sample: ChoiceMap,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Score, Mask[R]]:
         (check, *inner_args) = args
         score, retval = self.gen_fn.assess(sample, tuple(inner_args))

@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     import genjax
 
 _C = TypeVar("_C", bound=Callable[..., Any])
-ArgTuple = TypeVar("ArgTuple", bound=tuple)
+ArgTuple = TypeVar("ArgTuple", bound=tuple[Any, ...])
 
 # Generative Function type variables
 R = TypeVar("R")
@@ -84,7 +84,7 @@ Arguments = tuple
 """
 
 Argdiffs = Annotated[
-    tuple,
+    tuple[Any, ...],
     Is[Diff.static_check_tree_diff],
 ]
 """
@@ -378,7 +378,7 @@ class Trace(Generic[R], Pytree):
         self,
         key: PRNGKey,
         problem: GenericProblem | UpdateProblem,
-        argdiffs: tuple | None = None,
+        argdiffs: tuple[Any, ...] | None = None,
     ) -> tuple["Trace[R]", Weight, Retdiff, UpdateProblem]:
         """
         This method calls out to the underlying [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update] method - see [`UpdateProblem`][genjax.core.UpdateProblem] and [`update`][genjax.core.GenerativeFunction.update] for more information.
@@ -1631,8 +1631,8 @@ class IgnoreKwargs(GenerativeFunction):
 @Pytree.dataclass
 class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     gen_fn: GenerativeFunction[R]
-    args: tuple
-    kwargs: dict
+    args: tuple[Any, ...]
+    kwargs: dict[Any, Any]
 
     def get_gen_fn_with_kwargs(self):
         return self.gen_fn.handle_kwargs()
@@ -1680,7 +1680,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> Trace:
         full_args = (*self.args, *args)
         if self.kwargs:
@@ -1723,7 +1723,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     def assess(
         self,
         sample: "genjax.ChoiceMap",
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Score, R]:
         full_args = (*self.args, *args)
         if self.kwargs:

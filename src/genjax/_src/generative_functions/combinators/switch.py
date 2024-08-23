@@ -69,12 +69,12 @@ class HeterogeneousSwitchSample(Sample):
 @Pytree.dataclass
 class SwitchTrace(Trace):
     gen_fn: GenerativeFunction
-    args: tuple
+    args: tuple[Any, ...]
     subtraces: list[Trace]
     retval: Any
     score: FloatArray
 
-    def get_args(self) -> tuple:
+    def get_args(self) -> tuple[Any, ...]:
         return self.args
 
     def get_sample(self) -> Sample:
@@ -176,7 +176,7 @@ class SwitchCombinator(GenerativeFunction):
     @typecheck
     def _empty_simulate_defs(
         self,
-        args: tuple,
+        args: tuple[Any, ...],
     ):
         trace_defs = []
         trace_leaves = []
@@ -212,7 +212,7 @@ class SwitchCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> SwitchTrace:
         (idx, *branch_args) = args
         self.static_check_num_arguments_equals_num_branches(branch_args)
@@ -525,7 +525,7 @@ class SwitchCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         problem: ImportanceProblem,
-        argdiffs: tuple,
+        argdiffs: tuple[Any, ...],
     ) -> tuple[SwitchTrace, Weight, Retdiff, UpdateProblem]:
         args = Diff.tree_primal(argdiffs)
         (idx, *branch_args) = args
@@ -630,7 +630,7 @@ class SwitchCombinator(GenerativeFunction):
                     key, trace, update_problem, Diff.no_change(trace.get_args())
                 )
 
-    def _empty_assess_defs(self, sample: Sample, args: tuple):
+    def _empty_assess_defs(self, sample: Sample, args: tuple[Any, ...]):
         retval_defs = []
         retval_leaves = []
         for static_idx in range(len(self.branches)):
@@ -655,7 +655,7 @@ class SwitchCombinator(GenerativeFunction):
     def assess(
         self,
         sample: Sample,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Score, Any]:
         (idx, *branch_args) = args
         self.static_check_num_arguments_equals_num_branches(branch_args)

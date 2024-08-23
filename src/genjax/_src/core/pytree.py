@@ -210,7 +210,7 @@ class Pytree(pz.Struct):
     #################
 
     @staticmethod
-    def static_check_tree_structure_equivalence(trees: list):
+    def static_check_tree_structure_equivalence(trees: list[Any]):
         if not trees:
             return True
         else:
@@ -488,7 +488,7 @@ class Closure(Generic[R], Pytree):
         ```
     """
 
-    dyn_args: tuple
+    dyn_args: tuple[Any, ...]
     fn: Callable[..., R] = Pytree.static()
 
     def __call__(self, *args, **kwargs) -> R:
