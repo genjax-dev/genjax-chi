@@ -132,11 +132,6 @@ def static_check_is_concrete(x: Any) -> bool:
     return not isinstance(x, jc.Tracer)
 
 
-def static_check_bool(x: Any) -> bool:
-    # return static_check_is_concrete(x) and (isinstance(x, Bool) or (isinstance(x, jnp.ndarray) and x.dtype == 'bool'))
-    return static_check_is_concrete(x) and isinstance(x, Bool)
-
-
 # TODO: the dtype comparison needs to be replaced with something
 # more robust.
 def static_check_supports_grad(v):

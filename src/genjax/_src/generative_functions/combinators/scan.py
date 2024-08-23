@@ -77,19 +77,8 @@ class ScanTrace(Trace):
 
 
 @Pytree.dataclass(match_args=True)
-class StaticResizeProblem(UpdateProblem):
-    subproblem: UpdateProblem
-    resized_length: Int = Pytree.static()
-
-
-@Pytree.dataclass(match_args=True)
 class IndexProblem(UpdateProblem):
     index: IntArray
-    subproblem: UpdateProblem
-
-
-@Pytree.dataclass(match_args=True)
-class CheckerboardProblem(UpdateProblem):
     subproblem: UpdateProblem
 
 

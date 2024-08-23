@@ -63,7 +63,7 @@ class Pytree(pz.Struct):
     @classmethod
     @overload
     def dataclass(
-        cls,
+        _cls,
         incoming: None = None,
         /,
         **kwargs,
@@ -72,7 +72,7 @@ class Pytree(pz.Struct):
     @classmethod
     @overload
     def dataclass(
-        cls,
+        _cls,
         incoming: type[_T],
         /,
         **kwargs,
@@ -83,7 +83,7 @@ class Pytree(pz.Struct):
     )
     @classmethod
     def dataclass(
-        cls,
+        _cls,
         incoming: type[_T] | None = None,
         /,
         **kwargs,

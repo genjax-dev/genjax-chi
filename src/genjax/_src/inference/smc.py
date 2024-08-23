@@ -357,37 +357,6 @@ class ImportanceK(SMCAlgorithm):
         )
 
 
-##############
-# Resampling #
-##############
-
-
-class ResamplingStrategy(Pytree):
-    pass
-
-
-class MultinomialResampling(ResamplingStrategy):
-    pass
-
-
-@Pytree.dataclass
-class Resample(Pytree):
-    prev: SMCAlgorithm
-    resampling_strategy: ResamplingStrategy
-
-    def get_num_particles(self):
-        return self.prev.get_num_particles()
-
-    def get_final_target(self):
-        return self.prev.get_final_target()
-
-    def run_smc(self, key: PRNGKey):
-        pass
-
-    def run_csmc(self, key: PRNGKey, retained: Sample):
-        pass
-
-
 #################
 # Change target #
 #################
@@ -505,27 +474,6 @@ class ChangeTarget(SMCAlgorithm):
 ########################################################
 # Encapsulating SMC moves as re-usable inference logic #
 ########################################################
-
-
-@Pytree.dataclass
-class KernelTrace(Trace):
-    gen_fn: "KernelGenerativeFunction"
-    inner: Trace
-
-    def get_args(self) -> tuple:
-        return self.inner.get_args()
-
-    def get_retval(self) -> Any:
-        return self.inner.get_retval()
-
-    def get_gen_fn(self) -> GenerativeFunction:
-        return self.gen_fn
-
-    def get_score(self) -> FloatArray:
-        return self.inner.get_score()
-
-    def get_sample(self) -> Sample:
-        return self.inner.get_sample()
 
 
 @Pytree.dataclass

@@ -126,7 +126,7 @@ class MaskedProblem(UpdateProblem):
     problem: UpdateProblem
 
     @classmethod
-    def maybe_empty(cls, f: Flag, problem: UpdateProblem):
+    def maybe_empty(_cls, f: Flag, problem: UpdateProblem):
         match problem:
             case MaskedProblem(flag, subproblem):
                 return MaskedProblem(f.and_(flag), subproblem)
@@ -164,15 +164,15 @@ class ProjectProblem(UpdateProblem):
 
 class UpdateProblemBuilder(Pytree):
     @classmethod
-    def empty(cls):
+    def empty(_cls):
         return EmptyProblem()
 
     @classmethod
-    def maybe(cls, flag: Flag, problem: "UpdateProblem"):
+    def maybe(_cls, flag: Flag, problem: "UpdateProblem"):
         return MaskedProblem.maybe_empty(flag, problem)
 
     @classmethod
-    def g(cls, argdiffs: Argdiffs, subproblem: "UpdateProblem") -> "GenericProblem":
+    def g(_cls, argdiffs: Argdiffs, subproblem: "UpdateProblem") -> "GenericProblem":
         return GenericProblem(argdiffs, subproblem)
 
 
@@ -202,18 +202,6 @@ class EmptyConstraint(Constraint):
     pass
 
 
-@Pytree.dataclass
-class EqualityConstraint(Constraint):
-    """
-    An `EqualityConstraint` encodes the constraint that the value output by a
-    distribution is equal to a provided value.
-
-    Formally, `EqualityConstraint(x)` represents the constraint `(x $\\mapsto$ x, x)`.
-    """
-
-    x: Any
-
-
 @Pytree.dataclass(match_args=True)
 class MaskedConstraint(Constraint):
     """
@@ -237,32 +225,6 @@ class SumConstraint(Constraint):
 
     idx: IntArray
     constraint: list[Constraint]
-
-
-@Pytree.dataclass
-class IntervalConstraint(Constraint):
-    """
-    An IntervalConstraint encodes the constraint that the value output by a
-    distribution on the reals lies within a given interval.
-
-    Formally, `IntervalConstraint(a, b)` represents the constraint (`x` $\\mapsto$ `a` $\\leq$ `x` $\\leq$ `b`, `True`).
-    """
-
-    a: FloatArray
-    b: FloatArray
-
-
-@Pytree.dataclass
-class BijectiveConstraint(Constraint):
-    """
-    A `BijectiveConstraint` encodes the constraint that the value output by a distribution
-    must, under a bijective transformation, be equal to the value provided to the constraint.
-
-    Formally, `BijectiveConstraint(bwd, v)` represents the constraint `(x $\\mapsto$ inverse(bwd)(x), v)`.
-    """
-
-    bwd: Callable[[Any], "Sample"]
-    v: Any
 
 
 ###########
@@ -527,7 +489,7 @@ class GenerativeFunction(Generic[R], Pytree):
         return get_trace_shape(self, args)
 
     @classmethod
-    def gfi_boundary(cls, c: _C) -> _C:
+    def gfi_boundary(_cls, c: _C) -> _C:
         return gfi_boundary(c)
 
     @abstractmethod
