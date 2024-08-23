@@ -42,7 +42,6 @@ register_exclusion(__file__)
 
 ArgTuple = TypeVar("ArgTuple", bound=tuple)
 R = TypeVar("R")
-R2 = TypeVar("R2")
 S = TypeVar("S")
 
 

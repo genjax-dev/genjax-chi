@@ -59,7 +59,6 @@ Generic denoting the return type of a generative function.
 S = TypeVar("S")
 
 Carry = TypeVar("Carry")
-X = TypeVar("X")
 Y = TypeVar("Y")
 
 #####################################
@@ -311,7 +310,7 @@ class Trace(Generic[R], Pytree):
 
     @abstractmethod
     def get_retval(self) -> R:
-        """Returns the [`Retval`][genjax.core.Retval] from the [`GenerativeFunction`][genjax.core.GenerativeFunction] invocation which created the [`Trace`][genjax.core.Trace]."""
+        """Returns the `R` from the [`GenerativeFunction`][genjax.core.GenerativeFunction] invocation which created the [`Trace`][genjax.core.Trace]."""
 
     @abstractmethod
     def get_score(self) -> Score:
@@ -816,7 +815,7 @@ class GenerativeFunction(Generic[R], Pytree):
         args: Arguments,
     ) -> tuple[Sample, Score, R]:
         """
-        Samples a [`Sample`][genjax.core.Sample] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the [`Retval`][genjax.core.Retval] of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
+        Samples a [`Sample`][genjax.core.Sample] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the `R` of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
         """
         tr = self.simulate(key, args)
         sample = tr.get_sample()
