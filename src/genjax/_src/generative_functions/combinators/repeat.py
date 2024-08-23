@@ -17,14 +17,11 @@ import jax.numpy as jnp
 from genjax._src.core.generative import (
     GenerativeFunction,
 )
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Callable,
     Int,
     typecheck,
 )
-
-register_exclusion(__file__)
 
 
 def RepeatCombinator(gen_fn: GenerativeFunction, /, *, n: Int) -> GenerativeFunction:

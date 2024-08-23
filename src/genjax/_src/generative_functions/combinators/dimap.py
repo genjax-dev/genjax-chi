@@ -28,7 +28,6 @@ from genjax._src.core.generative import (
 from genjax._src.core.generative.choice_map import ChoiceMap
 from genjax._src.core.interpreters.incremental import Diff, incremental
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Callable,
     Generic,
@@ -37,8 +36,6 @@ from genjax._src.core.typing import (
     TypeVar,
     typecheck,
 )
-
-register_exclusion(__file__)
 
 ArgTuple = TypeVar("ArgTuple", bound=tuple)
 R = TypeVar("R")
