@@ -94,6 +94,7 @@ Retdiff = Annotated[
     R,
     Is[Diff.static_check_tree_diff],
 ]
+
 """
 `Retdiff` is the type of return values with an attached `ChangeType` (c.f. [`update`][genjax.core.GenerativeFunction.update]).
 
@@ -1558,7 +1559,7 @@ class GenerativeFunction(Generic[R], Pytree):
         *,
         selection: Any | None = None,
         algorithm: Any | None = None,
-    ) -> "GenerativeFunction":
+    ) -> "genjax.Marginal[R]":
         from genjax import Selection, marginal
 
         if selection is None:
@@ -1595,10 +1596,10 @@ def push_trace_overload_stack(handler, fn):
 
 
 @Pytree.dataclass
-class IgnoreKwargs(GenerativeFunction):
-    wrapped: GenerativeFunction
+class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
+    wrapped: GenerativeFunction[R]
 
-    def handle_kwargs(self) -> "GenerativeFunction":
+    def handle_kwargs(self) -> "GenerativeFunction[R]":
         raise NotImplementedError
 
     @GenerativeFunction.gfi_boundary
@@ -1607,13 +1608,13 @@ class IgnoreKwargs(GenerativeFunction):
         self,
         key: PRNGKey,
         args: Arguments,
-    ) -> Trace:
+    ) -> Trace[R]:
         (args, _kwargs) = args
         return self.wrapped.simulate(key, args)
 
     @GenerativeFunction.gfi_boundary
     @typecheck
-    def update(self, key: PRNGKey, trace: Trace, update_problem: GenericProblem):
+    def update(self, key: PRNGKey, trace: Trace[R], update_problem: GenericProblem):
         (argdiffs, _kwargdiffs) = update_problem.argdiffs
         return self.wrapped.update(
             key, trace, GenericProblem(argdiffs, update_problem.subproblem)

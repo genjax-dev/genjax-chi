@@ -87,21 +87,21 @@ class AddressVisitor(Pytree):
 
 
 @Pytree.dataclass
-class StaticTrace(Trace):
-    gen_fn: GenerativeFunction
+class StaticTrace(Generic[R], Trace[R]):
+    gen_fn: GenerativeFunction[R]
     args: tuple[Any, ...]
-    retval: Any
+    retval: R
     addresses: AddressVisitor
-    subtraces: list[Trace]
+    subtraces: list[Trace[Any]]
     score: Score
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
 
-    def get_retval(self) -> Any:
+    def get_retval(self) -> R:
         return self.retval
 
-    def get_gen_fn(self) -> GenerativeFunction:
+    def get_gen_fn(self) -> GenerativeFunction[R]:
         return self.gen_fn
 
     def get_sample(self) -> ChoiceMap:
@@ -153,18 +153,18 @@ trace_p = InitialStylePrimitive("trace")
 # get lifted to by `get_shaped_aval`.
 def _abstract_gen_fn_call(
     _: Address,
-    gen_fn: GenerativeFunction,
+    gen_fn: GenerativeFunction[R],
     args: tuple[Any, ...],
-):
+) -> R:
     return gen_fn.__abstract_call__(*args)
 
 
 @typecheck
 def trace(
     addr: StaticAddress,
-    gen_fn: GenerativeFunction,
+    gen_fn: GenerativeFunction[R],
     args: tuple[Any, ...],
-):
+) -> R:
     """Invoke a generative function, binding its generative semantics with the current
     caller.
 
@@ -199,7 +199,7 @@ class StaticHandler(StatefulHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction,
+        gen_fn: GenerativeFunction[R],
         args: tuple[Any, ...],
     ):
         raise NotImplementedError

@@ -30,33 +30,38 @@ from genjax._src.core.typing import (
     Any,
     ArrayLike,
     Callable,
+    Generic,
     Int,
     String,
+    TypeVar,
     typecheck,
 )
+
+R = TypeVar("R")
+S = TypeVar("S")
 
 record_p = InitialStylePrimitive("record_p")
 
 
 @Pytree.dataclass
-class FrameRecording(Pytree):
-    f: Callable[..., Any]
+class FrameRecording(Generic[R, S], Pytree):
+    f: Callable[..., R]
     args: tuple
-    local_retval: Any
-    cont: Callable[..., Any]
+    local_retval: R
+    cont: Callable[..., S]
 
 
 @Pytree.dataclass
-class RecordPoint(Pytree):
-    callable: Closure
+class RecordPoint(Generic[R, S], Pytree):
+    callable: Closure[R]
     debug_tag: String | None = Pytree.static()
 
-    def default_call(self, *args):
+    def default_call(self, *args) -> R:
         return self.callable(*args)
 
-    def handle(self, cont: Callable[..., Any], *args):
+    def handle(self, cont: Callable[[R], tuple[S, Any]], *args):
         @Pytree.partial()
-        def _cont(*args):
+        def _cont(*args) -> S:
             final_ret, _ = cont(self.callable(*args))
             return final_ret
 
@@ -78,7 +83,7 @@ class RecordPoint(Pytree):
 
 @typecheck
 def rec(
-    callable: Callable[..., Any],
+    callable: Callable[..., R],
     debug_tag: String | None = None,
 ):
     if not isinstance(callable, Closure):
