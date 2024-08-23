@@ -110,10 +110,7 @@ class Flag(Pytree):
     def where(self, t: ArrayLike, f: ArrayLike) -> ArrayLike:
         """Return t or f according to the truth value contained in this flag
         in a manner that works in either the concrete or dynamic context"""
-        if self.concrete:
-            return t if self.f else f
-        else:
-            return jax.lax.select(jnp.all(self.f), t, f)
+        return jax.lax.select(jnp.all(self.f), t, f)
 
 
 def staged_check(v):

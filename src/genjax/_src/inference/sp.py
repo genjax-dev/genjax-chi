@@ -215,7 +215,7 @@ class Algorithm(SampleDistribution):
 
 @Pytree.dataclass
 @typecheck
-class Marginal(Generic[R], SampleDistribution):
+class Marginal(Generic[R], SampleDistribution[R]):
     """The `Marginal` class represents the marginal distribution of a generative function over
     a selection of addresses. The return value type is a subtype of `Sample`.
     """
