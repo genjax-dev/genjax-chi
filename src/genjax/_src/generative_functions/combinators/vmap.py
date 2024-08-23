@@ -30,7 +30,6 @@ from genjax._src.core.generative import (
     R,
     Retdiff,
     Score,
-    Selection,
     Trace,
     UpdateProblem,
     Weight,
@@ -231,35 +230,6 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         new_subtraces, w, retdiff, bwd_problems = jax.vmap(
             _update, in_axes=(0, 0, 0, self.in_axes)
         )(sub_keys, idx_array, prev.inner, argdiffs)
-        w = jnp.sum(w)
-        retval = new_subtraces.get_retval()
-        scores = new_subtraces.get_score()
-        map_tr = VmapTrace(self, new_subtraces, primals, retval, jnp.sum(scores))
-        return map_tr, w, retdiff, bwd_problems
-
-    def update_remove_selection(
-        self,
-        key: PRNGKey,
-        trace: VmapTrace,
-        selection: Selection,
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, ChoiceMap]:
-        primals = Diff.tree_primal(argdiffs)
-        self._static_check_broadcastable(primals)
-        broadcast_dim_length = self._static_broadcast_dim_length(primals)
-        idx_array = jnp.arange(0, broadcast_dim_length)
-        sub_keys = jax.random.split(key, broadcast_dim_length)
-
-        def _update(key, idx, subtrace, argdiffs):
-            subproblem = selection(idx)
-            new_subtrace, w, retdiff, bwd_problem = self.gen_fn.update(
-                key, subtrace, GenericProblem(argdiffs, subproblem)
-            )
-            return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_problem)
-
-        new_subtraces, w, retdiff, bwd_problems = jax.vmap(
-            _update, in_axes=(0, 0, 0, self.in_axes)
-        )(sub_keys, idx_array, trace.inner, argdiffs)
         w = jnp.sum(w)
         retval = new_subtraces.get_retval()
         scores = new_subtraces.get_score()

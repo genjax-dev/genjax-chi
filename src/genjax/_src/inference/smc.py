@@ -109,9 +109,6 @@ class ParticleCollection(Pytree):
     def __getitem__(self, idx) -> tuple:
         return jtu.tree_map(lambda v: v[idx], (self.particles, self.log_weights))
 
-    def check_valid(self) -> BoolArray:
-        return self.is_valid
-
     def sample_particle(self, key) -> Trace:
         """
         Samples a particle from the collection, with probability proportional to its weight.

@@ -50,15 +50,6 @@ class DiscreteHMMConfiguration(Pytree):
     sigma_trans: FloatArray = Pytree.static()
     sigma_obs: FloatArray = Pytree.static()
 
-    def flatten(self):
-        return (), (
-            self.linear_grid_dim,
-            self.adjacency_distance_trans,
-            self.adjacency_distance_obs,
-            self.sigma_trans,
-            self.sigma_obs,
-        )
-
     @classmethod
     def copy(cls, config, transition_tensor, observation_tensor):
         return DiscreteHMMConfiguration(
@@ -259,13 +250,6 @@ class _DiscreteHMMLatentSequencePosterior(Distribution):
 
     def data_logpdf(self, config, observation_sequence):
         return log_data_marginal(config, observation_sequence)
-
-    def get_forward_filters(self, key, config, observation_sequence):
-        key, sub_key = jax.random.split(key)
-        _, (_, ffs) = forward_filtering_backward_sampling(
-            sub_key, config, observation_sequence
-        )
-        return key, ffs
 
 
 ##############

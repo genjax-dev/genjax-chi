@@ -40,9 +40,7 @@ from genjax._src.core.typing import (
     Generic,
     Int,
     TypeVar,
-    static_check_is_array,
     static_check_is_concrete,
-    static_check_supports_grad,
 )
 
 R = TypeVar("R")
@@ -216,101 +214,9 @@ class Pytree(pz.Struct):
             check = all(map(lambda v: treedef == jtu.tree_structure(v), rest))
             return check
 
-    @staticmethod
-    def static_check_tree_leaves_have_matching_leading_dim(tree):
-        def _inner(v):
-            if static_check_is_array(v):
-                shape = v.shape
-                return shape[0] if shape else 0
-            else:
-                return 0
-
-        broadcast_dim_tree = jtu.tree_map(lambda v: _inner(v), tree)
-        leaves = jtu.tree_leaves(broadcast_dim_tree)
-        leaf_lengths = set(leaves)
-        # all the leaves must have the same first dim size.
-        assert len(leaf_lengths) == 1
-        max_index = list(leaf_lengths).pop()
-        return max_index
-
     #############
     # Utilities #
     #############
-
-    @staticmethod
-    def tree_stack(trees):
-        """Takes a list of trees and stacks every corresponding leaf.
-
-        For example, given two trees ((a, b), c) and ((a', b'), c'), returns ((stack(a,
-        a'), stack(b, b')), stack(c, c')).
-
-        Useful for turning a list of objects into something you can feed to a vmapped
-        function.
-        """
-        leaves_list = []
-        treedef_list = []
-        for tree in trees:
-            leaves, treedef = jtu.tree_flatten(tree)
-            leaves_list.append(leaves)
-            treedef_list.append(treedef)
-
-        grouped_leaves = zip(*leaves_list)
-        result_leaves = [
-            jnp.squeeze(jnp.stack(leaf, axis=-1)) for leaf in grouped_leaves
-        ]
-        return treedef_list[0].unflatten(result_leaves)
-
-    @staticmethod
-    def tree_unstack(tree):
-        """Takes a tree and turns it into a list of trees. Inverse of tree_stack.
-
-        For example, given a tree ((a, b), c), where a, b, and c all have
-        first dimension k, will make k trees [((a[0], b[0]), c[0]), ...,
-        ((a[k], b[k]), c[k])]
-
-        Useful for turning the output of a vmapped function into normal
-        objects.
-        """
-        leaves, treedef = jtu.tree_flatten(tree)
-        n_trees = leaves[0].shape[0]
-        new_leaves = [[] for _ in range(n_trees)]
-        for leaf in leaves:
-            for i in range(n_trees):
-                new_leaves[i].append(leaf[i])
-        new_trees = [treedef.unflatten(leaf) for leaf in new_leaves]
-        return new_trees
-
-    @staticmethod
-    def tree_grad_split(tree):
-        def _grad_filter(v):
-            if static_check_supports_grad(v):
-                return v
-            else:
-                return None
-
-        def _nograd_filter(v):
-            if not static_check_supports_grad(v):
-                return v
-            else:
-                return None
-
-        grad = jtu.tree_map(_grad_filter, tree)
-        nograd = jtu.tree_map(_nograd_filter, tree)
-
-        return grad, nograd
-
-    @staticmethod
-    def tree_grad_zip(grad, nograd):
-        def _zipper(*args):
-            for arg in args:
-                if arg is not None:
-                    return arg
-            return None
-
-        def _is_none(x):
-            return x is None
-
-        return jtu.tree_map(_zipper, grad, nograd, is_leaf=_is_none)
 
     def render_html(self):
         def _pytree_handler(node, subtree_renderer):

@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING
 
 import jax
 import jax.numpy as jnp
-import jax.tree_util as jtu
 from penzai.core import formatting_util
 
 from genjax._src.core.interpreters.incremental import Diff
@@ -525,10 +524,6 @@ class GenerativeFunction(Generic[R], Pytree):
 
     def get_trace_shape(self, *args) -> Any:
         return get_trace_shape(self, args)
-
-    def get_empty_trace(self, *args) -> Trace[R]:
-        trace_template = self.get_trace_shape(*args)
-        return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), trace_template)
 
     @classmethod
     def gfi_boundary(cls, c: _C) -> _C:
