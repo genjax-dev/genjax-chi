@@ -27,11 +27,14 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     FloatArray,
-    Optional,
+    Generic,
     PRNGKey,
+    TypeVar,
     typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
+
+R = TypeVar("R")
 
 ####################
 # Posterior target #
@@ -39,7 +42,7 @@ from genjax._src.generative_functions.distributions.distribution import Distribu
 
 
 @Pytree.dataclass
-class Target(Pytree):
+class Target(Generic[R], Pytree):
     """
     A `Target` represents an unnormalized target distribution induced by conditioning a generative function on a [`genjax.Constraint`][].
 
@@ -65,7 +68,7 @@ class Target(Pytree):
         ```
     """
 
-    p: GenerativeFunction
+    p: GenerativeFunction[R]
     args: tuple
     constraint: ChoiceMap
 
@@ -87,7 +90,7 @@ class Target(Pytree):
 
 
 @Pytree.dataclass
-class SampleDistribution(Distribution):
+class SampleDistribution(Generic[R], Distribution[R]):
     """
     The abstract class `SampleDistribution` represents the type of distributions whose return value type is a `Sample`. This is the abstract base class of `Algorithm`, as well as `Marginal`.
     """
@@ -212,14 +215,14 @@ class Algorithm(SampleDistribution):
 
 @Pytree.dataclass
 @typecheck
-class Marginal(SampleDistribution):
+class Marginal(Generic[R], SampleDistribution[R]):
     """The `Marginal` class represents the marginal distribution of a generative function over
     a selection of addresses. The return value type is a subtype of `Sample`.
     """
 
-    gen_fn: GenerativeFunction
+    gen_fn: GenerativeFunction[R]
     selection: Selection = Pytree.field(default=Selection.all())
-    algorithm: Optional[Algorithm] = Pytree.field(default=None)
+    algorithm: Algorithm | None = Pytree.field(default=None)
 
     @typecheck
     def random_weighted(
@@ -268,12 +271,12 @@ class Marginal(SampleDistribution):
 
 @typecheck
 def marginal(
-    selection: Optional[Selection] = Selection.all(),
-    algorithm: Optional[Algorithm] = None,
-) -> Callable[[GenerativeFunction], Marginal]:
+    selection: Selection = Selection.all(),
+    algorithm: Algorithm | None = None,
+) -> Callable[[GenerativeFunction[R]], Marginal[R]]:
     def decorator(
-        gen_fn: GenerativeFunction,
-    ) -> Marginal:
+        gen_fn: GenerativeFunction[R],
+    ) -> Marginal[R]:
         return Marginal(
             gen_fn,
             selection,

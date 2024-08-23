@@ -29,7 +29,6 @@ from genjax._src.core.interpreters.staging import (
     staged_err,
 )
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
@@ -39,8 +38,6 @@ from genjax._src.core.typing import (
     String,
     typecheck,
 )
-
-register_exclusion(__file__)
 
 #################
 # Address types #

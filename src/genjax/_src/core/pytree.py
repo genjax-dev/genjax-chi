@@ -34,10 +34,10 @@ from penzai.treescope.handlers import builtin_structure_handler
 from penzai.treescope.handlers.penzai import struct_handler
 from typing_extensions import dataclass_transform
 
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
+    Generic,
     Int,
     TypeVar,
     static_check_is_array,
@@ -45,8 +45,7 @@ from genjax._src.core.typing import (
     static_check_supports_grad,
 )
 
-register_exclusion(__file__)
-
+R = TypeVar("R")
 _T = TypeVar("_T")
 
 
@@ -197,8 +196,8 @@ class Pytree(pz.Struct):
         )
 
     @staticmethod
-    def partial(*args):
-        return lambda fn: Closure(args, fn)
+    def partial(*args) -> Callable[[Callable[..., R]], "Closure[R]"]:
+        return lambda fn: Closure[R](args, fn)
 
     def treedef(self):
         return jtu.tree_structure(self)
@@ -456,7 +455,7 @@ class Const(Pytree):
 
 # Construct for a type of closure which closes over dynamic values.
 @Pytree.dataclass
-class Closure(Pytree):
+class Closure(Generic[R], Pytree):
     """
     JAX-compatible closure type. It's a closure _as a [`Pytree`][genjax.core.Pytree]_ - meaning the static _source code_ / _callable_ is separated from dynamic data (which must be tracked by JAX).
 
@@ -487,9 +486,9 @@ class Closure(Pytree):
     """
 
     dyn_args: tuple
-    fn: Callable[..., Any] = Pytree.static()
+    fn: Callable[..., R] = Pytree.static()
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> R:
         return self.fn(*self.dyn_args, *args, **kwargs)
 
 

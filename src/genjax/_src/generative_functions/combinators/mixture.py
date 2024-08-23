@@ -14,7 +14,6 @@
 
 
 from genjax._src.core.generative import GenerativeFunction
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import typecheck
 from genjax._src.generative_functions.combinators.switch import (
     switch,
@@ -23,8 +22,6 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     categorical,
 )
 from genjax._src.generative_functions.static import gen
-
-register_exclusion(__file__)
 
 
 @typecheck

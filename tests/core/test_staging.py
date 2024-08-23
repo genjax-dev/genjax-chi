@@ -71,3 +71,7 @@ class TestFlag:
             for u in true_flags:
                 assert t.and_(u)
                 assert t.or_(u)
+
+    def test_where(self):
+        assert Flag(True, concrete=True).where(3.0, 4.0) == 3
+        assert Flag(False, concrete=True).where(3.0, 4.0) == 4
