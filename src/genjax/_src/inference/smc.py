@@ -44,7 +44,6 @@ from genjax._src.core.typing import (
     Callable,
     FloatArray,
     Int,
-    Optional,
     PRNGKey,
     typecheck,
 )
@@ -156,7 +155,7 @@ class SMCAlgorithm(Algorithm):
 
     # Convenience method for returning an estimate of the normalizing constant
     # of the target.
-    def log_marginal_likelihood_estimate(self, key, target: Optional[Target] = None):
+    def log_marginal_likelihood_estimate(self, key, target: Target | None = None):
         if target:
             algorithm = ChangeTarget(self, target)
         else:

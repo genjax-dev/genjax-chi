@@ -40,7 +40,6 @@ from genjax._src.core.typing import (
     FloatArray,
     Int,
     IntArray,
-    Optional,
     PRNGKey,
     typecheck,
 )
@@ -193,7 +192,7 @@ class ScanCombinator(GenerativeFunction):
     kernel_gen_fn: GenerativeFunction
 
     # Only required for `None` carry inputs
-    length: Optional[Int] = Pytree.static()
+    length: Int | None = Pytree.static()
     reverse: bool = Pytree.static(default=False)
     unroll: int | bool = Pytree.static(default=1)
 
@@ -545,7 +544,7 @@ class ScanCombinator(GenerativeFunction):
 
 @typecheck
 def scan(
-    *, n: Optional[Int] = None, reverse: bool = False, unroll: int | bool = 1
+    *, n: Int | None = None, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction], GenerativeFunction]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `(c, a) -> (c, b)`and returns a new [`genjax.GenerativeFunction`][] of type

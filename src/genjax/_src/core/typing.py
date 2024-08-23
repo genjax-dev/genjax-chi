@@ -37,7 +37,6 @@ FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
 Sequence = btyping.Sequence
-Optional = btyping.Optional
 
 # JAX Type alias.
 InAxes = int | None | Sequence[Any]
