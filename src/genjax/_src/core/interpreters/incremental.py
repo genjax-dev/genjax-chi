@@ -39,7 +39,6 @@ from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    Bool,
     Callable,
     IntArray,
     Value,
@@ -57,11 +56,7 @@ from genjax._src.core.typing import (
 
 
 class ChangeTangent(Pytree):
-    def should_flatten(self) -> Bool:
-        return False
-
-    def widen(self):
-        return UnknownChange
+    pass
 
 
 # These two classes are the bottom and top of the change lattice.
@@ -92,9 +87,6 @@ NoChange = _NoChange()
 class IntChange(ChangeTangent):
     dv: IntArray
 
-    def should_flatten(self):
-        return True
-
 
 @Pytree.dataclass
 class StaticIntChange(ChangeTangent):
@@ -102,9 +94,6 @@ class StaticIntChange(ChangeTangent):
 
     def __post_init__(self):
         assert static_check_is_concrete(self.dv)
-
-    def should_flatten(self):
-        return True
 
 
 def static_check_is_change_tangent(v):
@@ -130,9 +119,6 @@ class Diff(Pytree):
 
     def get_tangent(self):
         return self.tangent
-
-    def unpack(self):
-        return self.primal, self.tangent
 
     #############
     # Utilities #
@@ -184,12 +170,6 @@ class Diff(Pytree):
                 return v
 
         return jtu.tree_map(_inner, v, is_leaf=Diff.static_check_is_diff)
-
-    @staticmethod
-    def tree_unpack(v):
-        primals = Diff.tree_primal(v)
-        tangents = Diff.tree_tangent(v)
-        return jtu.tree_leaves(primals), jtu.tree_leaves(tangents)
 
     #################
     # Static checks #

@@ -70,19 +70,6 @@ class ScanTrace(Trace):
     def get_score(self):
         return self.score
 
-    def index_update(
-        self,
-        idx: IntArray,
-        problem: UpdateProblem,
-    ) -> UpdateProblem:
-        return IndexProblem(idx, problem)
-
-    def checkerboard_update(
-        self,
-        problem: UpdateProblem,
-    ) -> UpdateProblem:
-        return CheckerboardProblem(problem)
-
 
 #######################
 # Custom update specs #
