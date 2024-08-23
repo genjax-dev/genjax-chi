@@ -69,7 +69,7 @@ class Target(Generic[R], Pytree):
     """
 
     p: GenerativeFunction[R]
-    args: tuple
+    args: tuple[Any, ...]
     constraint: ChoiceMap
 
     def importance(self, key: PRNGKey, constraint: ChoiceMap):

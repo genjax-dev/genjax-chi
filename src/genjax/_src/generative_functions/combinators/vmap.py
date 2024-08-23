@@ -51,11 +51,11 @@ from genjax._src.core.typing import (
 class VmapTrace(Generic[R], Trace[R]):
     gen_fn: GenerativeFunction[R]
     inner: Trace[R]
-    args: tuple
+    args: tuple[Any, ...]
     retval: R
     score: FloatArray
 
-    def get_args(self) -> tuple:
+    def get_args(self) -> tuple[Any, ...]:
         return self.args
 
     def get_retval(self):
@@ -134,7 +134,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
         return jax.vmap(inner, in_axes=self.in_axes)(*args)
 
-    def _static_check_broadcastable(self, args: tuple) -> None:
+    def _static_check_broadcastable(self, args: tuple[Any, ...]) -> None:
         # Argument broadcast semantics must be fully specified
         # in `in_axes`.
         if self.in_axes is not None:
@@ -164,7 +164,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> VmapTrace[R]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
@@ -179,7 +179,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[VmapTrace[R], Weight, Retdiff, UpdateProblem]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
@@ -278,7 +278,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
     def assess(
         self,
         sample: ChoiceMap,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Score, R]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)

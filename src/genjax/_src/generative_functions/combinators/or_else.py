@@ -15,7 +15,7 @@
 import jax.numpy as jnp
 
 from genjax._src.core.generative import GenerativeFunction
-from genjax._src.core.typing import ScalarBool, typecheck
+from genjax._src.core.typing import Any, ScalarBool, typecheck
 
 
 @typecheck
@@ -74,7 +74,9 @@ def or_else(
     """
 
     @typecheck
-    def argument_mapping(b: ScalarBool, if_args: tuple, else_args: tuple):
+    def argument_mapping(
+        b: ScalarBool, if_args: tuple[Any, ...], else_args: tuple[Any, ...]
+    ):
         # Note that `True` maps to 0 to select the "if" branch, `False` to 1.
         idx = jnp.array(jnp.logical_not(b), dtype=int)
         return (idx, if_args, else_args)

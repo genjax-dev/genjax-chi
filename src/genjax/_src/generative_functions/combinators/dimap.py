@@ -38,7 +38,7 @@ from genjax._src.core.typing import (
     typecheck,
 )
 
-ArgTuple = TypeVar("ArgTuple", bound=tuple)
+ArgTuple = TypeVar("ArgTuple", bound=tuple[Any, ...])
 R = TypeVar("R")
 S = TypeVar("S")
 
@@ -108,7 +108,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
     """
 
     inner: GenerativeFunction[R]
-    argument_mapping: Callable[[tuple], ArgTuple] = Pytree.static()
+    argument_mapping: Callable[[tuple[Any, ...]], ArgTuple] = Pytree.static()
     retval_mapping: Callable[[ArgTuple, R], S] = Pytree.static()
     info: String | None = Pytree.static(default=None)
 
@@ -117,7 +117,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> DimapTrace[R, S]:
         inner_args = self.argument_mapping(*args)
         tr = self.inner.simulate(key, inner_args)
@@ -156,7 +156,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         inner_retval_primals = Diff.tree_primal(inner_retdiff)
         inner_retval_tangents = Diff.tree_tangent(inner_retdiff)
 
-        def closed_mapping(args: tuple, retval: R) -> S:
+        def closed_mapping(args: tuple[Any, ...], retval: R) -> S:
             xformed_args = self.argument_mapping(*args)
             return self.retval_mapping(xformed_args, retval)
 
@@ -193,7 +193,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
     def assess(
         self,
         sample: ChoiceMap,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Score, S]:
         inner_args = self.argument_mapping(*args)
         w, inner_retval = self.inner.assess(sample, inner_args)
