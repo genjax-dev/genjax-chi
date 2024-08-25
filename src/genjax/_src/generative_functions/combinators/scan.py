@@ -41,19 +41,24 @@ from genjax._src.core.typing import (
     Int,
     IntArray,
     PRNGKey,
+    TypeVar,
     typecheck,
 )
+
+Carry = TypeVar("Carry")
+X = TypeVar("X")
+Y = TypeVar("Y")
 
 
 @Pytree.dataclass
 class ScanTrace(Trace):
     scan_gen_fn: "ScanCombinator"
     inner: Trace
-    args: tuple
+    args: tuple[Any, ...]
     retval: Any
     score: FloatArray
 
-    def get_args(self) -> tuple:
+    def get_args(self) -> tuple[Any, ...]:
         return self.args
 
     def get_retval(self):
@@ -207,7 +212,7 @@ class ScanCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> ScanTrace:
         carry, scanned_in = args
 
@@ -242,7 +247,7 @@ class ScanCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: ChoiceMap,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         (carry, scanned_in) = args
 
@@ -491,7 +496,7 @@ class ScanCombinator(GenerativeFunction):
     def assess(
         self,
         sample: Sample,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Score, Any]:
         (carry, scanned_in) = args
         assert isinstance(sample, ChoiceMap)

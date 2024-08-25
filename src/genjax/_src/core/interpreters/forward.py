@@ -192,7 +192,7 @@ class StatefulHandler:
         primitive: jc.Primitive,
         *args,
         **kwargs,
-    ) -> list:
+    ) -> list[Any]:
         pass
 
 
@@ -202,8 +202,8 @@ class ForwardInterpreter(Pytree):
         self,
         stateful_handler,
         _jaxpr: jc.Jaxpr,
-        consts: list,
-        args: list,
+        consts: list[Any],
+        args: list[Any],
     ):
         env = Environment()
         jax_util.safe_map(env.write, _jaxpr.constvars, consts)

@@ -46,7 +46,7 @@ record_p = InitialStylePrimitive("record_p")
 @Pytree.dataclass
 class FrameRecording(Generic[R, S], Pytree):
     f: Callable[..., R]
-    args: tuple
+    args: tuple[Any, ...]
     local_retval: R
     cont: Callable[..., S]
 
@@ -205,7 +205,7 @@ def time_travel(f):
 class TimeTravelingDebugger(Pytree):
     final_retval: Any
     sequence: list[FrameRecording]
-    jump_points: dict = Pytree.static()
+    jump_points: dict[Any, Any] = Pytree.static()
     ptr: Int = Pytree.static()
 
     def frame(self) -> tuple[String | None, FrameRecording]:
