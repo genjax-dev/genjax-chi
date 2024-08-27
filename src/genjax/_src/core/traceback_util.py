@@ -13,9 +13,10 @@
 # limitations under the License.
 
 import jax._src.traceback_util as traceback_util
-from beartype.typing import Callable, TypeVar
 
-_C = TypeVar("_C", bound=Callable)
+from genjax._src.core.typing import Any, Callable, TypeVar
+
+_C = TypeVar("_C", bound=Callable[..., Any])
 
 
 def gfi_boundary(c: _C) -> _C:

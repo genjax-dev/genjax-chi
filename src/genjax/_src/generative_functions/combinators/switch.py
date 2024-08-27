@@ -39,12 +39,16 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     FloatArray,
+    Generic,
     Int,
     IntArray,
     PRNGKey,
     Sequence,
+    TypeVar,
     typecheck,
 )
+
+R = TypeVar("R")
 
 #######################
 # Switch sample types #
@@ -63,11 +67,11 @@ class HeterogeneousSwitchSample(Sample):
 
 
 @Pytree.dataclass
-class SwitchTrace(Trace):
-    gen_fn: GenerativeFunction
+class SwitchTrace(Generic[R], Trace[R]):
+    gen_fn: GenerativeFunction[R]
     args: tuple[Any, ...]
-    subtraces: list[Trace]
-    retval: Any
+    subtraces: list[Trace[R]]
+    retval: R
     score: FloatArray
 
     def get_args(self) -> tuple[Any, ...]:
@@ -108,7 +112,7 @@ class SwitchTrace(Trace):
 
 
 @Pytree.dataclass
-class SwitchCombinator(GenerativeFunction):
+class SwitchCombinator(Generic[R], GenerativeFunction[R]):
     """
     `SwitchCombinator` accepts `n` generative functions as input and returns a new [`genjax.GenerativeFunction`][] that accepts `n+1` arguments:
 
@@ -154,11 +158,11 @@ class SwitchCombinator(GenerativeFunction):
         ```
     """
 
-    branches: tuple[GenerativeFunction, ...]
+    branches: tuple[GenerativeFunction[R], ...]
 
     def __abstract_call__(self, *args):
         idx, *args = args
-        retvals = []
+        retvals: list[R] = []
         for _idx in range(len(self.branches)):
             branch_gen_fn = self.branches[_idx]
             branch_args = args[_idx]
@@ -209,7 +213,7 @@ class SwitchCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         args: tuple[Any, ...],
-    ) -> SwitchTrace:
+    ) -> SwitchTrace[R]:
         (idx, *branch_args) = args
         self.static_check_num_arguments_equals_num_branches(branch_args)
 
@@ -244,7 +248,7 @@ class SwitchCombinator(GenerativeFunction):
     @typecheck
     def _empty_update_defs(
         self,
-        trace: SwitchTrace,
+        trace: SwitchTrace[R],
         problem: UpdateProblem,
         argdiffs: Argdiffs,
     ):
@@ -290,7 +294,7 @@ class SwitchCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         static_idx: Int,
-        trace: SwitchTrace,
+        trace: SwitchTrace[R],
         problem: UpdateProblem,
         idx: IntArray,
         argdiffs: Argdiffs,
@@ -317,7 +321,7 @@ class SwitchCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         static_idx: Int,
-        trace: SwitchTrace,
+        trace: SwitchTrace[R],
         problem: UpdateProblem,
         idx: IntArray,
         argdiffs: Argdiffs,
@@ -378,10 +382,10 @@ class SwitchCombinator(GenerativeFunction):
     def update_generic(
         self,
         key: PRNGKey,
-        trace: SwitchTrace,
+        trace: SwitchTrace[R],
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
         (idx_argdiff, *branch_argdiffs) = argdiffs
         self.static_check_num_arguments_equals_num_branches(branch_argdiffs)
 
@@ -522,7 +526,7 @@ class SwitchCombinator(GenerativeFunction):
         key: PRNGKey,
         problem: ImportanceProblem,
         argdiffs: tuple[Any, ...],
-    ) -> tuple[SwitchTrace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[SwitchTrace[R], Weight, Retdiff, UpdateProblem]:
         args = Diff.tree_primal(argdiffs)
         (idx, *branch_args) = args
         (_, *branch_argdiffs) = argdiffs
@@ -596,10 +600,10 @@ class SwitchCombinator(GenerativeFunction):
     def update_change_target(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
         assert isinstance(trace, EmptyTrace | SwitchTrace)
         match trace:
             case EmptyTrace():
@@ -615,9 +619,9 @@ class SwitchCombinator(GenerativeFunction):
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         update_problem: UpdateProblem,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
@@ -682,8 +686,8 @@ class SwitchCombinator(GenerativeFunction):
 
 @typecheck
 def switch(
-    *gen_fns: GenerativeFunction,
-) -> GenerativeFunction:
+    *gen_fns: GenerativeFunction[R],
+) -> GenerativeFunction[R]:
     """
     Given `n` [`genjax.GenerativeFunction`][] inputs, returns a [`genjax.GenerativeFunction`][] that accepts `n+1` arguments:
 

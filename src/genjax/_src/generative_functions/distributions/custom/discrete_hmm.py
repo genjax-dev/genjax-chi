@@ -20,10 +20,12 @@ from scipy.linalg import circulant
 from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
+from genjax._src.core.typing import FloatArray, Generic, IntArray, PRNGKey, TypeVar
 from genjax._src.generative_functions.distributions.distribution import Distribution
 
 tfd = tfp.distributions
+
+R = TypeVar("R")
 
 #####
 # Discrete HMM configuration
@@ -231,13 +233,15 @@ def latent_sequence_posterior(
 
 
 @Pytree.dataclass
-class _DiscreteHMMLatentSequencePosterior(Distribution):
+class _DiscreteHMMLatentSequencePosterior(Generic[R], Distribution[R]):
     def random_weighted(self, key, *args, **kwargs):
         config, observation_sequence = args
         key, sub_key = jax.random.split(key)
         _, (v, _) = forward_filtering_backward_sampling(
             sub_key, config, observation_sequence
         )
+
+        # TODO how is this not a bug, going off of the type signature?
         key, (w, _) = self.estimate_logpdf(
             key, v, config, observation_sequence, **kwargs
         )
