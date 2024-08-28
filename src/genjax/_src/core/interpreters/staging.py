@@ -176,7 +176,7 @@ def stage(f):
     def wrapped(*args, **kwargs):
         fun = lu.wrap_init(f, kwargs)
         flat_args, in_tree = jtu.tree_flatten(args)
-        flat_fun, out_tree = flatten_fun_nokwargs(fun, in_tree)
+        flat_fun, out_tree = flatten_fun_nokwargs(fun, in_tree)  # pyright: ignore
         flat_avals = safe_map(get_shaped_aval, flat_args)
         typed_jaxpr = cached_stage_dynamic(flat_fun, tuple(flat_avals))
         return typed_jaxpr, (flat_args, in_tree, out_tree)

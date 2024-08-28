@@ -180,7 +180,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: tuple[Any, ...],
-    ) -> tuple[VmapTrace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], UpdateProblem]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         idx_array = jnp.arange(0, broadcast_dim_length)
@@ -213,7 +213,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         prev: VmapTrace[R],
         update_problem: ChoiceMap,
         argdiffs: Argdiffs,
-    ) -> tuple[VmapTrace[R], Weight, Retdiff, ChoiceMap]:
+    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], ChoiceMap]:
         primals = Diff.tree_primal(argdiffs)
         self._static_check_broadcastable(primals)
         broadcast_dim_length = self._static_broadcast_dim_length(primals)
@@ -243,7 +243,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[VmapTrace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], UpdateProblem]:
         match update_problem:
             case ChoiceMap():
                 assert isinstance(
@@ -265,7 +265,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         trace: Trace[R],
         update_problem: UpdateProblem,
-    ) -> tuple[VmapTrace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)

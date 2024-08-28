@@ -132,7 +132,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         trace: Trace[S],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[DimapTrace[R, S], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], UpdateProblem]:
         assert isinstance(trace, EmptyTrace | DimapTrace)
 
         primals = Diff.tree_primal(argdiffs)
@@ -180,7 +180,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         key: PRNGKey,
         trace: Trace[S],
         update_problem: UpdateProblem,
-    ) -> tuple[DimapTrace[R, S], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)

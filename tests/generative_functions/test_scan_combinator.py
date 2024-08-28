@@ -112,11 +112,11 @@ class TestIterate:
         the initial value).
         """
         result = inc.iterate(n=4).simulate(key, (0,)).get_retval()
-        assert jnp.array_equal(result, jnp.array([0, 1, 2, 3, 4]))
+        assert jnp.array_equal(jnp.asarray(result), jnp.array([0, 1, 2, 3, 4]))
 
         # same as result, with a jnp.array-wrapped accumulator
         result_wrapped = inc.iterate(n=4).simulate(key, (jnp.array(0),)).get_retval()
-        assert jnp.array_equal(result, result_wrapped)
+        assert jnp.array_equal(jnp.asarray(result), result_wrapped)
 
     def test_iterate_final(self, key):
         """
@@ -130,7 +130,7 @@ class TestIterate:
     def test_inc_tupled(self, key):
         """Baseline test demonstrating `inc_tupled`."""
         result = inc_tupled.simulate(key, ((0, 2),)).get_retval()
-        assert jnp.array_equal(result, jnp.array((2, 2)))
+        assert jnp.array_equal(jnp.asarray(result), jnp.array((2, 2)))
 
     def test_iterate_tupled(self, key):
         """
@@ -139,7 +139,8 @@ class TestIterate:
         """
         result = inc_tupled.iterate(n=4).simulate(key, ((0, 2),)).get_retval()
         assert jnp.array_equal(
-            jnp.asarray(result), jnp.array([[0, 2, 4, 6, 8], [2, 2, 2, 2, 2]])
+            jnp.asarray(result),
+            jnp.array([[0, 2, 4, 6, 8], [2, 2, 2, 2, 2]]),
         )
 
     def test_iterate_final_tupled(self, key):
@@ -253,7 +254,7 @@ class TestAccumulateReduceMethods:
     def test_add_tupled(self, key):
         """Baseline test demonstrating `add_tupled`."""
         result = add_tupled.simulate(key, ((0, 2), 10)).get_retval()
-        assert jnp.array_equal(result, jnp.array((12, 2)))
+        assert jnp.array_equal(jnp.asarray(result), jnp.array((12, 2)))
 
     def test_accumulate_tupled(self, key):
         """

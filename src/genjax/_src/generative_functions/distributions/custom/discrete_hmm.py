@@ -19,11 +19,20 @@ import numpy as np
 from scipy.linalg import circulant
 from tensorflow_probability.substrates import jax as tfp
 
+from genjax._src.core.generative.core import Score
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
+from genjax._src.core.typing import (
+    Array,
+    FloatArray,
+    IntArray,
+    PRNGKey,
+    TypeVar,
+)
 from genjax._src.generative_functions.distributions.distribution import Distribution
 
 tfd = tfp.distributions
+
+R = TypeVar("R")
 
 #####
 # Discrete HMM configuration
@@ -231,19 +240,18 @@ def latent_sequence_posterior(
 
 
 @Pytree.dataclass
-class _DiscreteHMMLatentSequencePosterior(Distribution):
-    def random_weighted(self, key, *args, **kwargs):
+class _DiscreteHMMLatentSequencePosterior(Distribution[Array]):
+    def random_weighted(self, key, *args, **kwargs) -> tuple[Score, Array]:
         config, observation_sequence = args
-        key, sub_key = jax.random.split(key)
+        key, k1, k2 = jax.random.split(key, 3)
         _, (v, _) = forward_filtering_backward_sampling(
-            sub_key, config, observation_sequence
+            k1, config, observation_sequence
         )
-        key, (w, _) = self.estimate_logpdf(
-            key, v, config, observation_sequence, **kwargs
-        )
-        return key, (w, v)
 
-    def estimate_logpdf(self, key, v, *args, **kwargs):
+        w = self.estimate_logpdf(k2, v, config, observation_sequence, **kwargs)
+        return (w, v)
+
+    def estimate_logpdf(self, key, v, *args, **kwargs) -> Array:
         config, observation_sequence = args
         prob, _ = latent_sequence_posterior(config, v, observation_sequence)
         return prob

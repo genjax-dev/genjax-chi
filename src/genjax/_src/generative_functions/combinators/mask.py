@@ -130,7 +130,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         trace: Trace[Mask[R]],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
         check = Diff.tree_primal(argdiffs)[0]
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
         match trace:
@@ -161,7 +161,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         trace: Trace[Mask[R]],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
         check = Diff.tree_primal(argdiffs)[0]
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
 
@@ -193,7 +193,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         key: PRNGKey,
         trace: Trace[Mask[R]],
         update_problem: UpdateProblem,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
         assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
 
         match update_problem:

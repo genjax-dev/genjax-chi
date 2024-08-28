@@ -46,7 +46,7 @@ record_p = InitialStylePrimitive("record_p")
 @Pytree.dataclass
 class FrameRecording(Generic[R, S], Pytree):
     f: Callable[..., R]
-    args: tuple
+    args: tuple[Any, ...]
     local_retval: R
     cont: Callable[..., S]
 
@@ -204,17 +204,17 @@ def time_travel(f):
 @Pytree.dataclass
 class TimeTravelingDebugger(Pytree):
     final_retval: Any
-    sequence: list[FrameRecording]
-    jump_points: dict = Pytree.static()
+    sequence: list[FrameRecording[Any, Any]]
+    jump_points: dict[Any, Any] = Pytree.static()
     ptr: Int = Pytree.static()
 
-    def frame(self) -> tuple[String | None, FrameRecording]:
+    def frame(self) -> tuple[String | None, FrameRecording[Any, Any]]:
         frame = self.sequence[self.ptr]
         reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
         jump_tag = reverse_jump_points.get(self.ptr, None)
         return jump_tag, frame
 
-    def summary(self) -> tuple[Any, tuple[String | None, FrameRecording]]:
+    def summary(self) -> tuple[Any, tuple[String | None, FrameRecording[Any, Any]]]:
         frame = self.sequence[self.ptr]
         reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
         jump_tag = reverse_jump_points.get(self.ptr, None)

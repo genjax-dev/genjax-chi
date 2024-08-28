@@ -236,7 +236,7 @@ class SimulateHandler(StaticHandler):
     key: PRNGKey
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    address_traces: list[Trace] = Pytree.field(default_factory=list)
+    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
 
     def visit(self, addr):
         self.address_visitor.visit(addr)
@@ -252,7 +252,7 @@ class SimulateHandler(StaticHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction,
+        gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
         self.visit(addr)
@@ -294,12 +294,12 @@ def simulate_transform(source_fn):
 @dataclass
 class UpdateHandler(StaticHandler):
     key: PRNGKey
-    previous_trace: StaticTrace
+    previous_trace: StaticTrace[Any]
     fwd_problem: UpdateProblem
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_traces: list[Trace] = Pytree.field(default_factory=list)
+    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
     bwd_problems: list[UpdateProblem] = Pytree.field(default_factory=list)
 
     def yield_state(self):
@@ -333,7 +333,7 @@ class UpdateHandler(StaticHandler):
             case _:
                 raise ValueError(f"Not implemented fwd_problem: {self.fwd_problem}")
 
-    def get_subtrace(self, sub_gen_fn: GenerativeFunction, addr: StaticAddress):
+    def get_subtrace(self, sub_gen_fn: GenerativeFunction[Any], addr: StaticAddress):
         if isinstance(self.previous_trace, EmptyTrace):
             return EmptyTrace(sub_gen_fn)
         else:
@@ -346,7 +346,7 @@ class UpdateHandler(StaticHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction,
+        gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
@@ -430,7 +430,7 @@ class AssessHandler(StaticHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction,
+        gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
         submap = self.get_subsample(addr)
@@ -459,7 +459,7 @@ def assess_transform(source_fn):
 @typecheck
 def handler_trace_with_static(
     addr: StaticAddressComponent | StaticAddress,
-    gen_fn: GenerativeFunction,
+    gen_fn: GenerativeFunction[Any],
     args: tuple[Any, ...],
 ):
     return trace(addr if isinstance(addr, tuple) else (addr,), gen_fn, args)
@@ -515,7 +515,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         args: tuple[Any, ...],
-    ) -> StaticTrace:
+    ) -> StaticTrace[R]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -535,10 +535,10 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     def update_change_target(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], UpdateProblem]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -585,9 +585,9 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         update_problem: UpdateProblem,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)

@@ -64,24 +64,21 @@ class Mask(Generic[R], Pytree):
     value: R
 
     @classmethod
-    def maybe(cls, f: Flag, v: Any):
+    def maybe(cls, f: Flag, v: "R | Mask[R]") -> "Mask[R]":
         match v:
             case Mask(flag, value):
-                return Mask.maybe_none(f.and_(flag), value)
+                return Mask[R](f.and_(flag), value)
             case _:
-                return Mask(f, v)
+                return Mask[R](f, v)
 
     @classmethod
-    def maybe_none(cls, f: Flag, v: Any):
-        return (
-            None
-            if v is None
-            else v
-            if f.concrete_true()
-            else None
-            if f.concrete_false()
-            else Mask.maybe(f, v)
-        )
+    def maybe_none(cls, f: Flag, v: "R | Mask[R]") -> "R | Mask[R] | None":
+        if v is None or f.concrete_false():
+            return None
+        elif f.concrete_true():
+            return v
+        else:
+            return Mask.maybe(f, v)
 
     ######################
     # Masking interfaces #
@@ -111,15 +108,14 @@ class Mask(Generic[R], Pytree):
 
 
 @Pytree.dataclass(match_args=True)
-class Sum(Pytree):
+class Sum(Generic[R], Pytree):
     """
     A `Sum` instance represents a sum type, which is a union of possible values - which value is active is determined by the `Sum.idx` field.
 
     The `Sum` type is used to represent a choice between multiple possible values, and is used in generative computations to represent uncertainty over values.
 
     Examples:
-        A common scenario which will produce `Sum` types is when using a `SwitchCombinator` with branches that have
-        multiple possible return value types:
+        A common scenario which will produce `Sum` types is when using a `SwitchCombinator` with branches that have multiple possible return value types:
         ```python exec="yes" html="true" source="material-block" session="core"
         from genjax import gen, normal, bernoulli
 
@@ -173,11 +169,11 @@ class Sum(Pytree):
         ```
     """
 
-    idx: ArrayLike | Diff
+    idx: ArrayLike | Diff[Any]
     """
     The runtime index tag for which value in `Sum.values` is active.
     """
-    values: list[Any]
+    values: list[R]
     """
     The possible values for the `Sum` instance.
     """
@@ -186,21 +182,21 @@ class Sum(Pytree):
     @typecheck
     def maybe(
         cls,
-        idx: ArrayLike | Diff,
-        vs: list[Any],
+        idx: ArrayLike | Diff[Any],
+        vs: list[R],
     ):
         return (
             vs[idx]
             if static_check_is_concrete(idx) and isinstance(idx, Int)
-            else Sum(idx, list(vs)).maybe_collapse()
+            else Sum[R](idx, list(vs)).maybe_collapse()
         )
 
     @classmethod
     @typecheck
     def maybe_none(
         cls,
-        idx: ArrayLike | Diff,
-        vs: list[Any],
+        idx: ArrayLike | Diff[Any],
+        vs: list[R],
     ):
         possibles = []
         for _idx, v in enumerate(vs):

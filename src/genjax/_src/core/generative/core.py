@@ -95,6 +95,7 @@ Retdiff = Annotated[
     Is[Diff.static_check_tree_diff],
 ]
 
+
 """
 `Retdiff` is the type of return values with an attached `ChangeType` (c.f. [`update`][genjax.core.GenerativeFunction.update]).
 
@@ -376,7 +377,7 @@ class Trace(Generic[R], Pytree):
         key: PRNGKey,
         problem: GenericProblem | UpdateProblem,
         argdiffs: tuple[Any, ...] | None = None,
-    ) -> tuple["Trace[R]", Weight, Retdiff, UpdateProblem]:
+    ) -> tuple["Trace[R]", Weight, Retdiff[R], UpdateProblem]:
         """
         This method calls out to the underlying [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update] method - see [`UpdateProblem`][genjax.core.UpdateProblem] and [`update`][genjax.core.GenerativeFunction.update] for more information.
         """
@@ -594,7 +595,7 @@ class GenerativeFunction(Generic[R], Pytree):
         key: PRNGKey,
         trace: Trace[R],
         update_problem: GenericProblem,
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         """
         Update a trace in response to an [`UpdateProblem`][genjax.core.UpdateProblem], returning a new [`Trace`][genjax.core.Trace], an incremental [`Weight`][genjax.core.Weight] for the new target, a [`Retdiff`][genjax.core.Retdiff] return value tagged with change information, and a backward [`UpdateProblem`][genjax.core.UpdateProblem] which requests the reverse move (to go back to the original trace).
 
@@ -1318,9 +1319,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.or_else(self, gen_fn)
 
-    # TODO for this to be correct we need to either figure out how to splat
-    # a bunch of type params, or change switch to have one return value.
-    def switch(self, *branches: "GenerativeFunction[R]") -> "GenerativeFunction[R]":
+    def switch(self, *branches: "GenerativeFunction[Any]") -> "GenerativeFunction[Any]":
         """
         Given `n` [`genjax.GenerativeFunction`][] inputs, returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
 
@@ -1361,8 +1360,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.switch(self, *branches)
 
-    # TODO mix should also force the same return type.
-    def mix(self, *fns: "GenerativeFunction[R]") -> "GenerativeFunction[R]":
+    def mix(self, *fns: "GenerativeFunction[Any]") -> "GenerativeFunction[Any]":
         """
         Takes any number of [`genjax.GenerativeFunction`][]s and returns a new [`genjax.GenerativeFunction`][] that represents a mixture model.
 
@@ -1575,7 +1573,7 @@ class GenerativeFunction(Generic[R], Pytree):
 GLOBAL_TRACE_OP_HANDLER_STACK: list[Callable[..., Any]] = []
 
 
-def handle_off_trace_stack(addr, gen_fn: GenerativeFunction, args):
+def handle_off_trace_stack(addr, gen_fn: GenerativeFunction[Any], args):
     if GLOBAL_TRACE_OP_HANDLER_STACK:
         handler = GLOBAL_TRACE_OP_HANDLER_STACK[-1]
         return handler(addr, gen_fn, args)
@@ -1614,7 +1612,9 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
 
     @GenerativeFunction.gfi_boundary
     @typecheck
-    def update(self, key: PRNGKey, trace: Trace[R], update_problem: GenericProblem):
+    def update(
+        self, key: PRNGKey, trace: Trace[R], update_problem: GenericProblem
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         (argdiffs, _kwargdiffs) = update_problem.argdiffs
         return self.wrapped.update(
             key, trace, GenericProblem(argdiffs, update_problem.subproblem)
@@ -1674,7 +1674,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         args: tuple[Any, ...],
-    ) -> Trace:
+    ) -> Trace[R]:
         full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
@@ -1690,9 +1690,9 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         update_problem: UpdateProblem,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 full_argdiffs = (*self.args, *argdiffs)

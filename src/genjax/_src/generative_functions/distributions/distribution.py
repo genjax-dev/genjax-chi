@@ -42,6 +42,7 @@ from genjax._src.core.generative import (
     UpdateProblem,
     Weight,
 )
+from genjax._src.core.generative.choice_map import MaskChm
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import Flag, staged_check
 from genjax._src.core.pytree import Closure, Pytree
@@ -190,7 +191,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         constraint: Constraint,
         args: tuple[Any, ...],
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         match constraint:
             case ChoiceMap():
                 tr, w, bwd_problem = self.importance_choice_map(key, constraint, args)
@@ -213,7 +214,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         self,
         trace: Trace[R],
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         sample = trace.get_choices()
         primals = Diff.tree_primal(argdiffs)
         new_score, _ = self.assess(sample, primals)
@@ -231,7 +232,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         constraint: MaskedConstraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         old_sample = trace.get_choices()
 
         def update_branch(key, trace, constraint, argdiffs):
@@ -270,7 +271,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         constraint: Constraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         primals = Diff.tree_primal(argdiffs)
         match constraint:
             case EmptyConstraint():
@@ -322,25 +323,26 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     new_tr = DistributionTrace(self, primals, v, fwd)
                     retval_diff = Diff.tree_diff_no_change(v)
                     return (new_tr, w, retval_diff, EmptyProblem())
-                else:
+                elif isinstance(constraint, MaskChm):
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
-                    def _true_branch(key, new_value, old_value):
+                    def _true_branch(key, new_value: R, _):
                         fwd = self.estimate_logpdf(key, new_value, *primals)
                         bwd = trace.get_score()
                         w = fwd - bwd
                         return (new_value, w, fwd)
 
-                    def _false_branch(key, new_value, old_value):
+                    def _false_branch(key, _, old_value: R):
                         fwd = self.estimate_logpdf(key, old_value, *primals)
                         bwd = trace.get_score()
                         w = fwd - bwd
                         return (old_value, w, fwd)
 
-                    masked_value: Mask = v
+                    masked_value: Mask[R] = v
                     flag = masked_value.flag
-                    new_value = masked_value.value
-                    old_value = trace.get_choices().get_value()
+                    new_value: R = masked_value.value
+                    old_sample = trace.get_choices()
+                    old_value: R = old_sample.get_value()
 
                     new_value, w, score = jax.lax.cond(
                         flag.f,
@@ -354,7 +356,11 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         DistributionTrace(self, primals, new_value, score),
                         w,
                         Diff.tree_diff_unknown_change(new_value),
-                        MaskedProblem(flag, old_value),
+                        MaskedProblem(flag, old_sample),
+                    )
+                else:
+                    raise Exception(
+                        "Only `MaskChm` is currently supported for dynamic flags."
                     )
 
             case _:
@@ -367,7 +373,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         flag: Flag,
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[ArrayLike], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[ArrayLike], Weight, Retdiff[ArrayLike], UpdateProblem]:
         old_value = trace.get_retval()
         primals = Diff.tree_primal(argdiffs)
         possible_trace, w, retdiff, bwd_problem = self.update(
@@ -390,7 +396,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     def update_project(
         self,
         trace: Trace[R],
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         original = trace.get_score()
         removed_value = trace.get_retval()
         retdiff = Diff.tree_diff_unknown_change(trace.get_retval())
@@ -407,7 +413,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         selection: Selection,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         check = () in selection
 
         return self.update(
@@ -426,7 +432,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         match update_problem:
             case EmptyProblem():
                 return self.update_empty(trace, argdiffs)
@@ -461,7 +467,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         trace: Trace[R],
         update_problem: UpdateProblem,
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)

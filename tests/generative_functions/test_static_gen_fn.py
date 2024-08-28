@@ -22,6 +22,7 @@ import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff, Pytree
 from genjax import UpdateProblemBuilder as U
+from genjax._src.core.typing import Array
 from genjax.generative_functions.static import AddressReuse
 from genjax.typing import Float, FloatArray
 
@@ -155,7 +156,7 @@ def simple_normal(custom_tree):
 
 
 @Pytree.dataclass
-class _CustomNormal(genjax.Distribution):
+class _CustomNormal(genjax.Distribution[Array]):
     def estimate_logpdf(self, key, v, *args):
         v, custom_tree = args
         w, _ = genjax.normal.assess(v, (custom_tree.x, custom_tree.y))
