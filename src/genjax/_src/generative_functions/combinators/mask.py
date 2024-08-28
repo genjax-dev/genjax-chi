@@ -13,7 +13,6 @@
 # limitations under the License.
 
 
-import jax
 import jax.numpy as jnp
 
 from genjax._src.core.generative import (
@@ -34,9 +33,10 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.core import Constraint
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import Flag, flag
+from genjax._src.core.interpreters.staging import Flag
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Any,
     Generic,
     PRNGKey,
     TypeVar,
@@ -52,7 +52,7 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     inner: Trace[R]
     check: Flag
 
-    def get_args(self):
+    def get_args(self) -> tuple[Flag, ...]:
         return (self.check, *self.inner.get_args())
 
     def get_gen_fn(self):
@@ -117,20 +117,20 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
         tr = self.gen_fn.simulate(key, inner_args)
-        return MaskTrace(self, tr, flag(check))
+        return MaskTrace(self, tr, Flag(check))
 
     @typecheck
     def update_change_target(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[Mask[R]],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[MaskTrace[R], Weight, Retdiff, UpdateProblem]:
         check = Diff.tree_primal(argdiffs)[0]
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
         match trace:
@@ -158,10 +158,10 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     def update_change_target_from_false(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[Mask[R]],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[MaskTrace[R], Weight, Retdiff, UpdateProblem]:
         check = Diff.tree_primal(argdiffs)[0]
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
 
@@ -191,9 +191,9 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[Mask[R]],
         update_problem: UpdateProblem,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[MaskTrace[R], Weight, Retdiff, UpdateProblem]:
         assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
 
         match update_problem:
@@ -209,8 +209,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                         "This move is not currently supported! See https://github.com/probcomp/genjax/issues/1230 for notes."
                     )
 
-                return jax.lax.cond(
-                    trace.check.f,
+                return trace.check.cond(
                     self.update_change_target,
                     self.update_change_target_from_false,
                     key,
@@ -218,6 +217,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                     subproblem,
                     argdiffs,
                 )
+
             case _:
                 return self.update_change_target(
                     key, trace, update_problem, Diff.no_change(trace.get_args())
@@ -227,7 +227,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     def assess(
         self,
         sample: ChoiceMap,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Score, Mask[R]]:
         (check, *inner_args) = args
         score, retval = self.gen_fn.assess(sample, tuple(inner_args))
@@ -243,7 +243,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
 
 @typecheck
-def mask(f: GenerativeFunction[R]) -> GenerativeFunction:
+def mask(f: GenerativeFunction[R]) -> MaskCombinator[R]:
     """
     Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
 

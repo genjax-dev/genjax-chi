@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
 import jax.numpy as jnp
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 
 
@@ -73,7 +74,7 @@ class TestVmapCombinator:
         (tr, _) = kernel.importance(sub_key, chm, (map_over,))
         for i in range(0, 3):
             v = tr.get_choices()[i, "z"]
-            assert v == zv[i]
+            assert v.unmask() == zv[i]
 
     def test_vmap_combinator_nested_indexed_choice_map_importance(self):
         @genjax.vmap(in_axes=(0,))

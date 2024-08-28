@@ -41,21 +41,6 @@ class DiscreteHMMInferenceProblem(Pytree):
     latent_sequence: IntArray
     observation_sequence: IntArray
 
-    def get_initial_state(self):
-        return self.initial_state
-
-    def get_latents(self):
-        return self.latent_sequence
-
-    def get_observations(self):
-        return self.observation_sequence
-
-    def get_log_posterior(self):
-        return self.log_posterior
-
-    def get_log_data_marginal(self):
-        return self.log_data_marginal
-
 
 def build_test_against_exact_inference(
     max_length: Int,

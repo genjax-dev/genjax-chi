@@ -487,17 +487,6 @@ class ADEVProgram(Pytree):
 
         return adev_jvp(self.source)(dual_tree)
 
-    def _jvp_estimate_identity_kont(
-        self,
-        key: PRNGKey,
-        dual_tree: DualTree,
-    ):
-        # Trivial continuation.
-        def _identity(x):
-            return x
-
-        return self._jvp_estimate(key, dual_tree, _identity)
-
     @typecheck
     def debug_transform_adev(
         self, key: PRNGKey, primals: tuple, tangents: tuple, mapping: Callable[..., Any]
@@ -536,12 +525,6 @@ class Expectation(Pytree):
             return invoke_closed_over(self, key, primals)
 
         return jax.grad(_invoke_closed_over)(primals)
-
-    def value_and_grad_estimate(self, key: PRNGKey, primals: tuple):
-        def _invoke_closed_over(primals):
-            return invoke_closed_over(self, key, primals)
-
-        return jax.value_and_grad(_invoke_closed_over)(primals)
 
     #################
     # For debugging #

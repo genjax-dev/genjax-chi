@@ -13,13 +13,14 @@
 # limitations under the License.
 
 import jax.numpy as jnp
+from jax.random import PRNGKey
+
 from genjax import ChoiceMap as Chm
 from genjax import ChoiceMapBuilder as C
 from genjax import UpdateProblemBuilder as U
 from genjax import gen, normal
 from genjax._src.core.interpreters.staging import Flag
 from genjax.core.interpreters import get_importance_shape, get_update_shape
-from jax.random import PRNGKey
 
 
 class TestStaging:
@@ -48,18 +49,18 @@ class TestStaging:
 class TestFlag:
     def test_basic_operation(self):
         true_flags = [
-            Flag(True, concrete=True),
-            Flag(jnp.array(True), concrete=True),
-            Flag(jnp.array([True, True]), concrete=False),
-            Flag(jnp.array([3.0, 4.0]), concrete=False),
+            Flag(True),
+            Flag(jnp.array(True)),
+            Flag(jnp.array([True, True])),
+            Flag(jnp.array([3.0, 4.0])),
         ]
         false_flags = [
-            Flag(False, concrete=True),
-            Flag(jnp.array(False), concrete=True),
-            Flag(jnp.array([True, False]), concrete=False),
-            Flag(jnp.array([False, False]), concrete=False),
-            Flag(jnp.array([0.0, 0.0]), concrete=False),
-            Flag(jnp.array([0.0, 1.0]), concrete=False),
+            Flag(False),
+            Flag(jnp.array(False)),
+            Flag(jnp.array([True, False])),
+            Flag(jnp.array([False, False])),
+            Flag(jnp.array([0.0, 0.0])),
+            Flag(jnp.array([0.0, 1.0])),
         ]
         for t in true_flags:
             assert t
@@ -73,5 +74,7 @@ class TestFlag:
                 assert t.or_(u)
 
     def test_where(self):
-        assert Flag(True, concrete=True).where(3.0, 4.0) == 3
-        assert Flag(False, concrete=True).where(3.0, 4.0) == 4
+        assert Flag(True).where(3.0, 4.0) == 3
+        assert Flag(False).where(3.0, 4.0) == 4
+        assert Flag(jnp.array(True)).where(3.0, 4.0) == 3
+        assert Flag(jnp.array(False)).where(3.0, 4.0) == 4

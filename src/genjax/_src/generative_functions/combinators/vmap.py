@@ -30,7 +30,6 @@ from genjax._src.core.generative import (
     R,
     Retdiff,
     Score,
-    Selection,
     Trace,
     UpdateProblem,
     Weight,
@@ -49,14 +48,14 @@ from genjax._src.core.typing import (
 
 
 @Pytree.dataclass
-class VmapTrace(Trace):
-    gen_fn: GenerativeFunction
-    inner: Trace
-    args: tuple
-    retval: Any
+class VmapTrace(Generic[R], Trace[R]):
+    gen_fn: GenerativeFunction[R]
+    inner: Trace[R]
+    args: tuple[Any, ...]
+    retval: R
     score: FloatArray
 
-    def get_args(self) -> tuple:
+    def get_args(self) -> tuple[Any, ...]:
         return self.args
 
     def get_retval(self):
@@ -126,7 +125,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         ```
     """
 
-    gen_fn: GenerativeFunction
+    gen_fn: GenerativeFunction[R]
     in_axes: InAxes = Pytree.static()
 
     def __abstract_call__(self, *args) -> Any:
@@ -135,7 +134,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
         return jax.vmap(inner, in_axes=self.in_axes)(*args)
 
-    def _static_check_broadcastable(self, args: tuple) -> None:
+    def _static_check_broadcastable(self, args: tuple[Any, ...]) -> None:
         # Argument broadcast semantics must be fully specified
         # in `in_axes`.
         if self.in_axes is not None:
@@ -165,8 +164,8 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
-    ) -> VmapTrace:
+        args: tuple[Any, ...],
+    ) -> VmapTrace[R]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         sub_keys = jax.random.split(key, broadcast_dim_length)
@@ -180,8 +179,8 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
-        args: tuple,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        args: tuple[Any, ...],
+    ) -> tuple[VmapTrace[R], Weight, Retdiff, UpdateProblem]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         idx_array = jnp.arange(0, broadcast_dim_length)
@@ -211,10 +210,10 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
     def update_choice_map(
         self,
         key: PRNGKey,
-        prev: VmapTrace,
+        prev: VmapTrace[R],
         update_problem: ChoiceMap,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, ChoiceMap]:
+    ) -> tuple[VmapTrace[R], Weight, Retdiff, ChoiceMap]:
         primals = Diff.tree_primal(argdiffs)
         self._static_check_broadcastable(primals)
         broadcast_dim_length = self._static_broadcast_dim_length(primals)
@@ -237,43 +236,14 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         map_tr = VmapTrace(self, new_subtraces, primals, retval, jnp.sum(scores))
         return map_tr, w, retdiff, bwd_problems
 
-    def update_remove_selection(
-        self,
-        key: PRNGKey,
-        trace: VmapTrace,
-        selection: Selection,
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, ChoiceMap]:
-        primals = Diff.tree_primal(argdiffs)
-        self._static_check_broadcastable(primals)
-        broadcast_dim_length = self._static_broadcast_dim_length(primals)
-        idx_array = jnp.arange(0, broadcast_dim_length)
-        sub_keys = jax.random.split(key, broadcast_dim_length)
-
-        def _update(key, idx, subtrace, argdiffs):
-            subproblem = selection(idx)
-            new_subtrace, w, retdiff, bwd_problem = self.gen_fn.update(
-                key, subtrace, GenericProblem(argdiffs, subproblem)
-            )
-            return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_problem)
-
-        new_subtraces, w, retdiff, bwd_problems = jax.vmap(
-            _update, in_axes=(0, 0, 0, self.in_axes)
-        )(sub_keys, idx_array, trace.inner, argdiffs)
-        w = jnp.sum(w)
-        retval = new_subtraces.get_retval()
-        scores = new_subtraces.get_score()
-        map_tr = VmapTrace(self, new_subtraces, primals, retval, jnp.sum(scores))
-        return map_tr, w, retdiff, bwd_problems
-
     @typecheck
     def update_change_target(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[VmapTrace[R], Weight, Retdiff, UpdateProblem]:
         match update_problem:
             case ChoiceMap():
                 assert isinstance(
@@ -293,9 +263,9 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         update_problem: UpdateProblem,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[VmapTrace[R], Weight, Retdiff, UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
@@ -308,7 +278,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
     def assess(
         self,
         sample: ChoiceMap,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Score, R]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
@@ -327,7 +297,9 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 #############
 
 
-def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction], GenerativeFunction]:
+def vmap(
+    *, in_axes: InAxes = 0
+) -> Callable[[GenerativeFunction[R]], VmapCombinator[R]]:
     """
     Returns a decorator that wraps a [`GenerativeFunction`][genjax.GenerativeFunction] and returns a new `GenerativeFunction` that performs a vectorized map over the argument specified by `in_axes`. Traced values are nested under an index, and the retval is vectorized.
 
@@ -360,7 +332,7 @@ def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction], GenerativeFun
         ```
     """
 
-    def decorator(gen_fn) -> GenerativeFunction:
+    def decorator(gen_fn: GenerativeFunction[R]) -> VmapCombinator[R]:
         return VmapCombinator(gen_fn, in_axes)
 
     return decorator

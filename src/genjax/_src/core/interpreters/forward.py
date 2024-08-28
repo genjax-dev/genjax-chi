@@ -97,9 +97,6 @@ class InitialStylePrimitive(FlatPrimitive):
 
         self.def_impl(fun_impl)
 
-    def subcall(self, name):
-        return InitialStylePrimitive(f"{self.name}/{name}")
-
 
 def initial_style_bind(prim, **params):
     """Binds a primitive to a function call."""

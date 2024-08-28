@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING
 
 import jax
 import jax.numpy as jnp
-import jax.tree_util as jtu
 from penzai.core import formatting_util
 
 from genjax._src.core.interpreters.incremental import Diff
@@ -34,7 +33,6 @@ from genjax._src.core.typing import (
     Int,
     IntArray,
     Is,
-    Optional,
     PRNGKey,
     String,
     TypeVar,
@@ -46,7 +44,7 @@ if TYPE_CHECKING:
     import genjax
 
 _C = TypeVar("_C", bound=Callable[..., Any])
-ArgTuple = TypeVar("ArgTuple", bound=tuple)
+ArgTuple = TypeVar("ArgTuple", bound=tuple[Any, ...])
 
 # Generative Function type variables
 R = TypeVar("R")
@@ -82,7 +80,7 @@ Arguments = tuple
 """
 
 Argdiffs = Annotated[
-    tuple,
+    tuple[Any, ...],
     Is[Diff.static_check_tree_diff],
 ]
 """
@@ -96,6 +94,7 @@ Retdiff = Annotated[
     R,
     Is[Diff.static_check_tree_diff],
 ]
+
 """
 `Retdiff` is the type of return values with an attached `ChangeType` (c.f. [`update`][genjax.core.GenerativeFunction.update]).
 
@@ -376,7 +375,7 @@ class Trace(Generic[R], Pytree):
         self,
         key: PRNGKey,
         problem: GenericProblem | UpdateProblem,
-        argdiffs: tuple | None = None,
+        argdiffs: tuple[Any, ...] | None = None,
     ) -> tuple["Trace[R]", Weight, Retdiff, UpdateProblem]:
         """
         This method calls out to the underlying [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update] method - see [`UpdateProblem`][genjax.core.UpdateProblem] and [`update`][genjax.core.GenerativeFunction.update] for more information.
@@ -526,10 +525,6 @@ class GenerativeFunction(Generic[R], Pytree):
 
     def get_trace_shape(self, *args) -> Any:
         return get_trace_shape(self, args)
-
-    def get_empty_trace(self, *args) -> Trace[R]:
-        trace_template = self.get_trace_shape(*args)
-        return jtu.tree_map(lambda v: jnp.zeros(v.shape, dtype=v.dtype), trace_template)
 
     @classmethod
     def gfi_boundary(cls, c: _C) -> _C:
@@ -1562,9 +1557,9 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         /,
         *,
-        selection: Optional[Any] = None,
-        algorithm: Optional[Any] = None,
-    ) -> "GenerativeFunction":
+        selection: Any | None = None,
+        algorithm: Any | None = None,
+    ) -> "genjax.Marginal[R]":
         from genjax import Selection, marginal
 
         if selection is None:
@@ -1601,10 +1596,10 @@ def push_trace_overload_stack(handler, fn):
 
 
 @Pytree.dataclass
-class IgnoreKwargs(GenerativeFunction):
-    wrapped: GenerativeFunction
+class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
+    wrapped: GenerativeFunction[R]
 
-    def handle_kwargs(self) -> "GenerativeFunction":
+    def handle_kwargs(self) -> "GenerativeFunction[R]":
         raise NotImplementedError
 
     @GenerativeFunction.gfi_boundary
@@ -1613,13 +1608,13 @@ class IgnoreKwargs(GenerativeFunction):
         self,
         key: PRNGKey,
         args: Arguments,
-    ) -> Trace:
+    ) -> Trace[R]:
         (args, _kwargs) = args
         return self.wrapped.simulate(key, args)
 
     @GenerativeFunction.gfi_boundary
     @typecheck
-    def update(self, key: PRNGKey, trace: Trace, update_problem: GenericProblem):
+    def update(self, key: PRNGKey, trace: Trace[R], update_problem: GenericProblem):
         (argdiffs, _kwargdiffs) = update_problem.argdiffs
         return self.wrapped.update(
             key, trace, GenericProblem(argdiffs, update_problem.subproblem)
@@ -1629,8 +1624,8 @@ class IgnoreKwargs(GenerativeFunction):
 @Pytree.dataclass
 class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     gen_fn: GenerativeFunction[R]
-    args: tuple
-    kwargs: dict
+    args: tuple[Any, ...]
+    kwargs: dict[Any, Any]
 
     def get_gen_fn_with_kwargs(self):
         return self.gen_fn.handle_kwargs()
@@ -1678,7 +1673,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> Trace:
         full_args = (*self.args, *args)
         if self.kwargs:
@@ -1721,7 +1716,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     def assess(
         self,
         sample: "genjax.ChoiceMap",
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Score, R]:
         full_args = (*self.args, *args)
         if self.kwargs:

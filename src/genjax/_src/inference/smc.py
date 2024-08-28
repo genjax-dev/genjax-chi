@@ -44,7 +44,6 @@ from genjax._src.core.typing import (
     Callable,
     FloatArray,
     Int,
-    Optional,
     PRNGKey,
     typecheck,
 )
@@ -110,9 +109,6 @@ class ParticleCollection(Pytree):
     def __getitem__(self, idx) -> tuple:
         return jtu.tree_map(lambda v: v[idx], (self.particles, self.log_weights))
 
-    def check_valid(self) -> BoolArray:
-        return self.is_valid
-
     def sample_particle(self, key) -> Trace:
         """
         Samples a particle from the collection, with probability proportional to its weight.
@@ -156,7 +152,7 @@ class SMCAlgorithm(Algorithm):
 
     # Convenience method for returning an estimate of the normalizing constant
     # of the target.
-    def log_marginal_likelihood_estimate(self, key, target: Optional[Target] = None):
+    def log_marginal_likelihood_estimate(self, key, target: Target | None = None):
         if target:
             algorithm = ChangeTarget(self, target)
         else:
