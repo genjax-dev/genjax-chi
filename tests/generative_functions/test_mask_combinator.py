@@ -77,6 +77,25 @@ class TestMaskCombinator:
         w = tr.update(key, argdiffs)[1]
         assert w == -tr.get_score()
 
+    def test_mask_vmap(self, key):
+        @genjax.gen
+        def init():
+            x = genjax.normal(0., 1.) @ "x"
+            return x
+
+        @genjax.gen
+        def model_2():
+            masks = jnp.array([True, False, True])
+            vmask_init = init.mask().vmap(in_axes=(0))(masks) @ "init"
+            return vmask_init
+
+        tr = model_2.simulate(key, ())
+        assert tr.get_score() == -3.1371737
+        inner_scores = tr.get_subtrace(('init',)).inner.inner.get_score()
+        # score should be sum of sub-scores masked True
+        assert tr.get_score() == inner_scores[0] + inner_scores[2]
+
+
     @pytest.mark.skip(reason="This test is currently skipped")
     def test_mask_update_weight_to_argdiffs_from_false(self, key):
         # pre-update mask arg is False

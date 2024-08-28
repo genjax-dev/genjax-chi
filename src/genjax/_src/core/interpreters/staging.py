@@ -106,7 +106,7 @@ class Flag(Pytree):
             return t
         if self.f is False:
             return f
-        return jax.lax.select(jnp.all(self.f), t, f)
+        return jax.lax.select(self.f, t, f)
 
     def cond(self, tf: Callable[..., Any], ff: Callable[..., Any], *args: Any):
         """Invokes `tf` with `args` if flag is true, else `ff`"""
