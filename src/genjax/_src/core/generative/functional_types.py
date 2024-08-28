@@ -63,15 +63,15 @@ class Mask(Generic[R], Pytree):
     value: R
 
     @classmethod
-    def maybe(cls, f: Flag, v: R) -> "Mask[R] | None":
+    def maybe(cls, f: Flag, v: "R | Mask[R]") -> "Mask[R]":
         match v:
             case Mask(flag, value):
-                return Mask.maybe_none(f.and_(flag), value)
+                return Mask[R](f.and_(flag), value)
             case _:
                 return Mask[R](f, v)
 
     @classmethod
-    def maybe_none(cls, f: Flag, v: R) -> "R | Mask[R] | None":
+    def maybe_none(cls, f: Flag, v: "R | Mask[R]") -> "R | Mask[R] | None":
         if v is None or f.concrete_false():
             return None
         elif f.concrete_true():
@@ -89,7 +89,6 @@ class Sum(Generic[R], Pytree):
 
     Examples:
         A common scenario which will produce `Sum` types is when using a `SwitchCombinator` with branches that have multiple possible return value types:
-
         ```python exec="yes" html="true" source="material-block" session="core"
         from genjax import gen, normal, bernoulli
 
