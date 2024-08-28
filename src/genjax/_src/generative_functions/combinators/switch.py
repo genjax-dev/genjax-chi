@@ -248,7 +248,7 @@ class SwitchCombinator(GenerativeFunction[Any]):
     @typecheck
     def _empty_update_defs(
         self,
-        trace: SwitchTrace[R],
+        trace: SwitchTrace[Any],
         problem: UpdateProblem,
         argdiffs: Argdiffs,
     ):
@@ -294,7 +294,7 @@ class SwitchCombinator(GenerativeFunction[Any]):
         self,
         key: PRNGKey,
         static_idx: Int,
-        trace: SwitchTrace[R],
+        trace: SwitchTrace[Any],
         problem: UpdateProblem,
         idx: IntArray,
         argdiffs: Argdiffs,
@@ -321,7 +321,7 @@ class SwitchCombinator(GenerativeFunction[Any]):
         self,
         key: PRNGKey,
         static_idx: Int,
-        trace: SwitchTrace[R],
+        trace: SwitchTrace[Any],
         problem: UpdateProblem,
         idx: IntArray,
         argdiffs: Argdiffs,
@@ -382,10 +382,10 @@ class SwitchCombinator(GenerativeFunction[Any]):
     def update_generic(
         self,
         key: PRNGKey,
-        trace: SwitchTrace[R],
+        trace: SwitchTrace[Any],
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
+    ) -> tuple[SwitchTrace[Any], Weight, Retdiff[Any], UpdateProblem]:
         (idx_argdiff, *branch_argdiffs) = argdiffs
         self.static_check_num_arguments_equals_num_branches(branch_argdiffs)
 
