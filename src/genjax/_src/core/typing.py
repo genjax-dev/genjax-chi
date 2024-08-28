@@ -62,6 +62,7 @@ ScalarBool = Annotated[Bool | BoolArray, ScalarShaped]
 
 Generic = btyping.Generic
 TypeVar = btyping.TypeVar
+TypeVarTuple = btyping.TypeVarTuple
 ParamSpec = btyping.ParamSpec
 
 ########################################

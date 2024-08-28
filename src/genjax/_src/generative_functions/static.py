@@ -515,7 +515,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         args: tuple[Any, ...],
-    ) -> StaticTrace:
+    ) -> StaticTrace[R]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -535,10 +535,10 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     def update_change_target(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], UpdateProblem]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -585,9 +585,9 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         update_problem: UpdateProblem,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)

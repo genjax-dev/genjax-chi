@@ -190,7 +190,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         constraint: Constraint,
         args: tuple[Any, ...],
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         match constraint:
             case ChoiceMap():
                 tr, w, bwd_problem = self.importance_choice_map(key, constraint, args)
@@ -213,7 +213,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         self,
         trace: Trace[R],
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         sample = trace.get_choices()
         primals = Diff.tree_primal(argdiffs)
         new_score, _ = self.assess(sample, primals)
@@ -231,7 +231,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         constraint: MaskedConstraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         old_sample = trace.get_choices()
 
         def update_branch(key, trace, constraint, argdiffs):
@@ -270,7 +270,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         constraint: Constraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         primals = Diff.tree_primal(argdiffs)
         match constraint:
             case EmptyConstraint():
@@ -367,7 +367,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         flag: Flag,
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[ArrayLike], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[ArrayLike], Weight, Retdiff[R], UpdateProblem]:
         old_value = trace.get_retval()
         primals = Diff.tree_primal(argdiffs)
         possible_trace, w, retdiff, bwd_problem = self.update(
@@ -390,7 +390,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     def update_project(
         self,
         trace: Trace[R],
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         original = trace.get_score()
         removed_value = trace.get_retval()
         retdiff = Diff.tree_diff_unknown_change(trace.get_retval())
@@ -407,7 +407,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         selection: Selection,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         check = () in selection
 
         return self.update(
@@ -426,7 +426,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         match update_problem:
             case EmptyProblem():
                 return self.update_empty(trace, argdiffs)
@@ -461,7 +461,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         trace: Trace[R],
         update_problem: UpdateProblem,
-    ) -> tuple[Trace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)

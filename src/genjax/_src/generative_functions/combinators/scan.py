@@ -248,7 +248,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         key: PRNGKey,
         constraint: ChoiceMap,
         args: tuple[Any, ...],
-    ) -> tuple[Trace[tuple[Carry, Y]], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], UpdateProblem]:
         (carry, scanned_in) = args
 
         def _inner_importance(key, constraint, carry, scanned_in):
@@ -315,7 +315,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         trace: ScanTrace[Carry, Y],
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], UpdateProblem]:
         carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(
             Diff.tree_primal(argdiffs)
         )
@@ -446,7 +446,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         trace: Trace[tuple[Carry, Y]],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[tuple[Carry, Y]], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], UpdateProblem]:
         assert isinstance(trace, EmptyTrace | ScanTrace)
         match update_problem:
             case ImportanceProblem(constraint) if isinstance(constraint, ChoiceMap):
@@ -478,7 +478,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         key: PRNGKey,
         trace: Trace[tuple[Carry, Y]],
         update_problem: UpdateProblem,
-    ) -> tuple[Trace[tuple[Carry, Y]], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)

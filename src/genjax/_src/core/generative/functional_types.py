@@ -88,8 +88,8 @@ class Sum(Generic[R], Pytree):
     The `Sum` type is used to represent a choice between multiple possible values, and is used in generative computations to represent uncertainty over values.
 
     Examples:
-        A common scenario which will produce `Sum` types is when using a `SwitchCombinator` with branches that have
-        multiple possible return value types:
+        A common scenario which will produce `Sum` types is when using a `SwitchCombinator` with branches that have multiple possible return value types:
+
         ```python exec="yes" html="true" source="material-block" session="core"
         from genjax import gen, normal, bernoulli
 

@@ -14,7 +14,7 @@
 
 
 from genjax._src.core.generative import GenerativeFunction
-from genjax._src.core.typing import TypeVar, typecheck
+from genjax._src.core.typing import Any, typecheck
 from genjax._src.generative_functions.combinators.switch import (
     switch,
 )
@@ -23,11 +23,9 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 )
 from genjax._src.generative_functions.static import gen
 
-R = TypeVar("R")
-
 
 @typecheck
-def mix(*gen_fns: GenerativeFunction[R]) -> GenerativeFunction[R]:
+def mix(*gen_fns: GenerativeFunction[Any]) -> GenerativeFunction[Any]:
     """
     Creates a mixture model from a set of generative functions.
 
@@ -77,9 +75,9 @@ def mix(*gen_fns: GenerativeFunction[R]) -> GenerativeFunction[R]:
     inner_combinator_closure = switch(*gen_fns)
 
     @gen
-    def mixture_model(mixture_logits, *args) -> R:
+    def mixture_model(mixture_logits, *args) -> Any:
         mix_idx = categorical(mixture_logits) @ "mixture_component"
-        v: R = inner_combinator_closure(mix_idx, *args) @ "component_sample"
+        v = inner_combinator_closure(mix_idx, *args) @ "component_sample"
         return v
 
     return mixture_model
