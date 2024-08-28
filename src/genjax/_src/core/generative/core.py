@@ -1612,7 +1612,9 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
 
     @GenerativeFunction.gfi_boundary
     @typecheck
-    def update(self, key: PRNGKey, trace: Trace[R], update_problem: GenericProblem):
+    def update(
+        self, key: PRNGKey, trace: Trace[R], update_problem: GenericProblem
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         (argdiffs, _kwargdiffs) = update_problem.argdiffs
         return self.wrapped.update(
             key, trace, GenericProblem(argdiffs, update_problem.subproblem)

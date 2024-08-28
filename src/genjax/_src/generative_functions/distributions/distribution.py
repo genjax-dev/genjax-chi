@@ -325,22 +325,22 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 else:
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
-                    def _true_branch(key, new_value, old_value):
+                    def _true_branch(key, new_value: R, _):
                         fwd = self.estimate_logpdf(key, new_value, *primals)
                         bwd = trace.get_score()
                         w = fwd - bwd
                         return (new_value, w, fwd)
 
-                    def _false_branch(key, new_value, old_value):
+                    def _false_branch(key, _, old_value: R):
                         fwd = self.estimate_logpdf(key, old_value, *primals)
                         bwd = trace.get_score()
                         w = fwd - bwd
                         return (old_value, w, fwd)
 
-                    masked_value: Mask = v
+                    masked_value: Mask[R] = v
                     flag = masked_value.flag
-                    new_value = masked_value.value
-                    old_value = trace.get_choices().get_value()
+                    new_value: R = masked_value.value
+                    old_value: R = trace.get_choices().get_value()
 
                     new_value, w, score = jax.lax.cond(
                         flag.f,
@@ -367,7 +367,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         flag: Flag,
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[ArrayLike], Weight, Retdiff[R], UpdateProblem]:
+    ) -> tuple[Trace[ArrayLike], Weight, Retdiff[ArrayLike], UpdateProblem]:
         old_value = trace.get_retval()
         primals = Diff.tree_primal(argdiffs)
         possible_trace, w, retdiff, bwd_problem = self.update(
