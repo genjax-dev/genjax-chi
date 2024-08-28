@@ -15,13 +15,38 @@
 
 from tensorflow_probability.substrates import jax as tfp
 
-from genjax._src.core.typing import Any, Callable
-from genjax._src.generative_functions.distributions.distribution import exact_density
+from genjax._src.core.typing import Array, Callable
+from genjax._src.generative_functions.distributions.distribution import (
+    ExactDensityFromCallables,
+    exact_density,
+)
 
 tfd = tfp.distributions
 
+from typing import TYPE_CHECKING
 
-def tfp_distribution(dist: Callable[..., Any]):
+if TYPE_CHECKING:
+    import tensorflow_probability.python.distributions.distribution as dist
+
+
+def tfp_distribution(
+    dist: Callable[..., "dist.Distribution"],
+) -> ExactDensityFromCallables[Array]:
+    """
+    Creates an ExactDensityFromCallables generative function from a TensorFlow Probability distribution.
+
+    Args:
+        dist: A callable that returns a TensorFlow Probability distribution.
+        _v: An example object for return type annotation. Defaults to object().
+
+    Returns:
+        A generative function wrapping the TensorFlow Probability distribution.
+
+    This function creates a generative function that encapsulates the sampling and log probability
+    computation of a TensorFlow Probability distribution. It uses the distribution's `sample` and
+    `log_prob` methods to define the generative function's behavior.
+    """
+
     def sampler(key, *args, **kwargs):
         d = dist(*args, **kwargs)
         return d.sample(seed=key)
@@ -38,6 +63,7 @@ def tfp_distribution(dist: Callable[..., Any]):
 #####################
 
 beta = tfp_distribution(tfd.Beta)
+
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Beta`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Beta) distribution from TensorFlow Probability distributions.
 """

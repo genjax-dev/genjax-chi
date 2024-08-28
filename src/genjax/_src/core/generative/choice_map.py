@@ -413,7 +413,7 @@ class _ChoiceMapBuilder(Pytree):
     def v(self, v) -> "ChoiceMap":
         return ChoiceMap.value(v)
 
-    def d(self, d: dict) -> "ChoiceMap":
+    def d(self, d: dict[Any, Any]) -> "ChoiceMap":
         return ChoiceMap.d(d)
 
     def kw(self, **kwargs) -> "ChoiceMap":
@@ -622,7 +622,7 @@ class ChoiceMap(Sample, Constraint):
         )
 
     @classmethod
-    def d(cls, d: dict) -> "ChoiceMap":
+    def d(cls, d: dict[Any, Any]) -> "ChoiceMap":
         start = ChoiceMap.empty()
         if d:
             for k, v in d.items():
