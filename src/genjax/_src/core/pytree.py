@@ -34,19 +34,16 @@ from penzai.treescope.handlers import builtin_structure_handler
 from penzai.treescope.handlers.penzai import struct_handler
 from typing_extensions import dataclass_transform
 
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
+    Generic,
     Int,
     TypeVar,
-    static_check_is_array,
     static_check_is_concrete,
-    static_check_supports_grad,
 )
 
-register_exclusion(__file__)
-
+R = TypeVar("R")
 _T = TypeVar("_T")
 
 
@@ -197,8 +194,8 @@ class Pytree(pz.Struct):
         )
 
     @staticmethod
-    def partial(*args):
-        return lambda fn: Closure(args, fn)
+    def partial(*args) -> Callable[[Callable[..., R]], "Closure[R]"]:
+        return lambda fn: Closure[R](args, fn)
 
     def treedef(self):
         return jtu.tree_structure(self)
@@ -208,7 +205,7 @@ class Pytree(pz.Struct):
     #################
 
     @staticmethod
-    def static_check_tree_structure_equivalence(trees: list):
+    def static_check_tree_structure_equivalence(trees: list[Any]):
         if not trees:
             return True
         else:
@@ -217,105 +214,9 @@ class Pytree(pz.Struct):
             check = all(map(lambda v: treedef == jtu.tree_structure(v), rest))
             return check
 
-    @staticmethod
-    def static_check_none(v):
-        return v == Const(None)
-
-    @staticmethod
-    def static_check_tree_leaves_have_matching_leading_dim(tree):
-        def _inner(v):
-            if static_check_is_array(v):
-                shape = v.shape
-                return shape[0] if shape else 0
-            else:
-                return 0
-
-        broadcast_dim_tree = jtu.tree_map(lambda v: _inner(v), tree)
-        leaves = jtu.tree_leaves(broadcast_dim_tree)
-        leaf_lengths = set(leaves)
-        # all the leaves must have the same first dim size.
-        assert len(leaf_lengths) == 1
-        max_index = list(leaf_lengths).pop()
-        return max_index
-
     #############
     # Utilities #
     #############
-
-    @staticmethod
-    def tree_stack(trees):
-        """Takes a list of trees and stacks every corresponding leaf.
-
-        For example, given two trees ((a, b), c) and ((a', b'), c'), returns ((stack(a,
-        a'), stack(b, b')), stack(c, c')).
-
-        Useful for turning a list of objects into something you can feed to a vmapped
-        function.
-        """
-        leaves_list = []
-        treedef_list = []
-        for tree in trees:
-            leaves, treedef = jtu.tree_flatten(tree)
-            leaves_list.append(leaves)
-            treedef_list.append(treedef)
-
-        grouped_leaves = zip(*leaves_list)
-        result_leaves = [
-            jnp.squeeze(jnp.stack(leaf, axis=-1)) for leaf in grouped_leaves
-        ]
-        return treedef_list[0].unflatten(result_leaves)
-
-    @staticmethod
-    def tree_unstack(tree):
-        """Takes a tree and turns it into a list of trees. Inverse of tree_stack.
-
-        For example, given a tree ((a, b), c), where a, b, and c all have
-        first dimension k, will make k trees [((a[0], b[0]), c[0]), ...,
-        ((a[k], b[k]), c[k])]
-
-        Useful for turning the output of a vmapped function into normal
-        objects.
-        """
-        leaves, treedef = jtu.tree_flatten(tree)
-        n_trees = leaves[0].shape[0]
-        new_leaves = [[] for _ in range(n_trees)]
-        for leaf in leaves:
-            for i in range(n_trees):
-                new_leaves[i].append(leaf[i])
-        new_trees = [treedef.unflatten(leaf) for leaf in new_leaves]
-        return new_trees
-
-    @staticmethod
-    def tree_grad_split(tree):
-        def _grad_filter(v):
-            if static_check_supports_grad(v):
-                return v
-            else:
-                return None
-
-        def _nograd_filter(v):
-            if not static_check_supports_grad(v):
-                return v
-            else:
-                return None
-
-        grad = jtu.tree_map(_grad_filter, tree)
-        nograd = jtu.tree_map(_nograd_filter, tree)
-
-        return grad, nograd
-
-    @staticmethod
-    def tree_grad_zip(grad, nograd):
-        def _zipper(*args):
-            for arg in args:
-                if arg is not None:
-                    return arg
-            return None
-
-        def _is_none(x):
-            return x is None
-
-        return jtu.tree_map(_zipper, grad, nograd, is_leaf=_is_none)
 
     def render_html(self):
         def _pytree_handler(node, subtree_renderer):
@@ -335,19 +236,21 @@ class Pytree(pz.Struct):
                         "background_color must be provided if background_pattern is"
                     )
 
-                def wrap_block(block):
+                def wrapper1(block):
                     return common_styles.WithBlockPattern(
                         block, color=background_color, pattern=background_pattern
                     )
 
+                wrap_block = wrapper1
                 wrap_topline = common_styles.PatternedTopLineSpanGroup
                 wrap_bottomline = common_styles.PatternedBottomLineSpanGroup
 
             elif background_color is not None and background_color != "transparent":
 
-                def wrap_block(block):
+                def wrapper2(block):
                     return common_styles.WithBlockColor(block, color=background_color)
 
+                wrap_block = wrapper2
                 wrap_topline = common_styles.ColoredTopLineSpanGroup
                 wrap_bottomline = common_styles.ColoredBottomLineSpanGroup
 
@@ -458,7 +361,7 @@ class Const(Pytree):
 
 # Construct for a type of closure which closes over dynamic values.
 @Pytree.dataclass
-class Closure(Pytree):
+class Closure(Generic[R], Pytree):
     """
     JAX-compatible closure type. It's a closure _as a [`Pytree`][genjax.core.Pytree]_ - meaning the static _source code_ / _callable_ is separated from dynamic data (which must be tracked by JAX).
 
@@ -488,10 +391,10 @@ class Closure(Pytree):
         ```
     """
 
-    dyn_args: tuple
-    fn: Callable[..., Any] = Pytree.static()
+    dyn_args: tuple[Any, ...]
+    fn: Callable[..., R] = Pytree.static()
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> R:
         return self.fn(*self.dyn_args, *args, **kwargs)
 
 

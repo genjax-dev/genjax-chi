@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
 import jax.numpy as jnp
 import pytest
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import UpdateProblemBuilder as U
+from genjax._src.core.interpreters.staging import Flag
 
 
 @genjax.mask
@@ -36,11 +38,15 @@ class TestMaskCombinator:
     def test_mask_simple_normal_true(self, key):
         tr = jax.jit(model.simulate)(key, (True, -4.0))
         assert tr.get_score() == tr.inner.get_score()
-        assert tr.get_retval() == genjax.Mask(jnp.array(True), tr.inner.get_retval())
+        assert tr.get_retval() == genjax.Mask(
+            Flag(jnp.array(True)), tr.inner.get_retval()
+        )
 
         tr = jax.jit(model.simulate)(key, (False, -4.0))
         assert tr.get_score() == 0.0
-        assert tr.get_retval() == genjax.Mask(jnp.array(False), tr.inner.get_retval())
+        assert tr.get_retval() == genjax.Mask(
+            Flag(jnp.array(False)), tr.inner.get_retval()
+        )
 
     def test_mask_simple_normal_false(self, key):
         tr = jax.jit(model.simulate)(key, (False, 2.0))
@@ -59,14 +65,14 @@ class TestMaskCombinator:
         tr = jax.jit(model.simulate)(key, (True, 2.0))
         # mask check arg transition: True --> True
         argdiffs = U.g(
-            (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1])), C.n()
+            (Diff.unknown_change(Flag(True)), Diff.no_change(tr.get_args()[1])), C.n()
         )
         w = tr.update(key, argdiffs)[1]
         assert w == tr.inner.update(key, C.n())[1]
         assert w == 0.0
         # mask check arg transition: True --> False
         argdiffs = U.g(
-            (Diff.unknown_change(False), Diff.no_change(tr.get_args()[1])), C.n()
+            (Diff.unknown_change(Flag(False)), Diff.no_change(tr.get_args()[1])), C.n()
         )
         w = tr.update(key, argdiffs)[1]
         assert w == -tr.get_score()
@@ -77,14 +83,14 @@ class TestMaskCombinator:
         tr = jax.jit(model.simulate)(key, (False, 2.0))
         # mask check arg transition: False --> True
         argdiffs = U.g(
-            (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1])), C.n()
+            (Diff.unknown_change(Flag(True)), Diff.no_change(tr.get_args()[1])), C.n()
         )
         w = tr.update(key, argdiffs)[1]
         assert w == tr.inner.update(key, C.n())[1] + tr.inner.get_score()
         assert w == tr.inner.update(key, C.n())[0].get_score()
         # mask check arg transition: False --> False
         argdiffs = U.g(
-            (Diff.unknown_change(False), Diff.no_change(tr.get_args()[1])), C.n()
+            (Diff.unknown_change(Flag(False)), Diff.no_change(tr.get_args()[1])), C.n()
         )
         w = tr.update(key, argdiffs)[1]
         assert w == 0.0
