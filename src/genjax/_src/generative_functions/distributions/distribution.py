@@ -43,7 +43,7 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import Flag, flag, staged_check
+from genjax._src.core.interpreters.staging import Flag, staged_check
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
@@ -168,12 +168,12 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             return (
                 tr,
                 jnp.array(0.0),
-                MaskedProblem(flag(False), ProjectProblem()),
+                MaskedProblem(Flag(False), ProjectProblem()),
             )
 
         def importance_branch(key, constraint, args):
             tr, w = self.importance(key, constraint, args)
-            return tr, w, MaskedProblem(flag(True), ProjectProblem())
+            return tr, w, MaskedProblem(Flag(True), ProjectProblem())
 
         return jax.lax.cond(
             constraint.flag.f,
@@ -240,7 +240,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 tr,
                 w,
                 rd,
-                MaskedProblem(flag(True), old_sample),
+                MaskedProblem(Flag(True), old_sample),
             )
 
         def do_nothing_branch(key, trace, _, argdiffs):
@@ -251,7 +251,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 tr,
                 w,
                 Diff.tree_diff_unknown_change(tr.get_retval()),
-                MaskedProblem(flag(False), old_sample),
+                MaskedProblem(Flag(False), old_sample),
             )
 
         return jax.lax.cond(
@@ -415,7 +415,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             trace,
             GenericProblem(
                 argdiffs,
-                MaskedProblem(flag(check), ProjectProblem()),
+                MaskedProblem(Flag(check), ProjectProblem()),
             ),
         )
 

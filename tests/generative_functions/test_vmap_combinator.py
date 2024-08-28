@@ -74,7 +74,7 @@ class TestVmapCombinator:
         (tr, _) = kernel.importance(sub_key, chm, (map_over,))
         for i in range(0, 3):
             v = tr.get_choices()[i, "z"]
-            assert v == zv[i]
+            assert v.unmask() == zv[i]
 
     def test_vmap_combinator_nested_indexed_choice_map_importance(self):
         @genjax.vmap(in_axes=(0,))
