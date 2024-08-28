@@ -21,6 +21,7 @@ from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import UpdateProblemBuilder as U
 from genjax._src.core.interpreters.staging import Flag
+from genjax._src.generative_functions.combinators.vmap import VmapTrace
 
 
 @genjax.mask
@@ -91,7 +92,9 @@ class TestMaskCombinator:
 
         tr = model_2.simulate(key, ())
         assert tr.get_score() == -3.1371737
-        inner_scores = tr.get_subtrace(("init",)).inner.inner.get_score()
+        vmap_tr = tr.get_subtrace(("init",))
+        assert isinstance(vmap_tr, VmapTrace)
+        inner_scores = vmap_tr.inner.get_score()
         # score should be sum of sub-scores masked True
         assert tr.get_score() == inner_scores[0] + inner_scores[2]
 
