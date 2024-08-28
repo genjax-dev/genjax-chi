@@ -34,7 +34,7 @@ from genjax._src.core.typing import Any, Bool, Callable, Value, typecheck
 
 
 def batch_fun(fun: lu.WrappedFun, in_dims):
-    fun, out_dims = batching.batch_subtrace(fun)
+    fun, out_dims = batching.batch_subtrace(fun)  # pyright: ignore
     return _batch_fun(fun, in_dims), out_dims
 
 
@@ -74,7 +74,7 @@ class FlatPrimitive(jc.Primitive):
 
         def _batch(args, dims, **params):
             batched, out_dims = batch_fun(lu.wrap_init(self.impl, params), dims)
-            return batched.call_wrapped(*args), out_dims()
+            return batched.call_wrapped(*args), out_dims()  # pyright: ignore
 
         batching.primitive_batchers[self] = _batch
 

@@ -42,6 +42,7 @@ from genjax._src.core.generative import (
     UpdateProblem,
     Weight,
 )
+from genjax._src.core.generative.choice_map import MaskChm
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import Flag, flag, staged_check
 from genjax._src.core.pytree import Closure, Pytree
@@ -322,7 +323,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     new_tr = DistributionTrace(self, primals, v, fwd)
                     retval_diff = Diff.tree_diff_no_change(v)
                     return (new_tr, w, retval_diff, EmptyProblem())
-                else:
+                elif isinstance(constraint, MaskChm):
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
                     def _true_branch(key, new_value: R, _):
@@ -340,7 +341,8 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     masked_value: Mask[R] = v
                     flag = masked_value.flag
                     new_value: R = masked_value.value
-                    old_value: R = trace.get_choices().get_value()
+                    old_sample = trace.get_choices()
+                    old_value: R = old_sample.get_value()
 
                     new_value, w, score = jax.lax.cond(
                         flag.f,
@@ -354,7 +356,11 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         DistributionTrace(self, primals, new_value, score),
                         w,
                         Diff.tree_diff_unknown_change(new_value),
-                        MaskedProblem(flag, old_value),
+                        MaskedProblem(flag, old_sample),
+                    )
+                else:
+                    raise Exception(
+                        "Only `MaskChm` is currently supported for dynamic flags."
                     )
 
             case _:

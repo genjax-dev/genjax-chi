@@ -169,7 +169,7 @@ def batch_primitive(args, dims, **params):
     batched, out_dims = batch_fun(lu.wrap_init(fun_impl, params), dims)
 
     # populate the out_dims generator
-    _ = batched.call_wrapped(*args)
+    _ = batched.call_wrapped(*args)  # pyright: ignore
 
     # Now, we construct our actual batch primitive, and insert it
     # into the IR by binding it via `sample_primitive`.
