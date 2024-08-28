@@ -13,7 +13,6 @@
 # limitations under the License.
 
 
-import jax
 import jax.numpy as jnp
 
 from genjax._src.core.generative import (
@@ -34,7 +33,7 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.core import Constraint
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import Flag, flag
+from genjax._src.core.interpreters.staging import Flag
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -122,7 +121,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
         tr = self.gen_fn.simulate(key, inner_args)
-        return MaskTrace(self, tr, flag(check))
+        return MaskTrace(self, tr, Flag(check))
 
     @typecheck
     def update_change_target(
@@ -210,8 +209,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                         "This move is not currently supported! See https://github.com/probcomp/genjax/issues/1230 for notes."
                     )
 
-                return jax.lax.cond(
-                    trace.check.f,
+                return trace.check.cond(
                     self.update_change_target,
                     self.update_change_target_from_false,
                     key,
@@ -219,6 +217,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                     subproblem,
                     argdiffs,
                 )
+
             case _:
                 return self.update_change_target(
                     key, trace, update_problem, Diff.no_change(trace.get_args())
