@@ -37,7 +37,6 @@ def tfp_distribution(
 
     Args:
         dist: A callable that returns a TensorFlow Probability distribution.
-        _v: An example object for return type annotation. Defaults to object().
 
     Returns:
         A generative function wrapping the TensorFlow Probability distribution.
