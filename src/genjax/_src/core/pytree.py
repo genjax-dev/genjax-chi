@@ -118,6 +118,7 @@ class Pytree(pz.Struct):
 
         return pz.pytree_dataclass(
             incoming,
+            overwrite_parent_init=True,
             **kwargs,
         )
 
@@ -319,10 +320,12 @@ class Pytree(pz.Struct):
 # Associated utility classes #
 ##############################
 
+_C = TypeVar("_C")
+
 
 # Wrapper for static values (can include callables).
 @Pytree.dataclass
-class Const(Pytree):
+class Const(Generic[_C], Pytree):
     """
     JAX-compatible way to tag a value as a constant. Valid constants include Python literals, strings, essentially anything **that won't hold JAX arrays** inside of a computation.
 
@@ -353,7 +356,7 @@ class Const(Pytree):
         ```
     """
 
-    const: Any = Pytree.static()
+    const: _C = Pytree.static()
 
     def __call__(self, *args):
         return self.const(*args)
@@ -398,7 +401,7 @@ class Closure(Generic[R], Pytree):
         return self.fn(*self.dyn_args, *args, **kwargs)
 
 
-def nth(x: Pytree, idx: Int):
+def nth(x: Pytree, idx: Int | slice):
     """Returns a Pytree in which `[idx]` has been applied to every leaf."""
     return jtu.tree_map(lambda v: v[idx], x)
 

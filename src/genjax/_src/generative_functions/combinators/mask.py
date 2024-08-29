@@ -52,7 +52,7 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     inner: Trace[R]
     check: Flag
 
-    def get_args(self) -> tuple[Flag, ...]:
+    def get_args(self) -> tuple[Flag, Any]:
         return (self.check, *self.inner.get_args())
 
     def get_gen_fn(self):

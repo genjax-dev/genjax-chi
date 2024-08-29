@@ -13,10 +13,9 @@
 # limitations under the License.
 
 import jax.numpy as jnp
-from jax.random import PRNGKey
-
 from genjax import ChoiceMapBuilder as C
 from genjax import gen, normal
+from jax.random import PRNGKey
 
 
 class TestRepeatCombinator:

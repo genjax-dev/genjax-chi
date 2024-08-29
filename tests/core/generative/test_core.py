@@ -13,10 +13,9 @@
 # limitations under the License.
 
 
+import genjax
 import jax
 import jax.numpy as jnp
-
-import genjax
 
 
 class TestCombinators:

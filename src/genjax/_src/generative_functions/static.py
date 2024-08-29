@@ -21,7 +21,6 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
-    Address,
     Argdiffs,
     ChoiceMap,
     ChoiceMapBuilder,
@@ -51,7 +50,7 @@ from genjax._src.core.interpreters.incremental import (
     Diff,
     incremental,
 )
-from genjax._src.core.pytree import Closure, Pytree
+from genjax._src.core.pytree import Closure, Const, Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -152,25 +151,25 @@ trace_p = InitialStylePrimitive("trace")
 # stage, any traced values stored in `gen_fn`
 # get lifted to by `get_shaped_aval`.
 def _abstract_gen_fn_call(
-    _: Address,
+    _: tuple[Const[StaticAddress], ...],
     gen_fn: GenerativeFunction[R],
     args: tuple[Any, ...],
-) -> R:
+):
     return gen_fn.__abstract_call__(*args)
 
 
-@typecheck
 def trace(
     addr: StaticAddress,
     gen_fn: GenerativeFunction[R],
     args: tuple[Any, ...],
-) -> R:
-    """Invoke a generative function, binding its generative semantics with the current
-    caller.
+):
+    """Invoke a generative function, binding its generative semantics with the
+    current caller.
 
     Arguments:
         addr: An address denoting the site of a generative function invocation.
         gen_fn: A generative function invoked as a callee of `StaticGenerativeFunction`.
+
     """
     addr = Pytree.tree_const(addr)
     return initial_style_bind(trace_p)(_abstract_gen_fn_call)(
@@ -294,7 +293,7 @@ def simulate_transform(source_fn):
 @dataclass
 class UpdateHandler(StaticHandler):
     key: PRNGKey
-    previous_trace: StaticTrace[Any]
+    previous_trace: EmptyTrace[Any] | StaticTrace[Any]
     fwd_problem: UpdateProblem
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))

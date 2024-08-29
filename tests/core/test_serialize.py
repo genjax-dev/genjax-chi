@@ -14,11 +14,10 @@
 
 import io
 
+import genjax
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-
-import genjax
 from genjax.serialization import msgpack_serialize
 
 

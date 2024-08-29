@@ -445,6 +445,39 @@ def check_none(v) -> Flag:
         return Flag(True)
 
 
+##########################
+# AddressIndex interface #
+##########################
+
+
+@Pytree.dataclass
+class AddressIndex(Pytree):
+    choice_map: "ChoiceMap"
+    addrs: list[Address]
+
+    def __getitem__(self, addr: AddressComponent | Address) -> "AddressIndex":
+        addr = addr if isinstance(addr, tuple) else (addr,)
+        return AddressIndex(
+            self.choice_map,
+            [*self.addrs, addr],
+        )
+
+    def set(self, v):
+        new = self.choice_map
+        for addr in self.addrs:
+            new = ChoiceMapBuilder.a(addr, v) + new
+        return new
+
+    @property
+    def at(self) -> "AddressIndex":
+        return self
+
+    def filter(self):
+        sels = map(lambda addr: SelectionBuilder[addr], self.addrs)
+        or_sel = reduce(or_, sels)
+        return self.choice_map.filter(or_sel)
+
+
 class ChoiceMap(Sample, Constraint):
     """The type `ChoiceMap` denotes a map-like value which can be sampled from
     generative functions.
@@ -633,39 +666,6 @@ class ChoiceMap(Sample, Constraint):
     def kw(cls, **kwargs) -> "ChoiceMap":
         return ChoiceMap.d(kwargs)
 
-    ##########################
-    # AddressIndex interface #
-    ##########################
-
-    @Pytree.dataclass
-    class AddressIndex(Pytree):
-        choice_map: "ChoiceMap"
-        addrs: list[Address]
-
-        def __getitem__(
-            self, addr: AddressComponent | Address
-        ) -> "ChoiceMap.AddressIndex":
-            addr = addr if isinstance(addr, tuple) else (addr,)
-            return ChoiceMap.AddressIndex(
-                self.choice_map,
-                [*self.addrs, addr],
-            )
-
-        def set(self, v):
-            new = self.choice_map
-            for addr in self.addrs:
-                new = ChoiceMapBuilder.a(addr, v) + new
-            return new
-
-        @property
-        def at(self) -> "ChoiceMap.AddressIndex":
-            return self
-
-        def filter(self):
-            sels = map(lambda addr: SelectionBuilder[addr], self.addrs)
-            or_sel = reduce(or_, sels)
-            return self.choice_map.filter(or_sel)
-
     @property
     def at(self) -> AddressIndex:
         """Access the `ChoiceMap.AddressIndex` mutation interface. This allows
@@ -678,7 +678,7 @@ class ChoiceMap(Sample, Constraint):
         print(chm["x", "y"])
         ```
         """
-        return ChoiceMap.AddressIndex(self, [])
+        return AddressIndex(self, [])
 
 
 @Pytree.dataclass

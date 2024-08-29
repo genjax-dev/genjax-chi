@@ -1,7 +1,6 @@
+import genjax
 import jax.numpy as jnp
 import penzai.pz as pz
-
-import genjax
 from genjax.typing import FloatArray
 
 
