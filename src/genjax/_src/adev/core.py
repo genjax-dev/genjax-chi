@@ -473,7 +473,7 @@ class ADEVProgram(Pytree):
     ) -> Dual:
         def adev_jvp(f):
             @wraps(f)
-            def wrapped(dual_tree: Pytree):
+            def wrapped(dual_tree: DualTree):
                 return ADInterpreter.forward_mode(self.source, dual_kont)(
                     key, dual_tree
                 )
@@ -482,16 +482,14 @@ class ADEVProgram(Pytree):
 
         return adev_jvp(self.source)(dual_tree)
 
-    def _jvp_estimate_identity_kont(
+    def debug_transform_adev(
         self,
         key: PRNGKey,
-        dual_tree: DualTree,
+        primals: tuple[Any, ...],
+        tangents: tuple[Any, ...],
+        mapping: Callable[..., Any],
     ):
-        # Trivial continuation.
-        def _identity(x):
-            return x
-
-        return self._jvp_estimate(key, dual_tree, _identity)
+        raise NotImplementedError()
 
 
 ###############
@@ -503,11 +501,7 @@ class ADEVProgram(Pytree):
 class Expectation(Pytree):
     prog: ADEVProgram
 
-    def jvp_estimate(
-        self,
-        key: PRNGKey,
-        dual_tree: DualTree,
-    ):
+    def jvp_estimate(self, key: PRNGKey, dual_tree: DualTree):
         # Trivial continuation.
         def _identity(v):
             return v
@@ -516,9 +510,7 @@ class Expectation(Pytree):
 
     def estimate(self, key, args):
         tangents = jtu.tree_map(lambda _: 0.0, args)
-        duals = Dual.dual_tree(args, tangents)
-        out_dual = self.jvp_estimate(key, duals)
-        return out_dual.primal
+        return self.jvp_estimate(key, tangents).primal
 
     ##################################
     # JAX's native `grad` interface. #
@@ -532,11 +524,20 @@ class Expectation(Pytree):
 
         return jax.grad(_invoke_closed_over)(primals)
 
-    def value_and_grad_estimate(self, key: PRNGKey, primals: tuple[Any, ...]):
-        def _invoke_closed_over(primals):
-            return invoke_closed_over(self, key, primals)
+    #################
+    # For debugging #
+    #################
 
-        return jax.value_and_grad(_invoke_closed_over)(primals)
+    def debug_transform_adev(
+        self,
+        key: PRNGKey,
+        primals: tuple[Any, ...],
+        tangents: tuple[Any, ...],
+    ):
+        def _identity(x):
+            return x
+
+        return self.prog.debug_transform_adev(key, primals, tangents, _identity)
 
 
 def expectation(source: Callable[..., Any]):
