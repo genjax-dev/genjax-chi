@@ -73,7 +73,7 @@ class ADEVPrimitive(Pytree):
     ) -> "Dual":
         pass
 
-    def get_batched_prim(self, dims: tuple):
+    def get_batched_prim(self, dims: tuple[Any, ...]):
         """
         To use ADEV primitives inside of `vmap`, they must provide a custom batched primitive version of themselves.
 
@@ -103,14 +103,14 @@ class TailCallADEVPrimitive(ADEVPrimitive):
         _, kdual = konts
         return kdual(key, self.before_tail_call(key, dual_tree))
 
-    def get_batched_prim(self, dims: tuple):
+    def get_batched_prim(self, dims: tuple[Any, ...]):
         return TailCallBatchedADEVPrimitive(self, dims)
 
 
 @Pytree.dataclass
 class TailCallBatchedADEVPrimitive(TailCallADEVPrimitive):
     original_prim: TailCallADEVPrimitive
-    dims: tuple = Pytree.static()
+    dims: tuple[Any, ...] = Pytree.static()
 
     def sample(self, key, *args):
         return jax.vmap(self.original_prim.sample, in_axes=self.dims)(key, *args)
@@ -269,7 +269,7 @@ class ADInterpreter(Pytree):
     """
 
     @staticmethod
-    def flat_unzip(duals: list):
+    def flat_unzip(duals: list[Any]):
         primals, tangents = jax_util.unzip2((t.primal, t.tangent) for t in duals)
         return list(primals), list(tangents)
 
@@ -521,7 +521,7 @@ class Expectation(Pytree):
 
     # The JVP rules here are registered below.
     # (c.f. Register custom forward mode with JAX)
-    def grad_estimate(self, key: PRNGKey, primals: tuple):
+    def grad_estimate(self, key: PRNGKey, primals: tuple[Any, ...]):
         def _invoke_closed_over(primals):
             return invoke_closed_over(self, key, primals)
 
@@ -540,8 +540,8 @@ class Expectation(Pytree):
     def debug_transform_adev(
         self,
         key: PRNGKey,
-        primals: tuple,
-        tangents: tuple,
+        primals: tuple[Any, ...],
+        tangents: tuple[Any, ...],
     ):
         def _identity(x):
             return x
