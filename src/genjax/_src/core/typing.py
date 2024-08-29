@@ -36,7 +36,6 @@ FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
 Sequence = btyping.Sequence
-Self = btyping.Self
 
 # JAX Type alias.
 InAxes = int | None | Sequence[Any]
@@ -114,7 +113,6 @@ __all__ = [
     "ParamSpec",
     "ScalarBool",
     "ScalarShaped",
-    "Self",
     "Sequence",
     "TypeVar",
     "Value",
