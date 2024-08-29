@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import EmptyConstraint, MaskedConstraint
 from genjax import UpdateProblemBuilder as U
