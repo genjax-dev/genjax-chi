@@ -26,18 +26,17 @@ from jax.util import safe_map
 from genjax._src.checkify import optional_check
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Any,
     ArrayLike,
     BoolArray,
+    Callable,
+    Int,
     static_check_is_concrete,
 )
 
 ###############################
 # Concrete Boolean arithmetic #
 ###############################
-
-
-def flag(b: bool | BoolArray):
-    return Flag(b, concrete=not isinstance(b, jc.Tracer))
 
 
 @Pytree.dataclass
@@ -58,47 +57,44 @@ class Flag(Pytree):
     """
 
     f: bool | BoolArray
-    concrete: bool = Pytree.static(kw_only=True)
 
     def and_(self, f: "Flag") -> "Flag":
         # True and X => X. False and X => False.
-        if self.concrete:
-            if self.f:
-                return f
-            else:
-                return self
-        if f.concrete:
-            if f.f:
-                return self
-            else:
-                return f
-        return Flag(jnp.logical_and(self.f, f.f), concrete=False)
+        if self.f is True:
+            return f
+        if self.f is False:
+            return self
+        if f.f is True:
+            return self
+        if f.f is False:
+            return f
+        return Flag(jnp.logical_and(self.f, f.f))
 
     def or_(self, f: "Flag") -> "Flag":
         # True or X => True. False or X => X.
-        if self.concrete:
-            if self.f:
-                return self
-            else:
-                return f
-        if f.concrete:
-            if f.f:
-                return f
-            else:
-                return self
-        return Flag(jnp.logical_or(self.f, f.f), concrete=False)
+        if self.f is True:
+            return self
+        if self.f is False:
+            return f
+        if f.f is True:
+            return f
+        if f.f is False:
+            return self
+        return Flag(jnp.logical_or(self.f, f.f))
 
     def not_(self) -> "Flag":
-        if self.concrete:
-            return Flag(not self.f, concrete=True)
+        if self.f is True:
+            return Flag(False)
+        elif self.f is False:
+            return Flag(True)
         else:
-            return Flag(jnp.logical_not(self.f), concrete=False)
+            return Flag(jnp.logical_not(self.f))
 
     def concrete_true(self):
-        return self.concrete and self.f
+        return self.f is True
 
     def concrete_false(self):
-        return self.concrete and not self.f
+        return self.f is False
 
     def __bool__(self) -> bool:
         return bool(jnp.all(self.f))
@@ -106,7 +102,19 @@ class Flag(Pytree):
     def where(self, t: ArrayLike, f: ArrayLike) -> ArrayLike:
         """Return t or f according to the truth value contained in this flag
         in a manner that works in either the concrete or dynamic context"""
-        return jax.lax.select(jnp.all(self.f), t, f)
+        if self.f is True:
+            return t
+        if self.f is False:
+            return f
+        return jax.lax.select(self.f, t, f)
+
+    def cond(self, tf: Callable[..., Any], ff: Callable[..., Any], *args: Any):
+        """Invokes `tf` with `args` if flag is true, else `ff`"""
+        if self.f is True:
+            return tf(*args)
+        if self.f is False:
+            return ff(*args)
+        return jax.lax.cond(self.f, tf, ff, *args)
 
 
 def staged_check(v):
@@ -161,7 +169,7 @@ def stage(f):
     def wrapped(*args, **kwargs):
         fun = lu.wrap_init(f, kwargs)
         flat_args, in_tree = jtu.tree_flatten(args)
-        flat_fun, out_tree = flatten_fun_nokwargs(fun, in_tree)
+        flat_fun, out_tree = flatten_fun_nokwargs(fun, in_tree)  # pyright: ignore
         flat_avals = safe_map(get_shaped_aval, flat_args)
         typed_jaxpr = cached_stage_dynamic(flat_fun, tuple(flat_avals))
         return typed_jaxpr, (flat_args, in_tree, out_tree)

@@ -106,7 +106,7 @@ class ParticleCollection(Pytree):
     def get_log_marginal_likelihood_estimate(self) -> FloatArray:
         return logsumexp(self.log_weights) - jnp.log(len(self.log_weights))
 
-    def __getitem__(self, idx) -> tuple:
+    def __getitem__(self, idx) -> tuple[Any, ...]:
         return jtu.tree_map(lambda v: v[idx], (self.particles, self.log_weights))
 
     def sample_particle(self, key) -> Trace:
@@ -477,13 +477,34 @@ class ChangeTarget(SMCAlgorithm):
 
 
 @Pytree.dataclass
+class KernelTrace(Trace):
+    gen_fn: "KernelGenerativeFunction"
+    inner: Trace
+
+    def get_args(self) -> tuple[Any, ...]:
+        return self.inner.get_args()
+
+    def get_retval(self) -> Any:
+        return self.inner.get_retval()
+
+    def get_gen_fn(self) -> GenerativeFunction:
+        return self.gen_fn
+
+    def get_score(self) -> FloatArray:
+        return self.inner.get_score()
+
+    def get_sample(self) -> Sample:
+        return self.inner.get_sample()
+
+
+@Pytree.dataclass
 class KernelGenerativeFunction(GenerativeFunction):
     source: StaticGenerativeFunction
 
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> Trace:
         gen_fn = gen(self.source)
         tr = gen_fn.simulate(key, args)
@@ -493,7 +514,7 @@ class KernelGenerativeFunction(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: Constraint,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Trace, Weight]:
         raise NotImplementedError
 
@@ -577,7 +598,7 @@ class AttachTrace(Trace):
     gen_fn: "AttachCombinator"
     inner: Trace
 
-    def get_args(self) -> tuple:
+    def get_args(self) -> tuple[Any, ...]:
         return self.inner.get_args()
 
     def get_retval(self) -> Any:
@@ -599,7 +620,7 @@ class AttachCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> Trace:
         tr = self.gen_fn.simulate(key, args)
         return AttachTrace(self, tr)
@@ -610,7 +631,7 @@ class AttachCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: Constraint,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Trace, Weight]:
         move = self.importance_move(constraint)
         match move:

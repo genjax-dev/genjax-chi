@@ -74,7 +74,7 @@ class ADEVPrimitive(Pytree):
     ) -> "Dual":
         pass
 
-    def get_batched_prim(self, dims: tuple):
+    def get_batched_prim(self, dims: tuple[Any, ...]):
         """
         To use ADEV primitives inside of `vmap`, they must provide a custom batched primitive version of themselves.
 
@@ -105,14 +105,14 @@ class TailCallADEVPrimitive(ADEVPrimitive):
         _, kdual = konts
         return kdual(key, self.before_tail_call(key, dual_tree))
 
-    def get_batched_prim(self, dims: tuple):
+    def get_batched_prim(self, dims: tuple[Any, ...]):
         return TailCallBatchedADEVPrimitive(self, dims)
 
 
 @Pytree.dataclass
 class TailCallBatchedADEVPrimitive(TailCallADEVPrimitive):
     original_prim: TailCallADEVPrimitive
-    dims: tuple = Pytree.static()
+    dims: tuple[Any, ...] = Pytree.static()
 
     def sample(self, key, *args):
         return jax.vmap(self.original_prim.sample, in_axes=self.dims)(key, *args)
@@ -169,7 +169,7 @@ def batch_primitive(args, dims, **params):
     batched, out_dims = batch_fun(lu.wrap_init(fun_impl, params), dims)
 
     # populate the out_dims generator
-    _ = batched.call_wrapped(*args)
+    _ = batched.call_wrapped(*args)  # pyright: ignore
 
     # Now, we construct our actual batch primitive, and insert it
     # into the IR by binding it via `sample_primitive`.
@@ -272,7 +272,7 @@ class ADInterpreter(Pytree):
     """
 
     @staticmethod
-    def flat_unzip(duals: list):
+    def flat_unzip(duals: list[Any]):
         primals, tangents = jax_util.unzip2((t.primal, t.tangent) for t in duals)
         return list(primals), list(tangents)
 
@@ -361,7 +361,7 @@ class ADInterpreter(Pytree):
                         pure_env = Dual.tree_primal(dual_env)
 
                         # Create dual continuation for the computation after the cond_p.
-                        def _cond_dual_kont(dual_tree: list):
+                        def _cond_dual_kont(dual_tree: list[Any]):
                             dual_leaves = Dual.tree_pure(dual_tree)
                             return eval_jaxpr_iterate_dual(
                                 key,
@@ -489,7 +489,11 @@ class ADEVProgram(Pytree):
 
     @typecheck
     def debug_transform_adev(
-        self, key: PRNGKey, primals: tuple, tangents: tuple, mapping: Callable[..., Any]
+        self,
+        key: PRNGKey,
+        primals: tuple[Any, ...],
+        tangents: tuple[Any, ...],
+        mapping: Callable[..., Any],
     ):
         raise NotImplementedError()
 
@@ -520,7 +524,7 @@ class Expectation(Pytree):
 
     # The JVP rules here are registered below.
     # (c.f. Register custom forward mode with JAX)
-    def grad_estimate(self, key: PRNGKey, primals: tuple):
+    def grad_estimate(self, key: PRNGKey, primals: tuple[Any, ...]):
         def _invoke_closed_over(primals):
             return invoke_closed_over(self, key, primals)
 
@@ -534,8 +538,8 @@ class Expectation(Pytree):
     def debug_transform_adev(
         self,
         key: PRNGKey,
-        primals: tuple,
-        tangents: tuple,
+        primals: tuple[Any, ...],
+        tangents: tuple[Any, ...],
     ):
         def _identity(x):
             return x

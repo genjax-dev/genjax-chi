@@ -40,9 +40,14 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
+    Generic,
+    IntArray,
+    TypeVar,
     Value,
     typecheck,
 )
+
+R = TypeVar("R")
 
 #######################################
 # Change type lattice and propagation #
@@ -91,9 +96,9 @@ def static_check_is_change_tangent(v):
 
 
 @Pytree.dataclass
-class Diff(Pytree):
-    primal: Any
-    tangent: Any
+class Diff(Generic[R], Pytree):
+    primal: R
+    tangent: R
 
     def __post_init__(self):
         assert not isinstance(self.primal, Diff)
@@ -270,8 +275,8 @@ def incremental(f: Callable[..., Any]):
     @typecheck
     def wrapped(
         _stateful_handler: StatefulHandler | None,
-        primals: tuple,
-        tangents: tuple,
+        primals: tuple[Any, ...],
+        tangents: tuple[Any, ...],
     ):
         interpreter = IncrementalInterpreter()
         return interpreter.run_interpreter(

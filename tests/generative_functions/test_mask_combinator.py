@@ -20,7 +20,8 @@ import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import UpdateProblemBuilder as U
-from genjax._src.core.interpreters.staging import Flag, flag
+from genjax._src.core.interpreters.staging import Flag
+from genjax._src.generative_functions.combinators.vmap import VmapTrace
 
 
 @genjax.mask
@@ -39,13 +40,13 @@ class TestMaskCombinator:
         tr = jax.jit(model.simulate)(key, (True, -4.0))
         assert tr.get_score() == tr.inner.get_score()
         assert tr.get_retval() == genjax.Mask(
-            Flag(jnp.array(True), concrete=False), tr.inner.get_retval()
+            Flag(jnp.array(True)), tr.inner.get_retval()
         )
 
         tr = jax.jit(model.simulate)(key, (False, -4.0))
         assert tr.get_score() == 0.0
         assert tr.get_retval() == genjax.Mask(
-            Flag(jnp.array(False), concrete=False), tr.inner.get_retval()
+            Flag(jnp.array(False)), tr.inner.get_retval()
         )
 
     def test_mask_simple_normal_false(self, key):
@@ -65,17 +66,37 @@ class TestMaskCombinator:
         tr = jax.jit(model.simulate)(key, (True, 2.0))
         # mask check arg transition: True --> True
         argdiffs = U.g(
-            (Diff.unknown_change(flag(True)), Diff.no_change(tr.get_args()[1])), C.n()
+            (Diff.unknown_change(Flag(True)), Diff.no_change(tr.get_args()[1])), C.n()
         )
         w = tr.update(key, argdiffs)[1]
         assert w == tr.inner.update(key, C.n())[1]
         assert w == 0.0
         # mask check arg transition: True --> False
         argdiffs = U.g(
-            (Diff.unknown_change(flag(False)), Diff.no_change(tr.get_args()[1])), C.n()
+            (Diff.unknown_change(Flag(False)), Diff.no_change(tr.get_args()[1])), C.n()
         )
         w = tr.update(key, argdiffs)[1]
         assert w == -tr.get_score()
+
+    def test_mask_vmap(self, key):
+        @genjax.gen
+        def init():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            return x
+
+        @genjax.gen
+        def model_2():
+            masks = jnp.array([True, False, True])
+            vmask_init = init.mask().vmap(in_axes=(0))(masks) @ "init"
+            return vmask_init
+
+        tr = model_2.simulate(key, ())
+        assert tr.get_score() == -3.1371737
+        vmap_tr = tr.get_subtrace(("init",))
+        assert isinstance(vmap_tr, VmapTrace)
+        inner_scores = vmap_tr.inner.get_score()
+        # score should be sum of sub-scores masked True
+        assert tr.get_score() == inner_scores[0] + inner_scores[2]
 
     @pytest.mark.skip(reason="This test is currently skipped")
     def test_mask_update_weight_to_argdiffs_from_false(self, key):
@@ -83,14 +104,14 @@ class TestMaskCombinator:
         tr = jax.jit(model.simulate)(key, (False, 2.0))
         # mask check arg transition: False --> True
         argdiffs = U.g(
-            (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1])), C.n()
+            (Diff.unknown_change(Flag(True)), Diff.no_change(tr.get_args()[1])), C.n()
         )
         w = tr.update(key, argdiffs)[1]
         assert w == tr.inner.update(key, C.n())[1] + tr.inner.get_score()
         assert w == tr.inner.update(key, C.n())[0].get_score()
         # mask check arg transition: False --> False
         argdiffs = U.g(
-            (Diff.unknown_change(False), Diff.no_change(tr.get_args()[1])), C.n()
+            (Diff.unknown_change(Flag(False)), Diff.no_change(tr.get_args()[1])), C.n()
         )
         w = tr.update(key, argdiffs)[1]
         assert w == 0.0

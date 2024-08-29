@@ -25,7 +25,6 @@ from genjax._src.core.generative.core import Constraint, ProjectProblem, Sample
 from genjax._src.core.generative.functional_types import Mask, Sum
 from genjax._src.core.interpreters.staging import (
     Flag,
-    flag,
     staged_err,
 )
 from genjax._src.core.pytree import Pytree
@@ -202,7 +201,7 @@ class Selection(ProjectProblem):
 @Pytree.dataclass
 class AllSel(Selection):
     def check(self) -> Flag:
-        return flag(True)
+        return Flag(True)
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         return AllSel()
@@ -263,10 +262,10 @@ class StaticSel(Selection):
     s: Selection = Pytree.field()
 
     def check(self) -> Flag:
-        return flag(False)
+        return Flag(False)
 
     def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
-        check = flag(addr == self.addr or isinstance(addr, EllipsisType))
+        check = Flag(addr == self.addr or isinstance(addr, EllipsisType))
         return select_defer(check, self.s)
 
 
@@ -284,7 +283,7 @@ class IdxSel(Selection):
     s: Selection
 
     def check(self) -> Flag:
-        return flag(False)
+        return Flag(False)
 
     def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
         if isinstance(addr, EllipsisType):
@@ -301,7 +300,7 @@ class IdxSel(Selection):
                     jnp.any(v == self.idxs),
                 )
 
-            check = flag(
+            check = Flag(
                 jax.vmap(check_fn)(addr)
                 if jnp.array(addr, copy=False).shape
                 else check_fn(addr)
@@ -415,7 +414,7 @@ class _ChoiceMapBuilder(Pytree):
     def v(self, v) -> "ChoiceMap":
         return ChoiceMap.value(v)
 
-    def d(self, d: dict) -> "ChoiceMap":
+    def d(self, d: dict[Any, Any]) -> "ChoiceMap":
         return ChoiceMap.d(d)
 
     def kw(self, **kwargs) -> "ChoiceMap":
@@ -440,11 +439,11 @@ ChoiceMapBuilder = _ChoiceMapBuilder()
 
 def check_none(v) -> Flag:
     if v is None:
-        return flag(False)
+        return Flag(False)
     elif isinstance(v, Mask):
         return v.flag
     else:
-        return flag(True)
+        return Flag(True)
 
 
 class ChoiceMap(Sample, Constraint):
@@ -624,7 +623,7 @@ class ChoiceMap(Sample, Constraint):
         )
 
     @classmethod
-    def d(_cls, d: dict) -> "ChoiceMap":
+    def d(cls, d: dict[Any, Any]) -> "ChoiceMap":
         start = ChoiceMap.empty()
         if d:
             for k, v in d.items():
@@ -744,10 +743,10 @@ class IdxChm(ChoiceMap):
 
             return (
                 choice_map_masked(
-                    flag(check[addr]), jtu.tree_map(lambda v: v[addr], self.c)
+                    Flag(check[addr]), jtu.tree_map(lambda v: v[addr], self.c)
                 )
                 if jnp.array(check, copy=False).shape
-                else choice_map_masked(flag(check), self.c)
+                else choice_map_masked(Flag(check), self.c)
             )
 
 
@@ -768,7 +767,7 @@ class StaticChm(ChoiceMap):
         return None
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        check = flag(addr == self.addr)
+        check = Flag(addr == self.addr)
         return choice_map_masked(check, self.c)
 
 

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 
-import jax
 import jax.numpy as jnp
 
 from genjax._src.core.generative import (
@@ -34,7 +33,7 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.core import Constraint
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import Flag, flag
+from genjax._src.core.interpreters.staging import Flag
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -70,7 +69,10 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
         return Mask(self.check, self.inner.get_retval())
 
     def get_score(self):
-        return jnp.asarray(self.check.where(self.inner.get_score(), jnp.array(0.0)))
+        inner_score = self.inner.get_score()
+        return jnp.asarray(
+            self.check.where(inner_score, jnp.zeros(shape=inner_score.shape))
+        )
 
 
 @Pytree.dataclass
@@ -122,7 +124,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
         tr = self.gen_fn.simulate(key, inner_args)
-        return MaskTrace(self, tr, flag(check))
+        return MaskTrace(self, tr, Flag(check))
 
     @typecheck
     def update_change_target(
@@ -131,7 +133,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         trace: Trace[Mask[R]],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
         check = Diff.tree_primal(argdiffs)[0]
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
         match trace:
@@ -162,7 +164,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         trace: Trace[Mask[R]],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
         check = Diff.tree_primal(argdiffs)[0]
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
 
@@ -194,7 +196,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         key: PRNGKey,
         trace: Trace[Mask[R]],
         update_problem: UpdateProblem,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
         assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
 
         match update_problem:
@@ -210,8 +212,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                         "This move is not currently supported! See https://github.com/probcomp/genjax/issues/1230 for notes."
                     )
 
-                return jax.lax.cond(
-                    trace.check.f,
+                return trace.check.cond(
                     self.update_change_target,
                     self.update_change_target_from_false,
                     key,
@@ -219,6 +220,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                     subproblem,
                     argdiffs,
                 )
+
             case _:
                 return self.update_change_target(
                     key, trace, update_problem, Diff.no_change(trace.get_args())
