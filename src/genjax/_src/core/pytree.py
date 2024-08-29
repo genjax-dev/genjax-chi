@@ -296,6 +296,7 @@ class Pytree(pz.Struct):
             )
 
         def custom_handler(node, path, subtree_renderer):
+            del path
             if inspect.isfunction(node):
                 return common_structures.build_one_line_tree_node(
                     line=common_styles.CustomTextColor(

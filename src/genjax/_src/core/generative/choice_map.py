@@ -623,7 +623,7 @@ class ChoiceMap(Sample, Constraint):
         )
 
     @classmethod
-    def d(cls, d: dict[Any, Any]) -> "ChoiceMap":
+    def d(_cls, d: dict[Any, Any]) -> "ChoiceMap":
         start = ChoiceMap.empty()
         if d:
             for k, v in d.items():

@@ -88,7 +88,7 @@ class FlatPrimitive(jc.Primitive):
 class InitialStylePrimitive(FlatPrimitive):
     """Contains default implementations of transformations."""
 
-    def __init__(self, name, batch_semantics=None):
+    def __init__(self, name):
         super().__init__(name)
 
         def fun_impl(*args, **params):

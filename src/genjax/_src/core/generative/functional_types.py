@@ -64,7 +64,7 @@ class Mask(Generic[R], Pytree):
     value: R
 
     @classmethod
-    def maybe(cls, f: Flag, v: "R | Mask[R]") -> "Mask[R]":
+    def maybe(_cls, f: Flag, v: "R | Mask[R]") -> "Mask[R]":
         match v:
             case Mask(flag, value):
                 return Mask[R](f.and_(flag), value)
@@ -72,7 +72,7 @@ class Mask(Generic[R], Pytree):
                 return Mask[R](f, v)
 
     @classmethod
-    def maybe_none(cls, f: Flag, v: "R | Mask[R]") -> "R | Mask[R] | None":
+    def maybe_none(_cls, f: Flag, v: "R | Mask[R]") -> "R | Mask[R] | None":
         if v is None or f.concrete_false():
             return None
         elif f.concrete_true():
@@ -181,7 +181,7 @@ class Sum(Generic[R], Pytree):
     @classmethod
     @typecheck
     def maybe(
-        cls,
+        _cls,
         idx: ArrayLike | Diff[Any],
         vs: list[R],
     ):
@@ -194,7 +194,7 @@ class Sum(Generic[R], Pytree):
     @classmethod
     @typecheck
     def maybe_none(
-        cls,
+        _cls,
         idx: ArrayLike | Diff[Any],
         vs: list[R],
     ):
