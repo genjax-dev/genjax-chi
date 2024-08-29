@@ -43,7 +43,6 @@ from genjax._src.core.typing import (
     Generic,
     TypeVar,
     Value,
-    typecheck,
 )
 
 R = TypeVar("R")

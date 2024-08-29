@@ -167,24 +167,20 @@ class Selection(ProjectProblem):
     #################################################
 
     @classmethod
-    @typecheck
     def all(_cls) -> "Selection":
         return select_all()
 
     @classmethod
-    @typecheck
     def str(
         _cls, comp: ExtendedStaticAddressComponent, sel: "Selection"
     ) -> "Selection":
         return select_static(comp, sel)
 
     @classmethod
-    @typecheck
     def idx(_cls, comp: DynamicAddressComponent, sel: "Selection") -> "Selection":
         return select_idx(comp, sel)
 
     @classmethod
-    @typecheck
     def maybe(_cls, flag: Flag, s: "Selection") -> "Selection":
         return select_defer(flag, s)
 
