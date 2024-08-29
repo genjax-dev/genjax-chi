@@ -184,7 +184,7 @@ class Pytree(pz.Struct):
     def tree_unwrap_const(v):
         def _inner(v):
             if isinstance(v, Const):
-                return v.const
+                return v.val
             else:
                 return v
 
@@ -356,10 +356,11 @@ class Const(Generic[_C], Pytree):
         ```
     """
 
-    const: _C = Pytree.static()
+    val: _C = Pytree.static()
 
     def __call__(self, *args):
-        return self.const(*args)
+        assert isinstance(self.val, Callable)
+        return self.val(*args)
 
 
 # Construct for a type of closure which closes over dynamic values.

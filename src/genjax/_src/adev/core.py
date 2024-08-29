@@ -503,7 +503,11 @@ class ADEVProgram(Pytree):
 class Expectation(Pytree):
     prog: ADEVProgram
 
-    def jvp_estimate(self, key: PRNGKey, dual_tree: DualTree):
+    def jvp_estimate(
+        self,
+        key: PRNGKey,
+        dual_tree: DualTree,
+    ):
         # Trivial continuation.
         def _identity(v):
             return v
@@ -512,8 +516,9 @@ class Expectation(Pytree):
 
     def estimate(self, key, args):
         tangents = jtu.tree_map(lambda _: 0.0, args)
-        primal, _ = self.jvp_estimate(key, args, tangents)
-        return primal
+        duals = Dual.dual_tree(args, tangents)
+        out_dual = self.jvp_estimate(key, duals)
+        return out_dual.primal
 
     ##################################
     # JAX's native `grad` interface. #
@@ -532,21 +537,6 @@ class Expectation(Pytree):
             return invoke_closed_over(self, key, primals)
 
         return jax.value_and_grad(_invoke_closed_over)(primals)
-
-    #################
-    # For debugging #
-    #################
-
-    def debug_transform_adev(
-        self,
-        key: PRNGKey,
-        primals: tuple[Any, ...],
-        tangents: tuple[Any, ...],
-    ):
-        def _identity(x):
-            return x
-
-        return self.prog.debug_transform_adev(key, primals, tangents, _identity)
 
 
 def expectation(source: Callable[..., Any]):
