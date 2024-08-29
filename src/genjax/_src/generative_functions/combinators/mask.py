@@ -69,7 +69,10 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
         return Mask(self.check, self.inner.get_retval())
 
     def get_score(self):
-        return jnp.asarray(self.check.where(self.inner.get_score(), jnp.array(0.0)))
+        inner_score = self.inner.get_score()
+        return jnp.asarray(
+            self.check.where(inner_score, jnp.zeros(shape=inner_score.shape))
+        )
 
 
 @Pytree.dataclass
