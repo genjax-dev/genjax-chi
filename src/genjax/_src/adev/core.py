@@ -527,7 +527,7 @@ class Expectation(Pytree):
 
         return jax.grad(_invoke_closed_over)(primals)
 
-    def value_and_grad_estimate(self, key: PRNGKey, primals: tuple):
+    def value_and_grad_estimate(self, key: PRNGKey, primals: tuple[Any, ...]):
         def _invoke_closed_over(primals):
             return invoke_closed_over(self, key, primals)
 
