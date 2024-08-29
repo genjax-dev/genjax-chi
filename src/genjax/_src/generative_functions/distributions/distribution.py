@@ -34,26 +34,24 @@ from genjax._src.core.generative import (
     MaskedConstraint,
     MaskedProblem,
     ProjectProblem,
+    R,
     Retdiff,
-    Retval,
-    Sample,
     Score,
     Selection,
     Trace,
     UpdateProblem,
     Weight,
 )
+from genjax._src.core.generative.choice_map import MaskChm
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import staged_check
+from genjax._src.core.interpreters.staging import Flag, staged_check
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
-    Bool,
-    BoolArray,
+    ArrayLike,
     Callable,
-    FloatArray,
+    Generic,
     PRNGKey,
-    static_check_is_concrete,
     typecheck,
 )
 
@@ -64,23 +62,24 @@ from genjax._src.core.typing import (
 
 @Pytree.dataclass
 class DistributionTrace(
-    Trace,
+    Generic[R],
+    Trace[R],
 ):
-    gen_fn: GenerativeFunction
-    args: tuple
-    value: Any
-    score: FloatArray
+    gen_fn: GenerativeFunction[R]
+    args: tuple[Any, ...]
+    value: R
+    score: Score
 
-    def get_args(self) -> tuple:
+    def get_args(self) -> tuple[Any, ...]:
         return self.args
 
-    def get_retval(self) -> Any:
+    def get_retval(self) -> R:
         return self.value
 
-    def get_gen_fn(self) -> GenerativeFunction:
+    def get_gen_fn(self) -> GenerativeFunction[R]:
         return self.gen_fn
 
-    def get_score(self) -> FloatArray:
+    def get_score(self) -> Score:
         return self.score
 
     def get_sample(self) -> ChoiceMap:
@@ -92,22 +91,22 @@ class DistributionTrace(
 ################
 
 
-class Distribution(GenerativeFunction):
+class Distribution(Generic[R], GenerativeFunction[R]):
     @abstractmethod
     def random_weighted(
         self,
         key: PRNGKey,
         *args,
-    ) -> tuple[Score, Retval]:
+    ) -> tuple[Score, R]:
         pass
 
     @abstractmethod
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        v: Any,
+        v: R,
         *args,
-    ) -> Weight:
+    ) -> Score:
         pass
 
     @GenerativeFunction.gfi_boundary
@@ -115,8 +114,8 @@ class Distribution(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
-    ) -> Trace:
+        args: tuple[Any, ...],
+    ) -> Trace[R]:
         (w, v) = self.random_weighted(key, *args)
         tr = DistributionTrace(self, args, v, w)
         return tr
@@ -126,7 +125,7 @@ class Distribution(GenerativeFunction):
         self,
         key: PRNGKey,
         chm: ChoiceMap,
-        args: tuple,
+        args: tuple[Any, ...],
     ):
         v = chm.get_value()
         match v:
@@ -145,7 +144,9 @@ class Distribution(GenerativeFunction):
                     w = self.estimate_logpdf(key, v, *args)
                     return (w, w, v)
 
-                score, w, new_v = jax.lax.cond(flag, _importance, _simulate, key, value)
+                score, w, new_v = jax.lax.cond(
+                    flag.f, _importance, _simulate, key, value
+                )
                 tr = DistributionTrace(self, args, new_v, score)
                 bwd_problem = MaskedProblem(flag, ProjectProblem())
                 return tr, w, bwd_problem
@@ -161,22 +162,22 @@ class Distribution(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: MaskedConstraint,
-        args: tuple,
-    ) -> tuple[Trace, Weight, UpdateProblem]:
+        args: tuple[Any, ...],
+    ) -> tuple[Trace[R], Weight, UpdateProblem]:
         def simulate_branch(key, _, args):
             tr = self.simulate(key, args)
             return (
                 tr,
                 jnp.array(0.0),
-                MaskedProblem(False, ProjectProblem()),
+                MaskedProblem(Flag(False), ProjectProblem()),
             )
 
         def importance_branch(key, constraint, args):
             tr, w = self.importance(key, constraint, args)
-            return tr, w, MaskedProblem(True, ProjectProblem())
+            return tr, w, MaskedProblem(Flag(True), ProjectProblem())
 
         return jax.lax.cond(
-            constraint.flag,
+            constraint.flag.f,
             importance_branch,
             simulate_branch,
             key,
@@ -189,8 +190,8 @@ class Distribution(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: Constraint,
-        args: tuple,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        args: tuple[Any, ...],
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         match constraint:
             case ChoiceMap():
                 tr, w, bwd_problem = self.importance_choice_map(key, constraint, args)
@@ -211,9 +212,9 @@ class Distribution(GenerativeFunction):
 
     def update_empty(
         self,
-        trace: Trace,
+        trace: Trace[R],
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         sample = trace.get_choices()
         primals = Diff.tree_primal(argdiffs)
         new_score, _ = self.assess(sample, primals)
@@ -228,10 +229,10 @@ class Distribution(GenerativeFunction):
     def update_constraint_masked_constraint(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         constraint: MaskedConstraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         old_sample = trace.get_choices()
 
         def update_branch(key, trace, constraint, argdiffs):
@@ -240,7 +241,7 @@ class Distribution(GenerativeFunction):
                 tr,
                 w,
                 rd,
-                MaskedProblem(True, old_sample),
+                MaskedProblem(Flag(True), old_sample),
             )
 
         def do_nothing_branch(key, trace, _, argdiffs):
@@ -251,11 +252,11 @@ class Distribution(GenerativeFunction):
                 tr,
                 w,
                 Diff.tree_diff_unknown_change(tr.get_retval()),
-                MaskedProblem(False, old_sample),
+                MaskedProblem(Flag(False), old_sample),
             )
 
         return jax.lax.cond(
-            constraint.flag,
+            constraint.flag.f,
             update_branch,
             do_nothing_branch,
             key,
@@ -267,10 +268,10 @@ class Distribution(GenerativeFunction):
     def update_constraint(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         constraint: Constraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         primals = Diff.tree_primal(argdiffs)
         match constraint:
             case EmptyConstraint():
@@ -300,12 +301,12 @@ class Distribution(GenerativeFunction):
                 v = constraint.get_value()
                 if isinstance(v, UpdateProblem):
                     return self.update(key, trace, GenericProblem(argdiffs, v))
-                elif static_check_is_concrete(check) and check:
+                elif check.concrete_true():
                     fwd = self.estimate_logpdf(key, v, *primals)
                     bwd = trace.get_score()
                     w = fwd - bwd
                     new_tr = DistributionTrace(self, primals, v, fwd)
-                    discard = trace.get_sample()
+                    discard = trace.get_choices()
                     retval_diff = Diff.tree_diff_unknown_change(v)
                     return (
                         new_tr,
@@ -313,7 +314,7 @@ class Distribution(GenerativeFunction):
                         retval_diff,
                         discard,
                     )
-                elif static_check_is_concrete(check):
+                elif check.concrete_false():
                     value_chm = trace.get_choices()
                     v = value_chm.get_value()
                     fwd = self.estimate_logpdf(key, v, *primals)
@@ -322,28 +323,29 @@ class Distribution(GenerativeFunction):
                     new_tr = DistributionTrace(self, primals, v, fwd)
                     retval_diff = Diff.tree_diff_no_change(v)
                     return (new_tr, w, retval_diff, EmptyProblem())
-                else:
+                elif isinstance(constraint, MaskChm):
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
-                    def _true_branch(key, new_value, old_value):
+                    def _true_branch(key, new_value: R, _):
                         fwd = self.estimate_logpdf(key, new_value, *primals)
                         bwd = trace.get_score()
                         w = fwd - bwd
                         return (new_value, w, fwd)
 
-                    def _false_branch(key, new_value, old_value):
+                    def _false_branch(key, _, old_value: R):
                         fwd = self.estimate_logpdf(key, old_value, *primals)
                         bwd = trace.get_score()
                         w = fwd - bwd
                         return (old_value, w, fwd)
 
-                    masked_value: Mask = v
+                    masked_value: Mask[R] = v
                     flag = masked_value.flag
-                    new_value = masked_value.value
-                    old_value = trace.get_choices().get_value()
+                    new_value: R = masked_value.value
+                    old_sample = trace.get_choices()
+                    old_value: R = old_sample.get_value()
 
                     new_value, w, score = jax.lax.cond(
-                        flag,
+                        flag.f,
                         _true_branch,
                         _false_branch,
                         key,
@@ -354,20 +356,24 @@ class Distribution(GenerativeFunction):
                         DistributionTrace(self, primals, new_value, score),
                         w,
                         Diff.tree_diff_unknown_change(new_value),
-                        MaskedProblem(flag, old_value),
+                        MaskedProblem(flag, old_sample),
+                    )
+                else:
+                    raise Exception(
+                        "Only `MaskChm` is currently supported for dynamic flags."
                     )
 
             case _:
                 raise Exception("Unhandled constraint in update.")
 
     def update_masked(
-        self,
+        self: "Distribution[ArrayLike]",
         key: PRNGKey,
-        trace: Trace,
-        flag: Bool | BoolArray,
+        trace: Trace[ArrayLike],
+        flag: Flag,
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[ArrayLike], Weight, Retdiff[ArrayLike], UpdateProblem]:
         old_value = trace.get_retval()
         primals = Diff.tree_primal(argdiffs)
         possible_trace, w, retdiff, bwd_problem = self.update(
@@ -381,16 +387,16 @@ class Distribution(GenerativeFunction):
         new_trace = DistributionTrace(
             self,
             primals,
-            jax.lax.select(flag, new_value, old_value),
-            jax.lax.select(flag, possible_trace.get_score(), trace.get_score()),
+            flag.where(new_value, old_value),
+            jnp.asarray(flag.where(possible_trace.get_score(), trace.get_score())),
         )
 
         return new_trace, w, retdiff, bwd_problem
 
     def update_project(
         self,
-        trace: Trace,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        trace: Trace[R],
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         original = trace.get_score()
         removed_value = trace.get_retval()
         retdiff = Diff.tree_diff_unknown_change(trace.get_retval())
@@ -404,10 +410,10 @@ class Distribution(GenerativeFunction):
     def update_selection_project(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         selection: Selection,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         check = () in selection
 
         return self.update(
@@ -415,7 +421,7 @@ class Distribution(GenerativeFunction):
             trace,
             GenericProblem(
                 argdiffs,
-                MaskedProblem.maybe(check, ProjectProblem()),
+                MaskedProblem(Flag(check), ProjectProblem()),
             ),
         )
 
@@ -423,10 +429,10 @@ class Distribution(GenerativeFunction):
     def update_change_target(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         match update_problem:
             case EmptyProblem():
                 return self.update_empty(trace, argdiffs)
@@ -435,7 +441,9 @@ class Distribution(GenerativeFunction):
                 return self.update_constraint(key, trace, update_problem, argdiffs)
 
             case MaskedProblem(flag, subproblem):
-                return self.update_masked(key, trace, flag, subproblem, argdiffs)
+                # TODO (#1239): see if `MaskedProblem` can handle this update,
+                # without infecting all of `Distribution`
+                return self.update_masked(key, trace, flag, subproblem, argdiffs)  # pyright: ignore[reportAttributeAccessIssue]
 
             case ProjectProblem():
                 return self.update_project(trace)
@@ -457,9 +465,9 @@ class Distribution(GenerativeFunction):
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         update_problem: UpdateProblem,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
@@ -471,8 +479,8 @@ class Distribution(GenerativeFunction):
     @typecheck
     def assess(
         self,
-        sample: Sample,
-        args: tuple,
+        sample: ChoiceMap,
+        args: tuple[Any, ...],
     ):
         raise NotImplementedError
 
@@ -482,26 +490,26 @@ class Distribution(GenerativeFunction):
 ################
 
 
-class ExactDensity(Distribution):
+class ExactDensity(Generic[R], Distribution[R]):
     @abstractmethod
-    def sample(self, key: PRNGKey, *args):
+    def sample(self, key: PRNGKey, *args) -> R:
         raise NotImplementedError
 
     @abstractmethod
-    def logpdf(self, v: Retval, *args):
+    def logpdf(self, v: R, *args) -> Score:
         raise NotImplementedError
 
     def __abstract_call__(self, *args):
         key = jax.random.PRNGKey(0)
         return self.sample(key, *args)
 
-    def handle_kwargs(self) -> GenerativeFunction:
+    def handle_kwargs(self) -> GenerativeFunction[R]:
         @Pytree.partial(self)
-        def sample_with_kwargs(self, key, args, kwargs):
+        def sample_with_kwargs(self: "ExactDensity[R]", key, args, kwargs):
             return self.sample(key, *args, **kwargs)
 
         @Pytree.partial(self)
-        def logpdf_with_kwargs(self, v, args, kwargs):
+        def logpdf_with_kwargs(self: "ExactDensity[R]", v, args, kwargs):
             return self.logpdf(v, *args, **kwargs)
 
         return ExactDensityFromCallables(
@@ -513,7 +521,7 @@ class ExactDensity(Distribution):
         self,
         key: PRNGKey,
         *args,
-    ) -> tuple[Score, Retval]:
+    ) -> tuple[Score, R]:
         """
         Given arguments to the distribution, sample from the distribution, and return the exact log density of the sample, and the sample.
         """
@@ -524,7 +532,7 @@ class ExactDensity(Distribution):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        v: Any,
+        v: R,
         *args,
     ) -> Weight:
         """
@@ -541,17 +549,16 @@ class ExactDensity(Distribution):
     def assess(
         self,
         sample: ChoiceMap,
-        args: tuple,
-    ):
+        args: tuple[Any, ...],
+    ) -> tuple[Weight, R]:
         key = jax.random.PRNGKey(0)
         v = sample.get_value()
         match v:
             case Mask(flag, value):
 
                 def _check():
-                    check_flag = jnp.all(flag)
                     checkify.check(
-                        check_flag,
+                        bool(flag),
                         "Attempted to unmask when a mask flag is False: the masked value is invalid.\n",
                     )
 
@@ -564,21 +571,21 @@ class ExactDensity(Distribution):
 
 
 @Pytree.dataclass
-class ExactDensityFromCallables(ExactDensity):
-    sampler: Closure
-    logpdf_evaluator: Closure
+class ExactDensityFromCallables(Generic[R], ExactDensity[R]):
+    sampler: Closure[R]
+    logpdf_evaluator: Closure[Score]
 
-    def sample(self, key, *args):
+    def sample(self, key, *args) -> R:
         return self.sampler(key, *args)
 
-    def logpdf(self, v, *args):
+    def logpdf(self, v, *args) -> Score:
         return self.logpdf_evaluator(v, *args)
 
 
 @typecheck
 def exact_density(
-    sample: Callable[..., Any],
-    logpdf: Callable[..., Any],
+    sample: Callable[..., R],
+    logpdf: Callable[..., Score],
 ):
     if not isinstance(sample, Closure):
         sample = Pytree.partial()(sample)
@@ -586,4 +593,4 @@ def exact_density(
     if not isinstance(logpdf, Closure):
         logpdf = Pytree.partial()(logpdf)
 
-    return ExactDensityFromCallables(sample, logpdf)
+    return ExactDensityFromCallables[R](sample, logpdf)

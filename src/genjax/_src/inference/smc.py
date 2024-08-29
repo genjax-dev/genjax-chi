@@ -35,6 +35,7 @@ from genjax._src.core.generative import (
     UpdateProblem,
     Weight,
 )
+from genjax._src.core.generative.core import GenericProblem
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -43,7 +44,6 @@ from genjax._src.core.typing import (
     Callable,
     FloatArray,
     Int,
-    Optional,
     PRNGKey,
     typecheck,
 )
@@ -106,11 +106,8 @@ class ParticleCollection(Pytree):
     def get_log_marginal_likelihood_estimate(self) -> FloatArray:
         return logsumexp(self.log_weights) - jnp.log(len(self.log_weights))
 
-    def __getitem__(self, idx) -> tuple:
+    def __getitem__(self, idx) -> tuple[Any, ...]:
         return jtu.tree_map(lambda v: v[idx], (self.particles, self.log_weights))
-
-    def check_valid(self) -> BoolArray:
-        return self.is_valid
 
     def sample_particle(self, key) -> Trace:
         """
@@ -149,13 +146,13 @@ class SMCAlgorithm(Algorithm):
     def run_csmc(
         self,
         key: PRNGKey,
-        retained: Sample,
+        retained: ChoiceMap,
     ) -> ParticleCollection:
         raise NotImplementedError
 
     # Convenience method for returning an estimate of the normalizing constant
     # of the target.
-    def log_marginal_likelihood_estimate(self, key, target: Optional[Target] = None):
+    def log_marginal_likelihood_estimate(self, key, target: Target | None = None):
         if target:
             algorithm = ChangeTarget(self, target)
         else:
@@ -172,8 +169,9 @@ class SMCAlgorithm(Algorithm):
     def random_weighted(
         self,
         key: PRNGKey,
-        target: Target,
-    ) -> tuple[FloatArray, Sample]:
+        *args: Target,
+    ) -> tuple[FloatArray, ChoiceMap]:
+        (target,) = args
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
         particle_collection = algorithm.run_smc(key)
@@ -189,12 +187,13 @@ class SMCAlgorithm(Algorithm):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: Sample,
-        target: Target,
+        v: ChoiceMap,
+        *args: Target,
     ) -> FloatArray:
+        (target,) = args
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
-        particle_collection = algorithm.run_csmc(key, latent_choices)
+        particle_collection = algorithm.run_csmc(key, v)
         particle = particle_collection.sample_particle(sub_key)
         log_density_estimate = (
             particle.get_score()
@@ -222,7 +221,7 @@ class SMCAlgorithm(Algorithm):
         self,
         key: PRNGKey,
         target: Target,
-        latent_choices: Sample,
+        latent_choices: ChoiceMap,
         w: FloatArray,
     ) -> FloatArray:
         algorithm = ChangeTarget(self, target)
@@ -260,7 +259,7 @@ class Importance(SMCAlgorithm):
 
     def run_smc(self, key: PRNGKey):
         key, sub_key = jrandom.split(key)
-        if not Pytree.static_check_none(self.q):
+        if self.q is not None:
             log_weight, choice = self.q.random_weighted(sub_key, self.target)
             tr, target_score = self.target.importance(key, choice)
         else:
@@ -272,7 +271,7 @@ class Importance(SMCAlgorithm):
             jnp.array(True),
         )
 
-    def run_csmc(self, key: PRNGKey, retained: Sample):
+    def run_csmc(self, key: PRNGKey, retained: ChoiceMap):
         key, sub_key = jrandom.split(key)
         if self.q:
             q_score = self.q.estimate_logpdf(sub_key, retained, self.target)
@@ -305,7 +304,7 @@ class ImportanceK(SMCAlgorithm):
     def run_smc(self, key: PRNGKey):
         key, sub_key = jrandom.split(key)
         sub_keys = jrandom.split(sub_key, self.get_num_particles())
-        if not Pytree.static_check_none(self.q):
+        if self.q is not None:
             log_weights, choices = vmap(self.q.random_weighted, in_axes=(0, None))(
                 sub_keys, self.target
             )
@@ -321,7 +320,7 @@ class ImportanceK(SMCAlgorithm):
             jnp.array(True),
         )
 
-    def run_csmc(self, key: PRNGKey, retained: Sample):
+    def run_csmc(self, key: PRNGKey, retained: ChoiceMap):
         key, sub_key = jrandom.split(key)
         sub_keys = jrandom.split(sub_key, self.get_num_particles() - 1)
         if self.q:
@@ -436,7 +435,7 @@ class ChangeTarget(SMCAlgorithm):
     def run_csmc(
         self,
         key: PRNGKey,
-        retained: Sample,
+        retained: ChoiceMap,
     ) -> ParticleCollection:
         collection = self.prev.run_csmc(key, retained)
 
@@ -470,7 +469,7 @@ class ChangeTarget(SMCAlgorithm):
     def run_csmc_for_normalizing_constant(
         self,
         key: PRNGKey,
-        latent_choices: Sample,
+        latent_choices: ChoiceMap,
         w: FloatArray,
     ) -> FloatArray:
         key, sub_key = jrandom.split(key)
@@ -513,7 +512,7 @@ class KernelTrace(Trace):
     gen_fn: "KernelGenerativeFunction"
     inner: Trace
 
-    def get_args(self) -> tuple:
+    def get_args(self) -> tuple[Any, ...]:
         return self.inner.get_args()
 
     def get_retval(self) -> Any:
@@ -536,7 +535,7 @@ class KernelGenerativeFunction(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> Trace:
         gen_fn = gen(self.source)
         tr = gen_fn.simulate(key, args)
@@ -546,16 +545,15 @@ class KernelGenerativeFunction(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: Constraint,
-        args: tuple,
-    ) -> tuple[Trace, Weight, UpdateProblem]:
+        args: tuple[Any, ...],
+    ) -> tuple[Trace, Weight]:
         raise NotImplementedError
 
     def update(
         self,
         key: PRNGKey,
-        trace: KernelTrace,
+        trace: Trace,
         update_problem: UpdateProblem,
-        args: tuple,
     ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         raise NotImplementedError
 
@@ -631,7 +629,7 @@ class AttachTrace(Trace):
     gen_fn: "AttachCombinator"
     inner: Trace
 
-    def get_args(self) -> tuple:
+    def get_args(self) -> tuple[Any, ...]:
         return self.inner.get_args()
 
     def get_retval(self) -> Any:
@@ -653,7 +651,7 @@ class AttachCombinator(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> Trace:
         tr = self.gen_fn.simulate(key, args)
         return AttachTrace(self, tr)
@@ -664,22 +662,22 @@ class AttachCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         constraint: Constraint,
-        args: tuple,
-    ) -> tuple[Trace, Weight, UpdateProblem]:
+        args: tuple[Any, ...],
+    ) -> tuple[Trace, Weight]:
         move = self.importance_move(constraint)
         match move:
             case SMCP3Move(K, _):
                 K_tr = K.simulate(key, (EmptySample(), constraint))
                 K_aux_score = K_tr.get_score()
                 (new_latents, aux) = K_tr.get_retval()
-                w_smc = move.weight(
+                w_smc = move.weight_correction(
                     EmptySample(),  # old latents
                     new_latents,  # new latents
                     aux,  # aux from K
                     K_aux_score,
                 )
-                tr, w, bwd = self.gen_fn.importance(key, new_latents, args)
-                return tr, w + w_smc, bwd
+                tr, w = self.gen_fn.importance(key, new_latents, args)
+                return tr, w + w_smc
 
             case DirectOverload(importance_impl):
                 return importance_impl(key, constraint, args)
@@ -696,8 +694,7 @@ class AttachCombinator(GenerativeFunction):
         self,
         key: PRNGKey,
         trace: AttachTrace,
-        update_problem: UpdateProblem,
-        argdiffs: tuple,
+        update_problem: GenericProblem,
     ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
         gen_fn_trace = trace.inner
         move = self.update_move(update_problem)
@@ -709,7 +706,7 @@ class AttachCombinator(GenerativeFunction):
                 K_aux_score = K_tr.get_score()
                 (new_latents, K_aux) = K_tr.get_retval()
                 old_latents = trace.get_sample()
-                w_smc = move.weight(
+                w_smc = move.weight_correction(
                     old_latents,  # old latents
                     new_latents,  # new latents
                     K_aux,  # aux from K
@@ -718,8 +715,7 @@ class AttachCombinator(GenerativeFunction):
                 tr, w, retdiff, bwd_problem = self.gen_fn.update(
                     key,
                     gen_fn_trace,
-                    new_latents,
-                    argdiffs,
+                    GenericProblem(update_problem.argdiffs, new_latents),
                 )
                 return tr, w + w_smc, retdiff, bwd_problem
 
@@ -727,12 +723,7 @@ class AttachCombinator(GenerativeFunction):
                 return update_impl(key)
 
             case DeferToInternal():
-                return self.gen_fn.update(
-                    key,
-                    gen_fn_trace,
-                    update_problem,
-                    argdiffs,
-                )
+                return self.gen_fn.update(key, gen_fn_trace, update_problem)
 
             case _:
                 raise Exception("Invalid move type")

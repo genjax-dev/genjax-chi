@@ -40,7 +40,7 @@ from genjax._src.core.generative import (
     UpdateProblem,
     Weight,
 )
-from genjax._src.core.generative.core import push_trace_overload_stack
+from genjax._src.core.generative.core import R, push_trace_overload_stack
 from genjax._src.core.interpreters.forward import (
     InitialStylePrimitive,
     StatefulHandler,
@@ -52,17 +52,17 @@ from genjax._src.core.interpreters.incremental import (
     incremental,
 )
 from genjax._src.core.pytree import Closure, Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
-    ArrayLike,
     Callable,
     FloatArray,
+    Generic,
     PRNGKey,
+    TypeVar,
     typecheck,
 )
 
-register_exclusion(__file__)
+R = TypeVar("R")
 
 
 # Usage in transforms: checks for duplicate addresses.
@@ -87,21 +87,21 @@ class AddressVisitor(Pytree):
 
 
 @Pytree.dataclass
-class StaticTrace(Trace):
-    gen_fn: GenerativeFunction
-    args: tuple
-    retval: Any
+class StaticTrace(Generic[R], Trace[R]):
+    gen_fn: GenerativeFunction[R]
+    args: tuple[Any, ...]
+    retval: R
     addresses: AddressVisitor
-    subtraces: list[Trace]
+    subtraces: list[Trace[Any]]
     score: Score
 
-    def get_args(self) -> tuple:
+    def get_args(self) -> tuple[Any, ...]:
         return self.args
 
-    def get_retval(self) -> Any:
+    def get_retval(self) -> R:
         return self.retval
 
-    def get_gen_fn(self) -> GenerativeFunction:
+    def get_gen_fn(self) -> GenerativeFunction[R]:
         return self.gen_fn
 
     def get_sample(self) -> ChoiceMap:
@@ -153,18 +153,18 @@ trace_p = InitialStylePrimitive("trace")
 # get lifted to by `get_shaped_aval`.
 def _abstract_gen_fn_call(
     _: Address,
-    gen_fn: GenerativeFunction,
-    args: tuple,
-):
+    gen_fn: GenerativeFunction[R],
+    args: tuple[Any, ...],
+) -> R:
     return gen_fn.__abstract_call__(*args)
 
 
 @typecheck
 def trace(
     addr: StaticAddress,
-    gen_fn: GenerativeFunction,
-    args: tuple,
-):
+    gen_fn: GenerativeFunction[R],
+    args: tuple[Any, ...],
+) -> R:
     """Invoke a generative function, binding its generative semantics with the current
     caller.
 
@@ -199,8 +199,8 @@ class StaticHandler(StatefulHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction,
-        args: tuple,
+        gen_fn: GenerativeFunction[R],
+        args: tuple[Any, ...],
     ):
         raise NotImplementedError
 
@@ -236,7 +236,7 @@ class SimulateHandler(StaticHandler):
     key: PRNGKey
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    address_traces: list[Trace] = Pytree.field(default_factory=list)
+    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
 
     def visit(self, addr):
         self.address_visitor.visit(addr)
@@ -252,8 +252,8 @@ class SimulateHandler(StaticHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction,
-        args: tuple,
+        gen_fn: GenerativeFunction[Any],
+        args: tuple[Any, ...],
     ):
         self.visit(addr)
         self.key, sub_key = jax.random.split(self.key)
@@ -294,12 +294,12 @@ def simulate_transform(source_fn):
 @dataclass
 class UpdateHandler(StaticHandler):
     key: PRNGKey
-    previous_trace: StaticTrace
+    previous_trace: StaticTrace[Any]
     fwd_problem: UpdateProblem
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_traces: list[Trace] = Pytree.field(default_factory=list)
+    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
     bwd_problems: list[UpdateProblem] = Pytree.field(default_factory=list)
 
     def yield_state(self):
@@ -333,7 +333,7 @@ class UpdateHandler(StaticHandler):
             case _:
                 raise ValueError(f"Not implemented fwd_problem: {self.fwd_problem}")
 
-    def get_subtrace(self, sub_gen_fn: GenerativeFunction, addr: StaticAddress):
+    def get_subtrace(self, sub_gen_fn: GenerativeFunction[Any], addr: StaticAddress):
         if isinstance(self.previous_trace, EmptyTrace):
             return EmptyTrace(sub_gen_fn)
         else:
@@ -346,8 +346,8 @@ class UpdateHandler(StaticHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction,
-        args: tuple,
+        gen_fn: GenerativeFunction[Any],
+        args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
         self.visit(addr)
@@ -368,7 +368,7 @@ class UpdateHandler(StaticHandler):
 def update_transform(source_fn):
     @functools.wraps(source_fn)
     @typecheck
-    def wrapper(key, previous_trace, constraints, diffs: tuple):
+    def wrapper(key, previous_trace, constraints, diffs: tuple[Any, ...]):
         stateful_handler = UpdateHandler(key, previous_trace, constraints)
         diff_primals = Diff.tree_primal(diffs)
         diff_tangents = Diff.tree_tangent(diffs)
@@ -430,8 +430,8 @@ class AssessHandler(StaticHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction,
-        args: tuple,
+        gen_fn: GenerativeFunction[Any],
+        args: tuple[Any, ...],
     ):
         submap = self.get_subsample(addr)
         (score, v) = gen_fn.assess(submap, args)
@@ -459,14 +459,14 @@ def assess_transform(source_fn):
 @typecheck
 def handler_trace_with_static(
     addr: StaticAddressComponent | StaticAddress,
-    gen_fn: GenerativeFunction,
-    args: tuple,
+    gen_fn: GenerativeFunction[Any],
+    args: tuple[Any, ...],
 ):
     return trace(addr if isinstance(addr, tuple) else (addr,), gen_fn, args)
 
 
 @Pytree.dataclass
-class StaticGenerativeFunction(GenerativeFunction):
+class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     """A `StaticGenerativeFunction` is a generative function which relies on program
     transformations applied to JAX-compatible Python programs to implement the generative
     function interface.
@@ -492,7 +492,7 @@ class StaticGenerativeFunction(GenerativeFunction):
         ```
     """
 
-    source: Closure
+    source: Closure[R]
     """
     The source program of the generative function. This is a JAX-compatible Python program.
     """
@@ -502,7 +502,7 @@ class StaticGenerativeFunction(GenerativeFunction):
     def __abstract_call__(self, *args) -> Any:
         return self.source(*args)
 
-    def handle_kwargs(self) -> GenerativeFunction:
+    def handle_kwargs(self) -> "StaticGenerativeFunction[R]":
         @Pytree.partial()
         def kwarged_source(args, kwargs):
             return self.source(*args, **kwargs)
@@ -514,8 +514,8 @@ class StaticGenerativeFunction(GenerativeFunction):
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
-    ) -> StaticTrace:
+        args: tuple[Any, ...],
+    ) -> StaticTrace[R]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -535,10 +535,10 @@ class StaticGenerativeFunction(GenerativeFunction):
     def update_change_target(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], UpdateProblem]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -585,9 +585,9 @@ class StaticGenerativeFunction(GenerativeFunction):
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[R],
         update_problem: UpdateProblem,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
@@ -603,8 +603,8 @@ class StaticGenerativeFunction(GenerativeFunction):
     def assess(
         self,
         sample: ChoiceMap,
-        args: tuple,
-    ) -> tuple[ArrayLike, Any]:
+        args: tuple[Any, ...],
+    ) -> tuple[Score, R]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -614,7 +614,7 @@ class StaticGenerativeFunction(GenerativeFunction):
     def inline(self, *args):
         return self.source(*args)
 
-    def partial_apply(self, *args) -> "StaticGenerativeFunction":
+    def partial_apply(self, *args) -> "StaticGenerativeFunction[R]":
         """
         Returns a new [`StaticGenerativeFunction`][] with the given arguments partially applied.
 
@@ -634,8 +634,8 @@ class StaticGenerativeFunction(GenerativeFunction):
                 return y * z
 
 
-            curried_model = my_model.curry(2.0)
-            # Now `curried_model` is equivalent to a model that only takes 'y' as an argument
+            partially_applied_model = my_model.partial_apply(2.0)
+            # Now `partially_applied_model` is equivalent to a model that only takes 'y' as an argument
             ```
         """
         return gen(Pytree.partial(*args)(self.inline))
@@ -647,12 +647,12 @@ class StaticGenerativeFunction(GenerativeFunction):
 
 
 @typecheck
-def gen(f: Callable[..., Any]) -> StaticGenerativeFunction:
+def gen(f: Callable[..., R]) -> StaticGenerativeFunction[R]:
     if isinstance(f, Closure):
-        return StaticGenerativeFunction(f)
+        return StaticGenerativeFunction[R](f)
     else:
         closure = Pytree.partial()(f)
-        return StaticGenerativeFunction(closure)
+        return StaticGenerativeFunction[R](closure)
 
 
 ###########

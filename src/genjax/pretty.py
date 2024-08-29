@@ -47,19 +47,21 @@ def pretty():
                     "background_color must be provided if background_pattern is"
                 )
 
-            def wrap_block(block):
+            def background_wrap1(block):
                 return common_styles.WithBlockPattern(
                     block, color=background_color, pattern=background_pattern
                 )
 
+            wrap_block = background_wrap1
             wrap_topline = common_styles.PatternedTopLineSpanGroup
             wrap_bottomline = common_styles.PatternedBottomLineSpanGroup
 
         elif background_color is not None and background_color != "transparent":
 
-            def wrap_block(block):
+            def background_wrap2(block):
                 return common_styles.WithBlockColor(block, color=background_color)
 
+            wrap_block = background_wrap2
             wrap_topline = common_styles.ColoredTopLineSpanGroup
             wrap_bottomline = common_styles.ColoredBottomLineSpanGroup
 

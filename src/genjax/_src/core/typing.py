@@ -28,10 +28,6 @@ import numpy as np
 from beartype import BeartypeConf, beartype
 from beartype.vale import Is
 
-from genjax._src.core.traceback_util import register_exclusion
-
-register_exclusion(__file__)
-
 Any = btyping.Any
 PRNGKey = jtyping.PRNGKeyArray
 Array = jtyping.Array
@@ -41,7 +37,6 @@ FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
 Sequence = btyping.Sequence
-Optional = btyping.Optional
 
 # JAX Type alias.
 InAxes = int | None | Sequence[Any]
@@ -133,11 +128,12 @@ def static_check_is_array(v: Any) -> Bool:
     )
 
 
-def static_check_is_concrete(x: Any) -> Bool:
+def static_check_is_concrete(x: Any) -> bool:
     return not isinstance(x, jc.Tracer)
 
 
-def static_check_bool(x: Any) -> Bool:
+def static_check_bool(x: Any) -> bool:
+    # return static_check_is_concrete(x) and (isinstance(x, Bool) or (isinstance(x, jnp.ndarray) and x.dtype == 'bool'))
     return static_check_is_concrete(x) and isinstance(x, Bool)
 
 
