@@ -45,7 +45,6 @@ from genjax._src.core.typing import (
     PRNGKey,
     Sequence,
     TypeVar,
-    typecheck,
 )
 
 R = TypeVar("R")
@@ -173,7 +172,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
     def static_check_num_arguments_equals_num_branches(self, args):
         assert len(args) == len(self.branches)
 
-    @typecheck
     def _empty_simulate_defs(
         self,
         args: tuple[Any, ...],
@@ -208,7 +206,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
         return (trace_leaves, retval_leaves), score
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -245,7 +242,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
         retval = Sum.maybe_none(idx, retvals)
         return SwitchTrace(self, args, subtraces, retval, score)
 
-    @typecheck
     def _empty_update_defs(
         self,
         trace: SwitchTrace[Any],
@@ -316,7 +312,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
         score = tr.get_score()
         return (trace_leaves, retdiff_leaves, bwd_problem_leaves), (score, w)
 
-    @typecheck
     def _generic_update_idx_change(
         self,
         key: PRNGKey,
@@ -378,7 +373,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
         score = tr.get_score()
         return (trace_leaves, retdiff_leaves, bwd_problem_leaves), (score, w)
 
-    @typecheck
     def update_generic(
         self,
         key: PRNGKey,
@@ -455,7 +449,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
             SumProblem(idx, bwd_problems),
         )
 
-    @typecheck
     def _empty_importance_defs(
         self,
         problem: ImportanceProblem,
@@ -520,7 +513,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
         score = tr.get_score()
         return (trace_leaves, retval_leaves, bwd_problem_leaves), (score, w)
 
-    @typecheck
     def update_importance(
         self,
         key: PRNGKey,
@@ -596,7 +588,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
             SumProblem(idx, bwd_problems),
         )
 
-    @typecheck
     def update_change_target(
         self,
         key: PRNGKey,
@@ -615,7 +606,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
                 return self.update_generic(key, trace, problem, argdiffs)
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def update(
         self,
         key: PRNGKey,
@@ -651,7 +641,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
         retval_leaves[static_idx] = jtu.tree_leaves(retval)
         return retval_leaves, score
 
-    @typecheck
     def assess(
         self,
         sample: Sample,
@@ -684,7 +673,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
 #############
 
 
-@typecheck
 def switch(
     *gen_fns: GenerativeFunction[Any],
 ) -> GenerativeFunction[Any]:

@@ -43,7 +43,6 @@ from genjax._src.core.typing import (
     IntArray,
     PRNGKey,
     TypeVar,
-    typecheck,
 )
 
 Carry = TypeVar("Carry")
@@ -208,7 +207,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
         return v, scanned_out
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -242,7 +240,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
         return ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores))
 
-    @typecheck
     def update_importance(
         self,
         key: PRNGKey,
@@ -308,7 +305,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             case _:
                 raise Exception(f"Not implemented subproblem: {problem}")
 
-    @typecheck
     def update_generic(
         self,
         key: PRNGKey,
@@ -439,7 +435,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             IndexProblem(index, bwd_problem),
         )
 
-    @typecheck
     def update_change_target(
         self,
         key: PRNGKey,
@@ -472,7 +467,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 return self.update_generic(key, trace, update_problem, argdiffs)
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def update(
         self,
         key: PRNGKey,
@@ -494,7 +488,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 )
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def assess(
         self,
         sample: Sample,
@@ -536,7 +529,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 ##############
 
 
-@typecheck
 def scan(
     *, n: Int | None = None, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[
@@ -658,7 +650,6 @@ def prepend_initial_acc(args: tuple[Carry, Any], ret: tuple[Carry, Carry]) -> Ca
     return jax.tree.map(cat, init_acc, xs)
 
 
-@typecheck
 def accumulate(
     *, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]:
@@ -729,7 +720,6 @@ def accumulate(
     return decorator
 
 
-@typecheck
 def reduce(
     *, reverse: bool = False, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]:
@@ -799,7 +789,6 @@ def reduce(
     return decorator
 
 
-@typecheck
 def iterate(
     *, n: Int, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
@@ -865,7 +854,6 @@ def iterate(
     return decorator
 
 
-@typecheck
 def iterate_final(
     *, n: Int, unroll: int | bool = 1
 ) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:

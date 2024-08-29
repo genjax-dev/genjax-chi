@@ -36,7 +36,6 @@ from genjax._src.core.typing import (
     PRNGKey,
     String,
     TypeVar,
-    typecheck,
 )
 
 # Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
@@ -362,7 +361,7 @@ class Trace(Generic[R], Pytree):
         """Return the [`Sample`][genjax.core.Sample] sampled from the distribution over samples by the generative function during the invocation which created the [`Trace`][genjax.core.Trace]."""
 
     # TODO: deprecated.
-    @typecheck
+
     def get_choices(self) -> "genjax.ChoiceMap":
         """Version of [`genjax.Trace.get_sample`][] for traces where the sample is an instance of [`genjax.ChoiceMap`][]."""
         return self.get_sample()  # type: ignore
@@ -394,7 +393,6 @@ class Trace(Generic[R], Pytree):
                 "Supply either a GenericProblem or an UpdateProblem, possibly with argdiffs"
             )
 
-    @typecheck
     def project(
         self,
         key: PRNGKey,
@@ -753,7 +751,6 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         raise NotImplementedError
 
-    @typecheck
     def importance(
         self,
         key: PRNGKey,
@@ -802,7 +799,6 @@ class GenerativeFunction(Generic[R], Pytree):
         )
         return tr, w
 
-    @typecheck
     def propose(
         self,
         key: PRNGKey,
@@ -1601,7 +1597,6 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         raise NotImplementedError
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -1611,7 +1606,6 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         return self.wrapped.simulate(key, args)
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def update(
         self, key: PRNGKey, trace: Trace[R], update_problem: GenericProblem
     ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
@@ -1669,7 +1663,6 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     #############################################
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -1686,7 +1679,6 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
             return self.gen_fn.simulate(key, full_args)
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def update(
         self,
         key: PRNGKey,
@@ -1712,7 +1704,6 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
                 raise NotImplementedError
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def assess(
         self,
         sample: "genjax.ChoiceMap",

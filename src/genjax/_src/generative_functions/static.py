@@ -58,7 +58,6 @@ from genjax._src.core.typing import (
     Generic,
     PRNGKey,
     TypeVar,
-    typecheck,
 )
 
 R = TypeVar("R")
@@ -69,7 +68,6 @@ R = TypeVar("R")
 class AddressVisitor(Pytree):
     visited: list[StaticAddress] = Pytree.static(default_factory=list)
 
-    @typecheck
     def visit(self, addr: StaticAddress):
         if addr in self.visited:
             raise AddressReuse(addr)
@@ -114,7 +112,6 @@ class StaticTrace(Generic[R], Trace[R]):
     def get_score(self) -> Score:
         return self.score
 
-    @typecheck
     def get_subtrace(self, addr: StaticAddress):
         addresses = self.addresses.get_visited()
         idx = addresses.index(addr)
@@ -247,7 +244,6 @@ class SimulateHandler(StaticHandler):
             self.score,
         )
 
-    @typecheck
     def handle_trace(
         self,
         addr: StaticAddress,
@@ -313,7 +309,6 @@ class UpdateHandler(StaticHandler):
     def visit(self, addr):
         self.address_visitor.visit(addr)
 
-    @typecheck
     def get_subproblem(self, addr: StaticAddress):
         match self.fwd_problem:
             case ChoiceMap():
@@ -341,7 +336,6 @@ class UpdateHandler(StaticHandler):
     def handle_retval(self, v):
         return jtu.tree_leaves(v, is_leaf=lambda v: isinstance(v, Diff))
 
-    @typecheck
     def handle_trace(
         self,
         addr: StaticAddress,
@@ -366,7 +360,6 @@ class UpdateHandler(StaticHandler):
 
 def update_transform(source_fn):
     @functools.wraps(source_fn)
-    @typecheck
     def wrapper(key, previous_trace, constraints, diffs: tuple[Any, ...]):
         stateful_handler = UpdateHandler(key, previous_trace, constraints)
         diff_primals = Diff.tree_primal(diffs)
@@ -416,7 +409,6 @@ class AssessHandler(StaticHandler):
     def yield_state(self):
         return (self.score,)
 
-    @typecheck
     def get_subsample(self, addr: StaticAddress):
         match self.sample:
             case ChoiceMap():
@@ -425,7 +417,6 @@ class AssessHandler(StaticHandler):
             case _:
                 raise ValueError(f"Not implemented: {self.sample}")
 
-    @typecheck
     def handle_trace(
         self,
         addr: StaticAddress,
@@ -455,7 +446,8 @@ def assess_transform(source_fn):
 
 
 # Callee syntactic sugar handler.
-@typecheck
+
+
 def handler_trace_with_static(
     addr: StaticAddressComponent | StaticAddress,
     gen_fn: GenerativeFunction[Any],
@@ -509,7 +501,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         return StaticGenerativeFunction(kwarged_source)
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -530,7 +521,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             score,
         )
 
-    @typecheck
     def update_change_target(
         self,
         key: PRNGKey,
@@ -580,7 +570,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         )
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def update(
         self,
         key: PRNGKey,
@@ -598,7 +587,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 )
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def assess(
         self,
         sample: ChoiceMap,
@@ -645,7 +633,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 #############
 
 
-@typecheck
 def gen(f: Callable[..., R]) -> StaticGenerativeFunction[R]:
     if isinstance(f, Closure):
         return StaticGenerativeFunction[R](f)

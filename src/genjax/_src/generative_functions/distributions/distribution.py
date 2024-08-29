@@ -52,7 +52,6 @@ from genjax._src.core.typing import (
     Callable,
     Generic,
     PRNGKey,
-    typecheck,
 )
 
 #####
@@ -110,7 +109,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         pass
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -120,7 +118,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         tr = DistributionTrace(self, args, v, w)
         return tr
 
-    @typecheck
     def importance_choice_map(
         self,
         key: PRNGKey,
@@ -157,7 +154,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 tr = DistributionTrace(self, args, v, w)
                 return tr, w, bwd_problem
 
-    @typecheck
     def importance_masked_constraint(
         self,
         key: PRNGKey,
@@ -185,7 +181,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             args,
         )
 
-    @typecheck
     def update_importance(
         self,
         key: PRNGKey,
@@ -425,7 +420,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             ),
         )
 
-    @typecheck
     def update_change_target(
         self,
         key: PRNGKey,
@@ -461,7 +455,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 raise Exception(f"Not implement fwd problem: {update_problem}.")
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def update(
         self,
         key: PRNGKey,
@@ -476,7 +469,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     key, trace, update_problem, Diff.no_change(trace.get_args())
                 )
 
-    @typecheck
     def assess(
         self,
         sample: ChoiceMap,
@@ -545,7 +537,6 @@ class ExactDensity(Generic[R], Distribution[R]):
             return w
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def assess(
         self,
         sample: ChoiceMap,
@@ -582,7 +573,6 @@ class ExactDensityFromCallables(Generic[R], ExactDensity[R]):
         return self.logpdf_evaluator(v, *args)
 
 
-@typecheck
 def exact_density(
     sample: Callable[..., R],
     logpdf: Callable[..., Score],

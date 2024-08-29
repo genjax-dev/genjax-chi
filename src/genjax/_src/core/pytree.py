@@ -106,7 +106,7 @@ class Pytree(pz.Struct):
 
 
             @Pytree.dataclass
-            @typecheck  # Enforces type annotations on instantiation.
+            # Enforces type annotations on instantiation.
             class MyClass(Pytree):
                 my_static_field: int = Pytree.static()
                 my_dynamic_field: FloatArray
@@ -131,7 +131,7 @@ class Pytree(pz.Struct):
         Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
             @Pytree.dataclass
-            @typecheck  # Enforces type annotations on instantiation.
+            # Enforces type annotations on instantiation.
             class MyClass(Pytree):
                 my_dynamic_field: FloatArray
                 my_static_field: int = Pytree.static(default=0)
