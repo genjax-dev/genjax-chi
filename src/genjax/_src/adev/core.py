@@ -482,15 +482,6 @@ class ADEVProgram(Pytree):
 
         return adev_jvp(self.source)(dual_tree)
 
-    def debug_transform_adev(
-        self,
-        key: PRNGKey,
-        primals: tuple[Any, ...],
-        tangents: tuple[Any, ...],
-        mapping: Callable[..., Any],
-    ):
-        raise NotImplementedError()
-
 
 ###############
 # Expectation #
@@ -523,21 +514,6 @@ class Expectation(Pytree):
             return invoke_closed_over(self, key, primals)
 
         return jax.grad(_invoke_closed_over)(primals)
-
-    #################
-    # For debugging #
-    #################
-
-    def debug_transform_adev(
-        self,
-        key: PRNGKey,
-        primals: tuple[Any, ...],
-        tangents: tuple[Any, ...],
-    ):
-        def _identity(x):
-            return x
-
-        return self.prog.debug_transform_adev(key, primals, tangents, _identity)
 
 
 def expectation(source: Callable[..., Any]):

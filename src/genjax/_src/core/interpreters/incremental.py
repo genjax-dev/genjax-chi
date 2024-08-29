@@ -41,10 +41,9 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     Generic,
-    IntArray,
     TypeVar,
     Value,
-    static_check_is_concrete,
+    typecheck,
 )
 
 R = TypeVar("R")
@@ -84,19 +83,6 @@ class _NoChange(ChangeTangent):
 
 
 NoChange = _NoChange()
-
-
-@Pytree.dataclass
-class IntChange(ChangeTangent):
-    dv: IntArray
-
-
-@Pytree.dataclass
-class StaticIntChange(ChangeTangent):
-    dv: IntArray = Pytree.static()
-
-    def __post_init__(self):
-        assert static_check_is_concrete(self.dv)
 
 
 def static_check_is_change_tangent(v):

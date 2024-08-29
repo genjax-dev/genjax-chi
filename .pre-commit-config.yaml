@@ -36,6 +36,11 @@ repos:
       - id: ruff-format
         types_or: [ python, pyi, jupyter ]
 
+  - repo: https://github.com/jendrikseipp/vulture
+    rev: v2.11
+    hooks:
+      - id: vulture
+
   - repo: https://github.com/RobertCraigie/pyright-python
     rev: v1.1.377
     hooks:

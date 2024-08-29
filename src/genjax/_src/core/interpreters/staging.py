@@ -30,7 +30,6 @@ from genjax._src.core.typing import (
     ArrayLike,
     BoolArray,
     Callable,
-    Int,
     static_check_is_concrete,
 )
 
@@ -121,13 +120,6 @@ def staged_check(v):
     return static_check_is_concrete(v) and v
 
 
-def staged_switch(idx, v1, v2):
-    if static_check_is_concrete(idx) and isinstance(idx, Int):
-        return [v1, v2][idx]
-    else:
-        return jax.lax.cond(idx, lambda: v1, lambda: v2)
-
-
 #########################
 # Staged error handling #
 #########################
@@ -210,11 +202,3 @@ def get_importance_shape(gen_fn, constraint, args):
 def get_update_shape(gen_fn, tr, problem):
     key = jax.random.PRNGKey(0)
     return get_data_shape(gen_fn.update)(key, tr, problem)
-
-
-def make_zero_trace(gen_fn, *args):
-    out_tree = get_trace_shape(gen_fn, *args)
-    return jtu.tree_map(
-        lambda v: jnp.zeros(v.shape, v.dtype),
-        out_tree,
-    )

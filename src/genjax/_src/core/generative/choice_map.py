@@ -48,7 +48,6 @@ Address = tuple[()] | tuple[AddressComponent, ...]
 StaticAddress = tuple[()] | tuple[StaticAddressComponent, ...]
 ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
 ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
-ExtendedStaticAddress = tuple[()] | tuple[ExtendedStaticAddressComponent, ...]
 ExtendedAddress = tuple[()] | tuple[ExtendedAddressComponent, ...]
 
 
@@ -168,19 +167,25 @@ class Selection(ProjectProblem):
     #################################################
 
     @classmethod
-    def all(cls) -> "Selection":
+    @typecheck
+    def all(_cls) -> "Selection":
         return select_all()
 
     @classmethod
-    def str(cls, comp: ExtendedStaticAddressComponent, sel: "Selection") -> "Selection":
+    @typecheck
+    def str(
+        _cls, comp: ExtendedStaticAddressComponent, sel: "Selection"
+    ) -> "Selection":
         return select_static(comp, sel)
 
     @classmethod
-    def idx(cls, comp: DynamicAddressComponent, sel: "Selection") -> "Selection":
+    @typecheck
+    def idx(_cls, comp: DynamicAddressComponent, sel: "Selection") -> "Selection":
         return select_idx(comp, sel)
 
     @classmethod
-    def maybe(cls, flag: Flag, s: "Selection") -> "Selection":
+    @typecheck
+    def maybe(_cls, flag: Flag, s: "Selection") -> "Selection":
         return select_defer(flag, s)
 
 
@@ -608,31 +613,31 @@ class ChoiceMap(Sample, Constraint):
     ######################################
 
     @classmethod
-    def empty(cls) -> "ChoiceMap":
+    def empty(_cls) -> "ChoiceMap":
         return choice_map_empty
 
     @classmethod
-    def value(cls, v) -> "ChoiceMap":
+    def value(_cls, v) -> "ChoiceMap":
         return choice_map_value(v)
 
     @classmethod
-    def maybe(cls, f: Flag, c: "ChoiceMap") -> "ChoiceMap":
+    def maybe(_cls, f: Flag, c: "ChoiceMap") -> "ChoiceMap":
         return choice_map_masked(f, c)
 
     @classmethod
-    def str(cls, addr: StaticAddressComponent, v: Any) -> "ChoiceMap":
+    def str(_cls, addr: StaticAddressComponent, v: Any) -> "ChoiceMap":
         return choice_map_static(
             addr, ChoiceMap.value(v) if not isinstance(v, ChoiceMap) else v
         )
 
     @classmethod
-    def idx(cls, addr: DynamicAddressComponent, v: Any) -> "ChoiceMap":
+    def idx(_cls, addr: DynamicAddressComponent, v: Any) -> "ChoiceMap":
         return choice_map_idx(
             addr, ChoiceMap.value(v) if not isinstance(v, ChoiceMap) else v
         )
 
     @classmethod
-    def d(cls, d: dict[Any, Any]) -> "ChoiceMap":
+    def d(_cls, d: dict[Any, Any]) -> "ChoiceMap":
         start = ChoiceMap.empty()
         if d:
             for k, v in d.items():
@@ -640,7 +645,7 @@ class ChoiceMap(Sample, Constraint):
         return start
 
     @classmethod
-    def kw(cls, **kwargs) -> "ChoiceMap":
+    def kw(_cls, **kwargs) -> "ChoiceMap":
         return ChoiceMap.d(kwargs)
 
     @property
