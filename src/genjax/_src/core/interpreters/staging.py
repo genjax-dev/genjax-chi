@@ -30,7 +30,6 @@ from genjax._src.core.typing import (
     ArrayLike,
     BoolArray,
     Callable,
-    Int,
     static_check_is_concrete,
 )
 

@@ -41,7 +41,6 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     Generic,
-    IntArray,
     TypeVar,
     Value,
     typecheck,
