@@ -101,7 +101,7 @@ class Pytree(pz.Struct):
         Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
             from genjax import Pytree
-            from genjax.typing import FloatArray, typecheck
+            from genjax.typing import FloatArray
             import jax.numpy as jnp
 
 

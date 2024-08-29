@@ -1,7 +1,7 @@
 # Journey to the center of `genjax.core`
 
 
-This page describes the set of core concepts and datatypes in GenJAX, including Gen's generative datatypes and concepts ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`UpdateProblem`][genjax.core.UpdateProblem]), the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree], [`Const`][genjax.core.Const], and [`Closure`][genjax.core.Closure]), as well as functionally inspired `Pytree` extensions ([`Mask`][genjax.core.Mask], [`Sum`][genjax.core.Sum]), and GenJAX's approach to "static" (JAX tracing time) typechecking ([`typecheck`][genjax.typing.typecheck]).
+This page describes the set of core concepts and datatypes in GenJAX, including Gen's generative datatypes and concepts ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`UpdateProblem`][genjax.core.UpdateProblem]), the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree], [`Const`][genjax.core.Const], and [`Closure`][genjax.core.Closure]), as well as functionally inspired `Pytree` extensions ([`Mask`][genjax.core.Mask], [`Sum`][genjax.core.Sum]), and GenJAX's approach to "static" (JAX tracing time) typechecking.
 
 ::: genjax.core.GenerativeFunction
 
@@ -75,8 +75,6 @@ Another mechanism to encode runtime uncertainty (again, inspired by functional p
 ## Static typing with `genjax.typing` a.k.a 🐻`beartype`🐻
 
 GenJAX uses [`beartype`](https://github.com/beartype/beartype) to perform type checking _during JAX tracing / compile time_. This means that `beartype`, normally a fast _runtime_ type checker, operates _at JAX tracing time_ to ensure that the arguments and return values are correct, with zero runtime cost.
-
-::: genjax.typing.typecheck
 
 ###  Generative interface types
 
