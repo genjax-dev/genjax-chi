@@ -214,7 +214,7 @@ class StaticHandler(StatefulHandler):
         num_consts = _params.get("num_consts", 0)
         non_const_tracers = tracers[num_consts:]
         addr, gen_fn, args = jtu.tree_unflatten(in_tree, non_const_tracers)
-        addr = Pytree.tree_unwrap_const(addr)
+        addr = Pytree.tree_const_unwrap(addr)
         if primitive == trace_p:
             v = self.handle_trace(addr, gen_fn, args)
             return self.handle_retval(v)
@@ -548,7 +548,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
         def make_bwd_problem(visitor, subproblems):
             addresses = visitor.get_visited()
-            addresses = Pytree.tree_unwrap_const(addresses)
+            addresses = Pytree.tree_const_unwrap(addresses)
             chm = ChoiceMap.empty()
             for addr, subproblem in zip(addresses, subproblems):
                 chm = chm ^ ChoiceMapBuilder.a(addr, subproblem)
