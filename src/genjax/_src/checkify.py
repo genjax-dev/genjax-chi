@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from contextlib import contextmanager  # noqa: I001
+from contextlib import contextmanager
+
 from genjax._src.core.typing import Callable
 
 _GLOBAL_CHECKIFY_HANDLER = []

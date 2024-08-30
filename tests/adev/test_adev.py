@@ -12,15 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax  # noqa: I001
+import jax
 import pytest
 
-from genjax.adev import expectation
-from genjax.adev import flip_enum
-from genjax.adev import add_cost
-from genjax.adev import baseline
-from genjax.adev import flip_reinforce
-from genjax.adev import Dual
+from genjax.adev import Dual, add_cost, baseline, expectation, flip_enum, flip_reinforce
 
 
 class TestADEVFlipCond:
