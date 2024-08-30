@@ -13,13 +13,30 @@
 # limitations under the License.
 
 import jax
+import pytest
 from jax import numpy as jnp
 
 import genjax
 
 
 class TestOrElse:
-    def test_switch_combinator_simulate_in_gen_fn(self):
+    @pytest.fixture
+    def key(self):
+        return jax.random.PRNGKey(314159)
+
+    def test_assess_or_else(self, key):
+        @genjax.gen
+        def f():
+            return genjax.normal(0.0, 1.0) @ "value"
+
+        f_or_f = f.or_else(f)
+        args = (True, (), ())
+        score, ret = f_or_f.assess(f_or_f.simulate(key, args).get_choices(), args)
+
+        assert -0.9247955 == score
+        assert -0.108230986 == ret
+
+    def test_assess_or_else_inside_fn(self, key):
         p = 0.5
 
         @genjax.gen
@@ -30,7 +47,8 @@ class TestOrElse:
                 @ "value"
             )
 
-        key = jax.random.PRNGKey(17)
         args = ()
+        score, ret = f.assess(f.simulate(key, args).get_choices(), args)
 
-        f.assess(f.simulate(key, args).get_choices(), args)
+        assert -1.6497414 == score
+        assert 0.27442896 == ret

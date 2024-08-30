@@ -26,12 +26,8 @@ import jax.numpy as jnp
 import jaxtyping as jtyping
 import numpy as np
 from beartype.vale import Is
-import sys
 
-if sys.version_info >= (3, 11, 0):
-    from typing import Self
-else:
-    from typing_extensions import Self
+from typing_extensions import Self
 
 Any = btyping.Any
 PRNGKey = jtyping.PRNGKeyArray
