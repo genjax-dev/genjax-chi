@@ -127,7 +127,7 @@ class MaskedProblem(UpdateProblem):
     problem: UpdateProblem
 
     @classmethod
-    def maybe_empty(_cls, f: Flag, problem: UpdateProblem):
+    def maybe_empty(cls, f: Flag, problem: UpdateProblem):
         match problem:
             case MaskedProblem(flag, subproblem):
                 return MaskedProblem(f.and_(flag), subproblem)
@@ -165,15 +165,15 @@ class ProjectProblem(UpdateProblem):
 
 class UpdateProblemBuilder(Pytree):
     @classmethod
-    def empty(_cls):
+    def empty(cls):
         return EmptyProblem()
 
     @classmethod
-    def maybe(_cls, flag: Flag, problem: "UpdateProblem"):
+    def maybe(cls, flag: Flag, problem: "UpdateProblem"):
         return MaskedProblem.maybe_empty(flag, problem)
 
     @classmethod
-    def g(_cls, argdiffs: Argdiffs, subproblem: "UpdateProblem") -> "GenericProblem":
+    def g(cls, argdiffs: Argdiffs, subproblem: "UpdateProblem") -> "GenericProblem":
         return GenericProblem(argdiffs, subproblem)
 
 
@@ -489,7 +489,7 @@ class GenerativeFunction(Generic[R], Pytree):
         return get_trace_shape(self, args)
 
     @classmethod
-    def gfi_boundary(_cls, c: _C) -> _C:
+    def gfi_boundary(cls, c: _C) -> _C:
         return gfi_boundary(c)
 
     @abstractmethod
