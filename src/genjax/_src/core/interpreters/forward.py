@@ -26,11 +26,7 @@ from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import Any, Bool, Callable, List, Union, Value, typecheck
-
-register_exclusion(__file__)
-
+from genjax._src.core.typing import Any, Bool, Callable, Value
 
 #########################
 # Custom JAX primitives #
@@ -38,7 +34,7 @@ register_exclusion(__file__)
 
 
 def batch_fun(fun: lu.WrappedFun, in_dims):
-    fun, out_dims = batching.batch_subtrace(fun)
+    fun, out_dims = batching.batch_subtrace(fun)  # pyright: ignore
     return _batch_fun(fun, in_dims), out_dims
 
 
@@ -46,11 +42,7 @@ def batch_fun(fun: lu.WrappedFun, in_dims):
 def _batch_fun(in_dims, *in_vals, **params):
     with jc.new_main(batching.BatchTrace, axis_name=jc.no_axis_name) as main:
         out_vals = yield (
-            (
-                main,
-                in_dims,
-            )
-            + in_vals,
+            (main, in_dims, *in_vals),
             params,
         )
         del main
@@ -82,13 +74,13 @@ class FlatPrimitive(jc.Primitive):
 
         def _batch(args, dims, **params):
             batched, out_dims = batch_fun(lu.wrap_init(self.impl, params), dims)
-            return batched.call_wrapped(*args), out_dims()
+            return batched.call_wrapped(*args), out_dims()  # pyright: ignore
 
         batching.primitive_batchers[self] = _batch
 
-        def _mlir(c, *mlir_args, **params):
+        def _mlir(ctx: mlir.LoweringRuleContext, *mlir_args, **params):
             lowering = mlir.lower_fun(self.impl, multiple_results=True)
-            return lowering(c, *mlir_args, **params)
+            return lowering(ctx, *mlir_args, **params)
 
         mlir.register_lowering(self, _mlir)
 
@@ -96,7 +88,7 @@ class FlatPrimitive(jc.Primitive):
 class InitialStylePrimitive(FlatPrimitive):
     """Contains default implementations of transformations."""
 
-    def __init__(self, name, batch_semantics=None):
+    def __init__(self, name):
         super().__init__(name)
 
         def fun_impl(*args, **params):
@@ -104,9 +96,6 @@ class InitialStylePrimitive(FlatPrimitive):
             return jc.eval_jaxpr(params["_jaxpr"], consts, *args)
 
         self.def_impl(fun_impl)
-
-    def subcall(self, name):
-        return InitialStylePrimitive(f"{self.name}/{name}")
 
 
 def initial_style_bind(prim, **params):
@@ -138,7 +127,7 @@ def initial_style_bind(prim, **params):
 # Forward interpreter #
 #######################
 
-VarOrLiteral = Union[jc.Var, jc.Literal]
+VarOrLiteral = jc.Var | jc.Literal
 
 
 @Pytree.dataclass
@@ -203,7 +192,7 @@ class StatefulHandler:
         primitive: jc.Primitive,
         *args,
         **kwargs,
-    ) -> List:
+    ) -> list[Any]:
         pass
 
 
@@ -213,8 +202,8 @@ class ForwardInterpreter(Pytree):
         self,
         stateful_handler,
         _jaxpr: jc.Jaxpr,
-        consts: List,
-        args: List,
+        consts: list[Any],
+        args: list[Any],
     ):
         env = Environment()
         jax_util.safe_map(env.write, _jaxpr.constvars, consts)
@@ -248,10 +237,8 @@ class ForwardInterpreter(Pytree):
         return jtu.tree_unflatten(out_tree(), flat_out)
 
 
-@typecheck
 def forward(f: Callable[..., Any]):
     @functools.wraps(f)
-    @typecheck
     def wrapped(stateful_handler: StatefulHandler, *args):
         interpreter = ForwardInterpreter()
         return interpreter.run_interpreter(

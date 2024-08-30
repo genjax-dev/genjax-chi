@@ -14,13 +14,15 @@
 
 from typing import Any
 
-import genjax
 import jax
 import jax.numpy as jnp
 import pytest
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff, Pytree
 from genjax import UpdateProblemBuilder as U
+from genjax._src.core.typing import Array
 from genjax.generative_functions.static import AddressReuse
 from genjax.typing import Float, FloatArray
 
@@ -154,12 +156,14 @@ def simple_normal(custom_tree):
 
 
 @Pytree.dataclass
-class _CustomNormal(genjax.Distribution):
-    def estimate_logpdf(self, key, v, custom_tree):
-        w, _ = genjax.normal.assess(v, custom_tree.x, custom_tree.y)
+class _CustomNormal(genjax.Distribution[Array]):
+    def estimate_logpdf(self, key, v, *args):
+        v, custom_tree = args
+        w, _ = genjax.normal.assess(v, (custom_tree.x, custom_tree.y))
         return w
 
-    def random_weighted(self, key, custom_tree):
+    def random_weighted(self, key, *args):
+        (custom_tree,) = args
         return genjax.normal.random_weighted(key, custom_tree.x, custom_tree.y)
 
 
@@ -346,7 +350,7 @@ class TestStaticGenFnUpdate:
             key, updated_choice.get_submap("y2"), (0.0, 1.0)
         )
         test_score = score1 + score2
-        assert original_choice[("y1",)] == discard[("y1",)]
+        assert original_choice["y1",] == discard["y1",]
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
@@ -572,9 +576,26 @@ class TestStaticGenFnForwardRef:
 
         key = jax.random.PRNGKey(314159)
         proposal = make_gen_fn()
-        _tr = proposal.simulate(key, (0.3,))
-        # TODO
-        assert True
+        tr = proposal.simulate(key, (0.3,))
+
+        assert -0.55435526 == tr.get_score()
+
+
+class TestGenFnClosure:
+    def test_gen_fn_closure(self):
+        @genjax.gen
+        def model():
+            return genjax.normal(1.0, 0.001) @ "x"
+
+        gfc = model()
+        tr = gfc.simulate(jax.random.PRNGKey(0), ())
+        assert tr.get_retval() == 0.9987485
+        assert tr.get_score() == 5.205658
+        # This failed in GEN-420
+        tr_u, w = gfc.importance(jax.random.PRNGKey(1), C.kw(x=1.1), ())
+        assert tr_u.get_score() == -4994.0176
+        assert tr_u.get_retval() == 1.1
+        assert w == tr_u.get_score()
 
 
 class TestStaticGenFnInline:

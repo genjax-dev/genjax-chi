@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  notebooks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

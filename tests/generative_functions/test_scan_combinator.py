@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
 import jax.numpy as jnp
 import pytest
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import SelectionBuilder as S
 from genjax import UpdateProblemBuilder as U
+from genjax._src.core.typing import ArrayLike
 from genjax.typing import FloatArray
 
 
@@ -53,8 +55,8 @@ class TestIterateSimpleNormal:
         key, sub_key = jax.random.split(key)
         for i in range(1, 5):
             tr, w = jax.jit(scanner.importance)(sub_key, C[i, "z"].set(0.5), (0.01,))
-            assert tr.get_sample()[i, "z"].unmask() == 0.5
             value = tr.get_sample()[i, "z"].unmask()
+            assert value == 0.5
             prev = tr.get_sample()[i - 1, "z"].unmask()
             assert w == genjax.normal.assess(C.v(value), (prev, 1.0))[0]
 
@@ -81,12 +83,12 @@ class TestIterateSimpleNormal:
 
 
 @genjax.gen
-def inc(prev):
+def inc(prev: ArrayLike) -> ArrayLike:
     return prev + 1
 
 
 @genjax.gen
-def inc_tupled(arg):
+def inc_tupled(arg: tuple[ArrayLike, ArrayLike]) -> tuple[ArrayLike, ArrayLike]:
     """Takes a pair, returns a pair."""
     prev, offset = arg
     return (prev + offset, offset)
@@ -109,11 +111,11 @@ class TestIterate:
         the initial value).
         """
         result = inc.iterate(n=4).simulate(key, (0,)).get_retval()
-        assert jnp.array_equal(result, jnp.array([0, 1, 2, 3, 4]))
+        assert jnp.array_equal(jnp.asarray(result), jnp.array([0, 1, 2, 3, 4]))
 
         # same as result, with a jnp.array-wrapped accumulator
         result_wrapped = inc.iterate(n=4).simulate(key, (jnp.array(0),)).get_retval()
-        assert jnp.array_equal(result, result_wrapped)
+        assert jnp.array_equal(jnp.asarray(result), result_wrapped)
 
     def test_iterate_final(self, key):
         """
@@ -127,7 +129,7 @@ class TestIterate:
     def test_inc_tupled(self, key):
         """Baseline test demonstrating `inc_tupled`."""
         result = inc_tupled.simulate(key, ((0, 2),)).get_retval()
-        assert jnp.array_equal(result, jnp.array((2, 2)))
+        assert jnp.array_equal(jnp.asarray(result), jnp.array((2, 2)))
 
     def test_iterate_tupled(self, key):
         """
@@ -135,7 +137,10 @@ class TestIterate:
         from invocation to invocation.
         """
         result = inc_tupled.iterate(n=4).simulate(key, ((0, 2),)).get_retval()
-        assert jnp.array_equal(result, jnp.array([[0, 2, 4, 6, 8], [2, 2, 2, 2, 2]]))
+        assert jnp.array_equal(
+            jnp.asarray(result),
+            jnp.array([[0, 2, 4, 6, 8], [2, 2, 2, 2, 2]]),
+        )
 
     def test_iterate_final_tupled(self, key):
         """
@@ -144,7 +149,7 @@ class TestIterate:
         `iterate_final`.
         """
         result = inc_tupled.iterate_final(n=10).simulate(key, ((0, 2),)).get_retval()
-        assert jnp.array_equal(result, jnp.array((20, 2)))
+        assert jnp.array_equal(jnp.asarray(result), jnp.array((20, 2)))
 
     def test_iterate_array(self, key):
         """
@@ -248,7 +253,7 @@ class TestAccumulateReduceMethods:
     def test_add_tupled(self, key):
         """Baseline test demonstrating `add_tupled`."""
         result = add_tupled.simulate(key, ((0, 2), 10)).get_retval()
-        assert jnp.array_equal(result, jnp.array((12, 2)))
+        assert jnp.array_equal(jnp.asarray(result), jnp.array((12, 2)))
 
     def test_accumulate_tupled(self, key):
         """
@@ -257,7 +262,9 @@ class TestAccumulateReduceMethods:
         result = (
             add_tupled.accumulate().simulate(key, ((0, 2), jnp.ones(4))).get_retval()
         )
-        assert jnp.array_equal(result, jnp.array([[0, 3, 6, 9, 12], [2, 2, 2, 2, 2]]))
+        assert jnp.array_equal(
+            jnp.asarray(result), jnp.array([[0, 3, 6, 9, 12], [2, 2, 2, 2, 2]])
+        )
         jax.numpy.hstack
 
     def test_reduce_tupled(self, key):
@@ -265,7 +272,7 @@ class TestAccumulateReduceMethods:
         `reduce` on function with tupled carry state works correctly.
         """
         result = add_tupled.reduce().simulate(key, ((0, 2), jnp.ones(10))).get_retval()
-        assert jnp.array_equal(result, jnp.array((30, 2)))
+        assert jnp.array_equal(jnp.asarray(result), jnp.array((30, 2)))
 
     def test_accumulate_array(self, key):
         """
@@ -359,3 +366,38 @@ class TestScanMisc:
             u.get_choices()["steps", ..., "b"], jnp.array([2.0, 99.0, 7.0]), atol=0.1
         )
         assert w < -100.0
+
+
+class TestScanWithParameters:
+    @pytest.fixture
+    def key(self):
+        return jax.random.PRNGKey(314159)
+
+    @genjax.gen
+    @staticmethod
+    def step(data, state, update):
+        new_state = state + genjax.normal(update, data["noise"]) @ "state"
+        return new_state, new_state
+
+    @genjax.gen
+    @staticmethod
+    def model(data):
+        stepper = TestScanWithParameters.step.partial_apply(data)
+        return stepper.scan(n=3)(data["initial"], data["updates"]) @ "s"
+
+    def test_scan_with_parameters(self, key):
+        tr = TestScanWithParameters.model.simulate(
+            key,
+            (
+                {
+                    "initial": jnp.array(3.0),
+                    "updates": jnp.array([5.0, 6.0, 7.0]),
+                    "noise": 1e-6,
+                },
+            ),
+        )
+
+        end, steps = tr.get_retval()
+
+        assert jnp.allclose(steps, jnp.array([8.0, 14.0, 21.0]), atol=0.1)
+        assert jnp.allclose(end, jnp.array(21.0), atol=0.1)

@@ -7,13 +7,13 @@ version = "0.0.0"
 
 description = "Probabilistic programming with Gen, built on top of JAX."
 authors = [
-  "McCoy R. Becker <mccoyb@mit.edu>",
-  "MIT Probabilistic Computing Project <probcomp-assist@csail.mit.edu>"
+    "McCoy R. Becker <mccoyb@mit.edu>",
+    "MIT Probabilistic Computing Project <probcomp-assist@csail.mit.edu>",
 ]
 maintainers = [
-  "McCoy R. Becker <mccoyb@mit.edu>",
-  "Colin Smith <colin.smith@gmail.com>",
-  "Sam Ritchie <sam@mentat.org>",
+    "McCoy R. Becker <mccoyb@mit.edu>",
+    "Colin Smith <colin.smith@gmail.com>",
+    "Sam Ritchie <sam@mentat.org>",
 ]
 license = "Apache 2.0"
 readme = "README.md"
@@ -21,16 +21,16 @@ homepage = "https://github.com/probcomp/genjax"
 repository = "https://github.com/probcomp/genjax"
 documentation = "https://genjax.gen.dev/"
 keywords = [
-  "artificial-intelligence",
-  "probabilistic-programming",
-  "bayesian-inference",
-  "differentiable-programming"
+    "artificial-intelligence",
+    "probabilistic-programming",
+    "bayesian-inference",
+    "differentiable-programming",
 ]
 classifiers = [
-  "Development Status :: 4 - Beta",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12"
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 
 [tool.poetry.urls]
@@ -38,14 +38,17 @@ Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
-jax = "^0.4.28"
+jax = "^0.4.24"
 tensorflow-probability = "^0.23.0"
-jaxtyping = "^0.2.28"
+jaxtyping = "^0.2.24"
 beartype = "^0.18.5"
 deprecated = "^1.2.14"
 penzai = "^0.1.1"
-msgpack = {version = "^1.0.8", optional = true }
-genstudio = {version = "2024.06.07.0931.49", source = "gcp", optional = true}
+# Numpy <2.0.0 is due to tfp issues: https://github.com/tensorflow/probability/issues/1814
+# remove this constraint when that issue is closed.
+numpy = ">=1.22,<2.0.0"
+msgpack = { version = "^1.0.8", optional = true }
+genstudio = { version = "2024.07.30.1946", source = "gcp", optional = true }
 
 [tool.poetry.group.dev]
 optional = true
@@ -57,7 +60,7 @@ mypy = "^0.991"
 nbmake = "^1.4.6"
 pytest = "^7.2.0"
 pytest-benchmark = "^4.0.0"
-pytest-xdist = {version = "^3.2.0", extras = ["psutil"] }
+pytest-xdist = { version = "^3.2.0", extras = ["psutil"] }
 ruff = "^0.1.3"
 safety = "^2.3.5"
 seaborn = "^0.12.1"
@@ -75,7 +78,7 @@ mkdocs = "^1.5.3"
 mkdocs-git-authors-plugin = "^0.7.2"
 mkdocs-git-revision-date-localized-plugin = "^1.1.0"
 mkdocs-git-committers-plugin-2 = "^1.1.1"
-markdown-exec = {version="^1.8.3", extras=["ansi"]}
+markdown-exec = { version = "^1.8.3", extras = ["ansi"] }
 mkdocs-material = { git = "git@github.com:probcomp/mkdocs-material-insiders.git" }
 mkdocstrings-python = { git = "git@github.com:probcomp/mkdocstrings-python.git" }
 black = "^24.4.2"
@@ -101,16 +104,31 @@ omit = [".*", "*/site-packages/*"]
 show_missing = true
 fail_under = 45
 
+[tool.vulture]
+paths = ["src"]
+exclude = ["*/.ipynb_checkpoints/*"]
+min_confidence = 80
+sort_by_size = true
+
 [tool.pyright]
+pythonVersion = "3.11"
 venvPath = "."
 venv = ".venv"
 include = ["src", "tests"]
-exclude = [
-    "**/__pycache__",
-]
+# TODO: inference has been excluded because this code my not be ready for type-correctness.
+#       msgpack dependency is optional, so it doesn't typecheck
+#       typecheck doesn't see noxfiles's import of nox
+exclude = ["**/__pycache__", "noxfile.py", "src/genjax/_src/inference/*.py", "src/genjax/_src/core/serialization/msgpack.py"]
 defineConstant = { DEBUG = true }
+typeCheckingMode = "standard"
+reportMatchNotExhaustive = true
 reportMissingImports = true
+reportMissingTypeArgument = true
+reportInvalidTypeVarUse = "error"
 reportMissingTypeStubs = false
+analyzeUnannotatedFunctions = true
+strictParameterNoneValue = true
+deprecateTypingAliases = true
 
 [tool.ruff]
 exclude = [
@@ -134,7 +152,7 @@ exclude = [
     "build",
     "dist",
     "node_modules",
-    "venv"
+    "venv",
 ]
 extend-include = ["*.ipynb"]
 line-length = 88
@@ -145,10 +163,10 @@ convention = "google"
 
 [tool.ruff.lint]
 preview = true
-extend-select = ["I"]
+extend-select = ["I", "RUF"]
 select = ["E4", "E7", "E9", "F"]
 # F403 disables errors from `*` imports, which we currently use heavily.
-ignore = ["F403"]
+ignore = ["F403", "F405", "F811", "E402", "RUF009", "RUF003"]
 fixable = ["ALL"]
 unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"

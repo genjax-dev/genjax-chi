@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from jax.lax import select
+
+import jax.numpy as jnp
 
 from genjax._src.core.generative import (
     Argdiffs,
@@ -20,36 +21,37 @@ from genjax._src.core.generative import (
     EmptyTrace,
     GenerativeFunction,
     GenericProblem,
+    ImportanceProblem,
     Mask,
     MaskedProblem,
     MaskedSample,
     Retdiff,
-    Sample,
     Score,
     Trace,
     UpdateProblem,
     Weight,
 )
+from genjax._src.core.generative.core import Constraint
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.staging import Flag
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
-    BoolArray,
+    Any,
+    Generic,
     PRNGKey,
-    Tuple,
-    typecheck,
+    TypeVar,
 )
 
-register_exclusion(__file__)
+R = TypeVar("R")
 
 
 @Pytree.dataclass
-class MaskTrace(Trace):
-    mask_combinator: "MaskCombinator"
-    inner: Trace
-    check: BoolArray
+class MaskTrace(Generic[R], Trace[Mask[R]]):
+    mask_combinator: "MaskCombinator[R]"
+    inner: Trace[R]
+    check: Flag
 
-    def get_args(self):
+    def get_args(self) -> tuple[Flag, Any]:
         return (self.check, *self.inner.get_args())
 
     def get_gen_fn(self):
@@ -66,11 +68,14 @@ class MaskTrace(Trace):
         return Mask(self.check, self.inner.get_retval())
 
     def get_score(self):
-        return self.check * self.inner.get_score()
+        inner_score = self.inner.get_score()
+        return jnp.asarray(
+            self.check.where(inner_score, jnp.zeros(shape=inner_score.shape))
+        )
 
 
 @Pytree.dataclass
-class MaskCombinator(GenerativeFunction):
+class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     """
     Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
 
@@ -108,42 +113,40 @@ class MaskCombinator(GenerativeFunction):
         ```
     """
 
-    gen_fn: GenerativeFunction
+    gen_fn: GenerativeFunction[R]
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
-    ) -> MaskTrace:
-        check, *inner_args = args
-        tr = self.gen_fn.simulate(key, tuple(inner_args))
-        return MaskTrace(self, tr, check)
+        args: tuple[Any, ...],
+    ) -> MaskTrace[R]:
+        check, inner_args = args[0], args[1:]
+        tr = self.gen_fn.simulate(key, inner_args)
+        return MaskTrace(self, tr, Flag(check))
 
-    @typecheck
     def update_change_target(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[Mask[R]],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        (check, *_) = Diff.tree_primal(argdiffs)
-        (check_diff, *inner_argdiffs) = argdiffs
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
+        check = Diff.tree_primal(argdiffs)[0]
+        check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
         match trace:
             case MaskTrace():
                 inner_trace = trace.inner
             case EmptyTrace():
                 inner_trace = EmptyTrace(self.gen_fn)
+            case _:
+                raise NotImplementedError(f"Unexpected trace type: {trace}")
 
         premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
             key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
         )
-        w = select(
-            check,
-            w + trace.get_score(),
-            -trace.get_score(),
-        )
+
+        w = check.where(w, -trace.get_score())
+
         return (
             MaskTrace(self, premasked_trace, check),
             w,
@@ -151,31 +154,82 @@ class MaskCombinator(GenerativeFunction):
             MaskedProblem(check, bwd_problem),
         )
 
-    @typecheck
+    def update_change_target_from_false(
+        self,
+        key: PRNGKey,
+        trace: Trace[Mask[R]],
+        update_problem: UpdateProblem,
+        argdiffs: Argdiffs,
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
+        check = Diff.tree_primal(argdiffs)[0]
+        check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
+
+        inner_trace = EmptyTrace(self.gen_fn)
+
+        assert isinstance(update_problem, Constraint)
+        imp_update_problem = ImportanceProblem(update_problem)
+
+        premasked_trace, w, _, _ = self.gen_fn.update(
+            key, inner_trace, GenericProblem(tuple(inner_argdiffs), imp_update_problem)
+        )
+
+        _, _, retdiff, bwd_problem = self.gen_fn.update(
+            key, premasked_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+        )
+
+        w = check.where(premasked_trace.get_score(), 0.0)
+
+        return (
+            MaskTrace(self, premasked_trace, check),
+            w,
+            Mask.maybe(check_diff, retdiff),
+            MaskedProblem(check, bwd_problem),
+        )
+
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[Mask[R]],
         update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
+        assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
+
         match update_problem:
-            case GenericProblem(argdiffs, subproblem):
+            case GenericProblem(argdiffs, subproblem) if isinstance(
+                subproblem, ImportanceProblem
+            ):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
+            case GenericProblem(argdiffs, subproblem):
+                assert isinstance(trace, MaskTrace)
+
+                if trace.check.concrete_false():
+                    raise Exception(
+                        "This move is not currently supported! See https://github.com/probcomp/genjax/issues/1230 for notes."
+                    )
+
+                return trace.check.cond(
+                    self.update_change_target,
+                    self.update_change_target_from_false,
+                    key,
+                    trace,
+                    subproblem,
+                    argdiffs,
+                )
+
             case _:
                 return self.update_change_target(
                     key, trace, update_problem, Diff.no_change(trace.get_args())
                 )
 
-    @typecheck
     def assess(
         self,
-        sample: Sample,
-        args: Tuple,
-    ) -> Tuple[Score, Mask]:
+        sample: ChoiceMap,
+        args: tuple[Any, ...],
+    ) -> tuple[Score, Mask[R]]:
         (check, *inner_args) = args
         score, retval = self.gen_fn.assess(sample, tuple(inner_args))
         return (
-            check * score,
+            check.f * score,
             Mask(check, retval),
         )
 
@@ -185,8 +239,7 @@ class MaskCombinator(GenerativeFunction):
 #############
 
 
-@typecheck
-def mask(f: GenerativeFunction) -> GenerativeFunction:
+def mask(f: GenerativeFunction[R]) -> MaskCombinator[R]:
     """
     Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
 

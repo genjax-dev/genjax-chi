@@ -39,16 +39,13 @@ from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    Bool,
     Callable,
-    IntArray,
-    List,
-    Optional,
-    Tuple,
+    Generic,
+    TypeVar,
     Value,
-    static_check_is_concrete,
-    typecheck,
 )
+
+R = TypeVar("R")
 
 #######################################
 # Change type lattice and propagation #
@@ -60,11 +57,7 @@ from genjax._src.core.typing import (
 
 
 class ChangeTangent(Pytree):
-    def should_flatten(self) -> Bool:
-        return False
-
-    def widen(self):
-        return UnknownChange
+    pass
 
 
 # These two classes are the bottom and top of the change lattice.
@@ -91,25 +84,6 @@ class _NoChange(ChangeTangent):
 NoChange = _NoChange()
 
 
-@Pytree.dataclass
-class IntChange(ChangeTangent):
-    dv: IntArray
-
-    def should_flatten(self):
-        return True
-
-
-@Pytree.dataclass
-class StaticIntChange(ChangeTangent):
-    dv: IntArray = Pytree.static()
-
-    def __post_init__(self):
-        assert static_check_is_concrete(self.dv)
-
-    def should_flatten(self):
-        return True
-
-
 def static_check_is_change_tangent(v):
     return isinstance(v, ChangeTangent)
 
@@ -120,9 +94,9 @@ def static_check_is_change_tangent(v):
 
 
 @Pytree.dataclass
-class Diff(Pytree):
-    primal: Any
-    tangent: Any
+class Diff(Generic[R], Pytree):
+    primal: R
+    tangent: R
 
     def __post_init__(self):
         assert not isinstance(self.primal, Diff)
@@ -133,9 +107,6 @@ class Diff(Pytree):
 
     def get_tangent(self):
         return self.tangent
-
-    def unpack(self):
-        return self.primal, self.tangent
 
     #############
     # Utilities #
@@ -187,12 +158,6 @@ class Diff(Pytree):
                 return v
 
         return jtu.tree_map(_inner, v, is_leaf=Diff.static_check_is_diff)
-
-    @staticmethod
-    def tree_unpack(v):
-        primals = Diff.tree_primal(v)
-        tangents = Diff.tree_tangent(v)
-        return jtu.tree_leaves(primals), jtu.tree_leaves(tangents)
 
     #################
     # Static checks #
@@ -253,9 +218,9 @@ class IncrementalInterpreter(Pytree):
         self,
         _stateful_handler,
         _jaxpr: jc.Jaxpr,
-        consts: List[Value],
-        primals: List[Value],
-        tangents: List[ChangeTangent],
+        consts: list[Value],
+        primals: list[Value],
+        tangents: list[ChangeTangent],
     ):
         dual_env = Environment()
         jax_util.safe_map(
@@ -302,14 +267,12 @@ class IncrementalInterpreter(Pytree):
         return jtu.tree_unflatten(out_tree(), flat_out)
 
 
-@typecheck
 def incremental(f: Callable[..., Any]):
     @functools.wraps(f)
-    @typecheck
     def wrapped(
-        _stateful_handler: Optional[StatefulHandler],
-        primals: Tuple,
-        tangents: Tuple,
+        _stateful_handler: StatefulHandler | None,
+        primals: tuple[Any, ...],
+        tangents: tuple[Any, ...],
     ):
         interpreter = IncrementalInterpreter()
         return interpreter.run_interpreter(

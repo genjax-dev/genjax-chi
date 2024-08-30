@@ -19,7 +19,6 @@ import jax
 from genjax._src.core.generative import (
     ChoiceMap,
     GenerativeFunction,
-    Sample,
     Selection,
     Weight,
 )
@@ -28,12 +27,13 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     FloatArray,
-    Optional,
+    Generic,
     PRNGKey,
-    Tuple,
-    typecheck,
+    TypeVar,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
+
+R = TypeVar("R")
 
 ####################
 # Posterior target #
@@ -41,7 +41,7 @@ from genjax._src.generative_functions.distributions.distribution import Distribu
 
 
 @Pytree.dataclass
-class Target(Pytree):
+class Target(Generic[R], Pytree):
     """
     A `Target` represents an unnormalized target distribution induced by conditioning a generative function on a [`genjax.Constraint`][].
 
@@ -67,8 +67,8 @@ class Target(Pytree):
         ```
     """
 
-    p: GenerativeFunction
-    args: Tuple
+    p: GenerativeFunction[R]
+    args: tuple[Any, ...]
     constraint: ChoiceMap
 
     def importance(self, key: PRNGKey, constraint: ChoiceMap):
@@ -89,7 +89,7 @@ class Target(Pytree):
 
 
 @Pytree.dataclass
-class SampleDistribution(Distribution):
+class SampleDistribution(Generic[R], Distribution[R]):
     """
     The abstract class `SampleDistribution` represents the type of distributions whose return value type is a `Sample`. This is the abstract base class of `Algorithm`, as well as `Marginal`.
     """
@@ -99,14 +99,14 @@ class SampleDistribution(Distribution):
         self,
         key: PRNGKey,
         *args: Any,
-    ) -> Tuple[FloatArray, Sample]:
+    ) -> tuple[FloatArray, ChoiceMap]:
         raise NotImplementedError
 
     @abstractmethod
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        latent_choices: Sample,
+        v: ChoiceMap,
         *args: Any,
     ) -> FloatArray:
         raise NotImplementedError
@@ -152,8 +152,8 @@ class Algorithm(SampleDistribution):
     def random_weighted(
         self,
         key: PRNGKey,
-        target: Target,
-    ) -> Tuple[Weight, Sample]:
+        *args: Target,
+    ) -> tuple[Weight, ChoiceMap]:
         """
         Given a [`Target`][genjax.inference.Target], return a [`Sample`][genjax.core.Sample] from an approximation to the normalized distribution of the target, and a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
 
@@ -170,12 +170,7 @@ class Algorithm(SampleDistribution):
         pass
 
     @abstractmethod
-    def estimate_logpdf(
-        self,
-        key: PRNGKey,
-        sample: Sample,
-        target: Target,
-    ) -> Weight:
+    def estimate_logpdf(self, key: PRNGKey, v: ChoiceMap, *args: Any) -> Weight:
         """
         Given a [`Sample`][genjax.core.Sample] and a [`Target`][genjax.inference.Target], return a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
 
@@ -206,7 +201,7 @@ class Algorithm(SampleDistribution):
         self,
         key: PRNGKey,
         target: Target,
-        latent_choices: Sample,
+        latent_choices: ChoiceMap,
         w: Weight,
     ) -> Weight:
         pass
@@ -218,22 +213,20 @@ class Algorithm(SampleDistribution):
 
 
 @Pytree.dataclass
-@typecheck
-class Marginal(SampleDistribution):
+class Marginal(Generic[R], SampleDistribution[R]):
     """The `Marginal` class represents the marginal distribution of a generative function over
     a selection of addresses. The return value type is a subtype of `Sample`.
     """
 
-    gen_fn: GenerativeFunction
+    gen_fn: GenerativeFunction[R]
     selection: Selection = Pytree.field(default=Selection.all())
-    algorithm: Optional[Algorithm] = Pytree.field(default=None)
+    algorithm: Algorithm | None = Pytree.field(default=None)
 
-    @typecheck
     def random_weighted(
         self,
         key: PRNGKey,
         *args,
-    ) -> Tuple[FloatArray, Sample]:
+    ) -> tuple[FloatArray, ChoiceMap]:
         key, sub_key = jax.random.split(key)
         tr = self.gen_fn.simulate(sub_key, args)
         choices: ChoiceMap = tr.get_choices()
@@ -252,18 +245,17 @@ class Marginal(SampleDistribution):
 
             return (Z, latent_choices)
 
-    @typecheck
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        constraint: ChoiceMap,
+        v: ChoiceMap,
         *args,
     ) -> Weight:
         if self.algorithm is None:
-            _, weight = self.gen_fn.importance(key, constraint, args)
+            _, weight = self.gen_fn.importance(key, v, args)
             return weight
         else:
-            target = Target(self.gen_fn, args, constraint)
+            target = Target(self.gen_fn, args, v)
             Z = self.algorithm.estimate_normalizing_constant(key, target)
             return Z
 
@@ -273,14 +265,13 @@ class Marginal(SampleDistribution):
 ################################
 
 
-@typecheck
 def marginal(
-    selection: Optional[Selection] = Selection.all(),
-    algorithm: Optional[Algorithm] = None,
-) -> Callable[[GenerativeFunction], Marginal]:
+    selection: Selection = Selection.all(),
+    algorithm: Algorithm | None = None,
+) -> Callable[[GenerativeFunction[R]], Marginal[R]]:
     def decorator(
-        gen_fn: GenerativeFunction,
-    ) -> Marginal:
+        gen_fn: GenerativeFunction[R],
+    ) -> Marginal[R]:
         return Marginal(
             gen_fn,
             selection,

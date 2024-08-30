@@ -38,8 +38,6 @@ from genjax._src.core.typing import (
     FloatArray,
     Int,
     PRNGKey,
-    Tuple,
-    typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import (
     ExactDensity,
@@ -61,7 +59,6 @@ tfd = tfp.distributions
 ##########################################
 
 
-@typecheck
 def adev_distribution(
     adev_primitive: ADEVPrimitive,
     differentiable_logpdf: Callable[..., Any],
@@ -140,7 +137,6 @@ The type of gradient estimates returned by sampling from gradient estimators for
 """
 
 
-@typecheck
 def ELBO(
     guide: SampleDistribution,
     make_target: Callable[..., Target],
@@ -151,8 +147,8 @@ def ELBO(
 
     def grad_estimate(
         key: PRNGKey,
-        args: Tuple,
-    ) -> Tuple:
+        args: tuple,
+    ) -> tuple:
         # In the source language of ADEV.
         @expectation
         def _loss(*args):
@@ -166,7 +162,6 @@ def ELBO(
     return grad_estimate
 
 
-@typecheck
 def IWELBO(
     proposal: SampleDistribution,
     make_target: Callable[[Any], Target],
@@ -193,7 +188,6 @@ def IWELBO(
     return grad_estimate
 
 
-@typecheck
 def PWake(
     posterior_approx: SampleDistribution,
     make_target: Callable[[Any], Target],
@@ -204,8 +198,8 @@ def PWake(
 
     def grad_estimate(
         key: PRNGKey,
-        args: Tuple,
-    ) -> Tuple:
+        args: tuple,
+    ) -> tuple:
         key, sub_key1, sub_key2 = jax.random.split(key, 3)
 
         # In the source language of ADEV.
@@ -221,7 +215,6 @@ def PWake(
     return grad_estimate
 
 
-@typecheck
 def QWake(
     proposal: SampleDistribution,
     posterior_approx: SampleDistribution,
@@ -233,8 +226,8 @@ def QWake(
 
     def grad_estimate(
         key: PRNGKey,
-        args: Tuple,
-    ) -> Tuple:
+        args: tuple,
+    ) -> tuple:
         key, sub_key1, sub_key2 = jax.random.split(key, 3)
 
         # In the source language of ADEV.

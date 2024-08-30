@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
 import pytest
+from jax import numpy as jnp
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import UpdateProblemBuilder as U
-from jax import numpy as jnp
 
 
 class TestSwitchCombinator:
@@ -36,9 +37,8 @@ class TestSwitchCombinator:
 
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        _tr = model.simulate(sub_key, ())
-        # TODO
-        assert True
+        tr = model.simulate(sub_key, ())
+        assert 0.5672885 == tr.get_retval()
 
     def test_switch_combinator_simulate(self):
         @genjax.gen
@@ -222,8 +222,7 @@ class TestSwitchCombinator:
         keys = jax.random.split(jax.random.PRNGKey(17), 3)
         # Just select 0 in all branches for simplicity:
         tr = jax.vmap(s.simulate, in_axes=(0, None))(keys, (0, (), ()))
-        y = tr.get_choices()["y"]
-        y = y.unmask()
+        y = tr.get_choices()["y"].unmask()
         assert y.shape == (3,)
 
     def test_switch_combinator_with_empty_gen_fn(self):
@@ -244,6 +243,5 @@ class TestSwitchCombinator:
 
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        _tr = model.simulate(sub_key, ())
-        # TODO
-        assert True
+        tr = model.simulate(sub_key, ())
+        assert 0.0 == tr.get_retval()

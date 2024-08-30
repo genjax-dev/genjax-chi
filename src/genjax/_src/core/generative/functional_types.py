@@ -19,19 +19,19 @@ from jax.tree_util import tree_map
 from genjax._src.checkify import optional_check
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import (
-    staged_and,
+    Flag,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    BoolArray,
+    ArrayLike,
+    Generic,
     Int,
-    IntArray,
-    List,
-    static_check_bool,
+    TypeVar,
     static_check_is_concrete,
-    typecheck,
 )
+
+R = TypeVar("R")
 
 #########################
 # Masking and sum types #
@@ -39,7 +39,7 @@ from genjax._src.core.typing import (
 
 
 @Pytree.dataclass(match_args=True)
-class Mask(Pytree):
+class Mask(Generic[R], Pytree):
     """The `Mask` datatype wraps a value in a Boolean flag which denotes whether the data is valid or invalid to use in inference computations.
 
     Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as `Sample` instances, and participate in generative and inference computations (like scores, and importance weights or density ratios). Invalid data **should** be considered unusable, and should be handled with care.
@@ -59,36 +59,32 @@ class Mask(Pytree):
     If you use invalid `Mask(False, data)` data in inference computations, you may encounter silently incorrect results.
     """
 
-    flag: BoolArray
-    value: Any
+    flag: Flag
+    value: R
 
     @classmethod
-    def maybe(cls, f: BoolArray, v: Any):
+    def maybe(_cls, f: Flag, v: "R | Mask[R]") -> "Mask[R]":
         match v:
             case Mask(flag, value):
-                return Mask.maybe_none(staged_and(f, flag), value)
+                return Mask[R](f.and_(flag), value)
             case _:
-                return Mask(f, v)
+                return Mask[R](f, v)
 
     @classmethod
-    def maybe_none(cls, f: BoolArray, v: Any):
-        return (
-            None
-            if v is None
-            else v
-            if static_check_bool(f) and f
-            else None
-            if static_check_bool(f)
-            else Mask.maybe(f, v)
-        )
+    def maybe_none(_cls, f: Flag, v: "R | Mask[R]") -> "R | Mask[R] | None":
+        if v is None or f.concrete_false():
+            return None
+        elif f.concrete_true():
+            return v
+        else:
+            return Mask.maybe(f, v)
 
     ######################
     # Masking interfaces #
     ######################
 
-    def unmask(self):
+    def unmask(self) -> R:
         """Unmask the `Mask`, returning the value within.
-
         This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` wraps valid data at runtime.
         """
 
@@ -96,31 +92,29 @@ class Mask(Pytree):
         # jax.experimental.checkify.checkify their call in transformed
         # contexts.
         def _check():
-            check_flag = jnp.all(self.flag)
             checkify.check(
-                check_flag,
+                self.flag.f,
                 "Attempted to unmask when a mask flag is False: the masked value is invalid.\n",
             )
 
         optional_check(_check)
         return self.value
 
-    def unsafe_unmask(self):
+    def unsafe_unmask(self) -> R:
         # Unsafe version of unmask -- should only be used internally,
         # or carefully.
         return self.value
 
 
 @Pytree.dataclass(match_args=True)
-class Sum(Pytree):
+class Sum(Generic[R], Pytree):
     """
     A `Sum` instance represents a sum type, which is a union of possible values - which value is active is determined by the `Sum.idx` field.
 
     The `Sum` type is used to represent a choice between multiple possible values, and is used in generative computations to represent uncertainty over values.
 
     Examples:
-        A common scenario which will produce `Sum` types is when using a `SwitchCombinator` with branches that have
-        multiple possible return value types:
+        A common scenario which will produce `Sum` types is when using a `SwitchCombinator` with branches that have multiple possible return value types:
         ```python exec="yes" html="true" source="material-block" session="core"
         from genjax import gen, normal, bernoulli
 
@@ -174,39 +168,37 @@ class Sum(Pytree):
         ```
     """
 
-    idx: IntArray | Diff
+    idx: ArrayLike | Diff[Any]
     """
     The runtime index tag for which value in `Sum.values` is active.
     """
-    values: List
+    values: list[R]
     """
     The possible values for the `Sum` instance.
     """
 
     @classmethod
-    @typecheck
     def maybe(
-        cls,
-        idx: Int | IntArray | Diff,
-        vs: List,
+        _cls,
+        idx: ArrayLike | Diff[Any],
+        vs: list[R],
     ):
         return (
             vs[idx]
             if static_check_is_concrete(idx) and isinstance(idx, Int)
-            else Sum(idx, list(vs)).maybe_collapse()
+            else Sum[R](idx, list(vs)).maybe_collapse()
         )
 
     @classmethod
-    @typecheck
     def maybe_none(
-        cls,
-        idx: Int | IntArray | Diff,
-        vs: List,
+        _cls,
+        idx: ArrayLike | Diff[Any],
+        vs: list[R],
     ):
         possibles = []
         for _idx, v in enumerate(vs):
             if v is not None:
-                possibles.append(Mask.maybe_none(idx == _idx, v))
+                possibles.append(Mask.maybe_none(Flag(idx == _idx), v))
         if not possibles:
             return None
         if len(possibles) == 1:
@@ -221,6 +213,5 @@ class Sum(Pytree):
         else:
             return self
 
-    @typecheck
     def __getitem__(self, idx: Int):
-        return Mask.maybe_none(idx == self.idx, self.values[idx])
+        return Mask.maybe_none(Flag(idx == self.idx), self.values[idx])

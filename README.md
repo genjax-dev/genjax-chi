@@ -41,7 +41,7 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 
 > [!IMPORTANT]
 > GenJAX is currently private. To configure your machine to access the package,
-> - [file a ticket requesting access to the GenJAX-Users
+> - Run `\invite-genjax <google-account-email>` in any channel in the the probcomp Slack, or [file a ticket requesting access to the GenJAX-Users
 > group](https://github.com/probcomp/genjax/issues/new?assignees=sritchie&projects=&template=access.md&title=%5BACCESS%5D)
 > - [install the Google Cloud command line tools](https://cloud.google.com/sdk/docs/install)
 > - follow the instructions on the [installation page](https://cloud.google.com/sdk/docs/install)
@@ -67,13 +67,13 @@ command for the architecture you're targeting. To run GenJAX without GPU
 support:
 
 ```sh
-pip install jax[cpu]==0.4.28
+pip install jax[cpu]~=0.4.24
 ```
 
 On a Linux machine with a GPU, run the following command:
 
 ```sh
-pip install jax[cuda12]==0.4.28
+pip install jax[cuda12]~=0.4.24
 ```
 
 ### Quick example [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://console.cloud.google.com/vertex-ai/colab/notebooks?project=probcomp-caliban&activeNb=projects%2Fprobcomp-caliban%2Flocations%2Fus-west1%2Frepositories%2F09be0f8e-ccfd-4d34-a029-fed94d455c48)

@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 
 
@@ -21,16 +22,17 @@ class TestDimapCombinator:
     def test_dimap_update_retval(self):
         # Define pre- and post-processing functions
         def pre_process(x, y):
-            return (x + 1, y * 2)
+            return (x + 1, y * 2, y * 3)
 
-        def post_process(_, retval):
+        def post_process(args, retval):
+            assert len(args) == 3, "post_process has to receive transformed args."
             return retval + 2
 
         def invert_post(x):
             return x - 2
 
         @genjax.gen
-        def model(x, y):
+        def model(x, y, _):
             return genjax.normal(x, y) @ "z"
 
         dimap_model = model.dimap(
@@ -43,6 +45,10 @@ class TestDimapCombinator:
         assert (
             -2.5092335 == trace.get_retval()
         ), "initial retval is a square of random draw"
+
+        assert (trace.get_score(), trace.get_retval()) == dimap_model.assess(
+            trace.get_choices(), (2.0, 3.0)
+        ), "assess with the same args returns score, retval"
 
         assert (
             genjax.normal.logpdf(

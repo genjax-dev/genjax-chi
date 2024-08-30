@@ -25,47 +25,48 @@ from genjax._src.core.generative import (
     UpdateProblem,
     Weight,
 )
+from genjax._src.core.generative.choice_map import ChoiceMap
 from genjax._src.core.interpreters.incremental import Diff, incremental
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
-    Optional,
+    Generic,
     PRNGKey,
     String,
-    Tuple,
-    typecheck,
+    TypeVar,
 )
 
-register_exclusion(__file__)
+ArgTuple = TypeVar("ArgTuple", bound=tuple[Any, ...])
+R = TypeVar("R")
+S = TypeVar("S")
 
 
 @Pytree.dataclass
-class DimapTrace(Trace):
-    dimap_combinator: "DimapCombinator"
-    inner: Trace
-    args: Tuple
-    retval: Any
+class DimapTrace(Generic[R, S], Trace[S]):
+    gen_fn: "DimapCombinator[Any, R, S]"
+    inner: Trace[R]
+    args: tuple[Any, ...]
+    retval: S
 
-    def get_args(self):
+    def get_args(self) -> tuple[Any, ...]:
         return self.args
 
-    def get_gen_fn(self):
-        return self.dimap_combinator
+    def get_gen_fn(self) -> GenerativeFunction[S]:
+        return self.gen_fn
 
-    def get_sample(self):
+    def get_sample(self) -> Sample:
         return self.inner.get_sample()
 
-    def get_retval(self):
+    def get_retval(self) -> S:
         return self.retval
 
-    def get_score(self):
+    def get_score(self) -> Score:
         return self.inner.get_score()
 
 
 @Pytree.dataclass
-class DimapCombinator(GenerativeFunction):
+class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
     """
     A combinator that transforms both the arguments and return values of a [`genjax.GenerativeFunction`][].
 
@@ -105,35 +106,35 @@ class DimapCombinator(GenerativeFunction):
         ```
     """
 
-    inner: GenerativeFunction
-    argument_mapping: Callable[..., Any] = Pytree.static()
-    retval_mapping: Callable[..., Any] = Pytree.static()
-    info: Optional[String] = Pytree.static(default=None)
+    inner: GenerativeFunction[R]
+    argument_mapping: Callable[[tuple[Any, ...]], ArgTuple] = Pytree.static()
+    retval_mapping: Callable[[ArgTuple, R], S] = Pytree.static()
+    info: String | None = Pytree.static(default=None)
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
-    ) -> DimapTrace:
+        args: tuple[Any, ...],
+    ) -> DimapTrace[R, S]:
         inner_args = self.argument_mapping(*args)
         tr = self.inner.simulate(key, inner_args)
         inner_retval = tr.get_retval()
         retval = self.retval_mapping(inner_args, inner_retval)
         return DimapTrace(self, tr, args, retval)
 
-    @typecheck
     def update_change_target(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[S],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], UpdateProblem]:
         assert isinstance(trace, EmptyTrace | DimapTrace)
+
         primals = Diff.tree_primal(argdiffs)
         tangents = Diff.tree_tangent(argdiffs)
+
         inner_argdiffs = incremental(self.argument_mapping)(
             None,
             primals,
@@ -141,17 +142,20 @@ class DimapCombinator(GenerativeFunction):
         )
         match trace:
             case DimapTrace():
-                inner_trace = trace.inner
+                inner_trace: Trace[R] = trace.inner
             case EmptyTrace():
                 inner_trace = EmptyTrace(self.inner)
+
         tr, w, inner_retdiff, bwd_problem = self.inner.update(
             key, inner_trace, GenericProblem(inner_argdiffs, update_problem)
         )
+
         inner_retval_primals = Diff.tree_primal(inner_retdiff)
         inner_retval_tangents = Diff.tree_tangent(inner_retdiff)
 
-        def closed_mapping(args, retval):
-            return self.retval_mapping(args, retval)
+        def closed_mapping(args: tuple[Any, ...], retval: R) -> S:
+            xformed_args = self.argument_mapping(*args)
+            return self.retval_mapping(xformed_args, retval)
 
         retval_diff = incremental(closed_mapping)(
             None,
@@ -159,7 +163,7 @@ class DimapCombinator(GenerativeFunction):
             (tangents, inner_retval_tangents),
         )
 
-        retval_primal = Diff.tree_primal(retval_diff)
+        retval_primal: S = Diff.tree_primal(retval_diff)
         return (
             DimapTrace(self, tr, primals, retval_primal),
             w,
@@ -167,13 +171,12 @@ class DimapCombinator(GenerativeFunction):
             bwd_problem,
         )
 
-    @typecheck
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[S],
         update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
@@ -182,15 +185,14 @@ class DimapCombinator(GenerativeFunction):
                     key, trace, update_problem, Diff.no_change(trace.get_args())
                 )
 
-    @typecheck
     def assess(
         self,
-        sample: Sample,
-        args: Tuple,
-    ) -> Tuple[Score, Any]:
+        sample: ChoiceMap,
+        args: tuple[Any, ...],
+    ) -> tuple[Score, S]:
         inner_args = self.argument_mapping(*args)
         w, inner_retval = self.inner.assess(sample, inner_args)
-        retval = self.retval_mapping(args, inner_retval)
+        retval = self.retval_mapping(inner_args, inner_retval)
         return w, retval
 
 
@@ -201,10 +203,10 @@ class DimapCombinator(GenerativeFunction):
 
 def dimap(
     *,
-    pre: Callable[..., Any] = lambda *args: args,
-    post: Callable[..., Any] = lambda _args, retval: retval,
-    info: Optional[String] = None,
-) -> Callable[[GenerativeFunction], GenerativeFunction]:
+    pre: Callable[..., ArgTuple] = lambda *args: args,
+    post: Callable[[ArgTuple, R], S] = lambda _, retval: retval,
+    info: String | None = None,
+) -> Callable[[GenerativeFunction[R]], DimapCombinator[ArgTuple, R, S]]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
 
@@ -248,17 +250,17 @@ def dimap(
         ```
     """
 
-    def decorator(f) -> GenerativeFunction:
+    def decorator(f: GenerativeFunction[R]) -> DimapCombinator[ArgTuple, R, S]:
         return DimapCombinator(f, pre, post, info)
 
     return decorator
 
 
 def map(
-    f: Callable[..., Any],
+    f: Callable[[R], S],
     *,
-    info: Optional[String] = None,
-) -> Callable[[GenerativeFunction], GenerativeFunction]:
+    info: String | None = None,
+) -> Callable[[GenerativeFunction[R]], DimapCombinator[tuple[Any, ...], R, S]]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies a post-processing function to its return value.
 
@@ -295,14 +297,18 @@ def map(
         print(trace.render_html())
         ```
     """
-    return dimap(pre=lambda *args: args, post=lambda _, ret: f(ret), info=info)
+
+    def post(_, x: R) -> S:
+        return f(x)
+
+    return dimap(pre=lambda *args: args, post=post, info=info)
 
 
 def contramap(
-    f: Callable[..., Any],
+    f: Callable[..., ArgTuple],
     *,
-    info: Optional[String] = None,
-) -> Callable[[GenerativeFunction], GenerativeFunction]:
+    info: String | None = None,
+) -> Callable[[GenerativeFunction[R]], DimapCombinator[ArgTuple, R, R]]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies a pre-processing function to its arguments.
 
