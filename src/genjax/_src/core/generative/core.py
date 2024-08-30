@@ -1532,7 +1532,7 @@ class GenerativeFunction(Generic[R], Pytree):
 GLOBAL_TRACE_OP_HANDLER_STACK: list[Callable[..., Any]] = []
 
 
-def handle_off_trace_stack(addr, gen_fn: GenerativeFunction[Any], args):
+def handle_off_trace_stack(addr, gen_fn: GenerativeFunction[R], args) -> R:
     if GLOBAL_TRACE_OP_HANDLER_STACK:
         handler = GLOBAL_TRACE_OP_HANDLER_STACK[-1]
         return handler(addr, gen_fn, args)
@@ -1588,7 +1588,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         return self.gen_fn.handle_kwargs()
 
     # NOTE: Supports callee syntax, and the ability to overload it in callers.
-    def __matmul__(self, addr):
+    def __matmul__(self, addr) -> R:
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return handle_off_trace_stack(
@@ -1603,7 +1603,9 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
                 self.args,
             )
 
-    def __call__(self, key: PRNGKey, *args) -> Any:
+    # This override returns `R`, while the superclass returns a `GenerativeFunctionClosure`; this is
+    # a hint that subclassing may not be the right relationship here.
+    def __call__(self, key: PRNGKey, *args) -> R:  # pyright: ignore
         full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
@@ -1613,7 +1615,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         else:
             return self.gen_fn.simulate(key, full_args).get_retval()
 
-    def __abstract_call__(self, *args) -> Any:
+    def __abstract_call__(self, *args) -> R:
         full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
