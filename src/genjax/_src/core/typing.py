@@ -58,7 +58,12 @@ Value = Any
 # Trace-time-checked primitives #
 #################################
 
-ScalarShaped = Is[lambda arr: jnp.array(arr, copy=False).shape == ()]
+
+def is_scalar_shaped(arr: object) -> bool:
+    return jnp.array(arr, copy=False).shape == ()
+
+
+ScalarShaped = Is[is_scalar_shaped]
 ScalarBool = Annotated[Bool | BoolArray, ScalarShaped]
 
 ############
