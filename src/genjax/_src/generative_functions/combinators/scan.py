@@ -19,17 +19,17 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    EmptyProblem,
+    EditRequest,
+    EmptyRequest,
     EmptyTrace,
     GenerativeFunction,
-    GenericProblem,
-    ImportanceProblem,
+    GenericIncrementalProblem,
+    ImportanceRequest,
     Retdiff,
     Sample,
     Score,
     Selection,
     Trace,
-    UpdateProblem,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -77,14 +77,14 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
 
 
 #######################
-# Custom update specs #
+# Custom edit specs #
 #######################
 
 
 @Pytree.dataclass(match_args=True)
-class IndexProblem(UpdateProblem):
+class IndexProblem(EditRequest):
     index: IntArray
-    subproblem: UpdateProblem
+    subrequest: EditRequest
 
 
 ###################
@@ -232,21 +232,21 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         return ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores))
 
     @typecheck
-    def update_importance(
+    def edit_importance(
         self,
         key: PRNGKey,
         constraint: ChoiceMap,
         args: tuple[Any, ...],
-    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], UpdateProblem]:
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
         (carry, scanned_in) = args
 
         def _inner_importance(key, constraint, carry, scanned_in):
-            tr, w, _retdiff, bwd_problem = self.kernel_gen_fn.update(
+            tr, w, _retdiff, bwd_problem = self.kernel_gen_fn.edit(
                 key,
                 EmptyTrace(self.kernel_gen_fn),
-                GenericProblem(
+                GenericIncrementalProblem(
                     Diff.unknown_change((carry, scanned_in)),
-                    ImportanceProblem(constraint),
+                    ImportanceRequest(constraint),
                 ),
             )
             (carry, scanned_out) = tr.get_retval()
@@ -281,46 +281,46 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             bwd_problems,
         )
 
-    def _get_subproblem(
+    def _get_subrequest(
         self,
-        problem: UpdateProblem,
+        problem: EditRequest,
         idx: IntArray,
-    ) -> UpdateProblem:
+    ) -> EditRequest:
         match problem:
             case ChoiceMap():
                 return problem(idx)
 
             case Selection():
-                subproblem = problem(idx)
-                return subproblem
+                subrequest = problem(idx)
+                return subrequest
 
             case _:
-                raise Exception(f"Not implemented subproblem: {problem}")
+                raise Exception(f"Not implemented subrequest: {problem}")
 
     @typecheck
-    def update_generic(
+    def edit_generic(
         self,
         key: PRNGKey,
         trace: ScanTrace[Carry, Y],
-        problem: UpdateProblem,
+        problem: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], UpdateProblem]:
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
         carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(
             Diff.tree_primal(argdiffs)
         )
 
-        def _inner_update(key, subtrace, subproblem, carry, scanned_in):
+        def _inner_edit(key, subtrace, subrequest, carry, scanned_in):
             (
                 new_subtrace,
                 w,
                 kernel_retdiff,
                 bwd_problem,
-            ) = self.kernel_gen_fn.update(
+            ) = self.kernel_gen_fn.edit(
                 key,
                 subtrace,
-                GenericProblem(
+                GenericIncrementalProblem(
                     (carry, scanned_in),
-                    subproblem,
+                    subrequest,
                 ),
             )
             (carry_retdiff, scanned_out_retdiff) = Diff.tree_diff_unknown_change(
@@ -334,15 +334,15 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 bwd_problem,
             )
 
-        def _update(carry, scanned_over):
+        def _edit(carry, scanned_over):
             key, idx, carried_value = carry
             subtrace, scanned_in = scanned_over
             key = jax.random.fold_in(key, idx)
-            subproblem = self._get_subproblem(problem, idx)
+            subrequest = self._get_subrequest(problem, idx)
             (
                 (carry, score),
                 (new_subtrace, scanned_out, w, inner_bwd_problem),
-            ) = _inner_update(key, subtrace, subproblem, carried_value, scanned_in)
+            ) = _inner_edit(key, subtrace, subrequest, carried_value, scanned_in)
             bwd_problem = ChoiceMap.idx(idx, inner_bwd_problem)
 
             return (key, idx + 1, carry), (
@@ -357,7 +357,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             (_, _, carried_out_diff),
             (new_subtraces, scanned_out_diff, scores, ws, bwd_problems),
         ) = jax.lax.scan(
-            _update,
+            _edit,
             (key, 0, carry_diff),
             (trace.inner, *scanned_in_diff),
             length=self.length,
@@ -381,39 +381,41 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             bwd_problems,
         )
 
-    def update_index(
+    def edit_index(
         self,
         key: PRNGKey,
         trace: ScanTrace[Carry, Y],
         index: IntArray,
-        update_problem: UpdateProblem,
+        edit_request: EditRequest,
     ):
         starting_subslice = jtu.tree_map(lambda v: v[index], trace.inner)
         affected_subslice = jtu.tree_map(lambda v: v[index + 1], trace.inner)
         starting_argdiffs = Diff.no_change(starting_subslice.get_args())
         (
-            updated_start,
+            editd_start,
             start_w,
             starting_retdiff,
             bwd_problem,
-        ) = self.kernel_gen_fn.update(
-            key, starting_subslice, GenericProblem(starting_argdiffs, update_problem)
+        ) = self.kernel_gen_fn.edit(
+            key,
+            starting_subslice,
+            GenericIncrementalProblem(starting_argdiffs, edit_request),
         )
-        updated_end, end_w, ending_retdiff, _ = self.kernel_gen_fn.update(
-            key, affected_subslice, GenericProblem(starting_retdiff, EmptyProblem())
+        editd_end, end_w, ending_retdiff, _ = self.kernel_gen_fn.edit(
+            key,
+            affected_subslice,
+            GenericIncrementalProblem(starting_retdiff, EmptyRequest()),
         )
 
-        # Must be true for this type of update to be valid.
+        # Must be true for this type of edit to be valid.
         assert Diff.static_check_no_change(ending_retdiff)
 
-        def _mutate_in_place(arr, updated_start, updated_end):
-            arr = arr.at[index].set(updated_start)
-            arr = arr.at[index + 1].set(updated_end)
+        def _mutate_in_place(arr, editd_start, editd_end):
+            arr = arr.at[index].set(editd_start)
+            arr = arr.at[index + 1].set(editd_end)
             return arr
 
-        new_inner = jtu.tree_map(
-            _mutate_in_place, trace.inner, updated_start, updated_end
-        )
+        new_inner = jtu.tree_map(_mutate_in_place, trace.inner, editd_start, editd_end)
         new_retvals = new_inner.get_retval()
         return (
             ScanTrace[Carry, Y](
@@ -429,56 +431,54 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         )
 
     @typecheck
-    def update_change_target(
+    def edit_change_target(
         self,
         key: PRNGKey,
         trace: Trace[tuple[Carry, Y]],
-        update_problem: UpdateProblem,
+        edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], UpdateProblem]:
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
         assert isinstance(trace, EmptyTrace | ScanTrace)
-        match update_problem:
-            case ImportanceProblem(constraint) if isinstance(constraint, ChoiceMap):
-                return self.update_importance(
-                    key, constraint, Diff.tree_primal(argdiffs)
-                )
-            case IndexProblem(index, subproblem):
+        match edit_request:
+            case ImportanceRequest(constraint) if isinstance(constraint, ChoiceMap):
+                return self.edit_importance(key, constraint, Diff.tree_primal(argdiffs))
+            case IndexProblem(index, subrequest):
                 assert isinstance(
                     trace, ScanTrace
-                ), "You cannot perform an index update upon the EmptyTrace"
+                ), "You cannot perform an index edit upon the EmptyTrace"
                 if Diff.static_check_no_change(argdiffs) and isinstance(
                     trace, ScanTrace
                 ):
-                    return self.update_index(key, trace, index, subproblem)
+                    return self.edit_index(key, trace, index, subrequest)
                 else:
-                    return self.update_generic(
-                        key, trace, ChoiceMap.idx(index, subproblem), argdiffs
+                    return self.edit_generic(
+                        key, trace, ChoiceMap.idx(index, subrequest), argdiffs
                     )
             case _:
                 assert isinstance(
                     trace, ScanTrace
                 ), "You cannot operate on the EmptyTrace in this context"
-                return self.update_generic(key, trace, update_problem, argdiffs)
+                return self.edit_generic(key, trace, edit_request, argdiffs)
 
     @GenerativeFunction.gfi_boundary
     @typecheck
-    def update(
+    def edit(
         self,
         key: PRNGKey,
         trace: Trace[tuple[Carry, Y]],
-        update_problem: UpdateProblem,
-    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], UpdateProblem]:
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
+        edit_request: EditRequest,
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+        match edit_request:
+            case GenericIncrementalProblem(argdiffs, subrequest):
+                return self.edit_change_target(key, trace, subrequest, argdiffs)
 
             case _:
-                return self.update(
+                return self.edit(
                     key,
                     trace,
-                    GenericProblem(
+                    GenericIncrementalProblem(
                         Diff.no_change(trace.get_args()),
-                        update_problem,
+                        edit_request,
                     ),
                 )
 

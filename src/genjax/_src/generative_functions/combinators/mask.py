@@ -18,17 +18,17 @@ import jax.numpy as jnp
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
+    EditRequest,
     EmptyTrace,
     GenerativeFunction,
-    GenericProblem,
-    ImportanceProblem,
+    GenericIncrementalProblem,
+    ImportanceRequest,
     Mask,
-    MaskedProblem,
+    MaskedRequest,
     MaskedSample,
     Retdiff,
     Score,
     Trace,
-    UpdateProblem,
     Weight,
 )
 from genjax._src.core.generative.core import Constraint
@@ -127,13 +127,13 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         return MaskTrace(self, tr, Flag(check))
 
     @typecheck
-    def update_change_target(
+    def edit_change_target(
         self,
         key: PRNGKey,
         trace: Trace[Mask[R]],
-        update_problem: UpdateProblem,
+        edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], EditRequest]:
         check = Diff.tree_primal(argdiffs)[0]
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
         match trace:
@@ -144,8 +144,10 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             case _:
                 raise NotImplementedError(f"Unexpected trace type: {trace}")
 
-        premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
-            key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+        premasked_trace, w, retdiff, bwd_problem = self.gen_fn.edit(
+            key,
+            inner_trace,
+            GenericIncrementalProblem(tuple(inner_argdiffs), edit_request),
         )
 
         w = check.where(w, -trace.get_score())
@@ -154,31 +156,35 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             MaskTrace(self, premasked_trace, check),
             w,
             Mask.maybe(check_diff, retdiff),
-            MaskedProblem(check, bwd_problem),
+            MaskedRequest(check, bwd_problem),
         )
 
     @typecheck
-    def update_change_target_from_false(
+    def edit_change_target_from_false(
         self,
         key: PRNGKey,
         trace: Trace[Mask[R]],
-        update_problem: UpdateProblem,
+        edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], EditRequest]:
         check = Diff.tree_primal(argdiffs)[0]
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
 
         inner_trace = EmptyTrace(self.gen_fn)
 
-        assert isinstance(update_problem, Constraint)
-        imp_update_problem = ImportanceProblem(update_problem)
+        assert isinstance(edit_request, Constraint)
+        imp_edit_request = ImportanceRequest(edit_request)
 
-        premasked_trace, w, _, _ = self.gen_fn.update(
-            key, inner_trace, GenericProblem(tuple(inner_argdiffs), imp_update_problem)
+        premasked_trace, w, _, _ = self.gen_fn.edit(
+            key,
+            inner_trace,
+            GenericIncrementalProblem(tuple(inner_argdiffs), imp_edit_request),
         )
 
-        _, _, retdiff, bwd_problem = self.gen_fn.update(
-            key, premasked_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+        _, _, retdiff, bwd_problem = self.gen_fn.edit(
+            key,
+            premasked_trace,
+            GenericIncrementalProblem(tuple(inner_argdiffs), edit_request),
         )
 
         w = check.where(premasked_trace.get_score(), 0.0)
@@ -187,24 +193,24 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             MaskTrace(self, premasked_trace, check),
             w,
             Mask.maybe(check_diff, retdiff),
-            MaskedProblem(check, bwd_problem),
+            MaskedRequest(check, bwd_problem),
         )
 
     @typecheck
-    def update(
+    def edit(
         self,
         key: PRNGKey,
         trace: Trace[Mask[R]],
-        update_problem: UpdateProblem,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
+        edit_request: EditRequest,
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], EditRequest]:
         assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
 
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem) if isinstance(
-                subproblem, ImportanceProblem
+        match edit_request:
+            case GenericIncrementalProblem(argdiffs, subrequest) if isinstance(
+                subrequest, ImportanceRequest
             ):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
-            case GenericProblem(argdiffs, subproblem):
+                return self.edit_change_target(key, trace, subrequest, argdiffs)
+            case GenericIncrementalProblem(argdiffs, subrequest):
                 assert isinstance(trace, MaskTrace)
 
                 if trace.check.concrete_false():
@@ -213,17 +219,17 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                     )
 
                 return trace.check.cond(
-                    self.update_change_target,
-                    self.update_change_target_from_false,
+                    self.edit_change_target,
+                    self.edit_change_target_from_false,
                     key,
                     trace,
-                    subproblem,
+                    subrequest,
                     argdiffs,
                 )
 
             case _:
-                return self.update_change_target(
-                    key, trace, update_problem, Diff.no_change(trace.get_args())
+                return self.edit_change_target(
+                    key, trace, edit_request, Diff.no_change(trace.get_args())
                 )
 
     @typecheck

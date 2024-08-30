@@ -23,15 +23,15 @@ import jax.numpy as jnp
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
+    EditRequest,
     EmptyTrace,
     GenerativeFunction,
-    GenericProblem,
-    ImportanceProblem,
+    GenericIncrementalProblem,
+    ImportanceRequest,
     R,
     Retdiff,
     Score,
     Trace,
-    UpdateProblem,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -175,12 +175,12 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
         return map_tr
 
-    def update_importance(
+    def edit_importance(
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
         args: tuple[Any, ...],
-    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], UpdateProblem]:
+    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         idx_array = jnp.arange(0, broadcast_dim_length)
@@ -188,12 +188,12 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
         def _importance(key, idx, choice_map, args):
             submap = choice_map(idx)
-            tr, w, rd, bwd_problem = self.gen_fn.update(
+            tr, w, rd, bwd_problem = self.gen_fn.edit(
                 key,
                 EmptyTrace(self.gen_fn),
-                GenericProblem(
+                GenericIncrementalProblem(
                     Diff.unknown_change(args),
-                    ImportanceProblem(submap),
+                    ImportanceRequest(submap),
                 ),
             )
             return tr, w, rd, ChoiceMap.idx(idx, bwd_problem)
@@ -207,11 +207,11 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
         return map_tr, w, rd, bwd_problem
 
-    def update_choice_map(
+    def edit_choice_map(
         self,
         key: PRNGKey,
         prev: VmapTrace[R],
-        update_problem: ChoiceMap,
+        edit_request: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[VmapTrace[R], Weight, Retdiff[R], ChoiceMap]:
         primals = Diff.tree_primal(argdiffs)
@@ -220,15 +220,15 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         idx_array = jnp.arange(0, broadcast_dim_length)
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
-        def _update(key, idx, subtrace, argdiffs):
-            subproblem = update_problem(idx)
-            new_subtrace, w, retdiff, bwd_problem = self.gen_fn.update(
-                key, subtrace, GenericProblem(argdiffs, subproblem)
+        def _edit(key, idx, subtrace, argdiffs):
+            subrequest = edit_request(idx)
+            new_subtrace, w, retdiff, bwd_problem = self.gen_fn.edit(
+                key, subtrace, GenericIncrementalProblem(argdiffs, subrequest)
             )
             return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_problem)
 
         new_subtraces, w, retdiff, bwd_problems = jax.vmap(
-            _update, in_axes=(0, 0, 0, self.in_axes)
+            _edit, in_axes=(0, 0, 0, self.in_axes)
         )(sub_keys, idx_array, prev.inner, argdiffs)
         w = jnp.sum(w)
         retval = new_subtraces.get_retval()
@@ -237,41 +237,41 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         return map_tr, w, retdiff, bwd_problems
 
     @typecheck
-    def update_change_target(
+    def edit_change_target(
         self,
         key: PRNGKey,
         trace: Trace[R],
-        update_problem: UpdateProblem,
+        edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], UpdateProblem]:
-        match update_problem:
+    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
+        match edit_request:
             case ChoiceMap():
                 assert isinstance(
                     trace, VmapTrace
                 ), "To change the target with a ChoiceMap, a VmapTrace is required here"
-                return self.update_choice_map(key, trace, update_problem, argdiffs)
+                return self.edit_choice_map(key, trace, edit_request, argdiffs)
 
-            case ImportanceProblem(constraint) if isinstance(
+            case ImportanceRequest(constraint) if isinstance(
                 constraint, ChoiceMap
             ) and isinstance(trace, EmptyTrace):
-                return self.update_importance(key, constraint, argdiffs)
+                return self.edit_importance(key, constraint, argdiffs)
 
             case _:
-                raise Exception(f"Not implemented problem: {update_problem}")
+                raise Exception(f"Not implemented problem: {edit_request}")
 
     @typecheck
-    def update(
+    def edit(
         self,
         key: PRNGKey,
         trace: Trace[R],
-        update_problem: UpdateProblem,
-    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], UpdateProblem]:
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
+        edit_request: EditRequest,
+    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
+        match edit_request:
+            case GenericIncrementalProblem(argdiffs, subrequest):
+                return self.edit_change_target(key, trace, subrequest, argdiffs)
             case _:
-                return self.update_change_target(
-                    key, trace, update_problem, Diff.no_change(trace.get_args())
+                return self.edit_change_target(
+                    key, trace, edit_request, Diff.no_change(trace.get_args())
                 )
 
     @typecheck

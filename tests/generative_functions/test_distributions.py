@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
-
 import genjax
+import jax
 from genjax import ChoiceMapBuilder as C
 from genjax import EmptyConstraint, MaskedConstraint
 from genjax import UpdateProblemBuilder as U
@@ -60,13 +59,13 @@ class TestDistributions:
         assert v != 1.0
         assert w == 0.0
 
-    def test_update(self):
+    def test_edit(self):
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         tr = genjax.normal.simulate(sub_key, (0.0, 1.0))
 
         # No constraint, no change to arguments.
-        (new_tr, w, _, _) = genjax.normal.update(
+        (new_tr, w, _, _) = genjax.normal.edit(
             sub_key, tr, U.g((Diff(0.0, NoChange), Diff(1.0, NoChange)), C.n())
         )
         assert new_tr.get_choices().get_value() == tr.get_choices().get_value()
@@ -77,7 +76,7 @@ class TestDistributions:
 
         # Constraint, no change to arguments.
         key, sub_key = jax.random.split(key)
-        (new_tr, w, _, _) = genjax.normal.update(
+        (new_tr, w, _, _) = genjax.normal.edit(
             sub_key,
             tr,
             U.g(
@@ -95,7 +94,7 @@ class TestDistributions:
 
         # No constraint, change to arguments.
         key, sub_key = jax.random.split(key)
-        (new_tr, w, _, _) = genjax.normal.update(
+        (new_tr, w, _, _) = genjax.normal.edit(
             sub_key,
             tr,
             U.g((Diff(1.0, UnknownChange), Diff(1.0, NoChange)), C.n()),
@@ -112,7 +111,7 @@ class TestDistributions:
 
         # Constraint, change to arguments.
         key, sub_key = jax.random.split(key)
-        (new_tr, w, _, _) = genjax.normal.update(
+        (new_tr, w, _, _) = genjax.normal.edit(
             sub_key,
             tr,
             U.g(
@@ -130,7 +129,7 @@ class TestDistributions:
 
         # Constraint is masked (True), no change to arguments.
         key, sub_key = jax.random.split(key)
-        (new_tr, w, _, _) = genjax.normal.update(
+        (new_tr, w, _, _) = genjax.normal.edit(
             sub_key,
             tr,
             U.g(
@@ -148,7 +147,7 @@ class TestDistributions:
 
         # Constraint is masked (True), change to arguments.
         key, sub_key = jax.random.split(key)
-        (new_tr, w, _, _) = genjax.normal.update(
+        (new_tr, w, _, _) = genjax.normal.edit(
             sub_key,
             tr,
             U.g(
@@ -166,7 +165,7 @@ class TestDistributions:
 
         # Constraint is masked (False), no change to arguments.
         key, sub_key = jax.random.split(key)
-        (new_tr, w, _, _) = genjax.normal.update(
+        (new_tr, w, _, _) = genjax.normal.edit(
             sub_key,
             tr,
             U.g(
@@ -182,7 +181,7 @@ class TestDistributions:
 
         # Constraint is masked (False), change to arguments.
         key, sub_key = jax.random.split(key)
-        (new_tr, w, _, _) = genjax.normal.update(
+        (new_tr, w, _, _) = genjax.normal.edit(
             sub_key,
             tr,
             U.g(
