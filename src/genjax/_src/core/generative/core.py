@@ -345,16 +345,12 @@ class Trace(Generic[R], Pytree):
         """
         if isinstance(problem, GenericProblem) and argdiffs is None:
             return self.get_gen_fn().update(key, self, problem)  # pyright: ignore
-        elif isinstance(problem, UpdateProblem):
+        else:
             return self.get_gen_fn().update(
                 key,
                 self,
                 GenericProblem(Diff.tree_diff_no_change(self.get_args()), problem),
             )  # pyright: ignore
-        else:
-            raise NotImplementedError(
-                "Supply either a GenericProblem or an UpdateProblem, possibly with argdiffs"
-            )
 
     def project(
         self,

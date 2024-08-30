@@ -120,56 +120,18 @@ include = ["src", "tests"]
 #       typecheck doesn't see noxfiles's import of nox
 exclude = ["**/__pycache__", "noxfile.py", "src/genjax/_src/inference/*.py", "src/genjax/_src/core/serialization/msgpack.py"]
 defineConstant = { DEBUG = true }
-typeCheckingMode = "standard"
-reportMatchNotExhaustive = "error"
-reportMissingImports = true
-reportMissingTypeArgument = true
-reportInvalidTypeVarUse = "error"
-analyzeUnannotatedFunctions = true
-strictParameterNoneValue = true
+typeCheckingMode = "strict"
 deprecateTypingAliases = true
 
-# These are from strict:
-strictListInference = true
-strictDictionaryInference = true
-strictSetInference = true
-reportAssertAlwaysTrue = "error"
-reportInvalidStringEscapeSequence = "error"
-reportSelfClsParameterName = "error"
-reportUnsupportedDunderAll = "error"
-reportUnusedExpression = "error"
-reportWildcardImportFromLibrary = "error"
-reportConstantRedefinition = "error"
-# reportMissingTypeStubs = "error"
-reportDeprecated = "error"
-
-
-reportDuplicateImport = "error"
-reportIncompleteStub = "error"
-reportInconsistentConstructor = "error"
-reportInvalidStubStatement = "error"
-# reportMatchNotExhaustive = "error"
-reportMissingParameterType = "error"
-# reportMissingTypeArgument = "error"
-# reportPrivateUsage = "error"
-# reportTypeCommentUsage = "error"
-# reportUnknownArgumentType = "error"
-# reportUnknownLambdaType = "error"
-# reportUnknownMemberType = "error"
-# reportUnknownParameterType = "error"
-# reportUnknownVariableType = "error"
-# reportUnnecessaryCast = "error"
-# reportUnnecessaryComparison = "error"
-# reportUnnecessaryContains = "error"
-# reportUnnecessaryIsInstance = "error"
-# reportUnusedClass = "error"
-# reportUnusedImport = "error"
-# reportUnusedFunction = "error"
-# reportUnusedVariable = "error"
-# reportUntypedBaseClass = "error"
-# reportUntypedClassDecorator = "error"
-# reportUntypedFunctionDecorator = "error"
-# reportUntypedNamedTuple = "error"
+# `strict` sets all of these to error; these remaining `none` entries are tests that we can't yet
+# pass.
+reportMissingTypeStubs = "none"
+reportMissingParameterType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownLambdaType = "none"
+reportUnknownMemberType = "none"
+reportUnknownParameterType = "none"
+reportUnknownVariableType = "none"
 
 [tool.ruff]
 exclude = [
