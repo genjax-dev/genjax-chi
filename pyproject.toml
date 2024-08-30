@@ -121,7 +121,7 @@ include = ["src", "tests"]
 exclude = ["**/__pycache__", "noxfile.py", "src/genjax/_src/inference/*.py", "src/genjax/_src/core/serialization/msgpack.py"]
 defineConstant = { DEBUG = true }
 typeCheckingMode = "standard"
-reportMatchNotExhaustive = true
+reportMatchNotExhaustive = "error"
 reportMissingImports = true
 reportMissingTypeArgument = true
 reportInvalidTypeVarUse = "error"
@@ -142,12 +142,14 @@ reportWildcardImportFromLibrary = "error"
 reportConstantRedefinition = "error"
 # reportMissingTypeStubs = "error"
 reportDeprecated = "error"
-# reportDuplicateImport = "error"
-# reportIncompleteStub = "error"
-# reportInconsistentConstructor = "error"
-# reportInvalidStubStatement = "error"
+
+
+reportDuplicateImport = "error"
+reportIncompleteStub = "error"
+reportInconsistentConstructor = "error"
+reportInvalidStubStatement = "error"
 # reportMatchNotExhaustive = "error"
-# reportMissingParameterType = "error"
+reportMissingParameterType = "error"
 # reportMissingTypeArgument = "error"
 # reportPrivateUsage = "error"
 # reportTypeCommentUsage = "error"
