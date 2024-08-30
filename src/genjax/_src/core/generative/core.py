@@ -34,6 +34,7 @@ from genjax._src.core.typing import (
     IntArray,
     Is,
     PRNGKey,
+    Self,
     String,
     TypeVar,
 )
@@ -338,7 +339,7 @@ class Trace(Generic[R], Pytree):
         key: PRNGKey,
         problem: GenericProblem | UpdateProblem,
         argdiffs: tuple[Any, ...] | None = None,
-    ) -> tuple["Trace[R]", Weight, Retdiff[R], UpdateProblem]:
+    ) -> tuple[Self, Weight, Retdiff[R], UpdateProblem]:
         """
         This method calls out to the underlying [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update] method - see [`UpdateProblem`][genjax.core.UpdateProblem] and [`update`][genjax.core.GenerativeFunction.update] for more information.
         """
