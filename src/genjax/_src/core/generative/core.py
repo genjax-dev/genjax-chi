@@ -337,7 +337,7 @@ class Trace(Generic[R], Pytree):
     def update(
         self,
         key: PRNGKey,
-        problem: GenericProblem | UpdateProblem,
+        problem: UpdateProblem,
         argdiffs: tuple[Any, ...] | None = None,
     ) -> tuple[Self, Weight, Retdiff[R], UpdateProblem]:
         """
