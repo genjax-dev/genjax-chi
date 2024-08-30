@@ -41,7 +41,7 @@ from genjax._src.core.typing import (
 # Address types #
 #################
 
-StaticAddressComponent = String | int
+StaticAddressComponent = String
 DynamicAddressComponent = ArrayLike
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
 Address = tuple[()] | tuple[AddressComponent, ...]
@@ -49,7 +49,6 @@ StaticAddress = tuple[()] | tuple[StaticAddressComponent, ...]
 ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
 ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
 ExtendedAddress = tuple[()] | tuple[ExtendedAddressComponent, ...]
-
 
 ##############
 # Selections #

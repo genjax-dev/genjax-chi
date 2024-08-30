@@ -24,12 +24,12 @@ class TestTupleAddr:
     def test_tupled_address(self):
         @genjax.gen
         def f():
-            x = genjax.normal(0.0, 1.0) @ ("x", 0)
+            x = genjax.normal(0.0, 1.0) @ ("x", "x0")
             y = genjax.normal(x, 1.0) @ "y"
             return y
 
         tr = f.simulate(jax.random.PRNGKey(0), ())
-        assert -2.7931314 == tr.project(jax.random.PRNGKey(1), S["x", 0])
+        assert -2.7931314 == tr.project(jax.random.PRNGKey(1), S["x", "x0"])
 
 
 class TestCombinators:

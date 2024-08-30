@@ -17,17 +17,21 @@ codebase.
 Type annotations in the codebase are exported out of this module for consistency.
 """
 
-from typing import Annotated  # noqa: I001
+import sys
 from types import EllipsisType
+from typing import Annotated
 
 import beartype.typing as btyping
-from jax import core as jc
 import jax.numpy as jnp
 import jaxtyping as jtyping
 import numpy as np
 from beartype.vale import Is
+from jax import core as jc
 
-from typing_extensions import Self
+if sys.version_info >= (3, 11, 0):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 Any = btyping.Any
 PRNGKey = jtyping.PRNGKeyArray
