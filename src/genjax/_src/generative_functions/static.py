@@ -151,7 +151,7 @@ def _abstract_gen_fn_call(
     _: tuple[Const[StaticAddress], ...],
     gen_fn: GenerativeFunction[R],
     args: tuple[Any, ...],
-):
+) -> R:
     return gen_fn.__abstract_call__(*args)
 
 
@@ -159,7 +159,7 @@ def trace(
     addr: StaticAddress,
     gen_fn: GenerativeFunction[R],
     args: tuple[Any, ...],
-):
+) -> R:
     """Invoke a generative function, binding its generative semantics with the
     current caller.
 
