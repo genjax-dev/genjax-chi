@@ -28,8 +28,8 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
-    BoolArray,
     Callable,
+    ScalarBool,
     static_check_is_concrete,
 )
 
@@ -55,7 +55,7 @@ class Flag(Pytree):
     determine the result).
     """
 
-    f: bool | BoolArray
+    f: ScalarBool
 
     def and_(self, f: "Flag") -> "Flag":
         # True and X => X. False and X => False.

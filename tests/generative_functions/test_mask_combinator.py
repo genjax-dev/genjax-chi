@@ -116,3 +116,19 @@ class TestMaskCombinator:
         w = tr.update(key, argdiffs)[1]
         assert w == 0.0
         assert w == tr.get_score()
+
+    def test_mask_fails_with_vector_mask(self, key):
+        @genjax.gen
+        def model():
+            return genjax.normal(0.0, 1.0) @ "x"
+
+        masks = jnp.array([True, True, False])
+
+        from beartype import beartype
+
+        @beartype
+        def simulate_masked(key, masks):
+            return model.mask().simulate(key, (masks,))
+
+        with pytest.raises(TypeError):
+            simulate_masked(key, masks)
