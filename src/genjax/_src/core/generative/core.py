@@ -40,9 +40,9 @@ from genjax._src.core.typing import (
     IntArray,
     Is,
     PRNGKey,
+    Self,
     String,
     TypeVar,
-    typecheck,
 )
 
 # Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
@@ -153,7 +153,7 @@ class MaskedRequest(EditRequest):
     problem: EditRequest
 
     @classmethod
-    def maybe_empty(_cls, f: Flag, problem: EditRequest):
+    def maybe_empty(cls, f: Flag, problem: EditRequest):
         match problem:
             case MaskedRequest(flag, subrequest):
                 return MaskedRequest(f.and_(flag), subrequest)
@@ -208,22 +208,6 @@ class ImportanceRequest(EditRequest):
 @Pytree.dataclass
 class SelectionProjectRequest(EditRequest):
     selection: Selection
-
-
-class UpdateProblemBuilder(Pytree):
-    @classmethod
-    def empty(_cls):
-        return EmptyRequest()
-
-    @classmethod
-    def maybe(_cls, flag: Flag, problem: "EditRequest"):
-        return MaskedRequest.maybe_empty(flag, problem)
-
-    @classmethod
-    def g(
-        _cls, argdiffs: Argdiffs, subrequest: "EditRequest"
-    ) -> "GenericIncrementalProblem":
-        return GenericIncrementalProblem(argdiffs, subrequest)
 
 
 ###############
@@ -389,7 +373,7 @@ class Trace(Generic[R], Pytree):
         """Return the [`Sample`][genjax.core.Sample] sampled from the distribution over samples by the generative function during the invocation which created the [`Trace`][genjax.core.Trace]."""
 
     # TODO: deprecated.
-    @typecheck
+
     def get_choices(self) -> "genjax.ChoiceMap":
         """Version of [`genjax.Trace.get_sample`][] for traces where the sample is an instance of [`genjax.ChoiceMap`][]."""
         return self.get_sample()  # type: ignore
@@ -404,12 +388,12 @@ class Trace(Generic[R], Pytree):
         key: PRNGKey,
         problem: GenericIncrementalProblem | EditRequest,
         argdiffs: tuple[Any, ...] | None = None,
-    ) -> tuple["Trace[R]", Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[Self, Weight, Retdiff[R], UpdateProblem]:
         """
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`UpdateProblem`][genjax.core.UpdateProblem] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
         """
         if isinstance(problem, GenericIncrementalProblem) and argdiffs is None:
-            return self.get_gen_fn().edit(key, self, problem)
+            return self.get_gen_fn().edit(key, self, problem) # pyright: ignore
         elif isinstance(problem, EditRequest):
             return self.get_gen_fn().edit(
                 key,
@@ -417,13 +401,12 @@ class Trace(Generic[R], Pytree):
                 GenericIncrementalProblem(
                     Diff.tree_diff_no_change(self.get_args()), problem
                 ),
-            )
+            ) # pyright: ignore
         else:
             raise NotImplementedError(
                 "Supply either a GenericProblem or an UpdateProblem, possibly with argdiffs"
             )
 
-    @typecheck
     def project(
         self,
         key: PRNGKey,
@@ -554,7 +537,7 @@ class GenerativeFunction(Generic[R], Pytree):
         return get_trace_shape(self, args)
 
     @classmethod
-    def gfi_boundary(_cls, c: _C) -> _C:
+    def gfi_boundary(cls, c: _C) -> _C:
         return gfi_boundary(c)
 
     @abstractmethod
@@ -779,7 +762,6 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         raise NotImplementedError
 
-    @typecheck
     def update(
         self,
         key: PRNGKey,
@@ -789,7 +771,6 @@ class GenerativeFunction(Generic[R], Pytree):
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         return GenericIncrementalProblem(argdiffs, constraint).edit(key, trace)
 
-    @typecheck
     def importance(
         self,
         key: PRNGKey,
@@ -841,7 +822,6 @@ class GenerativeFunction(Generic[R], Pytree):
         )
         return tr, w
 
-    @typecheck
     def propose(
         self,
         key: PRNGKey,
@@ -1612,7 +1592,7 @@ class GenerativeFunction(Generic[R], Pytree):
 GLOBAL_TRACE_OP_HANDLER_STACK: list[Callable[..., Any]] = []
 
 
-def handle_off_trace_stack(addr, gen_fn: GenerativeFunction[Any], args):
+def handle_off_trace_stack(addr, gen_fn: GenerativeFunction[R], args) -> R:
     if GLOBAL_TRACE_OP_HANDLER_STACK:
         handler = GLOBAL_TRACE_OP_HANDLER_STACK[-1]
         return handler(addr, gen_fn, args)
@@ -1640,7 +1620,6 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         raise NotImplementedError
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -1650,7 +1629,6 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         return self.wrapped.simulate(key, args)
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def edit(
         self, key: PRNGKey, trace: Trace[R], edit_request: GenericIncrementalProblem
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
@@ -1670,7 +1648,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         return self.gen_fn.handle_kwargs()
 
     # NOTE: Supports callee syntax, and the ability to overload it in callers.
-    def __matmul__(self, addr):
+    def __matmul__(self, addr) -> R:
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return handle_off_trace_stack(
@@ -1685,7 +1663,9 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
                 self.args,
             )
 
-    def __call__(self, key: PRNGKey, *args) -> Any:
+    # This override returns `R`, while the superclass returns a `GenerativeFunctionClosure`; this is
+    # a hint that subclassing may not be the right relationship here.
+    def __call__(self, key: PRNGKey, *args) -> R:  # pyright: ignore
         full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
@@ -1695,7 +1675,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         else:
             return self.gen_fn.simulate(key, full_args).get_retval()
 
-    def __abstract_call__(self, *args) -> Any:
+    def __abstract_call__(self, *args) -> R:
         full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
@@ -1708,7 +1688,6 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     #############################################
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -1725,7 +1704,6 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
             return self.gen_fn.simulate(key, full_args)
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def edit(
         self,
         key: PRNGKey,
@@ -1751,7 +1729,6 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
                 raise NotImplementedError
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def assess(
         self,
         sample: "genjax.ChoiceMap",

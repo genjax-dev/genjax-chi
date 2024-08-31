@@ -15,13 +15,12 @@
 import jax.numpy as jnp
 
 from genjax._src.core.generative import GenerativeFunction
-from genjax._src.core.typing import Any, ScalarBool, TypeVar, typecheck
+from genjax._src.core.typing import Any, ScalarBool, TypeVar
 
 R = TypeVar("R")
 T = TypeVar("T")
 
 
-@typecheck
 def or_else(
     if_gen_fn: GenerativeFunction[R],
     else_gen_fn: GenerativeFunction[T],
@@ -76,7 +75,6 @@ def or_else(
         ```
     """
 
-    @typecheck
     def argument_mapping(
         b: ScalarBool, if_args: tuple[Any, ...], else_args: tuple[Any, ...]
     ):

@@ -106,8 +106,9 @@ fail_under = 45
 
 [tool.vulture]
 paths = ["src"]
+ignore_names = ["cls"]
 exclude = ["*/.ipynb_checkpoints/*"]
-min_confidence = 80
+min_confidence = 70
 sort_by_size = true
 
 [tool.pyright]

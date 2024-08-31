@@ -26,7 +26,7 @@ from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import Any, Bool, Callable, Value, typecheck
+from genjax._src.core.typing import Any, Bool, Callable, Value
 
 #########################
 # Custom JAX primitives #
@@ -237,10 +237,8 @@ class ForwardInterpreter(Pytree):
         return jtu.tree_unflatten(out_tree(), flat_out)
 
 
-@typecheck
 def forward(f: Callable[..., Any]):
     @functools.wraps(f)
-    @typecheck
     def wrapped(stateful_handler: StatefulHandler, *args):
         interpreter = ForwardInterpreter()
         return interpreter.run_interpreter(

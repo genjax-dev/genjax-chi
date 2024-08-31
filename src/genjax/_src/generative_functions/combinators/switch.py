@@ -45,7 +45,6 @@ from genjax._src.core.typing import (
     PRNGKey,
     Sequence,
     TypeVar,
-    typecheck,
 )
 
 R = TypeVar("R")
@@ -173,7 +172,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
     def static_check_num_arguments_equals_num_branches(self, args):
         assert len(args) == len(self.branches)
 
-    @typecheck
     def _empty_simulate_defs(
         self,
         args: tuple[Any, ...],
@@ -208,13 +206,13 @@ class SwitchCombinator(GenerativeFunction[Any]):
         return (trace_leaves, retval_leaves), score
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
         args: tuple[Any, ...],
     ) -> SwitchTrace[Any]:
-        (idx, *branch_args) = args
+        idx, branch_args = args[0], args[1:]
+
         self.static_check_num_arguments_equals_num_branches(branch_args)
 
         def _inner(idx: int):
@@ -226,9 +224,9 @@ class SwitchCombinator(GenerativeFunction[Any]):
         (
             (trace_leaves, trace_defs),
             (retval_leaves, retval_defs),
-        ) = self._empty_simulate_defs(tuple(branch_args))
+        ) = self._empty_simulate_defs(branch_args)
         (trace_leaves, retval_leaves), score = jax.lax.switch(
-            idx, branch_functions, trace_leaves, retval_leaves, key, tuple(branch_args)
+            idx, branch_functions, trace_leaves, retval_leaves, key, branch_args
         )
         subtraces = list(
             map(
@@ -245,7 +243,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
         retval = Sum.maybe_none(idx, retvals)
         return SwitchTrace(self, args, subtraces, retval, score)
 
-    @typecheck
     def _empty_edit_defs(
         self,
         trace: SwitchTrace[Any],
@@ -316,7 +313,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
         score = tr.get_score()
         return (trace_leaves, retdiff_leaves, bwd_problem_leaves), (score, w)
 
-    @typecheck
     def _generic_edit_idx_change(
         self,
         key: PRNGKey,
@@ -378,7 +374,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
         score = tr.get_score()
         return (trace_leaves, retdiff_leaves, bwd_problem_leaves), (score, w)
 
-    @typecheck
     def edit_generic(
         self,
         key: PRNGKey,
@@ -455,7 +450,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
             SumRequest(idx, bwd_problems),
         )
 
-    @typecheck
     def _empty_importance_defs(
         self,
         problem: ImportanceRequest,
@@ -520,7 +514,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
         score = tr.get_score()
         return (trace_leaves, retval_leaves, bwd_problem_leaves), (score, w)
 
-    @typecheck
     def edit_importance(
         self,
         key: PRNGKey,
@@ -596,7 +589,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
             SumRequest(idx, bwd_problems),
         )
 
-    @typecheck
     def edit_change_target(
         self,
         key: PRNGKey,
@@ -615,7 +607,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
                 return self.edit_generic(key, trace, problem, argdiffs)
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def edit(
         self,
         key: PRNGKey,
@@ -635,7 +626,8 @@ class SwitchCombinator(GenerativeFunction[Any]):
         retval_leaves = []
         for static_idx in range(len(self.branches)):
             branch_gen_fn = self.branches[static_idx]
-            _, retval_shape = get_data_shape(branch_gen_fn.assess)(sample, args)
+            branch_args = args[static_idx]
+            _, retval_shape = get_data_shape(branch_gen_fn.assess)(sample, branch_args)
             empty_retval = jtu.tree_map(
                 lambda v: jnp.zeros(v.shape, v.dtype), retval_shape
             )
@@ -646,18 +638,18 @@ class SwitchCombinator(GenerativeFunction[Any]):
 
     def _assess(self, static_idx, sample, args):
         branch_gen_fn = self.branches[static_idx]
-        score, retval = branch_gen_fn.assess(sample, args)
+        branch_args = args[static_idx]
+        score, retval = branch_gen_fn.assess(sample, branch_args)
         (retval_leaves, _) = self._empty_assess_defs(sample, args)
         retval_leaves[static_idx] = jtu.tree_leaves(retval)
         return retval_leaves, score
 
-    @typecheck
     def assess(
         self,
         sample: Sample,
         args: tuple[Any, ...],
     ) -> tuple[Score, Any]:
-        (idx, *branch_args) = args
+        idx, branch_args = args[0], args[1:]
         self.static_check_num_arguments_equals_num_branches(branch_args)
 
         def _inner(static_idx: int):
@@ -668,7 +660,7 @@ class SwitchCombinator(GenerativeFunction[Any]):
         retval_leaves, score = jax.lax.switch(
             idx, branch_functions, sample, branch_args
         )
-        (_, retval_defs) = self._empty_assess_defs(sample, args)
+        (_, retval_defs) = self._empty_assess_defs(sample, branch_args)
         retvals = list(
             map(
                 lambda x: jtu.tree_unflatten(retval_defs[x], retval_leaves[x]),
@@ -684,7 +676,6 @@ class SwitchCombinator(GenerativeFunction[Any]):
 #############
 
 
-@typecheck
 def switch(
     *gen_fns: GenerativeFunction[Any],
 ) -> GenerativeFunction[Any]:

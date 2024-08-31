@@ -40,7 +40,6 @@ from genjax._src.core.typing import (
     Generic,
     PRNGKey,
     TypeVar,
-    typecheck,
 )
 
 R = TypeVar("R")
@@ -52,7 +51,7 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     inner: Trace[R]
     check: Flag
 
-    def get_args(self) -> tuple[Flag, ...]:
+    def get_args(self) -> tuple[Flag, Any]:
         return (self.check, *self.inner.get_args())
 
     def get_gen_fn(self):
@@ -116,7 +115,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
     gen_fn: GenerativeFunction[R]
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -126,7 +124,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         tr = self.gen_fn.simulate(key, inner_args)
         return MaskTrace(self, tr, Flag(check))
 
-    @typecheck
     def edit_change_target(
         self,
         key: PRNGKey,
@@ -159,7 +156,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             MaskedRequest(check, bwd_problem),
         )
 
-    @typecheck
     def edit_change_target_from_false(
         self,
         key: PRNGKey,
@@ -196,7 +192,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             MaskedRequest(check, bwd_problem),
         )
 
-    @typecheck
     def edit(
         self,
         key: PRNGKey,
@@ -232,7 +227,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                     key, trace, edit_request, Diff.no_change(trace.get_args())
                 )
 
-    @typecheck
     def assess(
         self,
         sample: ChoiceMap,
@@ -251,7 +245,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 #############
 
 
-@typecheck
 def mask(f: GenerativeFunction[R]) -> MaskCombinator[R]:
     """
     Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.

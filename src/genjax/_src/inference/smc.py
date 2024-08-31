@@ -36,7 +36,6 @@ from genjax._src.core.typing import (
     FloatArray,
     Int,
     PRNGKey,
-    typecheck,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
@@ -47,9 +46,9 @@ from genjax._src.inference.sp import (
     Target,
 )
 
-
 # Utility, for CSMC stacking.
-@typecheck
+
+
 def stack_to_first_dim(arr1: ArrayLike, arr2: ArrayLike):
     # Coerce to array, if literal.
     arr1 = jnp.array(arr1, copy=False)
@@ -156,7 +155,6 @@ class SMCAlgorithm(Algorithm):
     # GenSP #
     #########
 
-    @typecheck
     def random_weighted(
         self,
         key: PRNGKey,
@@ -174,7 +172,6 @@ class SMCAlgorithm(Algorithm):
         chm = target.filter_to_unconstrained(particle.get_sample())
         return log_density_estimate, chm
 
-    @typecheck
     def estimate_logpdf(
         self,
         key: PRNGKey,
@@ -196,7 +193,6 @@ class SMCAlgorithm(Algorithm):
     # VI via GRASP #
     ################
 
-    @typecheck
     def estimate_normalizing_constant(
         self,
         key: PRNGKey,
@@ -207,7 +203,6 @@ class SMCAlgorithm(Algorithm):
         particle_collection = algorithm.run_smc(sub_key)
         return particle_collection.get_log_marginal_likelihood_estimate()
 
-    @typecheck
     def estimate_reciprocal_normalizing_constant(
         self,
         key: PRNGKey,
@@ -425,7 +420,7 @@ class ChangeTarget(SMCAlgorithm):
     # `estimate_reciprocal_normalizing_constant` - by avoiding an extra target
     # reweighting step (which will add extra variance to any derived gradient estimators)
     # It is only available for `ChangeTarget`.
-    @typecheck
+
     def run_csmc_for_normalizing_constant(
         self,
         key: PRNGKey,

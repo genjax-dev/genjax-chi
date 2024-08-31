@@ -29,7 +29,6 @@ from genjax._src.core.typing import (
     Int,
     TypeVar,
     static_check_is_concrete,
-    typecheck,
 )
 
 R = TypeVar("R")
@@ -64,7 +63,7 @@ class Mask(Generic[R], Pytree):
     value: R
 
     @classmethod
-    def maybe(_cls, f: Flag, v: "R | Mask[R]") -> "Mask[R]":
+    def maybe(cls, f: Flag, v: "R | Mask[R]") -> "Mask[R]":
         match v:
             case Mask(flag, value):
                 return Mask[R](f.and_(flag), value)
@@ -72,7 +71,7 @@ class Mask(Generic[R], Pytree):
                 return Mask[R](f, v)
 
     @classmethod
-    def maybe_none(_cls, f: Flag, v: "R | Mask[R]") -> "R | Mask[R] | None":
+    def maybe_none(cls, f: Flag, v: "R | Mask[R]") -> "R | Mask[R] | None":
         if v is None or f.concrete_false():
             return None
         elif f.concrete_true():
@@ -179,9 +178,8 @@ class Sum(Generic[R], Pytree):
     """
 
     @classmethod
-    @typecheck
     def maybe(
-        _cls,
+        cls,
         idx: ArrayLike | Diff[Any],
         vs: list[R],
     ):
@@ -192,9 +190,8 @@ class Sum(Generic[R], Pytree):
         )
 
     @classmethod
-    @typecheck
     def maybe_none(
-        _cls,
+        cls,
         idx: ArrayLike | Diff[Any],
         vs: list[R],
     ):
@@ -216,6 +213,5 @@ class Sum(Generic[R], Pytree):
         else:
             return self
 
-    @typecheck
     def __getitem__(self, idx: Int):
         return Mask.maybe_none(Flag(idx == self.idx), self.values[idx])

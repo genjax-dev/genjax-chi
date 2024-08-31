@@ -63,7 +63,7 @@ class Pytree(pz.Struct):
     @classmethod
     @overload
     def dataclass(
-        _cls,
+        cls,
         incoming: None = None,
         /,
         **kwargs,
@@ -72,7 +72,7 @@ class Pytree(pz.Struct):
     @classmethod
     @overload
     def dataclass(
-        _cls,
+        cls,
         incoming: type[_T],
         /,
         **kwargs,
@@ -83,7 +83,7 @@ class Pytree(pz.Struct):
     )
     @classmethod
     def dataclass(
-        _cls,
+        cls,
         incoming: type[_T] | None = None,
         /,
         **kwargs,
@@ -101,12 +101,12 @@ class Pytree(pz.Struct):
         Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
             from genjax import Pytree
-            from genjax.typing import FloatArray, typecheck
+            from genjax.typing import FloatArray
             import jax.numpy as jnp
 
 
             @Pytree.dataclass
-            @typecheck  # Enforces type annotations on instantiation.
+            # Enforces type annotations on instantiation.
             class MyClass(Pytree):
                 my_static_field: int = Pytree.static()
                 my_dynamic_field: FloatArray
@@ -118,6 +118,7 @@ class Pytree(pz.Struct):
 
         return pz.pytree_dataclass(
             incoming,
+            overwrite_parent_init=True,
             **kwargs,
         )
 
@@ -130,7 +131,7 @@ class Pytree(pz.Struct):
         Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
             @Pytree.dataclass
-            @typecheck  # Enforces type annotations on instantiation.
+            # Enforces type annotations on instantiation.
             class MyClass(Pytree):
                 my_dynamic_field: FloatArray
                 my_static_field: int = Pytree.static(default=0)
@@ -180,10 +181,10 @@ class Pytree(pz.Struct):
         )
 
     @staticmethod
-    def tree_unwrap_const(v):
+    def tree_const_unwrap(v):
         def _inner(v):
             if isinstance(v, Const):
-                return v.const
+                return v.val
             else:
                 return v
 
@@ -320,10 +321,12 @@ class Pytree(pz.Struct):
 # Associated utility classes #
 ##############################
 
+_C = TypeVar("_C")
+
 
 # Wrapper for static values (can include callables).
 @Pytree.dataclass
-class Const(Pytree):
+class Const(Generic[_C], Pytree):
     """
     JAX-compatible way to tag a value as a constant. Valid constants include Python literals, strings, essentially anything **that won't hold JAX arrays** inside of a computation.
 
@@ -354,10 +357,14 @@ class Const(Pytree):
         ```
     """
 
-    const: Any = Pytree.static()
+    val: _C = Pytree.static()
 
     def __call__(self, *args):
-        return self.const(*args)
+        assert isinstance(self.val, Callable)
+        return self.val(*args)
+
+    def unwrap(self):
+        return self.val
 
 
 # Construct for a type of closure which closes over dynamic values.
@@ -399,7 +406,7 @@ class Closure(Generic[R], Pytree):
         return self.fn(*self.dyn_args, *args, **kwargs)
 
 
-def nth(x: Pytree, idx: Int):
+def nth(x: Pytree, idx: Int | slice):
     """Returns a Pytree in which `[idx]` has been applied to every leaf."""
     return jtu.tree_map(lambda v: v[idx], x)
 

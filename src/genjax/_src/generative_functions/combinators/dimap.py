@@ -35,7 +35,6 @@ from genjax._src.core.typing import (
     PRNGKey,
     String,
     TypeVar,
-    typecheck,
 )
 
 ArgTuple = TypeVar("ArgTuple", bound=tuple[Any, ...])
@@ -113,7 +112,6 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
     info: String | None = Pytree.static(default=None)
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -125,7 +123,6 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         retval = self.retval_mapping(inner_args, inner_retval)
         return DimapTrace(self, tr, args, retval)
 
-    @typecheck
     def edit_change_target(
         self,
         key: PRNGKey,
@@ -174,7 +171,6 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
             bwd_problem,
         )
 
-    @typecheck
     def edit(
         self,
         key: PRNGKey,
@@ -189,7 +185,6 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
                     key, trace, edit_request, Diff.no_change(trace.get_args())
                 )
 
-    @typecheck
     def assess(
         self,
         sample: ChoiceMap,

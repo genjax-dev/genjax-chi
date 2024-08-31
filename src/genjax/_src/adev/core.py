@@ -40,7 +40,6 @@ from genjax._src.core.typing import (
     Callable,
     Is,
     PRNGKey,
-    typecheck,
 )
 
 DualTree = Annotated[
@@ -82,7 +81,6 @@ class ADEVPrimitive(Pytree):
         """
         raise NotImplementedError
 
-    @typecheck
     def __call__(self, *args):
         return sample_primitive(self, *args)
 
@@ -144,7 +142,6 @@ class TailCallBatchedADEVPrimitive(TailCallADEVPrimitive):
 sample_p = InitialStylePrimitive("sample")
 
 
-@typecheck
 def sample_primitive(adev_prim: ADEVPrimitive, *args, key=jax.random.PRNGKey(0)):
     def _adev_prim_call(adev_prim, *args):
         # When used for abstract tracing, value of the key doesn't matter.
@@ -428,7 +425,7 @@ class ADInterpreter(Pytree):
 
     @staticmethod
     def forward_mode(f, kont=lambda v: v):
-        def _inner(key, dual_tree: Pytree):
+        def _inner(key, dual_tree: DualTree):
             primals = jtu.tree_leaves(Dual.tree_primal(dual_tree))
             closed_jaxpr, (_, _, out_tree) = stage(f)(*primals)
             jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
@@ -452,7 +449,6 @@ class ADInterpreter(Pytree):
         def maybe_array(v):
             return jnp.array(v, copy=False)
 
-        @typecheck
         def _dual(key, dual_tree: DualTree):
             dual_tree = jtu.tree_map(maybe_array, dual_tree)
             return _inner(key, dual_tree)
@@ -469,7 +465,6 @@ class ADInterpreter(Pytree):
 class ADEVProgram(Pytree):
     source: Callable[..., Any] = Pytree.static()
 
-    @typecheck
     def _jvp_estimate(
         self,
         key: PRNGKey,
@@ -478,7 +473,7 @@ class ADEVProgram(Pytree):
     ) -> Dual:
         def adev_jvp(f):
             @wraps(f)
-            def wrapped(dual_tree: Pytree):
+            def wrapped(dual_tree: DualTree):
                 return ADInterpreter.forward_mode(self.source, dual_kont)(
                     key, dual_tree
                 )
@@ -497,7 +492,7 @@ class ADEVProgram(Pytree):
 class Expectation(Pytree):
     prog: ADEVProgram
 
-    def jvp_estimate(self, key: PRNGKey, dual_tree: Pytree):
+    def jvp_estimate(self, key: PRNGKey, dual_tree: DualTree):
         # Trivial continuation.
         def _identity(v):
             return v
@@ -521,7 +516,6 @@ class Expectation(Pytree):
         return jax.grad(_invoke_closed_over)(primals)
 
 
-@typecheck
 def expectation(source: Callable[..., Any]):
     prog = ADEVProgram(source)
     return Expectation(prog)
