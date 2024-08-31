@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
 import pytest
+from jax import numpy as jnp
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import UpdateProblemBuilder as U
-from jax import numpy as jnp
 
 
 class TestSwitchCombinator:
@@ -137,7 +138,7 @@ class TestSwitchCombinator:
         assert score == flip_score
         assert w == score
 
-    def test_switch_combinator_edit_single_branch_no_change(self):
+    def test_switch_combinator_update_single_branch_no_change(self):
         @genjax.gen
         def simple_normal():
             _y1 = genjax.normal(0.0, 1.0) @ "y1"
@@ -151,7 +152,7 @@ class TestSwitchCombinator:
         v2 = tr.get_sample()["y2"]
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (tr, _, _, _) = jax.jit(switch.edit)(
+        (tr, _, _, _) = jax.jit(switch.update)(
             sub_key,
             tr,
             U.g(
@@ -163,7 +164,7 @@ class TestSwitchCombinator:
         assert v1 == tr.get_sample()["y1"]
         assert v2 == tr.get_sample()["y2"]
 
-    def test_switch_combinator_edit_edits_score(self):
+    def test_switch_combinator_update_updates_score(self):
         regular_stddev = 1.0
         outlier_stddev = 10.0
         sample_value = 2.0
@@ -193,9 +194,9 @@ class TestSwitchCombinator:
         )
         assert wt == tr.get_score()
 
-        key, edit_key = jax.random.split(key)
-        (new_tr, new_wt, _, _) = switch.edit(
-            edit_key,
+        key, update_key = jax.random.split(key)
+        (new_tr, new_wt, _, _) = switch.update(
+            update_key,
             tr,
             U.g(
                 (Diff.unknown_change(1), (), ()),

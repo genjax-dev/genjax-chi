@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
 import jax.numpy as jnp
 import penzai.pz as pz
 import pytest
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import SelectionBuilder as S
@@ -60,7 +61,7 @@ class TestIterateSimpleNormal:
             prev = tr.get_sample()[i - 1, "z"].unmask()
             assert w == genjax.normal.assess(C.v(value), (prev, 1.0))[0]
 
-    def test_iterate_simple_normal_edit(self):
+    def test_iterate_simple_normal_update(self):
         @genjax.iterate(n=10)
         @genjax.gen
         def scanner(x):
@@ -71,7 +72,7 @@ class TestIterateSimpleNormal:
         key, sub_key = jax.random.split(key)
         for i in range(1, 5):
             tr, _w = jax.jit(scanner.importance)(sub_key, C[i, "z"].set(0.5), (0.01,))
-            new_tr, _w, _rd, _bwd_problem = jax.jit(scanner.edit)(
+            new_tr, _w, _rd, _bwd_problem = jax.jit(scanner.update)(
                 sub_key,
                 tr,
                 U.g(
@@ -324,7 +325,7 @@ class TestScanUpdate:
     def key(self):
         return jax.random.PRNGKey(314159)
 
-    def test_scan_edit(self, key):
+    def test_scan_update(self, key):
         @pz.pytree_dataclass
         class A(genjax.Pytree):
             x: FloatArray
@@ -339,7 +340,7 @@ class TestScanUpdate:
 
         k1, k2 = jax.random.split(key)
         tr = model.simulate(k1, (jnp.array(1.0),))
-        u, w, _, _ = tr.edit(k2, C["steps", 1, "b"].set(99.0))
+        u, w, _, _ = tr.update(k2, C["steps", 1, "b"].set(99.0))
         assert jnp.allclose(
             u.get_choices()["steps", ..., "b"], jnp.array([2.0, 99.0, 7.0]), atol=0.1
         )
@@ -353,15 +354,15 @@ class TestScanWithParameters:
 
     @genjax.gen
     @staticmethod
-    def step(data, state, edit):
-        new_state = state + genjax.normal(edit, data["noise"]) @ "state"
+    def step(data, state, update):
+        new_state = state + genjax.normal(update, data["noise"]) @ "state"
         return new_state, new_state
 
     @genjax.gen
     @staticmethod
     def model(data):
         stepper = TestScanWithParameters.step.partial_apply(data)
-        return stepper.scan(n=3)(data["initial"], data["edits"]) @ "s"
+        return stepper.scan(n=3)(data["initial"], data["updates"]) @ "s"
 
     def test_scan_with_parameters(self, key):
         tr = TestScanWithParameters.model.simulate(
@@ -369,7 +370,7 @@ class TestScanWithParameters:
             (
                 {
                     "initial": jnp.array(3.0),
-                    "edits": jnp.array([5.0, 6.0, 7.0]),
+                    "updates": jnp.array([5.0, 6.0, 7.0]),
                     "noise": 1e-6,
                 },
             ),

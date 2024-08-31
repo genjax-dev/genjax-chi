@@ -14,10 +14,11 @@
 
 from typing import Any
 
-import genjax
 import jax
 import jax.numpy as jnp
 import pytest
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff, Pytree
 from genjax import UpdateProblemBuilder as U
@@ -313,7 +314,7 @@ class TestStaticGenFnImportance:
 
 
 ####################################################
-#          Remember: the edit weight math        #
+#          Remember: the update weight math        #
 #                                                  #
 #   log p(r′,t′;x′) + log q(r;x,t) - log p(r,t;x)  #
 #       - log q(r′;x′,t′) - q(t′;x′,t+u)           #
@@ -322,7 +323,7 @@ class TestStaticGenFnImportance:
 
 
 class TestStaticGenFnUpdate:
-    def test_simple_normal_edit(self):
+    def test_simple_normal_update(self):
         @genjax.gen
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
@@ -332,41 +333,41 @@ class TestStaticGenFnUpdate:
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         tr = jax.jit(simple_normal.simulate)(sub_key, ())
-        jitted = jax.jit(simple_normal.edit)
+        jitted = jax.jit(simple_normal.update)
 
         new = C["y1"].set(2.0)
         original_choice = tr.get_sample()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (editd, w, _, discard) = jitted(sub_key, tr, U.g((), new))
-        editd_choice = editd.get_sample()
-        _y1 = editd_choice["y1"]
-        _y2 = editd_choice["y2"]
+        (updated, w, _, discard) = jitted(sub_key, tr, U.g((), new))
+        updated_choice = updated.get_sample()
+        _y1 = updated_choice["y1"]
+        _y2 = updated_choice["y2"]
         (_, score1) = genjax.normal.importance(
-            key, editd_choice.get_submap("y1"), (0.0, 1.0)
+            key, updated_choice.get_submap("y1"), (0.0, 1.0)
         )
         (_, score2) = genjax.normal.importance(
-            key, editd_choice.get_submap("y2"), (0.0, 1.0)
+            key, updated_choice.get_submap("y2"), (0.0, 1.0)
         )
         test_score = score1 + score2
         assert original_choice["y1",] == discard["y1",]
-        assert editd.get_score() == original_score + w
-        assert editd.get_score() == pytest.approx(test_score, 0.01)
+        assert updated.get_score() == original_score + w
+        assert updated.get_score() == pytest.approx(test_score, 0.01)
 
         new = C["y1"].set(2.0).at["y2"].set(3.0)
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (editd, w, _, discard) = jitted(sub_key, tr, U.g((), new))
-        editd_choice = editd.get_sample()
-        _y1 = editd_choice.get_submap("y1")
-        _y2 = editd_choice.get_submap("y2")
+        (updated, w, _, discard) = jitted(sub_key, tr, U.g((), new))
+        updated_choice = updated.get_sample()
+        _y1 = updated_choice.get_submap("y1")
+        _y2 = updated_choice.get_submap("y2")
         (_, score1) = genjax.normal.importance(key, _y1, (0.0, 1.0))
         (_, score2) = genjax.normal.importance(key, _y2, (0.0, 1.0))
         test_score = score1 + score2
-        assert editd.get_score() == original_score + w
-        assert editd.get_score() == pytest.approx(test_score, 0.01)
+        assert updated.get_score() == original_score + w
+        assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-    def test_simple_linked_normal_edit(self):
+    def test_simple_linked_normal_update(self):
         @genjax.gen
         def simple_linked_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
@@ -377,24 +378,24 @@ class TestStaticGenFnUpdate:
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         tr = jax.jit(simple_linked_normal.simulate)(sub_key, ())
-        jitted = jax.jit(simple_linked_normal.edit)
+        jitted = jax.jit(simple_linked_normal.update)
 
         new = C["y1"].set(2.0)
         original_choice = tr.get_sample()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (editd, w, _, discard) = jitted(sub_key, tr, U.g((), new))
-        editd_choice = editd.get_sample()
-        y1 = editd_choice["y1"]
-        y2 = editd_choice["y2"]
-        y3 = editd_choice.get_submap("y3")
+        (updated, w, _, discard) = jitted(sub_key, tr, U.g((), new))
+        updated_choice = updated.get_sample()
+        y1 = updated_choice["y1"]
+        y2 = updated_choice["y2"]
+        y3 = updated_choice.get_submap("y3")
         score1, _ = genjax.normal.assess(C.v(y1), (0.0, 1.0))
         score2, _ = genjax.normal.assess(C.v(y2), (y1, 1.0))
         score3, _ = genjax.normal.assess(y3, (y1 + y2, 1.0))
         test_score = score1 + score2 + score3
         assert original_choice["y1"] == discard["y1"]
-        assert editd.get_score() == pytest.approx(original_score + w, 0.01)
-        assert editd.get_score() == pytest.approx(test_score, 0.01)
+        assert updated.get_score() == pytest.approx(original_score + w, 0.01)
+        assert updated.get_score() == pytest.approx(test_score, 0.01)
 
     def test_simple_hierarchical_normal(self):
         @genjax.gen
@@ -412,17 +413,17 @@ class TestStaticGenFnUpdate:
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         tr = jax.jit(simple_hierarchical_normal.simulate)(sub_key, ())
-        jitted = jax.jit(simple_hierarchical_normal.edit)
+        jitted = jax.jit(simple_hierarchical_normal.update)
 
         new = C["y1"].set(2.0)
         original_choice = tr.get_sample()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (editd, w, _, discard) = jitted(sub_key, tr, U.g((), new))
-        editd_choice = editd.get_sample()
-        y1 = editd_choice["y1"]
-        y2 = editd_choice["y2", "y1"]
-        y3 = editd_choice["y3", "y1"]
+        (updated, w, _, discard) = jitted(sub_key, tr, U.g((), new))
+        updated_choice = updated.get_sample()
+        y1 = updated_choice["y1"]
+        y2 = updated_choice["y2", "y1"]
+        y3 = updated_choice["y3", "y1"]
         assert y1 == new["y1"]
         assert y2 == original_choice["y2", "y1"]
         assert y3 == original_choice["y3", "y1"]
@@ -431,10 +432,10 @@ class TestStaticGenFnUpdate:
         score3, _ = genjax.normal.assess(C.v(y3), (y1 + y2, 1.0))
         test_score = score1 + score2 + score3
         assert original_choice["y1"] == discard["y1"]
-        assert editd.get_score() == original_score + w
-        assert editd.get_score() == pytest.approx(test_score, 0.01)
+        assert updated.get_score() == original_score + w
+        assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-    def test_edit_weight_correctness(self):
+    def test_update_weight_correctness(self):
         @genjax.gen
         def simple_linked_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
@@ -445,7 +446,7 @@ class TestStaticGenFnUpdate:
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         tr = jax.jit(simple_linked_normal.simulate)(sub_key, ())
-        jitted = jax.jit(simple_linked_normal.edit)
+        jitted = jax.jit(simple_linked_normal.update)
 
         old_y1 = tr.get_sample()["y1"]
         old_y2 = tr.get_sample()["y2"]
@@ -453,11 +454,11 @@ class TestStaticGenFnUpdate:
         new_y1 = 2.0
         new = C["y1"].set(new_y1)
         key, sub_key = jax.random.split(key)
-        (editd, w, _, _) = jitted(sub_key, tr, U.g((), new))
+        (updated, w, _, _) = jitted(sub_key, tr, U.g((), new))
 
         # TestStaticGenFn weight correctness.
-        editd_sample = editd.get_sample()
-        assert editd_sample["y1"] == new_y1
+        updated_sample = updated.get_sample()
+        assert updated_sample["y1"] == new_y1
 
         δ_y3 = (
             genjax.normal.assess(C.v(old_y3), (new_y1 + old_y2, 1.0))[0]
@@ -473,19 +474,19 @@ class TestStaticGenFnUpdate:
         )
         assert w == pytest.approx((δ_y3 + δ_y2 + δ_y1), 0.0001)
 
-        # TestStaticGenFn composition of edit calls.
+        # TestStaticGenFn composition of update calls.
         new_y3 = 2.0
         new = C["y3"].set(new_y3)
         key, sub_key = jax.random.split(key)
-        (editd, w, _, _) = jitted(sub_key, editd, U.g((), new))
-        assert editd.get_sample()["y3"] == 2.0
+        (updated, w, _, _) = jitted(sub_key, updated, U.g((), new))
+        assert updated.get_sample()["y3"] == 2.0
         correct_w = (
             genjax.normal.assess(C.v(new_y3), (new_y1 + old_y2, 1.0))[0]
             - genjax.normal.assess(C.v(old_y3), (new_y1 + old_y2, 1.0))[0]
         )
         assert w == pytest.approx(correct_w, 0.0001)
 
-    def test_edit_pytree_argument(self):
+    def test_update_pytree_argument(self):
         @Pytree.dataclass
         class SomePytree(genjax.Pytree):
             x: Float | FloatArray
@@ -502,11 +503,11 @@ class TestStaticGenFnUpdate:
         tr = jax.jit(simple_linked_normal_with_tree_argument.simulate)(
             sub_key, (init_tree,)
         )
-        jitted = jax.jit(simple_linked_normal_with_tree_argument.edit)
+        jitted = jax.jit(simple_linked_normal_with_tree_argument.update)
         new_y1 = 2.0
         constraints = C["y1"].set(new_y1)
         key, sub_key = jax.random.split(key)
-        (editd, _w, _, _) = jitted(
+        (updated, _w, _, _) = jitted(
             sub_key,
             tr,
             U.g(
@@ -514,10 +515,10 @@ class TestStaticGenFnUpdate:
                 constraints,
             ),
         )
-        assert editd.get_sample()["y1"] == new_y1
+        assert updated.get_sample()["y1"] == new_y1
         new_tree = SomePytree(1.0, 2.0)
         key, sub_key = jax.random.split(key)
-        (editd, _w, _, _) = jitted(
+        (updated, _w, _, _) = jitted(
             sub_key,
             tr,
             U.g(
@@ -525,7 +526,7 @@ class TestStaticGenFnUpdate:
                 constraints,
             ),
         )
-        assert editd.get_sample()["y1"] == new_y1
+        assert updated.get_sample()["y1"] == new_y1
 
 
 #####################
@@ -653,7 +654,7 @@ class TestStaticGenFnInline:
         choices = tr.get_sample()
         assert w == genjax.normal.assess(choices.get_submap("y1"), (0.0, 1.0))[0]
 
-    def test_inline_edit(self):
+    def test_inline_update(self):
         @genjax.gen
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
@@ -676,7 +677,7 @@ class TestStaticGenFnInline:
         tr = jax.jit(higher_model.simulate)(sub_key, ())
         old_value = tr.get_sample().get_submap("y1")
         key, sub_key = jax.random.split(key)
-        (tr, w, _rd, _) = jax.jit(higher_model.edit)(sub_key, tr, U.g((), choice))
+        (tr, w, _rd, _) = jax.jit(higher_model.update)(sub_key, tr, U.g((), choice))
         choices = tr.get_sample()
         assert (
             w
@@ -686,7 +687,7 @@ class TestStaticGenFnInline:
         key, sub_key = jax.random.split(key)
         tr = jax.jit(higher_higher_model.simulate)(sub_key, ())
         old_value = tr.get_sample().get_submap("y1")
-        (tr, w, _rd, _) = jax.jit(higher_higher_model.edit)(key, tr, U.g((), choice))
+        (tr, w, _rd, _) = jax.jit(higher_higher_model.update)(key, tr, U.g((), choice))
         choices = tr.get_sample()
         assert w == pytest.approx(
             genjax.normal.assess(choices.get_submap("y1"), (0.0, 1.0))[0]

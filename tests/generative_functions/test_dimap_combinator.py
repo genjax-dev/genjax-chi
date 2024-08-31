@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 
 
 class TestDimapCombinator:
-    def test_dimap_edit_retval(self):
+    def test_dimap_update_retval(self):
         # Define pre- and post-processing functions
         def pre_process(x, y):
             return (x + 1, y * 2, y * 3)
@@ -56,17 +57,17 @@ class TestDimapCombinator:
             == trace.get_score()
         ), "final score sees pre-processing but not post-processing (note the inverse). This is only true here because we are returning the sampled value."
 
-        editd_tr, _, _, _ = trace.edit(key, C["z"].set(-2.0))
+        updated_tr, _, _, _ = trace.update(key, C["z"].set(-2.0))
         assert (
-            0.0 == editd_tr.get_retval()
-        ), "editd 'z' must hit `post_process` before returning"
+            0.0 == updated_tr.get_retval()
+        ), "updated 'z' must hit `post_process` before returning"
 
         importance_tr, _ = dimap_model.importance(
-            key, editd_tr.get_choices(), (1.0, 2.0)
+            key, updated_tr.get_choices(), (1.0, 2.0)
         )
         assert (
-            importance_tr.get_retval() == editd_tr.get_retval()
-        ), "importance shouldn't edit the retval"
+            importance_tr.get_retval() == updated_tr.get_retval()
+        ), "importance shouldn't update the retval"
 
         assert (
             genjax.normal.logpdf(

@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
 import jax.numpy as jnp
 import pytest
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import UpdateProblemBuilder as U
@@ -60,21 +61,21 @@ class TestMaskCombinator:
         _, w = jax.jit(model.importance)(key, C["z"].set(-2.0), tr.get_args())
         assert w == 0.0
 
-    def test_mask_edit_weight_to_argdiffs_from_true(self, key):
-        # pre-edit mask arg is True
+    def test_mask_update_weight_to_argdiffs_from_true(self, key):
+        # pre-update mask arg is True
         tr = jax.jit(model.simulate)(key, (True, 2.0))
         # mask check arg transition: True --> True
         argdiffs = U.g(
             (Diff.unknown_change(Flag(True)), Diff.no_change(tr.get_args()[1])), C.n()
         )
-        w = tr.edit(key, argdiffs)[1]
-        assert w == tr.inner.edit(key, C.n())[1]
+        w = tr.update(key, argdiffs)[1]
+        assert w == tr.inner.update(key, C.n())[1]
         assert w == 0.0
         # mask check arg transition: True --> False
         argdiffs = U.g(
             (Diff.unknown_change(Flag(False)), Diff.no_change(tr.get_args()[1])), C.n()
         )
-        w = tr.edit(key, argdiffs)[1]
+        w = tr.update(key, argdiffs)[1]
         assert w == -tr.get_score()
 
     def test_mask_vmap(self, key):
@@ -98,20 +99,20 @@ class TestMaskCombinator:
         assert tr.get_score() == inner_scores[0] + inner_scores[2]
 
     @pytest.mark.skip(reason="This test is currently skipped")
-    def test_mask_edit_weight_to_argdiffs_from_false(self, key):
-        # pre-edit mask arg is False
+    def test_mask_update_weight_to_argdiffs_from_false(self, key):
+        # pre-update mask arg is False
         tr = jax.jit(model.simulate)(key, (False, 2.0))
         # mask check arg transition: False --> True
         argdiffs = U.g(
             (Diff.unknown_change(Flag(True)), Diff.no_change(tr.get_args()[1])), C.n()
         )
-        w = tr.edit(key, argdiffs)[1]
-        assert w == tr.inner.edit(key, C.n())[1] + tr.inner.get_score()
-        assert w == tr.inner.edit(key, C.n())[0].get_score()
+        w = tr.update(key, argdiffs)[1]
+        assert w == tr.inner.update(key, C.n())[1] + tr.inner.get_score()
+        assert w == tr.inner.update(key, C.n())[0].get_score()
         # mask check arg transition: False --> False
         argdiffs = U.g(
             (Diff.unknown_change(Flag(False)), Diff.no_change(tr.get_args()[1])), C.n()
         )
-        w = tr.edit(key, argdiffs)[1]
+        w = tr.update(key, argdiffs)[1]
         assert w == 0.0
         assert w == tr.get_score()
