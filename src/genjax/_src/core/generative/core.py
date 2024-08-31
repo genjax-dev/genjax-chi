@@ -393,7 +393,7 @@ class Trace(Generic[R], Pytree):
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`UpdateProblem`][genjax.core.UpdateProblem] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
         """
         if isinstance(problem, GenericIncrementalProblem) and argdiffs is None:
-            return self.get_gen_fn().edit(key, self, problem) # pyright: ignore
+            return self.get_gen_fn().edit(key, self, problem)  # pyright: ignore
         elif isinstance(problem, EditRequest):
             return self.get_gen_fn().edit(
                 key,
@@ -401,7 +401,7 @@ class Trace(Generic[R], Pytree):
                 GenericIncrementalProblem(
                     Diff.tree_diff_no_change(self.get_args()), problem
                 ),
-            ) # pyright: ignore
+            )  # pyright: ignore
         else:
             raise NotImplementedError(
                 "Supply either a GenericProblem or an UpdateProblem, possibly with argdiffs"
