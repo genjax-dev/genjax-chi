@@ -203,19 +203,20 @@ class Sum(Generic[R], Pytree):
             return Sum.maybe(idx, vs)
 
     def maybe_collapse(self) -> R | Self:
-        def choose(*vs):
-            # Computing `result` above the branch allows us to:
-            # - catch incompatible types / shapes in the result
-            # - in the case of compatible types requiring casts (like bool => int),
-            #   result's dtype tells us the final type.
-            result = jnp.choose(idx, vs, mode="wrap")
-            if isinstance(idx, Int):
-                return jnp.asarray(vs[idx], dtype=result.dtype)
-            else:
-                return result
-
         if Pytree.static_check_tree_structure_equivalence(self.values):
             idx = Diff.tree_primal(self.idx)
+
+            def choose(*vs):
+                # Computing `result` above the branch allows us to:
+                # - catch incompatible types / shapes in the result
+                # - in the case of compatible types requiring casts (like bool => int),
+                #   result's dtype tells us the final type.
+                result = jnp.choose(idx, vs, mode="wrap")
+                if isinstance(idx, Int):
+                    return jnp.asarray(vs[idx], dtype=result.dtype)
+                else:
+                    return result
+
             return tree_map(choose, *self.values)
         else:
             return self
