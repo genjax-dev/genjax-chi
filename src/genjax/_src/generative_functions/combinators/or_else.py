@@ -14,7 +14,7 @@
 
 import jax.numpy as jnp
 
-from genjax._src.core.generative import GenerativeFunction, Sum
+from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.typing import Any, ScalarBool, TypeVar
 
 R = TypeVar("R")
@@ -23,7 +23,7 @@ R = TypeVar("R")
 def or_else(
     if_gen_fn: GenerativeFunction[R],
     else_gen_fn: GenerativeFunction[R],
-) -> GenerativeFunction[R | Sum[R]]:
+) -> GenerativeFunction[R]:
     """
     Given two [`genjax.GenerativeFunction`][]s `if_gen_fn` and `else_gen_fn`, returns a new [`genjax.GenerativeFunction`][] that accepts
 

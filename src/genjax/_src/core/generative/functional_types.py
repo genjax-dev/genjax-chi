@@ -23,11 +23,9 @@ from genjax._src.core.interpreters.staging import (
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
-    Any,
     ArrayLike,
     Generic,
     Int,
-    Self,
     TypeVar,
 )
 
@@ -106,120 +104,42 @@ class Mask(Generic[R], Pytree):
         return self.value
 
 
-@Pytree.dataclass(match_args=True)
-class Sum(Generic[R], Pytree):
-    """
-    A `Sum` instance represents a sum type, which is a union of possible values - which value is active is determined by the `Sum.idx` field.
-
-    The `Sum` type is used to represent a choice between multiple possible values, and is used in generative computations to represent uncertainty over values.
-
-    Examples:
-        A common scenario which will produce `Sum` types is when using a `SwitchCombinator` with branches that have multiple possible return value types:
-        ```python exec="yes" html="true" source="material-block" session="core"
-        from genjax import gen, normal, bernoulli
-
-
-        @gen
-        def model1():
-            return normal(0.0, 1.0) @ "x"
-
-
-        @gen
-        def model2():
-            z = bernoulli(0.5) @ "z"
-            return (z, z)
-
-
-        tr = jax.jit(model1.switch(model2).simulate)(key, (1, (), ()))
-        print(tr.get_retval().render_html())
-        ```
-
-        Users can collapse the `Sum` type by consuming it via [`jax.lax.switch`](https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html), for instance:
-        ```python exec="yes" html="true" source="material-block" session="core"
-        def collapsing_a_sum_type(key, idx):
-            tr = model1.switch(model2).simulate(key, (idx, (), ()))
-            sum = tr.get_retval()
-            v = jax.lax.switch(
-                sum.idx,
-                [
-                    lambda: sum.values[0] + 3.0,
-                    lambda: 1.0 + sum.values[1][0] + sum.values[1][1],
-                ],
-            )
-            return v
-
-
-        x = jax.jit(collapsing_a_sum_type)(key, 1)
-        print(x)
-        ```
-
-        Users can index into the `Sum` type using a **static** integer index, creating a `Mask` type:
-        ```python exec="yes" html="true" source="material-block" session="core"
-        from genjax import Sum
-
-
-        def uncertain_idx(idx):
-            s = Sum(idx, [1, 2, 3])
-            return s[2]
-
-
-        mask = jax.jit(uncertain_idx)(1)
-        print(mask.render_html())
-        ```
-    """
-
-    idx: ArrayLike | Diff[Any]
-    """
-    The runtime index tag for which value in `Sum.values` is active.
-    """
-    values: list[R]
-    """
-    The possible values for the `Sum` instance.
-    """
-
+class Sum:
     @classmethod
     def maybe(
         cls,
-        idx: ArrayLike | Diff[Any],
+        idx: ArrayLike | Diff[ArrayLike],
         vs: list[R],
-    ) -> "R | Sum[R]":
-        return Sum[R](idx, vs).maybe_collapse()
+    ) -> R:
+        primal_idx: ArrayLike = Diff.tree_primal(idx)
+
+        def choose(*vs):
+            # Computing `result` above the branch allows us to:
+            # - catch incompatible types / shapes in the result
+            # - in the case of compatible types requiring casts (like bool => int),
+            #   result's dtype tells us the final type.
+            result = jnp.choose(primal_idx, vs, mode="wrap")
+            if isinstance(idx, Int):
+                return jnp.asarray(vs[idx], dtype=result.dtype)
+            else:
+                return result
+
+        return tree_map(choose, *vs)
 
     @classmethod
     def maybe_none(
         cls,
-        idx: ArrayLike | Diff[Any],
+        idx: ArrayLike | Diff[ArrayLike],
         vs: list[R],
-    ) -> "R | Mask[R] | Sum[R] | None":
+    ) -> R | None:
+        primal_idx: ArrayLike = Diff.tree_primal(idx)
+
         possibles: list[R | Mask[R] | None] = []
+
         for _idx, v in enumerate(vs):
             if v is not None:
-                possibles.append(Mask.maybe_none(Flag(idx == _idx), v))
+                possibles.append(Mask.maybe_none(Flag(primal_idx == _idx), v))
         if not possibles:
             return None
-        if len(possibles) == 1:
-            return possibles[0]
         else:
             return Sum.maybe(idx, vs)
-
-    def maybe_collapse(self) -> R | Self:
-        if Pytree.static_check_tree_structure_equivalence(self.values):
-            idx = Diff.tree_primal(self.idx)
-
-            def choose(*vs):
-                # Computing `result` above the branch allows us to:
-                # - catch incompatible types / shapes in the result
-                # - in the case of compatible types requiring casts (like bool => int),
-                #   result's dtype tells us the final type.
-                result = jnp.choose(idx, vs, mode="wrap")
-                if isinstance(idx, Int):
-                    return jnp.asarray(vs[idx], dtype=result.dtype)
-                else:
-                    return result
-
-            return tree_map(choose, *self.values)
-        else:
-            return self
-
-    def __getitem__(self, idx: Int) -> R | Mask[R] | None:
-        return Mask.maybe_none(Flag(idx == self.idx), self.values[idx])
