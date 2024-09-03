@@ -221,5 +221,5 @@ class Sum(Generic[R], Pytree):
         else:
             return self
 
-    def __getitem__(self, idx: Int):
+    def __getitem__(self, idx: Int) -> R | Mask[R] | None:
         return Mask.maybe_none(Flag(idx == self.idx), self.values[idx])
