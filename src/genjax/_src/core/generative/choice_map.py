@@ -766,11 +766,14 @@ class XorChm(ChoiceMap):
         v1 = self.c1.get_value()
         v2 = self.c2.get_value()
 
-        def pair_bool_to_idx(bool1, bool2):
+        def pair_flag_to_idx(bool1: Flag, bool2: Flag):
             return 1 * bool1.f + 2 * bool2.f - 3 * bool1.and_(bool2).f - 1
 
-        idx = pair_bool_to_idx(check1, check2)
-        return Sum.maybe_none(idx, [v1, v2])
+        idx = pair_flag_to_idx(check1, check2)
+        if isinstance(idx, int):
+            return [v1, v2][idx]
+        else:
+            return Sum.maybe_none(idx, [v1, v2])
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         remaining_1 = self.c1.get_submap(addr)
@@ -804,12 +807,15 @@ class OrChm(ChoiceMap):
         v1 = self.c1.get_value()
         v2 = self.c2.get_value()
 
-        def pair_bool_to_idx(first, second):
+        def pair_flag_to_idx(first: Flag, second: Flag):
             output = -1 + first.f + 2 * first.not_().and_(second).f
             return output
 
-        idx = pair_bool_to_idx(check1, check2)
-        return Sum.maybe_none(idx, [v1, v2])
+        idx = pair_flag_to_idx(check1, check2)
+        if isinstance(idx, int):
+            return [v1, v2][idx]
+        else:
+            return Sum.maybe_none(idx, [v1, v2])
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap1 = self.c1.get_submap(addr)
