@@ -301,17 +301,11 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         problem: UpdateProblem,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], UpdateProblem]:
-        diffs = Diff.tree_diff_unknown_change(Diff.tree_primal(argdiffs))
-        carry_diff: Carry = diffs[0]
-        scanned_in_diff = diffs[1:]
+        carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(
+            Diff.tree_primal(argdiffs)
+        )
 
-        def _inner_update(
-            key: PRNGKey,
-            subtrace: Trace[tuple[Carry, Y]],
-            subproblem,
-            carry: Carry,
-            scanned_in,
-        ) -> tuple[tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Weight, Any]]:
+        def _inner_update(key, subtrace, subproblem, carry, scanned_in):
             (
                 new_subtrace,
                 w,
@@ -336,9 +330,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 bwd_problem,
             )
 
-        def _update(
-            carry: tuple[PRNGKey, IntArray, Carry], scanned_over: tuple[Trace[tuple[Carry, Y]], Y]
-        ) -> tuple[tuple[PRNGKey, IntArray, Carry], Y]:
+        def _update(carry, scanned_over):
             key, idx, carried_value = carry
             subtrace, scanned_in = scanned_over
             key = jax.random.fold_in(key, idx)
@@ -362,7 +354,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             (new_subtraces, scanned_out_diff, scores, ws, bwd_problems),
         ) = jax.lax.scan(
             _update,
-            (key, jnp.asarray(0), carry_diff),
+            (key, 0, carry_diff),
             (trace.inner, *scanned_in_diff),
             length=self.length,
             reverse=self.reverse,
