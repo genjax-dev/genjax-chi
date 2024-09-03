@@ -441,9 +441,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 assert isinstance(
                     trace, ScanTrace
                 ), "You cannot perform an index update upon the EmptyTrace"
-                if Diff.static_check_no_change(argdiffs) and isinstance(
-                    trace, ScanTrace
-                ):
+                if Diff.static_check_no_change(argdiffs):
                     return self.update_index(key, trace, index, subproblem)
                 else:
                     return self.update_generic(

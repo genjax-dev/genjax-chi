@@ -121,15 +121,18 @@ include = ["src", "tests"]
 #       typecheck doesn't see noxfiles's import of nox
 exclude = ["**/__pycache__", "noxfile.py", "src/genjax/_src/inference/*.py", "src/genjax/_src/core/serialization/msgpack.py"]
 defineConstant = { DEBUG = true }
-typeCheckingMode = "standard"
-reportMatchNotExhaustive = true
-reportMissingImports = true
-reportMissingTypeArgument = true
-reportInvalidTypeVarUse = "error"
-reportMissingTypeStubs = false
-analyzeUnannotatedFunctions = true
-strictParameterNoneValue = true
+typeCheckingMode = "strict"
 deprecateTypingAliases = true
+
+# `strict` sets all of these to error; these remaining `none` entries are tests that we can't yet
+# pass.
+reportMissingTypeStubs = "none"
+reportMissingParameterType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownLambdaType = "none"
+reportUnknownMemberType = "none"
+reportUnknownParameterType = "none"
+reportUnknownVariableType = "none"
 
 [tool.ruff]
 exclude = [
