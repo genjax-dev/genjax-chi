@@ -245,3 +245,55 @@ class TestSwitchCombinator:
         key, sub_key = jax.random.split(key)
         tr = model.simulate(sub_key, ())
         assert 0.0 == tr.get_retval()
+
+    def test_switch_combinator_with_different_return_types(self):
+        @genjax.gen
+        def identity(x: int) -> int:
+            return x
+
+        @genjax.gen
+        def bool_branch(_: int) -> bool:
+            return True
+
+        k = jax.random.PRNGKey(0)
+        switch_model = genjax.switch(identity, bool_branch)
+
+        # this case returns True
+        result1 = switch_model(1, (10,), (10,))(k)
+        assert result1 == jnp.asarray(True)
+        assert result1.dtype == jnp.int32
+
+        # this case returns 1
+        result2 = switch_model(jnp.array(1), (10,), (10,))(k)
+        assert result2 == jnp.asarray(True)
+        assert result2.dtype == jnp.int32
+
+    def test_cake(self):
+        @genjax.gen
+        def identity(_: int) -> int:
+            return False
+
+        @genjax.gen
+        def bool_branch(_: int) -> bool:
+            return True
+
+        k = jax.random.PRNGKey(0)
+        switch_model = genjax.switch(identity, bool_branch)
+
+        result2 = switch_model(jnp.array(1), (10,), (10,))(k)
+        assert result2.dtype == jnp.bool
+
+    def test_cake2(self):
+        @genjax.gen
+        def identity(x: int):
+            return jax.numpy.ones(3)
+
+        @genjax.gen
+        def bool_branch(_: int):
+            return jax.numpy.ones(4)
+
+        k = jax.random.PRNGKey(0)
+        switch_model = genjax.switch(identity, bool_branch)
+
+        result2 = switch_model(0, (10,), (10,))(k)
+        assert result2.dtype == jnp.int32
