@@ -27,6 +27,7 @@ from genjax._src.core.typing import (
     ArrayLike,
     Generic,
     Int,
+    Self,
     TypeVar,
 )
 
@@ -181,7 +182,7 @@ class Sum(Generic[R], Pytree):
         cls,
         idx: ArrayLike | Diff[Any],
         vs: list[R],
-    ):
+    ) -> "R | Sum[R]":
         return Sum[R](idx, vs).maybe_collapse()
 
     @classmethod
@@ -189,8 +190,8 @@ class Sum(Generic[R], Pytree):
         cls,
         idx: ArrayLike | Diff[Any],
         vs: list[R],
-    ):
-        possibles = []
+    ) -> "R | Mask[R] | Sum[R] | None":
+        possibles: list[R | Mask[R] | None] = []
         for _idx, v in enumerate(vs):
             if v is not None:
                 possibles.append(Mask.maybe_none(Flag(idx == _idx), v))
@@ -201,7 +202,7 @@ class Sum(Generic[R], Pytree):
         else:
             return Sum.maybe(idx, vs)
 
-    def maybe_collapse(self):
+    def maybe_collapse(self) -> R | Self:
         def choose(*vs):
             # Computing `result` above the branch allows us to:
             # - catch incompatible types / shapes in the result
