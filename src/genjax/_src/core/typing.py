@@ -61,6 +61,7 @@ Value = Any
 ScalarShaped = Is[lambda arr: jnp.array(arr, copy=False).shape == ()]
 ScalarBool = Annotated[Bool | BoolArray, ScalarShaped]
 
+
 ############
 # Generics #
 ############

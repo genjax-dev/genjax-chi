@@ -27,8 +27,8 @@ from genjax._src.core.typing import (
     ArrayLike,
     Generic,
     Int,
+    Self,
     TypeVar,
-    static_check_is_concrete,
 )
 
 R = TypeVar("R")
@@ -182,20 +182,16 @@ class Sum(Generic[R], Pytree):
         cls,
         idx: ArrayLike | Diff[Any],
         vs: list[R],
-    ):
-        return (
-            vs[idx]
-            if static_check_is_concrete(idx) and isinstance(idx, Int)
-            else Sum[R](idx, list(vs)).maybe_collapse()
-        )
+    ) -> "R | Sum[R]":
+        return Sum[R](idx, vs).maybe_collapse()
 
     @classmethod
     def maybe_none(
         cls,
         idx: ArrayLike | Diff[Any],
         vs: list[R],
-    ):
-        possibles = []
+    ) -> "R | Mask[R] | Sum[R] | None":
+        possibles: list[R | Mask[R] | None] = []
         for _idx, v in enumerate(vs):
             if v is not None:
                 possibles.append(Mask.maybe_none(Flag(idx == _idx), v))
@@ -206,12 +202,24 @@ class Sum(Generic[R], Pytree):
         else:
             return Sum.maybe(idx, vs)
 
-    def maybe_collapse(self):
+    def maybe_collapse(self) -> R | Self:
         if Pytree.static_check_tree_structure_equivalence(self.values):
             idx = Diff.tree_primal(self.idx)
-            return tree_map(lambda *vs: jnp.choose(idx, vs, mode="wrap"), *self.values)
+
+            def choose(*vs):
+                # Computing `result` above the branch allows us to:
+                # - catch incompatible types / shapes in the result
+                # - in the case of compatible types requiring casts (like bool => int),
+                #   result's dtype tells us the final type.
+                result = jnp.choose(idx, vs, mode="wrap")
+                if isinstance(idx, Int):
+                    return jnp.asarray(vs[idx], dtype=result.dtype)
+                else:
+                    return result
+
+            return tree_map(choose, *self.values)
         else:
             return self
 
-    def __getitem__(self, idx: Int):
+    def __getitem__(self, idx: Int) -> R | Mask[R] | None:
         return Mask.maybe_none(Flag(idx == self.idx), self.values[idx])

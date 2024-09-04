@@ -233,7 +233,7 @@ class TestSwitchCombinator:
 
         @genjax.gen
         def empty():
-            return 0.0
+            return jnp.asarray(0.0)
 
         @genjax.gen
         def model():
@@ -245,3 +245,41 @@ class TestSwitchCombinator:
         key, sub_key = jax.random.split(key)
         tr = model.simulate(sub_key, ())
         assert 0.0 == tr.get_retval()
+
+    def test_switch_combinator_with_different_return_types(self):
+        @genjax.gen
+        def identity(x: int) -> int:
+            return x
+
+        @genjax.gen
+        def bool_branch(_: int) -> bool:
+            return True
+
+        k = jax.random.PRNGKey(0)
+
+        # Ignore pyright because we are testing that jax will convert bool to int at runtime.
+        switch_model = genjax.switch(identity, bool_branch)  # pyright: ignore
+
+        bare_idx_result = switch_model(1, (10,), (10,))(k)
+        assert bare_idx_result == jnp.asarray(1)
+        assert bare_idx_result.dtype == jnp.int32  # pyright: ignore
+
+        # this case returns 1
+        array_idx_result = switch_model(jnp.array(1), (10,), (10,))(k)
+        assert array_idx_result == jnp.asarray(1)
+        assert array_idx_result.dtype == bare_idx_result.dtype  # pyright:ignore
+
+    def test_runtime_incompatible_types(self):
+        @genjax.gen
+        def three_branch(x: int):
+            return jax.numpy.ones(3)
+
+        @genjax.gen
+        def four_branch(_: int):
+            return jax.numpy.ones(4)
+
+        k = jax.random.PRNGKey(0)
+        switch_model = three_branch.switch(four_branch)
+
+        with pytest.raises(ValueError, match="Incompatible shapes for broadcasting"):
+            switch_model(0, (10,), (10,))(k)
