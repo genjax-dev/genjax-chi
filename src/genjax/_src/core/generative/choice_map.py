@@ -81,45 +81,50 @@ SelectionBuilder = _SelectionBuilder()
 
 class Selection(ProjectProblem):
     """The type `Selection` provides a lens-like interface for filtering the
-    random choices in a `ChoiceMap`.
+       random choices in a `ChoiceMap`.
 
-    Examples:
-        (**Making selections**) Selections can be constructed using the `SelectionBuilder` interface
-        ```python exec="yes" source="material-block" session="core"
-        from genjax import SelectionBuilder as S
+       Examples:
+           (**Making selections**) Selections can be constructed using the `SelectionBuilder` interface
+           ```python exec="yes" html="true" source="material-block" session="choicemap"
+    exec="yes" source="material-block" session="core"
+           from genjax import SelectionBuilder as S
 
-        sel = S["x", "y"]
-        print(sel.render_html())
-        ```
+           sel = S["x", "y"]
+           print(sel.render_html())
+           ```
 
-        (**Getting subselections**) Hierarchical selections support `__call__`, which allows for the retrieval of _subselections_ at addresses:
-        ```python exec="yes" source="material-block" session="core"
-        sel = S["x", "y"]
-        subsel = sel("x")
-        print(subsel.render_html())
-        ```
+           (**Getting subselections**) Hierarchical selections support `__call__`, which allows for the retrieval of _subselections_ at addresses:
+           ```python exec="yes" html="true" source="material-block" session="choicemap"
+    exec="yes" source="material-block" session="core"
+           sel = S["x", "y"]
+           subsel = sel("x")
+           print(subsel.render_html())
+           ```
 
-        (**Check for inclusion**) Selections support `__getitem__`, which provides a way to check if an address is included in the selection:
-        ```python exec="yes" source="material-block" session="core"
-        sel = S["x", "y"]
-        not_included = sel["x"]
-        included = sel["x", "y"]
-        print(not_included, included)
-        ```
+           (**Check for inclusion**) Selections support `__getitem__`, which provides a way to check if an address is included in the selection:
+           ```python exec="yes" html="true" source="material-block" session="choicemap"
+    exec="yes" source="material-block" session="core"
+           sel = S["x", "y"]
+           not_included = sel["x"]
+           included = sel["x", "y"]
+           print(not_included, included)
+           ```
 
-        (**Complement selections**) Selections can be complemented:
-        ```python exec="yes" source="material-block" session="core"
-        sel = ~S["x", "y"]
-        included = sel["x"]
-        not_included = sel["x", "y"]
-        print(included, not_included)
-        ```
+           (**Complement selections**) Selections can be complemented:
+           ```python exec="yes" html="true" source="material-block" session="choicemap"
+    exec="yes" source="material-block" session="core"
+           sel = ~S["x", "y"]
+           included = sel["x"]
+           not_included = sel["x", "y"]
+           print(included, not_included)
+           ```
 
-        (**Combining selections**) Selections can be combined, via the `|` syntax:
-        ```python exec="yes" source="material-block" session="core"
-        sel = S["x", "y"] | S["z"]
-        print(sel["x", "y"], sel["z", "y"])
-        ```
+           (**Combining selections**) Selections can be combined, via the `|` syntax:
+           ```python exec="yes" html="true" source="material-block" session="choicemap"
+    exec="yes" source="material-block" session="core"
+           sel = S["x", "y"] | S["z"]
+           print(sel["x", "y"], sel["z", "y"])
+           ```
     """
 
     #################################################
@@ -195,6 +200,21 @@ class Selection(ProjectProblem):
 
 @Pytree.dataclass
 class AllSel(Selection):
+    """Represents a selection that includes all addresses.
+
+    This selection always returns True for any address check and returns itself
+    for any subselection, effectively representing a selection of all possible
+    addresses in a choice map.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        all_sel = Selection.all()
+        assert all_sel.check() == True
+        assert all_sel["any_address"] == True
+        assert isinstance(all_sel("any_address"), AllSel)
+        ```
+    """
+
     def check(self) -> Flag:
         return Flag(True)
 
@@ -204,6 +224,29 @@ class AllSel(Selection):
 
 @Pytree.dataclass
 class DeferSel(Selection):
+    """Represents a deferred selection that is conditionally applied based on a flag.
+
+    This selection wraps another selection and a boolean flag. The check and
+    subselection operations are only applied if the flag is True. If the flag
+    is False, the selection behaves as if it's empty.
+
+    Attributes:
+        s: The underlying selection to be conditionally applied.
+        flag: A boolean flag determining whether the selection is active.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        base_sel = Selection.all()
+        flag = Flag(True)
+        defer_sel = base_sel.maybe(flag)
+        assert defer_sel.check() == True
+
+        flag = Flag(False)
+        defer_sel = base_sel.maybe(flag)
+        assert defer_sel.check() == False
+        ```
+    """
+
     s: Selection
     flag: Flag
 
@@ -218,6 +261,28 @@ class DeferSel(Selection):
 
 @Pytree.dataclass
 class ComplementSel(Selection):
+    """Represents the complement of a selection.
+
+    This selection inverts the behavior of another selection. It checks for the
+    opposite of what the wrapped selection checks for, and returns the complement
+    of its subselections.
+
+    Attributes:
+        s: The selection to be complemented.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        base_sel = Selection.all()
+        comp_sel = ~base_sel
+        assert comp_sel.check() == False
+
+        specific_sel = SelectionBuilder["x", "y"]
+        comp_specific = ~specific_sel
+        assert comp_specific["x", "y"] == False
+        assert comp_specific["z"] == True
+        ```
+    """
+
     s: Selection
 
     def check(self) -> Flag:
@@ -230,6 +295,25 @@ class ComplementSel(Selection):
 
 @Pytree.dataclass
 class StaticSel(Selection):
+    """Represents a static selection based on a specific address component.
+
+    This selection is used to filter choices based on a static address component.
+    It always returns False for the check method, as it's meant to be used in
+    combination with other selections or as part of a larger selection structure.
+
+    Attributes:
+        s: The underlying selection to be applied if the address matches.
+        addr: The static address component to match against.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        static_sel = Selection.all().indexed("x")
+        assert static_sel.check() == False
+        assert static_sel.get_subselection("x").check() == True
+        assert static_sel.get_subselection("y").check() == False
+        ```
+    """
+
     s: Selection = Pytree.field()
     addr: ExtendedStaticAddressComponent = Pytree.static()
 
@@ -243,6 +327,27 @@ class StaticSel(Selection):
 
 @Pytree.dataclass
 class IdxSel(Selection):
+    """Represents a dynamic selection based on an array of address components.
+
+    This selection is used to filter choices based on dynamic address components.
+    It always returns False for the check method, as it's meant to be used in
+    combination with other selections or as part of a larger selection structure.
+
+    Attributes:
+        s: The underlying selection to be applied if the address matches.
+        idxs: The dynamic address components to match against.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        import jax.numpy as jnp
+
+        idx_sel = Selection.all().indexed(jnp.array([1, 2, 3]))
+        assert idx_sel.check() == False
+        assert idx_sel.get_subselection(2).check() == True
+        assert idx_sel.get_subselection(4).check() == False
+        ```
+    """
+
     s: Selection
     idxs: DynamicAddressComponent
 
@@ -274,6 +379,26 @@ class IdxSel(Selection):
 
 @Pytree.dataclass
 class AndSel(Selection):
+    """Represents a selection that combines two other selections using a logical AND operation.
+
+    This selection is true only if both of its constituent selections are true.
+    It allows for the combination of multiple selection criteria.
+
+    Attributes:
+        s1: The first selection to be combined.
+        s2: The second selection to be combined.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        sel1 = Selection.all().indexed("x")
+        sel2 = Selection.all().indexed("y")
+        and_sel = sel1 & sel2
+        assert and_sel["x", "y"] == True
+        assert and_sel["x"] == False
+        assert and_sel["y"] == False
+        ```
+    """
+
     s1: Selection
     s2: Selection
 
@@ -288,6 +413,27 @@ class AndSel(Selection):
 
 @Pytree.dataclass
 class OrSel(Selection):
+    """Represents a selection that combines two other selections using a logical OR operation.
+
+    This selection is true if either of its constituent selections is true.
+    It allows for the combination of multiple selection criteria using an inclusive OR.
+
+    Attributes:
+        s1: The first selection to be combined.
+        s2: The second selection to be combined.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        sel1 = Selection.all().indexed("x")
+        sel2 = Selection.all().indexed("y")
+        or_sel = sel1 | sel2
+        assert or_sel["x", "y"] == True
+        assert or_sel["x"] == True
+        assert or_sel["y"] == True
+        assert or_sel["z"] == False
+        ```
+    """
+
     s1: Selection
     s2: Selection
 
@@ -302,12 +448,24 @@ class OrSel(Selection):
 
 @Pytree.dataclass
 class ChmSel(Selection):
-    """A Selection that wraps a ChoiceMap.
+    """Represents a selection based on a ChoiceMap.
 
-    This class allows a ChoiceMap to be used as a Selection, enabling filtering and selection operations based on the structure of the ChoiceMap.
+    This selection is true for addresses that have a value in the associated ChoiceMap.
+    It allows for creating selections that match the structure of existing ChoiceMaps.
 
     Attributes:
-        c: The wrapped ChoiceMap.
+        c: The ChoiceMap on which this selection is based.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        from genjax import ChoiceMapBuilder as C
+
+        chm = C["x", "y"].set(3.0) ^ C["z"].set(5.0)
+        sel = chm.get_selection()
+        assert sel["x", "y"] == True
+        assert sel["z"] == True
+        assert sel["w"] == False
+        ```
     """
 
     c: "ChoiceMap"
@@ -418,46 +576,50 @@ class AddressIndex(Pytree):
 
 class ChoiceMap(Sample, Constraint):
     """The type `ChoiceMap` denotes a map-like value which can be sampled from
-    generative functions.
+       generative functions.
 
-    Generative functions which utilize `ChoiceMap` as their sample representation typically support a notion of _addressing_ for the random choices they make. `ChoiceMap` stores addressed random choices, and provides a data language for querying and manipulating these choices.
+       Generative functions which utilize `ChoiceMap` as their sample representation typically support a notion of _addressing_ for the random choices they make. `ChoiceMap` stores addressed random choices, and provides a data language for querying and manipulating these choices.
 
-    Examples:
-        (**Making choice maps**) Choice maps can be constructed using the `ChoiceMapBuilder` interface
-        ```python exec="yes" source="material-block" session="core"
-        from genjax import ChoiceMapBuilder as C
+       Examples:
+           (**Making choice maps**) Choice maps can be constructed using the `ChoiceMapBuilder` interface
+           ```python exec="yes" html="true" source="material-block" session="choicemap"
+    exec="yes" source="material-block" session="core"
+           from genjax import ChoiceMapBuilder as C
 
-        chm = C["x"].set(3.0)
-        print(chm.render_html())
-        ```
+           chm = C["x"].set(3.0)
+           print(chm.render_html())
+           ```
 
-        (**Getting submaps**) Hierarchical choice maps support `__call__`, which allows for the retrieval of _submaps_ at addresses:
-        ```python exec="yes" source="material-block" session="core"
-        from genjax import ChoiceMapBuilder as C
+           (**Getting submaps**) Hierarchical choice maps support `__call__`, which allows for the retrieval of _submaps_ at addresses:
+           ```python exec="yes" html="true" source="material-block" session="choicemap"
+    exec="yes" source="material-block" session="core"
+           from genjax import ChoiceMapBuilder as C
 
-        chm = C["x", "y"].set(3.0)
-        submap = chm("x")
-        print(submap.render_html())
-        ```
+           chm = C["x", "y"].set(3.0)
+           submap = chm("x")
+           print(submap.render_html())
+           ```
 
-        (**Getting values**) Choice maps support `__getitem__`, which allows for the retrieval of _values_ at addresses:
-        ```python exec="yes" source="material-block" session="core"
-        from genjax import ChoiceMapBuilder as C
+           (**Getting values**) Choice maps support `__getitem__`, which allows for the retrieval of _values_ at addresses:
+           ```python exec="yes" html="true" source="material-block" session="choicemap"
+    exec="yes" source="material-block" session="core"
+           from genjax import ChoiceMapBuilder as C
 
-        chm = C["x", "y"].set(3.0)
-        value = chm["x", "y"]
-        print(value)
-        ```
+           chm = C["x", "y"].set(3.0)
+           value = chm["x", "y"]
+           print(value)
+           ```
 
-        (**Making vectorized choice maps**) Choice maps can be constructed using `jax.vmap`:
-        ```python exec="yes" source="material-block" session="core"
-        from genjax import ChoiceMapBuilder as C
-        from jax import vmap
-        import jax.numpy as jnp
+           (**Making vectorized choice maps**) Choice maps can be constructed using `jax.vmap`:
+           ```python exec="yes" html="true" source="material-block" session="choicemap"
+    exec="yes" source="material-block" session="core"
+           from genjax import ChoiceMapBuilder as C
+           from jax import vmap
+           import jax.numpy as jnp
 
-        vec_chm = vmap(lambda idx, v: C["x", idx].set(v))(jnp.arange(10), jnp.ones(10))
-        print(vec_chm.render_html())
-        ```
+           vec_chm = vmap(lambda idx, v: C["x", idx].set(v))(jnp.arange(10), jnp.ones(10))
+           print(vec_chm.render_html())
+           ```
     """
 
     #######################
@@ -517,28 +679,29 @@ class ChoiceMap(Sample, Constraint):
     def filter(self, selection: Selection) -> "ChoiceMap":
         """Filter the choice map on the `Selection`. The resulting choice map only contains the addresses in the selection.
 
-        Examples:
-            ```python exec="yes" source="material-block" session="core"
-            import jax
-            import genjax
-            from genjax import bernoulli
-            from genjax import SelectionBuilder as S
+               Examples:
+                   ```python exec="yes" html="true" source="material-block" session="choicemap"
+        exec="yes" source="material-block" session="core"
+                   import jax
+                   import genjax
+                   from genjax import bernoulli
+                   from genjax import SelectionBuilder as S
 
 
-            @genjax.gen
-            def model():
-                x = bernoulli(0.3) @ "x"
-                y = bernoulli(0.3) @ "y"
-                return x
+                   @genjax.gen
+                   def model():
+                       x = bernoulli(0.3) @ "x"
+                       y = bernoulli(0.3) @ "y"
+                       return x
 
 
-            key = jax.random.PRNGKey(314159)
-            tr = model.simulate(key, ())
-            chm = tr.get_sample()
-            selection = S["x"]
-            filtered = chm.filter(selection)
-            print("y" in filtered)
-            ```
+                   key = jax.random.PRNGKey(314159)
+                   tr = model.simulate(key, ())
+                   chm = tr.get_sample()
+                   selection = S["x"]
+                   filtered = chm.filter(selection)
+                   print("y" in filtered)
+                   ```
         """
         return FilteredChm.build(self, selection)
 
@@ -606,20 +769,36 @@ class ChoiceMap(Sample, Constraint):
     @property
     def at(self) -> AddressIndex:
         """Access the `ChoiceMap.AddressIndex` mutation interface. This allows
-        users to take an existing choice map, and mutate it _functionally_.
+               users to take an existing choice map, and mutate it _functionally_.
 
-        Examples:
-        ```python exec="yes" source="material-block" session="core"
-        chm = C["x", "y"].set(3.0)
-        chm = chm.at["x", "y"].set(4.0)
-        print(chm["x", "y"])
-        ```
+               Examples:
+               ```python exec="yes" html="true" source="material-block" session="choicemap"
+        exec="yes" source="material-block" session="core"
+               chm = C["x", "y"].set(3.0)
+               chm = chm.at["x", "y"].set(4.0)
+               print(chm["x", "y"])
+               ```
         """
         return AddressIndex(self, [])
 
 
 @Pytree.dataclass
 class EmptyChm(ChoiceMap):
+    """Represents an empty choice map.
+
+    This class represents a choice map with no values or submaps. It serves as the base
+    case for hierarchical choice maps and is used when no choices have been made or
+    when all choices have been filtered out.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        empty_chm = ChoiceMap.empty()
+        assert empty_chm.get_value() is None
+        assert empty_chm.get_submap("any_address") == empty_chm
+        assert empty_chm.static_is_empty() == True
+        ```
+    """
+
     def get_value(self) -> Any:
         return None
 
@@ -635,6 +814,22 @@ _empty = EmptyChm()
 
 @Pytree.dataclass
 class ValueChm(Generic[T], ChoiceMap):
+    """Represents a choice map with a single value.
+
+    This class represents a choice map that contains a single value at the root level.
+    It is used to store individual choices in a hierarchical choice map structure.
+
+    Attributes:
+        v: The value stored in this choice map.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        value_chm = ChoiceMap.value(3.14)
+        assert value_chm.get_value() == 3.14
+        assert value_chm.get_submap("any_address").static_is_empty() == True
+        ```
+    """
+
     v: T
 
     def get_value(self) -> T:
@@ -646,6 +841,26 @@ class ValueChm(Generic[T], ChoiceMap):
 
 @Pytree.dataclass
 class IdxChm(ChoiceMap):
+    """Represents a choice map with dynamic indexing.
+
+    This class represents a choice map that uses dynamic (array-based) addressing.
+    It allows for indexing into the choice map using array-like address components.
+
+    Attributes:
+        c: The underlying choice map.
+        addr: The dynamic address component used for indexing.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+
+        import jax.numpy as jnp
+        base_chm = ChoiceMap.value(jnp.array([1, 2, 3]))
+        idx_chm = base_chm.indexed(jnp.array([0, 1, 2])
+        assert idx_chm.get_submap(1).get_value() == 2
+        assert idx_chm.get_submap(3).static_is_empty() == True
+        ```
+    """
+
     c: ChoiceMap
     addr: DynamicAddressComponent
 
@@ -685,6 +900,24 @@ class IdxChm(ChoiceMap):
 
 @Pytree.dataclass
 class StaticChm(ChoiceMap):
+    """Represents a static choice map with a fixed address component.
+
+    This class is used to create a choice map that is indexed by a static address component.
+    It wraps another choice map and provides access to it only when the given address matches.
+
+    Attributes:
+        c: The underlying choice map.
+        addr: The static address component used for indexing.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        base_chm = ChoiceMap.value(5)
+        static_chm = base_chm.indexed("x")
+        assert static_chm.get_submap("x").get_value() == 5
+        assert static_chm.get_submap("y").static_is_empty() == True
+        ```
+    """
+
     c: ChoiceMap = Pytree.field()
     addr: ExtendedStaticAddressComponent = Pytree.static()
 
@@ -706,6 +939,28 @@ class StaticChm(ChoiceMap):
 
 @Pytree.dataclass
 class XorChm(ChoiceMap):
+    """Represents a disjoint union of two choice maps.
+
+    This class combines two choice maps in a way that ensures their domains are disjoint.
+    It's used to merge two choice maps while preventing overlapping addresses.
+
+    Attributes:
+        c1: The first choice map.
+        c2: The second choice map.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        chm1 = ChoiceMap.value(5).indexed("x")
+        chm2 = ChoiceMap.value(10).indexed("y")
+        xor_chm = chm1 ^ chm2
+        assert xor_chm.get_submap("x").get_value() == 5
+        assert xor_chm.get_submap("y").get_value() == 10
+        ```
+
+    Raises:
+        RuntimeError: If there's a value collision between the two choice maps.
+    """
+
     c1: ChoiceMap
     c2: ChoiceMap
 
@@ -750,6 +1005,29 @@ class XorChm(ChoiceMap):
 
 @Pytree.dataclass
 class OrChm(ChoiceMap):
+    """Represents a choice map that combines two choice maps using an OR operation.
+
+    This class combines two choice maps, prioritizing the first choice map (c1) over the second (c2)
+    when there are overlapping addresses. It returns values from c1 if present, otherwise from c2.
+
+    Attributes:
+        c1: The first choice map (higher priority).
+        c2: The second choice map (lower priority).
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        chm1 = ChoiceMap.value(5)
+        chm2 = ChoiceMap.value(10)
+        or_chm = chm1 | chm2
+        assert or_chm.get_value() == 5  # c1 takes priority
+
+        chm3 = ChoiceMap.empty()
+        chm4 = ChoiceMap.value(15)
+        or_chm2 = chm3 | chm4
+        assert or_chm2.get_value() == 15  # c2 used when c1 is empty
+        ```
+    """
+
     c1: ChoiceMap
     c2: ChoiceMap
 
@@ -791,6 +1069,28 @@ class OrChm(ChoiceMap):
 
 @Pytree.dataclass
 class MaskChm(ChoiceMap):
+    """Represents a choice map that is conditionally masked.
+
+    This class wraps another choice map and applies a boolean flag to conditionally
+    mask its contents. When the flag is True, the underlying choice map behaves
+    normally. When the flag is False, the choice map appears empty.
+
+    Attributes:
+        c: The underlying choice map.
+        flag: A boolean flag determining whether the choice map is masked.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        base_chm = ChoiceMap.value(10)
+        mask_chm = base_chm.mask(Flag(True))
+        assert mask_chm.get_value() == 10
+
+        mask_chm = base_chm.mask(Flag(False))
+        assert mask_chm.get_value() is None
+        assert mask_chm.static_is_empty() == False
+        ```
+    """
+
     c: ChoiceMap
     flag: Flag
 
@@ -821,6 +1121,28 @@ class MaskChm(ChoiceMap):
 
 @Pytree.dataclass
 class FilteredChm(ChoiceMap):
+    """Represents a filtered choice map based on a selection.
+
+    This class wraps another choice map and applies a selection to filter its contents.
+    It allows for selective access to the underlying choice map based on the provided selection.
+
+    Attributes:
+        c: The underlying choice map.
+        selection: The selection used to filter the choice map.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        from genjax import SelectionBuilder as S
+
+        base_chm = ChoiceMap.value(10).indexed("x")
+        filtered_chm = base_chm.filter(S["x"])
+        assert filtered_chm.get_submap("x").get_value() == 10
+
+        filtered_chm = base_chm.filter(S["y"])
+        assert filtered_chm.get_submap("x").static_is_empty() == True
+        ```
+    """
+
     c: ChoiceMap
     selection: Selection
 
