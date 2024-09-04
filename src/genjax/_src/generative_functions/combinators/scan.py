@@ -15,6 +15,7 @@
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from jaxtyping import ArrayLike
 
 from genjax._src.core.generative import (
     Argdiffs,
@@ -52,6 +53,7 @@ Y = TypeVar("Y")
 @Pytree.dataclass
 class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
     scan_gen_fn: "ScanCombinator[Carry, Y]"
+    length: ArrayLike
     inner: Trace[tuple[Carry, Y]]
     args: tuple[Any, ...]
     retval: tuple[Carry, Y]
@@ -66,7 +68,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
     def get_sample(self):
         return jax.vmap(
             lambda idx, subtrace: ChoiceMap.idx(idx, subtrace.get_sample()),
-        )(jnp.arange(self.scan_gen_fn.length), self.inner)
+        )(jnp.arange(self.length), self.inner)
 
     def get_gen_fn(self):
         return self.scan_gen_fn
@@ -233,7 +235,14 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             unroll=self.unroll,
         )
 
-        return ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores))
+        return ScanTrace(
+            self,
+            self.length or len(scanned_in),
+            tr,
+            args,
+            (carried_out, scanned_out),
+            jnp.sum(scores),
+        )
 
     def update_importance(
         self,
@@ -286,7 +295,12 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         )
         return (
             ScanTrace[Carry, Y](
-                self, tr, args, (carried_out, scanned_out), jnp.sum(scores)
+                self,
+                self.length or len(scanned_in),
+                tr,
+                args,
+                (carried_out, scanned_out),
+                jnp.sum(scores),
             ),
             jnp.sum(ws),
             Diff.unknown_change((carried_out, scanned_out)),
@@ -397,6 +411,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         return (
             ScanTrace(
                 self,
+                trace.length,
                 new_subtraces,
                 Diff.tree_primal(argdiffs),
                 (carried_out, scanned_out),
@@ -444,6 +459,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         return (
             ScanTrace[Carry, Y](
                 self,
+                trace.length,
                 new_inner,
                 new_inner.get_args(),
                 new_retvals,
