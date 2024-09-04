@@ -37,20 +37,20 @@ class TestMaskCombinator:
         return jax.random.PRNGKey(314159)
 
     def test_mask_simple_normal_true(self, key):
-        tr = jax.jit(model.simulate)(key, (True, -4.0))
+        tr = jax.jit(model.simulate)(key, (Flag(True), -4.0))
         assert tr.get_score() == tr.inner.get_score()
         assert tr.get_retval() == genjax.Mask(
             Flag(jnp.array(True)), tr.inner.get_retval()
         )
 
-        tr = jax.jit(model.simulate)(key, (False, -4.0))
+        tr = jax.jit(model.simulate)(key, (Flag(False), -4.0))
         assert tr.get_score() == 0.0
         assert tr.get_retval() == genjax.Mask(
             Flag(jnp.array(False)), tr.inner.get_retval()
         )
 
     def test_mask_simple_normal_false(self, key):
-        tr = jax.jit(model.simulate)(key, (False, 2.0))
+        tr = jax.jit(model.simulate)(key, (Flag(False), 2.0))
         assert tr.get_score() == 0.0
         assert not tr.get_retval().flag
 
@@ -63,7 +63,7 @@ class TestMaskCombinator:
 
     def test_mask_update_weight_to_argdiffs_from_true(self, key):
         # pre-update mask arg is True
-        tr = jax.jit(model.simulate)(key, (True, 2.0))
+        tr = jax.jit(model.simulate)(key, (Flag(True), 2.0))
         # mask check arg transition: True --> True
         argdiffs = U.g(
             (Diff.unknown_change(Flag(True)), Diff.no_change(tr.get_args()[1])), C.n()
@@ -87,7 +87,7 @@ class TestMaskCombinator:
         @genjax.gen
         def model_2():
             masks = jnp.array([True, False, True])
-            vmask_init = init.mask().vmap(in_axes=(0))(masks) @ "init"
+            vmask_init = init.mask().vmap(in_axes=(0))(Flag(masks)) @ "init"
             return vmask_init
 
         tr = model_2.simulate(key, ())
@@ -116,3 +116,44 @@ class TestMaskCombinator:
         w = tr.update(key, argdiffs)[1]
         assert w == 0.0
         assert w == tr.get_score()
+
+    def test_mask_scan_update(self, key):
+        def masked_scan_combinator(step, **scan_kwargs):
+            def scan_step_pre(state, flag):
+                return flag, state
+
+            def scan_step_post(_unused_args, masked_retval):
+                return masked_retval.value, None
+
+            # scan_step: (a, Bool) -> a
+            scan_step = step.mask().dimap(pre=scan_step_pre, post=scan_step_post)
+            return scan_step.scan(**scan_kwargs)
+
+        @genjax.gen
+        def step(x):
+            _ = (
+                genjax.normal.mask().vmap(in_axes=(0, None, None))(
+                    Flag(jnp.array([True, True])), x, 1.0
+                )
+                @ "rats"
+            )
+            return x
+
+        # Create some initial traces:
+        key = jax.random.PRNGKey(0)
+        mask_steps = jnp.arange(10) < 5
+        model = masked_scan_combinator(step, n=len(mask_steps))
+        init_particle = model.simulate(key, ((0.0,), Flag(mask_steps)))
+
+        # Update the model:
+        update = genjax.UpdateProblemBuilder.g(
+            (
+                genjax.Diff.no_change((0.0,)),
+                genjax.Diff.no_change(Flag(mask_steps)),
+            ),
+            C.n(),
+        )
+        step_particle, step_weight, _, _ = model.update(key, init_particle, update)
+        assert step_weight == jnp.array(0.0)
+        assert step_particle.get_retval() == ((jnp.array(0.0),), None)
+        assert step_particle.get_score() == jnp.array(-12.230572)
