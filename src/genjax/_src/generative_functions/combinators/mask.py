@@ -121,8 +121,10 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         args: tuple[Any, ...],
     ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
+        check = Flag.as_flag(check)
+
         tr = self.gen_fn.simulate(key, inner_args)
-        return MaskTrace(self, tr, Flag(check))
+        return MaskTrace(self, tr, check)
 
     def update_change_target(
         self,
@@ -142,7 +144,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                 raise NotImplementedError(f"Unexpected trace type: {trace}")
 
         premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
-            key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+            key, inner_trace, GenericProblem(inner_argdiffs, update_problem)
         )
 
         w = check.where(w, -trace.get_score())
@@ -170,14 +172,15 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         imp_update_problem = ImportanceProblem(update_problem)
 
         premasked_trace, w, _, _ = self.gen_fn.update(
-            key, inner_trace, GenericProblem(tuple(inner_argdiffs), imp_update_problem)
+            key, inner_trace, GenericProblem(inner_argdiffs, imp_update_problem)
         )
 
         _, _, retdiff, bwd_problem = self.gen_fn.update(
-            key, premasked_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+            key, premasked_trace, GenericProblem(inner_argdiffs, update_problem)
         )
 
-        w = check.where(premasked_trace.get_score(), 0.0)
+        premasked_score = premasked_trace.get_score()
+        w = check.where(premasked_score, jnp.zeros(premasked_score.shape))
 
         return (
             MaskTrace(self, premasked_trace, check),
