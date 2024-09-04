@@ -388,12 +388,20 @@ class TestScanWithParameters:
             new_x = genjax.normal(x, std) @ "x"
             return new_x, None
 
-        tr = walk_step.scan(n=5).simulate(key, (0.0, jnp.array([2.0, 4.0, 3.0, 5.0, 1.0])))
+        tr = walk_step.scan(n=5).simulate(
+            key, (0.0, jnp.array([2.0, 4.0, 3.0, 5.0, 1.0]))
+        )
         assert isinstance(tr, ScanTrace)
         assert tr.length == 5
-        assert jnp.allclose(tr.get_sample()[...,'x'], jnp.array([-0.75375533, -5.818158  , -3.4942584 , -5.0217595 , -4.4125495 ]))
+        assert jnp.allclose(
+            tr.get_sample()[..., "x"],
+            jnp.array([-0.75375533, -5.818158, -3.4942584, -5.0217595, -4.4125495]),
+        )
 
         tr = walk_step.scan().simulate(key, (0.0, jnp.array([2.0, 4.0, 3.0, 5.0, 1.0])))
         assert isinstance(tr, ScanTrace)
         assert tr.length == 5
-        assert jnp.allclose(tr.get_sample()[...,'x'], jnp.array([-0.75375533, -5.818158  , -3.4942584 , -5.0217595 , -4.4125495 ]))
+        assert jnp.allclose(
+            tr.get_sample()[..., "x"],
+            jnp.array([-0.75375533, -5.818158, -3.4942584, -5.0217595, -4.4125495]),
+        )
