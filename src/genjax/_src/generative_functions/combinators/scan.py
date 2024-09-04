@@ -237,7 +237,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
         return ScanTrace(
             self,
-            self.length or len(scanned_in),
+            self.length or scanned_in.shape[0],
             tr,
             args,
             (carried_out, scanned_out),
@@ -296,7 +296,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         return (
             ScanTrace[Carry, Y](
                 self,
-                self.length or len(scanned_in),
+                self.length or scanned_in.shape[0],
                 tr,
                 args,
                 (carried_out, scanned_out),
