@@ -368,9 +368,10 @@ class _ChoiceMapBuilder(Pytree):
         new = ChoiceMap.value(v) if not isinstance(v, ChoiceMap) else v
         for comp in reversed(addr):
             if isinstance(comp, StaticAddressComponent):
-                new = ChoiceMap.str(comp, new)
+                new = StaticChm.build(comp, new)
             elif isinstance(comp, DynamicAddressComponent):
-                new = ChoiceMap.idx(comp, new)
+                new = IdxChm.build(comp, new)
+
         return new
 
 
@@ -494,14 +495,12 @@ class ChoiceMap(Sample, Constraint):
         return ValueChm(v)
 
     @classmethod
-    def str(cls, addr: StaticAddressComponent, v: Any) -> "ChoiceMap":
+    def idx(cls, addr: AddressComponent, v: Any) -> "ChoiceMap":
         chm = v if isinstance(v, ChoiceMap) else ChoiceMap.value(v)
-        return StaticChm.build(addr, chm)
-
-    @classmethod
-    def idx(cls, addr: DynamicAddressComponent, v: Any) -> "ChoiceMap":
-        chm = v if isinstance(v, ChoiceMap) else ChoiceMap.value(v)
-        return IdxChm.build(addr, chm)
+        if isinstance(addr, StaticAddressComponent):
+            return StaticChm.build(addr, chm)
+        else:
+            return IdxChm.build(addr, chm)
 
     @classmethod
     def d(cls, d: dict[Any, Any]) -> "ChoiceMap":
@@ -545,7 +544,10 @@ class ChoiceMap(Sample, Constraint):
             print("y" in filtered)
             ```
         """
-        return _empty if self.static_is_empty() else FilteredChm(selection, self)
+        return FilteredChm.build(selection, self)
+
+    def indexed(self, addr: AddressComponent) -> "ChoiceMap":
+        return ChoiceMap.idx(addr, self)
 
     def mask(self, f: Flag) -> "ChoiceMap":
         return MaskChm.build(f, self)
@@ -687,13 +689,13 @@ class IdxChm(ChoiceMap):
 
 @Pytree.dataclass
 class StaticChm(ChoiceMap):
-    addr: AddressComponent = Pytree.static()
+    addr: StaticAddressComponent = Pytree.static()
     c: ChoiceMap = Pytree.field()
 
     @classmethod
     def build(
         cls,
-        addr: AddressComponent,
+        addr: StaticAddressComponent,
         c: ChoiceMap,
     ) -> ChoiceMap:
         return _empty if c.static_is_empty() else StaticChm(addr, c)
@@ -825,6 +827,10 @@ class MaskChm(ChoiceMap):
 class FilteredChm(ChoiceMap):
     selection: Selection
     c: ChoiceMap
+
+    @classmethod
+    def build(cls, selection: Selection, chm: ChoiceMap) -> ChoiceMap:
+        return _empty if chm.static_is_empty() else FilteredChm(selection, chm)
 
     def get_value(self) -> Any:
         v = self.c.get_value()
