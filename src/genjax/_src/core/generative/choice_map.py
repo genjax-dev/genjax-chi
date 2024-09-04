@@ -22,7 +22,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.generative.core import Constraint, ProjectProblem, Sample
-from genjax._src.core.generative.functional_types import Mask, staged_maybe_choose
+from genjax._src.core.generative.functional_types import Mask, staged_choose
 from genjax._src.core.interpreters.staging import (
     Flag,
     staged_err,
@@ -755,6 +755,8 @@ class XorChm(ChoiceMap):
     c1: ChoiceMap
     c2: ChoiceMap
 
+    # TODO override has_value?
+
     def get_value(self) -> Any:
         check1 = self.c1.has_value()
         check2 = self.c2.has_value()
@@ -766,14 +768,14 @@ class XorChm(ChoiceMap):
         v1 = self.c1.get_value()
         v2 = self.c2.get_value()
 
-        def pair_flag_to_idx(bool1: Flag, bool2: Flag):
-            return 1 * bool1.f + 2 * bool2.f - 3 * bool1.and_(bool2).f - 1
+        def pair_flag_to_idx(first: Flag, second: Flag):
+            return first.f + 2 * second.f - 1
 
         idx = pair_flag_to_idx(check1, check2)
         if isinstance(idx, int):
             return [v1, v2][idx]
         else:
-            return staged_maybe_choose(idx, [v1, v2])
+            return staged_choose(idx, [v1, v2])
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         remaining_1 = self.c1.get_submap(addr)
@@ -808,14 +810,13 @@ class OrChm(ChoiceMap):
         v2 = self.c2.get_value()
 
         def pair_flag_to_idx(first: Flag, second: Flag):
-            output = -1 + first.f + 2 * first.not_().and_(second).f
-            return output
+            return first.f + 2 * first.not_().and_(second).f - 1
 
         idx = pair_flag_to_idx(check1, check2)
         if isinstance(idx, int):
             return [v1, v2][idx]
         else:
-            return staged_maybe_choose(idx, [v1, v2])
+            return staged_choose(idx, [v1, v2])
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap1 = self.c1.get_submap(addr)

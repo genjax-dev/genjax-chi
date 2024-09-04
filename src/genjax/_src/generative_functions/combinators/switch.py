@@ -212,7 +212,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         args: tuple[Any, ...],
     ) -> SwitchTrace[R]:
-        idx: ArrayLike | Diff[Any] = args[0]
+        idx: ArrayLike = args[0]
         branch_args = args[1:]
 
         self.static_check_num_arguments_equals_num_branches(branch_args)
@@ -440,7 +440,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
                 range(len(bwd_problem_leaves)),
             )
         )
-        retdiff: R = staged_choose(idx_argdiff, retdiffs)
+        retdiff: R = staged_choose(idx_argdiff.primal, retdiffs)
         retval: R = Diff.tree_primal(retdiff)
         if Diff.tree_tangent(idx_argdiff) == UnknownChange:
             w = w + (score - trace.get_score())

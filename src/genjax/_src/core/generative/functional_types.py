@@ -17,7 +17,6 @@ from jax.experimental import checkify
 from jax.tree_util import tree_map
 
 from genjax._src.checkify import optional_check
-from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import (
     Flag,
 )
@@ -30,6 +29,9 @@ from genjax._src.core.typing import (
 )
 
 R = TypeVar("R")
+"""
+TODO add a note about how this has to be a pytree.
+"""
 
 #########################
 # Masking and sum types #
@@ -81,6 +83,11 @@ class Mask(Generic[R], Pytree):
     # Masking interfaces #
     ######################
 
+    def unsafe_unmask(self) -> R:
+        # Unsafe version of unmask -- should only be used internally,
+        # or carefully.
+        return self.value
+
     def unmask(self) -> R:
         """Unmask the `Mask`, returning the value within.
         This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` wraps valid data at runtime.
@@ -96,46 +103,39 @@ class Mask(Generic[R], Pytree):
             )
 
         optional_check(_check)
-        return self.value
-
-    def unsafe_unmask(self) -> R:
-        # Unsafe version of unmask -- should only be used internally,
-        # or carefully.
-        return self.value
+        return self.unsafe_unmask()
 
 
 def staged_choose(
-    idx: ArrayLike | Diff[ArrayLike],
-    vs: list[R],
+    idx: ArrayLike,
+    pytrees: list[R],
 ) -> R:
-    primal_idx: ArrayLike = Diff.tree_primal(idx)
+    """
 
-    def inner(*vs):
+    TODO note about pytree.
+
+    Version of `jax.numpy.choose` that acts like `vs[idx]` if `idx` is an `int`.
+
+    In the case of heterogenous types in `vs`, jax will attempt to cast or error if this isn't possible. (mixed `bool` and `int` entries in `vs` will result in the cast of selected `bool` to `int`, for example.) The `vs[idx]` branch preserves this behavior.
+
+    Args:
+        idx: The index used to select a value from `vs`.
+        vs: A list of values to choose from.
+
+    Returns:
+        The selected value from the list.
+    """
+
+    def inner(*vs: ArrayLike) -> ArrayLike:
         # Computing `result` above the branch allows us to:
         # - catch incompatible types / shapes in the result
         # - in the case of compatible types requiring casts (like bool => int),
         #   result's dtype tells us the final type.
-        result = jnp.choose(primal_idx, vs, mode="wrap")
+        result = jnp.choose(idx, vs, mode="wrap")
         if isinstance(idx, Int):
-            return jnp.asarray(vs[idx], dtype=result.dtype)
+            # TODO test wrap.
+            return jnp.asarray(vs[idx % len(vs)], dtype=result.dtype)
         else:
             return result
 
-    return tree_map(inner, *vs)
-
-
-def staged_maybe_choose(
-    idx: ArrayLike | Diff[ArrayLike],
-    vs: list[R],
-) -> R | None:
-    primal_idx: ArrayLike = Diff.tree_primal(idx)
-
-    possibles: list[R | Mask[R] | None] = []
-
-    for _idx, v in enumerate(vs):
-        if v is not None:
-            possibles.append(Mask.maybe_none(Flag(primal_idx == _idx), v))
-    if not possibles:
-        return None
-    else:
-        return staged_choose(idx, vs)
+    return tree_map(inner, *pytrees)
