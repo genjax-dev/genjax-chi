@@ -202,7 +202,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
+        map_tr = VmapTrace(self, tr, Diff.tree_primal(args), retval, jnp.sum(scores))
         return map_tr, w, rd, bwd_problem
 
     def update_choice_map(
@@ -231,7 +231,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         w = jnp.sum(w)
         retval = new_subtraces.get_retval()
         scores = new_subtraces.get_score()
-        map_tr = VmapTrace(self, new_subtraces, argdiffs, retval, jnp.sum(scores))
+        map_tr = VmapTrace(self, new_subtraces, primals, retval, jnp.sum(scores))
         return map_tr, w, retdiff, bwd_problems
 
     def update_change_target(
