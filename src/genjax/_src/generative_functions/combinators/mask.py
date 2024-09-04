@@ -121,6 +121,9 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         args: tuple[Any, ...],
     ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
+        if not isinstance(check, Flag):
+            check = Flag(check)
+
         tr = self.gen_fn.simulate(key, inner_args)
         return MaskTrace(self, tr, check)
 

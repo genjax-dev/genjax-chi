@@ -37,20 +37,20 @@ class TestMaskCombinator:
         return jax.random.PRNGKey(314159)
 
     def test_mask_simple_normal_true(self, key):
-        tr = jax.jit(model.simulate)(key, (Flag(True), -4.0))
+        tr = jax.jit(model.simulate)(key, (True, -4.0))
         assert tr.get_score() == tr.inner.get_score()
         assert tr.get_retval() == genjax.Mask(
             Flag(jnp.array(True)), tr.inner.get_retval()
         )
 
-        tr = jax.jit(model.simulate)(key, (Flag(False), -4.0))
+        tr = jax.jit(model.simulate)(key, (False, -4.0))
         assert tr.get_score() == 0.0
         assert tr.get_retval() == genjax.Mask(
             Flag(jnp.array(False)), tr.inner.get_retval()
         )
 
     def test_mask_simple_normal_false(self, key):
-        tr = jax.jit(model.simulate)(key, (Flag(False), 2.0))
+        tr = jax.jit(model.simulate)(key, (False, 2.0))
         assert tr.get_score() == 0.0
         assert not tr.get_retval().flag
 
@@ -63,7 +63,7 @@ class TestMaskCombinator:
 
     def test_mask_update_weight_to_argdiffs_from_true(self, key):
         # pre-update mask arg is True
-        tr = jax.jit(model.simulate)(key, (Flag(True), 2.0))
+        tr = jax.jit(model.simulate)(key, (True, 2.0))
         # mask check arg transition: True --> True
         argdiffs = U.g(
             (Diff.unknown_change(Flag(True)), Diff.no_change(tr.get_args()[1])), C.n()
@@ -98,7 +98,6 @@ class TestMaskCombinator:
         # score should be sum of sub-scores masked True
         assert tr.get_score() == inner_scores[0] + inner_scores[2]
 
-    @pytest.mark.skip(reason="This test is currently skipped")
     def test_mask_update_weight_to_argdiffs_from_false(self, key):
         # pre-update mask arg is False
         tr = jax.jit(model.simulate)(key, (False, 2.0))
@@ -143,7 +142,7 @@ class TestMaskCombinator:
         key = jax.random.PRNGKey(0)
         mask_steps = jnp.arange(10) < 5
         model = masked_scan_combinator(step, n=len(mask_steps))
-        init_particle = model.simulate(key, ((0.0,), Flag(mask_steps)))
+        init_particle = model.simulate(key, ((0.0,), mask_steps))
 
         # Update the model:
         update = genjax.UpdateProblemBuilder.g(
