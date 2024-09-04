@@ -66,7 +66,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
     def get_sample(self):
         return jax.vmap(
             lambda idx, subtrace: ChoiceMap.idx(idx, subtrace.get_sample()),
-        )(jnp.arange(self.scan_gen_fn.length), self.inner)
+        )(jnp.arange(self.inner.get_score().shape[0]), self.inner)
 
     def get_gen_fn(self):
         return self.scan_gen_fn
@@ -233,7 +233,13 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             unroll=self.unroll,
         )
 
-        return ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores))
+        return ScanTrace(
+            self,
+            tr,
+            args,
+            (carried_out, scanned_out),
+            jnp.sum(scores),
+        )
 
     def update_importance(
         self,
@@ -286,7 +292,11 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         )
         return (
             ScanTrace[Carry, Y](
-                self, tr, args, (carried_out, scanned_out), jnp.sum(scores)
+                self,
+                tr,
+                args,
+                (carried_out, scanned_out),
+                jnp.sum(scores),
             ),
             jnp.sum(ws),
             Diff.unknown_change((carried_out, scanned_out)),

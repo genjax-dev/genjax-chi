@@ -714,11 +714,17 @@ class IdxChm(ChoiceMap):
                 else check_fn(addr, self.addr)
             )
 
+            check_array = jnp.asarray(check, copy=False)
+            if check_array.shape and check_array.shape[0] == 0:
+                # this is an obscure case which can arise when doing an importance
+                # update of a scan GF with an array of shape (0,) or (0, ...)
+                return choice_map_empty
+
             return (
                 choice_map_masked(
                     Flag(check[addr]), jtu.tree_map(lambda v: v[addr], self.c)
                 )
-                if jnp.array(check, copy=False).shape
+                if check_array.shape
                 else choice_map_masked(Flag(check), self.c)
             )
 
