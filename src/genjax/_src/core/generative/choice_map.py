@@ -366,10 +366,7 @@ class _ChoiceMapBuilder(Pytree):
         addr = addr if isinstance(addr, tuple) else (addr,)
         new = ChoiceMap.value(v) if not isinstance(v, ChoiceMap) else v
         for comp in reversed(addr):
-            if isinstance(comp, StaticAddressComponent):
-                new = StaticChm.build(new, comp)
-            elif isinstance(comp, DynamicAddressComponent):
-                new = IdxChm.build(new, comp)
+            new = ChoiceMap.idx(new, comp)
 
         return new
 
@@ -494,9 +491,9 @@ class ChoiceMap(Sample, Constraint):
         return ValueChm(v)
 
     @classmethod
-    def idx(cls, v: Any, addr: AddressComponent) -> "ChoiceMap":
+    def idx(cls, v: Any, addr: ExtendedAddressComponent) -> "ChoiceMap":
         chm = v if isinstance(v, ChoiceMap) else ChoiceMap.value(v)
-        if isinstance(addr, StaticAddressComponent):
+        if isinstance(addr, ExtendedStaticAddressComponent):
             return StaticChm.build(chm, addr)
         else:
             return IdxChm.build(chm, addr)
@@ -689,13 +686,13 @@ class IdxChm(ChoiceMap):
 @Pytree.dataclass
 class StaticChm(ChoiceMap):
     c: ChoiceMap = Pytree.field()
-    addr: StaticAddressComponent = Pytree.static()
+    addr: ExtendedStaticAddressComponent = Pytree.static()
 
     @classmethod
     def build(
         cls,
         c: ChoiceMap,
-        addr: StaticAddressComponent,
+        addr: ExtendedStaticAddressComponent,
     ) -> ChoiceMap:
         return _empty if c.static_is_empty() else StaticChm(c, addr)
 
