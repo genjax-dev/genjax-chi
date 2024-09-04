@@ -72,10 +72,7 @@ class _SelectionBuilder(Pytree):
 
         sel = Selection.all()
         for comp in reversed(addr_comps):
-            if isinstance(comp, ExtendedStaticAddressComponent):
-                sel = Selection.str(comp, sel)
-            elif isinstance(comp, DynamicAddressComponent):
-                sel = Selection.idx(comp, sel)
+            sel = sel.indexed(comp)
         return sel
 
 
@@ -125,19 +122,44 @@ class Selection(ProjectProblem):
         ```
     """
 
+    #################################################
+    # Convenient syntax for constructing selections #
+    #################################################
+
+    @classmethod
+    def all(cls) -> "Selection":
+        return AllSel()
+
+    @classmethod
+    def none(cls) -> "Selection":
+        return ~cls.all()
+
+    ######################
+    # Combinator methods #
+    ######################
+
     def __or__(self, other: "Selection") -> "Selection":
         return OrSel(self, other)
 
-    def __and__(self, other):
+    def __and__(self, other: "Selection") -> "Selection":
         return AndSel(self, other)
 
     def __invert__(self) -> "Selection":
-        return CompSel(self)
+        return ComplementSel(self)
+
+    def maybe(self, flag: Flag) -> "Selection":
+        return DeferSel(self, flag)
+
+    def indexed(self, addr: ExtendedAddressComponent) -> "Selection":
+        if isinstance(addr, ExtendedStaticAddressComponent):
+            return StaticSel(self, addr)
+        else:
+            return IdxSel(self, addr)
 
     def __call__(
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
-    ):
+    ) -> "Selection":
         addr = addr if isinstance(addr, tuple) else (addr,)
         subselection = self
         for comp in addr:
@@ -165,30 +187,6 @@ class Selection(ProjectProblem):
     def get_subselection(self, addr: ExtendedAddressComponent) -> "Selection":
         raise NotImplementedError
 
-    #################################################
-    # Convenient syntax for constructing selections #
-    #################################################
-
-    @classmethod
-    def all(cls) -> "Selection":
-        return AllSel()
-
-    @classmethod
-    def none(cls) -> "Selection":
-        return ~Selection.all()
-
-    @classmethod
-    def str(cls, comp: ExtendedStaticAddressComponent, sel: "Selection") -> "Selection":
-        return StaticSel(comp, sel)
-
-    @classmethod
-    def idx(cls, comp: DynamicAddressComponent, sel: "Selection") -> "Selection":
-        return IdxSel(comp, sel)
-
-    @classmethod
-    def maybe(cls, flag: Flag, s: "Selection") -> "Selection":
-        return select_defer(flag, s)
-
 
 #######################
 # Selection functions #
@@ -206,8 +204,8 @@ class AllSel(Selection):
 
 @Pytree.dataclass
 class DeferSel(Selection):
-    flag: Flag
     s: Selection
+    flag: Flag
 
     def check(self) -> Flag:
         ch = self.s.check()
@@ -215,18 +213,11 @@ class DeferSel(Selection):
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining = self.s(addr)
-        return select_defer(self.flag, remaining)
-
-
-def select_defer(
-    flag: Flag,
-    s: Selection,
-) -> Selection:
-    return DeferSel(flag, s)
+        return remaining.maybe(self.flag)
 
 
 @Pytree.dataclass
-class CompSel(Selection):
+class ComplementSel(Selection):
     s: Selection
 
     def check(self) -> Flag:
@@ -234,26 +225,26 @@ class CompSel(Selection):
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining = self.s(addr)
-        return CompSel(remaining)
+        return ~remaining
 
 
 @Pytree.dataclass
 class StaticSel(Selection):
-    addr: ExtendedStaticAddressComponent = Pytree.static()
     s: Selection = Pytree.field()
+    addr: ExtendedStaticAddressComponent = Pytree.static()
 
     def check(self) -> Flag:
         return Flag(False)
 
     def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
         check = Flag(addr == self.addr or isinstance(addr, EllipsisType))
-        return select_defer(check, self.s)
+        return self.s.maybe(check)
 
 
 @Pytree.dataclass
 class IdxSel(Selection):
-    idxs: DynamicAddressComponent
     s: Selection
+    idxs: DynamicAddressComponent
 
     def check(self) -> Flag:
         return Flag(False)
@@ -278,7 +269,7 @@ class IdxSel(Selection):
                 if jnp.array(addr, copy=False).shape
                 else check_fn(addr)
             )
-            return select_defer(check, self.s)
+            return self.s.maybe(check)
 
 
 @Pytree.dataclass
@@ -311,6 +302,14 @@ class OrSel(Selection):
 
 @Pytree.dataclass
 class ChmSel(Selection):
+    """A Selection that wraps a ChoiceMap.
+
+    This class allows a ChoiceMap to be used as a Selection, enabling filtering and selection operations based on the structure of the ChoiceMap.
+
+    Attributes:
+        c: The wrapped ChoiceMap.
+    """
+
     c: "ChoiceMap"
 
     def check(self) -> Flag:
@@ -318,7 +317,7 @@ class ChmSel(Selection):
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         submap = self.c.get_submap(addr)
-        return ChmSel(submap)
+        return submap.get_selection()
 
 
 ###############
@@ -378,7 +377,7 @@ class _ChoiceMapBuilder(Pytree):
 ChoiceMapBuilder = _ChoiceMapBuilder()
 
 
-def check_none(v) -> Flag:
+def check_none(v: Any | Mask[Any] | None) -> Flag:
     if v is None:
         return Flag(False)
     elif isinstance(v, Mask):
@@ -514,9 +513,9 @@ class ChoiceMap(Sample, Constraint):
     def kw(cls, **kwargs) -> "ChoiceMap":
         return ChoiceMap.d(kwargs)
 
-    ######################################
+    ######################
     # Combinator methods #
-    ######################################
+    ######################
 
     def filter(self, selection: Selection) -> "ChoiceMap":
         """Filter the choice map on the `Selection`. The resulting choice map only contains the addresses in the selection.
@@ -628,7 +627,7 @@ class EmptyChm(ChoiceMap):
         return None
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        return EmptyChm()
+        return self
 
     def static_is_empty(self) -> Bool:
         return True
@@ -641,7 +640,7 @@ _empty = EmptyChm()
 class ValueChm(Generic[T], ChoiceMap):
     v: T
 
-    def get_value(self) -> Any:
+    def get_value(self) -> T:
         return self.v
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
