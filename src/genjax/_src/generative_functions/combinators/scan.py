@@ -34,33 +34,33 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
     FloatArray,
+    Generic,
     Int,
     IntArray,
-    Optional,
     PRNGKey,
-    typecheck,
+    TypeVar,
 )
 
-register_exclusion(__file__)
+Carry = TypeVar("Carry")
+Y = TypeVar("Y")
 
 
 @Pytree.dataclass
-class ScanTrace(Trace):
-    scan_gen_fn: "ScanCombinator"
-    inner: Trace
-    args: tuple
-    retval: Any
+class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
+    scan_gen_fn: "ScanCombinator[Carry, Y]"
+    inner: Trace[tuple[Carry, Y]]
+    args: tuple[Any, ...]
+    retval: tuple[Carry, Y]
     score: FloatArray
 
-    def get_args(self) -> tuple:
+    def get_args(self) -> tuple[Any, ...]:
         return self.args
 
-    def get_retval(self):
+    def get_retval(self) -> tuple[Carry, Y]:
         return self.retval
 
     def get_sample(self):
@@ -74,19 +74,6 @@ class ScanTrace(Trace):
     def get_score(self):
         return self.score
 
-    def index_update(
-        self,
-        idx: IntArray,
-        problem: UpdateProblem,
-    ) -> UpdateProblem:
-        return IndexProblem(idx, problem)
-
-    def checkerboard_update(
-        self,
-        problem: UpdateProblem,
-    ) -> UpdateProblem:
-        return CheckerboardProblem(problem)
-
 
 #######################
 # Custom update specs #
@@ -94,19 +81,8 @@ class ScanTrace(Trace):
 
 
 @Pytree.dataclass(match_args=True)
-class StaticResizeProblem(UpdateProblem):
-    subproblem: UpdateProblem
-    resized_length: Int = Pytree.static()
-
-
-@Pytree.dataclass(match_args=True)
 class IndexProblem(UpdateProblem):
     index: IntArray
-    subproblem: UpdateProblem
-
-
-@Pytree.dataclass(match_args=True)
-class CheckerboardProblem(UpdateProblem):
     subproblem: UpdateProblem
 
 
@@ -116,7 +92,7 @@ class CheckerboardProblem(UpdateProblem):
 
 
 @Pytree.dataclass
-class ScanCombinator(GenerativeFunction):
+class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     """`ScanCombinator` wraps a `kernel_gen_fn` [`genjax.GenerativeFunction`][]
     of type `(c, a) -> (c, b)` in a new [`genjax.GenerativeFunction`][] of type
     `(c, [a]) -> (c, [b])`, where.
@@ -193,19 +169,19 @@ class ScanCombinator(GenerativeFunction):
         ```
     """
 
-    kernel_gen_fn: GenerativeFunction
+    kernel_gen_fn: GenerativeFunction[tuple[Carry, Y]]
 
     # Only required for `None` carry inputs
-    length: Optional[Int] = Pytree.static()
+    length: Int | None = Pytree.static()
     reverse: bool = Pytree.static(default=False)
     unroll: int | bool = Pytree.static(default=1)
 
     # To get the type of return value, just invoke
     # the scanned over source (with abstract tracer arguments).
-    def __abstract_call__(self, *args) -> Any:
+    def __abstract_call__(self, *args) -> tuple[Carry, Y]:
         (carry, scanned_in) = args
 
-        def _inner(carry, scanned_in):
+        def _inner(carry: Carry, scanned_in: Any):
             v, scanned_out = self.kernel_gen_fn.__abstract_call__(carry, scanned_in)
             return v, scanned_out
 
@@ -220,12 +196,11 @@ class ScanCombinator(GenerativeFunction):
 
         return v, scanned_out
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
-    ) -> ScanTrace:
+        args: tuple[Any, ...],
+    ) -> ScanTrace[Carry, Y]:
         carry, scanned_in = args
 
         def _inner_simulate(key, carry, scanned_in):
@@ -254,13 +229,12 @@ class ScanCombinator(GenerativeFunction):
 
         return ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores))
 
-    @typecheck
     def update_importance(
         self,
         key: PRNGKey,
         constraint: ChoiceMap,
-        args: tuple,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        args: tuple[Any, ...],
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], UpdateProblem]:
         (carry, scanned_in) = args
 
         def _inner_importance(key, constraint, carry, scanned_in):
@@ -296,7 +270,9 @@ class ScanCombinator(GenerativeFunction):
             unroll=self.unroll,
         )
         return (
-            ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores)),
+            ScanTrace[Carry, Y](
+                self, tr, args, (carried_out, scanned_out), jnp.sum(scores)
+            ),
             jnp.sum(ws),
             Diff.unknown_change((carried_out, scanned_out)),
             bwd_problems,
@@ -318,14 +294,13 @@ class ScanCombinator(GenerativeFunction):
             case _:
                 raise Exception(f"Not implemented subproblem: {problem}")
 
-    @typecheck
     def update_generic(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: ScanTrace[Carry, Y],
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[ScanTrace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], UpdateProblem]:
         carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(
             Diff.tree_primal(argdiffs)
         )
@@ -405,7 +380,7 @@ class ScanCombinator(GenerativeFunction):
     def update_index(
         self,
         key: PRNGKey,
-        trace: ScanTrace,
+        trace: ScanTrace[Carry, Y],
         index: IntArray,
         update_problem: UpdateProblem,
     ):
@@ -418,16 +393,10 @@ class ScanCombinator(GenerativeFunction):
             starting_retdiff,
             bwd_problem,
         ) = self.kernel_gen_fn.update(
-            key,
-            starting_subslice,
-            update_problem,
-            starting_argdiffs,
+            key, starting_subslice, GenericProblem(starting_argdiffs, update_problem)
         )
         updated_end, end_w, ending_retdiff, _ = self.kernel_gen_fn.update(
-            key,
-            affected_subslice,
-            EmptyProblem(),
-            starting_retdiff,
+            key, affected_subslice, GenericProblem(starting_retdiff, EmptyProblem())
         )
 
         # Must be true for this type of update to be valid.
@@ -443,7 +412,7 @@ class ScanCombinator(GenerativeFunction):
         )
         new_retvals = new_inner.get_retval()
         return (
-            ScanTrace(
+            ScanTrace[Carry, Y](
                 self,
                 new_inner,
                 new_inner.get_args(),
@@ -455,14 +424,13 @@ class ScanCombinator(GenerativeFunction):
             IndexProblem(index, bwd_problem),
         )
 
-    @typecheck
     def update_change_target(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[tuple[Carry, Y]],
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], UpdateProblem]:
         assert isinstance(trace, EmptyTrace | ScanTrace)
         match update_problem:
             case ImportanceProblem(constraint) if isinstance(constraint, ChoiceMap):
@@ -470,6 +438,9 @@ class ScanCombinator(GenerativeFunction):
                     key, constraint, Diff.tree_primal(argdiffs)
                 )
             case IndexProblem(index, subproblem):
+                assert isinstance(
+                    trace, ScanTrace
+                ), "You cannot perform an index update upon the EmptyTrace"
                 if Diff.static_check_no_change(argdiffs):
                     return self.update_index(key, trace, index, subproblem)
                 else:
@@ -477,16 +448,18 @@ class ScanCombinator(GenerativeFunction):
                         key, trace, ChoiceMap.idx(index, subproblem), argdiffs
                     )
             case _:
+                assert isinstance(
+                    trace, ScanTrace
+                ), "You cannot operate on the EmptyTrace in this context"
                 return self.update_generic(key, trace, update_problem, argdiffs)
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def update(
         self,
         key: PRNGKey,
-        trace: Trace,
+        trace: Trace[tuple[Carry, Y]],
         update_problem: UpdateProblem,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
@@ -502,11 +475,10 @@ class ScanCombinator(GenerativeFunction):
                 )
 
     @GenerativeFunction.gfi_boundary
-    @typecheck
     def assess(
         self,
         sample: Sample,
-        args: tuple,
+        args: tuple[Any, ...],
     ) -> tuple[Score, Any]:
         (carry, scanned_in) = args
         assert isinstance(sample, ChoiceMap)
@@ -544,10 +516,11 @@ class ScanCombinator(GenerativeFunction):
 ##############
 
 
-@typecheck
 def scan(
-    *, n: Optional[Int] = None, reverse: bool = False, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction], GenerativeFunction]:
+    *, n: Int | None = None, reverse: bool = False, unroll: int | bool = 1
+) -> Callable[
+    [GenerativeFunction[tuple[Carry, Y]]], GenerativeFunction[tuple[Carry, Y]]
+]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `(c, a) -> (c, b)`and returns a new [`genjax.GenerativeFunction`][] of type
     `(c, [a]) -> (c, [b])` where.
@@ -631,13 +604,13 @@ def scan(
         ```
     """
 
-    def decorator(f):
-        return ScanCombinator(f, length=n, reverse=reverse, unroll=unroll)
+    def decorator(f: GenerativeFunction[tuple[Carry, Y]]):
+        return ScanCombinator[Carry, Y](f, length=n, reverse=reverse, unroll=unroll)
 
     return decorator
 
 
-def prepend_initial_acc(args, ret):
+def prepend_initial_acc(args: tuple[Carry, Any], ret: tuple[Carry, Carry]) -> Carry:
     """Prepends the initial accumulator value to the array of accumulated
     values.
 
@@ -664,10 +637,9 @@ def prepend_initial_acc(args, ret):
     return jax.tree.map(cat, init_acc, xs)
 
 
-@typecheck
 def accumulate(
     *, reverse: bool = False, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction], GenerativeFunction]:
+) -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type
     `(c, [a]) -> [c]` where.
@@ -725,7 +697,7 @@ def accumulate(
         ```
     """
 
-    def decorator(f: GenerativeFunction):
+    def decorator(f: GenerativeFunction[Carry]) -> GenerativeFunction[Carry]:
         return (
             f.map(lambda ret: (ret, ret))
             .scan(reverse=reverse, unroll=unroll)
@@ -735,10 +707,9 @@ def accumulate(
     return decorator
 
 
-@typecheck
 def reduce(
     *, reverse: bool = False, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction], GenerativeFunction]:
+) -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type
     `(c, [a]) -> c` where.
@@ -793,20 +764,21 @@ def reduce(
         ```
     """
 
-    def decorator(f: GenerativeFunction):
-        return (
-            f.map(lambda ret: (ret, None))
-            .scan(reverse=reverse, unroll=unroll)
-            .map(lambda ret: ret[0])
-        )
+    def decorator(f: GenerativeFunction[Carry]) -> GenerativeFunction[Carry]:
+        def pre(ret: Carry):
+            return ret, None
+
+        def post(ret: tuple[Carry, None]):
+            return ret[0]
+
+        return f.map(pre).scan(reverse=reverse, unroll=unroll).map(post)
 
     return decorator
 
 
-@typecheck
 def iterate(
     *, n: Int, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction], GenerativeFunction]:
+) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a ->
     [a]` where.
@@ -858,7 +830,7 @@ def iterate(
         ```
     """
 
-    def decorator(f: GenerativeFunction):
+    def decorator(f: GenerativeFunction[Y]) -> GenerativeFunction[Y]:
         # strip off the JAX-supplied `None` on the way in, accumulate `ret` on the way out.
         return (
             f.dimap(pre=lambda *args: args[:-1], post=lambda _, ret: (ret, ret))
@@ -869,10 +841,9 @@ def iterate(
     return decorator
 
 
-@typecheck
 def iterate_final(
     *, n: Int, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction], GenerativeFunction]:
+) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a`
     where.
@@ -922,12 +893,18 @@ def iterate_final(
         ```
     """
 
-    def decorator(f: GenerativeFunction):
+    def decorator(f: GenerativeFunction[Y]) -> GenerativeFunction[Y]:
         # strip off the JAX-supplied `None` on the way in, no accumulation on the way out.
+        def pre_post(_, ret: Y):
+            return ret, None
+
+        def post_post(_, ret: tuple[Y, None]):
+            return ret[0]
+
         return (
-            f.dimap(pre=lambda *args: args[:-1], post=lambda _, ret: (ret, None))
+            f.dimap(pre=lambda *args: args[:-1], post=pre_post)
             .scan(n=n, unroll=unroll)
-            .dimap(pre=lambda *args: (*args, None), post=lambda _, ret: ret[0])
+            .dimap(pre=lambda *args: (*args, None), post=post_post)
         )
 
     return decorator

@@ -24,7 +24,7 @@ from genjax._src.core.serialization.backend import SerializationBackend
 class MsgPackSerializeBackend(SerializationBackend):
     """A class that supports serialization using the MsgPack protocol."""
 
-    def serialize(self, trace: Trace):
+    def serialize(self, tr: Trace):
         """Serialize an object using MsgPack
 
         The function strips out the Pytree definition from the generative trace via `tree_flatten` and converts the remaining data into a MsgPack representation.
@@ -35,10 +35,10 @@ class MsgPackSerializeBackend(SerializationBackend):
         Returns:
           msgpack-encoded bytes of the trace
         """
-        data, _ = jax.tree_util.tree_flatten(trace)
+        data, _ = jax.tree_util.tree_flatten(tr)
         return msgpack.packb(data, default=_msgpack_ext_pack, strict_types=True)
 
-    def deserialize(self, encoded_trace, gen_fn: GenerativeFunction, args: tuple):
+    def deserialize(self, bytes, gen_fn: GenerativeFunction, args: tuple):
         """Deserialize an object using MsgPack
 
         The function decodes the MsgPack object and restructures the trace using its Pytree definition. The tree definition is retrieved by tracing the generative function using the stored arguments.
@@ -51,7 +51,7 @@ class MsgPackSerializeBackend(SerializationBackend):
         Returns:
           `Trace` object
         """
-        payload = msgpack.unpackb(encoded_trace, ext_hook=_msgpack_ext_unpack)
+        payload = msgpack.unpackb(bytes, ext_hook=_msgpack_ext_unpack)
         trace_data_shape = gen_fn.get_trace_shape(*args)
         treedef = jax.tree_util.tree_structure(trace_data_shape)
         return jax.tree_util.tree_unflatten(treedef, payload)
@@ -83,7 +83,7 @@ def _dtype_from_name(name: str):
         return np.dtype(name)
 
 
-def _ndarray_from_bytes(data: bytes) -> np.ndarray:
+def _ndarray_from_bytes(data: bytes) -> jax.Array:
     """Load ndarray from simple msgpack encoding."""
     shape, dtype_name, buffer = msgpack.unpackb(data)
     return jnp.asarray(

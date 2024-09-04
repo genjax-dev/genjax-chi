@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import EmptyConstraint, MaskedConstraint
 from genjax import UpdateProblemBuilder as U
+from genjax._src.core.interpreters.staging import Flag
 from genjax.incremental import Diff, NoChange, UnknownChange
 
 
@@ -24,7 +26,7 @@ class TestDistributions:
     def test_simulate(self):
         key = jax.random.PRNGKey(314159)
         tr = genjax.normal(0.0, 1.0).simulate(key, ())
-        assert tr.get_score() == genjax.normal(0.0, 1.0).assess(tr.get_sample(), ())[0]
+        assert tr.get_score() == genjax.normal(0.0, 1.0).assess(tr.get_choices(), ())[0]
 
     def test_importance(self):
         key = jax.random.PRNGKey(314159)
@@ -35,13 +37,13 @@ class TestDistributions:
 
         # Constraint, no mask.
         (tr, w) = genjax.normal.importance(key, C.v(1.0), (0.0, 1.0))
-        v = tr.get_sample()
+        v = tr.get_choices()
         assert w == genjax.normal(0.0, 1.0).assess(v, ())[0]
 
         # Constraint, mask with True flag.
         (tr, w) = genjax.normal.importance(
             key,
-            MaskedConstraint(True, C.v(1.0)),
+            MaskedConstraint(Flag(True), C.v(1.0)),
             (0.0, 1.0),
         )
         v = tr.get_choices().get_value()
@@ -51,7 +53,7 @@ class TestDistributions:
         # Constraint, mask with False flag.
         (tr, w) = genjax.normal.importance(
             key,
-            MaskedConstraint(False, C.v(1.0)),
+            MaskedConstraint(Flag(False), C.v(1.0)),
             (0.0, 1.0),
         )
         v = tr.get_choices().get_value()
@@ -133,7 +135,7 @@ class TestDistributions:
             tr,
             U.g(
                 (Diff(0.0, NoChange), Diff(1.0, NoChange)),
-                MaskedConstraint(True, C.v(1.0)),
+                MaskedConstraint(Flag(True), C.v(1.0)),
             ),
         )
         assert new_tr.get_choices().get_value() == 1.0
@@ -151,7 +153,7 @@ class TestDistributions:
             tr,
             U.g(
                 (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
-                MaskedConstraint(True, C.v(1.0)),
+                MaskedConstraint(Flag(True), C.v(1.0)),
             ),
         )
         assert new_tr.get_choices().get_value() == 1.0
@@ -169,7 +171,7 @@ class TestDistributions:
             tr,
             U.g(
                 (Diff(0.0, NoChange), Diff(1.0, NoChange)),
-                MaskedConstraint(False, C.v(1.0)),
+                MaskedConstraint(Flag(False), C.v(1.0)),
             ),
         )
         assert new_tr.get_choices().get_value() == tr.get_choices().get_value()
@@ -185,7 +187,7 @@ class TestDistributions:
             tr,
             U.g(
                 (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
-                MaskedConstraint(False, C.v(1.0)),
+                MaskedConstraint(Flag(False), C.v(1.0)),
             ),
         )
         assert new_tr.get_choices().get_value() == tr.get_choices().get_value()

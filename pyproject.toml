@@ -38,14 +38,17 @@ Changelog = "https://github.com/probcomp/genjax/releases"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
-jax = "^0.4.28"
+jax = "^0.4.24"
 tensorflow-probability = "^0.23.0"
-jaxtyping = "^0.2.28"
+jaxtyping = "^0.2.24"
 beartype = "^0.18.5"
 deprecated = "^1.2.14"
 penzai = "^0.1.1"
+# Numpy <2.0.0 is due to tfp issues: https://github.com/tensorflow/probability/issues/1814
+# remove this constraint when that issue is closed.
+numpy = ">=1.22,<2.0.0"
 msgpack = { version = "^1.0.8", optional = true }
-genstudio = { version = "2024.06.07.0931.49", source = "gcp", optional = true }
+genstudio = { version = "2024.07.30.1946", source = "gcp", optional = true }
 
 [tool.poetry.group.dev]
 optional = true
@@ -54,10 +57,6 @@ optional = true
 coverage = "^7.0.0"
 matplotlib = "^3.6.2"
 mypy = "^0.991"
-
-# Numpy <2.0.0 is due to tfp issues: https://github.com/tensorflow/probability/issues/1814
-# remove this constraint when that issue is closed.
-numpy = ">=1.22,<2.0.0"
 nbmake = "^1.4.6"
 pytest = "^7.2.0"
 pytest-benchmark = "^4.0.0"
@@ -105,20 +104,35 @@ omit = [".*", "*/site-packages/*"]
 show_missing = true
 fail_under = 45
 
+[tool.vulture]
+paths = ["src"]
+ignore_names = ["cls"]
+exclude = ["*/.ipynb_checkpoints/*"]
+min_confidence = 70
+sort_by_size = true
+
 [tool.pyright]
 pythonVersion = "3.11"
 venvPath = "."
 venv = ".venv"
 include = ["src", "tests"]
-exclude = ["**/__pycache__"]
+# TODO: inference has been excluded because this code my not be ready for type-correctness.
+#       msgpack dependency is optional, so it doesn't typecheck
+#       typecheck doesn't see noxfiles's import of nox
+exclude = ["**/__pycache__", "noxfile.py", "src/genjax/_src/inference/*.py", "src/genjax/_src/core/serialization/msgpack.py"]
 defineConstant = { DEBUG = true }
-typeCheckingMode = "standard"
-reportMatchNotExhaustive = true
-reportMissingImports = true
-reportMissingTypeStubs = false
-analyzeUnannotatedFunctions = true
-strictParameterNoneValue = true
+typeCheckingMode = "strict"
 deprecateTypingAliases = true
+
+# `strict` sets all of these to error; these remaining `none` entries are tests that we can't yet
+# pass.
+reportMissingTypeStubs = "none"
+reportMissingParameterType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownLambdaType = "none"
+reportUnknownMemberType = "none"
+reportUnknownParameterType = "none"
+reportUnknownVariableType = "none"
 
 [tool.ruff]
 exclude = [
