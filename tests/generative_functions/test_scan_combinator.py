@@ -408,3 +408,20 @@ class TestScanWithParameters:
         jitted = jax.jit(walk_step.scan().simulate)
         tr = jitted(key, args)
         assert jnp.allclose(tr.get_choices()[..., "x"], expected)
+
+    def test_zero_length_scan(self, key):
+        # GEN-333
+        @genjax.gen
+        def step(state, sigma):
+            new_x = genjax.normal(state, sigma) @ "x"
+            return (new_x, new_x + 1)
+
+        trace = step.scan(n=0).simulate(
+            jax.random.PRNGKey(20), (2.0, jnp.arange(0, dtype=float))
+        )
+
+        step.scan().importance(
+            jax.random.PRNGKey(20),
+            trace.get_choices(),
+            (2.0, 2.0 + jnp.arange(0, dtype=float)),
+        )
