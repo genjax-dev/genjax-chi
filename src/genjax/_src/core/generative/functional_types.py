@@ -84,12 +84,15 @@ class Mask(Generic[R], Pytree):
     ######################
 
     def unsafe_unmask(self) -> R:
-        # Unsafe version of unmask -- should only be used internally,
-        # or carefully.
+        """
+        Unsafe version of unmask -- should only be used internally, or carefully.
+        """
         return self.value
 
     def unmask(self) -> R:
-        """Unmask the `Mask`, returning the value within.
+        """
+        Unmask the `Mask`, returning the value within.
+
         This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` wraps valid data at runtime.
         """
 
@@ -111,16 +114,16 @@ def staged_choose(
     pytrees: list[R],
 ) -> R:
     """
+    Version of `jax.numpy.choose` that
 
-    TODO note about pytree.
+    - acts on lists of both `ArrayLike` and `Pytree` instances
+    - acts like `vs[idx]` if `idx` is of type `int`.
 
-    Version of `jax.numpy.choose` that acts like `vs[idx]` if `idx` is an `int`.
-
-    In the case of heterogenous types in `vs`, jax will attempt to cast or error if this isn't possible. (mixed `bool` and `int` entries in `vs` will result in the cast of selected `bool` to `int`, for example.) The `vs[idx]` branch preserves this behavior.
+    In the case of heterogenous types in `vs`, `staged_choose` will attempt to cast, or error if casting isn't possible. (mixed `bool` and `int` entries in `vs` will result in the cast of selected `bool` to `int`, for example.).
 
     Args:
         idx: The index used to select a value from `vs`.
-        vs: A list of values to choose from.
+        vs: A list of `Pytree` or `ArrayLike` values to choose from.
 
     Returns:
         The selected value from the list.
@@ -133,7 +136,6 @@ def staged_choose(
         #   result's dtype tells us the final type.
         result = jnp.choose(idx, vs, mode="wrap")
         if isinstance(idx, Int):
-            # TODO test wrap.
             return jnp.asarray(vs[idx % len(vs)], dtype=result.dtype)
         else:
             return result
