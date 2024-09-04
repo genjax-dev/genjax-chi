@@ -65,7 +65,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
 
     def get_sample(self):
         return jax.vmap(
-            lambda idx, subtrace: ChoiceMap.idx(idx, subtrace.get_sample()),
+            lambda idx, subtrace: ChoiceMap.idx(subtrace.get_sample(), idx),
         )(jnp.arange(self.scan_gen_fn.length), self.inner)
 
     def get_gen_fn(self):
@@ -257,7 +257,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             (carry, score), (tr, scanned_out, w, inner_bwd_problem) = _inner_importance(
                 key, submap, carried_value, scanned_over
             )
-            bwd_problem = ChoiceMap.idx(idx, inner_bwd_problem)
+            bwd_problem = ChoiceMap.idx(inner_bwd_problem, idx)
 
             return (key, idx + 1, carry), (tr, scanned_out, score, w, bwd_problem)
 
@@ -339,7 +339,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 (carry, score),
                 (new_subtrace, scanned_out, w, inner_bwd_problem),
             ) = _inner_update(key, subtrace, subproblem, carried_value, scanned_in)
-            bwd_problem = ChoiceMap.idx(idx, inner_bwd_problem)
+            bwd_problem = ChoiceMap.idx(inner_bwd_problem, idx)
 
             return (key, idx + 1, carry), (
                 new_subtrace,
@@ -445,7 +445,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                     return self.update_index(key, trace, index, subproblem)
                 else:
                     return self.update_generic(
-                        key, trace, ChoiceMap.idx(index, subproblem), argdiffs
+                        key, trace, ChoiceMap.idx(subproblem, index), argdiffs
                     )
             case _:
                 assert isinstance(

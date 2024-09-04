@@ -367,9 +367,9 @@ class _ChoiceMapBuilder(Pytree):
         new = ChoiceMap.value(v) if not isinstance(v, ChoiceMap) else v
         for comp in reversed(addr):
             if isinstance(comp, StaticAddressComponent):
-                new = StaticChm.build(comp, new)
+                new = StaticChm.build(new, comp)
             elif isinstance(comp, DynamicAddressComponent):
-                new = IdxChm.build(comp, new)
+                new = IdxChm.build(new, comp)
 
         return new
 
@@ -494,12 +494,12 @@ class ChoiceMap(Sample, Constraint):
         return ValueChm(v)
 
     @classmethod
-    def idx(cls, addr: AddressComponent, v: Any) -> "ChoiceMap":
+    def idx(cls, v: Any, addr: AddressComponent) -> "ChoiceMap":
         chm = v if isinstance(v, ChoiceMap) else ChoiceMap.value(v)
         if isinstance(addr, StaticAddressComponent):
-            return StaticChm.build(addr, chm)
+            return StaticChm.build(chm, addr)
         else:
-            return IdxChm.build(addr, chm)
+            return IdxChm.build(chm, addr)
 
     @classmethod
     def d(cls, d: dict[Any, Any]) -> "ChoiceMap":
@@ -543,13 +543,13 @@ class ChoiceMap(Sample, Constraint):
             print("y" in filtered)
             ```
         """
-        return FilteredChm.build(selection, self)
+        return FilteredChm.build(self, selection)
 
     def indexed(self, addr: AddressComponent) -> "ChoiceMap":
-        return ChoiceMap.idx(addr, self)
+        return ChoiceMap.idx(self, addr)
 
     def mask(self, f: Flag) -> "ChoiceMap":
-        return MaskChm.build(f, self)
+        return MaskChm.build(self, f)
 
     def merge(self, other: "ChoiceMap") -> "ChoiceMap":
         return self ^ other
@@ -649,12 +649,12 @@ class ValueChm(Generic[T], ChoiceMap):
 
 @Pytree.dataclass
 class IdxChm(ChoiceMap):
-    addr: DynamicAddressComponent
     c: ChoiceMap
+    addr: DynamicAddressComponent
 
     @classmethod
-    def build(cls, addr: DynamicAddressComponent, chm: ChoiceMap) -> ChoiceMap:
-        return _empty if chm.static_is_empty() else IdxChm(addr, chm)
+    def build(cls, chm: ChoiceMap, addr: DynamicAddressComponent) -> ChoiceMap:
+        return _empty if chm.static_is_empty() else IdxChm(chm, addr)
 
     def get_value(self) -> Any:
         return None
@@ -679,7 +679,7 @@ class IdxChm(ChoiceMap):
 
             return (
                 MaskChm.build(
-                    Flag(check[addr]), jtu.tree_map(lambda v: v[addr], self.c)
+                    jtu.tree_map(lambda v: v[addr], self.c), Flag(check[addr])
                 )
                 if jnp.array(check, copy=False).shape
                 else self.c.mask(Flag(check))
@@ -688,16 +688,16 @@ class IdxChm(ChoiceMap):
 
 @Pytree.dataclass
 class StaticChm(ChoiceMap):
-    addr: StaticAddressComponent = Pytree.static()
     c: ChoiceMap = Pytree.field()
+    addr: StaticAddressComponent = Pytree.static()
 
     @classmethod
     def build(
         cls,
-        addr: StaticAddressComponent,
         c: ChoiceMap,
+        addr: StaticAddressComponent,
     ) -> ChoiceMap:
-        return _empty if c.static_is_empty() else StaticChm(addr, c)
+        return _empty if c.static_is_empty() else StaticChm(c, addr)
 
     def get_value(self) -> Any:
         return None
@@ -794,14 +794,14 @@ class OrChm(ChoiceMap):
 
 @Pytree.dataclass
 class MaskChm(ChoiceMap):
-    flag: Flag
     c: ChoiceMap
+    flag: Flag
 
     @classmethod
     def build(
         cls,
-        flag: Flag,
         c: ChoiceMap,
+        flag: Flag,
     ) -> ChoiceMap:
         return (
             c
@@ -810,7 +810,7 @@ class MaskChm(ChoiceMap):
             if flag.concrete_true()
             else _empty
             if flag.concrete_false()
-            else MaskChm(flag, c)
+            else MaskChm(c, flag)
         )
 
     def get_value(self) -> Any:
@@ -824,12 +824,12 @@ class MaskChm(ChoiceMap):
 
 @Pytree.dataclass
 class FilteredChm(ChoiceMap):
-    selection: Selection
     c: ChoiceMap
+    selection: Selection
 
     @classmethod
-    def build(cls, selection: Selection, chm: ChoiceMap) -> ChoiceMap:
-        return _empty if chm.static_is_empty() else FilteredChm(selection, chm)
+    def build(cls, chm: ChoiceMap, selection: Selection) -> ChoiceMap:
+        return _empty if chm.static_is_empty() else FilteredChm(chm, selection)
 
     def get_value(self) -> Any:
         v = self.c.get_value()
