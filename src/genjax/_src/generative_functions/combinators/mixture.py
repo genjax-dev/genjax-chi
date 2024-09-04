@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from genjax._src.core.generative import GenerativeFunction, Sum
+from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.typing import TypeVar
 from genjax._src.generative_functions.combinators.switch import (
     switch,
@@ -26,7 +26,7 @@ from genjax._src.generative_functions.static import gen
 R = TypeVar("R")
 
 
-def mix(*gen_fns: GenerativeFunction[R]) -> GenerativeFunction[R | Sum[R]]:
+def mix(*gen_fns: GenerativeFunction[R]) -> GenerativeFunction[R]:
     """
     Creates a mixture model from a set of generative functions.
 
@@ -76,7 +76,7 @@ def mix(*gen_fns: GenerativeFunction[R]) -> GenerativeFunction[R | Sum[R]]:
     inner_combinator_closure = switch(*gen_fns)
 
     @gen
-    def mixture_model(mixture_logits, *args) -> R | Sum[R]:
+    def mixture_model(mixture_logits, *args) -> R:
         mix_idx = categorical(mixture_logits) @ "mixture_component"
         v = inner_combinator_closure(mix_idx, *args) @ "component_sample"
         return v

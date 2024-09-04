@@ -27,12 +27,12 @@ from genjax._src.core.generative import (
     Retdiff,
     Sample,
     Score,
-    Sum,
     SumProblem,
     Trace,
     UpdateProblem,
     Weight,
 )
+from genjax._src.core.generative.functional_types import staged_choose
 from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
 from genjax._src.core.interpreters.staging import Flag, get_data_shape
 from genjax._src.core.pytree import Pytree
@@ -67,11 +67,11 @@ class HeterogeneousSwitchSample(Sample):
 
 
 @Pytree.dataclass
-class SwitchTrace(Generic[R], Trace[R | Sum[R]]):
+class SwitchTrace(Generic[R], Trace[R]):
     gen_fn: "SwitchCombinator[R]"
     args: tuple[Any, ...]
     subtraces: list[Trace[R]]
-    retval: R | Sum[R]
+    retval: R
     score: FloatArray
 
     def get_args(self) -> tuple[Any, ...]:
@@ -112,7 +112,7 @@ class SwitchTrace(Generic[R], Trace[R | Sum[R]]):
 
 
 @Pytree.dataclass
-class SwitchCombinator(Generic[R], GenerativeFunction[R | Sum[R]]):
+class SwitchCombinator(Generic[R], GenerativeFunction[R]):
     """
     `SwitchCombinator` accepts `n` generative functions as input and returns a new [`genjax.GenerativeFunction`][] that accepts `n+1` arguments:
 
@@ -160,7 +160,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R | Sum[R]]):
 
     branches: tuple[GenerativeFunction[R], ...]
 
-    def __abstract_call__(self, *args) -> R | Sum[R]:
+    def __abstract_call__(self, *args) -> R:
         idx, args = args[0], args[1:]
         retvals: list[R] = []
         for _idx in range(len(self.branches)):
@@ -168,7 +168,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R | Sum[R]]):
             branch_args = args[_idx]
             retval = branch_gen_fn.__abstract_call__(*branch_args)
             retvals.append(retval)
-        return Sum.maybe(idx, retvals)
+        return staged_choose(idx, retvals)
 
     def static_check_num_arguments_equals_num_branches(self, args):
         assert len(args) == len(self.branches)
@@ -212,7 +212,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R | Sum[R]]):
         key: PRNGKey,
         args: tuple[Any, ...],
     ) -> SwitchTrace[R]:
-        idx: ArrayLike | Diff[Any] = args[0]
+        idx: ArrayLike = args[0]
         branch_args = args[1:]
 
         self.static_check_num_arguments_equals_num_branches(branch_args)
@@ -242,7 +242,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R | Sum[R]]):
                 range(len(retval_leaves)),
             )
         )
-        retval: R | Sum[R] = Sum.maybe(idx, retvals)
+        retval: R = staged_choose(idx, retvals)
         return SwitchTrace(self, args, subtraces, retval, score)
 
     def _empty_update_defs(
@@ -382,7 +382,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R | Sum[R]]):
         trace: SwitchTrace[R],
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R | Sum[R]], UpdateProblem]:
+    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], UpdateProblem]:
         (idx_argdiff, *branch_argdiffs) = argdiffs
         self.static_check_num_arguments_equals_num_branches(branch_argdiffs)
 
@@ -440,8 +440,8 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R | Sum[R]]):
                 range(len(bwd_problem_leaves)),
             )
         )
-        retdiff: R | Sum[R] = Sum.maybe(idx_argdiff, retdiffs)
-        retval: R | Sum[R] = Diff.tree_primal(retdiff)
+        retdiff: R = staged_choose(idx_argdiff.primal, retdiffs)
+        retval: R = Diff.tree_primal(retdiff)
         if Diff.tree_tangent(idx_argdiff) == UnknownChange:
             w = w + (score - trace.get_score())
 
@@ -521,7 +521,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R | Sum[R]]):
         key: PRNGKey,
         problem: ImportanceProblem,
         argdiffs: tuple[Any, ...],
-    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R | Sum[R]], UpdateProblem]:
+    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], UpdateProblem]:
         args = Diff.tree_primal(argdiffs)
         (idx, *branch_args) = args
         (_, *branch_argdiffs) = argdiffs
@@ -583,7 +583,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R | Sum[R]]):
                 range(len(bwd_problem_leaves)),
             )
         )
-        retval = Sum.maybe(idx, retvals)
+        retval = staged_choose(idx, retvals)
         return (
             SwitchTrace(self, args, subtraces, retval, score),
             w,
@@ -594,10 +594,10 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R | Sum[R]]):
     def update_change_target(
         self,
         key: PRNGKey,
-        trace: Trace[R | Sum[R]],
+        trace: Trace[R],
         problem: UpdateProblem,
         argdiffs: Argdiffs,
-    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R | Sum[R]], UpdateProblem]:
+    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], UpdateProblem]:
         assert isinstance(trace, EmptyTrace | SwitchTrace)
         match trace:
             case EmptyTrace():
@@ -606,16 +606,16 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R | Sum[R]]):
                 ), f"update_change_target of an EmptyTrace requires an ImportanceProblem, not {problem}"
                 return self.update_importance(key, problem, argdiffs)
             case SwitchTrace() as switch_trace:
-                # The `ignore` directive here is because pyright can't infer that if something is both `Trace[R | Sum[R]]` and a `SwitchTrace`, it must in fact be a `SwitchTrace[R]`.
+                # The `ignore` directive here is because pyright can't infer that if something is both `Trace[R]` and a `SwitchTrace`, it must in fact be a `SwitchTrace[R]`.
                 return self.update_generic(key, switch_trace, problem, argdiffs)  # pyright:ignore
 
     @GenerativeFunction.gfi_boundary
     def update(
         self,
         key: PRNGKey,
-        trace: Trace[R | Sum[R]],
+        trace: Trace[R],
         update_problem: UpdateProblem,
-    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R | Sum[R]], UpdateProblem]:
+    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], UpdateProblem]:
         match update_problem:
             case GenericProblem(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
@@ -651,7 +651,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R | Sum[R]]):
         self,
         sample: Sample,
         args: tuple[Any, ...],
-    ) -> tuple[Score, R | Sum[R]]:
+    ) -> tuple[Score, R]:
         idx, branch_args = args[0], args[1:]
         self.static_check_num_arguments_equals_num_branches(branch_args)
 
@@ -670,7 +670,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R | Sum[R]]):
                 range(len(retval_leaves)),
             )
         )
-        retval: R | Sum[R] = Sum.maybe(idx, retvals)
+        retval: R = staged_choose(idx, retvals)
         return score, retval
 
 
