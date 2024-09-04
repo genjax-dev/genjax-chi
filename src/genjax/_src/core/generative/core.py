@@ -1223,9 +1223,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.mask(self)
 
-    def or_else(
-        self, gen_fn: "GenerativeFunction[R]", /
-    ) -> "GenerativeFunction[R | genjax.Sum[R]]":
+    def or_else(self, gen_fn: "GenerativeFunction[R]", /) -> "GenerativeFunction[R]":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that accepts
 
@@ -1316,9 +1314,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.switch(self, *branches)
 
-    def mix(
-        self, *fns: "GenerativeFunction[R]"
-    ) -> "GenerativeFunction[R | genjax.Sum[R]]":
+    def mix(self, *fns: "GenerativeFunction[R]") -> "GenerativeFunction[R]":
         """
         Takes any number of [`genjax.GenerativeFunction`][]s and returns a new [`genjax.GenerativeFunction`][] that represents a mixture model.
 
