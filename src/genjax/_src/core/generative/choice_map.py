@@ -755,8 +755,6 @@ class XorChm(ChoiceMap):
     c1: ChoiceMap
     c2: ChoiceMap
 
-    # TODO override has_value?
-
     def get_value(self) -> Any:
         check1 = self.c1.has_value()
         check2 = self.c2.has_value()
@@ -772,6 +770,7 @@ class XorChm(ChoiceMap):
             return first.f + 2 * second.f - 1
 
         idx = pair_flag_to_idx(check1, check2)
+
         if isinstance(idx, int):
             return [v1, v2][idx]
         else:

@@ -29,9 +29,6 @@ from genjax._src.core.typing import (
 )
 
 R = TypeVar("R")
-"""
-TODO add a note about how this has to be a pytree.
-"""
 
 #########################
 # Masking and sum types #
