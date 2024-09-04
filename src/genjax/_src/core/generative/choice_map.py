@@ -34,8 +34,12 @@ from genjax._src.core.typing import (
     Bool,
     BoolArray,
     EllipsisType,
+    Generic,
     String,
+    TypeVar,
 )
+
+T = TypeVar("T")
 
 #################
 # Address types #
@@ -122,13 +126,13 @@ class Selection(ProjectProblem):
     """
 
     def __or__(self, other: "Selection") -> "Selection":
-        return select_or(self, other)
+        return OrSel(self, other)
 
     def __and__(self, other):
-        return select_and(self, other)
+        return AndSel(self, other)
 
     def __invert__(self) -> "Selection":
-        return select_complement(self)
+        return CompSel(self)
 
     def __call__(
         self,
@@ -167,15 +171,19 @@ class Selection(ProjectProblem):
 
     @classmethod
     def all(cls) -> "Selection":
-        return select_all()
+        return AllSel()
+
+    @classmethod
+    def none(cls) -> "Selection":
+        return ~Selection.all()
 
     @classmethod
     def str(cls, comp: ExtendedStaticAddressComponent, sel: "Selection") -> "Selection":
-        return select_static(comp, sel)
+        return StaticSel(comp, sel)
 
     @classmethod
     def idx(cls, comp: DynamicAddressComponent, sel: "Selection") -> "Selection":
-        return select_idx(comp, sel)
+        return IdxSel(comp, sel)
 
     @classmethod
     def maybe(cls, flag: Flag, s: "Selection") -> "Selection":
@@ -194,10 +202,6 @@ class AllSel(Selection):
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         return AllSel()
-
-
-def select_all():
-    return AllSel()
 
 
 @Pytree.dataclass
@@ -230,17 +234,7 @@ class CompSel(Selection):
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining = self.s(addr)
-        return select_complement(remaining)
-
-
-def select_complement(
-    s: Selection,
-) -> Selection:
-    return CompSel(s)
-
-
-def select_none():
-    return select_complement(select_all())
+        return CompSel(remaining)
 
 
 @Pytree.dataclass
@@ -256,13 +250,6 @@ class StaticSel(Selection):
         return select_defer(check, self.s)
 
 
-def select_static(
-    addr: EllipsisType | StaticAddressComponent,
-    s: Selection,
-) -> Selection:
-    return StaticSel(addr, s)
-
-
 @Pytree.dataclass
 class IdxSel(Selection):
     idxs: DynamicAddressComponent
@@ -276,7 +263,7 @@ class IdxSel(Selection):
             return self.s
 
         if not isinstance(addr, DynamicAddressComponent):
-            return select_none()
+            return Selection.none()
 
         else:
 
@@ -294,13 +281,6 @@ class IdxSel(Selection):
             return select_defer(check, self.s)
 
 
-def select_idx(
-    sidx: DynamicAddressComponent,
-    s: Selection,
-) -> Selection:
-    return IdxSel(sidx, s)
-
-
 @Pytree.dataclass
 class AndSel(Selection):
     s1: Selection
@@ -312,14 +292,7 @@ class AndSel(Selection):
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining1 = self.s1(addr)
         remaining2 = self.s2(addr)
-        return select_and(remaining1, remaining2)
-
-
-def select_and(
-    s1: Selection,
-    s2: Selection,
-) -> Selection:
-    return AndSel(s1, s2)
+        return remaining1 & remaining2
 
 
 @Pytree.dataclass
@@ -333,14 +306,7 @@ class OrSel(Selection):
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining1 = self.s1(addr)
         remaining2 = self.s2(addr)
-        return select_or(remaining1, remaining2)
-
-
-def select_or(
-    s1: Selection,
-    s2: Selection,
-) -> Selection:
-    return OrSel(s1, s2)
+        return remaining1 | remaining2
 
 
 @Pytree.dataclass
@@ -352,13 +318,7 @@ class ChmSel(Selection):
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         submap = self.c.get_submap(addr)
-        return select_choice_map(submap)
-
-
-def select_choice_map(
-    c: "ChoiceMap",
-) -> Selection:
-    return ChmSel(c)
+        return ChmSel(submap)
 
 
 ###############
@@ -368,7 +328,7 @@ def select_choice_map(
 
 @dataclass
 class ChoiceMapNoValueAtAddress(Exception):
-    subaddr: Any
+    subaddr: ExtendedAddressComponent | ExtendedAddress
 
 
 @Pytree.dataclass
@@ -387,10 +347,10 @@ class _ChoiceMapBuilder(Pytree):
         if self.addr:
             return self.a(self.addr, v)
         else:
-            return choice_map_empty
+            return _empty
 
     def n(self) -> "ChoiceMap":
-        return choice_map_empty
+        return _empty
 
     def v(self, v) -> "ChoiceMap":
         return ChoiceMap.value(v)
@@ -521,6 +481,44 @@ class ChoiceMap(Sample, Constraint):
     def has_value(self) -> Flag:
         return check_none(self.get_value())
 
+    ######################################
+    # Convenient syntax for construction #
+    ######################################
+
+    @classmethod
+    def empty(cls) -> "EmptyChm":
+        return _empty
+
+    @classmethod
+    def value(cls, v: T) -> "ValueChm[T]":
+        return ValueChm(v)
+
+    @classmethod
+    def str(cls, addr: StaticAddressComponent, v: Any) -> "ChoiceMap":
+        chm = v if isinstance(v, ChoiceMap) else ChoiceMap.value(v)
+        return StaticChm.build(addr, chm)
+
+    @classmethod
+    def idx(cls, addr: DynamicAddressComponent, v: Any) -> "ChoiceMap":
+        chm = v if isinstance(v, ChoiceMap) else ChoiceMap.value(v)
+        return IdxChm.build(addr, chm)
+
+    @classmethod
+    def d(cls, d: dict[Any, Any]) -> "ChoiceMap":
+        start = ChoiceMap.empty()
+        if d:
+            for k, v in d.items():
+                start = ChoiceMapBuilder.a(k, v) ^ start
+        return start
+
+    @classmethod
+    def kw(cls, **kwargs) -> "ChoiceMap":
+        return ChoiceMap.d(kwargs)
+
+    ######################################
+    # Combinator methods #
+    ######################################
+
     def filter(self, selection: Selection) -> "ChoiceMap":
         """Filter the choice map on the `Selection`. The resulting choice map only contains the addresses in the selection.
 
@@ -547,14 +545,17 @@ class ChoiceMap(Sample, Constraint):
             print("y" in filtered)
             ```
         """
-        return choice_map_filtered(selection, self)
+        return _empty if self.static_is_empty() else FilteredChm(selection, self)
 
-    def merge(self, other):
-        return choice_map_xor(self, other)
+    def mask(self, f: Flag) -> "ChoiceMap":
+        return MaskChm.build(f, self)
+
+    def merge(self, other: "ChoiceMap") -> "ChoiceMap":
+        return self ^ other
 
     def get_selection(self) -> Selection:
         """Convert a `ChoiceMap` to a `Selection`."""
-        return select_choice_map(self)
+        return ChmSel(self)
 
     def static_is_empty(self) -> Bool:
         return False
@@ -563,11 +564,14 @@ class ChoiceMap(Sample, Constraint):
     # Dunders #
     ###########
 
-    def __xor__(self, other):
-        return self.merge(other)
+    def __xor__(self, other: "ChoiceMap") -> "ChoiceMap":
+        return XorChm.build(self, other)
 
-    def __add__(self, other):
-        return choice_map_or(self, other)
+    def __add__(self, other: "ChoiceMap") -> "ChoiceMap":
+        return OrChm.build(self, other)
+
+    def __or__(self, other):
+        return OrChm.build(self, other)
 
     def __call__(
         self,
@@ -601,46 +605,6 @@ class ChoiceMap(Sample, Constraint):
             submap = self.get_submap(comp)
         return submap.has_value()
 
-    ######################################
-    # Convenient syntax for construction #
-    ######################################
-
-    @classmethod
-    def empty(cls) -> "ChoiceMap":
-        return choice_map_empty
-
-    @classmethod
-    def value(cls, v) -> "ChoiceMap":
-        return choice_map_value(v)
-
-    @classmethod
-    def maybe(cls, f: Flag, c: "ChoiceMap") -> "ChoiceMap":
-        return choice_map_masked(f, c)
-
-    @classmethod
-    def str(cls, addr: StaticAddressComponent, v: Any) -> "ChoiceMap":
-        return choice_map_static(
-            addr, ChoiceMap.value(v) if not isinstance(v, ChoiceMap) else v
-        )
-
-    @classmethod
-    def idx(cls, addr: DynamicAddressComponent, v: Any) -> "ChoiceMap":
-        return choice_map_idx(
-            addr, ChoiceMap.value(v) if not isinstance(v, ChoiceMap) else v
-        )
-
-    @classmethod
-    def d(cls, d: dict[Any, Any]) -> "ChoiceMap":
-        start = ChoiceMap.empty()
-        if d:
-            for k, v in d.items():
-                start = ChoiceMapBuilder.a(k, v) ^ start
-        return start
-
-    @classmethod
-    def kw(cls, **kwargs) -> "ChoiceMap":
-        return ChoiceMap.d(kwargs)
-
     @property
     def at(self) -> AddressIndex:
         """Access the `ChoiceMap.AddressIndex` mutation interface. This allows
@@ -668,30 +632,28 @@ class EmptyChm(ChoiceMap):
         return True
 
 
-choice_map_empty = EmptyChm()
+_empty = EmptyChm()
 
 
 @Pytree.dataclass
-class ValueChm(ChoiceMap):
-    v: Any
+class ValueChm(Generic[T], ChoiceMap):
+    v: T
 
     def get_value(self) -> Any:
         return self.v
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        return choice_map_empty
-
-
-def choice_map_value(
-    v: Any,
-) -> ChoiceMap:
-    return ValueChm(v)
+        return _empty
 
 
 @Pytree.dataclass
 class IdxChm(ChoiceMap):
     addr: DynamicAddressComponent
     c: ChoiceMap
+
+    @classmethod
+    def build(cls, addr: DynamicAddressComponent, chm: ChoiceMap) -> ChoiceMap:
+        return _empty if chm.static_is_empty() else IdxChm(addr, chm)
 
     def get_value(self) -> Any:
         return None
@@ -701,7 +663,7 @@ class IdxChm(ChoiceMap):
             return self.c
 
         elif not isinstance(addr, DynamicAddressComponent):
-            return choice_map_empty
+            return _empty
 
         else:
 
@@ -715,19 +677,12 @@ class IdxChm(ChoiceMap):
             )
 
             return (
-                choice_map_masked(
+                MaskChm.build(
                     Flag(check[addr]), jtu.tree_map(lambda v: v[addr], self.c)
                 )
                 if jnp.array(check, copy=False).shape
-                else choice_map_masked(Flag(check), self.c)
+                else self.c.mask(Flag(check))
             )
-
-
-def choice_map_idx(
-    addr: DynamicAddressComponent,
-    c: ChoiceMap,
-) -> ChoiceMap:
-    return choice_map_empty if c.static_is_empty() else IdxChm(addr, c)
 
 
 @Pytree.dataclass
@@ -735,25 +690,42 @@ class StaticChm(ChoiceMap):
     addr: AddressComponent = Pytree.static()
     c: ChoiceMap = Pytree.field()
 
+    @classmethod
+    def build(
+        cls,
+        addr: AddressComponent,
+        c: ChoiceMap,
+    ) -> ChoiceMap:
+        return _empty if c.static_is_empty() else StaticChm(addr, c)
+
     def get_value(self) -> Any:
         return None
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         check = Flag(addr == self.addr)
-        return choice_map_masked(check, self.c)
-
-
-def choice_map_static(
-    addr: AddressComponent,
-    c: ChoiceMap,
-) -> ChoiceMap:
-    return choice_map_empty if c.static_is_empty() else StaticChm(addr, c)
+        return self.c.mask(check)
 
 
 @Pytree.dataclass
 class XorChm(ChoiceMap):
     c1: ChoiceMap
     c2: ChoiceMap
+
+    @classmethod
+    def build(
+        cls,
+        c1: ChoiceMap,
+        c2: ChoiceMap,
+    ) -> ChoiceMap:
+        match (c1.static_is_empty(), c2.static_is_empty()):
+            case True, True:
+                return _empty
+            case _, True:
+                return c1
+            case True, _:
+                return c2
+            case _:
+                return XorChm(c1, c2)
 
     def get_value(self) -> Any:
         check1 = self.c1.has_value()
@@ -775,28 +747,29 @@ class XorChm(ChoiceMap):
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         remaining_1 = self.c1.get_submap(addr)
         remaining_2 = self.c2.get_submap(addr)
-        return choice_map_xor(remaining_1, remaining_2)
-
-
-def choice_map_xor(
-    c1: ChoiceMap,
-    c2: ChoiceMap,
-) -> ChoiceMap:
-    match (c1.static_is_empty(), c2.static_is_empty()):
-        case True, True:
-            return choice_map_empty
-        case _, True:
-            return c1
-        case True, _:
-            return c2
-        case _:
-            return XorChm(c1, c2)
+        return remaining_1 ^ remaining_2
 
 
 @Pytree.dataclass
 class OrChm(ChoiceMap):
     c1: ChoiceMap
     c2: ChoiceMap
+
+    @classmethod
+    def build(
+        cls,
+        c1: ChoiceMap,
+        c2: ChoiceMap,
+    ) -> ChoiceMap:
+        match (c1.static_is_empty(), c2.static_is_empty()):
+            case True, True:
+                return _empty
+            case _, True:
+                return c1
+            case True, _:
+                return c2
+            case _:
+                return OrChm(c1, c2)
 
     def get_value(self) -> Any:
         check1 = self.c1.has_value()
@@ -815,22 +788,7 @@ class OrChm(ChoiceMap):
         submap1 = self.c1.get_submap(addr)
         submap2 = self.c2.get_submap(addr)
 
-        return choice_map_or(submap1, submap2)
-
-
-def choice_map_or(
-    c1: ChoiceMap,
-    c2: ChoiceMap,
-) -> ChoiceMap:
-    match (c1.static_is_empty(), c2.static_is_empty()):
-        case True, True:
-            return choice_map_empty
-        case _, True:
-            return c1
-        case True, _:
-            return c2
-        case _:
-            return OrChm(c1, c2)
+        return submap1 | submap2
 
 
 @Pytree.dataclass
@@ -838,28 +796,29 @@ class MaskChm(ChoiceMap):
     flag: Flag
     c: ChoiceMap
 
+    @classmethod
+    def build(
+        cls,
+        flag: Flag,
+        c: ChoiceMap,
+    ) -> ChoiceMap:
+        return (
+            c
+            if c.static_is_empty()
+            else c
+            if flag.concrete_true()
+            else _empty
+            if flag.concrete_false()
+            else MaskChm(flag, c)
+        )
+
     def get_value(self) -> Any:
         v = self.c.get_value()
         return Mask.maybe_none(self.flag, v)
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap = self.c.get_submap(addr)
-        return choice_map_masked(self.flag, submap)
-
-
-def choice_map_masked(
-    flag: Flag,
-    c: ChoiceMap,
-) -> ChoiceMap:
-    return (
-        c
-        if c.static_is_empty()
-        else c
-        if flag.concrete_true()
-        else choice_map_empty
-        if flag.concrete_false()
-        else MaskChm(flag, c)
-    )
+        return submap.mask(self.flag)
 
 
 @Pytree.dataclass
@@ -875,11 +834,4 @@ class FilteredChm(ChoiceMap):
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap = self.c.get_submap(addr)
         subselection = self.selection(addr)
-        return choice_map_filtered(subselection, submap)
-
-
-def choice_map_filtered(
-    selection: Selection,
-    c: ChoiceMap,
-) -> ChoiceMap:
-    return choice_map_empty if c.static_is_empty() else FilteredChm(selection, c)
+        return submap.filter(subselection)

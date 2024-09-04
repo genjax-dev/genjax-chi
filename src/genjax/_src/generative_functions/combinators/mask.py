@@ -60,7 +60,7 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     def get_sample(self):
         inner_sample = self.inner.get_sample()
         if isinstance(inner_sample, ChoiceMap):
-            return ChoiceMap.maybe(self.check, inner_sample)
+            return inner_sample.mask(self.check)
         else:
             return MaskedSample(self.check, self.inner.get_sample())
 
