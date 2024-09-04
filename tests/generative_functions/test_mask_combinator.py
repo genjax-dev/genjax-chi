@@ -21,6 +21,7 @@ from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import UpdateProblemBuilder as U
 from genjax._src.core.interpreters.staging import Flag
+from genjax._src.generative_functions.combinators.vmap import VmapTrace
 
 
 @genjax.mask
@@ -76,6 +77,26 @@ class TestMaskCombinator:
         )
         w = tr.update(key, argdiffs)[1]
         assert w == -tr.get_score()
+
+    def test_mask_vmap(self, key):
+        @genjax.gen
+        def init():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            return x
+
+        @genjax.gen
+        def model_2():
+            masks = jnp.array([True, False, True])
+            vmask_init = init.mask().vmap(in_axes=(0))(masks) @ "init"
+            return vmask_init
+
+        tr = model_2.simulate(key, ())
+        assert tr.get_score() == -3.1371737
+        vmap_tr = tr.get_subtrace(("init",))
+        assert isinstance(vmap_tr, VmapTrace)
+        inner_scores = vmap_tr.inner.get_score()
+        # score should be sum of sub-scores masked True
+        assert tr.get_score() == inner_scores[0] + inner_scores[2]
 
     @pytest.mark.skip(reason="This test is currently skipped")
     def test_mask_update_weight_to_argdiffs_from_false(self, key):

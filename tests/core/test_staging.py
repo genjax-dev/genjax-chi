@@ -52,15 +52,12 @@ class TestFlag:
             Flag(True),
             Flag(jnp.array(True)),
             Flag(jnp.array([True, True])),
-            Flag(jnp.array([3.0, 4.0])),
         ]
         false_flags = [
             Flag(False),
             Flag(jnp.array(False)),
             Flag(jnp.array([True, False])),
             Flag(jnp.array([False, False])),
-            Flag(jnp.array([0.0, 0.0])),
-            Flag(jnp.array([0.0, 1.0])),
         ]
         for t in true_flags:
             assert t

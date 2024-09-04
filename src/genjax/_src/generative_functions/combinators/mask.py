@@ -40,7 +40,6 @@ from genjax._src.core.typing import (
     Generic,
     PRNGKey,
     TypeVar,
-    typecheck,
 )
 
 R = TypeVar("R")
@@ -52,7 +51,7 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     inner: Trace[R]
     check: Flag
 
-    def get_args(self) -> tuple[Flag, ...]:
+    def get_args(self) -> tuple[Flag, Any]:
         return (self.check, *self.inner.get_args())
 
     def get_gen_fn(self):
@@ -69,7 +68,10 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
         return Mask(self.check, self.inner.get_retval())
 
     def get_score(self):
-        return jnp.asarray(self.check.where(self.inner.get_score(), jnp.array(0.0)))
+        inner_score = self.inner.get_score()
+        return jnp.asarray(
+            self.check.where(inner_score, jnp.zeros(shape=inner_score.shape))
+        )
 
 
 @Pytree.dataclass
@@ -113,7 +115,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
     gen_fn: GenerativeFunction[R]
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -123,7 +124,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         tr = self.gen_fn.simulate(key, inner_args)
         return MaskTrace(self, tr, Flag(check))
 
-    @typecheck
     def update_change_target(
         self,
         key: PRNGKey,
@@ -154,7 +154,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             MaskedProblem(check, bwd_problem),
         )
 
-    @typecheck
     def update_change_target_from_false(
         self,
         key: PRNGKey,
@@ -187,7 +186,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             MaskedProblem(check, bwd_problem),
         )
 
-    @typecheck
     def update(
         self,
         key: PRNGKey,
@@ -223,7 +221,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                     key, trace, update_problem, Diff.no_change(trace.get_args())
                 )
 
-    @typecheck
     def assess(
         self,
         sample: ChoiceMap,
@@ -242,7 +239,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 #############
 
 
-@typecheck
 def mask(f: GenerativeFunction[R]) -> MaskCombinator[R]:
     """
     Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.

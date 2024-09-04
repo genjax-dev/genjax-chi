@@ -30,7 +30,6 @@ from genjax._src.core.typing import (
     Generic,
     PRNGKey,
     TypeVar,
-    typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
 
@@ -214,7 +213,6 @@ class Algorithm(SampleDistribution):
 
 
 @Pytree.dataclass
-@typecheck
 class Marginal(Generic[R], SampleDistribution[R]):
     """The `Marginal` class represents the marginal distribution of a generative function over
     a selection of addresses. The return value type is a subtype of `Sample`.
@@ -224,7 +222,6 @@ class Marginal(Generic[R], SampleDistribution[R]):
     selection: Selection = Pytree.field(default=Selection.all())
     algorithm: Algorithm | None = Pytree.field(default=None)
 
-    @typecheck
     def random_weighted(
         self,
         key: PRNGKey,
@@ -248,7 +245,6 @@ class Marginal(Generic[R], SampleDistribution[R]):
 
             return (Z, latent_choices)
 
-    @typecheck
     def estimate_logpdf(
         self,
         key: PRNGKey,
@@ -269,7 +265,6 @@ class Marginal(Generic[R], SampleDistribution[R]):
 ################################
 
 
-@typecheck
 def marginal(
     selection: Selection = Selection.all(),
     algorithm: Algorithm | None = None,

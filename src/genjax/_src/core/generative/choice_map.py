@@ -35,7 +35,6 @@ from genjax._src.core.typing import (
     BoolArray,
     EllipsisType,
     String,
-    typecheck,
 )
 
 #################
@@ -49,9 +48,7 @@ Address = tuple[()] | tuple[AddressComponent, ...]
 StaticAddress = tuple[()] | tuple[StaticAddressComponent, ...]
 ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
 ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
-ExtendedStaticAddress = tuple[()] | tuple[ExtendedStaticAddressComponent, ...]
 ExtendedAddress = tuple[()] | tuple[ExtendedAddressComponent, ...]
-
 
 ##############
 # Selections #
@@ -133,7 +130,6 @@ class Selection(ProjectProblem):
     def __invert__(self) -> "Selection":
         return select_complement(self)
 
-    @typecheck
     def __call__(
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
@@ -144,7 +140,6 @@ class Selection(ProjectProblem):
             subselection = subselection.get_subselection(comp)
         return subselection
 
-    @typecheck
     def __getitem__(
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
@@ -152,7 +147,6 @@ class Selection(ProjectProblem):
         subselection = self(addr)
         return subselection.check()
 
-    @typecheck
     def __contains__(
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
@@ -172,22 +166,18 @@ class Selection(ProjectProblem):
     #################################################
 
     @classmethod
-    @typecheck
     def all(cls) -> "Selection":
         return select_all()
 
     @classmethod
-    @typecheck
     def str(cls, comp: ExtendedStaticAddressComponent, sel: "Selection") -> "Selection":
         return select_static(comp, sel)
 
     @classmethod
-    @typecheck
     def idx(cls, comp: DynamicAddressComponent, sel: "Selection") -> "Selection":
         return select_idx(comp, sel)
 
     @classmethod
-    @typecheck
     def maybe(cls, flag: Flag, s: "Selection") -> "Selection":
         return select_defer(flag, s)
 
@@ -224,7 +214,6 @@ class DeferSel(Selection):
         return select_defer(self.flag, remaining)
 
 
-@typecheck
 def select_defer(
     flag: Flag,
     s: Selection,
@@ -244,7 +233,6 @@ class CompSel(Selection):
         return select_complement(remaining)
 
 
-@typecheck
 def select_complement(
     s: Selection,
 ) -> Selection:
@@ -268,7 +256,6 @@ class StaticSel(Selection):
         return select_defer(check, self.s)
 
 
-@typecheck
 def select_static(
     addr: EllipsisType | StaticAddressComponent,
     s: Selection,
@@ -307,7 +294,6 @@ class IdxSel(Selection):
             return select_defer(check, self.s)
 
 
-@typecheck
 def select_idx(
     sidx: DynamicAddressComponent,
     s: Selection,
@@ -329,7 +315,6 @@ class AndSel(Selection):
         return select_and(remaining1, remaining2)
 
 
-@typecheck
 def select_and(
     s1: Selection,
     s2: Selection,
@@ -351,7 +336,6 @@ class OrSel(Selection):
         return select_or(remaining1, remaining2)
 
 
-@typecheck
 def select_or(
     s1: Selection,
     s2: Selection,
@@ -371,7 +355,6 @@ class ChmSel(Selection):
         return select_choice_map(submap)
 
 
-@typecheck
 def select_choice_map(
     c: "ChoiceMap",
 ) -> Selection:
@@ -392,7 +375,6 @@ class ChoiceMapNoValueAtAddress(Exception):
 class _ChoiceMapBuilder(Pytree):
     addr: ExtendedAddress = ()
 
-    @typecheck
     def __getitem__(
         self, addr: ExtendedAddressComponent | ExtendedAddress
     ) -> "_ChoiceMapBuilder":
@@ -419,7 +401,6 @@ class _ChoiceMapBuilder(Pytree):
     def kw(self, **kwargs) -> "ChoiceMap":
         return ChoiceMap.kw(**kwargs)
 
-    @typecheck
     def a(
         self, addr: ExtendedAddressComponent | ExtendedAddress, v: Any
     ) -> "ChoiceMap":
@@ -443,6 +424,39 @@ def check_none(v) -> Flag:
         return v.flag
     else:
         return Flag(True)
+
+
+##########################
+# AddressIndex interface #
+##########################
+
+
+@Pytree.dataclass
+class AddressIndex(Pytree):
+    choice_map: "ChoiceMap"
+    addrs: list[Address]
+
+    def __getitem__(self, addr: AddressComponent | Address) -> "AddressIndex":
+        addr = addr if isinstance(addr, tuple) else (addr,)
+        return AddressIndex(
+            self.choice_map,
+            [*self.addrs, addr],
+        )
+
+    def set(self, v):
+        new = self.choice_map
+        for addr in self.addrs:
+            new = ChoiceMapBuilder.a(addr, v) + new
+        return new
+
+    @property
+    def at(self) -> "AddressIndex":
+        return self
+
+    def filter(self):
+        sels = map(lambda addr: SelectionBuilder[addr], self.addrs)
+        or_sel = reduce(or_, sels)
+        return self.choice_map.filter(or_sel)
 
 
 class ChoiceMap(Sample, Constraint):
@@ -504,11 +518,9 @@ class ChoiceMap(Sample, Constraint):
     ) -> "ChoiceMap":
         raise NotImplementedError
 
-    @typecheck
     def has_value(self) -> Flag:
         return check_none(self.get_value())
 
-    @typecheck
     def filter(self, selection: Selection) -> "ChoiceMap":
         """Filter the choice map on the `Selection`. The resulting choice map only contains the addresses in the selection.
 
@@ -544,7 +556,6 @@ class ChoiceMap(Sample, Constraint):
         """Convert a `ChoiceMap` to a `Selection`."""
         return select_choice_map(self)
 
-    @typecheck
     def static_is_empty(self) -> Bool:
         return False
 
@@ -558,7 +569,6 @@ class ChoiceMap(Sample, Constraint):
     def __add__(self, other):
         return choice_map_or(self, other)
 
-    @typecheck
     def __call__(
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
@@ -569,7 +579,6 @@ class ChoiceMap(Sample, Constraint):
             submap = submap.get_submap(comp)
         return submap
 
-    @typecheck
     def __getitem__(
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
@@ -582,7 +591,6 @@ class ChoiceMap(Sample, Constraint):
         else:
             return v
 
-    @typecheck
     def __contains__(
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
@@ -633,39 +641,6 @@ class ChoiceMap(Sample, Constraint):
     def kw(cls, **kwargs) -> "ChoiceMap":
         return ChoiceMap.d(kwargs)
 
-    ##########################
-    # AddressIndex interface #
-    ##########################
-
-    @Pytree.dataclass
-    class AddressIndex(Pytree):
-        choice_map: "ChoiceMap"
-        addrs: list[Address]
-
-        def __getitem__(
-            self, addr: AddressComponent | Address
-        ) -> "ChoiceMap.AddressIndex":
-            addr = addr if isinstance(addr, tuple) else (addr,)
-            return ChoiceMap.AddressIndex(
-                self.choice_map,
-                [*self.addrs, addr],
-            )
-
-        def set(self, v):
-            new = self.choice_map
-            for addr in self.addrs:
-                new = ChoiceMapBuilder.a(addr, v) + new
-            return new
-
-        @property
-        def at(self) -> "ChoiceMap.AddressIndex":
-            return self
-
-        def filter(self):
-            sels = map(lambda addr: SelectionBuilder[addr], self.addrs)
-            or_sel = reduce(or_, sels)
-            return self.choice_map.filter(or_sel)
-
     @property
     def at(self) -> AddressIndex:
         """Access the `ChoiceMap.AddressIndex` mutation interface. This allows
@@ -678,7 +653,7 @@ class ChoiceMap(Sample, Constraint):
         print(chm["x", "y"])
         ```
         """
-        return ChoiceMap.AddressIndex(self, [])
+        return AddressIndex(self, [])
 
 
 @Pytree.dataclass
@@ -707,7 +682,6 @@ class ValueChm(ChoiceMap):
         return choice_map_empty
 
 
-@typecheck
 def choice_map_value(
     v: Any,
 ) -> ChoiceMap:
@@ -749,7 +723,6 @@ class IdxChm(ChoiceMap):
             )
 
 
-@typecheck
 def choice_map_idx(
     addr: DynamicAddressComponent,
     c: ChoiceMap,
@@ -770,7 +743,6 @@ class StaticChm(ChoiceMap):
         return choice_map_masked(check, self.c)
 
 
-@typecheck
 def choice_map_static(
     addr: AddressComponent,
     c: ChoiceMap,
@@ -806,7 +778,6 @@ class XorChm(ChoiceMap):
         return choice_map_xor(remaining_1, remaining_2)
 
 
-@typecheck
 def choice_map_xor(
     c1: ChoiceMap,
     c2: ChoiceMap,
@@ -847,7 +818,6 @@ class OrChm(ChoiceMap):
         return choice_map_or(submap1, submap2)
 
 
-@typecheck
 def choice_map_or(
     c1: ChoiceMap,
     c2: ChoiceMap,
@@ -877,7 +847,6 @@ class MaskChm(ChoiceMap):
         return choice_map_masked(self.flag, submap)
 
 
-@typecheck
 def choice_map_masked(
     flag: Flag,
     c: ChoiceMap,
@@ -909,7 +878,6 @@ class FilteredChm(ChoiceMap):
         return choice_map_filtered(subselection, submap)
 
 
-@typecheck
 def choice_map_filtered(
     selection: Selection,
     c: ChoiceMap,

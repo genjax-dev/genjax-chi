@@ -43,7 +43,6 @@ from genjax._src.core.typing import (
     Generic,
     InAxes,
     PRNGKey,
-    typecheck,
 )
 
 
@@ -160,7 +159,6 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             raise ValueError(f"Inconsistent batch axis sizes: {axis_sizes}")
         return d_axis_size
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
@@ -236,7 +234,6 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         map_tr = VmapTrace(self, new_subtraces, primals, retval, jnp.sum(scores))
         return map_tr, w, retdiff, bwd_problems
 
-    @typecheck
     def update_change_target(
         self,
         key: PRNGKey,
@@ -259,7 +256,6 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             case _:
                 raise Exception(f"Not implemented problem: {update_problem}")
 
-    @typecheck
     def update(
         self,
         key: PRNGKey,
@@ -274,7 +270,6 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
                     key, trace, update_problem, Diff.no_change(trace.get_args())
                 )
 
-    @typecheck
     def assess(
         self,
         sample: ChoiceMap,

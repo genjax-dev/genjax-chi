@@ -29,7 +29,6 @@ from genjax._src.core.typing import (
     Int,
     TypeVar,
     static_check_is_concrete,
-    typecheck,
 )
 
 R = TypeVar("R")
@@ -179,7 +178,6 @@ class Sum(Generic[R], Pytree):
     """
 
     @classmethod
-    @typecheck
     def maybe(
         cls,
         idx: ArrayLike | Diff[Any],
@@ -192,7 +190,6 @@ class Sum(Generic[R], Pytree):
         )
 
     @classmethod
-    @typecheck
     def maybe_none(
         cls,
         idx: ArrayLike | Diff[Any],
@@ -216,6 +213,5 @@ class Sum(Generic[R], Pytree):
         else:
             return self
 
-    @typecheck
     def __getitem__(self, idx: Int):
         return Mask.maybe_none(Flag(idx == self.idx), self.values[idx])

@@ -3,7 +3,7 @@ name = "genjax"
 
 # Leave this at 0.0.0; this key can't be missing, but it's subbed out
 # dynamically by `poetry.dynamic-versioning`.
-version = "0.5.1"
+version = "0.0.0"
 
 description = "Probabilistic programming with Gen, built on top of JAX."
 authors = [
@@ -104,6 +104,13 @@ omit = [".*", "*/site-packages/*"]
 show_missing = true
 fail_under = 45
 
+[tool.vulture]
+paths = ["src"]
+ignore_names = ["cls"]
+exclude = ["*/.ipynb_checkpoints/*"]
+min_confidence = 70
+sort_by_size = true
+
 [tool.pyright]
 pythonVersion = "3.11"
 venvPath = "."
@@ -114,15 +121,18 @@ include = ["src", "tests"]
 #       typecheck doesn't see noxfiles's import of nox
 exclude = ["**/__pycache__", "noxfile.py", "src/genjax/_src/inference/*.py", "src/genjax/_src/core/serialization/msgpack.py"]
 defineConstant = { DEBUG = true }
-typeCheckingMode = "standard"
-reportMatchNotExhaustive = true
-reportMissingImports = true
-reportMissingTypeArgument = true
-reportInvalidTypeVarUse = "error"
-reportMissingTypeStubs = false
-analyzeUnannotatedFunctions = true
-strictParameterNoneValue = true
+typeCheckingMode = "strict"
 deprecateTypingAliases = true
+
+# `strict` sets all of these to error; these remaining `none` entries are tests that we can't yet
+# pass.
+reportMissingTypeStubs = "none"
+reportMissingParameterType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownLambdaType = "none"
+reportUnknownMemberType = "none"
+reportUnknownParameterType = "none"
+reportUnknownVariableType = "none"
 
 [tool.ruff]
 exclude = [
@@ -182,7 +192,7 @@ show_error_codes = true
 show_error_context = true
 
 [tool.poetry-dynamic-versioning]
-enable = false
+enable = true
 vcs = "git"
 style = "pep440"
 
