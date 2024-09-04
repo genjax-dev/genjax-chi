@@ -22,7 +22,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.generative.core import Constraint, ProjectProblem, Sample
-from genjax._src.core.generative.functional_types import Mask, Sum
+from genjax._src.core.generative.functional_types import Mask, staged_maybe_choose
 from genjax._src.core.interpreters.staging import (
     Flag,
     staged_err,
@@ -773,7 +773,7 @@ class XorChm(ChoiceMap):
         if isinstance(idx, int):
             return [v1, v2][idx]
         else:
-            return Sum.maybe_none(idx, [v1, v2])
+            return staged_maybe_choose(idx, [v1, v2])
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         remaining_1 = self.c1.get_submap(addr)
@@ -815,7 +815,7 @@ class OrChm(ChoiceMap):
         if isinstance(idx, int):
             return [v1, v2][idx]
         else:
-            return Sum.maybe_none(idx, [v1, v2])
+            return staged_maybe_choose(idx, [v1, v2])
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap1 = self.c1.get_submap(addr)

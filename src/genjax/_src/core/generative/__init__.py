@@ -50,7 +50,7 @@ from .core import (
     UpdateProblemBuilder,
     Weight,
 )
-from .functional_types import Mask, Sum
+from .functional_types import Mask
 
 __all__ = [
     "Address",
@@ -83,7 +83,6 @@ __all__ = [
     "SelectionBuilder",
     "StaticAddress",
     "StaticAddressComponent",
-    "Sum",
     "SumConstraint",
     "SumProblem",
     "Trace",

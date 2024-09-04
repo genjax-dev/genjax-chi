@@ -104,42 +104,38 @@ class Mask(Generic[R], Pytree):
         return self.value
 
 
-class Sum:
-    @classmethod
-    def maybe(
-        cls,
-        idx: ArrayLike | Diff[ArrayLike],
-        vs: list[R],
-    ) -> R:
-        primal_idx: ArrayLike = Diff.tree_primal(idx)
+def staged_choose(
+    idx: ArrayLike | Diff[ArrayLike],
+    vs: list[R],
+) -> R:
+    primal_idx: ArrayLike = Diff.tree_primal(idx)
 
-        def choose(*vs):
-            # Computing `result` above the branch allows us to:
-            # - catch incompatible types / shapes in the result
-            # - in the case of compatible types requiring casts (like bool => int),
-            #   result's dtype tells us the final type.
-            result = jnp.choose(primal_idx, vs, mode="wrap")
-            if isinstance(idx, Int):
-                return jnp.asarray(vs[idx], dtype=result.dtype)
-            else:
-                return result
-
-        return tree_map(choose, *vs)
-
-    @classmethod
-    def maybe_none(
-        cls,
-        idx: ArrayLike | Diff[ArrayLike],
-        vs: list[R],
-    ) -> R | None:
-        primal_idx: ArrayLike = Diff.tree_primal(idx)
-
-        possibles: list[R | Mask[R] | None] = []
-
-        for _idx, v in enumerate(vs):
-            if v is not None:
-                possibles.append(Mask.maybe_none(Flag(primal_idx == _idx), v))
-        if not possibles:
-            return None
+    def inner(*vs):
+        # Computing `result` above the branch allows us to:
+        # - catch incompatible types / shapes in the result
+        # - in the case of compatible types requiring casts (like bool => int),
+        #   result's dtype tells us the final type.
+        result = jnp.choose(primal_idx, vs, mode="wrap")
+        if isinstance(idx, Int):
+            return jnp.asarray(vs[idx], dtype=result.dtype)
         else:
-            return Sum.maybe(idx, vs)
+            return result
+
+    return tree_map(inner, *vs)
+
+
+def staged_maybe_choose(
+    idx: ArrayLike | Diff[ArrayLike],
+    vs: list[R],
+) -> R | None:
+    primal_idx: ArrayLike = Diff.tree_primal(idx)
+
+    possibles: list[R | Mask[R] | None] = []
+
+    for _idx, v in enumerate(vs):
+        if v is not None:
+            possibles.append(Mask.maybe_none(Flag(primal_idx == _idx), v))
+    if not possibles:
+        return None
+    else:
+        return staged_choose(idx, vs)

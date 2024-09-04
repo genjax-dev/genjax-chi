@@ -27,12 +27,12 @@ from genjax._src.core.generative import (
     Retdiff,
     Sample,
     Score,
-    Sum,
     SumProblem,
     Trace,
     UpdateProblem,
     Weight,
 )
+from genjax._src.core.generative.functional_types import staged_choose
 from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
 from genjax._src.core.interpreters.staging import Flag, get_data_shape
 from genjax._src.core.pytree import Pytree
@@ -168,7 +168,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             branch_args = args[_idx]
             retval = branch_gen_fn.__abstract_call__(*branch_args)
             retvals.append(retval)
-        return Sum.maybe(idx, retvals)
+        return staged_choose(idx, retvals)
 
     def static_check_num_arguments_equals_num_branches(self, args):
         assert len(args) == len(self.branches)
@@ -242,7 +242,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
                 range(len(retval_leaves)),
             )
         )
-        retval: R = Sum.maybe(idx, retvals)
+        retval: R = staged_choose(idx, retvals)
         return SwitchTrace(self, args, subtraces, retval, score)
 
     def _empty_update_defs(
@@ -440,7 +440,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
                 range(len(bwd_problem_leaves)),
             )
         )
-        retdiff: R = Sum.maybe(idx_argdiff, retdiffs)
+        retdiff: R = staged_choose(idx_argdiff, retdiffs)
         retval: R = Diff.tree_primal(retdiff)
         if Diff.tree_tangent(idx_argdiff) == UnknownChange:
             w = w + (score - trace.get_score())
@@ -583,7 +583,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
                 range(len(bwd_problem_leaves)),
             )
         )
-        retval = Sum.maybe(idx, retvals)
+        retval = staged_choose(idx, retvals)
         return (
             SwitchTrace(self, args, subtraces, retval, score),
             w,
@@ -670,7 +670,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
                 range(len(retval_leaves)),
             )
         )
-        retval: R = Sum.maybe(idx, retvals)
+        retval: R = staged_choose(idx, retvals)
         return score, retval
 
 
