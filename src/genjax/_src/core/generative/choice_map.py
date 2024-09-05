@@ -736,20 +736,23 @@ def check_none(v: Any | Mask[Any] | None) -> Flag:
 @Pytree.dataclass
 class AddressIndex(Pytree):
     choice_map: "ChoiceMap"
-    addrs: list[Address]
+    addrs: list[ExtendedAddressComponent]
 
-    def __getitem__(self, addr: AddressComponent | Address) -> "AddressIndex":
+    def __getitem__(
+        self, addr: ExtendedAddressComponent | ExtendedAddress
+    ) -> "AddressIndex":
         addr = addr if isinstance(addr, tuple) else (addr,)
         return AddressIndex(
             self.choice_map,
-            [*self.addrs, addr],
+            [*self.addrs, *addr],
         )
 
-    def set(self, v):
-        new = self.choice_map
-        for addr in self.addrs:
-            new = ChoiceMapBuilder.a(addr, v) + new
-        return new
+    def set(self, v) -> "ChoiceMap":
+        # TODO add a test that shows that if you set over an existing address, you do in fact stomp it (the new v is preferred)
+        return ChoiceMap.idx(v, *self.addrs) + self.choice_map
+
+
+#
 
 
 class ChoiceMap(Sample, Constraint):
