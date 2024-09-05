@@ -139,8 +139,10 @@ class Selection(ProjectProblem):
 
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
+            from genjax import Selection
+
             all_selection = Selection.all()
-            assert all_selection["any_address"] == True
+            assert all_selection["any_address"].f == True
             ```
         """
         return AllSel()
@@ -159,7 +161,7 @@ class Selection(ProjectProblem):
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             none_selection = Selection.none()
-            assert none_selection["any_address"] == False
+            assert none_selection["any_address"].f == False
             ```
         """
         return ~cls.all()
@@ -193,12 +195,15 @@ class Selection(ProjectProblem):
 
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
+            from genjax import Selection
+            from genjax._src.core.interpreters.staging import Flag
+
             base_selection = Selection.all()
             maybe_selection = base_selection.maybe(Flag(True))
-            assert maybe_selection["any_address"] == True
+            assert maybe_selection["any_address"].f == True
 
             maybe_selection = base_selection.maybe(Flag(False))
-            assert maybe_selection["any_address"] == False
+            assert maybe_selection["any_address"].f == False
             ```
         """
         return DeferSel(self, flag)
@@ -221,8 +226,8 @@ class Selection(ProjectProblem):
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             base_selection = Selection.all()
             indexed_selection = base_selection.indexed("x")
-            assert indexed_selection["x"]["any_subaddress"] == True
-            assert indexed_selection["y"].check() == False
+            assert indexed_selection["x", "any_subaddress"].f == True
+            assert indexed_selection["y"].f == False
             ```
         """
         if isinstance(addr, ExtendedStaticAddressComponent):
@@ -278,9 +283,7 @@ class AllSel(Selection):
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         all_sel = Selection.all()
-        assert all_sel.check() == True
-        assert all_sel["any_address"] == True
-        assert isinstance(all_sel("any_address"), AllSel)
+        assert all_sel["any_address"].f == True
         ```
     """
 
@@ -308,11 +311,11 @@ class DeferSel(Selection):
         base_sel = Selection.all()
         flag = Flag(True)
         defer_sel = base_sel.maybe(flag)
-        assert defer_sel.check() == True
+        assert defer_sel.check().f == True
 
         flag = Flag(False)
         defer_sel = base_sel.maybe(flag)
-        assert defer_sel.check() == False
+        assert defer_sel.check().f == False
         ```
     """
 
@@ -341,14 +344,16 @@ class ComplementSel(Selection):
 
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
+        from genjax import SelectionBuilder
+
         base_sel = Selection.all()
         comp_sel = ~base_sel
-        assert comp_sel.check() == False
+        assert comp_sel.check().f == False
 
         specific_sel = SelectionBuilder["x", "y"]
         comp_specific = ~specific_sel
-        assert comp_specific["x", "y"] == False
-        assert comp_specific["z"] == True
+        assert comp_specific["x", "y"].f == False
+        assert comp_specific["z"].f == True
         ```
     """
 
@@ -377,9 +382,9 @@ class StaticSel(Selection):
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         static_sel = Selection.all().indexed("x")
-        assert static_sel.check() == False
-        assert static_sel.get_subselection("x").check() == True
-        assert static_sel.get_subselection("y").check() == False
+        assert static_sel.check().f == False
+        assert static_sel.get_subselection("x").check().f == True
+        assert static_sel.get_subselection("y").check().f == False
         ```
     """
 
@@ -411,9 +416,9 @@ class IdxSel(Selection):
         import jax.numpy as jnp
 
         idx_sel = Selection.all().indexed(jnp.array([1, 2, 3]))
-        assert idx_sel.check() == False
-        assert idx_sel.get_subselection(2).check() == True
-        assert idx_sel.get_subselection(4).check() == False
+        assert idx_sel.check().f == False
+        assert idx_sel.get_subselection(2).check().f == True
+        assert idx_sel.get_subselection(4).check().f == False
         ```
     """
 
@@ -459,12 +464,13 @@ class AndSel(Selection):
 
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
-        sel1 = Selection.all().indexed("x")
-        sel2 = Selection.all().indexed("y")
+        sel1 = Selection.all().indexed("y").indexed("x")
+        sel2 = Selection.all().indexed("y").indexed("x")
         and_sel = sel1 & sel2
-        assert and_sel["x", "y"] == True
-        assert and_sel["x"] == False
-        assert and_sel["y"] == False
+
+        assert and_sel["x", "y"].f == True
+        assert sel1["x"].f == False
+        assert sel2["y"].f == False
         ```
     """
 
@@ -496,10 +502,11 @@ class OrSel(Selection):
         sel1 = Selection.all().indexed("x")
         sel2 = Selection.all().indexed("y")
         or_sel = sel1 | sel2
-        assert or_sel["x", "y"] == True
-        assert or_sel["x"] == True
-        assert or_sel["y"] == True
-        assert or_sel["z"] == False
+
+        assert or_sel["x", "y"].f == True
+        assert or_sel["x"].f == True
+        assert or_sel["y"].f == True
+        assert or_sel["z"].f == False
         ```
     """
 
@@ -531,9 +538,9 @@ class ChmSel(Selection):
 
         chm = C["x", "y"].set(3.0) ^ C["z"].set(5.0)
         sel = chm.get_selection()
-        assert sel["x", "y"] == True
-        assert sel["z"] == True
-        assert sel["w"] == False
+        assert sel["x", "y"].f == True
+        assert sel["z"].f == True
+        assert sel["w"].f == False
         ```
     """
 
@@ -585,6 +592,8 @@ class _ChoiceMapBuilder(Pytree):
 
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
+            from genjax import ChoiceMapBuilder
+
             chm = ChoiceMapBuilder["x", "y"].set(42)
             assert chm["x", "y"] == 42
             ```
@@ -647,8 +656,8 @@ class _ChoiceMapBuilder(Pytree):
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             chm = ChoiceMapBuilder.d({"x": 1, "y": 2})
-            assert chm["x"].get_value() == 1
-            assert chm["y"].get_value() == 2
+            assert chm["x"] == 1
+            assert chm["y"] == 2
             ```
         """
         return ChoiceMap.d(d)
@@ -670,8 +679,8 @@ class _ChoiceMapBuilder(Pytree):
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             chm = ChoiceMapBuilder.kw(x=1, y=2)
-            assert chm["x"].get_value() == 1
-            assert chm["y"].get_value() == 2
+            assert chm["x"] == 1
+            assert chm["y"] == 2
             ```
         """
         return ChoiceMap.kw(**kwargs)
@@ -696,10 +705,10 @@ class _ChoiceMapBuilder(Pytree):
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             chm = ChoiceMapBuilder.a("x", 1)
-            assert chm["x"].get_value() == 1
+            assert chm["x"] == 1
 
             nested_chm = ChoiceMapBuilder.a(("x", "y"), 2)
-            assert nested_chm["x"]["y"].get_value() == 2
+            assert nested_chm["x"]["y"] == 2
             ```
         """
         addr = addr if isinstance(addr, tuple) else (addr,)
