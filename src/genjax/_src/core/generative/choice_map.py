@@ -564,44 +564,28 @@ class ChoiceMapNoValueAtAddress(Exception):
     subaddr: ExtendedAddressComponent | ExtendedAddress
 
 
-@Pytree.dataclass
-class _ChoiceMapBuilder(Pytree):
-    addr: ExtendedAddress = ()
+##########################
+# AddressIndex interface #
+##########################
+
+
+@dataclass
+class _ChoiceMapBuilder:
+    choice_map: "ChoiceMap"
+    addrs: list[ExtendedAddressComponent]
 
     def __getitem__(
         self, addr: ExtendedAddressComponent | ExtendedAddress
     ) -> "_ChoiceMapBuilder":
         addr = addr if isinstance(addr, tuple) else (addr,)
         return _ChoiceMapBuilder(
-            addr,
+            self.choice_map,
+            [*self.addrs, *addr],
         )
 
     def set(self, v) -> "ChoiceMap":
-        """
-        Creates a ChoiceMap with a value at the specified address.
-
-        This method constructs a ChoiceMap by setting a value at the address
-        specified in the builder. If no address is specified, it creates a
-        ChoiceMap with just the value.
-
-        Args:
-            v: The value to be stored in the ChoiceMap.
-
-        Returns:
-            A new ChoiceMap containing the value at the specified address.
-
-        Example:
-            ```python exec="yes" html="true" source="material-block" session="choicemap"
-            from genjax import ChoiceMapBuilder
-
-            chm = ChoiceMapBuilder["x", "y"].set(42)
-            assert chm["x", "y"] == 42
-            ```
-        """
-        if self.addr:
-            return self.a(self.addr, v)
-        else:
-            return _empty
+        # TODO add a test that shows that if you set over an existing address, you do in fact stomp it (the new v is preferred)
+        return ChoiceMap.idx(v, *self.addrs) + self.choice_map
 
     def n(self) -> "ChoiceMap":
         """
@@ -716,9 +700,6 @@ class _ChoiceMapBuilder(Pytree):
         return ChoiceMap.idx(v, *addrs)
 
 
-ChoiceMapBuilder = _ChoiceMapBuilder()
-
-
 def check_none(v: Any | Mask[Any] | None) -> Flag:
     if v is None:
         return Flag(False)
@@ -726,33 +707,6 @@ def check_none(v: Any | Mask[Any] | None) -> Flag:
         return v.flag
     else:
         return Flag(True)
-
-
-##########################
-# AddressIndex interface #
-##########################
-
-
-@Pytree.dataclass
-class AddressIndex(Pytree):
-    choice_map: "ChoiceMap"
-    addrs: list[ExtendedAddressComponent]
-
-    def __getitem__(
-        self, addr: ExtendedAddressComponent | ExtendedAddress
-    ) -> "AddressIndex":
-        addr = addr if isinstance(addr, tuple) else (addr,)
-        return AddressIndex(
-            self.choice_map,
-            [*self.addrs, *addr],
-        )
-
-    def set(self, v) -> "ChoiceMap":
-        # TODO add a test that shows that if you set over an existing address, you do in fact stomp it (the new v is preferred)
-        return ChoiceMap.idx(v, *self.addrs) + self.choice_map
-
-
-#
 
 
 class ChoiceMap(Sample, Constraint):
@@ -1134,7 +1088,7 @@ class ChoiceMap(Sample, Constraint):
         return submap.has_value()
 
     @property
-    def at(self) -> AddressIndex:
+    def at(self) -> _ChoiceMapBuilder:
         """Access the `ChoiceMap.AddressIndex` mutation interface. This allows users to take an existing choice map, and mutate it _functionally_.
 
         Examples:
@@ -1144,7 +1098,7 @@ class ChoiceMap(Sample, Constraint):
             print(chm["x", "y"])
             ```
         """
-        return AddressIndex(self, [])
+        return _ChoiceMapBuilder(self, [])
 
 
 @Pytree.dataclass
@@ -1175,6 +1129,7 @@ class EmptyChm(ChoiceMap):
 
 
 _empty = EmptyChm()
+ChoiceMapBuilder = _ChoiceMapBuilder(_empty, [])
 
 
 @Pytree.dataclass
