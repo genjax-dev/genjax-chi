@@ -687,6 +687,7 @@ class _ChoiceMapBuilder(Pytree):
         """
         return ChoiceMap.kw(**kwargs)
 
+    # TODO deprecate this!
     def a(
         self, addr: ExtendedAddressComponent | ExtendedAddress, v: Any
     ) -> "ChoiceMap":
