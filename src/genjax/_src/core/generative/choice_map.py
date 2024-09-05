@@ -217,7 +217,7 @@ class Selection(ProjectProblem):
         address components.
 
         Args:
-            addr: The address component under which to nest the selection.
+            addrs: The address components under which to nest the selection.
 
         Returns:
             A new Selection extended by the given address component.
@@ -743,7 +743,7 @@ class ChoiceMap(Sample, Constraint):
 
         Args:
             v: The value to be stored in the ChoiceMap. Can be any value or a ChoiceMap.
-            addr: The address at which to store the value. Can be a static or dynamic address component.
+            addrs: The address at which to store the value. Can be a static or dynamic address component.
 
         Returns:
             A ChoiceMap with the value stored at the specified address.
