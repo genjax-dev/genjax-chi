@@ -65,3 +65,7 @@ div.treescope_root {
   width: fit-content;
   display: block;
 }
+
+.fl {
+  float: none !important;
+}
