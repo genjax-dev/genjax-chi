@@ -102,7 +102,7 @@ class StaticTrace(Generic[R], Trace[R]):
         addresses = self.addresses.get_visited()
         chm = ChoiceMap.empty()
         for addr, subtrace in zip(addresses, self.subtraces):
-            chm = chm ^ ChoiceMapBuilder.a(addr, subtrace.get_sample())
+            chm = chm ^ subtrace.get_choices().extend(*addr)
 
         return chm
 

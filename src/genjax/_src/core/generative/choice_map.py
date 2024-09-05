@@ -564,15 +564,13 @@ class ChoiceMapNoValueAtAddress(Exception):
     subaddr: ExtendedAddressComponent | ExtendedAddress
 
 
-##########################
-# AddressIndex interface #
-##########################
-
-
-@dataclass
 class _ChoiceMapBuilder:
     choice_map: "ChoiceMap"
     addrs: list[ExtendedAddressComponent]
+
+    def __init__(self, choice_map: "ChoiceMap", addrs: list[ExtendedAddressComponent]):
+        self.choice_map = choice_map
+        self.addrs = addrs
 
     def __getitem__(
         self, addr: ExtendedAddressComponent | ExtendedAddress
@@ -603,101 +601,19 @@ class _ChoiceMapBuilder:
         return _empty
 
     def v(self, v) -> "ChoiceMap":
-        """
-        Creates a ChoiceMap with a single value.
-
-        This method constructs a ChoiceMap containing a single value. It's a convenient
-        way to create a ChoiceMap with a single entry without specifying an address.
-
-        Args:
-            v: The value to be stored in the ChoiceMap.
-
-        Returns:
-            A new ChoiceMap containing the single value.
-
-        Example:
-            ```python exec="yes" html="true" source="material-block" session="choicemap"
-            chm = ChoiceMapBuilder.v(42)
-            assert chm.get_value() == 42
-            ```
-        """
-        return ChoiceMap.value(v)
+        return self.set(ChoiceMap.value(v))
 
     def d(self, d: dict[Any, Any]) -> "ChoiceMap":
-        """
-        Creates a ChoiceMap from a dictionary.
-
-        This method constructs a ChoiceMap by iterating through the key-value pairs
-        of the provided dictionary. Each key-value pair is converted into a ChoiceMap
-        entry, where the key becomes the address and the value becomes the choice.
-
-        Args:
-            d: A dictionary where keys are addresses and values are choices.
-
-        Returns:
-            A new ChoiceMap containing the entries from the dictionary.
-
-        Example:
-            ```python exec="yes" html="true" source="material-block" session="choicemap"
-            chm = ChoiceMapBuilder.d({"x": 1, "y": 2})
-            assert chm["x"] == 1
-            assert chm["y"] == 2
-            ```
-        """
-        return ChoiceMap.d(d)
+        return self.set(ChoiceMap.d(d))
 
     def kw(self, **kwargs) -> "ChoiceMap":
-        """
-        Creates a ChoiceMap from keyword arguments.
-
-        This method constructs a ChoiceMap by using the keyword arguments provided.
-        Each keyword argument becomes an entry in the ChoiceMap, where the argument
-        name is the address and the argument value is the choice.
-
-        Args:
-            **kwargs: Arbitrary keyword arguments where keys are addresses and values are choices.
-
-        Returns:
-            A new ChoiceMap containing the entries from the keyword arguments.
-
-        Example:
-            ```python exec="yes" html="true" source="material-block" session="choicemap"
-            chm = ChoiceMapBuilder.kw(x=1, y=2)
-            assert chm["x"] == 1
-            assert chm["y"] == 2
-            ```
-        """
-        return ChoiceMap.kw(**kwargs)
+        return self.set(ChoiceMap.kw(**kwargs))
 
     # TODO deprecate this!
     def a(
         self, addr: ExtendedAddressComponent | ExtendedAddress, v: Any
     ) -> "ChoiceMap":
-        """
-        Creates a ChoiceMap with a single address-value pair.
-
-        This method constructs a ChoiceMap containing a single entry with the specified
-        address and value. If the value is already a ChoiceMap, it is used directly;
-        otherwise, it is wrapped in a ChoiceMap.
-
-        Args:
-            addr: The address for the choice. Can be a single address component or a tuple of components.
-            v: The value to associate with the address. If it's not a ChoiceMap, it will be wrapped in one.
-
-        Returns:
-            A new ChoiceMap containing the single address-value pair.
-
-        Example:
-            ```python exec="yes" html="true" source="material-block" session="choicemap"
-            chm = ChoiceMapBuilder.a("x", 1)
-            assert chm["x"] == 1
-
-            nested_chm = ChoiceMapBuilder.a(("x", "y"), 2)
-            assert nested_chm["x"]["y"] == 2
-            ```
-        """
-        addrs = addr if isinstance(addr, tuple) else (addr,)
-        return ChoiceMap.idx(v, *addrs)
+        return self[addr].set(v)
 
 
 def check_none(v: Any | Mask[Any] | None) -> Flag:
@@ -874,7 +790,7 @@ class ChoiceMap(Sample, Constraint):
         start = ChoiceMap.empty()
         if d:
             for k, v in d.items():
-                start = ChoiceMapBuilder.a(k, v) ^ start
+                start = ChoiceMap.idx(v, k) ^ start
         return start
 
     @classmethod
