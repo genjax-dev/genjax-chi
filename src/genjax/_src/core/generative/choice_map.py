@@ -23,10 +23,7 @@ import jax.tree_util as jtu
 
 from genjax._src.core.generative.core import Constraint, ProjectProblem, Sample
 from genjax._src.core.generative.functional_types import Mask, staged_choose
-from genjax._src.core.interpreters.staging import (
-    Flag,
-    staged_err,
-)
+from genjax._src.core.interpreters.staging import Flag, staged_err
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -57,7 +54,6 @@ ExtendedAddress = tuple[()] | tuple[ExtendedAddressComponent, ...]
 ##############
 # Selections #
 ##############
-
 
 ###############################
 # Selection builder interface #
@@ -1254,11 +1250,17 @@ class IdxChm(ChoiceMap):
                 else check_fn(addr, self.addr)
             )
 
+            check_array = jnp.asarray(check, copy=False)
+            if check_array.shape and check_array.shape[0] == 0:
+                # this is an obscure case which can arise when doing an importance
+                # update of a scan GF with an array of shape (0,) or (0, ...)
+                return _empty
+
             return (
                 MaskChm.build(
                     jtu.tree_map(lambda v: v[addr], self.c), Flag(check[addr])
                 )
-                if jnp.array(check, copy=False).shape
+                if check_array.shape
                 else self.c.mask(Flag(check))
             )
 
