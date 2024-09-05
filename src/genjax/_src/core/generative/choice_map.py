@@ -30,6 +30,7 @@ from genjax._src.core.interpreters.staging import (
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    Array,
     ArrayLike,
     Bool,
     BoolArray,
@@ -901,6 +902,34 @@ class ChoiceMap(Sample, Constraint):
             return StaticChm.build(chm, addr)
         else:
             return IdxChm.build(chm, addr)
+
+    @classmethod
+    def from_array(cls, elems: Array) -> "ChoiceMap":
+        """
+        Creates a ChoiceMap from an array.
+
+        This method creates and returns a ChoiceMap based on the elements of the input array.
+        Each element of the array is stored in the ChoiceMap with its index as the address.
+
+        Args:
+            elems: An array of elements to be stored in the ChoiceMap.
+
+        Returns:
+            A ChoiceMap containing the elements from the input array, indexed by their position.
+
+        Example:
+             ```python exec="yes" html="true" source="material-block" session="choicemap"
+            from genjax import ChoiceMap
+            import jax.numpy as jnp
+
+            array_chm = ChoiceMap.from_array(jnp.array([3.1, 2.2, 4.4]))
+            assert array_chm[0].value == 3.1
+            assert array_chm[1].value == 2.2
+            assert array_chm[2].value == 4.4
+            ```
+        """
+        indices = jnp.arange(elems.shape[0])
+        return jax.vmap(lambda idx, elem: ChoiceMap.idx(elem, idx))(indices, elems)
 
     @classmethod
     def d(cls, d: dict[Any, Any]) -> "ChoiceMap":
