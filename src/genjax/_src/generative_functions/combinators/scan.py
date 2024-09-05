@@ -66,7 +66,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
     def get_sample(self):
         return jax.vmap(
             lambda idx, subtrace: ChoiceMap.idx(idx, subtrace.get_sample()),
-        )(jnp.arange(self.scan_gen_fn.length), self.inner)
+        )(jnp.arange(self.inner.get_score().shape[0]), self.inner)
 
     def get_gen_fn(self):
         return self.scan_gen_fn
@@ -203,31 +203,43 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     ) -> ScanTrace[Carry, Y]:
         carry, scanned_in = args
 
-        def _inner_simulate(key, carry, scanned_in):
+        def _inner_simulate(
+            key: PRNGKey, carry: Carry, scanned_in: Any
+        ) -> tuple[tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y]]:
             tr = self.kernel_gen_fn.simulate(key, (carry, scanned_in))
             (carry, scanned_out) = tr.get_retval()
             score = tr.get_score()
             return (carry, score), (tr, scanned_out)
 
-        def _inner(carry, scanned_over):
+        def _inner(
+            carry: tuple[PRNGKey, IntArray, Carry], scanned_over: Any
+        ) -> tuple[
+            tuple[PRNGKey, IntArray, Carry], tuple[Trace[tuple[Carry, Y]], Y, Score]
+        ]:
             key, count, carried_value = carry
             key = jax.random.fold_in(key, count)
-            (carry, score), (tr, scanned_out) = _inner_simulate(
+            (carried_out, score), (tr, scanned_out) = _inner_simulate(
                 key, carried_value, scanned_over
             )
 
-            return (key, count + 1, carry), (tr, scanned_out, score)
+            return (key, count + 1, carried_out), (tr, scanned_out, score)
 
         (_, _, carried_out), (tr, scanned_out, scores) = jax.lax.scan(
             _inner,
-            (key, 0, carry),
+            (key, jnp.asarray(0), carry),
             scanned_in,
             length=self.length,
             reverse=self.reverse,
             unroll=self.unroll,
         )
 
-        return ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores))
+        return ScanTrace(
+            self,
+            tr,
+            args,
+            (carried_out, scanned_out),
+            jnp.sum(scores),
+        )
 
     def edit_importance(
         self,
@@ -237,7 +249,11 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
         (carry, scanned_in) = args
 
-        def _inner_importance(key, constraint, carry, scanned_in):
+        def _inner_importance(
+            key: PRNGKey, constraint: ChoiceMap, carry: Carry, scanned_in: Any
+        ) -> tuple[
+            tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y, Weight, EditRequest]
+        ]:
             tr, w, _retdiff, bwd_problem = self.kernel_gen_fn.edit(
                 key,
                 EmptyTrace(self.kernel_gen_fn),
@@ -250,20 +266,25 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             score = tr.get_score()
             return (carry, score), (tr, scanned_out, w, bwd_problem)
 
-        def _importance(carry, scanned_over):
+        def _importance(
+            carry: tuple[PRNGKey, IntArray, Carry], scanned_over: Any
+        ) -> tuple[
+            tuple[PRNGKey, IntArray, Carry],
+            tuple[Trace[tuple[Carry, Y]], Y, Score, Weight, UpdateProblem],
+        ]:
             key, idx, carried_value = carry
             key = jax.random.fold_in(key, idx)
             submap = constraint.get_submap(idx)
-            (carry, score), (tr, scanned_out, w, inner_bwd_problem) = _inner_importance(
-                key, submap, carried_value, scanned_over
+            (carried_out, score), (tr, scanned_out, w, inner_bwd_problem) = (
+                _inner_importance(key, submap, carried_value, scanned_over)
             )
             bwd_problem = ChoiceMap.idx(idx, inner_bwd_problem)
 
-            return (key, idx + 1, carry), (tr, scanned_out, score, w, bwd_problem)
+            return (key, idx + 1, carried_out), (tr, scanned_out, score, w, bwd_problem)
 
         (_, _, carried_out), (tr, scanned_out, scores, ws, bwd_problems) = jax.lax.scan(
             _importance,
-            (key, 0, carry),
+            (key, jnp.asarray(0), carry),
             scanned_in,
             length=self.length,
             reverse=self.reverse,
@@ -271,7 +292,11 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         )
         return (
             ScanTrace[Carry, Y](
-                self, tr, args, (carried_out, scanned_out), jnp.sum(scores)
+                self,
+                tr,
+                args,
+                (carried_out, scanned_out),
+                jnp.sum(scores),
             ),
             jnp.sum(ws),
             Diff.unknown_change((carried_out, scanned_out)),
@@ -301,11 +326,20 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         problem: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
-        carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(
-            Diff.tree_primal(argdiffs)
-        )
+        diffs = Diff.tree_diff_unknown_change(Diff.tree_primal(argdiffs))
+        carry_diff: Carry = diffs[0]
+        scanned_in_diff: Any = diffs[1:]
 
-        def _inner_edit(key, subtrace, subrequest, carry, scanned_in):
+        def _inner_update(
+            key: PRNGKey,
+            subtrace: Trace[tuple[Carry, Y]],
+            subproblem: EditRequest,
+            carry: Carry,
+            scanned_in: Any,
+        ) -> tuple[
+            tuple[Carry, Score],
+            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Weight, EditRequest],
+        ]:
             (
                 new_subtrace,
                 w,
@@ -330,18 +364,24 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 bwd_problem,
             )
 
-        def _edit(carry, scanned_over):
+        def _update(
+            carry: tuple[PRNGKey, IntArray, Carry],
+            scanned_over: tuple[Trace[tuple[Carry, Y]], Any],
+        ) -> tuple[
+            tuple[PRNGKey, IntArray, Carry],
+            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Score, Weight, ChoiceMap],
+        ]:
             key, idx, carried_value = carry
             subtrace, scanned_in = scanned_over
             key = jax.random.fold_in(key, idx)
             subrequest = self._get_subrequest(problem, idx)
             (
-                (carry, score),
+                (carried_out, score),
                 (new_subtrace, scanned_out, w, inner_bwd_problem),
             ) = _inner_edit(key, subtrace, subrequest, carried_value, scanned_in)
             bwd_problem = ChoiceMap.idx(idx, inner_bwd_problem)
 
-            return (key, idx + 1, carry), (
+            return (key, idx + 1, carried_out), (
                 new_subtrace,
                 scanned_out,
                 score,
@@ -353,8 +393,8 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             (_, _, carried_out_diff),
             (new_subtraces, scanned_out_diff, scores, ws, bwd_problems),
         ) = jax.lax.scan(
-            _edit,
-            (key, 0, carry_diff),
+            _update,
+            (key, jnp.asarray(0), carry_diff),
             (trace.inner, *scanned_in_diff),
             length=self.length,
             reverse=self.reverse,

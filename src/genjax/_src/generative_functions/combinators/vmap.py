@@ -177,14 +177,15 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         choice_map: ChoiceMap,
-        args: tuple[Any, ...],
-    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
-        self._static_check_broadcastable(args)
-        broadcast_dim_length = self._static_broadcast_dim_length(args)
+        argdiffs: Argdiffs,
+    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], UpdateProblem]:
+        primals = Diff.tree_primal(argdiffs)
+        self._static_check_broadcastable(primals)
+        broadcast_dim_length = self._static_broadcast_dim_length(primals)
         idx_array = jnp.arange(0, broadcast_dim_length)
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
-        def _importance(key, idx, choice_map, args):
+        def _importance(key, idx, choice_map, primals):
             submap = choice_map(idx)
             tr, w, rd, bwd_problem = self.gen_fn.edit(
                 key,
@@ -198,11 +199,11 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
         (tr, w, rd, bwd_problem) = jax.vmap(
             _importance, in_axes=(0, 0, None, self.in_axes)
-        )(sub_keys, idx_array, choice_map, args)
+        )(sub_keys, idx_array, choice_map, primals)
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
-        map_tr = VmapTrace(self, tr, args, retval, jnp.sum(scores))
+        map_tr = VmapTrace(self, tr, primals, retval, jnp.sum(scores))
         return map_tr, w, rd, bwd_problem
 
     def edit_choice_map(

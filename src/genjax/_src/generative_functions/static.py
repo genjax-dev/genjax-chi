@@ -57,10 +57,7 @@ from genjax._src.core.typing import (
     FloatArray,
     Generic,
     PRNGKey,
-    TypeVar,
 )
-
-R = TypeVar("R")
 
 
 # Usage in transforms: checks for duplicate addresses.

@@ -121,8 +121,10 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         args: tuple[Any, ...],
     ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
+        check = Flag.as_flag(check)
+
         tr = self.gen_fn.simulate(key, inner_args)
-        return MaskTrace(self, tr, Flag(check))
+        return MaskTrace(self, tr, check)
 
     def edit_change_target(
         self,
@@ -183,7 +185,8 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             GenericIncrementalProblem(tuple(inner_argdiffs), edit_request),
         )
 
-        w = check.where(premasked_trace.get_score(), 0.0)
+        premasked_score = premasked_trace.get_score()
+        w = check.where(premasked_score, jnp.zeros(premasked_score.shape))
 
         return (
             MaskTrace(self, premasked_trace, check),

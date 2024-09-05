@@ -57,7 +57,6 @@ R = TypeVar("R")
 """
 Generic denoting the return type of a generative function.
 """
-
 S = TypeVar("S")
 
 Carry = TypeVar("Carry")
@@ -402,10 +401,6 @@ class Trace(Generic[R], Pytree):
                     Diff.tree_diff_no_change(self.get_args()), problem
                 ),
             )  # pyright: ignore
-        else:
-            raise NotImplementedError(
-                "Supply either a GenericProblem or an UpdateProblem, possibly with argdiffs"
-            )
 
     def project(
         self,
@@ -1288,9 +1283,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.mask(self)
 
-    def or_else(
-        self, gen_fn: "GenerativeFunction[S]", /
-    ) -> "GenerativeFunction[R | S]":
+    def or_else(self, gen_fn: "GenerativeFunction[R]", /) -> "GenerativeFunction[R]":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that accepts
 
@@ -1338,7 +1331,9 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.or_else(self, gen_fn)
 
-    def switch(self, *branches: "GenerativeFunction[Any]") -> "GenerativeFunction[Any]":
+    def switch(
+        self, *branches: "GenerativeFunction[R]"
+    ) -> "genjax.SwitchCombinator[R]":
         """
         Given `n` [`genjax.GenerativeFunction`][] inputs, returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
 
@@ -1379,7 +1374,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.switch(self, *branches)
 
-    def mix(self, *fns: "GenerativeFunction[Any]") -> "GenerativeFunction[Any]":
+    def mix(self, *fns: "GenerativeFunction[R]") -> "GenerativeFunction[R]":
         """
         Takes any number of [`genjax.GenerativeFunction`][]s and returns a new [`genjax.GenerativeFunction`][] that represents a mixture model.
 

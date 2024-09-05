@@ -87,7 +87,7 @@ class TestMaskCombinator:
         @genjax.gen
         def model_2():
             masks = jnp.array([True, False, True])
-            vmask_init = init.mask().vmap(in_axes=(0))(masks) @ "init"
+            vmask_init = init.mask().vmap(in_axes=(0))(Flag(masks)) @ "init"
             return vmask_init
 
         tr = model_2.simulate(key, ())
@@ -98,7 +98,6 @@ class TestMaskCombinator:
         # score should be sum of sub-scores masked True
         assert tr.get_score() == inner_scores[0] + inner_scores[2]
 
-    @pytest.mark.skip(reason="This test is currently skipped")
     def test_mask_update_weight_to_argdiffs_from_false(self, key):
         # pre-update mask arg is False
         tr = jax.jit(model.simulate)(key, (False, 2.0))
@@ -116,3 +115,44 @@ class TestMaskCombinator:
         w = tr.update(key, argdiffs)[1]
         assert w == 0.0
         assert w == tr.get_score()
+
+    def test_mask_scan_update(self, key):
+        def masked_scan_combinator(step, **scan_kwargs):
+            def scan_step_pre(state, flag):
+                return flag, state
+
+            def scan_step_post(_unused_args, masked_retval):
+                return masked_retval.value, None
+
+            # scan_step: (a, Bool) -> a
+            scan_step = step.mask().dimap(pre=scan_step_pre, post=scan_step_post)
+            return scan_step.scan(**scan_kwargs)
+
+        @genjax.gen
+        def step(x):
+            _ = (
+                genjax.normal.mask().vmap(in_axes=(0, None, None))(
+                    Flag(jnp.array([True, True])), x, 1.0
+                )
+                @ "rats"
+            )
+            return x
+
+        # Create some initial traces:
+        key = jax.random.PRNGKey(0)
+        mask_steps = jnp.arange(10) < 5
+        model = masked_scan_combinator(step, n=len(mask_steps))
+        init_particle = model.simulate(key, ((0.0,), mask_steps))
+
+        # Update the model:
+        update = genjax.UpdateProblemBuilder.g(
+            (
+                genjax.Diff.no_change((0.0,)),
+                genjax.Diff.no_change(Flag(mask_steps)),
+            ),
+            C.n(),
+        )
+        step_particle, step_weight, _, _ = model.update(key, init_particle, update)
+        assert step_weight == jnp.array(0.0)
+        assert step_particle.get_retval() == ((jnp.array(0.0),), None)
+        assert step_particle.get_score() == jnp.array(-12.230572)

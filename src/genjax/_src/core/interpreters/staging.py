@@ -115,6 +115,12 @@ class Flag(Pytree):
             return ff(*args)
         return jax.lax.cond(self.f, tf, ff, *args)
 
+    @staticmethod
+    def as_flag(f):
+        if isinstance(f, Flag):
+            return f
+        return Flag(f)
+
 
 def staged_check(v):
     return static_check_is_concrete(v) and v

@@ -380,3 +380,48 @@ class TestScanWithParameters:
 
         assert jnp.allclose(steps, jnp.array([8.0, 14.0, 21.0]), atol=0.1)
         assert jnp.allclose(end, jnp.array(21.0), atol=0.1)
+
+    def test_scan_length_inferred(self, key):
+        @genjax.gen
+        def walk_step(x, std):
+            new_x = genjax.normal(x, std) @ "x"
+            return new_x, None
+
+        args = (0.0, jnp.array([2.0, 4.0, 3.0, 5.0, 1.0]))
+        tr = walk_step.scan(n=5).simulate(key, args)
+        expected = jnp.array([
+            -0.75375533,
+            -5.818158,
+            -3.4942584,
+            -5.0217595,
+            -4.4125495,
+        ])
+        assert jnp.allclose(
+            tr.get_choices()[..., "x"],
+            expected,
+        )
+
+        tr = walk_step.scan().simulate(key, args)
+        assert jnp.allclose(tr.get_choices()[..., "x"], expected)
+
+        # now with jit
+        jitted = jax.jit(walk_step.scan().simulate)
+        tr = jitted(key, args)
+        assert jnp.allclose(tr.get_choices()[..., "x"], expected)
+
+    def test_zero_length_scan(self, key):
+        # GEN-333
+        @genjax.gen
+        def step(state, sigma):
+            new_x = genjax.normal(state, sigma) @ "x"
+            return (new_x, new_x + 1)
+
+        trace = step.scan(n=0).simulate(
+            jax.random.PRNGKey(20), (2.0, jnp.arange(0, dtype=float))
+        )
+
+        step.scan().importance(
+            jax.random.PRNGKey(20),
+            trace.get_choices(),
+            (2.0, 2.0 + jnp.arange(0, dtype=float)),
+        )

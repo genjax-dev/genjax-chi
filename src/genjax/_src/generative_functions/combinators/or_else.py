@@ -18,13 +18,12 @@ from genjax._src.core.generative import GenerativeFunction
 from genjax._src.core.typing import Any, ScalarBool, TypeVar
 
 R = TypeVar("R")
-T = TypeVar("T")
 
 
 def or_else(
     if_gen_fn: GenerativeFunction[R],
-    else_gen_fn: GenerativeFunction[T],
-) -> GenerativeFunction[R | T]:
+    else_gen_fn: GenerativeFunction[R],
+) -> GenerativeFunction[R]:
     """
     Given two [`genjax.GenerativeFunction`][]s `if_gen_fn` and `else_gen_fn`, returns a new [`genjax.GenerativeFunction`][] that accepts
 
