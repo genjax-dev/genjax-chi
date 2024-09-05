@@ -691,8 +691,12 @@ class ChoiceMap(Sample, Constraint):
     # Convenient syntax for construction #
     ######################################
 
-    @classmethod
-    def empty(cls) -> "EmptyChm":
+    @staticmethod
+    def builder() -> _ChoiceMapBuilder:
+        return _ChoiceMapBuilder(ChoiceMap.empty(), [])
+
+    @staticmethod
+    def empty() -> "EmptyChm":
         """
         Returns an empty ChoiceMap.
 
@@ -704,8 +708,8 @@ class ChoiceMap(Sample, Constraint):
         """
         return _empty
 
-    @classmethod
-    def value(cls, v: T) -> "ValueChm[T]":
+    @staticmethod
+    def value(v: T) -> "ValueChm[T]":
         """
         Creates a ChoiceMap containing a single value.
 
@@ -728,8 +732,8 @@ class ChoiceMap(Sample, Constraint):
         """
         return ValueChm(v)
 
-    @classmethod
-    def entry(cls, v: Any, *addrs: ExtendedAddressComponent) -> "ChoiceMap":
+    @staticmethod
+    def entry(v: Any, *addrs: ExtendedAddressComponent) -> "ChoiceMap":
         """
         Creates a ChoiceMap with a single value at a specified address.
 
@@ -765,8 +769,8 @@ class ChoiceMap(Sample, Constraint):
 
         return chm.extend(*addrs)
 
-    @classmethod
-    def from_mapping(cls, pairs: Iterable[tuple[K_addr, Any]]) -> "ChoiceMap":
+    @staticmethod
+    def from_mapping(pairs: Iterable[tuple[K_addr, Any]]) -> "ChoiceMap":
         acc = ChoiceMap.empty()
 
         for addr, v in pairs:
@@ -775,8 +779,8 @@ class ChoiceMap(Sample, Constraint):
 
         return acc
 
-    @classmethod
-    def d(cls, d: dict[K_addr, Any]) -> "ChoiceMap":
+    @staticmethod
+    def d(d: dict[K_addr, Any]) -> "ChoiceMap":
         """
         Creates a ChoiceMap from a dictionary.
 
@@ -797,10 +801,10 @@ class ChoiceMap(Sample, Constraint):
             assert dict_chm["y"] == [1, 2, 3]
             ```
         """
-        return cls.from_mapping(d.items())
+        return ChoiceMap.from_mapping(d.items())
 
-    @classmethod
-    def kw(cls, **kwargs) -> "ChoiceMap":
+    @staticmethod
+    def kw(**kwargs) -> "ChoiceMap":
         """
         Creates a ChoiceMap from keyword arguments.
 
