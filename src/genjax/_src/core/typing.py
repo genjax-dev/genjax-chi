@@ -42,6 +42,7 @@ FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
 Sequence = btyping.Sequence
+Final = btyping.Final
 
 # JAX Type alias.
 InAxes = int | None | Sequence[Any]
@@ -109,6 +110,7 @@ __all__ = [
     "BoolArray",
     "Callable",
     "EllipsisType",
+    "Final",
     "Float",
     "FloatArray",
     "Generic",

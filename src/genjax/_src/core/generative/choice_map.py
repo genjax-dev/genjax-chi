@@ -31,6 +31,7 @@ from genjax._src.core.typing import (
     Bool,
     BoolArray,
     EllipsisType,
+    Final,
     Generic,
     String,
     TypeVar,
@@ -62,14 +63,13 @@ ExtendedAddress = tuple[()] | tuple[ExtendedAddressComponent, ...]
 
 @Pytree.dataclass
 class _SelectionBuilder(Pytree):
-    def __getitem__(self, addr_comps):
+    def __getitem__(
+        self, addr_comps: ExtendedAddressComponent | ExtendedAddress
+    ) -> "Selection":
         if not isinstance(addr_comps, tuple):
             addr_comps = (addr_comps,)
 
-        sel = Selection.all()
-        for comp in reversed(addr_comps):
-            sel = sel.indexed(comp)
-        return sel
+        return Selection.all().extend(*addr_comps)
 
 
 SelectionBuilder = _SelectionBuilder()
@@ -121,6 +121,9 @@ class Selection(ProjectProblem):
     #################################################
     # Convenient syntax for constructing selections #
     #################################################
+
+    # TODO add a docstring here that will show...
+    at: Final[_SelectionBuilder] = _SelectionBuilder()
 
     @classmethod
     def all(cls) -> "Selection":
@@ -204,32 +207,35 @@ class Selection(ProjectProblem):
         """
         return DeferSel(self, flag)
 
-    def indexed(self, addr: ExtendedAddressComponent) -> "Selection":
+    def extend(self, *addrs: ExtendedAddressComponent) -> "Selection":
         """
-        Returns a new Selection that is indexed by the given address component.
+        Returns a new Selection that is extended by the given address component.
 
         This method creates a new Selection that applies the current selection
         to the specified address component. It handles both static and dynamic
         address components.
 
         Args:
-            addr: The address component to index the selection.
+            addr: The address component under which to nest the selection.
 
         Returns:
-            A new Selection indexed by the given address component.
+            A new Selection extended by the given address component.
 
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             base_selection = Selection.all()
-            indexed_selection = base_selection.indexed("x")
+            indexed_selection = base_selection.extend("x")
             assert indexed_selection["x", "any_subaddress"].f == True
             assert indexed_selection["y"].f == False
             ```
         """
-        if isinstance(addr, ExtendedStaticAddressComponent):
-            return StaticSel(self, addr)
-        else:
-            return IdxSel(self, addr)
+        acc = self
+        for addr in reversed(addrs):
+            if isinstance(addr, ExtendedStaticAddressComponent):
+                acc = StaticSel(acc, addr)
+            else:
+                acc = IdxSel(acc, addr)
+        return acc
 
     def __call__(
         self,
@@ -377,7 +383,7 @@ class StaticSel(Selection):
 
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
-        static_sel = Selection.all().indexed("x")
+        static_sel = Selection.at["x"]
         assert static_sel.check().f == False
         assert static_sel.get_subselection("x").check().f == True
         assert static_sel.get_subselection("y").check().f == False
@@ -411,7 +417,7 @@ class IdxSel(Selection):
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         import jax.numpy as jnp
 
-        idx_sel = Selection.all().indexed(jnp.array([1, 2, 3]))
+        idx_sel = Selection.at[jnp.array([1, 2, 3])]
         assert idx_sel.check().f == False
         assert idx_sel.get_subselection(2).check().f == True
         assert idx_sel.get_subselection(4).check().f == False
@@ -460,13 +466,13 @@ class AndSel(Selection):
 
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
-        sel1 = Selection.all().indexed("y").indexed("x")
-        sel2 = Selection.all().indexed("y").indexed("x")
+        sel1 = Selection.at["y"] | Selection.at["x"]
+        sel2 = Selection.at["y"] | Selection.at["z"]
         and_sel = sel1 & sel2
 
-        assert and_sel["x", "y"].f == True
-        assert sel1["x"].f == False
-        assert sel2["y"].f == False
+        assert and_sel["x"].f == False
+        assert and_sel["y"].f == True
+        assert and_sel["z"].f == False
         ```
     """
 
@@ -495,11 +501,10 @@ class OrSel(Selection):
 
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
-        sel1 = Selection.all().indexed("x")
-        sel2 = Selection.all().indexed("y")
+        sel1 = Selection.at["x"]
+        sel2 = Selection.at["y"]
         or_sel = sel1 | sel2
 
-        # TODO what is going on with the example here? why is this true?
         assert or_sel["x", "y"].f == True
         assert or_sel["x"].f == True
         assert or_sel["y"].f == True
@@ -708,12 +713,8 @@ class _ChoiceMapBuilder(Pytree):
             assert nested_chm["x"]["y"] == 2
             ```
         """
-        addr = addr if isinstance(addr, tuple) else (addr,)
-        new = ChoiceMap.value(v) if not isinstance(v, ChoiceMap) else v
-        for comp in reversed(addr):
-            new = ChoiceMap.idx(new, comp)
-
-        return new
+        addrs = addr if isinstance(addr, tuple) else (addr,)
+        return ChoiceMap.idx(v, *addrs)
 
 
 ChoiceMapBuilder = _ChoiceMapBuilder()
@@ -865,7 +866,7 @@ class ChoiceMap(Sample, Constraint):
         return ValueChm(v)
 
     @classmethod
-    def idx(cls, v: Any, addr: ExtendedAddressComponent) -> "ChoiceMap":
+    def idx(cls, v: Any, *addrs: ExtendedAddressComponent) -> "ChoiceMap":
         """
         Creates a ChoiceMap with a single value at a specified address.
 
@@ -889,9 +890,8 @@ class ChoiceMap(Sample, Constraint):
             assert static_chm["x"] == 42
 
             # Dynamic address
-            # TODO this looks like a bug that this is possible? assert fails.
-            dynamic_chm = ChoiceMap.idx(42, jnp.array([1, 2, 3]))
-            # assert dynamic_chm[jnp.array([1, 2, 3])] == 42
+            dynamic_chm = ChoiceMap.idx(jnp.array([1.1, 2.2, 3.3]), jnp.array([1, 2, 3]))
+            assert dynamic_chm[1].unmask() == 2.2
 
             # Using an existing ChoiceMap
             nested_chm = ChoiceMap.idx(ChoiceMap.value(42), "x")
@@ -899,10 +899,8 @@ class ChoiceMap(Sample, Constraint):
             ```
         """
         chm = v if isinstance(v, ChoiceMap) else ChoiceMap.value(v)
-        if isinstance(addr, ExtendedStaticAddressComponent):
-            return StaticChm.build(chm, addr)
-        else:
-            return IdxChm.build(chm, addr)
+
+        return chm.extend(*addrs)
 
     @classmethod
     def d(cls, d: dict[Any, Any]) -> "ChoiceMap":
@@ -985,7 +983,7 @@ class ChoiceMap(Sample, Constraint):
         """
         return FilteredChm.build(self, selection)
 
-    def indexed(self, addr: ExtendedAddressComponent) -> "ChoiceMap":
+    def extend(self, *addrs: ExtendedAddressComponent) -> "ChoiceMap":
         """
         Returns a new ChoiceMap with the given address component as its root.
 
@@ -994,7 +992,7 @@ class ChoiceMap(Sample, Constraint):
         to the ChoiceMap structure.
 
         Args:
-            addr: The address component to use as the new root.
+            addrs: The address components to use as the new root.
 
         Returns:
             A new ChoiceMap with the current ChoiceMap nested under the given address.
@@ -1002,11 +1000,17 @@ class ChoiceMap(Sample, Constraint):
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             original_chm = ChoiceMap.value(42)
-            indexed_chm = original_chm.indexed("x")
+            indexed_chm = original_chm.extend("x")
             assert indexed_chm["x"] == 42
             ```
         """
-        return ChoiceMap.idx(self, addr)
+        acc = self
+        for addr in reversed(addrs):
+            if isinstance(addr, ExtendedStaticAddressComponent):
+                acc = StaticChm.build(acc, addr)
+            else:
+                acc = IdxChm.build(acc, addr)
+        return acc
 
     def mask(self, f: Flag) -> "ChoiceMap":
         """
@@ -1055,8 +1059,8 @@ class ChoiceMap(Sample, Constraint):
 
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
-            chm1 = ChoiceMap.value(5).indexed("x")
-            chm2 = ChoiceMap.value(10).indexed("y")
+            chm1 = ChoiceMap.value(5).extend("x")
+            chm2 = ChoiceMap.value(10).extend("y")
             merged_chm = chm1.merge(chm2)
             assert merged_chm["x"] == 5
             assert merged_chm["y"] == 10
@@ -1080,7 +1084,7 @@ class ChoiceMap(Sample, Constraint):
 
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
-            chm = ChoiceMap.value(5).indexed("x")
+            chm = ChoiceMap.value(5).extend("x")
             sel = chm.get_selection()
             assert sel["x"].f == True
             assert sel["y"].f == False
@@ -1223,12 +1227,9 @@ class IdxChm(ChoiceMap):
         import jax.numpy as jnp
 
         base_chm = ChoiceMap.value(jnp.array([1, 2, 3]))
-        idx_chm = base_chm.indexed(jnp.array([0, 1, 2]))
+        idx_chm = base_chm.extend(jnp.array([0, 1, 2]))
 
         assert idx_chm.get_submap(1).get_value().unmask() == 2
-
-        # TODO this seems like a bug too, we get submaps for all sorts of addresses
-        # assert idx_chm.get_submap(3).static_is_empty() == True
         ```
     """
 
@@ -1289,7 +1290,7 @@ class StaticChm(ChoiceMap):
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         base_chm = ChoiceMap.value(5)
-        static_chm = base_chm.indexed("x")
+        static_chm = base_chm.extend("x")
         assert static_chm.get_submap("x").get_value() == 5
         assert static_chm.get_submap("y").static_is_empty() == True
         ```
@@ -1327,8 +1328,8 @@ class XorChm(ChoiceMap):
 
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
-        chm1 = ChoiceMap.value(5).indexed("x")
-        chm2 = ChoiceMap.value(10).indexed("y")
+        chm1 = ChoiceMap.value(5).extend("x")
+        chm2 = ChoiceMap.value(10).extend("y")
         xor_chm = chm1 ^ chm2
         assert xor_chm.get_submap("x").get_value() == 5
         assert xor_chm.get_submap("y").get_value() == 10
@@ -1517,7 +1518,7 @@ class FilteredChm(ChoiceMap):
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         from genjax import SelectionBuilder as S
 
-        base_chm = ChoiceMap.value(10).indexed("x")
+        base_chm = ChoiceMap.value(10).extend("x")
         filtered_chm = base_chm.filter(S["x"])
         assert filtered_chm.get_submap("x").get_value() == 10
 
