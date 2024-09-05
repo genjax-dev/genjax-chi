@@ -539,14 +539,11 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             ),
         ) = update_transform(syntax_sugar_handled)(key, trace, update_problem, argdiffs)
 
-        def make_bwd_problem(visitor, subproblems: list[UpdateProblem]) -> ChoiceMap:
+        def make_bwd_problem(
+            visitor: AddressVisitor, subproblems: list[UpdateProblem]
+        ) -> ChoiceMap:
             addresses = visitor.get_visited()
-            addresses = Pytree.tree_const_unwrap(addresses)
-
-            chm = ChoiceMap.empty()
-            for addr, subproblem in zip(addresses, subproblems):
-                chm = chm ^ ChoiceMap.entry(subproblem, *addr)
-            return chm
+            return ChoiceMap.from_mapping(zip(addresses, subproblems))
 
         bwd_problem = make_bwd_problem(address_visitor, bwd_problems)
         return (
