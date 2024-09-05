@@ -18,6 +18,7 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+from beartype.typing import Iterable
 
 from genjax._src.core.generative.core import Constraint, ProjectProblem, Sample
 from genjax._src.core.generative.functional_types import Mask, staged_choose
@@ -49,6 +50,8 @@ StaticAddress = tuple[()] | tuple[StaticAddressComponent, ...]
 ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
 ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
 ExtendedAddress = tuple[()] | tuple[ExtendedAddressComponent, ...]
+
+K_addr = TypeVar("K_addr", bound=ExtendedAddressComponent | ExtendedAddress)
 
 ##############
 # Selections #
@@ -583,7 +586,7 @@ class _ChoiceMapBuilder:
 
     def set(self, v) -> "ChoiceMap":
         # TODO add a test that shows that if you set over an existing address, you do in fact stomp it (the new v is preferred)
-        return ChoiceMap.idx(v, *self.addrs) + self.choice_map
+        return ChoiceMap.entry(v, *self.addrs) + self.choice_map
 
     def n(self) -> "ChoiceMap":
         """
@@ -601,19 +604,16 @@ class _ChoiceMapBuilder:
         return _empty
 
     def v(self, v) -> "ChoiceMap":
+        # TODO add docs
         return self.set(ChoiceMap.value(v))
 
-    def d(self, d: dict[Any, Any]) -> "ChoiceMap":
+    def d(self, d: dict[K_addr, Any]) -> "ChoiceMap":
+        # TODO add docs
         return self.set(ChoiceMap.d(d))
 
     def kw(self, **kwargs) -> "ChoiceMap":
+        # TODO add docs
         return self.set(ChoiceMap.kw(**kwargs))
-
-    # TODO deprecate this!
-    def a(
-        self, addr: ExtendedAddressComponent | ExtendedAddress, v: Any
-    ) -> "ChoiceMap":
-        return self[addr].set(v)
 
 
 def check_none(v: Any | Mask[Any] | None) -> Flag:
@@ -729,7 +729,7 @@ class ChoiceMap(Sample, Constraint):
         return ValueChm(v)
 
     @classmethod
-    def idx(cls, v: Any, *addrs: ExtendedAddressComponent) -> "ChoiceMap":
+    def entry(cls, v: Any, *addrs: ExtendedAddressComponent) -> "ChoiceMap":
         """
         Creates a ChoiceMap with a single value at a specified address.
 
@@ -749,15 +749,15 @@ class ChoiceMap(Sample, Constraint):
             import jax.numpy as jnp
 
             # Static address
-            static_chm = ChoiceMap.idx(42, "x")
+            static_chm = ChoiceMap.entry(42, "x")
             assert static_chm["x"] == 42
 
             # Dynamic address
-            dynamic_chm = ChoiceMap.idx(jnp.array([1.1, 2.2, 3.3]), jnp.array([1, 2, 3]))
+            dynamic_chm = ChoiceMap.entry(jnp.array([1.1, 2.2, 3.3]), jnp.array([1, 2, 3]))
             assert dynamic_chm[1].unmask() == 2.2
 
             # Using an existing ChoiceMap
-            nested_chm = ChoiceMap.idx(ChoiceMap.value(42), "x")
+            nested_chm = ChoiceMap.entry(ChoiceMap.value(42), "x")
             assert nested_chm["x"] == 42
             ```
         """
@@ -766,7 +766,17 @@ class ChoiceMap(Sample, Constraint):
         return chm.extend(*addrs)
 
     @classmethod
-    def d(cls, d: dict[Any, Any]) -> "ChoiceMap":
+    def from_mapping(cls, pairs: Iterable[tuple[K_addr, Any]]) -> "ChoiceMap":
+        acc = ChoiceMap.empty()
+
+        for addr, v in pairs:
+            addr = addr if isinstance(addr, tuple) else (addr,)
+            acc = ChoiceMap.entry(v, *addr) ^ acc
+
+        return acc
+
+    @classmethod
+    def d(cls, d: dict[K_addr, Any]) -> "ChoiceMap":
         """
         Creates a ChoiceMap from a dictionary.
 
@@ -787,11 +797,7 @@ class ChoiceMap(Sample, Constraint):
             assert dict_chm["y"] == [1, 2, 3]
             ```
         """
-        start = ChoiceMap.empty()
-        if d:
-            for k, v in d.items():
-                start = ChoiceMap.idx(v, k) ^ start
-        return start
+        return cls.from_mapping(d.items())
 
     @classmethod
     def kw(cls, **kwargs) -> "ChoiceMap":
