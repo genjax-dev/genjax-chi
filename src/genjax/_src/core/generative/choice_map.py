@@ -14,8 +14,6 @@
 
 from abc import abstractmethod
 from dataclasses import dataclass
-from functools import reduce
-from operator import or_
 
 import jax
 import jax.numpy as jnp
@@ -752,15 +750,6 @@ class AddressIndex(Pytree):
         for addr in self.addrs:
             new = ChoiceMapBuilder.a(addr, v) + new
         return new
-
-    @property
-    def at(self) -> "AddressIndex":
-        return self
-
-    def filter(self):
-        sels = map(lambda addr: SelectionBuilder[addr], self.addrs)
-        or_sel = reduce(or_, sels)
-        return self.choice_map.filter(or_sel)
 
 
 class ChoiceMap(Sample, Constraint):
