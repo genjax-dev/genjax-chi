@@ -59,6 +59,14 @@ from genjax._src.core.typing import (
     PRNGKey,
 )
 
+_WRAPPER_ASSIGNMENTS = (
+    "__module__",
+    "__name__",
+    "__qualname__",
+    "__doc__",
+    "__annotations__",
+)
+
 
 # Usage in transforms: checks for duplicate addresses.
 @Pytree.dataclass
@@ -490,6 +498,16 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     def __abstract_call__(self, *args) -> Any:
         return self.source(*args)
 
+    def __post_init__(self):
+        wrapped = self.source.fn
+        # Preserve the original function's docstring and name
+        for k in _WRAPPER_ASSIGNMENTS:
+            v = getattr(wrapped, k, None)
+            if v is not None:
+                object.__setattr__(self, k, v)
+
+        object.__setattr__(self, "__wrapped__", wrapped)
+
     def handle_kwargs(self) -> "StaticGenerativeFunction[R]":
         @Pytree.partial()
         def kwarged_source(args, kwargs):
@@ -630,7 +648,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 #############
 
 
-def gen(f: Callable[..., R]) -> StaticGenerativeFunction[R]:
+def gen(f: Closure[R] | Callable[..., R]) -> StaticGenerativeFunction[R]:
     if isinstance(f, Closure):
         return StaticGenerativeFunction[R](f)
     else:
