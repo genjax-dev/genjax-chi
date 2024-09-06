@@ -72,6 +72,7 @@ class _SelectionBuilder(Pytree):
 
 
 SelectionBuilder = _SelectionBuilder()
+"""Deprecated, please use `Selection.at`."""
 
 
 class Selection(ProjectProblem):
@@ -79,24 +80,24 @@ class Selection(ProjectProblem):
     random choices in a `ChoiceMap`.
 
     Examples:
-        (**Making selections**) Selections can be constructed using the `SelectionBuilder` interface
+        (**Making selections**) Selections can be constructed using the `at` attribute:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
-        from genjax import SelectionBuilder as S
+        from genjax import Selection
 
-        sel = S["x", "y"]
+        sel = Selection.at["x", "y"]
         print(sel.render_html())
         ```
 
         (**Getting subselections**) Hierarchical selections support `__call__`, which allows for the retrieval of _subselections_ at addresses:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
-        sel = S["x", "y"]
+        sel = Selection.at["x", "y"]
         subsel = sel("x")
         print(subsel.render_html())
         ```
 
         (**Check for inclusion**) Selections support `__getitem__`, which provides a way to check if an address is included in the selection:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
-        sel = S["x", "y"]
+        sel = Selection.at["x", "y"]
         not_included = sel["x"]
         included = sel["x", "y"]
         print(not_included, included)
@@ -104,7 +105,7 @@ class Selection(ProjectProblem):
 
         (**Complement selections**) Selections can be complemented:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
-        sel = ~S["x", "y"]
+        sel = ~Selection.at["x", "y"]
         included = sel["x"]
         not_included = sel["x", "y"]
         print(included, not_included)
@@ -112,7 +113,7 @@ class Selection(ProjectProblem):
 
         (**Combining selections**) Selections can be combined, via the `|` syntax:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
-        sel = S["x", "y"] | S["z"]
+        sel = Selection.at["x", "y"] | Selection.at["z"]
         print(sel["x", "y"], sel["z", "y"])
         ```
     """
@@ -121,8 +122,20 @@ class Selection(ProjectProblem):
     # Convenient syntax for constructing selections #
     #################################################
 
-    # TODO add a docstring here that will show...
     at: Final[_SelectionBuilder] = _SelectionBuilder()
+    """A builder instance for creating Selection objects.
+
+    `at` provides a convenient interface for constructing Selection objects
+    using a familiar indexing syntax. It allows for the creation of complex
+    selections by chaining multiple address components.
+
+    Examples:
+        Creating a selection:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        from genjax import Selection
+        Selection.at["x", "y"]
+        ```
+    """
 
     @staticmethod
     def all() -> "Selection":
@@ -207,15 +220,35 @@ class Selection(ProjectProblem):
         return MaskSel(self, flag)
 
     def filter(self, chm: "ChoiceMap") -> "ChoiceMap":
-        # TODO docstring
+        """
+        Filters a ChoiceMap based on this Selection.
+
+        This method applies the current Selection to the given ChoiceMap,
+        effectively filtering out addresses that are not selected.
+
+        Args:
+            chm: The ChoiceMap to be filtered.
+
+        Returns:
+            A new ChoiceMap containing only the addresses selected by this Selection.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="choicemap"
+            selection = Selection.at["x"]
+            chm = ChoiceMap.kw(x=1, y=2)
+            filtered_chm = selection.filter(chm)
+            assert "x" in filtered_chm
+            assert "y" not in filtered_chm
+            ```
+        """
         return chm.filter(self)
 
     def extend(self, *addrs: ExtendedAddressComponent) -> "Selection":
         """
-        Returns a new Selection that is extended by the given address component.
+        Returns a new Selection that is extended by the given address components.
 
         This method creates a new Selection that applies the current selection
-        to the specified address component. It handles both static and dynamic
+        to the specified address components. It handles both static and dynamic
         address components.
 
         Args:
