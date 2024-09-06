@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import jax.numpy as jnp
+from beartype.typing import cast
 from jax.experimental import checkify
 from jax.tree_util import tree_map
 
@@ -86,24 +87,31 @@ class Mask(Generic[R], Pytree):
         """
         return self.value
 
-    def unmask(self) -> R:
+    def unmask(self, default: R | None = None) -> R:
         """
         Unmask the `Mask`, returning the value within.
 
         This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` wraps valid data at runtime.
+
+        Args:
+            default: An optional default value to return if the mask is invalid.
+
+        Returns:
+            The unmasked value if valid, or the default value if provided and the mask is invalid.
         """
+        if default is None:
 
-        # If a user chooses to `unmask`, require that they
-        # jax.experimental.checkify.checkify their call in transformed
-        # contexts.
-        def _check():
-            checkify.check(
-                self.flag.f,
-                "Attempted to unmask when a mask flag is False: the masked value is invalid.\n",
-            )
+            def _check():
+                checkify.check(
+                    self.flag.f,
+                    "Attempted to unmask when a mask flag is False: the masked value is invalid.\n",
+                )
 
-        optional_check(_check)
-        return self.unsafe_unmask()
+            optional_check(_check)
+            return self.unsafe_unmask()
+        else:
+            assert isinstance(default, ArrayLike) and isinstance(self.value, ArrayLike)
+            return cast(R, jnp.where(self.flag.f, self.value, default))
 
 
 def staged_choose(
