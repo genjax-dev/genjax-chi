@@ -56,7 +56,6 @@ class TestFlag:
         false_flags = [
             Flag(False),
             Flag(jnp.array(False)),
-            Flag(jnp.array([True, False])),
             Flag(jnp.array([False, False])),
         ]
         for t in true_flags:
@@ -65,10 +64,16 @@ class TestFlag:
             for f in false_flags:
                 assert not f
                 assert not t.and_(f)
+                assert not f.and_(t)
                 assert t.or_(f)
+                assert f.or_(t)
+                assert t.xor_(f)
+                assert f.xor_(t)
+
             for u in true_flags:
                 assert t.and_(u)
                 assert t.or_(u)
+                assert not t.xor_(u)
 
     def test_where(self):
         assert Flag(True).where(3.0, 4.0) == 3

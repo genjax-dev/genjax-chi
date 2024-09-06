@@ -81,6 +81,18 @@ class Flag(Pytree):
             return self
         return Flag(jnp.logical_or(self.f, f.f))
 
+    def xor_(self, f: "Flag") -> "Flag":
+        # True xor X => ~X. False xor X => X.
+        if self.f is True:
+            return f.not_()
+        if self.f is False:
+            return f
+        if f.f is True:
+            return self.not_()
+        if f.f is False:
+            return self
+        return Flag(jnp.logical_xor(self.f, f.f))
+
     def not_(self) -> "Flag":
         if self.f is True:
             return Flag(False)
