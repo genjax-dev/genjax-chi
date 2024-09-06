@@ -990,7 +990,7 @@ class ChoiceMap(Sample, Constraint):
     def __call__(
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
-    ):
+    ) -> "ChoiceMap":
         addr = addr if isinstance(addr, tuple) else (addr,)
         submap = self
         for comp in addr:
@@ -1001,7 +1001,6 @@ class ChoiceMap(Sample, Constraint):
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
     ):
-        addr = addr if isinstance(addr, tuple) else (addr,)
         submap = self(addr)
         v = submap.get_value()
         if v is None:
@@ -1012,11 +1011,8 @@ class ChoiceMap(Sample, Constraint):
     def __contains__(
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
-    ):
-        addr = addr if isinstance(addr, tuple) else (addr,)
-        submap = self
-        for comp in addr:
-            submap = self.get_submap(comp)
+    ) -> Flag:
+        submap = self(addr)
         return submap.has_value()
 
     @property
@@ -1360,15 +1356,12 @@ class MaskChm(ChoiceMap):
         c: ChoiceMap,
         flag: Flag,
     ) -> ChoiceMap:
-        return (
-            c
-            if c.static_is_empty()
-            else c
-            if flag.concrete_true()
-            else _empty
-            if flag.concrete_false()
-            else MaskChm(c, flag)
-        )
+        if c.static_is_empty() | flag.concrete_true():
+            return c
+        elif flag.concrete_false():
+            return _empty
+        else:
+            return MaskChm(c, flag)
 
     def get_value(self) -> Any:
         v = self.c.get_value()
