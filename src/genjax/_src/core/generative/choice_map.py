@@ -124,8 +124,8 @@ class Selection(ProjectProblem):
     # TODO add a docstring here that will show...
     at: Final[_SelectionBuilder] = _SelectionBuilder()
 
-    @classmethod
-    def all(cls) -> "Selection":
+    @staticmethod
+    def all() -> "Selection":
         """
         Returns a Selection that selects all addresses.
 
@@ -145,8 +145,8 @@ class Selection(ProjectProblem):
         """
         return AllSel()
 
-    @classmethod
-    def none(cls) -> "Selection":
+    @staticmethod
+    def none() -> "Selection":
         """
         Returns a Selection that selects no addresses.
 
@@ -162,7 +162,7 @@ class Selection(ProjectProblem):
             assert none_selection["any_address"].f == False
             ```
         """
-        return ~cls.all()
+        return ~Selection.all()
 
     ######################
     # Combinator methods #
@@ -552,7 +552,7 @@ class ChmSel(Selection):
     c: "ChoiceMap"
 
     def check(self) -> Flag:
-        return check_none(self.c.get_value())
+        return self.c.has_value()
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         submap = self.c.get_submap(addr)
@@ -609,6 +609,9 @@ class _ChoiceMapBuilder:
         # TODO add docs
         return self.set(ChoiceMap.value(v))
 
+    def from_mapping(self, mapping: Iterable[tuple[K_addr, Any]]) -> "ChoiceMap":
+        return self.set(ChoiceMap.from_mapping(mapping))
+
     def d(self, d: dict[K_addr, Any]) -> "ChoiceMap":
         # TODO add docs
         return self.set(ChoiceMap.d(d))
@@ -616,15 +619,6 @@ class _ChoiceMapBuilder:
     def kw(self, **kwargs) -> "ChoiceMap":
         # TODO add docs
         return self.set(ChoiceMap.kw(**kwargs))
-
-
-def check_none(v: Any | Mask[Any] | None) -> Flag:
-    if v is None:
-        return Flag(False)
-    elif isinstance(v, Mask):
-        return v.flag
-    else:
-        return Flag(True)
 
 
 class ChoiceMap(Sample, Constraint):
@@ -687,7 +681,13 @@ class ChoiceMap(Sample, Constraint):
         raise NotImplementedError
 
     def has_value(self) -> Flag:
-        return check_none(self.get_value())
+        match self.get_value():
+            case None:
+                return Flag(False)
+            case Mask() as m:
+                return m.flag
+            case _:
+                return Flag(True)
 
     ######################################
     # Convenient syntax for construction #
@@ -1112,8 +1112,8 @@ class IdxChm(ChoiceMap):
     c: ChoiceMap
     addr: DynamicAddressComponent
 
-    @classmethod
-    def build(cls, chm: ChoiceMap, addr: DynamicAddressComponent) -> ChoiceMap:
+    @staticmethod
+    def build(chm: ChoiceMap, addr: DynamicAddressComponent) -> ChoiceMap:
         return _empty if chm.static_is_empty() else IdxChm(chm, addr)
 
     def get_value(self) -> Any:
@@ -1175,9 +1175,8 @@ class StaticChm(ChoiceMap):
     c: ChoiceMap = Pytree.field()
     addr: ExtendedStaticAddressComponent = Pytree.static()
 
-    @classmethod
+    @staticmethod
     def build(
-        cls,
         c: ChoiceMap,
         addr: ExtendedStaticAddressComponent,
     ) -> ChoiceMap:
@@ -1218,9 +1217,8 @@ class XorChm(ChoiceMap):
     c1: ChoiceMap
     c2: ChoiceMap
 
-    @classmethod
+    @staticmethod
     def build(
-        cls,
         c1: ChoiceMap,
         c2: ChoiceMap,
     ) -> ChoiceMap:
@@ -1289,9 +1287,8 @@ class OrChm(ChoiceMap):
     c1: ChoiceMap
     c2: ChoiceMap
 
-    @classmethod
+    @staticmethod
     def build(
-        cls,
         c1: ChoiceMap,
         c2: ChoiceMap,
     ) -> ChoiceMap:
@@ -1354,9 +1351,8 @@ class MaskChm(ChoiceMap):
     c: ChoiceMap
     flag: Flag
 
-    @classmethod
+    @staticmethod
     def build(
-        cls,
         c: ChoiceMap,
         flag: Flag,
     ) -> ChoiceMap:
@@ -1407,8 +1403,8 @@ class FilteredChm(ChoiceMap):
     c: ChoiceMap
     selection: Selection
 
-    @classmethod
-    def build(cls, chm: ChoiceMap, selection: Selection) -> ChoiceMap:
+    @staticmethod
+    def build(chm: ChoiceMap, selection: Selection) -> ChoiceMap:
         return _empty if chm.static_is_empty() else FilteredChm(chm, selection)
 
     def get_value(self) -> Any:
