@@ -33,6 +33,8 @@ from genjax._src.core.typing import (
     static_check_is_concrete,
 )
 
+WrappedFunWithAux = tuple[lu.WrappedFun, Callable[[], Any]]
+
 ###############################
 # Concrete Boolean arithmetic #
 ###############################
@@ -160,12 +162,17 @@ def cached_stage_dynamic(flat_fun, in_avals):
     return typed_jaxpr
 
 
-# This function has been cloned from api_util, since it is not exported from that module
 @lu.transformation_with_aux
-def flatten_fun_nokwargs(in_tree, *args_flat):
+def _flatten_fun_nokwargs(in_tree, *args_flat):
     py_args = jtu.tree_unflatten(in_tree, args_flat)
     ans = yield py_args, {}
     yield jtu.tree_flatten(ans)
+
+
+# Wrapper to assign a correct type.
+flatten_fun_nokwargs: Callable[[lu.WrappedFun, Any], WrappedFunWithAux] = (
+    _flatten_fun_nokwargs  # pyright: ignore[reportAssignmentType]
+)
 
 
 def stage(f):
@@ -174,7 +181,7 @@ def stage(f):
     def wrapped(*args, **kwargs):
         fun = lu.wrap_init(f, kwargs)
         flat_args, in_tree = jtu.tree_flatten(args)
-        flat_fun, out_tree = flatten_fun_nokwargs(fun, in_tree)  # pyright: ignore
+        flat_fun, out_tree = flatten_fun_nokwargs(fun, in_tree)
         flat_avals = safe_map(get_shaped_aval, flat_args)
         typed_jaxpr = cached_stage_dynamic(flat_fun, tuple(flat_avals))
         return typed_jaxpr, (flat_args, in_tree, out_tree)
