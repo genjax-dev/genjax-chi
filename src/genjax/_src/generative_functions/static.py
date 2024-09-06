@@ -629,13 +629,30 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 # Decorator #
 #############
 
+_WRAPPER_ASSIGNMENTS = (
+    "__module__",
+    "__name__",
+    "__qualname__",
+    "__doc__",
+    "__annotations__",
+)
 
-def gen(f: Callable[..., R]) -> StaticGenerativeFunction[R]:
+
+def gen(f: Closure[R] | Callable[..., R]) -> StaticGenerativeFunction[R]:
     if isinstance(f, Closure):
-        return StaticGenerativeFunction[R](f)
+        gf = StaticGenerativeFunction[R](f)
     else:
         closure = Pytree.partial()(f)
-        return StaticGenerativeFunction[R](closure)
+        gf = StaticGenerativeFunction[R](closure)
+
+    # Preserve the original function's docstring and name
+    for k in _WRAPPER_ASSIGNMENTS:
+        v = getattr(f, k, None)
+        if v is not None:
+            object.__setattr__(gf, k, v)
+
+    object.__setattr__(gf, "__wrapped__", f)
+    return gf
 
 
 ###########
