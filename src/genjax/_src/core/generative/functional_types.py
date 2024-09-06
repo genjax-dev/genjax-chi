@@ -13,9 +13,8 @@
 # limitations under the License.
 
 import jax.numpy as jnp
-from beartype.typing import cast
+import jax.tree_util as jtu
 from jax.experimental import checkify
-from jax.tree_util import tree_map
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.interpreters.staging import (
@@ -23,6 +22,7 @@ from genjax._src.core.interpreters.staging import (
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Array,
     ArrayLike,
     Generic,
     Int,
@@ -110,8 +110,11 @@ class Mask(Generic[R], Pytree):
             optional_check(_check)
             return self.unsafe_unmask()
         else:
-            assert isinstance(default, ArrayLike) and isinstance(self.value, ArrayLike)
-            return cast(R, jnp.where(self.flag.f, self.value, default))
+
+            def inner(true_v: ArrayLike, false_v: ArrayLike) -> Array:
+                return jnp.where(self.flag.f, true_v, false_v)
+
+            return jtu.tree_map(inner, self.value, default)
 
 
 def staged_choose(
@@ -145,4 +148,4 @@ def staged_choose(
         else:
             return result
 
-    return tree_map(inner, *pytrees)
+    return jtu.tree_map(inner, *pytrees)
