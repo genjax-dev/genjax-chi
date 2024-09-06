@@ -343,13 +343,13 @@ class Trace(Generic[R], Pytree):
         This method calls out to the underlying [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update] method - see [`UpdateProblem`][genjax.core.UpdateProblem] and [`update`][genjax.core.GenerativeFunction.update] for more information.
         """
         if isinstance(problem, GenericProblem) and argdiffs is None:
-            return self.get_gen_fn().update(key, self, problem)  # pyright: ignore
+            return self.get_gen_fn().update(key, self, problem)  # pyright: ignore[reportReturnType]
         else:
             return self.get_gen_fn().update(
                 key,
                 self,
                 GenericProblem(Diff.tree_diff_no_change(self.get_args()), problem),
-            )  # pyright: ignore
+            )  # pyright: ignore[reportReturnType]
 
     def project(
         self,
@@ -1600,7 +1600,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
     # This override returns `R`, while the superclass returns a `GenerativeFunctionClosure`; this is
     # a hint that subclassing may not be the right relationship here.
-    def __call__(self, key: PRNGKey, *args) -> R:  # pyright: ignore
+    def __call__(self, key: PRNGKey, *args) -> R:  # pyright: ignore[reportIncompatibleMethodOverride]
         full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
