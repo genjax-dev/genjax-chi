@@ -36,8 +36,6 @@ from genjax._src.core.typing import (
     TypeVar,
 )
 
-T = TypeVar("T")
-
 #################
 # Address types #
 #################
@@ -51,6 +49,7 @@ ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
 ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
 ExtendedAddress = tuple[()] | tuple[ExtendedAddressComponent, ...]
 
+T = TypeVar("T")
 K_addr = TypeVar("K_addr", bound=ExtendedAddressComponent | ExtendedAddress)
 
 ##############
@@ -65,12 +64,11 @@ K_addr = TypeVar("K_addr", bound=ExtendedAddressComponent | ExtendedAddress)
 @Pytree.dataclass
 class _SelectionBuilder(Pytree):
     def __getitem__(
-        self, addr_comps: ExtendedAddressComponent | ExtendedAddress
+        self, addr: ExtendedAddressComponent | ExtendedAddress
     ) -> "Selection":
-        if not isinstance(addr_comps, tuple):
-            addr_comps = (addr_comps,)
+        addr = addr if isinstance(addr, tuple) else (addr,)
 
-        return Selection.all().extend(*addr_comps)
+        return Selection.all().extend(*addr)
 
 
 SelectionBuilder = _SelectionBuilder()
@@ -179,7 +177,7 @@ class Selection(ProjectProblem):
     def __invert__(self) -> "Selection":
         return ComplementSel(self)
 
-    def maybe(self, flag: Flag) -> "Selection":
+    def mask(self, flag: Flag) -> "Selection":
         """
         Returns a new Selection that is conditionally applied based on a flag.
 
@@ -199,14 +197,18 @@ class Selection(ProjectProblem):
             from genjax._src.core.interpreters.staging import Flag
 
             base_selection = Selection.all()
-            maybe_selection = base_selection.maybe(Flag(True))
+            maybe_selection = base_selection.mask(Flag(True))
             assert maybe_selection["any_address"].f == True
 
-            maybe_selection = base_selection.maybe(Flag(False))
+            maybe_selection = base_selection.mask(Flag(False))
             assert maybe_selection["any_address"].f == False
             ```
         """
-        return DeferSel(self, flag)
+        return MaskSel(self, flag)
+
+    def filter(self, chm: "ChoiceMap") -> "ChoiceMap":
+        # TODO docstring
+        return chm.filter(self)
 
     def extend(self, *addrs: ExtendedAddressComponent) -> "Selection":
         """
@@ -298,7 +300,7 @@ class AllSel(Selection):
 
 
 @Pytree.dataclass
-class DeferSel(Selection):
+class MaskSel(Selection):
     """Represents a deferred selection that is conditionally applied based on a flag.
 
     This selection wraps another selection and a boolean flag. The check and
@@ -313,11 +315,11 @@ class DeferSel(Selection):
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         base_sel = Selection.all()
         flag = Flag(True)
-        defer_sel = base_sel.maybe(flag)
+        defer_sel = base_sel.mask(flag)
         assert defer_sel.check().f == True
 
         flag = Flag(False)
-        defer_sel = base_sel.maybe(flag)
+        defer_sel = base_sel.mask(flag)
         assert defer_sel.check().f == False
         ```
     """
@@ -331,7 +333,7 @@ class DeferSel(Selection):
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining = self.s(addr)
-        return remaining.maybe(self.flag)
+        return remaining.mask(self.flag)
 
 
 @Pytree.dataclass
@@ -399,7 +401,7 @@ class StaticSel(Selection):
 
     def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
         check = Flag(addr == self.addr or isinstance(addr, EllipsisType))
-        return self.s.maybe(check)
+        return self.s.mask(check)
 
 
 @Pytree.dataclass
@@ -451,7 +453,7 @@ class IdxSel(Selection):
                 if jnp.array(addr, copy=False).shape
                 else check_fn(addr)
             )
-            return self.s.maybe(check)
+            return self.s.mask(check)
 
 
 @Pytree.dataclass
