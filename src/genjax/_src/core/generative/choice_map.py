@@ -570,10 +570,12 @@ class ChoiceMapNoValueAtAddress(Exception):
 
 
 class _ChoiceMapBuilder:
-    choice_map: "ChoiceMap"
+    choice_map: "ChoiceMap | None"
     addrs: list[ExtendedAddressComponent]
 
-    def __init__(self, choice_map: "ChoiceMap", addrs: list[ExtendedAddressComponent]):
+    def __init__(
+        self, choice_map: "ChoiceMap | None", addrs: list[ExtendedAddressComponent]
+    ):
         self.choice_map = choice_map
         self.addrs = addrs
 
@@ -588,7 +590,11 @@ class _ChoiceMapBuilder:
 
     def set(self, v) -> "ChoiceMap":
         # TODO add a test that shows that if you set over an existing address, you do in fact stomp it (the new v is preferred)
-        return ChoiceMap.entry(v, *self.addrs) + self.choice_map
+        chm = ChoiceMap.entry(v, *self.addrs)
+        if self.choice_map is None:
+            return chm
+        else:
+            return chm + self.choice_map
 
     def n(self) -> "ChoiceMap":
         """
@@ -693,9 +699,7 @@ class ChoiceMap(Sample, Constraint):
     # Convenient syntax for construction #
     ######################################
 
-    @staticmethod
-    def builder() -> _ChoiceMapBuilder:
-        return _ChoiceMapBuilder(ChoiceMap.empty(), [])
+    builder: Final[_ChoiceMapBuilder] = _ChoiceMapBuilder(None, [])
 
     @staticmethod
     def empty() -> "EmptyChm":
@@ -980,7 +984,7 @@ class ChoiceMap(Sample, Constraint):
     def __add__(self, other: "ChoiceMap") -> "ChoiceMap":
         return OrChm.build(self, other)
 
-    def __or__(self, other):
+    def __or__(self, other: "ChoiceMap") -> "ChoiceMap":
         return OrChm.build(self, other)
 
     def __call__(
