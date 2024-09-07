@@ -13,8 +13,63 @@
 # limitations under the License.
 
 import jax.numpy as jnp
+import pytest
 
-from genjax._src.core.generative.functional_types import staged_choose
+from genjax._src.checkify import do_checkify
+from genjax._src.core.generative.functional_types import Mask, staged_choose
+from genjax._src.core.interpreters.staging import Flag
+
+
+class TestMask:
+    def test_mask_unmask_without_default(self):
+        valid_mask = Mask(Flag(True), 42)
+        assert valid_mask.unmask() == 42
+
+        invalid_mask = Mask(Flag(False), 42)
+        with do_checkify():
+            with pytest.raises(Exception):
+                invalid_mask.unmask()
+
+    def test_mask_unmask_with_default(self):
+        valid_mask = Mask(Flag(True), 42)
+        assert valid_mask.unmask(default=0) == 42
+
+        invalid_mask = Mask(Flag(False), 42)
+        assert invalid_mask.unmask(default=0) == 0
+
+    def test_mask_unmask_pytree(self):
+        pytree = {"a": 1, "b": [2, 3], "c": {"d": 4}}
+        valid_mask = Mask(Flag(True), pytree)
+        assert valid_mask.unmask() == pytree
+
+        invalid_mask = Mask(Flag(False), pytree)
+        default = {"a": 0, "b": [0, 0], "c": {"d": 0}}
+        result = invalid_mask.unmask(default=default)
+        assert result == default
+
+    def test_mask_maybe(self):
+        mask = Mask.maybe(Flag(True), 42)
+        assert isinstance(mask, Mask)
+        assert mask.flag.f is True
+        assert mask.value == 42
+
+        nested_mask = Mask.maybe(Flag(False), Mask(Flag(True), 42))
+        assert isinstance(nested_mask, Mask)
+        assert nested_mask.flag.f is False
+        assert nested_mask.value == 42
+
+    def test_mask_maybe_none(self):
+        result = Mask.maybe_none(Flag(True), 42)
+        assert result == 42
+
+        result = Mask.maybe_none(Flag(False), 42)
+        assert result is None
+
+        mask = Mask(Flag(True), 42)
+        result = Mask.maybe_none(Flag(True), mask)
+        assert isinstance(result, Mask)
+        assert result.flag.f is True
+        assert result.value == 42
 
 
 class TestStagedChoose:
