@@ -31,6 +31,7 @@ from genjax._src.core.generative import (
     EmptyRequest,
     EmptyTrace,
     GenerativeFunction,
+    ImportanceRequest,
     IncrementalGenericRequest,
     Mask,
     MaskedConstraint,
@@ -209,7 +210,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 raise Exception("Unhandled type.")
         return tr, w, Diff.unknown_change(tr.get_retval()), bwd_problem
 
-    def update_empty(
+    def edit_empty(
         self,
         trace: Trace[R],
         argdiffs: Argdiffs,
@@ -225,7 +226,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             EmptyRequest(),
         )
 
-    def update_constraint_masked_constraint(
+    def edit_constraint_masked_constraint(
         self,
         key: PRNGKey,
         trace: Trace[R],
@@ -234,8 +235,8 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         old_sample = trace.get_choices()
 
-        def update_branch(key, trace, constraint, argdiffs):
-            tr, w, rd, _ = self.update(
+        def edit_branch(key, trace, constraint, argdiffs):
+            tr, w, rd, _ = self.edit(
                 key, trace, IncrementalGenericRequest(argdiffs, constraint)
             )
             return (
@@ -246,7 +247,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             )
 
         def do_nothing_branch(key, trace, _, argdiffs):
-            tr, w, _, _ = self.update(
+            tr, w, _, _ = self.edit(
                 key, trace, IncrementalGenericRequest(argdiffs, EmptyRequest())
             )
             return (
@@ -258,7 +259,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 
         return jax.lax.cond(
             constraint.flag.f,
-            update_branch,
+            edit_branch,
             do_nothing_branch,
             key,
             trace,
@@ -266,7 +267,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             argdiffs,
         )
 
-    def update_constraint(
+    def edit_constraint(
         self,
         key: PRNGKey,
         trace: Trace[R],
@@ -289,24 +290,20 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     EmptyRequest(),
                 )
 
-            case MaskedConstraint(flag, problem):
+            case MaskedConstraint(flag, subconstraint):
                 if staged_check(flag):
-                    return self.update(
-                        key, trace, IncrementalGenericRequest(argdiffs, problem)
+                    return self.edit(
+                        key, trace, IncrementalGenericRequest(argdiffs, subconstraint)
                     )
                 else:
-                    return self.update_constraint_masked_constraint(
+                    return self.edit_constraint_masked_constraint(
                         key, trace, constraint, argdiffs
                     )
 
-            case ChoiceMap():
+            case ChoiceMapConstraint():
                 check = constraint.has_value()
                 v = constraint.get_value()
-                if isinstance(v, EditRequest):
-                    return self.update(
-                        key, trace, IncrementalGenericRequest(argdiffs, v)
-                    )
-                elif check.concrete_true():
+                if check.concrete_true():
                     fwd = self.estimate_logpdf(key, v, *primals)
                     bwd = trace.get_score()
                     w = fwd - bwd
@@ -317,7 +314,10 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         new_tr,
                         w,
                         retval_diff,
-                        discard,
+                        IncrementalGenericRequest(
+                            Diff.tree_diff_unknown_change(trace.get_args()),
+                            ChoiceMapConstraint(discard),
+                        ),
                     )
                 elif check.concrete_false():
                     value_chm = trace.get_choices()
@@ -369,9 +369,9 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     )
 
             case _:
-                raise Exception("Unhandled constraint in update.")
+                raise Exception("Unhandled constraint in edit.")
 
-    def update_masked(
+    def edit_masked(
         self: "Distribution[ArrayLike]",
         key: PRNGKey,
         trace: Trace[ArrayLike],
@@ -381,7 +381,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     ) -> tuple[Trace[ArrayLike], Weight, Retdiff[ArrayLike], EditRequest]:
         old_value = trace.get_retval()
         primals = Diff.tree_primal(argdiffs)
-        possible_trace, w, retdiff, bwd_problem = self.update(
+        possible_trace, w, retdiff, bwd_problem = self.edit(
             key,
             trace,
             IncrementalGenericRequest(argdiffs, problem),
@@ -398,7 +398,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 
         return new_trace, w, retdiff, bwd_problem
 
-    def update_project(
+    def edit_project(
         self,
         trace: Trace[R],
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
@@ -412,7 +412,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             ChoiceMap.value(removed_value),
         )
 
-    def update_selection_project(
+    def edit_selection_project(
         self,
         key: PRNGKey,
         trace: Trace[R],
@@ -421,7 +421,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         check = () in selection
 
-        return self.update(
+        return self.edit(
             key,
             trace,
             IncrementalGenericRequest(
@@ -439,15 +439,15 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         match constraint:
             case EmptyConstraint():
-                return self.update_empty(trace, argdiffs)
+                return self.edit_empty(trace, argdiffs)
 
             case ChoiceMapConstraint():
-                return self.update_constraint(key, trace, constraint, argdiffs)
+                return self.edit_constraint(key, trace, constraint, argdiffs)
 
             case MaskedConstraint(flag, subproblem):
-                # TODO (#1239): see if `MaskedProblem` can handle this update,
+                # TODO (#1239): see if `MaskedProblem` can handle this edit,
                 # without infecting all of `Distribution`
-                return self.update_masked(key, trace, flag, subproblem, argdiffs)  # pyright: ignore[reportAttributeAccessIssue]
+                return self.edit_masked(key, trace, flag, subproblem, argdiffs)  # pyright: ignore[reportAttributeAccessIssue]
 
             case _:
                 raise Exception(f"Not implement fwd problem: {constraint}.")
@@ -467,13 +467,14 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     constraint,
                     argdiffs,
                 )
-            case _:
-                return self.edit_change_target(
+            case ImportanceRequest(args, constraint):
+                return self.edit_importance(
                     key,
-                    trace,
-                    edit_request,
-                    Diff.no_change(trace.get_args()),
+                    constraint,
+                    args,
                 )
+            case _:
+                raise Exception("Unhandled edit request.")
 
     def assess(
         self,

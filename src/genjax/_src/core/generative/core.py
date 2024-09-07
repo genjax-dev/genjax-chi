@@ -223,6 +223,7 @@ class IncrementalGenericRequest(EditRequest):
 
 @Pytree.dataclass(match_args=True)
 class ImportanceRequest(EditRequest):
+    arguments: Arguments
     constraint: Constraint
 
 
@@ -263,7 +264,7 @@ class ChoiceMapConstraint(Constraint, ChoiceMap):
         self,
         addr: ExtendedAddressComponent,
     ) -> "ChoiceMap":
-        return self.choice_map.get_submap(addr)
+        return ChoiceMapConstraint(self.choice_map.get_submap(addr))
 
     def get_value(self) -> Any:
         return self.choice_map.get_value()
@@ -272,6 +273,15 @@ class ChoiceMapConstraint(Constraint, ChoiceMap):
 @Pytree.dataclass
 class ChoiceMapSample(Sample, ChoiceMap):
     choice_map: ChoiceMap
+
+    def get_submap(
+        self,
+        addr: ExtendedAddressComponent,
+    ) -> "ChoiceMap":
+        return ChoiceMapSample(self.choice_map.get_submap(addr))
+
+    def get_value(self) -> Any:
+        return self.choice_map.get_value()
 
 
 #########
@@ -753,7 +763,7 @@ class GenerativeFunction(Generic[R], Pytree):
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         tr, w, rd, bwd = self.edit(
             key,
-            EmptyTrace(self),
+            trace,
             IncrementalGenericRequest(
                 argdiffs,
                 constraint
@@ -807,8 +817,8 @@ class GenerativeFunction(Generic[R], Pytree):
         tr, w, _, _ = self.edit(
             key,
             EmptyTrace(self),
-            IncrementalGenericRequest(
-                Diff.unknown_change(args),
+            ImportanceRequest(
+                args,
                 constraint
                 if isinstance(constraint, Constraint)
                 else ChoiceMapConstraint(constraint),

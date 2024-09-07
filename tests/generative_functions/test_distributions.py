@@ -15,8 +15,8 @@
 import jax
 
 import genjax
+from genjax import ChoiceMap, EmptyConstraint
 from genjax import ChoiceMapBuilder as C
-from genjax import EmptyConstraint, MaskedConstraint
 from genjax._src.core.interpreters.staging import Flag
 from genjax.incremental import Diff, NoChange, UnknownChange
 
@@ -42,7 +42,7 @@ class TestDistributions:
         # Constraint, mask with True flag.
         (tr, w) = genjax.normal.importance(
             key,
-            MaskedConstraint(Flag(True), C.v(1.0)),
+            ChoiceMap.maybe(Flag(True), C.v(1.0)),
             (0.0, 1.0),
         )
         v = tr.get_choices().get_value()
@@ -52,7 +52,7 @@ class TestDistributions:
         # Constraint, mask with False flag.
         (tr, w) = genjax.normal.importance(
             key,
-            MaskedConstraint(Flag(False), C.v(1.0)),
+            ChoiceMap.maybe(Flag(False), C.v(1.0)),
             (0.0, 1.0),
         )
         v = tr.get_choices().get_value()
@@ -132,7 +132,7 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            MaskedConstraint(Flag(True), C.v(1.0)),
+            ChoiceMap.maybe(Flag(True), C.v(1.0)),
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_choices().get_value() == 1.0
@@ -148,7 +148,7 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            MaskedConstraint(Flag(True), C.v(1.0)),
+            ChoiceMap.maybe(Flag(True), C.v(1.0)),
             (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_choices().get_value() == 1.0
@@ -164,7 +164,7 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            MaskedConstraint(Flag(False), C.v(1.0)),
+            ChoiceMap.maybe(Flag(False), C.v(1.0)),
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_choices().get_value() == tr.get_choices().get_value()
@@ -178,7 +178,7 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            MaskedConstraint(Flag(False), C.v(1.0)),
+            ChoiceMap.maybe(Flag(False), C.v(1.0)),
             (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_choices().get_value() == tr.get_choices().get_value()
