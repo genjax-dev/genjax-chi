@@ -48,10 +48,12 @@ from genjax._src.core.interpreters.staging import Flag, staged_check
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
+    Array,
     ArrayLike,
     Callable,
     Generic,
     PRNGKey,
+    Sequence,
 )
 
 #####
@@ -569,7 +571,7 @@ class ExactDensityFromCallables(Generic[R], ExactDensity[R]):
     def sample(self, key, *args) -> R:
         return self.sampler(key, *args)
 
-    def logpdf(self, v, *args) -> Score:
+    def logpdf(self, v: R, *args) -> Score:
         return self.logpdf_evaluator(v, *args)
 
 
@@ -584,3 +586,40 @@ def exact_density(
         logpdf = Pytree.partial()(logpdf)
 
     return ExactDensityFromCallables[R](sample, logpdf)
+
+
+def log_binomial_coefficient(x: ArrayLike, y: ArrayLike) -> Array:
+    return -jnp.log(x + 1) - jax.scipy.special.betaln(y + 1, x - (y + 1))
+
+
+@Pytree.dataclass
+class RandomChoice(ExactDensity[Array]):
+    """
+    A generative function representing random choice without replacement.
+
+    This class implements sampling and log probability density calculation for choosing elements randomly from a range without replacement.
+
+    Methods:
+        sample: Samples elements randomly from the given range.
+        logpdf: Calculates the log probability density of the given sample.
+
+
+    The `sample` and `logpdf` methods take the following arguments:
+
+    - key: a PRNG key used as the random key.
+    - a: array or int. If an ndarray, a random sample is generated from its elements. If an int, the random sample is generated as if a were arange(a).
+    - shape: tuple of ints, optional. Output shape. If the given shape is, e.g., ``(m, n)``, then ``m * n`` samples are drawn.  Default is (), in which case a single value is returned.
+    """
+
+    def sample(self, key: PRNGKey, *args) -> Array:
+        range: int | ArrayLike = args[0]
+        shape: Sequence[int] = args[1]
+
+        return jax.random.choice(key, range, shape, replace=False)
+
+    def logpdf(self, v: Array, *args) -> Score:
+        range: int | ArrayLike = args[0]
+        shape: Sequence[int] = args[1]
+
+        count = jnp.prod(jnp.asarray(shape))
+        return -log_binomial_coefficient(range, count)

@@ -13,12 +13,17 @@
 # limitations under the License.
 
 import jax
+import jax.numpy as jnp
 
 import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import EmptyConstraint, MaskedConstraint
 from genjax import UpdateProblemBuilder as U
 from genjax._src.core.interpreters.staging import Flag
+from genjax._src.generative_functions.distributions.distribution import (
+    RandomChoice,
+    log_binomial_coefficient,
+)
 from genjax.incremental import Diff, NoChange, UnknownChange
 
 
@@ -199,3 +204,53 @@ class TestDistributions:
             == genjax.normal.assess(tr.get_choices(), (1.0, 1.0))[0]
             - genjax.normal.assess(tr.get_choices(), (0.0, 1.0))[0]
         )
+
+
+class TestRandomChoice:
+    def test_sample(self):
+        key = jax.random.PRNGKey(0)
+        rc = RandomChoice()
+
+        # Test with integer range
+        sample = rc.sample(key, 5, ())
+        assert 0 <= sample < 5
+
+        # Test with array range
+        sample = rc.sample(key, jnp.array([1, 2, 3, 4, 5]), ())
+        assert sample in [1, 2, 3, 4, 5]
+
+        # Test with shape
+        samples = rc.sample(key, 10, (3, 2))
+        assert samples.shape == (3, 2)
+        assert jnp.all((0 <= samples) & (samples < 10))
+
+    def test_logpdf(self):
+        rc = RandomChoice()
+
+        # Test with integer range
+        logp = rc.logpdf(jnp.asarray(2), 5, ())
+        expected_logp = -log_binomial_coefficient(
+            5, 1
+        )  # Uniform probability over 5 choices
+        assert jnp.allclose(logp, expected_logp)
+
+        # Test with array range
+        range = jnp.array([1, 2, 3, 4, 5])
+        logp = rc.logpdf(jnp.asarray(3), range, ())
+        expected_logp = -log_binomial_coefficient(
+            range, 1
+        )  # Uniform probability over 5 choices
+        assert jnp.allclose(logp, expected_logp)
+
+        # Test with shape
+        logp = rc.logpdf(jnp.array([1, 2, 3]), 5, (3,))
+        expected_logp = -log_binomial_coefficient(5, 3)
+        assert jnp.allclose(logp, expected_logp)
+
+    def test_simulate(self):
+        key = jax.random.PRNGKey(0)
+        rc = RandomChoice()
+
+        tr = rc.simulate(key, (5, ()))
+        assert 0 <= tr.get_retval() < 5
+        assert tr.get_score() == -log_binomial_coefficient(5, 1)
