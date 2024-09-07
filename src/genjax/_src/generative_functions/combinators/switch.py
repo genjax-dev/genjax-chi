@@ -206,7 +206,6 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         score = tr.get_score()
         return (trace_leaves, retval_leaves), score
 
-    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,
@@ -608,7 +607,6 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             case SwitchTrace():
                 return self.update_generic(key, trace, problem, argdiffs)
 
-    @GenerativeFunction.gfi_boundary
     def update(
         self,
         key: PRNGKey,

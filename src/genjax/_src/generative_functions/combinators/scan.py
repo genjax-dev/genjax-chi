@@ -493,7 +493,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 ), "You cannot operate on the EmptyTrace in this context"
                 return self.update_generic(key, trace, update_problem, argdiffs)
 
-    @GenerativeFunction.gfi_boundary
     def update(
         self,
         key: PRNGKey,
@@ -514,7 +513,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                     ),
                 )
 
-    @GenerativeFunction.gfi_boundary
     def assess(
         self,
         sample: Sample,
