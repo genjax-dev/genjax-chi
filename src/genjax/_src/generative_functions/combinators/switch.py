@@ -23,12 +23,12 @@ from genjax._src.core.generative import (
     EditRequest,
     EmptyTrace,
     GenerativeFunction,
-    ImportanceProblem,
+    ImportanceRequest,
     IncrementalGenericRequest,
     Retdiff,
     Sample,
     Score,
-    SumProblem,
+    SumRequest,
     Trace,
     Weight,
 )
@@ -449,12 +449,12 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             SwitchTrace(self, primals, subtraces, retval, score),
             w,
             retdiff,
-            SumProblem(idx, bwd_problems),
+            SumRequest(idx, bwd_problems),
         )
 
     def _empty_importance_defs(
         self,
-        problem: ImportanceProblem,
+        problem: ImportanceRequest,
         argdiffs: Argdiffs,
     ):
         trace_defs = []
@@ -519,7 +519,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
     def update_importance(
         self,
         key: PRNGKey,
-        problem: ImportanceProblem,
+        problem: ImportanceRequest,
         argdiffs: tuple[Any, ...],
     ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], EditRequest]:
         args = Diff.tree_primal(argdiffs)
@@ -588,10 +588,10 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             SwitchTrace(self, args, subtraces, retval, score),
             w,
             Diff.unknown_change(retval),
-            SumProblem(idx, bwd_problems),
+            SumRequest(idx, bwd_problems),
         )
 
-    def update_change_target(
+    def edit_change_target(
         self,
         key: PRNGKey,
         trace: Trace[R],
@@ -602,8 +602,8 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         match trace:
             case EmptyTrace():
                 assert isinstance(
-                    problem, ImportanceProblem
-                ), f"update_change_target of an EmptyTrace requires an ImportanceProblem, not {problem}"
+                    problem, ImportanceRequest
+                ), f"edit_change_target of an EmptyTrace requires an ImportanceProblem, not {problem}"
                 return self.update_importance(key, problem, argdiffs)
             case SwitchTrace():
                 return self.update_generic(key, trace, problem, argdiffs)
@@ -617,9 +617,9 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
     ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], EditRequest]:
         match edit_request:
             case IncrementalGenericRequest(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
+                return self.edit_change_target(key, trace, subproblem, argdiffs)
             case _:
-                return self.update_change_target(
+                return self.edit_change_target(
                     key, trace, edit_request, Diff.no_change(trace.get_args())
                 )
 

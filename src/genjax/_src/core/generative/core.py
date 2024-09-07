@@ -19,7 +19,7 @@ import jax
 import jax.numpy as jnp
 from penzai.core import formatting_util
 
-from genjax._src.core.generative.choice_map import ChoiceMap
+from genjax._src.core.generative.choice_map import ChoiceMap, ExtendedAddressComponent
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import Flag, get_trace_shape
 from genjax._src.core.pytree import Pytree
@@ -185,32 +185,32 @@ class EditRequest(Pytree):
 
 
 @Pytree.dataclass
-class EmptyProblem(EditRequest):
+class EmptyRequest(EditRequest):
     pass
 
 
 @Pytree.dataclass(match_args=True)
-class MaskedProblem(EditRequest):
+class MaskedRequest(EditRequest):
     flag: Flag
     problem: EditRequest
 
     @classmethod
     def maybe_empty(cls, f: Flag, problem: EditRequest):
         match problem:
-            case MaskedProblem(flag, subproblem):
-                return MaskedProblem(f.and_(flag), subproblem)
+            case MaskedRequest(flag, subproblem):
+                return MaskedRequest(f.and_(flag), subproblem)
             case _:
                 return (
                     problem
                     if f.concrete_true()
-                    else EmptyProblem()
+                    else EmptyRequest()
                     if f.concrete_false()
-                    else MaskedProblem(f, problem)
+                    else MaskedRequest(f, problem)
                 )
 
 
 @Pytree.dataclass
-class SumProblem(EditRequest):
+class SumRequest(EditRequest):
     idx: Int | IntArray
     problems: list[EditRequest]
 
@@ -222,7 +222,7 @@ class IncrementalGenericRequest(EditRequest):
 
 
 @Pytree.dataclass(match_args=True)
-class ImportanceProblem(EditRequest):
+class ImportanceRequest(EditRequest):
     constraint: Constraint
 
 
@@ -234,11 +234,11 @@ class ProjectProblem(EditRequest):
 class EditRequestBuilder(Pytree):
     @classmethod
     def empty(cls):
-        return EmptyProblem()
+        return EmptyRequest()
 
     @classmethod
     def maybe(cls, flag: Flag, problem: "EditRequest"):
-        return MaskedProblem.maybe_empty(flag, problem)
+        return MaskedRequest.maybe_empty(flag, problem)
 
     @classmethod
     def g(
@@ -258,6 +258,15 @@ class EditRequestBuilder(Pytree):
 @Pytree.dataclass
 class ChoiceMapConstraint(Constraint, ChoiceMap):
     choice_map: ChoiceMap
+
+    def get_submap(
+        self,
+        addr: ExtendedAddressComponent,
+    ) -> "ChoiceMap":
+        return self.choice_map.get_submap(addr)
+
+    def get_value(self) -> Any:
+        return self.choice_map.get_value()
 
 
 @Pytree.dataclass
@@ -341,10 +350,9 @@ class Trace(Generic[R], Pytree):
         """Return the [`Sample`][genjax.core.Sample] sampled from the distribution over samples by the generative function during the invocation which created the [`Trace`][genjax.core.Trace]."""
 
     # TODO: deprecated.
-
     def get_choices(self) -> "genjax.ChoiceMap":
         """Version of [`genjax.Trace.get_sample`][] for traces where the sample is an instance of [`genjax.ChoiceMap`][]."""
-        return self.get_sample()  # type: ignore
+        raise NotImplementedError
 
     @abstractmethod
     def get_gen_fn(self) -> "GenerativeFunction[R]":
@@ -421,6 +429,9 @@ class EmptyTrace(Trace[R]):
 
     def get_sample(self) -> Sample:
         return EmptySample()
+
+    def get_choices(self) -> ChoiceMap:
+        return ChoiceMap.empty()
 
     def get_gen_fn(self) -> "GenerativeFunction[R]":
         return self.gen_fn
@@ -737,10 +748,20 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        choice_map: ChoiceMap,
+        constraint: ChoiceMap | Constraint,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        raise NotImplementedError
+        tr, w, rd, bwd = self.edit(
+            key,
+            EmptyTrace(self),
+            IncrementalGenericRequest(
+                argdiffs,
+                constraint
+                if isinstance(constraint, Constraint)
+                else ChoiceMapConstraint(constraint),
+            ),
+        )
+        return tr, w, rd, bwd
 
     def importance(
         self,

@@ -21,10 +21,10 @@ from genjax._src.core.generative import (
     EditRequest,
     EmptyTrace,
     GenerativeFunction,
-    ImportanceProblem,
+    ImportanceRequest,
     IncrementalGenericRequest,
     Mask,
-    MaskedProblem,
+    MaskedRequest,
     MaskedSample,
     Retdiff,
     Score,
@@ -126,7 +126,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         tr = self.gen_fn.simulate(key, inner_args)
         return MaskTrace(self, tr, check)
 
-    def update_change_target(
+    def edit_change_target(
         self,
         key: PRNGKey,
         trace: Trace[Mask[R]],
@@ -153,10 +153,10 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             MaskTrace(self, premasked_trace, check),
             w,
             Mask.maybe(check_diff, retdiff),
-            MaskedProblem(check, bwd_problem),
+            MaskedRequest(check, bwd_problem),
         )
 
-    def update_change_target_from_false(
+    def edit_change_target_from_false(
         self,
         key: PRNGKey,
         trace: Trace[Mask[R]],
@@ -169,7 +169,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         inner_trace = EmptyTrace(self.gen_fn)
 
         assert isinstance(edit_request, Constraint)
-        imp_update_problem = ImportanceProblem(edit_request)
+        imp_update_problem = ImportanceRequest(edit_request)
 
         premasked_trace, w, _, _ = self.gen_fn.edit(
             key,
@@ -190,7 +190,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             MaskTrace(self, premasked_trace, check),
             w,
             Mask.maybe(check_diff, retdiff),
-            MaskedProblem(check, bwd_problem),
+            MaskedRequest(check, bwd_problem),
         )
 
     def edit(
@@ -203,9 +203,9 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
         match edit_request:
             case IncrementalGenericRequest(argdiffs, subproblem) if isinstance(
-                subproblem, ImportanceProblem
+                subproblem, ImportanceRequest
             ):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
+                return self.edit_change_target(key, trace, subproblem, argdiffs)
             case IncrementalGenericRequest(argdiffs, subproblem):
                 assert isinstance(trace, MaskTrace)
 
@@ -215,8 +215,8 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                     )
 
                 return trace.check.cond(
-                    self.update_change_target,
-                    self.update_change_target_from_false,
+                    self.edit_change_target,
+                    self.edit_change_target_from_false,
                     key,
                     trace,
                     subproblem,
@@ -224,7 +224,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                 )
 
             case _:
-                return self.update_change_target(
+                return self.edit_change_target(
                     key, trace, edit_request, Diff.no_change(trace.get_args())
                 )
 

@@ -20,10 +20,10 @@ from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
     EditRequest,
-    EmptyProblem,
+    EmptyRequest,
     EmptyTrace,
     GenerativeFunction,
-    ImportanceProblem,
+    ImportanceRequest,
     IncrementalGenericRequest,
     Retdiff,
     Sample,
@@ -259,7 +259,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 EmptyTrace(self.kernel_gen_fn),
                 IncrementalGenericRequest(
                     Diff.unknown_change((carry, scanned_in)),
-                    ImportanceProblem(constraint),
+                    ImportanceRequest(constraint),
                 ),
             )
             (carry, scanned_out) = tr.get_retval()
@@ -440,7 +440,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         updated_end, end_w, ending_retdiff, _ = self.kernel_gen_fn.edit(
             key,
             affected_subslice,
-            IncrementalGenericRequest(starting_retdiff, EmptyProblem()),
+            IncrementalGenericRequest(starting_retdiff, EmptyRequest()),
         )
 
         # Must be true for this type of update to be valid.
@@ -468,7 +468,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             IndexProblem(index, bwd_problem),
         )
 
-    def update_change_target(
+    def edit_change_target(
         self,
         key: PRNGKey,
         trace: Trace[tuple[Carry, Y]],
@@ -477,7 +477,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
         assert isinstance(trace, EmptyTrace | ScanTrace)
         match edit_request:
-            case ImportanceProblem(constraint) if isinstance(constraint, ChoiceMap):
+            case ImportanceRequest(constraint) if isinstance(constraint, ChoiceMap):
                 return self.update_importance(
                     key, constraint, Diff.tree_primal(argdiffs)
                 )
@@ -506,7 +506,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
         match edit_request:
             case IncrementalGenericRequest(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
+                return self.edit_change_target(key, trace, subproblem, argdiffs)
 
             case _:
                 return self.update(

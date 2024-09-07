@@ -25,10 +25,10 @@ from genjax._src.core.generative import (
     ChoiceMap,
     ChoiceMapBuilder,
     EditRequest,
-    EmptyProblem,
+    EmptyRequest,
     EmptyTrace,
     GenerativeFunction,
-    ImportanceProblem,
+    ImportanceRequest,
     IncrementalGenericRequest,
     Retdiff,
     Sample,
@@ -319,15 +319,15 @@ class UpdateHandler(StaticHandler):
             case ChoiceMap():
                 return self.fwd_problem(addr)
 
-            case ImportanceProblem(constraint) if isinstance(constraint, ChoiceMap):
-                return ImportanceProblem(constraint(addr))
+            case ImportanceRequest(constraint) if isinstance(constraint, ChoiceMap):
+                return ImportanceRequest(constraint(addr))
 
             case Selection():
                 subproblem = self.fwd_problem(addr)
                 return subproblem
 
-            case EmptyProblem():
-                return EmptyProblem()
+            case EmptyRequest():
+                return EmptyRequest()
 
             case _:
                 raise ValueError(f"Not implemented fwd_problem: {self.fwd_problem}")
@@ -536,7 +536,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             score,
         )
 
-    def update_change_target(
+    def edit_change_target(
         self,
         key: PRNGKey,
         trace: Trace[R],
@@ -593,7 +593,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
         match edit_request:
             case IncrementalGenericRequest(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
+                return self.edit_change_target(key, trace, subproblem, argdiffs)
             case _:
                 return self.update(
                     key,

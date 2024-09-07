@@ -123,7 +123,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         retval = self.retval_mapping(inner_args, inner_retval)
         return DimapTrace(self, tr, args, retval)
 
-    def update_change_target(
+    def edit_change_target(
         self,
         key: PRNGKey,
         trace: Trace[S],
@@ -179,9 +179,9 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
     ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
         match edit_request:
             case IncrementalGenericRequest(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
+                return self.edit_change_target(key, trace, subproblem, argdiffs)
             case _:
-                return self.update_change_target(
+                return self.edit_change_target(
                     key, trace, edit_request, Diff.no_change(trace.get_args())
                 )
 

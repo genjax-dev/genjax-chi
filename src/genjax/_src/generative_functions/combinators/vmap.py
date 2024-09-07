@@ -26,7 +26,7 @@ from genjax._src.core.generative import (
     EditRequest,
     EmptyTrace,
     GenerativeFunction,
-    ImportanceProblem,
+    ImportanceRequest,
     IncrementalGenericRequest,
     R,
     Retdiff,
@@ -192,7 +192,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
                 EmptyTrace(self.gen_fn),
                 IncrementalGenericRequest(
                     Diff.unknown_change(primals),
-                    ImportanceProblem(submap),
+                    ImportanceRequest(submap),
                 ),
             )
             return tr, w, rd, ChoiceMap.idx(idx, bwd_problem)
@@ -235,7 +235,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         map_tr = VmapTrace(self, new_subtraces, primals, retval, jnp.sum(scores))
         return map_tr, w, retdiff, bwd_problems
 
-    def update_change_target(
+    def edit_change_target(
         self,
         key: PRNGKey,
         trace: Trace[R],
@@ -249,7 +249,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
                 ), "To change the target with a ChoiceMap, a VmapTrace is required here"
                 return self.update_choice_map(key, trace, edit_request, argdiffs)
 
-            case ImportanceProblem(constraint) if isinstance(
+            case ImportanceRequest(constraint) if isinstance(
                 constraint, ChoiceMap
             ) and isinstance(trace, EmptyTrace):
                 return self.update_importance(key, constraint, argdiffs)
@@ -265,9 +265,9 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
     ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
         match edit_request:
             case IncrementalGenericRequest(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
+                return self.edit_change_target(key, trace, subproblem, argdiffs)
             case _:
-                return self.update_change_target(
+                return self.edit_change_target(
                     key, trace, edit_request, Diff.no_change(trace.get_args())
                 )
 
