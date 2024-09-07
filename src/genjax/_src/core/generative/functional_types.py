@@ -13,8 +13,8 @@
 # limitations under the License.
 
 import jax.numpy as jnp
+import jax.tree_util as jtu
 from jax.experimental import checkify
-from jax.tree_util import tree_map
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.interpreters.staging import (
@@ -22,6 +22,7 @@ from genjax._src.core.interpreters.staging import (
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Array,
     ArrayLike,
     Generic,
     Int,
@@ -86,24 +87,34 @@ class Mask(Generic[R], Pytree):
         """
         return self.value
 
-    def unmask(self) -> R:
+    def unmask(self, default: R | None = None) -> R:
         """
         Unmask the `Mask`, returning the value within.
 
         This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` wraps valid data at runtime.
+
+        Args:
+            default: An optional default value to return if the mask is invalid.
+
+        Returns:
+            The unmasked value if valid, or the default value if provided and the mask is invalid.
         """
+        if default is None:
 
-        # If a user chooses to `unmask`, require that they
-        # jax.experimental.checkify.checkify their call in transformed
-        # contexts.
-        def _check():
-            checkify.check(
-                self.flag.f,
-                "Attempted to unmask when a mask flag is False: the masked value is invalid.\n",
-            )
+            def _check():
+                checkify.check(
+                    self.flag.f,
+                    "Attempted to unmask when a mask flag is False: the masked value is invalid.\n",
+                )
 
-        optional_check(_check)
-        return self.unsafe_unmask()
+            optional_check(_check)
+            return self.unsafe_unmask()
+        else:
+
+            def inner(true_v: ArrayLike, false_v: ArrayLike) -> Array:
+                return jnp.where(self.flag.f, true_v, false_v)
+
+            return jtu.tree_map(inner, self.value, default)
 
 
 def staged_choose(
@@ -137,4 +148,4 @@ def staged_choose(
         else:
             return result
 
-    return tree_map(inner, *pytrees)
+    return jtu.tree_map(inner, *pytrees)
