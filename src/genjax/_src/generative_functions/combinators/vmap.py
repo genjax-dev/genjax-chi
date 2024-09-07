@@ -23,15 +23,15 @@ import jax.numpy as jnp
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
+    EditRequest,
     EmptyTrace,
     GenerativeFunction,
-    GenericProblem,
     ImportanceProblem,
+    IncrementalGenericRequest,
     R,
     Retdiff,
     Score,
     Trace,
-    UpdateProblem,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -178,7 +178,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         choice_map: ChoiceMap,
         argdiffs: Argdiffs,
-    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], UpdateProblem]:
+    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
         primals = Diff.tree_primal(argdiffs)
         self._static_check_broadcastable(primals)
         broadcast_dim_length = self._static_broadcast_dim_length(primals)
@@ -187,10 +187,10 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
         def _importance(key, idx, choice_map, primals):
             submap = choice_map(idx)
-            tr, w, rd, bwd_problem = self.gen_fn.update(
+            tr, w, rd, bwd_problem = self.gen_fn.edit(
                 key,
                 EmptyTrace(self.gen_fn),
-                GenericProblem(
+                IncrementalGenericRequest(
                     Diff.unknown_change(primals),
                     ImportanceProblem(submap),
                 ),
@@ -210,7 +210,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         prev: VmapTrace[R],
-        update_problem: ChoiceMap,
+        edit_request: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[VmapTrace[R], Weight, Retdiff[R], ChoiceMap]:
         primals = Diff.tree_primal(argdiffs)
@@ -220,9 +220,9 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
         def _update(key, idx, subtrace, argdiffs):
-            subproblem = update_problem(idx)
-            new_subtrace, w, retdiff, bwd_problem = self.gen_fn.update(
-                key, subtrace, GenericProblem(argdiffs, subproblem)
+            subproblem = edit_request(idx)
+            new_subtrace, w, retdiff, bwd_problem = self.gen_fn.edit(
+                key, subtrace, IncrementalGenericRequest(argdiffs, subproblem)
             )
             return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_problem)
 
@@ -239,15 +239,15 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        update_problem: UpdateProblem,
+        edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], UpdateProblem]:
-        match update_problem:
+    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
+        match edit_request:
             case ChoiceMap():
                 assert isinstance(
                     trace, VmapTrace
                 ), "To change the target with a ChoiceMap, a VmapTrace is required here"
-                return self.update_choice_map(key, trace, update_problem, argdiffs)
+                return self.update_choice_map(key, trace, edit_request, argdiffs)
 
             case ImportanceProblem(constraint) if isinstance(
                 constraint, ChoiceMap
@@ -255,20 +255,20 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
                 return self.update_importance(key, constraint, argdiffs)
 
             case _:
-                raise Exception(f"Not implemented problem: {update_problem}")
+                raise Exception(f"Not implemented problem: {edit_request}")
 
-    def update(
+    def edit(
         self,
         key: PRNGKey,
         trace: Trace[R],
-        update_problem: UpdateProblem,
-    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], UpdateProblem]:
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem):
+        edit_request: EditRequest,
+    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
+        match edit_request:
+            case IncrementalGenericRequest(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
             case _:
                 return self.update_change_target(
-                    key, trace, update_problem, Diff.no_change(trace.get_args())
+                    key, trace, edit_request, Diff.no_change(trace.get_args())
                 )
 
     def assess(

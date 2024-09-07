@@ -20,16 +20,16 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
+    EditRequest,
     EmptyTrace,
     GenerativeFunction,
-    GenericProblem,
     ImportanceProblem,
+    IncrementalGenericRequest,
     Retdiff,
     Sample,
     Score,
     SumProblem,
     Trace,
-    UpdateProblem,
     Weight,
 )
 from genjax._src.core.generative.functional_types import staged_choose
@@ -248,7 +248,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
     def _empty_update_defs(
         self,
         trace: SwitchTrace[R],
-        problem: UpdateProblem,
+        problem: EditRequest,
         argdiffs: Argdiffs,
     ):
         trace_defs = []
@@ -263,8 +263,8 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             branch_argdiffs = argdiffs[static_idx]
             key = jax.random.PRNGKey(0)
             trace_shape, _, retdiff_shape, bwd_problem_shape = get_data_shape(
-                gen_fn.update
-            )(key, subtrace, GenericProblem(branch_argdiffs, problem))
+                gen_fn.edit
+            )(key, subtrace, IncrementalGenericRequest(branch_argdiffs, problem))
             empty_trace = jtu.tree_map(
                 lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
             )
@@ -294,15 +294,15 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         static_idx: Int,
         trace: SwitchTrace[R],
-        problem: UpdateProblem,
+        problem: EditRequest,
         idx: IntArray,
         argdiffs: Argdiffs,
     ):
         subtrace = trace.subtraces[static_idx]
         gen_fn = self.branches[static_idx]
         branch_argdiffs = argdiffs[static_idx]
-        tr, w, rd, bwd_problem = gen_fn.update(
-            key, subtrace, GenericProblem(branch_argdiffs, problem)
+        tr, w, rd, bwd_problem = gen_fn.edit(
+            key, subtrace, IncrementalGenericRequest(branch_argdiffs, problem)
         )
         (
             (trace_leaves, _),
@@ -320,7 +320,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         static_idx: Int,
         trace: SwitchTrace[R],
-        problem: UpdateProblem,
+        problem: EditRequest,
         idx: IntArray,
         argdiffs: Argdiffs,
     ):
@@ -330,14 +330,14 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         branch_primals = Diff.tree_primal(branch_argdiffs)
         new_subtrace = gen_fn.simulate(key, branch_primals)
         new_subtrace_def = jtu.tree_structure(new_subtrace)
-        _, _, _, bwd_problem_shape = get_data_shape(gen_fn.update)(
-            key, new_subtrace, GenericProblem(branch_argdiffs, problem)
+        _, _, _, bwd_problem_shape = get_data_shape(gen_fn.edit)(
+            key, new_subtrace, IncrementalGenericRequest(branch_argdiffs, problem)
         )
         bwd_problem_def = jtu.tree_structure(bwd_problem_shape)
 
         def _update_same_branch(key, subtrace, problem, branch_argdiffs):
-            tr, w, rd, bwd_problem = gen_fn.update(
-                key, subtrace, GenericProblem(branch_argdiffs, problem)
+            tr, w, rd, bwd_problem = gen_fn.edit(
+                key, subtrace, IncrementalGenericRequest(branch_argdiffs, problem)
             )
             rd = Diff.tree_diff_unknown_change(rd)
             tr_leaves = jtu.tree_leaves(tr)
@@ -346,8 +346,8 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
 
         def _update_new_branch(key, subtrace, problem, branch_argdiffs):
             branch_argdiffs = Diff.tree_diff_no_change(branch_argdiffs)
-            tr, w, rd, bwd_problem = gen_fn.update(
-                key, subtrace, GenericProblem(branch_argdiffs, problem)
+            tr, w, rd, bwd_problem = gen_fn.edit(
+                key, subtrace, IncrementalGenericRequest(branch_argdiffs, problem)
             )
             rd = Diff.tree_diff_unknown_change(rd)
             tr_leaves = jtu.tree_leaves(tr)
@@ -380,9 +380,9 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: SwitchTrace[R],
-        problem: UpdateProblem,
+        problem: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], UpdateProblem]:
+    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], EditRequest]:
         (idx_argdiff, *branch_argdiffs) = argdiffs
         self.static_check_num_arguments_equals_num_branches(branch_argdiffs)
 
@@ -467,10 +467,10 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             branch_gen_fn = self.branches[static_idx]
             branch_argdiffs = argdiffs[static_idx]
             key = jax.random.PRNGKey(0)
-            trace_shape, _, _, bwd_problem_shape = get_data_shape(branch_gen_fn.update)(
+            trace_shape, _, _, bwd_problem_shape = get_data_shape(branch_gen_fn.edit)(
                 key,
                 EmptyTrace(branch_gen_fn),
-                GenericProblem(branch_argdiffs, problem),
+                IncrementalGenericRequest(branch_argdiffs, problem),
             )
             empty_trace = jtu.tree_map(
                 lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
@@ -505,10 +505,10 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
     ):
         branch_gen_fn = self.branches[static_idx]
         branch_argdiffs = argdiffs[static_idx]
-        tr, w, _, bwd_problem = branch_gen_fn.update(
+        tr, w, _, bwd_problem = branch_gen_fn.edit(
             key,
             EmptyTrace(branch_gen_fn),
-            GenericProblem(branch_argdiffs, constraint),
+            IncrementalGenericRequest(branch_argdiffs, constraint),
         )
         trace_leaves[static_idx] = jtu.tree_leaves(tr)
         retval_leaves[static_idx] = jtu.tree_leaves(tr.get_retval())
@@ -521,7 +521,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         problem: ImportanceProblem,
         argdiffs: tuple[Any, ...],
-    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], UpdateProblem]:
+    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], EditRequest]:
         args = Diff.tree_primal(argdiffs)
         (idx, *branch_args) = args
         (_, *branch_argdiffs) = argdiffs
@@ -595,9 +595,9 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        problem: UpdateProblem,
+        problem: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], UpdateProblem]:
+    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], EditRequest]:
         assert isinstance(trace, EmptyTrace | SwitchTrace)
         match trace:
             case EmptyTrace():
@@ -609,18 +609,18 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
                 return self.update_generic(key, trace, problem, argdiffs)
 
     @GenerativeFunction.gfi_boundary
-    def update(
+    def edit(
         self,
         key: PRNGKey,
         trace: Trace[R],
-        update_problem: UpdateProblem,
-    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], UpdateProblem]:
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem):
+        edit_request: EditRequest,
+    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], EditRequest]:
+        match edit_request:
+            case IncrementalGenericRequest(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
             case _:
                 return self.update_change_target(
-                    key, trace, update_problem, Diff.no_change(trace.get_args())
+                    key, trace, edit_request, Diff.no_change(trace.get_args())
                 )
 
     def _empty_assess_defs(self, sample: Sample, args: tuple[Any, ...]):

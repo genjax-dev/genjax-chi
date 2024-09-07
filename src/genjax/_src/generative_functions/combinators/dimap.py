@@ -15,14 +15,14 @@
 
 from genjax._src.core.generative import (
     Argdiffs,
+    EditRequest,
     EmptyTrace,
     GenerativeFunction,
-    GenericProblem,
+    IncrementalGenericRequest,
     Retdiff,
     Sample,
     Score,
     Trace,
-    UpdateProblem,
     Weight,
 )
 from genjax._src.core.generative.choice_map import ChoiceMap
@@ -127,9 +127,9 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         self,
         key: PRNGKey,
         trace: Trace[S],
-        update_problem: UpdateProblem,
+        edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], UpdateProblem]:
+    ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
         assert isinstance(trace, EmptyTrace | DimapTrace)
 
         primals = Diff.tree_primal(argdiffs)
@@ -146,8 +146,8 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
             case EmptyTrace():
                 inner_trace = EmptyTrace(self.inner)
 
-        tr, w, inner_retdiff, bwd_problem = self.inner.update(
-            key, inner_trace, GenericProblem(inner_argdiffs, update_problem)
+        tr, w, inner_retdiff, bwd_problem = self.inner.edit(
+            key, inner_trace, IncrementalGenericRequest(inner_argdiffs, edit_request)
         )
 
         inner_retval_primals = Diff.tree_primal(inner_retdiff)
@@ -171,18 +171,18 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
             bwd_problem,
         )
 
-    def update(
+    def edit(
         self,
         key: PRNGKey,
         trace: Trace[S],
-        update_problem: UpdateProblem,
-    ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], UpdateProblem]:
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem):
+        edit_request: EditRequest,
+    ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
+        match edit_request:
+            case IncrementalGenericRequest(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
             case _:
                 return self.update_change_target(
-                    key, trace, update_problem, Diff.no_change(trace.get_args())
+                    key, trace, edit_request, Diff.no_change(trace.get_args())
                 )
 
     def assess(

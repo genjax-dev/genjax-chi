@@ -19,7 +19,7 @@ import pytest
 import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
-from genjax import UpdateProblemBuilder as U
+from genjax import EditRequestBuilder as U
 from genjax._src.core.interpreters.staging import Flag
 from genjax._src.generative_functions.combinators.vmap import VmapTrace
 
@@ -145,14 +145,14 @@ class TestMaskCombinator:
         init_particle = model.simulate(key, ((0.0,), mask_steps))
 
         # Update the model:
-        update = genjax.UpdateProblemBuilder.g(
+        update = genjax.EditRequestBuilder.g(
             (
                 genjax.Diff.no_change((0.0,)),
                 genjax.Diff.no_change(Flag(mask_steps)),
             ),
             C.n(),
         )
-        step_particle, step_weight, _, _ = model.update(key, init_particle, update)
+        step_particle, step_weight, _, _ = model.edit(key, init_particle, update)
         assert step_weight == jnp.array(0.0)
         assert step_particle.get_retval() == ((jnp.array(0.0),), None)
         assert step_particle.get_score() == jnp.array(-12.230572)

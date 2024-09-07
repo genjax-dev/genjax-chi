@@ -19,7 +19,7 @@ from jax import numpy as jnp
 import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
-from genjax import UpdateProblemBuilder as U
+from genjax import EditRequestBuilder as U
 from genjax._src.core.typing import Array
 
 

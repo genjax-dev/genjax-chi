@@ -21,7 +21,7 @@ import pytest
 import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff, Pytree
-from genjax import UpdateProblemBuilder as U
+from genjax import EditRequestBuilder as U
 from genjax._src.core.typing import Array
 from genjax.generative_functions.static import AddressReuse
 from genjax.typing import Float, FloatArray

@@ -24,11 +24,12 @@ from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
     ChoiceMapBuilder,
+    EditRequest,
     EmptyProblem,
     EmptyTrace,
     GenerativeFunction,
-    GenericProblem,
     ImportanceProblem,
+    IncrementalGenericRequest,
     Retdiff,
     Sample,
     Score,
@@ -36,7 +37,6 @@ from genjax._src.core.generative import (
     StaticAddress,
     StaticAddressComponent,
     Trace,
-    UpdateProblem,
     Weight,
 )
 from genjax._src.core.generative.core import R, push_trace_overload_stack
@@ -295,12 +295,12 @@ def simulate_transform(source_fn):
 class UpdateHandler(StaticHandler):
     key: PRNGKey
     previous_trace: EmptyTrace[Any] | StaticTrace[Any]
-    fwd_problem: UpdateProblem
+    fwd_problem: EditRequest
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
-    bwd_problems: list[UpdateProblem] = Pytree.field(default_factory=list)
+    bwd_problems: list[EditRequest] = Pytree.field(default_factory=list)
 
     def yield_state(self):
         return (
@@ -352,8 +352,8 @@ class UpdateHandler(StaticHandler):
         subtrace = self.get_subtrace(gen_fn, addr)
         subproblem = self.get_subproblem(addr)
         self.key, sub_key = jax.random.split(self.key)
-        (tr, w, retval_diff, bwd_problem) = gen_fn.update(
-            sub_key, subtrace, GenericProblem(argdiffs, subproblem)
+        (tr, w, retval_diff, bwd_problem) = gen_fn.edit(
+            sub_key, subtrace, IncrementalGenericRequest(argdiffs, subproblem)
         )
         self.score += tr.get_score()
         self.weight += w
@@ -540,9 +540,9 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        update_problem: UpdateProblem,
+        edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], UpdateProblem]:
+    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -559,7 +559,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_problems,
             ),
-        ) = update_transform(syntax_sugar_handled)(key, trace, update_problem, argdiffs)
+        ) = update_transform(syntax_sugar_handled)(key, trace, edit_request, argdiffs)
 
         def make_bwd_problem(visitor, subproblems):
             addresses = visitor.get_visited()
@@ -585,20 +585,22 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         )
 
     @GenerativeFunction.gfi_boundary
-    def update(
+    def edit(
         self,
         key: PRNGKey,
         trace: Trace[R],
-        update_problem: UpdateProblem,
-    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], UpdateProblem]:
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem):
+        edit_request: EditRequest,
+    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
+        match edit_request:
+            case IncrementalGenericRequest(argdiffs, subproblem):
                 return self.update_change_target(key, trace, subproblem, argdiffs)
             case _:
                 return self.update(
                     key,
                     trace,
-                    GenericProblem(Diff.no_change(trace.get_args()), update_problem),
+                    IncrementalGenericRequest(
+                        Diff.no_change(trace.get_args()), edit_request
+                    ),
                 )
 
     @GenerativeFunction.gfi_boundary

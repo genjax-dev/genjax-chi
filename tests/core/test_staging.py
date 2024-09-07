@@ -17,7 +17,7 @@ from jax.random import PRNGKey
 
 from genjax import ChoiceMap as Chm
 from genjax import ChoiceMapBuilder as C
-from genjax import UpdateProblemBuilder as U
+from genjax import EditRequestBuilder as U
 from genjax import gen, normal
 from genjax._src.core.interpreters.staging import Flag
 from genjax.core.interpreters import get_importance_shape, get_update_shape
