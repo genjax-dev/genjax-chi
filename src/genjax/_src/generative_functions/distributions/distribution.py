@@ -408,12 +408,14 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        projection: Projection,
+        projection: Projection[Any],
     ) -> Weight:
         match projection:
             case SelectionProjection(selection):
-                original = trace.get_score()
-                return -original
+                return selection.check().where(
+                    trace.get_score(),
+                    jnp.array(0.0),
+                )  # pyright: ignore
             case _:
                 raise Exception("Unhandled projection.")
 

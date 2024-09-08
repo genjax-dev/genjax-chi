@@ -33,6 +33,7 @@ from genjax._src.core.generative import (
     Projection,
     Retdiff,
     Score,
+    SelectionProjection,
     StaticAddress,
     StaticAddressComponent,
     Trace,
@@ -716,7 +717,14 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         trace: Trace[Any],
         projection: Projection[ChoiceMapSample],
     ) -> Weight:
-        raise NotImplementedError
+        assert isinstance(trace, StaticTrace)
+        assert isinstance(projection, SelectionProjection), type(projection)
+        weight = jnp.array(0.0)
+        for addr in trace.addresses.get_visited():
+            subprojection = projection(addr)
+            subtrace = trace.get_subtrace(addr)
+            weight += subtrace.project(key, subprojection)
+        return weight
 
     def edit(
         self,

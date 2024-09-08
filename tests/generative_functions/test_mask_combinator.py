@@ -19,7 +19,6 @@ import pytest
 import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
-from genjax import EditRequestBuilder as U
 from genjax._src.core.interpreters.staging import Flag
 from genjax._src.generative_functions.combinators.vmap import VmapTrace
 
@@ -65,17 +64,13 @@ class TestMaskCombinator:
         # pre-update mask arg is True
         tr = jax.jit(model.simulate)(key, (True, 2.0))
         # mask check arg transition: True --> True
-        argdiffs = U.g(
-            (Diff.unknown_change(Flag(True)), Diff.no_change(tr.get_args()[1])), C.n()
-        )
-        w = tr.update(key, argdiffs)[1]
+        argdiffs = (Diff.unknown_change(Flag(True)), Diff.no_change(tr.get_args()[1]))
+        w = tr.update(key, C.n(), argdiffs)[1]
         assert w == tr.inner.update(key, C.n())[1]
         assert w == 0.0
         # mask check arg transition: True --> False
-        argdiffs = U.g(
-            (Diff.unknown_change(Flag(False)), Diff.no_change(tr.get_args()[1])), C.n()
-        )
-        w = tr.update(key, argdiffs)[1]
+        argdiffs = (Diff.unknown_change(Flag(False)), Diff.no_change(tr.get_args()[1]))
+        w = tr.update(key, C.n(), argdiffs)[1]
         assert w == -tr.get_score()
 
     def test_mask_vmap(self, key):
@@ -102,17 +97,13 @@ class TestMaskCombinator:
         # pre-update mask arg is False
         tr = jax.jit(model.simulate)(key, (False, 2.0))
         # mask check arg transition: False --> True
-        argdiffs = U.g(
-            (Diff.unknown_change(Flag(True)), Diff.no_change(tr.get_args()[1])), C.n()
-        )
-        w = tr.update(key, argdiffs)[1]
+        argdiffs = (Diff.unknown_change(Flag(True)), Diff.no_change(tr.get_args()[1]))
+        w = tr.update(key, C.n(), argdiffs)[1]
         assert w == tr.inner.update(key, C.n())[1] + tr.inner.get_score()
         assert w == tr.inner.update(key, C.n())[0].get_score()
         # mask check arg transition: False --> False
-        argdiffs = U.g(
-            (Diff.unknown_change(Flag(False)), Diff.no_change(tr.get_args()[1])), C.n()
-        )
-        w = tr.update(key, argdiffs)[1]
+        argdiffs = (Diff.unknown_change(Flag(False)), Diff.no_change(tr.get_args()[1]))
+        w = tr.update(key, C.n(), argdiffs)[1]
         assert w == 0.0
         assert w == tr.get_score()
 

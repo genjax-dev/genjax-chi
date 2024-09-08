@@ -14,24 +14,23 @@
 
 
 import jax.numpy as jnp
+import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
-    Argdiffs,
     ChoiceMap,
+    ChoiceMapConstraint,
     EditRequest,
     GenerativeFunction,
-    ImportanceRequest,
     IncrementalGenericRequest,
     Mask,
-    MaskedRequest,
     MaskedSample,
+    Projection,
     Retdiff,
     Score,
     Trace,
     Weight,
 )
 from genjax._src.core.generative.core import Constraint
-from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import Flag
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -56,12 +55,12 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     def get_gen_fn(self):
         return self.mask_combinator
 
-    def get_sample(self):
-        inner_sample = self.inner.get_sample()
-        if isinstance(inner_sample, ChoiceMap):
-            return inner_sample.mask(self.check)
-        else:
-            return MaskedSample(self.check, self.inner.get_sample())
+    def get_sample(self) -> MaskedSample:
+        return MaskedSample(self.check, self.inner.get_sample())
+
+    def get_choices(self) -> ChoiceMap:
+        inner_choice_map = self.inner.get_choices()
+        return inner_choice_map.mask(self.check)
 
     def get_retval(self):
         return Mask(self.check, self.inner.get_retval())
@@ -125,72 +124,25 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         tr = self.gen_fn.simulate(key, inner_args)
         return MaskTrace(self, tr, check)
 
-    def edit_change_target(
+    def generate(
         self,
         key: PRNGKey,
-        trace: Trace[Mask[R]],
-        edit_request: EditRequest,
-        argdiffs: Argdiffs,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], EditRequest]:
-        check = Diff.tree_primal(argdiffs)[0]
-        check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
-        match trace:
-            case MaskTrace():
-                inner_trace = trace.inner
-            case EmptyTrace():
-                inner_trace = EmptyTrace(self.gen_fn)
-            case _:
-                raise NotImplementedError(f"Unexpected trace type: {trace}")
+        constraint: Constraint,
+        args: tuple[Any, ...],
+    ) -> tuple[MaskTrace[R], Weight]:
+        check, inner_args = args[0], args[1:]
+        check = Flag.as_flag(check)
 
-        premasked_trace, w, retdiff, bwd_request = self.gen_fn.edit(
-            key, inner_trace, IncrementalGenericRequest(inner_argdiffs, edit_request)
-        )
+        tr, w = self.gen_fn.generate(key, constraint, inner_args)
+        return MaskTrace(self, tr, check), w * check
 
-        w = check.where(w, -trace.get_score())
-
-        return (
-            MaskTrace(self, premasked_trace, check),
-            w,
-            Mask.maybe(check_diff, retdiff),
-            MaskedRequest(check, bwd_request),
-        )
-
-    def edit_change_target_from_false(
+    def project(
         self,
         key: PRNGKey,
-        trace: Trace[Mask[R]],
-        edit_request: EditRequest,
-        argdiffs: Argdiffs,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], EditRequest]:
-        check = Diff.tree_primal(argdiffs)[0]
-        check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
-
-        inner_trace = EmptyTrace(self.gen_fn)
-
-        assert isinstance(edit_request, Constraint)
-        imp_update_problem = ImportanceRequest(edit_request)
-
-        premasked_trace, w, _, _ = self.gen_fn.edit(
-            key,
-            inner_trace,
-            IncrementalGenericRequest(inner_argdiffs, imp_update_problem),
-        )
-
-        _, _, retdiff, bwd_request = self.gen_fn.edit(
-            key,
-            premasked_trace,
-            IncrementalGenericRequest(inner_argdiffs, edit_request),
-        )
-
-        premasked_score = premasked_trace.get_score()
-        w = check.where(premasked_score, jnp.zeros(premasked_score.shape))
-
-        return (
-            MaskTrace(self, premasked_trace, check),
-            w,
-            Mask.maybe(check_diff, retdiff),
-            MaskedRequest(check, bwd_request),
-        )
+        trace: Trace[R],
+        projection: Projection[Any],
+    ) -> Weight:
+        raise NotImplementedError
 
     def edit(
         self,
@@ -198,34 +150,62 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         trace: Trace[Mask[R]],
         edit_request: EditRequest,
     ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], EditRequest]:
-        assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
+        assert isinstance(trace, MaskTrace)
+        assert isinstance(edit_request, IncrementalGenericRequest)
+        argdiffs = edit_request.argdiffs
+        (check_arg, *rest) = argdiffs
+        inner_trace = trace.inner
+        subrequest = IncrementalGenericRequest(tuple(rest), edit_request.constraint)
+        edited_trace, weight, retdiff, bwd_move = inner_trace.edit(key, subrequest)
 
-        match edit_request:
-            case IncrementalGenericRequest(argdiffs, subproblem) if isinstance(
-                subproblem, ImportanceRequest
-            ):
-                return self.edit_change_target(key, trace, subproblem, argdiffs)
-            case IncrementalGenericRequest(argdiffs, subproblem):
-                assert isinstance(trace, MaskTrace)
+        #       What's the math for the weight term here?
+        #
+        # Well, if we started with a "masked false trace",
+        # and then we flip the check_arg to True, we can re-use
+        # the sampling process which created the original trace as
+        # part of the move. The weight is the entire new trace's score.
+        #
+        # That's the transition False -> True:
+        #
+        #               w' = final_trace.score()
+        #
+        # On the other hand, if we started True, and went False, no matter
+        # the update, we can make the choice that this move is just removing
+        # the samples from the original trace, and ignoring the move.
+        #
+        # That's the transition True -> False:
+        #
+        #               w' = -original_trace.score()
+        #
+        # For the transition False -> False, we just ignore the move entirely.
+        #
+        #               w' = 0.0
+        #
+        # For the transition True -> True, we apply the move to the existing
+        # unmasked trace. In that case, the weight is just the weight of the move.
+        #
+        #               w' = w
+        #
+        # In any case, we always apply the move... we're not avoiding
+        # that computation
 
-                if trace.check.concrete_false():
-                    raise Exception(
-                        "This move is not currently supported! See https://github.com/probcomp/genjax/issues/1230 for notes."
-                    )
-
-                return trace.check.cond(
-                    self.edit_change_target,
-                    self.edit_change_target_from_false,
-                    key,
-                    trace,
-                    subproblem,
-                    argdiffs,
-                )
-
-            case _:
-                return self.edit_change_target(
-                    key, trace, edit_request, Diff.no_change(trace.get_args())
-                )
+        check = trace.check
+        final_trace = jtu.tree_map(
+            lambda v1, v2: jnp.where(check_arg, v1, v2), edited_trace, inner_trace
+        )
+        inner_chm = bwd_move.constraint.choice_map
+        return (
+            MaskTrace(self, final_trace, trace.check),
+            (check and check_arg) * weight
+            + (check and not check_arg) * (-inner_trace.get_score())
+            + (not check and not check_arg) * 0.0
+            + (not check and check_arg) * final_trace.get_score(),
+            retdiff,
+            IncrementalGenericRequest(
+                trace.get_args(),
+                ChoiceMapConstraint(inner_chm.mask(check_arg)),
+            ),
+        )
 
     def assess(
         self,

@@ -180,7 +180,7 @@ class SumConstraint(Constraint):
 
 class Projection(Generic[S], Pytree):
     @abstractmethod
-    def filter(self, sample: S) -> S:
+    def project(self, sample: S) -> S:
         raise NotImplementedError
 
     @abstractmethod
@@ -296,15 +296,24 @@ class ChoiceMapSample(Sample, ChoiceMap):
         return self.choice_map.get_value()
 
 
-@Pytree.dataclass
-class SelectionProjection(Projection[ChoiceMapSample]):
+@Pytree.dataclass(match_args=True)
+class SelectionProjection(Projection[ChoiceMapSample], Selection):
     selection: Selection
 
-    def filter(
+    def project(
         self,
         sample: ChoiceMapSample,
     ) -> ChoiceMapSample:
         return ChoiceMapSample(self.selection.filter(sample))
+
+    def check(self) -> Flag:
+        return self.selection.check()
+
+    def get_subselection(
+        self,
+        addr: ExtendedAddressComponent,
+    ) -> "SelectionProjection":
+        return SelectionProjection(self.selection(addr))
 
     def complement(self) -> "SelectionProjection":
         return SelectionProjection(~self.selection)
@@ -442,11 +451,16 @@ class Trace(Generic[R], Pytree):
     def project(
         self,
         key: PRNGKey,
-        selection: Selection,
+        projection: Selection | Projection[Any],
     ) -> Weight:
         gen_fn = self.get_gen_fn()
-        projection = SelectionProjection(selection)
-        return gen_fn.project(key, self, projection)
+        return gen_fn.project(
+            key,
+            self,
+            projection
+            if isinstance(projection, Projection)
+            else SelectionProjection(projection),
+        )
 
     ###################
     # Pretty printing #
