@@ -1200,13 +1200,10 @@ class IdxChm(ChoiceMap):
                 # update of a scan GF with an array of shape (0,) or (0, ...)
                 return _empty
 
-            return (
-                MaskChm.build(
-                    jtu.tree_map(lambda v: v[addr], self.c), Flag(check[addr])
-                )
-                if check_array.shape
-                else self.c.mask(Flag(check))
-            )
+            if check_array.shape:
+                return jtu.tree_map(lambda v: v[addr], self.c).mask(Flag(check[addr]))
+            else:
+                return self.c.mask(Flag(check))
 
 
 @Pytree.dataclass
@@ -1423,6 +1420,10 @@ class MaskChm(ChoiceMap):
             return c
         elif flag.concrete_false():
             return _empty
+        elif isinstance(c, MaskChm):
+            return MaskChm(c.c, c.flag.and_(flag))
+        elif isinstance(c, FilteredChm):
+            return FilteredChm.build(c.c, c.selection & Selection.all().mask(flag))
         else:
             return MaskChm(c, flag)
 
@@ -1469,6 +1470,10 @@ class FilteredChm(ChoiceMap):
             return _empty
         elif isinstance(selection, AllSel):
             return chm
+        elif isinstance(chm, FilteredChm):
+            return FilteredChm(chm.c, chm.selection & selection)
+        elif isinstance(chm, MaskChm):
+            return FilteredChm(chm.c, Selection.all().mask(chm.flag))
         else:
             return FilteredChm(chm, selection)
 
@@ -1485,7 +1490,6 @@ class FilteredChm(ChoiceMap):
 
 # TODO clamp switch inputs?
 # TODO get rid of MaskChm, use FilterChm?
-# mask of mask? can we collapse more?
 
 # In [6]: ChoiceMap.value("x").mask(Flag(jnp.all(1 == 1))).mask(Flag(jnp.all(1==1)))
 # Out[6]:
