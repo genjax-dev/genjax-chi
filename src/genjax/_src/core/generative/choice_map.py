@@ -1026,11 +1026,11 @@ class ChoiceMap(Sample, Constraint):
     def __xor__(self, other: "ChoiceMap") -> "ChoiceMap":
         return XorChm.build(self, other)
 
-    def __add__(self, other: "ChoiceMap") -> "ChoiceMap":
-        return OrChm.build(self, other)
-
     def __or__(self, other: "ChoiceMap") -> "ChoiceMap":
         return OrChm.build(self, other)
+
+    def __add__(self, other: "ChoiceMap") -> "ChoiceMap":
+        return self | other
 
     def __call__(
         self,
@@ -1124,6 +1124,18 @@ class ValueChm(Generic[T], ChoiceMap):
     """
 
     v: T
+
+    def __xor__(self, other: "ChoiceMap") -> "ChoiceMap":
+        if isinstance(other, ValueChm):
+            raise Exception()
+        else:
+            return XorChm.build(self, other)
+
+    def __or__(self, other: "ChoiceMap") -> "ChoiceMap":
+        if isinstance(other, ValueChm):
+            return self
+        else:
+            return OrChm.build(self, other)
 
     def get_value(self) -> T:
         return self.v
@@ -1275,16 +1287,18 @@ class XorChm(ChoiceMap):
             case True, _:
                 return c2
             case _:
+                check1 = c1.has_value()
+                check2 = c2.has_value()
+                err_check = check1.and_(check2)
+                staged_err(
+                    err_check,
+                    f"The disjoint union of two choice maps have a value collision:\nc1 = {c1}\nc2 = {c2}",
+                )
                 return XorChm(c1, c2)
 
     def get_value(self) -> Any:
         check1 = self.c1.has_value()
         check2 = self.c2.has_value()
-        err_check = check1.and_(check2)
-        staged_err(
-            err_check,
-            f"The disjoint union of two choice maps have a value collision:\nc1 = {self.c1}\nc2 = {self.c2}",
-        )
         v1 = self.c1.get_value()
         v2 = self.c2.get_value()
 
@@ -1294,6 +1308,10 @@ class XorChm(ChoiceMap):
         idx = pair_flag_to_idx(check1, check2)
 
         if isinstance(idx, int):
+            # This branch means that both has_value() checks have returned concrete bools, so we can
+            # make the choice directly.
+            #
+            # TODO is there a better way to short-circuit when concretely we don't have values?
             return [v1, v2][idx]
         else:
             return staged_choose(idx, [v1, v2])
@@ -1447,7 +1465,12 @@ class FilteredChm(ChoiceMap):
 
     @staticmethod
     def build(chm: ChoiceMap, selection: Selection) -> ChoiceMap:
-        return _empty if chm.static_is_empty() else FilteredChm(chm, selection)
+        if chm.static_is_empty():
+            return _empty
+        elif isinstance(selection, AllSel):
+            return chm
+        else:
+            return FilteredChm(chm, selection)
 
     def get_value(self) -> Any:
         v = self.c.get_value()
@@ -1458,3 +1481,37 @@ class FilteredChm(ChoiceMap):
         submap = self.c.get_submap(addr)
         subselection = self.selection(addr)
         return submap.filter(subselection)
+
+
+# TODO clamp switch inputs?
+# TODO get rid of MaskChm, use FilterChm?
+# mask of mask? can we collapse more?
+
+# In [6]: ChoiceMap.value("x").mask(Flag(jnp.all(1 == 1))).mask(Flag(jnp.all(1==1)))
+# Out[6]:
+# MaskChm(
+#   c=MaskChm(
+#     c=ValueChm(v='x'),
+#     flag=Flag(f=<jax.Array(True, dtype=bool)>),
+#   ),
+#   flag=Flag(f=<jax.Array(True, dtype=bool)>),
+# )
+
+# import genjax
+# from genjax import ChoiceMap
+# from genjax._src.core.typing import ArrayLike
+# from genjax._src.core.interpreters.staging import Flag
+# import jax.numpy as jnp
+
+# @staticmethod
+# def switch(idx: ArrayLike, chms: "list[ChoiceMap]") -> "ChoiceMap":
+#     acc = ChoiceMap.empty()
+#     for i, chm in enumerate(chms):
+#         masked = chm.mask(Flag(i == idx))
+#         acc = acc ^ masked
+#     return acc
+
+# chms = [ChoiceMap.builder["x"].set(1.0), ChoiceMap.builder["y"].set(2.0)]
+# switch(2, chms)
+# switch(1, chms)
+# switch(jnp.asarray(1), chms)
