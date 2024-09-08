@@ -108,7 +108,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     ) -> Score:
         pass
 
-    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,
@@ -454,7 +453,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             case _:
                 raise Exception(f"Not implement fwd problem: {update_problem}.")
 
-    @GenerativeFunction.gfi_boundary
     def update(
         self,
         key: PRNGKey,
@@ -536,7 +534,6 @@ class ExactDensity(Generic[R], Distribution[R]):
         else:
             return w
 
-    @GenerativeFunction.gfi_boundary
     def assess(
         self,
         sample: ChoiceMap,

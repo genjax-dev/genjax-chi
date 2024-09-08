@@ -515,7 +515,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
         return StaticGenerativeFunction(kwarged_source)
 
-    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,
@@ -584,7 +583,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             bwd_problem,
         )
 
-    @GenerativeFunction.gfi_boundary
     def update(
         self,
         key: PRNGKey,
@@ -601,7 +599,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     GenericProblem(Diff.no_change(trace.get_args()), update_problem),
                 )
 
-    @GenerativeFunction.gfi_boundary
     def assess(
         self,
         sample: ChoiceMap,
