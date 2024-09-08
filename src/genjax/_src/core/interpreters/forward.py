@@ -24,7 +24,7 @@ from jax.extend import linear_util as lu
 from jax.interpreters import ad, batching, mlir
 from jax.interpreters import partial_eval as pe
 
-from genjax._src.core.interpreters.staging import stage
+from genjax._src.core.interpreters.staging import WrappedFunWithAux, stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any, Bool, Callable, Value
 
@@ -32,14 +32,12 @@ from genjax._src.core.typing import Any, Bool, Callable, Value
 # Custom JAX primitives #
 #########################
 
-
-def batch_fun(fun: lu.WrappedFun, in_dims):
-    fun, out_dims = batching.batch_subtrace(fun)  # pyright: ignore
-    return _batch_fun(fun, in_dims), out_dims
+# Wrapper to assign a correct type.
+batch_subtrace: Callable[[lu.WrappedFun], WrappedFunWithAux] = batching.batch_subtrace  # pyright: ignore[reportAssignmentType]
 
 
 @lu.transformation
-def _batch_fun(in_dims, *in_vals, **params):
+def __batch_fun(in_dims, *in_vals, **params):
     with jc.new_main(batching.BatchTrace, axis_name=jc.no_axis_name) as main:
         out_vals = yield (
             (main, in_dims, *in_vals),
@@ -47,6 +45,14 @@ def _batch_fun(in_dims, *in_vals, **params):
         )
         del main
     yield out_vals
+
+
+_batch_fun: Callable[[lu.WrappedFun, Any], lu.WrappedFun] = __batch_fun  # pyright: ignore[reportAssignmentType]
+
+
+def batch_fun(fun: lu.WrappedFun, in_dims) -> WrappedFunWithAux:
+    fun, out_dims = batch_subtrace(fun)
+    return _batch_fun(fun, in_dims), out_dims
 
 
 class FlatPrimitive(jc.Primitive):
@@ -74,7 +80,7 @@ class FlatPrimitive(jc.Primitive):
 
         def _batch(args, dims, **params):
             batched, out_dims = batch_fun(lu.wrap_init(self.impl, params), dims)
-            return batched.call_wrapped(*args), out_dims()  # pyright: ignore
+            return batched.call_wrapped(*args), out_dims()
 
         batching.primitive_batchers[self] = _batch
 

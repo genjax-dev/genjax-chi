@@ -206,7 +206,6 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         score = tr.get_score()
         return (trace_leaves, retval_leaves), score
 
-    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,
@@ -605,11 +604,9 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
                     problem, ImportanceProblem
                 ), f"update_change_target of an EmptyTrace requires an ImportanceProblem, not {problem}"
                 return self.update_importance(key, problem, argdiffs)
-            case SwitchTrace() as switch_trace:
-                # The `ignore` directive here is because pyright can't infer that if something is both `Trace[R]` and a `SwitchTrace`, it must in fact be a `SwitchTrace[R]`.
-                return self.update_generic(key, switch_trace, problem, argdiffs)  # pyright:ignore
+            case SwitchTrace():
+                return self.update_generic(key, trace, problem, argdiffs)
 
-    @GenerativeFunction.gfi_boundary
     def update(
         self,
         key: PRNGKey,

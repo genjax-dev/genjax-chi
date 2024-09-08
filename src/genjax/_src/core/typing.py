@@ -43,6 +43,7 @@ BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
 Sequence = btyping.Sequence
 Final = btyping.Final
+Generator = btyping.Generator
 
 # JAX Type alias.
 InAxes = int | None | Sequence[Any]
@@ -113,6 +114,7 @@ __all__ = [
     "Final",
     "Float",
     "FloatArray",
+    "Generator",
     "Generic",
     "InAxes",
     "Int",
