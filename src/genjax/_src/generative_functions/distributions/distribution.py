@@ -29,18 +29,17 @@ from genjax._src.core.generative import (
     EditRequest,
     EmptyConstraint,
     EmptyRequest,
-    EmptyTrace,
     GenerativeFunction,
     ImportanceRequest,
     IncrementalGenericRequest,
     Mask,
     MaskedConstraint,
     MaskedRequest,
+    Projection,
     R,
     Retdiff,
     Score,
-    Selection,
-    SelectionProjectRequest,
+    SelectionProjection,
     Trace,
     Weight,
 )
@@ -122,17 +121,17 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         tr = DistributionTrace(self, args, v, w)
         return tr
 
-    def importance_choice_map(
+    def generate_choice_map(
         self,
         key: PRNGKey,
         chm: ChoiceMap,
         args: tuple[Any, ...],
-    ):
+    ) -> tuple[Trace[R], Weight]:
         v = chm.get_value()
         match v:
             case None:
                 tr = self.simulate(key, args)
-                return tr, jnp.array(0.0), EmptyRequest()
+                return tr, jnp.array(0.0)
 
             case Mask(flag, value):
 
@@ -149,77 +148,56 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     flag.f, _importance, _simulate, key, value
                 )
                 tr = DistributionTrace(self, args, new_v, score)
-                bwd_request = MaskedRequest(
-                    flag, SelectionProjectRequest(Selection.all())
-                )
-                return tr, w, bwd_request
+                return tr, w
 
             case _:
                 w = self.estimate_logpdf(key, v, *args)
-                bwd_request = SelectionProjectRequest(Selection.all())
                 tr = DistributionTrace(self, args, v, w)
-                return tr, w, bwd_request
+                return tr, w
 
-    def importance_masked_constraint(
+    def generate_masked_constraint(
         self,
         key: PRNGKey,
         constraint: MaskedConstraint,
         args: tuple[Any, ...],
-    ) -> tuple[Trace[R], Weight, EditRequest]:
+    ) -> tuple[Trace[R], Weight]:
         def simulate_branch(key, _, args):
             tr = self.simulate(key, args)
-            return (
-                tr,
-                jnp.array(0.0),
-                MaskedRequest(
-                    Flag(False),
-                    SelectionProjectRequest(Selection.all()),
-                ),
-            )
+            return (tr, jnp.array(0.0))
 
-        def importance_branch(key, constraint, args):
-            tr, w = self.importance(key, constraint, args)
-            return (
-                tr,
-                w,
-                MaskedRequest(
-                    Flag(True),
-                    SelectionProjectRequest(Selection.all()),
-                ),
-            )
+        def generate_branch(key, constraint, args):
+            tr, w = self.generate(key, constraint, args)
+            return (tr, w)
 
         return jax.lax.cond(
             constraint.flag.f,
-            importance_branch,
+            generate_branch,
             simulate_branch,
             key,
             constraint.constraint,
             args,
         )
 
-    def edit_importance(
+    def generate(
         self,
         key: PRNGKey,
         constraint: Constraint,
         args: tuple[Any, ...],
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[Trace[R], Weight]:
         match constraint:
             case ChoiceMapConstraint():
-                tr, w, bwd_request = self.importance_choice_map(key, constraint, args)
+                tr, w = self.generate_choice_map(key, constraint, args)
             case MaskedConstraint(flag, inner_constraint):
                 if staged_check(flag):
-                    return self.edit_importance(key, inner_constraint, args)
+                    return self.generate(key, inner_constraint, args)
                 else:
-                    tr, w, bwd_request = self.importance_masked_constraint(
-                        key, constraint, args
-                    )
+                    tr, w = self.generate_masked_constraint(key, constraint, args)
             case EmptyConstraint():
                 tr = self.simulate(key, args)
                 w = jnp.array(0.0)
-                bwd_request = EmptyRequest()
             case _:
                 raise Exception("Unhandled type.")
-        return tr, w, Diff.unknown_change(tr.get_retval()), bwd_request
+        return tr, w
 
     def edit_empty(
         self,
@@ -426,25 +404,18 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 
         return new_trace, w, retdiff, bwd_request
 
-    def edit_selection_project(
+    def project(
         self,
         key: PRNGKey,
         trace: Trace[R],
-        selection: Selection,
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        original = trace.get_score()
-        removed_value = trace.get_retval()
-        retdiff = Diff.tree_diff_unknown_change(trace.get_retval())
-        return (
-            EmptyTrace(self),
-            -original,
-            retdiff,
-            ImportanceRequest(
-                trace.get_args(),
-                ChoiceMapConstraint(ChoiceMap.value(removed_value)),
-            ),
-        )
+        projection: Projection,
+    ) -> Weight:
+        match projection:
+            case SelectionProjection(selection):
+                original = trace.get_score()
+                return -original
+            case _:
+                raise Exception("Unhandled projection.")
 
     def edit_incremental_generic_request(
         self,
@@ -483,7 +454,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     argdiffs,
                 )
             case ImportanceRequest(args, constraint):
-                return self.edit_importance(
+                return self.generate(
                     key,
                     constraint,
                     args,

@@ -21,7 +21,6 @@ from genjax._src.core.generative import (
     ChoiceMap,
     EditRequest,
     EmptyRequest,
-    EmptyTrace,
     GenerativeFunction,
     ImportanceRequest,
     IncrementalGenericRequest,

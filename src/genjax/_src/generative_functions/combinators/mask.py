@@ -19,7 +19,6 @@ from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
     EditRequest,
-    EmptyTrace,
     GenerativeFunction,
     ImportanceRequest,
     IncrementalGenericRequest,

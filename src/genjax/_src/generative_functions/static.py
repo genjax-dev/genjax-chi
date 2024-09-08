@@ -25,12 +25,12 @@ from genjax._src.core.generative import (
     ChoiceMap,
     ChoiceMapConstraint,
     ChoiceMapSample,
+    Constraint,
     EditRequest,
     EmptyRequest,
-    EmptyTrace,
     GenerativeFunction,
-    ImportanceRequest,
     IncrementalGenericRequest,
+    Projection,
     Retdiff,
     Score,
     StaticAddress,
@@ -295,7 +295,7 @@ def simulate_transform(source_fn):
 @dataclass
 class IncrementalGenericRequestHandler(StaticHandler):
     key: PRNGKey
-    previous_trace: EmptyTrace[Any] | Trace[Any]
+    previous_trace: Trace[Any]
     constraint: ChoiceMapConstraint
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
@@ -323,11 +323,12 @@ class IncrementalGenericRequestHandler(StaticHandler):
             case _:
                 raise ValueError(f"Not implemented fwd_problem: {self.fwd_problem}")
 
-    def get_subtrace(self, sub_gen_fn: GenerativeFunction[Any], addr: StaticAddress):
-        if isinstance(self.previous_trace, EmptyTrace):
-            return EmptyTrace(sub_gen_fn)
-        else:
-            return self.previous_trace.get_subtrace(addr)
+    def get_subtrace(
+        self,
+        sub_gen_fn: GenerativeFunction[Any],
+        addr: StaticAddress,
+    ):
+        return self.previous_trace.get_subtrace(addr)
 
     def handle_retval(self, v):
         return jtu.tree_leaves(v, is_leaf=lambda v: isinstance(v, Diff))
@@ -401,6 +402,91 @@ def incremental_generic_request_transform(source_fn):
                 ),
                 # Backward update problem.
                 bwd_requests,
+            ),
+        )
+
+    return wrapper
+
+
+##############################
+# Importance request handler #
+##############################
+
+
+@dataclass
+class GenerateHandler(StaticHandler):
+    key: PRNGKey
+    choice_map_constraint: ChoiceMapConstraint
+    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
+
+    def visit(self, addr: StaticAddress):
+        self.address_visitor.visit(addr)
+
+    def yield_state(
+        self,
+    ) -> tuple[
+        Score,
+        Weight,
+        AddressVisitor,
+        list[Trace[Any]],
+    ]:
+        return (
+            self.score,
+            self.weight,
+            self.address_visitor,
+            self.address_traces,
+        )
+
+    def get_subconstraint(
+        self,
+        addr: StaticAddress,
+    ) -> ChoiceMapConstraint:
+        return self.choice_map_constraint(addr)  # pyright: ignore
+
+    def handle_trace(
+        self,
+        addr: StaticAddress,
+        gen_fn: GenerativeFunction[Any],
+        args: tuple[Any, ...],
+    ):
+        self.visit(addr)
+        subconstraint = self.get_subconstraint(addr)
+        self.key, sub_key = jax.random.split(self.key)
+        (tr, w) = gen_fn.generate(sub_key, subconstraint, args)
+        self.score += tr.get_score()
+        self.weight += w
+        self.address_traces.append(tr)
+
+        return tr.get_retval()
+
+
+def generate_transform(source_fn):
+    @functools.wraps(source_fn)
+    def wrapper(
+        key: PRNGKey,
+        choice_map_constraint: ChoiceMapConstraint,
+        args: tuple[Any, ...],
+    ):
+        stateful_handler = GenerateHandler(key, choice_map_constraint)
+        retval = forward(source_fn)(stateful_handler, *args)
+        (
+            score,
+            weight,
+            address_visitor,
+            address_traces,
+        ) = stateful_handler.yield_state()
+        return (
+            weight,
+            # Trace.
+            (
+                args,
+                retval,
+                address_visitor,
+                address_traces,
+                score,
             ),
         )
 
@@ -593,6 +679,45 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             bwd_request,
         )
 
+    def generate(
+        self,
+        key: PRNGKey,
+        constraint: Constraint,
+        args: tuple[Any, ...],
+    ) -> tuple[StaticTrace[R], Weight]:
+        assert isinstance(constraint, ChoiceMapConstraint), type(constraint)
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
+
+        (
+            weight,
+            # Trace.
+            (
+                args,
+                retval,
+                address_visitor,
+                address_traces,
+                score,
+            ),
+        ) = generate_transform(syntax_sugar_handled)(key, constraint, args)
+        return StaticTrace(
+            self,
+            args,
+            retval,
+            address_visitor,
+            address_traces,
+            score,
+        ), weight
+
+    def project(
+        self,
+        key: PRNGKey,
+        trace: Trace[Any],
+        projection: Projection[ChoiceMapSample],
+    ) -> Weight:
+        raise NotImplementedError
+
     def edit(
         self,
         key: PRNGKey,
@@ -608,12 +733,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     trace,
                     constraint,
                     argdiffs,
-                )
-            case ImportanceRequest(args, constraint):
-                return self.edit_importance(
-                    key,
-                    constraint,
-                    args,
                 )
             case _:
                 raise Exception("Unhandled edit request.")

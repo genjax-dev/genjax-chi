@@ -16,7 +16,6 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 import jax
-import jax.numpy as jnp
 from penzai.core import formatting_util
 
 from genjax._src.core.generative.choice_map import (
@@ -174,6 +173,21 @@ class SumConstraint(Constraint):
     constraint: list[Constraint]
 
 
+###############
+# Projections #
+###############
+
+
+class Projection(Generic[S], Pytree):
+    @abstractmethod
+    def filter(self, sample: S) -> S:
+        raise NotImplementedError
+
+    @abstractmethod
+    def complement(self) -> "Projection[S]":
+        raise NotImplementedError
+
+
 #########################
 # Update specifications #
 #########################
@@ -283,8 +297,17 @@ class ChoiceMapSample(Sample, ChoiceMap):
 
 
 @Pytree.dataclass
-class SelectionProjectRequest(EditRequest):
+class SelectionProjection(Projection[ChoiceMapSample]):
     selection: Selection
+
+    def filter(
+        self,
+        sample: ChoiceMapSample,
+    ) -> ChoiceMapSample:
+        return ChoiceMapSample(self.selection.filter(sample))
+
+    def complement(self) -> "SelectionProjection":
+        return SelectionProjection(~self.selection)
 
 
 #########
@@ -422,13 +445,8 @@ class Trace(Generic[R], Pytree):
         selection: Selection,
     ) -> Weight:
         gen_fn = self.get_gen_fn()
-        request = SelectionProjectRequest(selection)
-        _, w, _, _ = gen_fn.edit(
-            key,
-            self,
-            request,
-        )
-        return -w
+        projection = SelectionProjection(selection)
+        return gen_fn.project(key, self, projection)
 
     ###################
     # Pretty printing #
@@ -444,35 +462,6 @@ class Trace(Generic[R], Pytree):
     @property
     def batch_shape(self):
         return len(self.get_score())
-
-
-@Pytree.dataclass
-class EmptyTraceArg(Pytree):
-    pass
-
-
-# TODO figure out if / how we can remove this idea, this is masquerading as a trace!
-@Pytree.dataclass
-class EmptyTrace(Trace[R]):
-    gen_fn: "GenerativeFunction[R]"
-
-    def get_args(self) -> tuple[EmptyTraceArg]:
-        return (EmptyTraceArg(),)
-
-    def get_retval(self) -> R:
-        raise NotImplementedError("Not gonna happen!")
-
-    def get_score(self) -> Score:
-        return jnp.array(0.0)
-
-    def get_sample(self) -> Sample:
-        return EmptySample()
-
-    def get_choices(self) -> ChoiceMap:
-        return ChoiceMap.empty()
-
-    def get_gen_fn(self) -> "GenerativeFunction[R]":
-        return self.gen_fn
 
 
 #######################
@@ -651,6 +640,24 @@ class GenerativeFunction(Generic[R], Pytree):
             print((score, retval))
             ```
         """
+        raise NotImplementedError
+
+    @abstractmethod
+    def generate(
+        self,
+        key: PRNGKey,
+        constraint: Constraint,
+        args: Arguments,
+    ) -> tuple[Trace[R], Weight]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def project(
+        self,
+        key: PRNGKey,
+        trace: Trace[R],
+        projection: Projection,
+    ) -> Weight:
         raise NotImplementedError
 
     @abstractmethod
@@ -839,17 +846,13 @@ class GenerativeFunction(Generic[R], Pytree):
 
         Under the hood, creates an [`EditRequest`][genjax.core.EditRequest] which requests that the generative function respond with a move from the _empty_ trace (the only possible value for _empty_ target $\\delta_\\emptyset$) to the target induced by the generative function for constraint $C$ with arguments $a$.
         """
-        tr, w, _, _ = self.edit(
+        return self.generate(
             key,
-            EmptyTrace(self),
-            ImportanceRequest(
-                args,
-                constraint
-                if isinstance(constraint, Constraint)
-                else ChoiceMapConstraint(constraint),
-            ),
+            constraint
+            if isinstance(constraint, Constraint)
+            else ChoiceMapConstraint(constraint),
+            args,
         )
-        return tr, w
 
     def propose(
         self,
@@ -1731,6 +1734,22 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
             )
         else:
             return self.gen_fn.simulate(key, full_args)
+
+    def generate(
+        self,
+        key: PRNGKey,
+        constraint: Constraint,
+        args: Arguments,
+    ):
+        raise NotImplementedError
+
+    def project(
+        self,
+        key: PRNGKey,
+        trace: Trace[Any],
+        projection: Projection[Any],
+    ):
+        raise NotImplementedError
 
     def edit(
         self,

@@ -16,7 +16,6 @@
 from genjax._src.core.generative import (
     Argdiffs,
     EditRequest,
-    EmptyTrace,
     GenerativeFunction,
     IncrementalGenericRequest,
     Retdiff,
