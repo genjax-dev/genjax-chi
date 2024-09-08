@@ -108,11 +108,8 @@ class StaticTrace(Generic[R], Trace[R]):
 
     def get_sample(self) -> ChoiceMap:
         addresses = self.addresses.get_visited()
-        chm = ChoiceMap.empty()
-        for addr, subtrace in zip(addresses, self.subtraces):
-            chm = chm ^ ChoiceMapBuilder.a(addr, subtrace.get_sample())
-
-        return chm
+        sub_chms = (tr.get_choices() for tr in self.subtraces)
+        return ChoiceMap.from_mapping(zip(addresses, sub_chms))
 
     def get_score(self) -> Score:
         return self.score
@@ -521,7 +518,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
         return StaticGenerativeFunction(kwarged_source)
 
-    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,
@@ -595,7 +591,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             bwd_request,
         )
 
-    @GenerativeFunction.gfi_boundary
     def edit(
         self,
         key: PRNGKey,
@@ -621,7 +616,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             case _:
                 raise Exception("Unhandled edit request.")
 
-    @GenerativeFunction.gfi_boundary
     def assess(
         self,
         sample: ChoiceMap | ChoiceMapSample,

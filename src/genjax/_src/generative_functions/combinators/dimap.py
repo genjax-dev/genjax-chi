@@ -111,7 +111,6 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
     retval_mapping: Callable[[ArgTuple, R], S] = Pytree.static()
     info: String | None = Pytree.static(default=None)
 
-    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,

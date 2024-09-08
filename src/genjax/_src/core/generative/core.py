@@ -23,7 +23,6 @@ from genjax._src.core.generative.choice_map import ChoiceMap, ExtendedAddressCom
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import Flag, get_trace_shape
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import gfi_boundary
 from genjax._src.core.typing import (
     Annotated,
     Any,
@@ -523,10 +522,6 @@ class GenerativeFunction(Generic[R], Pytree):
 
     def get_trace_shape(self, *args) -> Any:
         return get_trace_shape(self, args)
-
-    @classmethod
-    def gfi_boundary(cls, c: _C) -> _C:
-        return gfi_boundary(c)
 
     @abstractmethod
     def simulate(
@@ -1624,7 +1619,6 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
     def handle_kwargs(self) -> "GenerativeFunction[R]":
         raise NotImplementedError
 
-    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,
@@ -1633,7 +1627,6 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         (args, _kwargs) = args
         return self.wrapped.simulate(key, args)
 
-    @GenerativeFunction.gfi_boundary
     def edit(
         self,
         key: PRNGKey,
@@ -1695,7 +1688,6 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     # Support the interface with reduced syntax #
     #############################################
 
-    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,
@@ -1711,7 +1703,6 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         else:
             return self.gen_fn.simulate(key, full_args)
 
-    @GenerativeFunction.gfi_boundary
     def edit(
         self,
         key: PRNGKey,
@@ -1736,7 +1727,6 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
             case _:
                 raise NotImplementedError
 
-    @GenerativeFunction.gfi_boundary
     def assess(
         self,
         sample: "genjax.ChoiceMap",

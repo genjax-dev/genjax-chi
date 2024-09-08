@@ -84,7 +84,7 @@ class SwitchTrace(Generic[R], Trace[R]):
             chm = ChoiceMap.empty()
             for _idx, _chm in enumerate(subsamples):
                 assert isinstance(_chm, ChoiceMap)
-                masked_submap = ChoiceMap.maybe(Flag(jnp.all(_idx == idx)), _chm)
+                masked_submap = _chm.mask(Flag(jnp.all(_idx == idx)))
                 chm = chm ^ masked_submap
             return chm
         else:
@@ -206,7 +206,6 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         score = tr.get_score()
         return (trace_leaves, retval_leaves), score
 
-    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,
@@ -608,7 +607,6 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             case SwitchTrace():
                 return self.update_generic(key, trace, problem, argdiffs)
 
-    @GenerativeFunction.gfi_boundary
     def edit(
         self,
         key: PRNGKey,

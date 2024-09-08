@@ -65,7 +65,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
 
     def get_sample(self):
         return jax.vmap(
-            lambda idx, subtrace: ChoiceMap.idx(idx, subtrace.get_sample()),
+            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_sample(), idx),
         )(jnp.arange(self.inner.get_score().shape[0]), self.inner)
 
     def get_gen_fn(self):
@@ -278,7 +278,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             (carried_out, score), (tr, scanned_out, w, inner_bwd_request) = (
                 _inner_importance(key, submap, carried_value, scanned_over)
             )
-            bwd_request = ChoiceMap.idx(idx, inner_bwd_request)
+            bwd_request = ChoiceMap.entry(inner_bwd_request, idx)
 
             return (key, idx + 1, carried_out), (tr, scanned_out, score, w, bwd_request)
 
@@ -379,7 +379,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 (carried_out, score),
                 (new_subtrace, scanned_out, w, inner_bwd_request),
             ) = _inner_update(key, subtrace, subproblem, carried_value, scanned_in)
-            bwd_request = ChoiceMap.idx(idx, inner_bwd_request)
+            bwd_request = ChoiceMap.entry(inner_bwd_request, idx)
 
             return (key, idx + 1, carried_out), (
                 new_subtrace,
@@ -489,7 +489,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                     return self.update_index(key, trace, index, subproblem)
                 else:
                     return self.update_generic(
-                        key, trace, ChoiceMap.idx(index, subproblem), argdiffs
+                        key, trace, ChoiceMap.entry(subproblem, index), argdiffs
                     )
             case _:
                 assert isinstance(
@@ -497,7 +497,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 ), "You cannot operate on the EmptyTrace in this context"
                 return self.update_generic(key, trace, edit_request, argdiffs)
 
-    @GenerativeFunction.gfi_boundary
     def edit(
         self,
         key: PRNGKey,
@@ -518,7 +517,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                     ),
                 )
 
-    @GenerativeFunction.gfi_boundary
     def assess(
         self,
         sample: Sample,

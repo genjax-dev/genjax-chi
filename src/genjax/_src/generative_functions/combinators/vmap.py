@@ -65,7 +65,7 @@ class VmapTrace(Generic[R], Trace[R]):
 
     def get_sample(self):
         return jax.vmap(
-            lambda idx, subtrace: ChoiceMap.idx(idx, subtrace.get_sample())
+            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_sample(), idx)
         )(
             jnp.arange(len(self.inner.get_score())),
             self.inner,
@@ -195,7 +195,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
                     ImportanceRequest(submap),
                 ),
             )
-            return tr, w, rd, ChoiceMap.idx(idx, bwd_request)
+            return tr, w, rd, ChoiceMap.entry(bwd_request, idx)
 
         (tr, w, rd, bwd_request) = jax.vmap(
             _importance, in_axes=(0, 0, None, self.in_axes)
@@ -224,7 +224,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             new_subtrace, w, retdiff, bwd_request = self.gen_fn.edit(
                 key, subtrace, IncrementalGenericRequest(argdiffs, subproblem)
             )
-            return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_request)
+            return new_subtrace, w, retdiff, ChoiceMap.entry(bwd_request, idx)
 
         new_subtraces, w, retdiff, bwd_requests = jax.vmap(
             _update, in_axes=(0, 0, 0, self.in_axes)
