@@ -36,11 +36,11 @@ from genjax._src.core.generative import (
     Mask,
     MaskedConstraint,
     MaskedRequest,
-    ProjectProblem,
     R,
     Retdiff,
     Score,
     Selection,
+    SelectionProjectRequest,
     Trace,
     Weight,
 )
@@ -149,12 +149,14 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     flag.f, _importance, _simulate, key, value
                 )
                 tr = DistributionTrace(self, args, new_v, score)
-                bwd_request = MaskedRequest(flag, ProjectProblem())
+                bwd_request = MaskedRequest(
+                    flag, SelectionProjectRequest(Selection.all())
+                )
                 return tr, w, bwd_request
 
             case _:
                 w = self.estimate_logpdf(key, v, *args)
-                bwd_request = ProjectProblem()
+                bwd_request = SelectionProjectRequest(Selection.all())
                 tr = DistributionTrace(self, args, v, w)
                 return tr, w, bwd_request
 
@@ -169,12 +171,22 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             return (
                 tr,
                 jnp.array(0.0),
-                MaskedRequest(Flag(False), ProjectProblem()),
+                MaskedRequest(
+                    Flag(False),
+                    SelectionProjectRequest(Selection.all()),
+                ),
             )
 
         def importance_branch(key, constraint, args):
             tr, w = self.importance(key, constraint, args)
-            return tr, w, MaskedRequest(Flag(True), ProjectProblem())
+            return (
+                tr,
+                w,
+                MaskedRequest(
+                    Flag(True),
+                    SelectionProjectRequest(Selection.all()),
+                ),
+            )
 
         return jax.lax.cond(
             constraint.flag.f,
@@ -213,7 +225,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         self,
         trace: Trace[R],
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], IncrementalGenericRequest]:
         sample = trace.get_choices()
         primals = Diff.tree_primal(argdiffs)
         new_score, _ = self.assess(sample, primals)
@@ -222,7 +234,10 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             new_trace,
             new_score - trace.get_score(),
             Diff.tree_diff_no_change(trace.get_retval()),
-            EmptyRequest(),
+            IncrementalGenericRequest(
+                Diff.no_change(trace.get_args()),
+                ChoiceMapConstraint(ChoiceMap.empty()),
+            ),
         )
 
     def edit_constraint_masked_constraint(
@@ -272,7 +287,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         constraint: Constraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], IncrementalGenericRequest]:
         primals = Diff.tree_primal(argdiffs)
         match constraint:
             case EmptyConstraint():
@@ -286,13 +301,19 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     new_trace,
                     new_score - trace.get_score(),
                     Diff.tree_diff_no_change(old_retval),
-                    EmptyRequest(),
+                    IncrementalGenericRequest(
+                        Diff.tree_diff_unknown_change(trace.get_args()),
+                        ChoiceMapConstraint(ChoiceMap.empty()),
+                    ),
                 )
 
             case MaskedConstraint(flag, subconstraint):
                 if staged_check(flag):
-                    return self.edit(
-                        key, trace, IncrementalGenericRequest(argdiffs, subconstraint)
+                    return self.edit_incremental_generic_request(
+                        key,
+                        trace,
+                        subconstraint,
+                        argdiffs,
                     )
                 else:
                     return self.edit_constraint_masked_constraint(
@@ -326,7 +347,15 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     w = fwd - bwd
                     new_tr = DistributionTrace(self, primals, v, fwd)
                     retval_diff = Diff.tree_diff_no_change(v)
-                    return (new_tr, w, retval_diff, EmptyRequest())
+                    return (
+                        new_tr,
+                        w,
+                        retval_diff,
+                        IncrementalGenericRequest(
+                            Diff.tree_diff_unknown_change(trace.get_args()),
+                            ChoiceMapConstraint(ChoiceMap.empty()),
+                        ),
+                    )
                 elif isinstance(constraint, MaskChm):
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
@@ -397,9 +426,12 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 
         return new_trace, w, retdiff, bwd_request
 
-    def edit_project(
+    def edit_selection_project(
         self,
+        key: PRNGKey,
         trace: Trace[R],
+        selection: Selection,
+        argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         original = trace.get_score()
         removed_value = trace.get_retval()
@@ -408,34 +440,19 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             EmptyTrace(self),
             -original,
             retdiff,
-            ChoiceMap.value(removed_value),
-        )
-
-    def edit_selection_project(
-        self,
-        key: PRNGKey,
-        trace: Trace[R],
-        selection: Selection,
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        check = () in selection
-
-        return self.edit(
-            key,
-            trace,
-            IncrementalGenericRequest(
-                argdiffs,
-                MaskedRequest(Flag(check), ProjectProblem()),
+            ImportanceRequest(
+                trace.get_args(),
+                ChoiceMapConstraint(ChoiceMap.value(removed_value)),
             ),
         )
 
-    def edit_change_target(
+    def edit_incremental_generic_request(
         self,
         key: PRNGKey,
         trace: Trace[R],
         constraint: Constraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], IncrementalGenericRequest]:
         match constraint:
             case EmptyConstraint():
                 return self.edit_empty(trace, argdiffs)
@@ -459,7 +476,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         match edit_request:
             case IncrementalGenericRequest(argdiffs, constraint):
-                return self.edit_change_target(
+                return self.edit_incremental_generic_request(
                     key,
                     trace,
                     constraint,

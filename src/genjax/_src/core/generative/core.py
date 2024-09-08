@@ -19,7 +19,11 @@ import jax
 import jax.numpy as jnp
 from penzai.core import formatting_util
 
-from genjax._src.core.generative.choice_map import ChoiceMap, ExtendedAddressComponent
+from genjax._src.core.generative.choice_map import (
+    ChoiceMap,
+    ExtendedAddressComponent,
+    Selection,
+)
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import Flag, get_trace_shape
 from genjax._src.core.pytree import Pytree
@@ -226,11 +230,6 @@ class ImportanceRequest(EditRequest):
     constraint: Constraint
 
 
-@Pytree.dataclass
-class ProjectProblem(EditRequest):
-    pass
-
-
 class EditRequestBuilder(Pytree):
     @classmethod
     def empty(cls):
@@ -281,6 +280,11 @@ class ChoiceMapSample(Sample, ChoiceMap):
 
     def get_value(self) -> Any:
         return self.choice_map.get_value()
+
+
+@Pytree.dataclass
+class SelectionProjectRequest(EditRequest):
+    selection: Selection
 
 
 #########
@@ -388,16 +392,41 @@ class Trace(Generic[R], Pytree):
                 ),
             )  # pyright: ignore[reportReturnType]
 
+    def update(
+        self,
+        key: PRNGKey,
+        constraint: ChoiceMap | Constraint,
+        argdiffs: tuple[Any, ...] | None = None,
+    ) -> tuple[Self, Weight, Retdiff[R], Constraint]:
+        """
+        This method calls out to the underlying [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update] method - see [`EditRequest`][genjax.core.EditRequest] and [`update`][genjax.core.GenerativeFunction.update] for more information.
+        """
+        if argdiffs is None:
+            return self.get_gen_fn().update(
+                key,
+                self,
+                constraint,
+                Diff.tree_diff_no_change(self.get_args()),
+            )  # pyright: ignore[reportReturnType]
+        else:
+            return self.get_gen_fn().update(
+                key,
+                self,
+                constraint,
+                argdiffs,
+            )  # pyright: ignore[reportReturnType]
+
     def project(
         self,
         key: PRNGKey,
-        problem: ProjectProblem,
+        selection: Selection,
     ) -> Weight:
         gen_fn = self.get_gen_fn()
+        request = SelectionProjectRequest(selection)
         _, w, _, _ = gen_fn.edit(
             key,
             self,
-            IncrementalGenericRequest(Diff.no_change(self.get_args()), problem),
+            request,
         )
         return -w
 

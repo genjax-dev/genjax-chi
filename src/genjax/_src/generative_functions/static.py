@@ -23,7 +23,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapBuilder,
     ChoiceMapConstraint,
     ChoiceMapSample,
     EditRequest,
@@ -106,7 +105,12 @@ class StaticTrace(Generic[R], Trace[R]):
     def get_gen_fn(self) -> GenerativeFunction[R]:
         return self.gen_fn
 
-    def get_sample(self) -> ChoiceMap:
+    def get_sample(self) -> ChoiceMapSample:
+        addresses = self.addresses.get_visited()
+        sub_chms = (tr.get_sample() for tr in self.subtraces)
+        return ChoiceMapSample(ChoiceMap.from_mapping(zip(addresses, sub_chms)))
+
+    def get_choices(self) -> ChoiceMap:
         addresses = self.addresses.get_visited()
         sub_chms = (tr.get_choices() for tr in self.subtraces)
         return ChoiceMap.from_mapping(zip(addresses, sub_chms))
@@ -291,7 +295,7 @@ def simulate_transform(source_fn):
 @dataclass
 class IncrementalGenericRequestHandler(StaticHandler):
     key: PRNGKey
-    previous_trace: EmptyTrace[Any] | StaticTrace[Any]
+    previous_trace: EmptyTrace[Any] | Trace[Any]
     constraint: ChoiceMapConstraint
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
@@ -363,7 +367,7 @@ def incremental_generic_request_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
         key: PRNGKey,
-        previous_trace: StaticTrace[R],
+        previous_trace: Trace[R],
         constraint: ChoiceMapConstraint,
         diffs: tuple[Any, ...],
     ):
@@ -565,12 +569,10 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             key, trace, constraint, argdiffs
         )
 
-        def make_bwd_request(visitor, subproblems):
+        def make_bwd_request(visitor, subconstraints):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_const_unwrap(addresses)
-            chm = ChoiceMap.empty()
-            for addr, subproblem in zip(addresses, subproblems):
-                chm = chm ^ ChoiceMapBuilder.a(addr, subproblem)
+            chm = ChoiceMap.from_mapping(zip(addresses, subconstraints))
             return IncrementalGenericRequest(
                 Diff.tree_diff_unknown_change(trace.get_args()),
                 ChoiceMapConstraint(chm),
