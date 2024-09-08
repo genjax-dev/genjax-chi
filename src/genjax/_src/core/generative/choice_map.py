@@ -383,7 +383,7 @@ class MaskSel(Selection):
 
     def check(self) -> Flag:
         ch = self.s.check()
-        return self.flag.and_(ch)
+        return ch.and_(self.flag)
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining = self.s(addr)
@@ -425,6 +425,8 @@ class ComplementSel(Selection):
                 return Selection.none()
             case NoneSel():
                 return Selection.all()
+            case ComplementSel():
+                return s.s
             case _:
                 return ComplementSel(s)
 
@@ -557,6 +559,13 @@ class AndSel(Selection):
                 return a
             case (_, NoneSel()):
                 return b
+            case (MaskSel(), MaskSel()):
+                return (a.s & b.s).mask(a.flag.and_(b.flag))
+
+            # DeMorgan's Law
+            case (ComplementSel(), ComplementSel()):
+                return a.s | b.s
+
             case _:
                 return AndSel(a, b)
 
@@ -607,6 +616,13 @@ class OrSel(Selection):
                 return b
             case (_, NoneSel()):
                 return a
+            case (MaskSel(), MaskSel()):
+                return (a.s | b.s).mask(a.flag.or_(b.flag))
+
+            # DeMorgan's Law
+            case (ComplementSel(), ComplementSel()):
+                return a.s & b.s
+
             case _:
                 return OrSel(a, b)
 
