@@ -217,7 +217,7 @@ class Selection(ProjectProblem):
             assert maybe_selection["any_address"].f == False
             ```
         """
-        return MaskSel(self, flag)
+        return MaskSel.build(self, flag)
 
     def filter(self, chm: "ChoiceMap") -> "ChoiceMap":
         """
@@ -359,6 +359,18 @@ class MaskSel(Selection):
 
     s: Selection
     flag: Flag
+
+    @staticmethod
+    def build(
+        c: Selection,
+        flag: Flag,
+    ) -> Selection:
+        if flag.concrete_true():
+            return c
+        elif flag.concrete_false():
+            return Selection.none()
+        else:
+            return MaskSel(c, flag)
 
     def check(self) -> Flag:
         ch = self.s.check()
