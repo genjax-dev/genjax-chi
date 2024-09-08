@@ -17,7 +17,7 @@ import jax
 import jax.numpy as jnp
 
 import genjax
-from genjax import SelectionBuilder as S
+from genjax import Selection
 
 
 class TestTupleAddr:
@@ -29,7 +29,7 @@ class TestTupleAddr:
             return y
 
         tr = f.simulate(jax.random.PRNGKey(0), ())
-        assert -2.7931314 == tr.project(jax.random.PRNGKey(1), S["x", "x0"])
+        assert -2.7931314 == tr.project(jax.random.PRNGKey(1), Selection.at["x", "x0"])
 
 
 class TestCombinators:

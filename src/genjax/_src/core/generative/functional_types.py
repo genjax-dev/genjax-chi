@@ -60,16 +60,16 @@ class Mask(Generic[R], Pytree):
     flag: Flag
     value: R
 
-    @classmethod
-    def maybe(cls, f: Flag, v: "R | Mask[R]") -> "Mask[R]":
+    @staticmethod
+    def maybe(f: Flag, v: "R | Mask[R]") -> "Mask[R]":
         match v:
             case Mask(flag, value):
                 return Mask[R](f.and_(flag), value)
             case _:
                 return Mask[R](f, v)
 
-    @classmethod
-    def maybe_none(cls, f: Flag, v: "R | Mask[R]") -> "R | Mask[R] | None":
+    @staticmethod
+    def maybe_none(f: Flag, v: "R | Mask[R]") -> "R | Mask[R] | None":
         if v is None or f.concrete_false():
             return None
         elif f.concrete_true():

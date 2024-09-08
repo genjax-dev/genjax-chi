@@ -23,7 +23,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapBuilder,
     EmptyProblem,
     EmptyTrace,
     GenerativeFunction,
@@ -108,11 +107,8 @@ class StaticTrace(Generic[R], Trace[R]):
 
     def get_sample(self) -> ChoiceMap:
         addresses = self.addresses.get_visited()
-        chm = ChoiceMap.empty()
-        for addr, subtrace in zip(addresses, self.subtraces):
-            chm = chm ^ ChoiceMapBuilder.a(addr, subtrace.get_sample())
-
-        return chm
+        sub_chms = (tr.get_choices() for tr in self.subtraces)
+        return ChoiceMap.from_mapping(zip(addresses, sub_chms))
 
     def get_score(self) -> Score:
         return self.score
@@ -515,7 +511,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
         return StaticGenerativeFunction(kwarged_source)
 
-    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,
@@ -561,13 +556,11 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             ),
         ) = update_transform(syntax_sugar_handled)(key, trace, update_problem, argdiffs)
 
-        def make_bwd_problem(visitor, subproblems):
+        def make_bwd_problem(
+            visitor: AddressVisitor, subproblems: list[UpdateProblem]
+        ) -> ChoiceMap:
             addresses = visitor.get_visited()
-            addresses = Pytree.tree_const_unwrap(addresses)
-            chm = ChoiceMap.empty()
-            for addr, subproblem in zip(addresses, subproblems):
-                chm = chm ^ ChoiceMapBuilder.a(addr, subproblem)
-            return chm
+            return ChoiceMap.from_mapping(zip(addresses, subproblems))
 
         bwd_problem = make_bwd_problem(address_visitor, bwd_problems)
         return (
@@ -584,7 +577,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             bwd_problem,
         )
 
-    @GenerativeFunction.gfi_boundary
     def update(
         self,
         key: PRNGKey,
@@ -601,7 +593,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     GenericProblem(Diff.no_change(trace.get_args()), update_problem),
                 )
 
-    @GenerativeFunction.gfi_boundary
     def assess(
         self,
         sample: ChoiceMap,
