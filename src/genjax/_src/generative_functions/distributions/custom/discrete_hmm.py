@@ -59,8 +59,8 @@ class DiscreteHMMConfiguration(Pytree):
     sigma_trans: FloatArray = Pytree.static()
     sigma_obs: FloatArray = Pytree.static()
 
-    @classmethod
-    def copy(cls, config, transition_tensor, observation_tensor):
+    @staticmethod
+    def copy(config, transition_tensor, observation_tensor):
         return DiscreteHMMConfiguration(
             config.linear_grid_dim,
             config.adjacency_distance_trans,

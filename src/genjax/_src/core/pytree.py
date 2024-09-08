@@ -60,19 +60,17 @@ class Pytree(pz.Struct):
 
     """
 
-    @classmethod
+    @staticmethod
     @overload
     def dataclass(
-        cls,
         incoming: None = None,
         /,
         **kwargs,
     ) -> Callable[[type[_T]], type[_T]]: ...
 
-    @classmethod
+    @staticmethod
     @overload
     def dataclass(
-        cls,
         incoming: type[_T],
         /,
         **kwargs,
@@ -81,9 +79,8 @@ class Pytree(pz.Struct):
     @dataclass_transform(
         frozen_default=True,
     )
-    @classmethod
+    @staticmethod
     def dataclass(
-        cls,
         incoming: type[_T] | None = None,
         /,
         **kwargs,

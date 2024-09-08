@@ -13,18 +13,19 @@
 # limitations under the License.
 
 
+from genjax import ChoiceMap
 from genjax import ChoiceMapBuilder as C
 from genjax import SelectionBuilder as S
 
 
 class TestChoiceMap:
     def test_value_map(self):
-        value_chm = C.v(3.0)
+        value_chm = ChoiceMap.value(3.0)
         assert 3.0 == value_chm.get_value()
         assert () in value_chm
 
     def test_address_map(self):
-        chm = C.a(("x",), 3.0)
+        chm = C["x"].set(3.0)
         assert chm["x"] == 3.0
 
 

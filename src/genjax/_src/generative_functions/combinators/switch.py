@@ -84,7 +84,7 @@ class SwitchTrace(Generic[R], Trace[R]):
             chm = ChoiceMap.empty()
             for _idx, _chm in enumerate(subsamples):
                 assert isinstance(_chm, ChoiceMap)
-                masked_submap = ChoiceMap.maybe(Flag(jnp.all(_idx == idx)), _chm)
+                masked_submap = _chm.mask(Flag(jnp.all(_idx == idx)))
                 chm = chm ^ masked_submap
             return chm
         else:

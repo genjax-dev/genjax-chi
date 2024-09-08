@@ -124,8 +124,8 @@ class MaskedProblem(UpdateProblem):
     flag: Flag
     problem: UpdateProblem
 
-    @classmethod
-    def maybe_empty(cls, f: Flag, problem: UpdateProblem):
+    @staticmethod
+    def maybe_empty(f: Flag, problem: UpdateProblem):
         match problem:
             case MaskedProblem(flag, subproblem):
                 return MaskedProblem(f.and_(flag), subproblem)
@@ -162,16 +162,16 @@ class ProjectProblem(UpdateProblem):
 
 
 class UpdateProblemBuilder(Pytree):
-    @classmethod
-    def empty(cls):
+    @staticmethod
+    def empty():
         return EmptyProblem()
 
-    @classmethod
-    def maybe(cls, flag: Flag, problem: "UpdateProblem"):
+    @staticmethod
+    def maybe(flag: Flag, problem: "UpdateProblem"):
         return MaskedProblem.maybe_empty(flag, problem)
 
-    @classmethod
-    def g(cls, argdiffs: Argdiffs, subproblem: "UpdateProblem") -> "GenericProblem":
+    @staticmethod
+    def g(argdiffs: Argdiffs, subproblem: "UpdateProblem") -> "GenericProblem":
         return GenericProblem(argdiffs, subproblem)
 
 
