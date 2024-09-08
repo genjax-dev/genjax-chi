@@ -150,14 +150,14 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     flag.f, _importance, _simulate, key, value
                 )
                 tr = DistributionTrace(self, args, new_v, score)
-                bwd_problem = MaskedRequest(flag, ProjectProblem())
-                return tr, w, bwd_problem
+                bwd_request = MaskedRequest(flag, ProjectProblem())
+                return tr, w, bwd_request
 
             case _:
                 w = self.estimate_logpdf(key, v, *args)
-                bwd_problem = ProjectProblem()
+                bwd_request = ProjectProblem()
                 tr = DistributionTrace(self, args, v, w)
-                return tr, w, bwd_problem
+                return tr, w, bwd_request
 
     def importance_masked_constraint(
         self,
@@ -194,21 +194,21 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         match constraint:
             case ChoiceMapConstraint():
-                tr, w, bwd_problem = self.importance_choice_map(key, constraint, args)
+                tr, w, bwd_request = self.importance_choice_map(key, constraint, args)
             case MaskedConstraint(flag, inner_constraint):
                 if staged_check(flag):
                     return self.edit_importance(key, inner_constraint, args)
                 else:
-                    tr, w, bwd_problem = self.importance_masked_constraint(
+                    tr, w, bwd_request = self.importance_masked_constraint(
                         key, constraint, args
                     )
             case EmptyConstraint():
                 tr = self.simulate(key, args)
                 w = jnp.array(0.0)
-                bwd_problem = EmptyRequest()
+                bwd_request = EmptyRequest()
             case _:
                 raise Exception("Unhandled type.")
-        return tr, w, Diff.unknown_change(tr.get_retval()), bwd_problem
+        return tr, w, Diff.unknown_change(tr.get_retval()), bwd_request
 
     def edit_empty(
         self,
@@ -381,14 +381,14 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     ) -> tuple[Trace[ArrayLike], Weight, Retdiff[ArrayLike], EditRequest]:
         old_value = trace.get_retval()
         primals = Diff.tree_primal(argdiffs)
-        possible_trace, w, retdiff, bwd_problem = self.edit(
+        possible_trace, w, retdiff, bwd_request = self.edit(
             key,
             trace,
             IncrementalGenericRequest(argdiffs, problem),
         )
         new_value = possible_trace.get_retval()
         w = w * flag
-        bwd_problem = MaskedRequest(flag, bwd_problem)
+        bwd_request = MaskedRequest(flag, bwd_request)
         new_trace = DistributionTrace(
             self,
             primals,
@@ -396,7 +396,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             jnp.asarray(flag.where(possible_trace.get_score(), trace.get_score())),
         )
 
-        return new_trace, w, retdiff, bwd_problem
+        return new_trace, w, retdiff, bwd_request
 
     def edit_project(
         self,

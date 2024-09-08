@@ -587,6 +587,49 @@ class GenerativeFunction(Generic[R], Pytree):
         raise NotImplementedError
 
     @abstractmethod
+    def assess(
+        self,
+        sample: "genjax.ChoiceMap",
+        args: Arguments,
+    ) -> tuple[Score, R]:
+        """
+        Return [the score][genjax.core.Trace.get_score] and [the return value][genjax.core.Trace.get_retval] when the generative function is invoked with the provided arguments, and constrained to take the provided sample as the sampled value.
+
+        It is an error if the provided sample value is off the support of the distribution over the `Sample` type, or otherwise induces a partial constraint on the execution of the generative function (which would require the generative function to provide an `update` implementation which responds to the `EditRequest` induced by the [`importance`][genjax.core.GenerativeFunction.importance] interface).
+
+        Examples:
+            This method is similar to density evaluation interfaces for distributions.
+            ```python exec="yes" html="true" source="material-block" session="core"
+            from genjax import normal
+            from genjax import ChoiceMapBuilder as C
+
+            sample = C.v(1.0)
+            score, retval = normal.assess(sample, (1.0, 1.0))
+            print((score, retval))
+            ```
+
+            But it also works with generative functions that sample from spaces with more structure:
+
+            ```python exec="yes" html="true" source="material-block" session="core"
+            from genjax import gen
+            from genjax import normal
+            from genjax import ChoiceMapBuilder as C
+
+
+            @gen
+            def model():
+                v1 = normal(0.0, 1.0) @ "v1"
+                v2 = normal(v1, 1.0) @ "v2"
+
+
+            sample = C.kw(v1=1.0, v2=0.0)
+            score, retval = model.assess(sample, ())
+            print((score, retval))
+            ```
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def edit(
         self,
         key: PRNGKey,
@@ -707,49 +750,6 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         raise NotImplementedError
 
-    @abstractmethod
-    def assess(
-        self,
-        sample: "genjax.ChoiceMap",
-        args: Arguments,
-    ) -> tuple[Score, R]:
-        """
-        Return [the score][genjax.core.Trace.get_score] and [the return value][genjax.core.Trace.get_retval] when the generative function is invoked with the provided arguments, and constrained to take the provided sample as the sampled value.
-
-        It is an error if the provided sample value is off the support of the distribution over the `Sample` type, or otherwise induces a partial constraint on the execution of the generative function (which would require the generative function to provide an `update` implementation which responds to the `EditRequest` induced by the [`importance`][genjax.core.GenerativeFunction.importance] interface).
-
-        Examples:
-            This method is similar to density evaluation interfaces for distributions.
-            ```python exec="yes" html="true" source="material-block" session="core"
-            from genjax import normal
-            from genjax import ChoiceMapBuilder as C
-
-            sample = C.v(1.0)
-            score, retval = normal.assess(sample, (1.0, 1.0))
-            print((score, retval))
-            ```
-
-            But it also works with generative functions that sample from spaces with more structure:
-
-            ```python exec="yes" html="true" source="material-block" session="core"
-            from genjax import gen
-            from genjax import normal
-            from genjax import ChoiceMapBuilder as C
-
-
-            @gen
-            def model():
-                v1 = normal(0.0, 1.0) @ "v1"
-                v2 = normal(v1, 1.0) @ "v2"
-
-
-            sample = C.kw(v1=1.0, v2=0.0)
-            score, retval = model.assess(sample, ())
-            print((score, retval))
-            ```
-        """
-        raise NotImplementedError
-
     ######################
     # Derived interfaces #
     ######################
@@ -760,7 +760,7 @@ class GenerativeFunction(Generic[R], Pytree):
         trace: Trace[R],
         constraint: ChoiceMap | Constraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], Constraint]:
         tr, w, rd, bwd = self.edit(
             key,
             trace,
@@ -771,7 +771,8 @@ class GenerativeFunction(Generic[R], Pytree):
                 else ChoiceMapConstraint(constraint),
             ),
         )
-        return tr, w, rd, bwd
+        assert isinstance(bwd, IncrementalGenericRequest), type(bwd)
+        return tr, w, rd, bwd.constraint
 
     def importance(
         self,

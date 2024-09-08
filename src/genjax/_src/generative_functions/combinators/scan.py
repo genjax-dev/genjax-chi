@@ -254,7 +254,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         ) -> tuple[
             tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y, Weight, EditRequest]
         ]:
-            tr, w, _retdiff, bwd_problem = self.kernel_gen_fn.edit(
+            tr, w, _retdiff, bwd_request = self.kernel_gen_fn.edit(
                 key,
                 EmptyTrace(self.kernel_gen_fn),
                 IncrementalGenericRequest(
@@ -264,7 +264,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             )
             (carry, scanned_out) = tr.get_retval()
             score = tr.get_score()
-            return (carry, score), (tr, scanned_out, w, bwd_problem)
+            return (carry, score), (tr, scanned_out, w, bwd_request)
 
         def _importance(
             carry: tuple[PRNGKey, IntArray, Carry], scanned_over: Any
@@ -275,14 +275,14 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             key, idx, carried_value = carry
             key = jax.random.fold_in(key, idx)
             submap = constraint.get_submap(idx)
-            (carried_out, score), (tr, scanned_out, w, inner_bwd_problem) = (
+            (carried_out, score), (tr, scanned_out, w, inner_bwd_request) = (
                 _inner_importance(key, submap, carried_value, scanned_over)
             )
-            bwd_problem = ChoiceMap.idx(idx, inner_bwd_problem)
+            bwd_request = ChoiceMap.idx(idx, inner_bwd_request)
 
-            return (key, idx + 1, carried_out), (tr, scanned_out, score, w, bwd_problem)
+            return (key, idx + 1, carried_out), (tr, scanned_out, score, w, bwd_request)
 
-        (_, _, carried_out), (tr, scanned_out, scores, ws, bwd_problems) = jax.lax.scan(
+        (_, _, carried_out), (tr, scanned_out, scores, ws, bwd_requests) = jax.lax.scan(
             _importance,
             (key, jnp.asarray(0), carry),
             scanned_in,
@@ -300,7 +300,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             ),
             jnp.sum(ws),
             Diff.unknown_change((carried_out, scanned_out)),
-            bwd_problems,
+            bwd_requests,
         )
 
     def _get_subproblem(
@@ -344,7 +344,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 new_subtrace,
                 w,
                 kernel_retdiff,
-                bwd_problem,
+                bwd_request,
             ) = self.kernel_gen_fn.edit(
                 key,
                 subtrace,
@@ -361,7 +361,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 new_subtrace,
                 scanned_out_retdiff,
                 w,
-                bwd_problem,
+                bwd_request,
             )
 
         def _update(
@@ -377,21 +377,21 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             subproblem = self._get_subproblem(problem, idx)
             (
                 (carried_out, score),
-                (new_subtrace, scanned_out, w, inner_bwd_problem),
+                (new_subtrace, scanned_out, w, inner_bwd_request),
             ) = _inner_update(key, subtrace, subproblem, carried_value, scanned_in)
-            bwd_problem = ChoiceMap.idx(idx, inner_bwd_problem)
+            bwd_request = ChoiceMap.idx(idx, inner_bwd_request)
 
             return (key, idx + 1, carried_out), (
                 new_subtrace,
                 scanned_out,
                 score,
                 w,
-                bwd_problem,
+                bwd_request,
             )
 
         (
             (_, _, carried_out_diff),
-            (new_subtraces, scanned_out_diff, scores, ws, bwd_problems),
+            (new_subtraces, scanned_out_diff, scores, ws, bwd_requests),
         ) = jax.lax.scan(
             _update,
             (key, jnp.asarray(0), carry_diff),
@@ -414,7 +414,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             ),
             jnp.sum(ws),
             (carried_out_diff, scanned_out_diff),
-            bwd_problems,
+            bwd_requests,
         )
 
     def update_index(
@@ -431,7 +431,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             updated_start,
             start_w,
             starting_retdiff,
-            bwd_problem,
+            bwd_request,
         ) = self.kernel_gen_fn.edit(
             key,
             starting_subslice,
@@ -465,7 +465,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             ),
             start_w + end_w,
             Diff.unknown_change(new_retvals),
-            IndexProblem(index, bwd_problem),
+            IndexProblem(index, bwd_request),
         )
 
     def edit_change_target(

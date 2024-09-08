@@ -253,8 +253,8 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
     ):
         trace_defs = []
         trace_leaves = []
-        bwd_problem_defs = []
-        bwd_problem_leaves = []
+        bwd_request_defs = []
+        bwd_request_leaves = []
         retdiff_defs = []
         retdiff_leaves = []
         for static_idx in range(len(self.branches)):
@@ -262,7 +262,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             gen_fn = self.branches[static_idx]
             branch_argdiffs = argdiffs[static_idx]
             key = jax.random.PRNGKey(0)
-            trace_shape, _, retdiff_shape, bwd_problem_shape = get_data_shape(
+            trace_shape, _, retdiff_shape, bwd_request_shape = get_data_shape(
                 gen_fn.edit
             )(key, subtrace, IncrementalGenericRequest(branch_argdiffs, problem))
             empty_trace = jtu.tree_map(
@@ -272,21 +272,21 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
                 lambda v: jnp.zeros(v.shape, v.dtype), retdiff_shape
             )
             empty_problem = jtu.tree_map(
-                lambda v: jnp.zeros(v.shape, v.dtype), bwd_problem_shape
+                lambda v: jnp.zeros(v.shape, v.dtype), bwd_request_shape
             )
             trace_leaf, trace_def = jtu.tree_flatten(empty_trace)
-            bwd_problem_leaf, bwd_problem_def = jtu.tree_flatten(empty_problem)
+            bwd_request_leaf, bwd_request_def = jtu.tree_flatten(empty_problem)
             retdiff_leaf, retdiff_def = jtu.tree_flatten(empty_retdiff)
             trace_defs.append(trace_def)
             trace_leaves.append(trace_leaf)
-            bwd_problem_defs.append(bwd_problem_def)
-            bwd_problem_leaves.append(bwd_problem_leaf)
+            bwd_request_defs.append(bwd_request_def)
+            bwd_request_leaves.append(bwd_request_leaf)
             retdiff_defs.append(retdiff_def)
             retdiff_leaves.append(retdiff_leaf)
         return (
             (trace_leaves, trace_defs),
             (retdiff_leaves, retdiff_defs),
-            (bwd_problem_leaves, bwd_problem_defs),
+            (bwd_request_leaves, bwd_request_defs),
         )
 
     def _specialized_update_idx_no_change(
@@ -301,19 +301,19 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         subtrace = trace.subtraces[static_idx]
         gen_fn = self.branches[static_idx]
         branch_argdiffs = argdiffs[static_idx]
-        tr, w, rd, bwd_problem = gen_fn.edit(
+        tr, w, rd, bwd_request = gen_fn.edit(
             key, subtrace, IncrementalGenericRequest(branch_argdiffs, problem)
         )
         (
             (trace_leaves, _),
             (retdiff_leaves, _),
-            (bwd_problem_leaves, _),
+            (bwd_request_leaves, _),
         ) = self._empty_update_defs(trace, problem, argdiffs)
         trace_leaves[static_idx] = jtu.tree_leaves(tr)
         retdiff_leaves[static_idx] = jtu.tree_leaves(rd)
-        bwd_problem_leaves[static_idx] = jtu.tree_leaves(bwd_problem)
+        bwd_request_leaves[static_idx] = jtu.tree_leaves(bwd_request)
         score = tr.get_score()
-        return (trace_leaves, retdiff_leaves, bwd_problem_leaves), (score, w)
+        return (trace_leaves, retdiff_leaves, bwd_request_leaves), (score, w)
 
     def _generic_update_idx_change(
         self,
@@ -330,31 +330,31 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         branch_primals = Diff.tree_primal(branch_argdiffs)
         new_subtrace = gen_fn.simulate(key, branch_primals)
         new_subtrace_def = jtu.tree_structure(new_subtrace)
-        _, _, _, bwd_problem_shape = get_data_shape(gen_fn.edit)(
+        _, _, _, bwd_request_shape = get_data_shape(gen_fn.edit)(
             key, new_subtrace, IncrementalGenericRequest(branch_argdiffs, problem)
         )
-        bwd_problem_def = jtu.tree_structure(bwd_problem_shape)
+        bwd_request_def = jtu.tree_structure(bwd_request_shape)
 
         def _update_same_branch(key, subtrace, problem, branch_argdiffs):
-            tr, w, rd, bwd_problem = gen_fn.edit(
+            tr, w, rd, bwd_request = gen_fn.edit(
                 key, subtrace, IncrementalGenericRequest(branch_argdiffs, problem)
             )
             rd = Diff.tree_diff_unknown_change(rd)
             tr_leaves = jtu.tree_leaves(tr)
-            problem_leaves = jtu.tree_leaves(bwd_problem)
+            problem_leaves = jtu.tree_leaves(bwd_request)
             return tr_leaves, w, rd, problem_leaves
 
         def _update_new_branch(key, subtrace, problem, branch_argdiffs):
             branch_argdiffs = Diff.tree_diff_no_change(branch_argdiffs)
-            tr, w, rd, bwd_problem = gen_fn.edit(
+            tr, w, rd, bwd_request = gen_fn.edit(
                 key, subtrace, IncrementalGenericRequest(branch_argdiffs, problem)
             )
             rd = Diff.tree_diff_unknown_change(rd)
             tr_leaves = jtu.tree_leaves(tr)
-            problem_leaves = jtu.tree_leaves(bwd_problem)
+            problem_leaves = jtu.tree_leaves(bwd_request)
             return tr_leaves, w, rd, problem_leaves
 
-        tr_leaves, w, rd, bwd_problem_leaves = jax.lax.cond(
+        tr_leaves, w, rd, bwd_request_leaves = jax.lax.cond(
             check,
             _update_same_branch,
             _update_new_branch,
@@ -364,17 +364,17 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             branch_argdiffs,
         )
         tr = jtu.tree_unflatten(new_subtrace_def, tr_leaves)
-        bwd_problem = jtu.tree_unflatten(bwd_problem_def, bwd_problem_leaves)
+        bwd_request = jtu.tree_unflatten(bwd_request_def, bwd_request_leaves)
         (
             (trace_leaves, _),
             (retdiff_leaves, _),
-            (bwd_problem_leaves, _),
+            (bwd_request_leaves, _),
         ) = self._empty_update_defs(trace, problem, argdiffs)
         trace_leaves[static_idx] = jtu.tree_leaves(tr)
         retdiff_leaves[static_idx] = jtu.tree_leaves(rd)
-        bwd_problem_leaves[static_idx] = jtu.tree_leaves(bwd_problem)
+        bwd_request_leaves[static_idx] = jtu.tree_leaves(bwd_request)
         score = tr.get_score()
-        return (trace_leaves, retdiff_leaves, bwd_problem_leaves), (score, w)
+        return (trace_leaves, retdiff_leaves, bwd_request_leaves), (score, w)
 
     def update_generic(
         self,
@@ -412,13 +412,13 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         idx = primals[0]
         branch_functions = list(map(update_dispatch, range(len(self.branches))))
 
-        (trace_leaves, retdiff_leaves, bwd_problem_leaves), (score, w) = jax.lax.switch(
+        (trace_leaves, retdiff_leaves, bwd_request_leaves), (score, w) = jax.lax.switch(
             idx, branch_functions, key, trace, problem, idx, tuple(branch_argdiffs)
         )
         (
             (_, trace_defs),
             (_, retdiff_defs),
-            (_, bwd_problem_defs),
+            (_, bwd_request_defs),
         ) = self._empty_update_defs(trace, problem, tuple(branch_argdiffs))
         subtraces = list(
             map(
@@ -432,12 +432,12 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
                 range(len(retdiff_leaves)),
             )
         )
-        bwd_problems = list(
+        bwd_requests = list(
             map(
                 lambda x: jtu.tree_unflatten(
-                    bwd_problem_defs[x], bwd_problem_leaves[x]
+                    bwd_request_defs[x], bwd_request_leaves[x]
                 ),
-                range(len(bwd_problem_leaves)),
+                range(len(bwd_request_leaves)),
             )
         )
         retdiff: R = staged_choose(idx_argdiff.primal, retdiffs)
@@ -449,7 +449,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             SwitchTrace(self, primals, subtraces, retval, score),
             w,
             retdiff,
-            SumRequest(idx, bwd_problems),
+            SumRequest(idx, bwd_requests),
         )
 
     def _empty_importance_defs(
@@ -461,13 +461,13 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         trace_leaves = []
         retval_defs = []
         retval_leaves = []
-        bwd_problem_defs = []
-        bwd_problem_leaves = []
+        bwd_request_defs = []
+        bwd_request_leaves = []
         for static_idx in range(len(self.branches)):
             branch_gen_fn = self.branches[static_idx]
             branch_argdiffs = argdiffs[static_idx]
             key = jax.random.PRNGKey(0)
-            trace_shape, _, _, bwd_problem_shape = get_data_shape(branch_gen_fn.edit)(
+            trace_shape, _, _, bwd_request_shape = get_data_shape(branch_gen_fn.edit)(
                 key,
                 EmptyTrace(branch_gen_fn),
                 IncrementalGenericRequest(branch_argdiffs, problem),
@@ -476,28 +476,28 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
                 lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
             )
             empty_problem = jtu.tree_map(
-                lambda v: jnp.zeros(v.shape, v.dtype), bwd_problem_shape
+                lambda v: jnp.zeros(v.shape, v.dtype), bwd_request_shape
             )
             trace_leaf, trace_def = jtu.tree_flatten(empty_trace)
             retval_leaf, retval_def = jtu.tree_flatten(empty_trace.get_retval())
-            bwd_problem_leaf, bwd_problem_def = jtu.tree_flatten(empty_problem)
+            bwd_request_leaf, bwd_request_def = jtu.tree_flatten(empty_problem)
             retval_defs.append(retval_def)
             retval_leaves.append(retval_leaf)
             trace_defs.append(trace_def)
             trace_leaves.append(trace_leaf)
-            bwd_problem_defs.append(bwd_problem_def)
-            bwd_problem_leaves.append(bwd_problem_leaf)
+            bwd_request_defs.append(bwd_request_def)
+            bwd_request_leaves.append(bwd_request_leaf)
         return (
             (trace_leaves, trace_defs),
             (retval_leaves, retval_defs),
-            (bwd_problem_leaves, bwd_problem_defs),
+            (bwd_request_leaves, bwd_request_defs),
         )
 
     def _importance(
         self,
         trace_leaves,
         retval_leaves,
-        bwd_problem_leaves,
+        bwd_request_leaves,
         key,
         static_idx: int,
         constraint,
@@ -505,16 +505,16 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
     ):
         branch_gen_fn = self.branches[static_idx]
         branch_argdiffs = argdiffs[static_idx]
-        tr, w, _, bwd_problem = branch_gen_fn.edit(
+        tr, w, _, bwd_request = branch_gen_fn.edit(
             key,
             EmptyTrace(branch_gen_fn),
             IncrementalGenericRequest(branch_argdiffs, constraint),
         )
         trace_leaves[static_idx] = jtu.tree_leaves(tr)
         retval_leaves[static_idx] = jtu.tree_leaves(tr.get_retval())
-        bwd_problem_leaves[static_idx] = jtu.tree_leaves(bwd_problem)
+        bwd_request_leaves[static_idx] = jtu.tree_leaves(bwd_request)
         score = tr.get_score()
-        return (trace_leaves, retval_leaves, bwd_problem_leaves), (score, w)
+        return (trace_leaves, retval_leaves, bwd_request_leaves), (score, w)
 
     def update_importance(
         self,
@@ -532,13 +532,13 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             return (
                 lambda trace_leaves,
                 retval_leaves,
-                bwd_problem_leaves,
+                bwd_request_leaves,
                 key,
                 problem,
                 branch_argdiffs: self._importance(
                     trace_leaves,
                     retval_leaves,
-                    bwd_problem_leaves,
+                    bwd_request_leaves,
                     key,
                     static_idx,
                     problem,
@@ -550,15 +550,15 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         (
             (trace_leaves, trace_defs),
             (retval_leaves, retval_defs),
-            (bwd_problem_leaves, bwd_problem_defs),
+            (bwd_request_leaves, bwd_request_defs),
         ) = self._empty_importance_defs(problem, branch_argdiffs)
 
-        (trace_leaves, retval_leaves, bwd_problem_leaves), (score, w) = jax.lax.switch(
+        (trace_leaves, retval_leaves, bwd_request_leaves), (score, w) = jax.lax.switch(
             idx,
             branch_functions,
             trace_leaves,
             retval_leaves,
-            bwd_problem_leaves,
+            bwd_request_leaves,
             key,
             problem,
             branch_argdiffs,
@@ -575,12 +575,12 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
                 range(len(retval_leaves)),
             )
         )
-        bwd_problems = list(
+        bwd_requests = list(
             map(
                 lambda x: jtu.tree_unflatten(
-                    bwd_problem_defs[x], bwd_problem_leaves[x]
+                    bwd_request_defs[x], bwd_request_leaves[x]
                 ),
-                range(len(bwd_problem_leaves)),
+                range(len(bwd_request_leaves)),
             )
         )
         retval = staged_choose(idx, retvals)
@@ -588,7 +588,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             SwitchTrace(self, args, subtraces, retval, score),
             w,
             Diff.unknown_change(retval),
-            SumRequest(idx, bwd_problems),
+            SumRequest(idx, bwd_requests),
         )
 
     def edit_change_target(

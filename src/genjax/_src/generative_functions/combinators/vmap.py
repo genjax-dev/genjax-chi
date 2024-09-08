@@ -187,7 +187,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
         def _importance(key, idx, choice_map, primals):
             submap = choice_map(idx)
-            tr, w, rd, bwd_problem = self.gen_fn.edit(
+            tr, w, rd, bwd_request = self.gen_fn.edit(
                 key,
                 EmptyTrace(self.gen_fn),
                 IncrementalGenericRequest(
@@ -195,16 +195,16 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
                     ImportanceRequest(submap),
                 ),
             )
-            return tr, w, rd, ChoiceMap.idx(idx, bwd_problem)
+            return tr, w, rd, ChoiceMap.idx(idx, bwd_request)
 
-        (tr, w, rd, bwd_problem) = jax.vmap(
+        (tr, w, rd, bwd_request) = jax.vmap(
             _importance, in_axes=(0, 0, None, self.in_axes)
         )(sub_keys, idx_array, choice_map, primals)
         w = jnp.sum(w)
         retval = tr.get_retval()
         scores = tr.get_score()
         map_tr = VmapTrace(self, tr, primals, retval, jnp.sum(scores))
-        return map_tr, w, rd, bwd_problem
+        return map_tr, w, rd, bwd_request
 
     def update_choice_map(
         self,
@@ -221,19 +221,19 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
         def _update(key, idx, subtrace, argdiffs):
             subproblem = edit_request(idx)
-            new_subtrace, w, retdiff, bwd_problem = self.gen_fn.edit(
+            new_subtrace, w, retdiff, bwd_request = self.gen_fn.edit(
                 key, subtrace, IncrementalGenericRequest(argdiffs, subproblem)
             )
-            return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_problem)
+            return new_subtrace, w, retdiff, ChoiceMap.idx(idx, bwd_request)
 
-        new_subtraces, w, retdiff, bwd_problems = jax.vmap(
+        new_subtraces, w, retdiff, bwd_requests = jax.vmap(
             _update, in_axes=(0, 0, 0, self.in_axes)
         )(sub_keys, idx_array, prev.inner, argdiffs)
         w = jnp.sum(w)
         retval = new_subtraces.get_retval()
         scores = new_subtraces.get_score()
         map_tr = VmapTrace(self, new_subtraces, primals, retval, jnp.sum(scores))
-        return map_tr, w, retdiff, bwd_problems
+        return map_tr, w, retdiff, bwd_requests
 
     def edit_change_target(
         self,

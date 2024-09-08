@@ -146,7 +146,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
             case EmptyTrace():
                 inner_trace = EmptyTrace(self.inner)
 
-        tr, w, inner_retdiff, bwd_problem = self.inner.edit(
+        tr, w, inner_retdiff, bwd_request = self.inner.edit(
             key, inner_trace, IncrementalGenericRequest(inner_argdiffs, edit_request)
         )
 
@@ -168,7 +168,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
             DimapTrace(self, tr, primals, retval_primal),
             w,
             retval_diff,
-            bwd_problem,
+            bwd_request,
         )
 
     def edit(

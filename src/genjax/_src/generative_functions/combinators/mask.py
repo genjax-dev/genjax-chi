@@ -143,7 +143,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             case _:
                 raise NotImplementedError(f"Unexpected trace type: {trace}")
 
-        premasked_trace, w, retdiff, bwd_problem = self.gen_fn.edit(
+        premasked_trace, w, retdiff, bwd_request = self.gen_fn.edit(
             key, inner_trace, IncrementalGenericRequest(inner_argdiffs, edit_request)
         )
 
@@ -153,7 +153,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             MaskTrace(self, premasked_trace, check),
             w,
             Mask.maybe(check_diff, retdiff),
-            MaskedRequest(check, bwd_problem),
+            MaskedRequest(check, bwd_request),
         )
 
     def edit_change_target_from_false(
@@ -177,7 +177,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             IncrementalGenericRequest(inner_argdiffs, imp_update_problem),
         )
 
-        _, _, retdiff, bwd_problem = self.gen_fn.edit(
+        _, _, retdiff, bwd_request = self.gen_fn.edit(
             key,
             premasked_trace,
             IncrementalGenericRequest(inner_argdiffs, edit_request),
@@ -190,7 +190,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             MaskTrace(self, premasked_trace, check),
             w,
             Mask.maybe(check_diff, retdiff),
-            MaskedRequest(check, bwd_problem),
+            MaskedRequest(check, bwd_request),
         )
 
     def edit(
