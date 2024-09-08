@@ -14,20 +14,20 @@
 
 import jax
 import jax.numpy as jnp
-import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
+    ChoiceMapConstraint,
+    ChoiceMapSample,
+    Constraint,
     EditRequest,
-    EmptyRequest,
     GenerativeFunction,
-    ImportanceRequest,
     IncrementalGenericRequest,
+    Projection,
     Retdiff,
     Sample,
     Score,
-    Selection,
     Trace,
     Weight,
 )
@@ -62,9 +62,16 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
     def get_retval(self) -> tuple[Carry, Y]:
         return self.retval
 
-    def get_sample(self):
+    def get_sample(self) -> ChoiceMapSample:
+        return ChoiceMapSample(
+            jax.vmap(
+                lambda idx, subtrace: ChoiceMap.entry(subtrace.get_sample(), idx),
+            )(jnp.arange(self.inner.get_score().shape[0]), self.inner)
+        )
+
+    def get_choices(self) -> ChoiceMap:
         return jax.vmap(
-            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_sample(), idx),
+            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_choices(), idx),
         )(jnp.arange(self.inner.get_score().shape[0]), self.inner)
 
     def get_gen_fn(self):
@@ -72,17 +79,6 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
 
     def get_score(self):
         return self.score
-
-
-#######################
-# Custom update specs #
-#######################
-
-
-@Pytree.dataclass(match_args=True)
-class IndexProblem(EditRequest):
-    index: IntArray
-    subproblem: EditRequest
 
 
 ###################
@@ -240,49 +236,48 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             jnp.sum(scores),
         )
 
-    def update_importance(
+    def generate(
         self,
         key: PRNGKey,
-        constraint: ChoiceMap,
+        constraint: Constraint,
         args: tuple[Any, ...],
-    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+    ) -> tuple[ScanTrace[Carry, Y], Weight]:
+        assert isinstance(constraint, ChoiceMapConstraint)
         (carry, scanned_in) = args
 
-        def _inner_importance(
-            key: PRNGKey, constraint: ChoiceMap, carry: Carry, scanned_in: Any
-        ) -> tuple[
-            tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y, Weight, EditRequest]
-        ]:
-            tr, w, _retdiff, bwd_request = self.kernel_gen_fn.edit(
+        def _inner_generate(
+            key: PRNGKey,
+            constraint: ChoiceMapConstraint,
+            carry: Carry,
+            scanned_in: Any,
+        ) -> tuple[tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y, Weight]]:
+            tr, w = self.kernel_gen_fn.generate(
                 key,
-                EmptyTrace(self.kernel_gen_fn),
-                IncrementalGenericRequest(
-                    Diff.unknown_change((carry, scanned_in)),
-                    ImportanceRequest(constraint),
-                ),
+                constraint,
+                (carry, scanned_in),
             )
             (carry, scanned_out) = tr.get_retval()
             score = tr.get_score()
-            return (carry, score), (tr, scanned_out, w, bwd_request)
+            return (carry, score), (tr, scanned_out, w)
 
-        def _importance(
+        def _generate(
             carry: tuple[PRNGKey, IntArray, Carry], scanned_over: Any
         ) -> tuple[
             tuple[PRNGKey, IntArray, Carry],
-            tuple[Trace[tuple[Carry, Y]], Y, Score, Weight, EditRequest],
+            tuple[Trace[tuple[Carry, Y]], Y, Score, Weight],
         ]:
             key, idx, carried_value = carry
             key = jax.random.fold_in(key, idx)
             submap = constraint.get_submap(idx)
-            (carried_out, score), (tr, scanned_out, w, inner_bwd_request) = (
-                _inner_importance(key, submap, carried_value, scanned_over)
+            assert isinstance(submap, ChoiceMapConstraint)
+            (carried_out, score), (tr, scanned_out, w) = _inner_generate(
+                key, submap, carried_value, scanned_over
             )
-            bwd_request = ChoiceMap.entry(inner_bwd_request, idx)
 
-            return (key, idx + 1, carried_out), (tr, scanned_out, score, w, bwd_request)
+            return (key, idx + 1, carried_out), (tr, scanned_out, score, w)
 
-        (_, _, carried_out), (tr, scanned_out, scores, ws, bwd_requests) = jax.lax.scan(
-            _importance,
+        (_, _, carried_out), (tr, scanned_out, scores, ws) = jax.lax.scan(
+            _generate,
             (key, jnp.asarray(0), carry),
             scanned_in,
             length=self.length,
@@ -298,41 +293,32 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 jnp.sum(scores),
             ),
             jnp.sum(ws),
-            Diff.unknown_change((carried_out, scanned_out)),
-            bwd_requests,
         )
 
-    def _get_subproblem(
+    def project(
         self,
-        problem: EditRequest,
-        idx: IntArray,
-    ) -> EditRequest:
-        match problem:
-            case ChoiceMap():
-                return problem(idx)
+        key: PRNGKey,
+        trace: Trace[Y],
+        projection: Projection[Any],
+    ) -> Weight:
+        raise NotImplementedError
 
-            case Selection():
-                subproblem = problem(idx)
-                return subproblem
-
-            case _:
-                raise Exception(f"Not implemented subproblem: {problem}")
-
-    def update_generic(
+    def edit_generic(
         self,
         key: PRNGKey,
         trace: ScanTrace[Carry, Y],
-        problem: EditRequest,
+        constraint: Constraint,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+        assert isinstance(constraint, ChoiceMapConstraint)
         diffs = Diff.tree_diff_unknown_change(Diff.tree_primal(argdiffs))
         carry_diff: Carry = diffs[0]
         scanned_in_diff: Any = diffs[1:]
 
-        def _inner_update(
+        def _inner_edit(
             key: PRNGKey,
             subtrace: Trace[tuple[Carry, Y]],
-            subproblem: EditRequest,
+            subconstraint: Constraint,
             carry: Carry,
             scanned_in: Any,
         ) -> tuple[
@@ -349,7 +335,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 subtrace,
                 IncrementalGenericRequest(
                     (carry, scanned_in),
-                    subproblem,
+                    subconstraint,
                 ),
             )
             (carry_retdiff, scanned_out_retdiff) = Diff.tree_diff_unknown_change(
@@ -363,36 +349,40 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 bwd_request,
             )
 
-        def _update(
+        def _edit(
             carry: tuple[PRNGKey, IntArray, Carry],
             scanned_over: tuple[Trace[tuple[Carry, Y]], Any],
         ) -> tuple[
             tuple[PRNGKey, IntArray, Carry],
-            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Score, Weight, ChoiceMap],
+            tuple[
+                Trace[tuple[Carry, Y]], Retdiff[Y], Score, Weight, ChoiceMapConstraint
+            ],
         ]:
             key, idx, carried_value = carry
             subtrace, scanned_in = scanned_over
             key = jax.random.fold_in(key, idx)
-            subproblem = self._get_subproblem(problem, idx)
+            subconstraint = constraint(idx)
             (
                 (carried_out, score),
                 (new_subtrace, scanned_out, w, inner_bwd_request),
-            ) = _inner_update(key, subtrace, subproblem, carried_value, scanned_in)
-            bwd_request = ChoiceMap.entry(inner_bwd_request, idx)
+            ) = _inner_edit(key, subtrace, subconstraint, carried_value, scanned_in)
+            assert isinstance(inner_bwd_request, IncrementalGenericRequest)
+            bwd_constraint = inner_bwd_request.constraint
+            bwd_constraint = ChoiceMapConstraint(ChoiceMap.entry(bwd_constraint, idx))
 
             return (key, idx + 1, carried_out), (
                 new_subtrace,
                 scanned_out,
                 score,
                 w,
-                bwd_request,
+                bwd_constraint,
             )
 
         (
             (_, _, carried_out_diff),
-            (new_subtraces, scanned_out_diff, scores, ws, bwd_requests),
+            (new_subtraces, scanned_out_diff, scores, ws, bwd_constraints),
         ) = jax.lax.scan(
-            _update,
+            _edit,
             (key, jnp.asarray(0), carry_diff),
             (trace.inner, *scanned_in_diff),
             length=self.length,
@@ -413,88 +403,8 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             ),
             jnp.sum(ws),
             (carried_out_diff, scanned_out_diff),
-            bwd_requests,
+            IncrementalGenericRequest(trace.get_args(), bwd_constraints),
         )
-
-    def update_index(
-        self,
-        key: PRNGKey,
-        trace: ScanTrace[Carry, Y],
-        index: IntArray,
-        edit_request: EditRequest,
-    ):
-        starting_subslice = jtu.tree_map(lambda v: v[index], trace.inner)
-        affected_subslice = jtu.tree_map(lambda v: v[index + 1], trace.inner)
-        starting_argdiffs = Diff.no_change(starting_subslice.get_args())
-        (
-            updated_start,
-            start_w,
-            starting_retdiff,
-            bwd_request,
-        ) = self.kernel_gen_fn.edit(
-            key,
-            starting_subslice,
-            IncrementalGenericRequest(starting_argdiffs, edit_request),
-        )
-        updated_end, end_w, ending_retdiff, _ = self.kernel_gen_fn.edit(
-            key,
-            affected_subslice,
-            IncrementalGenericRequest(starting_retdiff, EmptyRequest()),
-        )
-
-        # Must be true for this type of update to be valid.
-        assert Diff.static_check_no_change(ending_retdiff)
-
-        def _mutate_in_place(arr, updated_start, updated_end):
-            arr = arr.at[index].set(updated_start)
-            arr = arr.at[index + 1].set(updated_end)
-            return arr
-
-        new_inner = jtu.tree_map(
-            _mutate_in_place, trace.inner, updated_start, updated_end
-        )
-        new_retvals = new_inner.get_retval()
-        return (
-            ScanTrace[Carry, Y](
-                self,
-                new_inner,
-                new_inner.get_args(),
-                new_retvals,
-                jnp.sum(new_inner.get_score()),
-            ),
-            start_w + end_w,
-            Diff.unknown_change(new_retvals),
-            IndexProblem(index, bwd_request),
-        )
-
-    def edit_change_target(
-        self,
-        key: PRNGKey,
-        trace: Trace[tuple[Carry, Y]],
-        edit_request: EditRequest,
-        argdiffs: Argdiffs,
-    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
-        assert isinstance(trace, EmptyTrace | ScanTrace)
-        match edit_request:
-            case ImportanceRequest(constraint) if isinstance(constraint, ChoiceMap):
-                return self.update_importance(
-                    key, constraint, Diff.tree_primal(argdiffs)
-                )
-            case IndexProblem(index, subproblem):
-                assert isinstance(
-                    trace, ScanTrace
-                ), "You cannot perform an index update upon the EmptyTrace"
-                if Diff.static_check_no_change(argdiffs):
-                    return self.update_index(key, trace, index, subproblem)
-                else:
-                    return self.update_generic(
-                        key, trace, ChoiceMap.entry(subproblem, index), argdiffs
-                    )
-            case _:
-                assert isinstance(
-                    trace, ScanTrace
-                ), "You cannot operate on the EmptyTrace in this context"
-                return self.update_generic(key, trace, edit_request, argdiffs)
 
     def edit(
         self,
@@ -502,19 +412,14 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         trace: Trace[tuple[Carry, Y]],
         edit_request: EditRequest,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
-        match edit_request:
-            case IncrementalGenericRequest(argdiffs, subproblem):
-                return self.edit_change_target(key, trace, subproblem, argdiffs)
-
-            case _:
-                return self.update(
-                    key,
-                    trace,
-                    IncrementalGenericRequest(
-                        Diff.no_change(trace.get_args()),
-                        edit_request,
-                    ),
-                )
+        assert isinstance(edit_request, IncrementalGenericRequest)
+        assert isinstance(trace, ScanTrace)
+        return self.edit_generic(
+            key,
+            trace,
+            edit_request.constraint,
+            edit_request.argdiffs,
+        )
 
     def assess(
         self,

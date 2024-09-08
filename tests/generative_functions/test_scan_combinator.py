@@ -20,7 +20,6 @@ import pytest
 import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
-from genjax import EditRequestBuilder as U
 from genjax import SelectionBuilder as S
 from genjax._src.core.typing import ArrayLike
 from genjax.typing import FloatArray
@@ -72,13 +71,11 @@ class TestIterateSimpleNormal:
         key, sub_key = jax.random.split(key)
         for i in range(1, 5):
             tr, _w = jax.jit(scanner.importance)(sub_key, C[i, "z"].set(0.5), (0.01,))
-            new_tr, _w, _rd, _bwd_request = jax.jit(scanner.edit)(
+            new_tr, _w, _rd, _bwd_request = jax.jit(scanner.update)(
                 sub_key,
                 tr,
-                U.g(
-                    Diff.no_change((0.01,)),
-                    C[i, "z"].set(1.0),
-                ),
+                C[i, "z"].set(1.0),
+                Diff.no_change((0.01,)),
             )
             assert new_tr.get_sample()[i, "z"].unmask() == 1.0
 
