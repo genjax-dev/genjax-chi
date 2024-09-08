@@ -1740,8 +1740,17 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         constraint: Constraint,
         args: Arguments,
-    ):
-        raise NotImplementedError
+    ) -> tuple[Trace[Any], Weight]:
+        full_args = (*self.args, *args)
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.generate(
+                key,
+                constraint,
+                (full_args, self.kwargs),
+            )
+        else:
+            return self.gen_fn.generate(key, constraint, full_args)
 
     def project(
         self,
