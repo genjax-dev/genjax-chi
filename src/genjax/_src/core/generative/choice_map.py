@@ -175,20 +175,20 @@ class Selection(ProjectProblem):
             assert none_selection["any_address"].f == False
             ```
         """
-        return ~Selection.all()
+        return NoneSel()
 
     ######################
     # Combinator methods #
     ######################
 
     def __or__(self, other: "Selection") -> "Selection":
-        return OrSel(self, other)
+        return OrSel.build(self, other)
 
     def __and__(self, other: "Selection") -> "Selection":
-        return AndSel(self, other)
+        return AndSel.build(self, other)
 
     def __invert__(self) -> "Selection":
-        return ComplementSel(self)
+        return ComplementSel.build(self)
 
     def mask(self, flag: Flag) -> "Selection":
         """
@@ -329,7 +329,16 @@ class AllSel(Selection):
         return Flag(True)
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
-        return AllSel()
+        return self
+
+
+@Pytree.dataclass
+class NoneSel(Selection):
+    def check(self) -> Flag:
+        return Flag(False)
+
+    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
+        return self
 
 
 @Pytree.dataclass
@@ -362,15 +371,15 @@ class MaskSel(Selection):
 
     @staticmethod
     def build(
-        c: Selection,
+        s: Selection,
         flag: Flag,
     ) -> Selection:
         if flag.concrete_true():
-            return c
+            return s
         elif flag.concrete_false():
             return Selection.none()
         else:
-            return MaskSel(c, flag)
+            return MaskSel(s, flag)
 
     def check(self) -> Flag:
         ch = self.s.check()
@@ -408,6 +417,16 @@ class ComplementSel(Selection):
     """
 
     s: Selection
+
+    @staticmethod
+    def build(s: Selection) -> Selection:
+        match s:
+            case AllSel():
+                return Selection.none()
+            case NoneSel():
+                return Selection.all()
+            case _:
+                return ComplementSel(s)
 
     def check(self) -> Flag:
         return self.s.check().not_()
@@ -527,6 +546,20 @@ class AndSel(Selection):
     s1: Selection
     s2: Selection
 
+    @staticmethod
+    def build(a: Selection, b: Selection) -> Selection:
+        match (a, b):
+            case (AllSel(), _):
+                return b
+            case (_, AllSel()):
+                return a
+            case (NoneSel(), _):
+                return a
+            case (_, NoneSel()):
+                return b
+            case _:
+                return AndSel(a, b)
+
     def check(self) -> Flag:
         return self.s1.check().and_(self.s2.check())
 
@@ -563,6 +596,20 @@ class OrSel(Selection):
     s1: Selection
     s2: Selection
 
+    @staticmethod
+    def build(a: Selection, b: Selection) -> Selection:
+        match (a, b):
+            case (AllSel(), _):
+                return a
+            case (_, AllSel()):
+                return b
+            case (NoneSel(), _):
+                return b
+            case (_, NoneSel()):
+                return a
+            case _:
+                return OrSel(a, b)
+
     def check(self) -> Flag:
         return self.s1.check().or_(self.s2.check())
 
@@ -595,6 +642,13 @@ class ChmSel(Selection):
     """
 
     c: "ChoiceMap"
+
+    @staticmethod
+    def build(chm: "ChoiceMap") -> Selection:
+        if chm.static_is_empty():
+            return Selection.none()
+        else:
+            return ChmSel(chm)
 
     def check(self) -> Flag:
         return self.c.has_value()
@@ -907,35 +961,6 @@ class ChoiceMap(Sample, Constraint):
         """
         return FilteredChm.build(self, selection)
 
-    def extend(self, *addrs: ExtendedAddressComponent) -> "ChoiceMap":
-        """
-        Returns a new ChoiceMap with the given address component as its root.
-
-        This method creates a new ChoiceMap where the current ChoiceMap becomes a submap
-        under the specified address component. It effectively adds a new level of hierarchy
-        to the ChoiceMap structure.
-
-        Args:
-            addrs: The address components to use as the new root.
-
-        Returns:
-            A new ChoiceMap with the current ChoiceMap nested under the given address.
-
-        Example:
-            ```python exec="yes" html="true" source="material-block" session="choicemap"
-            original_chm = ChoiceMap.value(42)
-            indexed_chm = original_chm.extend("x")
-            assert indexed_chm["x"] == 42
-            ```
-        """
-        acc = self
-        for addr in reversed(addrs):
-            if isinstance(addr, ExtendedStaticAddressComponent):
-                acc = StaticChm.build(acc, addr)
-            else:
-                acc = IdxChm.build(acc, addr)
-        return acc
-
     def mask(self, f: Flag) -> "ChoiceMap":
         """
         Returns a new ChoiceMap with values masked by a boolean flag.
@@ -964,7 +989,36 @@ class ChoiceMap(Sample, Constraint):
             assert masked_chm.get_value() is None
             ```
         """
-        return MaskChm.build(self, f)
+        return self.filter(Selection.all().mask(f))
+
+    def extend(self, *addrs: ExtendedAddressComponent) -> "ChoiceMap":
+        """
+        Returns a new ChoiceMap with the given address component as its root.
+
+        This method creates a new ChoiceMap where the current ChoiceMap becomes a submap
+        under the specified address component. It effectively adds a new level of hierarchy
+        to the ChoiceMap structure.
+
+        Args:
+            addrs: The address components to use as the new root.
+
+        Returns:
+            A new ChoiceMap with the current ChoiceMap nested under the given address.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="choicemap"
+            original_chm = ChoiceMap.value(42)
+            indexed_chm = original_chm.extend("x")
+            assert indexed_chm["x"] == 42
+            ```
+        """
+        acc = self
+        for addr in reversed(addrs):
+            if isinstance(addr, ExtendedStaticAddressComponent):
+                acc = StaticChm.build(acc, addr)
+            else:
+                acc = IdxChm.build(acc, addr)
+        return acc
 
     def merge(self, other: "ChoiceMap") -> "ChoiceMap":
         """
@@ -1014,7 +1068,7 @@ class ChoiceMap(Sample, Constraint):
             assert sel["y"].f == False
             ```
         """
-        return ChmSel(self)
+        return ChmSel.build(self)
 
     def static_is_empty(self) -> Bool:
         return False
@@ -1127,7 +1181,9 @@ class ValueChm(Generic[T], ChoiceMap):
 
     def __xor__(self, other: "ChoiceMap") -> "ChoiceMap":
         if isinstance(other, ValueChm):
-            raise Exception()
+            raise Exception(
+                f"The disjoint union of two choice maps have a value collision:\nc1 = {self}\nc2 = {other}"
+            )
         else:
             return XorChm.build(self, other)
 
@@ -1385,58 +1441,6 @@ class OrChm(ChoiceMap):
 
 
 @Pytree.dataclass
-class MaskChm(ChoiceMap):
-    """Represents a choice map that is conditionally masked.
-
-    This class wraps another choice map and applies a boolean flag to conditionally
-    mask its contents. When the flag is True, the underlying choice map behaves
-    normally. When the flag is False, the choice map appears empty.
-
-    Attributes:
-        c: The underlying choice map.
-        flag: A boolean flag determining whether the choice map is masked.
-
-    Examples:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        base_chm = ChoiceMap.value(10)
-        mask_chm = base_chm.mask(Flag(True))
-        assert mask_chm.get_value() == 10
-
-        mask_chm = base_chm.mask(Flag(False))
-        assert mask_chm.get_value() is None
-        assert mask_chm.static_is_empty() is True
-        ```
-    """
-
-    c: ChoiceMap
-    flag: Flag
-
-    @staticmethod
-    def build(
-        c: ChoiceMap,
-        flag: Flag,
-    ) -> ChoiceMap:
-        if c.static_is_empty() | flag.concrete_true():
-            return c
-        elif flag.concrete_false():
-            return _empty
-        elif isinstance(c, MaskChm):
-            return MaskChm(c.c, c.flag.and_(flag))
-        elif isinstance(c, FilteredChm):
-            return FilteredChm.build(c.c, c.selection & Selection.all().mask(flag))
-        else:
-            return MaskChm(c, flag)
-
-    def get_value(self) -> Any:
-        v = self.c.get_value()
-        return Mask.maybe_none(self.flag, v)
-
-    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        submap = self.c.get_submap(addr)
-        return submap.mask(self.flag)
-
-
-@Pytree.dataclass
 class FilteredChm(ChoiceMap):
     """Represents a filtered choice map based on a selection.
 
@@ -1470,10 +1474,10 @@ class FilteredChm(ChoiceMap):
             return _empty
         elif isinstance(selection, AllSel):
             return chm
+        elif isinstance(selection, NoneSel):
+            return _empty
         elif isinstance(chm, FilteredChm):
             return FilteredChm(chm.c, chm.selection & selection)
-        elif isinstance(chm, MaskChm):
-            return FilteredChm(chm.c, Selection.all().mask(chm.flag))
         else:
             return FilteredChm(chm, selection)
 
@@ -1489,7 +1493,6 @@ class FilteredChm(ChoiceMap):
 
 
 # TODO clamp switch inputs?
-# TODO get rid of MaskChm, use FilterChm?
 
 # In [6]: ChoiceMap.value("x").mask(Flag(jnp.all(1 == 1))).mask(Flag(jnp.all(1==1)))
 # Out[6]:
