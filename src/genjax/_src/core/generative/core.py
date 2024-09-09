@@ -223,12 +223,6 @@ class IncrementalGenericRequest(EditRequest):
     constraint: Constraint
 
 
-@Pytree.dataclass(match_args=True)
-class ImportanceRequest(EditRequest):
-    arguments: Arguments
-    constraint: Constraint
-
-
 class EditRequestBuilder(Pytree):
     @classmethod
     def empty(cls):

@@ -30,7 +30,6 @@ from genjax._src.core.generative import (
     EmptyConstraint,
     EmptyRequest,
     GenerativeFunction,
-    ImportanceRequest,
     IncrementalGenericRequest,
     Mask,
     MaskedConstraint,
@@ -450,22 +449,15 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         edit_request: EditRequest,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        match edit_request:
-            case IncrementalGenericRequest(argdiffs, constraint):
-                return self.edit_incremental_generic_request(
-                    key,
-                    trace,
-                    constraint,
-                    argdiffs,
-                )
-            case ImportanceRequest(args, constraint):
-                return self.generate(
-                    key,
-                    constraint,
-                    args,
-                )
-            case _:
-                raise Exception("Unhandled edit request.")
+        assert isinstance(edit_request, IncrementalGenericRequest)
+        argdiffs = edit_request.argdiffs
+        constraint = edit_request.constraint
+        return self.edit_incremental_generic_request(
+            key,
+            trace,
+            constraint,
+            argdiffs,
+        )
 
     def assess(
         self,
