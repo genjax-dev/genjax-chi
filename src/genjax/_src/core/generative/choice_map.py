@@ -268,9 +268,9 @@ class Selection(ProjectProblem):
         acc = self
         for addr in reversed(addrs):
             if isinstance(addr, ExtendedStaticAddressComponent):
-                acc = StaticSel(acc, addr)
+                acc = StaticSel.build(acc, addr)
             else:
-                acc = IdxSel(acc, addr)
+                acc = IdxSel.build(acc, addr)
         return acc
 
     def __call__(
@@ -462,12 +462,26 @@ class StaticSel(Selection):
     s: Selection = Pytree.field()
     addr: ExtendedStaticAddressComponent = Pytree.static()
 
+    @staticmethod
+    def build(
+        s: Selection,
+        addr: ExtendedStaticAddressComponent,
+    ) -> Selection:
+        match s:
+            case NoneSel():
+                return s
+            case _:
+                return StaticSel(s, addr)
+
     def check(self) -> Flag:
         return Flag(False)
 
     def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
-        check = Flag(addr == self.addr or isinstance(addr, EllipsisType))
-        return self.s.mask(check)
+        if isinstance(addr, EllipsisType):
+            return self.s
+        else:
+            check = Flag(addr == self.addr)
+            return self.s.mask(check)
 
 
 @Pytree.dataclass
@@ -495,6 +509,17 @@ class IdxSel(Selection):
 
     s: Selection
     idxs: DynamicAddressComponent
+
+    @staticmethod
+    def build(
+        s: Selection,
+        idxs: DynamicAddressComponent,
+    ) -> Selection:
+        match s:
+            case NoneSel():
+                return s
+            case _:
+                return IdxSel(s, idxs)
 
     def check(self) -> Flag:
         return Flag(False)
@@ -559,12 +584,13 @@ class AndSel(Selection):
                 return a
             case (_, NoneSel()):
                 return b
+
             case (MaskSel(), MaskSel()):
                 return (a.s & b.s).mask(a.flag.and_(b.flag))
 
-            # DeMorgan's Law
+            # DeMorgan's Law (TODO do we want this?)
             case (ComplementSel(), ComplementSel()):
-                return a.s | b.s
+                return ~(a.s | b.s)
 
             case _:
                 return AndSel(a, b)
@@ -621,7 +647,7 @@ class OrSel(Selection):
 
             # DeMorgan's Law
             case (ComplementSel(), ComplementSel()):
-                return a.s & b.s
+                return ~(a.s & b.s)
 
             case _:
                 return OrSel(a, b)
@@ -1213,7 +1239,7 @@ class ValueChm(Generic[T], ChoiceMap):
         return self.v
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        return _empty
+        return ChoiceMap.empty()
 
 
 @Pytree.dataclass
@@ -1257,7 +1283,7 @@ class IdxChm(ChoiceMap):
             return self.c
 
         elif not isinstance(addr, DynamicAddressComponent):
-            return _empty
+            return ChoiceMap.empty()
 
         else:
 
@@ -1274,7 +1300,7 @@ class IdxChm(ChoiceMap):
             if check_array.shape and check_array.shape[0] == 0:
                 # this is an obscure case which can arise when doing an importance
                 # update of a scan GF with an array of shape (0,) or (0, ...)
-                return _empty
+                return ChoiceMap.empty()
 
             if check_array.shape:
                 return jtu.tree_map(lambda v: v[addr], self.c).mask(Flag(check[addr]))
@@ -1513,9 +1539,28 @@ class FilteredChm(ChoiceMap):
         return submap.filter(subselection)
 
 
+# TODO figure out the ellipsis thing:
+
+# In [21]: C[...].set(1.0)(...)
+# Out[21]: ValueChm(v=1.0)
+
+# In [22]: C["x"].set(1.0)(...)
+# Out[22]: EmptyChm()
+
+# In [23]: S["x"](...)
+# Out[23]: AllSel()
+
+# In [24]: S[...](...)
+# Out[24]: AllSel()
+
+# In [25]: S[...]("x")
+# Out[25]: NoneSel()
+
+
 # TODO clamp switch inputs?
 # TODO handle ellipsis in StaticChm correctly
 # TODO make the isinstance check first, so we can get a concrete true if possible
+# TODO can we make `Idx` and friends into FilteredChm?
 
 # In [6]: ChoiceMap.value("x").mask(Flag(jnp.all(1 == 1))).mask(Flag(jnp.all(1==1)))
 # Out[6]:
