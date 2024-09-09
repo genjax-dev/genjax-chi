@@ -1121,7 +1121,7 @@ class ChoiceMap(Sample, Constraint):
         """
         return ChmSel.build(self)
 
-    def is_empty(self) -> Bool:
+    def static_is_empty(self) -> Bool:
         """
         Returns True if this ChoiceMap is equal to `ChoiceMap.empty()`, False otherwise.
         """
@@ -1213,7 +1213,7 @@ class EmptyChm(ChoiceMap):
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         return self
 
-    def is_empty(self) -> Bool:
+    def static_is_empty(self) -> Bool:
         return True
 
 
@@ -1235,7 +1235,7 @@ class ValueChm(Generic[T], ChoiceMap):
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         value_chm = ChoiceMap.value(3.14)
         assert value_chm.get_value() == 3.14
-        assert value_chm.get_submap("any_address").is_empty() == True
+        assert value_chm.get_submap("any_address").static_is_empty() == True
         ```
     """
 
@@ -1344,7 +1344,7 @@ class StaticChm(ChoiceMap):
         base_chm = ChoiceMap.value(5)
         static_chm = base_chm.extend("x")
         assert static_chm.get_submap("x").get_value() == 5
-        assert static_chm.get_submap("y").is_empty() == True
+        assert static_chm.get_submap("y").static_is_empty() == True
         ```
     """
 
@@ -1530,7 +1530,7 @@ class FilteredChm(ChoiceMap):
         assert filtered_x["x"] == 10
 
         filtered_y = base_chm.filter(S["y"])
-        assert filtered_y("x").is_empty()
+        assert filtered_y("x").static_is_empty()
         ```
     """
 

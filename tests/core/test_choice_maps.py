@@ -163,7 +163,7 @@ class TestSelections:
 
         # Test with an empty Selection
         empty_sel = Selection.none()
-        assert empty_sel.filter(chm).is_empty()
+        assert empty_sel.filter(chm).static_is_empty()
 
         # Test with an all-inclusive Selection
         all_sel = Selection.all()
@@ -329,7 +329,7 @@ class TestChoiceMapBuilder:
 class TestChoiceMap:
     def test_empty(self):
         empty_chm = ChoiceMap.empty()
-        assert empty_chm.is_empty()
+        assert empty_chm.static_is_empty()
 
     def test_value(self):
         value_chm = ChoiceMap.value(42.0)
@@ -416,7 +416,7 @@ class TestChoiceMap:
         masked_true = chm.mask(True)
         assert masked_true == chm
         masked_false = chm.mask(False)
-        assert masked_false.is_empty()
+        assert masked_false.static_is_empty()
 
     def test_extend(self):
         chm = ChoiceMap.value(1)
@@ -429,18 +429,18 @@ class TestChoiceMap:
 
         assert extended.get_value() is None
         assert extended.get_submap("a").get_submap("b").get_value() == 1
-        assert ChoiceMap.empty().extend("a", "b").is_empty()
+        assert ChoiceMap.empty().extend("a", "b").static_is_empty()
 
     def test_extend_dynamic(self):
         chm = ChoiceMap.value(jnp.asarray([2.3, 4.4, 3.3]))
         extended = chm.extend(jnp.array([0, 1, 2]))
         assert extended.get_value() is None
-        assert extended.get_submap("x").is_empty()
+        assert extended.get_submap("x").static_is_empty()
         assert extended[0].unmask() == 2.3
         assert extended[1].unmask() == 4.4
         assert extended[2].unmask() == 3.3
 
-        assert ChoiceMap.empty().extend(jnp.array([0, 1, 2])).is_empty()
+        assert ChoiceMap.empty().extend(jnp.array([0, 1, 2])).static_is_empty()
 
     def test_merge(self):
         chm1 = ChoiceMap.kw(x=1)
@@ -459,9 +459,9 @@ class TestChoiceMap:
         assert sel["y"]
         assert not sel["z"]
 
-    def test_is_empty(self):
-        assert ChoiceMap.empty().is_empty()
-        assert not ChoiceMap.kw(x=1).is_empty()
+    def test_static_is_empty(self):
+        assert ChoiceMap.empty().static_is_empty()
+        assert not ChoiceMap.kw(x=1).static_is_empty()
 
     def test_xor(self):
         chm1 = ChoiceMap.kw(x=1)
@@ -477,7 +477,7 @@ class TestChoiceMap:
             (chm1 ^ chm1)["x"]
 
         # Optimization: XorChm.build should return EmptyChm for empty inputs
-        assert (ChoiceMap.empty() ^ ChoiceMap.empty()).is_empty()
+        assert (ChoiceMap.empty() ^ ChoiceMap.empty()).static_is_empty()
 
         assert (chm1 ^ ChoiceMap.empty()) == chm1
         assert (ChoiceMap.empty() ^ chm1) == chm1
