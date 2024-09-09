@@ -155,9 +155,6 @@ class MaskedConstraint(Constraint):
     where the None case is represented by `EmptyConstraint`.
     """
 
-    flag: Flag
-    constraint: Constraint
-
     idx: IntArray
     constraint: list[Constraint]
 
@@ -645,9 +642,12 @@ class GenerativeFunction(Generic[R], Pytree):
             ```python exec="yes" source="material-block" session="core"
             from genjax import gen
             from genjax import normal
-            from genjax import EmptyProblem
             from genjax import Diff
-            from genjax import ChoiceMapBuilder as C
+            from genjax import IncrementalGenericRequest
+            from genjax import ChoiceMapConstraint
+            from genjax import ChoiceMap as C
+
+            key = PRNGKey(0)
 
 
             @gen
@@ -667,8 +667,8 @@ class GenerativeFunction(Generic[R], Pytree):
                 key,
                 initial_tr,
                 IncrementalGenericRequest(
-                    C.empty(),
                     Diff.unknown_change((3.0,)),
+                    ChoiceMapConstraint(C.empty()),
                 ),
             )
             ```
@@ -691,7 +691,7 @@ class GenerativeFunction(Generic[R], Pytree):
             print(w)
             ```
 
-        ## Mathematical ingredients behind update
+        ## Mathematical ingredients behind edit
 
         The `edit` interface exposes [SMCP3 moves](https://proceedings.mlr.press/v206/lew23a.html). Here, we omit the measure theoretic description, and refer interested readers to [the paper](https://proceedings.mlr.press/v206/lew23a.html). Informally, the ingredients of such a move are:
 
@@ -709,19 +709,19 @@ class GenerativeFunction(Generic[R], Pytree):
 
         An `EditRequest` denotes a function $tr \\mapsto (T, T')$ from traces to a pair of targets (the previous [`Target`][genjax.inference.Target] $T$, and the final [`Target`][genjax.inference.Target] $T'$).
 
-        Several common types of moves can be requested via the `GenericProblem` type:
+        Several common types of moves can be requested via the `IncrementalGenericRequest` type:
 
         ```python exec="yes" source="material-block" session="core"
-        from genjax import GenericProblem
-        from genjax import ChoiceMap
+        from genjax import IncrementalGenericRequest
+        from genjax import ChoiceMap, ChoiceMapConstraint
 
-        g = IncrementalGenericProblem(
+        g = IncrementalGenericRequest(
             Diff.unknown_change((1.0,)),  # "Argdiffs"
-            ChoiceMap.empty(),  # Constraint
+            ChoiceMapConstraint(ChoiceMap.empty()),  # Constraint
         )
         ```
 
-        `IncrementalGenericProblem` contains information about changes to the arguments of the generative function ([`Argdiffs`][genjax.core.Argdiffs]) and a constraint which specifies an additional move to be performed.
+        `IncrementalGenericRequest` contains information about changes to the arguments of the generative function ([`Argdiffs`][genjax.core.Argdiffs]) and a constraint which specifies an additional move to be performed.
 
         ```python exec="yes" html="true" source="material-block" session="core"
         new_tr, inc_w, retdiff, bwd_prob = model.edit(
@@ -729,7 +729,7 @@ class GenerativeFunction(Generic[R], Pytree):
             initial_tr,
             IncrementalGenericRequest(
                 Diff.unknown_change((3.0,)),
-                C.kw(v1=3.0),
+                ChoiceMapConstraint(C.kw(v1=3.0)),
             ),
         )
         print((new_tr.get_sample()["v1"], w))
@@ -1625,9 +1625,10 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         edit_request: EditRequest,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+        assert isinstance(edit_request, IncrementalGenericRequest)
         (argdiffs, _kwargdiffs) = edit_request.argdiffs
         return self.wrapped.edit(
-            key, trace, IncrementalGenericRequest(argdiffs, edit_request.subproblem)
+            key, trace, IncrementalGenericRequest(argdiffs, edit_request.constraint)
         )
 
 
