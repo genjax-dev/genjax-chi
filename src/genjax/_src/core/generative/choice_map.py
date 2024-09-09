@@ -853,16 +853,21 @@ class ChoiceMap(Sample, Constraint):
         return ValueChm(v)
 
     @staticmethod
-    def entry(v: Any, *addrs: AddressComponent) -> "ChoiceMap":
+    def entry(
+        v: "dict[K_addr, Any] | ChoiceMap | Any", *addrs: AddressComponent
+    ) -> "ChoiceMap":
         """
         Creates a ChoiceMap with a single value at a specified address.
 
-        This method creates and returns a ChoiceMap with a single value stored at
-        the given address. If the provided value is already a ChoiceMap, it will
-        be used directly; otherwise, it will be wrapped in a ValueChm.
+        This method creates and returns a ChoiceMap with a new ChoiceMap stored at
+        the given address.
+
+        - if the provided value is already a ChoiceMap, it will be used directly;
+        - `dict` values will be passed to `ChoiceMap.d`;
+        - any other value will be passed to `ChoiceMap.value`.
 
         Args:
-            v: The value to be stored in the ChoiceMap. Can be any value or a ChoiceMap.
+            v: The value to be stored in the ChoiceMap. Can be any value, a dict or a ChoiceMap.
             addrs: The address at which to store the value. Can be a static or dynamic address component.
 
         Returns:
@@ -872,6 +877,14 @@ class ChoiceMap(Sample, Constraint):
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             import jax.numpy as jnp
 
+            # Using an existing ChoiceMap
+            nested_chm = ChoiceMap.entry(ChoiceMap.value(42), "x")
+            assert nested_chm["x"] == 42
+
+            # Using a dict generates a new `ChoiceMap.d` call
+            nested_chm = ChoiceMap.entry({"y": 42}, "x")
+            assert nested_chm["x", "y"] == 42
+
             # Static address
             static_chm = ChoiceMap.entry(42, "x")
             assert static_chm["x"] == 42
@@ -879,18 +892,44 @@ class ChoiceMap(Sample, Constraint):
             # Dynamic address
             dynamic_chm = ChoiceMap.entry(jnp.array([1.1, 2.2, 3.3]), jnp.array([1, 2, 3]))
             assert dynamic_chm[1].unmask() == 2.2
-
-            # Using an existing ChoiceMap
-            nested_chm = ChoiceMap.entry(ChoiceMap.value(42), "x")
-            assert nested_chm["x"] == 42
             ```
         """
-        chm = v if isinstance(v, ChoiceMap) else ChoiceMap.value(v)
+        if isinstance(v, ChoiceMap):
+            chm = v
+        elif isinstance(v, dict):
+            chm = ChoiceMap.d(v)
+        else:
+            chm = ChoiceMap.value(v)
 
         return chm.extend(*addrs)
 
     @staticmethod
     def from_mapping(pairs: Iterable[tuple[K_addr, Any]]) -> "ChoiceMap":
+        """
+        Creates a ChoiceMap from an iterable of address-value pairs.
+
+        This method constructs a ChoiceMap by iterating through the provided pairs,
+        where each pair consists of an address (or address component) and a corresponding value.
+        The resulting ChoiceMap will contain all the values at their respective addresses.
+
+        Args:
+            pairs: An iterable of tuples, where each tuple contains an address (or address component) and its corresponding value. The address can be a single component or a tuple of components.
+
+        Returns:
+            A ChoiceMap containing all the address-value pairs from the input.
+
+        Example:
+            ```python
+            pairs = [("x", 42), (("y", "z"), 10), ("w", [1, 2, 3])]
+            chm = ChoiceMap.from_mapping(pairs)
+            assert chm["x"] == 42
+            assert chm["y", "z"] == 10
+            assert chm["w"] == [1, 2, 3]
+            ```
+
+        Note:
+            If multiple pairs have the same address, the resulting ChoiceMap will error on lookup, as duplicate addresses are not allowed due to the `^` call internally.
+        """
         acc = ChoiceMap.empty()
 
         for addr, v in pairs:
@@ -906,6 +945,8 @@ class ChoiceMap(Sample, Constraint):
 
         This method creates and returns a ChoiceMap based on the key-value pairs in the provided dictionary. Each key in the dictionary becomes an address in the ChoiceMap, and the corresponding value is stored at that address.
 
+        Dict-shaped values are recursively converted to ChoiceMap instances.
+
         Args:
             d: A dictionary where keys are addresses and values are the corresponding data to be stored in the ChoiceMap.
 
@@ -916,9 +957,9 @@ class ChoiceMap(Sample, Constraint):
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             from genjax import ChoiceMap
 
-            dict_chm = ChoiceMap.d({"x": 42, "y": [1, 2, 3]})
+            dict_chm = ChoiceMap.d({"x": 42, "y": {"z": [1, 2, 3]}})
             assert dict_chm["x"] == 42
-            assert dict_chm["y"] == [1, 2, 3]
+            assert dict_chm["y", "z"] == [1, 2, 3]
             ```
         """
         return ChoiceMap.from_mapping(d.items())
@@ -931,14 +972,17 @@ class ChoiceMap(Sample, Constraint):
         This method creates and returns a ChoiceMap based on the provided keyword arguments.
         Each keyword argument becomes an address in the ChoiceMap, and its value is stored at that address.
 
+        Dict-shaped values are recursively converted to ChoiceMap instances with calls to `ChoiceMap.d`.
+
         Returns:
             A ChoiceMap containing the key-value pairs from the input keyword arguments.
 
         Example:
             ```python
-            kw_chm = ChoiceMap.kw(x=42, y=[1, 2, 3])
+            kw_chm = ChoiceMap.kw(x=42, y=[1, 2, 3], z={"w": 10.0})
             assert kw_chm["x"] == 42
             assert kw_chm["y"] == [1, 2, 3]
+            assert kw_chm["z", "w"] == 10.0
             ```
         """
         return ChoiceMap.d(kwargs)

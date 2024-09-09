@@ -202,11 +202,13 @@ class TestChoiceMapBuilder:
         assert C["x"].v(inner)("x").get_value() == inner
 
     def test_from_mapping(self):
-        mapping = [("a", 1.0), (("b", "c"), 2.0), (("b", "d", "e"), 3.0)]
+        mapping = [("a", 1.0), (("b", "c"), 2.0), (("b", "d", "e"), {"f": 3.0})]
         chm = C["base"].from_mapping(mapping)
         assert chm["base", "a"] == 1
         assert chm["base", "b", "c"] == 2
-        assert chm["base", "b", "d", "e"] == 3
+
+        # dict entries work in from_mapping values
+        assert chm["base", "b", "d", "e", "f"] == 3
 
         assert ("base", "a") in chm
         assert ("base", "b", "c") in chm
@@ -215,25 +217,63 @@ class TestChoiceMapBuilder:
     def test_d(self):
         chm = C["top"].d({
             "x": 3,
-            "y": C["middle"].d({"z": 4, "w": C["bottom"].d({"v": 5})}),
+            "y": {"z": 4, "w": C["bottom"].d({"v": 5})},
         })
         assert chm["top", "x"] == 3
-        assert chm["top", "y", "middle", "z"] == 4
-        assert chm["top", "y", "middle", "w", "bottom", "v"] == 5
+
+        # notice that dict values are converted into ChoiceMap.d calls
+        assert chm["top", "y", "z"] == 4
+        assert chm["top", "y", "w", "bottom", "v"] == 5
 
     def test_kw(self):
-        chm = C["root"].kw(a=1, b=C["nested"].kw(c=2, d=C["deep"].kw(e=3)))
+        chm = C["root"].kw(a=1, b=C["nested"].kw(c=2, d={"deep": 3}))
         assert chm["root", "a"] == 1
         assert chm["root", "b", "nested", "c"] == 2
-        assert chm["root", "b", "nested", "d", "deep", "e"] == 3
+
+        # notice that dict values are converted into chms
+        assert chm["root", "b", "nested", "d", "deep"] == 3
 
 
 class TestChoiceMap:
-    def test_value_map(self):
-        value_chm = ChoiceMap.value(3.0)
-        assert 3.0 == value_chm.get_value()
+    # TODO add tests for the instance methods, so close here...
+    # TODO go and make sure docs are correctly generated for everything
+
+    def test_empty(self):
+        empty_chm = ChoiceMap.empty()
+        assert empty_chm.static_is_empty()
+
+    def test_value(self):
+        value_chm = ChoiceMap.value(42.0)
+        assert value_chm.get_value() == 42.0
+        assert value_chm.has_value()
+
+        # NO sub-paths are inside a ValueChm.
         assert () in value_chm
 
-    def test_address_map(self):
-        chm = C["x"].set(3.0)
-        assert chm["x"] == 3.0
+    def test_kv(self):
+        chm = ChoiceMap.kw(x=1, y=2)
+        assert chm["x"] == 1
+        assert chm["y"] == 2
+
+        assert "x" in chm
+        assert "y" in chm
+        assert "other_value" not in chm
+
+    def test_d(self):
+        chm = ChoiceMap.d({"a": 1, "b": {"c": 2, "d": {"e": 3}}})
+        assert chm["a"] == 1
+        assert chm["b", "c"] == 2
+        assert chm["b", "d", "e"] == 3
+        assert "a" in chm
+        assert ("b", "c") in chm
+        assert ("b", "d", "e") in chm
+
+    def test_from_mapping(self):
+        mapping = [("x", 1), (("y", "z"), 2), (("w", "v", "u"), 3)]
+        chm = ChoiceMap.from_mapping(mapping)
+        assert chm["x"] == 1
+        assert chm["y", "z"] == 2
+        assert chm["w", "v", "u"] == 3
+        assert "x" in chm
+        assert ("y", "z") in chm
+        assert ("w", "v", "u") in chm
