@@ -34,7 +34,7 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.functional_types import staged_choose
 from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
-from genjax._src.core.interpreters.staging import Flag, get_data_shape
+from genjax._src.core.interpreters.staging import get_data_shape
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -84,7 +84,7 @@ class SwitchTrace(Generic[R], Trace[R]):
             chm = ChoiceMap.empty()
             for _idx, _chm in enumerate(subsamples):
                 assert isinstance(_chm, ChoiceMap)
-                masked_submap = _chm.mask(Flag(_idx == idx))
+                masked_submap = _chm.mask(_idx == idx)
                 chm = chm ^ masked_submap
             return chm
         else:

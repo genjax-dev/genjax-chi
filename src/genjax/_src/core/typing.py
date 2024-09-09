@@ -52,6 +52,7 @@ InAxes = int | None | Sequence[Any]
 Int = int
 Float = float
 Bool = bool
+Flag = Bool | BoolArray
 String = str
 
 Value = Any
@@ -112,6 +113,7 @@ __all__ = [
     "Callable",
     "EllipsisType",
     "Final",
+    "Flag",
     "Float",
     "FloatArray",
     "Generator",

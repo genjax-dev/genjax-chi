@@ -19,7 +19,7 @@ from genjax import ChoiceMap as Chm
 from genjax import ChoiceMapBuilder as C
 from genjax import UpdateProblemBuilder as U
 from genjax import gen, normal
-from genjax._src.core.interpreters.staging import Flag
+from genjax._src.core.interpreters.staging import ObsoleteFlag
 from genjax.core.interpreters import get_importance_shape, get_update_shape
 
 
@@ -49,15 +49,15 @@ class TestStaging:
 class TestFlag:
     def test_basic_operation(self):
         true_flags = [
-            Flag(True),
-            Flag(jnp.array(True)),
-            Flag(jnp.array([True, True])),
+            ObsoleteFlag(True),
+            ObsoleteFlag(jnp.array(True)),
+            ObsoleteFlag(jnp.array([True, True])),
         ]
         false_flags = [
-            Flag(False),
-            Flag(jnp.array(False)),
-            Flag(jnp.array([True, False])),
-            Flag(jnp.array([False, False])),
+            ObsoleteFlag(False),
+            ObsoleteFlag(jnp.array(False)),
+            ObsoleteFlag(jnp.array([True, False])),
+            ObsoleteFlag(jnp.array([False, False])),
         ]
         for t in true_flags:
             assert t
@@ -71,7 +71,7 @@ class TestFlag:
                 assert t.or_(u)
 
     def test_where(self):
-        assert Flag(True).where(3.0, 4.0) == 3
-        assert Flag(False).where(3.0, 4.0) == 4
-        assert Flag(jnp.array(True)).where(3.0, 4.0) == 3
-        assert Flag(jnp.array(False)).where(3.0, 4.0) == 4
+        assert ObsoleteFlag(True).where(3.0, 4.0) == 3
+        assert ObsoleteFlag(False).where(3.0, 4.0) == 4
+        assert ObsoleteFlag(jnp.array(True)).where(3.0, 4.0) == 3
+        assert ObsoleteFlag(jnp.array(False)).where(3.0, 4.0) == 4

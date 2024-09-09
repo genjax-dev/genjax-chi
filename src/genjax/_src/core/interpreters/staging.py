@@ -30,6 +30,8 @@ from genjax._src.core.typing import (
     ArrayLike,
     BoolArray,
     Callable,
+    Flag,
+    TypeVar,
     static_check_is_concrete,
 )
 
@@ -39,9 +41,74 @@ WrappedFunWithAux = tuple[lu.WrappedFun, Callable[[], Any]]
 # Concrete Boolean arithmetic #
 ###############################
 
+R = TypeVar("R")
+
+
+class FlagOp:
+    @staticmethod
+    def and_(f: Flag, g: Flag) -> Flag:
+        # True and X => X. False and X => False.
+        if f is True:
+            return g
+        if f is False:
+            return f
+        if g is True:
+            return f
+        if g is False:
+            return g
+        return jnp.logical_and(f, g)
+
+    @staticmethod
+    def or_(f: Flag, g: Flag) -> Flag:
+        # True or X => True. False or X => X.
+        if f is True:
+            return f
+        if f is False:
+            return g
+        if g is True:
+            return g
+        if g is False:
+            return f
+        return jnp.logical_or(f, g)
+
+    @staticmethod
+    def not_(f: Flag) -> Flag:
+        if f is True:
+            return False
+        if f is False:
+            return True
+        return jnp.logical_not(f)
+
+    @staticmethod
+    def concrete_true(f: Flag) -> bool:
+        return f is True
+
+    @staticmethod
+    def concrete_false(f: Flag) -> bool:
+        return f is False
+
+    @staticmethod
+    def where(f: Flag, tf: ArrayLike, ff: ArrayLike) -> ArrayLike:
+        """Return tf or ff according to the truth value contained in flag
+        in a manner that works in either the concrete or dynamic context"""
+        if f is True:
+            return tf
+        if f is False:
+            return ff
+        return jax.lax.select(f, tf, ff)
+
+    @staticmethod
+    def cond(f: Flag, tf: Callable[..., R], ff: Callable[..., R], *args: Any) -> R:
+        """Invokes `tf` with `args` if flag is true, else `ff`"""
+        if f is True:
+            return tf(*args)
+        if f is False:
+            return ff(*args)
+        return jax.lax.cond(f, tf, ff, *args)
+
 
 @Pytree.dataclass
-class Flag(Pytree):
+class ObsoleteFlag(Pytree):
     """JAX compilation imposes restrictions on the control flow used in the compiled code.
     Branches gated by booleans must use GPU-compatible branching (e.g., `jax.lax.cond`).
     However, the GPU must compute both sides of the branch, wasting effort in the case
@@ -59,7 +126,7 @@ class Flag(Pytree):
 
     f: bool | BoolArray
 
-    def and_(self, f: "Flag") -> "Flag":
+    def and_(self, f: "ObsoleteFlag") -> "ObsoleteFlag":
         # True and X => X. False and X => False.
         if self.f is True:
             return f
@@ -69,9 +136,9 @@ class Flag(Pytree):
             return self
         if f.f is False:
             return f
-        return Flag(jnp.logical_and(self.f, f.f))
+        return ObsoleteFlag(jnp.logical_and(self.f, f.f))
 
-    def or_(self, f: "Flag") -> "Flag":
+    def or_(self, f: "ObsoleteFlag") -> "ObsoleteFlag":
         # True or X => True. False or X => X.
         if self.f is True:
             return self
@@ -81,15 +148,15 @@ class Flag(Pytree):
             return f
         if f.f is False:
             return self
-        return Flag(jnp.logical_or(self.f, f.f))
+        return ObsoleteFlag(jnp.logical_or(self.f, f.f))
 
-    def not_(self) -> "Flag":
+    def not_(self) -> "ObsoleteFlag":
         if self.f is True:
-            return Flag(False)
+            return ObsoleteFlag(False)
         elif self.f is False:
-            return Flag(True)
+            return ObsoleteFlag(True)
         else:
-            return Flag(jnp.logical_not(self.f))
+            return ObsoleteFlag(jnp.logical_not(self.f))
 
     def concrete_true(self):
         return self.f is True
@@ -118,10 +185,10 @@ class Flag(Pytree):
         return jax.lax.cond(self.f, tf, ff, *args)
 
     @staticmethod
-    def as_flag(f):
-        if isinstance(f, Flag):
+    def as_flag(f) -> "ObsoleteFlag":
+        if isinstance(f, ObsoleteFlag):
             return f
-        return Flag(f)
+        return ObsoleteFlag(f)
 
 
 def staged_check(v):
@@ -134,14 +201,14 @@ def staged_check(v):
 
 
 def staged_err(check: Flag, msg, **kwargs):
-    if check.concrete_true():
+    if FlagOp.concrete_true(check):
         raise Exception(msg)
-    elif check.concrete_false():
+    elif FlagOp.concrete_false(check):
         pass
     else:
 
         def _check():
-            checkify.check(check.f, msg, **kwargs)
+            checkify.check(check, msg, **kwargs)
 
         optional_check(_check)
 
