@@ -432,7 +432,11 @@ class StaticSel(Selection):
         return Flag(False)
 
     def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
-        check = Flag(addr == self.addr or isinstance(addr, EllipsisType))
+        check = Flag(
+            addr == self.addr
+            or isinstance(addr, EllipsisType)
+            or isinstance(self.addr, EllipsisType)
+        )
         return self.s.mask(check)
 
 

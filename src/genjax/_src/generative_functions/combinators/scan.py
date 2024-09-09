@@ -28,6 +28,7 @@ from genjax._src.core.generative import (
     Retdiff,
     Sample,
     Score,
+    SelectionProjection,
     Trace,
     Weight,
 )
@@ -261,7 +262,8 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             return (carry, score), (tr, scanned_out, w)
 
         def _generate(
-            carry: tuple[PRNGKey, IntArray, Carry], scanned_over: Any
+            carry: tuple[PRNGKey, IntArray, Carry],
+            scanned_over: Any,
         ) -> tuple[
             tuple[PRNGKey, IntArray, Carry],
             tuple[Trace[tuple[Carry, Y]], Y, Score, Weight],
@@ -298,10 +300,43 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     def project(
         self,
         key: PRNGKey,
-        trace: Trace[Y],
+        trace: ScanTrace[Carry, Y],
         projection: Projection[Any],
     ) -> Weight:
-        raise NotImplementedError
+        assert isinstance(projection, SelectionProjection)
+
+        def _inner_project(
+            key: PRNGKey,
+            subtrace: Trace[Any],
+            projection: SelectionProjection,
+        ) -> Weight:
+            w = subtrace.project(
+                key,
+                projection,
+            )
+            return w
+
+        def _project(
+            carry: tuple[PRNGKey, IntArray],
+            subtrace: Trace[Any],
+        ) -> tuple[tuple[PRNGKey, IntArray], Weight]:
+            key, idx = carry
+            key = jax.random.fold_in(key, idx)
+            subprojection = projection(idx)
+            assert isinstance(subprojection, SelectionProjection)
+            w = _inner_project(key, subtrace, subprojection)
+
+            return (key, idx + 1), w
+
+        (_, _), ws = jax.lax.scan(
+            _project,
+            (key, jnp.asarray(0)),
+            trace.inner,
+            length=self.length,
+            reverse=self.reverse,
+            unroll=self.unroll,
+        )
+        return jnp.sum(ws)
 
     def edit_generic(
         self,
