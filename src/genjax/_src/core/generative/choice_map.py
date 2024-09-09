@@ -1028,7 +1028,7 @@ class ChoiceMap(Sample, Constraint):
         values are retained; if False, the ChoiceMap behaves as if it's empty.
 
         Args:
-            f: A boolean flag determining whether to include the values.
+            flag: A boolean flag determining whether to include the values.
 
         Returns:
             A new ChoiceMap with values conditionally masked.
