@@ -124,6 +124,20 @@ class TestSelections:
         assert not combined_sel["z"]
         assert combined_sel["w"]
 
+    def test_selection_ellipsis(self):
+        # Create a selection with nested structure
+        sel = S["a", "b", "c"] | S["x", "y", "z"]
+
+        # Test that ... gives a free pass to one level of matching
+        assert sel["a", ..., ...]
+        assert sel["x", ..., ...]
+        assert sel["a", ..., "c"]
+        assert sel["x", ..., "z"]
+        assert not sel["a", ..., "z"]
+
+        assert not sel[...]
+        assert not sel["a", "z", ...]
+
     def test_static_sel(self):
         xy_sel = Selection.at["x", "y"]
         assert not xy_sel[()]

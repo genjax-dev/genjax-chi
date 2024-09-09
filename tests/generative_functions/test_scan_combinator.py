@@ -48,7 +48,7 @@ class TestIterateSimpleNormal:
         tr = jax.jit(scanner.simulate)(sub_key, (0.01,))
         scan_score = tr.get_score()
 
-        # TODO
+        # TODO this test is busted! Obviously masking out all choices should not preserve the score.
         sel = genjax.Selection.none()
         assert tr.project(key, sel) == scan_score
 

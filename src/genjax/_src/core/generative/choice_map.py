@@ -305,14 +305,14 @@ class Selection(ProjectProblem):
 
     def __getitem__(
         self,
-        addr: AddressComponent | Address,
+        addr: ExtendedAddressComponent | ExtendedAddress,
     ) -> Flag:
         subselection = self(addr)
         return subselection.check()
 
     def __contains__(
         self,
-        addr: AddressComponent | Address,
+        addr: ExtendedAddressComponent | ExtendedAddress,
     ) -> Flag:
         return self[addr]
 
@@ -512,6 +512,7 @@ class StaticSel(Selection):
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         if addr is Ellipsis:
             return self.s
+
         else:
             check = Flag(addr == self.addr)
             return self.s.mask(check)
@@ -1317,7 +1318,6 @@ class StaticChm(ChoiceMap):
         return None
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        # TODO check this.
         if addr is Ellipsis:
             return self.c
 
