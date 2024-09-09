@@ -287,8 +287,8 @@ class Selection(ProjectProblem):
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             base_selection = Selection.all()
             indexed_selection = base_selection.extend("x")
-            assert indexed_selection["x", "any_subaddress"] ==True
-            assert indexed_selection["y"] ==False
+            assert indexed_selection["x", "any_subaddress"] == True
+            assert indexed_selection["y"] == False
             ```
         """
         acc = self
@@ -344,7 +344,7 @@ class AllSel(Selection):
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         all_sel = Selection.all()
-        assert all_sel["any_address"] ==True
+        assert all_sel["any_address"] == True
         ```
     """
 
@@ -440,12 +440,12 @@ class ComplementSel(Selection):
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         base_sel = Selection.all()
         comp_sel = ~base_sel
-        assert comp_sel == Selection.none()
+        assert comp_sel.check() == False
 
         specific_sel = Selection.at["x", "y"]
         comp_specific = ~specific_sel
-        assert comp_specific["x", "y"] ==False
-        assert comp_specific["z"] ==True
+        assert comp_specific["x", "y"] == False
+        assert comp_specific["z"] == True
         ```
     """
 
@@ -486,10 +486,9 @@ class StaticSel(Selection):
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         static_sel = Selection.at["x"]
-
-        assert static_sel.check() ==False
-        assert static_sel.get_subselection("x").check() ==True
-        assert static_sel.get_subselection("y").check() ==False
+        assert static_sel.check() == False
+        assert static_sel.get_subselection("x").check() == True
+        assert static_sel.get_subselection("y").check() == False
         ```
     """
 
@@ -506,6 +505,39 @@ class StaticSel(Selection):
                 return s
             case _:
                 return StaticSel(s, addr)
+    def check(self) -> Flag:
+        return False
+
+    def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
+        check = addr == self.addr or isinstance(addr, EllipsisType)
+        return self.s.mask(check)
+
+
+@Pytree.dataclass
+class IdxSel(Selection):
+    """Represents a dynamic selection based on an array of address components.
+
+    This selection is used to filter choices based on dynamic address components.
+    It always returns False for the check method, as it's meant to be used in
+    combination with other selections or as part of a larger selection structure.
+
+    Attributes:
+        s: The underlying selection to be applied if the address matches.
+        idxs: The dynamic address components to match against.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        import jax.numpy as jnp
+
+        idx_sel = Selection.at[jnp.array([1, 2, 3])]
+        assert idx_sel.check() == False
+        assert idx_sel.get_subselection(2).check() == True
+        assert idx_sel.get_subselection(4).check() == False
+        ```
+    """
+
+    s: Selection
+    idxs: DynamicAddressComponent
 
     def check(self) -> Flag:
         return False
@@ -534,9 +566,9 @@ class AndSel(Selection):
         sel2 = Selection.at["y"] | Selection.at["z"]
         and_sel = sel1 & sel2
 
-        assert and_sel["x"] ==False
-        assert and_sel["y"] ==True
-        assert and_sel["z"] ==False
+        assert and_sel["x"] == False
+        assert and_sel["y"] == True
+        assert and_sel["z"] == False
         ```
     """
 
@@ -587,10 +619,10 @@ class OrSel(Selection):
         sel2 = Selection.at["y"]
         or_sel = sel1 | sel2
 
-        assert or_sel["x", "y"] ==True
-        assert or_sel["x"] ==True
-        assert or_sel["y"] ==True
-        assert or_sel["z"] ==False
+        assert or_sel["x", "y"] == True
+        assert or_sel["x"] == True
+        assert or_sel["y"] == True
+        assert or_sel["z"] == False
         ```
     """
 
@@ -639,9 +671,9 @@ class ChmSel(Selection):
 
         chm = C["x", "y"].set(3.0) ^ C["z"].set(5.0)
         sel = chm.get_selection()
-        assert sel["x", "y"] ==True
-        assert sel["z"] ==True
-        assert sel["w"] ==False
+        assert sel["x", "y"] == True
+        assert sel["z"] == True
+        assert sel["w"] == False
         ```
     """
 
@@ -1114,8 +1146,8 @@ class ChoiceMap(Sample, Constraint):
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             chm = ChoiceMap.value(5).extend("x")
             sel = chm.get_selection()
-            assert sel["x"] ==True
-            assert sel["y"] ==False
+            assert sel["x"] == True
+            assert sel["y"] == False
             ```
         """
         return ChmSel.build(self)
