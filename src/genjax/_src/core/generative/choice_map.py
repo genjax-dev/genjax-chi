@@ -212,7 +212,7 @@ class Selection(ProjectProblem):
     def __invert__(self) -> "Selection":
         return ComplementSel.build(self)
 
-    def mask(self, flag: Flag) -> "Selection":
+    def mask(self, flag: Flag | bool | BoolArray) -> "Selection":
         """
         Returns a new Selection that is conditionally applied based on a flag.
 
@@ -229,16 +229,16 @@ class Selection(ProjectProblem):
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             from genjax import Selection
-            from genjax._src.core.interpreters.staging import Flag
 
             base_selection = Selection.all()
-            maybe_selection = base_selection.mask(Flag(True))
+            maybe_selection = base_selection.mask(True)
             assert maybe_selection["any_address"].f == True
 
-            maybe_selection = base_selection.mask(Flag(False))
+            maybe_selection = base_selection.mask(False)
             assert maybe_selection["any_address"].f == False
             ```
         """
+        flag = flag if isinstance(flag, Flag) else Flag(flag)
         return MaskSel.build(self, flag)
 
     def filter(self, chm: "ChoiceMap") -> "ChoiceMap":
@@ -699,7 +699,6 @@ class _ChoiceMapBuilder:
         )
 
     def set(self, v) -> "ChoiceMap":
-        # TODO add a test that shows that if you set over an existing address, you do in fact stomp it (the new v is preferred)
         chm = ChoiceMap.entry(v, *self.addrs)
         if self.choice_map is None:
             return chm
@@ -993,7 +992,7 @@ class ChoiceMap(Sample, Constraint):
 
     def filter(self, selection: Selection) -> "ChoiceMap":
         """
-        Filter the choice map on the `Selection`. The resulting choice map only contains the addresses in the selection.
+        Filter the choice map on the `Selection`. The resulting choice map only contains the addresses that return True when presented to the selection.
 
         Examples:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
@@ -1015,12 +1014,12 @@ class ChoiceMap(Sample, Constraint):
             chm = tr.get_sample()
             selection = S["x"]
             filtered = chm.filter(selection)
-            print("y" in filtered)
+            assert "y" not in filtered
             ```
         """
         return FilteredChm.build(self, selection)
 
-    def mask(self, f: Flag) -> "ChoiceMap":
+    def mask(self, flag: Flag | bool | BoolArray) -> "ChoiceMap":
         """
         Returns a new ChoiceMap with values masked by a boolean flag.
 
@@ -1036,19 +1035,15 @@ class ChoiceMap(Sample, Constraint):
 
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
-            from genjax._src.core.interpreters.staging import Flag
-
             original_chm = ChoiceMap.value(42)
-            flag = Flag(True)
-            masked_chm = original_chm.mask(flag)
+            masked_chm = original_chm.mask(True)
             assert masked_chm.get_value() == 42
 
-            flag = Flag(False)
-            masked_chm = original_chm.mask(flag)
+            masked_chm = original_chm.mask(False)
             assert masked_chm.get_value() is None
             ```
         """
-        return self.filter(Selection.all().mask(f))
+        return self.filter(Selection.all().mask(flag))
 
     def extend(self, *addrs: AddressComponent) -> "ChoiceMap":
         """
@@ -1083,10 +1078,7 @@ class ChoiceMap(Sample, Constraint):
         """
         Merges this ChoiceMap with another ChoiceMap.
 
-        This method combines the current ChoiceMap with another ChoiceMap using
-        the XOR operation (^). It creates a new ChoiceMap that contains all
-        addresses from both input ChoiceMaps, with values from the second
-        ChoiceMap taking precedence in case of overlapping addresses.
+        This method combines the current ChoiceMap with another ChoiceMap using the XOR operation (^). It creates a new ChoiceMap that contains all addresses from both input ChoiceMaps; any overlapping addresses will trigger an error on access at the address via `[<addr>]` or `get_value()`. Use `|` if you don't want this behavior.
 
         Args:
             other: The ChoiceMap to merge with the current one.
@@ -1129,7 +1121,10 @@ class ChoiceMap(Sample, Constraint):
         """
         return ChmSel.build(self)
 
-    def static_is_empty(self) -> Bool:
+    def is_empty(self) -> Bool:
+        """
+        Returns True if this ChoiceMap is equal to `ChoiceMap.empty()`, False otherwise.
+        """
         return False
 
     ###########
@@ -1175,13 +1170,22 @@ class ChoiceMap(Sample, Constraint):
 
     @property
     def at(self) -> _ChoiceMapBuilder:
-        """Access the `ChoiceMap.AddressIndex` mutation interface. This allows users to take an existing choice map, and mutate it _functionally_.
+        """
+        Returns a _ChoiceMapBuilder instance for constructing nested ChoiceMaps.
 
-        Examples:
-            ```python exec="yes" html="true" source="material-block" session="choicemap"
-            chm = C["x", "y"].set(3.0)
-            chm = chm.at["x", "y"].set(4.0)
-            print(chm["x", "y"])
+        This property allows for a fluent interface to build complex ChoiceMaps
+        by chaining address components and setting values.
+
+        Returns:
+            A builder object for constructing ChoiceMaps.
+
+        Example:
+            ```python
+            chm = ChoiceMap.d({("x", "y"): 3.0, "z": 12.0})
+            updated = chm.at["x", "y"].set(4.0)
+
+            assert updated["x", "y"] == 4.0
+            assert updated["z"] == chm["z"]
             ```
         """
         return _ChoiceMapBuilder(self, [])
@@ -1209,7 +1213,7 @@ class EmptyChm(ChoiceMap):
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         return self
 
-    def static_is_empty(self) -> Bool:
+    def is_empty(self) -> Bool:
         return True
 
 
@@ -1231,7 +1235,7 @@ class ValueChm(Generic[T], ChoiceMap):
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         value_chm = ChoiceMap.value(3.14)
         assert value_chm.get_value() == 3.14
-        assert value_chm.get_submap("any_address").static_is_empty() == True
+        assert value_chm.get_submap("any_address").is_empty() == True
         ```
     """
 
@@ -1340,7 +1344,7 @@ class StaticChm(ChoiceMap):
         base_chm = ChoiceMap.value(5)
         static_chm = base_chm.extend("x")
         assert static_chm.get_submap("x").get_value() == 5
-        assert static_chm.get_submap("y").static_is_empty() == True
+        assert static_chm.get_submap("y").is_empty() == True
         ```
     """
 
@@ -1431,8 +1435,6 @@ class XorChm(ChoiceMap):
         if isinstance(idx, int):
             # This branch means that both has_value() checks have returned concrete bools, so we can
             # make the choice directly.
-            #
-            # TODO is there a better way to short-circuit when concretely we don't have values?
             return [v1, v2][idx]
         else:
             return staged_choose(idx, [v1, v2])
@@ -1495,6 +1497,8 @@ class OrChm(ChoiceMap):
 
         idx = pair_flag_to_idx(check1, check2)
         if isinstance(idx, int):
+            # This branch means that both has_value() checks have returned concrete bools, so we can
+            # make the choice directly.
             return [v1, v2][idx]
         else:
             return staged_choose(idx, [v1, v2])
@@ -1522,12 +1526,11 @@ class FilteredChm(ChoiceMap):
         from genjax import SelectionBuilder as S
 
         base_chm = ChoiceMap.value(10).extend("x")
-        filtered_chm = base_chm.filter(S["x"])
-        assert filtered_chm.get_submap("x").get_value() == 10
+        filtered_x = base_chm.filter(S["x"])
+        assert filtered_x["x"] == 10
 
-        # TODO also seems like a bug, this is NOT empty and fails
-        filtered_chm = base_chm.filter(S["y"])
-        # assert filtered_chm.get_submap("x").static_is_empty() == True
+        filtered_y = base_chm.filter(S["y"])
+        assert filtered_y("x").is_empty()
         ```
     """
 

@@ -50,12 +50,18 @@ class TestSelections:
         assert not none_sel["y", "z"]
         assert not none_sel[()]
 
+        # none can't be extended
+        assert Selection.none().extend("a", "b") == Selection.none()
+
     def test_selection_complement(self):
         sel = S["x"] | S["y"]
         comp_sel = ~sel
         assert not comp_sel["x"]
         assert not comp_sel["y"]
         assert comp_sel["z"]
+
+        # Complement of a complement
+        assert ~~sel == sel
 
         # Test optimization: ~AllSel() = NoneSel()
         all_sel = Selection.all()
@@ -81,7 +87,7 @@ class TestSelections:
         # Test optimization: NoneSel() & other = NoneSel()
         none_sel = Selection.none()
         assert (none_sel & sel1) == none_sel
-        assert (sel1 and none_sel) == none_sel
+        assert (sel1 & none_sel) == none_sel
 
     def test_selection_or(self):
         sel1 = S["x"]
@@ -115,6 +121,46 @@ class TestSelections:
         assert not masked_sel["y"]
         assert not masked_sel["z"]
 
+        # bool works like flags
+        assert sel.mask(Flag(True)) == sel.mask(True)
+        assert sel.mask(False) == sel.mask(False)
+
+    def test_selection_filter(self):
+        # Create a ChoiceMap
+        chm = ChoiceMap.kw(x=1, y=2, z=3)
+
+        # Create a Selection
+        sel = S["x"] | S["y"]
+
+        # Filter the ChoiceMap using the Selection
+        filtered_chm = sel.filter(chm)
+
+        # Test that the filtered ChoiceMap contains only selected addresses
+        assert "x" in filtered_chm
+        assert "y" in filtered_chm
+        assert "z" not in filtered_chm
+
+        # Test values are preserved
+        assert filtered_chm["x"] == 1
+        assert filtered_chm["y"] == 2
+
+        # Test with an empty Selection
+        empty_sel = Selection.none()
+        assert empty_sel.filter(chm).is_empty()
+
+        # Test with an all-inclusive Selection
+        all_sel = Selection.all()
+        all_filtered_chm = all_sel.filter(chm)
+        assert all_filtered_chm == chm
+
+        # Test with a nested ChoiceMap
+        nested_chm = ChoiceMap.kw(a={"b": 1, "c": 2}, d=3)
+        nested_sel = S["a", "b"] | S["d"]
+        nested_filtered_chm = nested_sel.filter(nested_chm)
+        assert "d" in nested_filtered_chm
+        assert "b" in nested_filtered_chm("a")
+        assert "c" not in nested_filtered_chm("a")
+
     def test_selection_combination(self):
         sel1 = S["x"] | S["y"]
         sel2 = S["y"] | S["z"]
@@ -123,6 +169,33 @@ class TestSelections:
         assert combined_sel["y"]
         assert not combined_sel["z"]
         assert combined_sel["w"]
+
+    def test_selection_contains(self):
+        # Create a selection
+        sel = S["x"] | S["y", "z"]
+
+        # Test that __contains__ works like __getitem__
+        assert "x" in sel
+        assert sel["x"]
+        assert ("y", "z") in sel
+        assert sel["y", "z"]
+        assert "y" not in sel
+        assert not sel["y"]
+        assert "w" not in sel
+        assert not sel["w"]
+
+        # Test with nested selections
+        nested_sel = S["c"].extend("a", "b")
+
+        assert ("a", "b", "c") in nested_sel
+        assert nested_sel["a", "b", "c"]
+
+        assert ("a", "b") not in nested_sel
+        assert not nested_sel["a", "b"]
+
+        # check works like __contains__
+        assert not nested_sel("a")("b").check()
+        assert nested_sel("a")("b")("c").check()
 
     def test_selection_ellipsis(self):
         # Create a selection with nested structure
@@ -235,12 +308,9 @@ class TestChoiceMapBuilder:
 
 
 class TestChoiceMap:
-    # TODO add tests for the instance methods, so close here...
-    # TODO go and make sure docs are correctly generated for everything
-
     def test_empty(self):
         empty_chm = ChoiceMap.empty()
-        assert empty_chm.static_is_empty()
+        assert empty_chm.is_empty()
 
     def test_value(self):
         value_chm = ChoiceMap.value(42.0)
@@ -277,3 +347,39 @@ class TestChoiceMap:
         assert "x" in chm
         assert ("y", "z") in chm
         assert ("w", "v", "u") in chm
+
+    def test_extend_through_at(self):
+        # Create an initial ChoiceMap
+        initial_chm = ChoiceMap.kw(x=1, y={"z": 2})
+
+        # Extend the ChoiceMap using 'at'
+        extended_chm = initial_chm.at["y", "w"].set(3)
+
+        # Test that the original values are preserved
+        assert extended_chm["x"] == 1
+        assert extended_chm["y", "z"] == 2
+
+        # Test that the new value is correctly set
+        assert extended_chm["y", "w"] == 3
+
+        # Test that we can chain multiple extensions
+        multi_extended_chm = initial_chm.at["y", "w"].set(3).at["a", "b", "c"].set(4)
+
+        assert multi_extended_chm["x"] == 1
+        assert multi_extended_chm["y", "z"] == 2
+        assert multi_extended_chm["y", "w"] == 3
+        assert multi_extended_chm["a", "b", "c"] == 4
+
+        # Test overwriting an existing value
+        overwritten_chm = initial_chm.at["y", "z"].set(5)
+
+        assert overwritten_chm["x"] == 1
+        assert overwritten_chm["y", "z"] == 5  # Value has been overwritten
+
+        # Test extending with a nested ChoiceMap
+        nested_extension = initial_chm.at["nested"].set(ChoiceMap.kw(a=6, b=7))
+
+        assert nested_extension["x"] == 1
+        assert nested_extension["y", "z"] == 2
+        assert nested_extension["nested", "a"] == 6
+        assert nested_extension["nested", "b"] == 7
