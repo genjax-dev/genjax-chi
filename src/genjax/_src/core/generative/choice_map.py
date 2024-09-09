@@ -649,11 +649,10 @@ class ChmSel(Selection):
 
     @staticmethod
     def build(chm: "ChoiceMap") -> Selection:
-        match chm:
-            case EmptyChm():
-                return Selection.none()
-            case _:
-                return ChmSel(chm)
+        if chm.static_is_empty():
+            return Selection.none()
+        else:
+            return ChmSel(chm)
 
     def check(self) -> Flag:
         return self.c.has_value()
@@ -1289,11 +1288,10 @@ class IdxChm(ChoiceMap):
 
     @staticmethod
     def build(chm: ChoiceMap, addr: DynamicAddressComponent) -> ChoiceMap:
-        match chm:
-            case EmptyChm():
-                return chm
-            case _:
-                return IdxChm(chm, addr)
+        if chm.static_is_empty():
+            return chm
+        else:
+            return IdxChm(chm, addr)
 
     def get_value(self) -> Any:
         return None
@@ -1356,11 +1354,10 @@ class StaticChm(ChoiceMap):
         c: ChoiceMap,
         addr: StaticAddressComponent,
     ) -> ChoiceMap:
-        match c:
-            case EmptyChm():
-                return c
-            case _:
-                return StaticChm(c, addr)
+        if c.static_is_empty():
+            return c
+        else:
+            return StaticChm(c, addr)
 
     def get_value(self) -> Any:
         return None
@@ -1406,12 +1403,12 @@ class XorChm(ChoiceMap):
         c1: ChoiceMap,
         c2: ChoiceMap,
     ) -> ChoiceMap:
-        match (c1, c2):
-            case l, EmptyChm():
-                return l
-            case EmptyChm(), r:
-                return r
-            case _:
+        match (c1.static_is_empty(), c2.static_is_empty()):
+            case _, True:
+                return c1
+            case True, _:
+                return c2
+            case _, _:
                 check1 = c1.has_value()
                 check2 = c2.has_value()
                 err_check = check1.and_(check2)
@@ -1478,11 +1475,11 @@ class OrChm(ChoiceMap):
         c1: ChoiceMap,
         c2: ChoiceMap,
     ) -> ChoiceMap:
-        match (c1, c2):
-            case l, EmptyChm():
-                return l
-            case EmptyChm(), r:
-                return r
+        match (c1.static_is_empty(), c2.static_is_empty()):
+            case _, True:
+                return c1
+            case True, _:
+                return c2
             case _:
                 return OrChm(c1, c2)
 
@@ -1540,8 +1537,8 @@ class FilteredChm(ChoiceMap):
     @staticmethod
     def build(chm: ChoiceMap, selection: Selection) -> ChoiceMap:
         match (chm, selection):
-            case (EmptyChm(), _):
-                return chm
+            case (l, _) if l.static_is_empty():
+                return l
             case (chm, AllSel()):
                 return chm
             case (_, NoneSel()):
