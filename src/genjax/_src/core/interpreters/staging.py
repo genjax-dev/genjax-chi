@@ -24,11 +24,9 @@ from jax.interpreters import partial_eval as pe
 from jax.util import safe_map
 
 from genjax._src.checkify import optional_check
-from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
-    BoolArray,
     Callable,
     Flag,
     TypeVar,
@@ -105,90 +103,6 @@ class FlagOp:
         if f is False:
             return ff(*args)
         return jax.lax.cond(f, tf, ff, *args)
-
-
-@Pytree.dataclass
-class ObsoleteFlag(Pytree):
-    """JAX compilation imposes restrictions on the control flow used in the compiled code.
-    Branches gated by booleans must use GPU-compatible branching (e.g., `jax.lax.cond`).
-    However, the GPU must compute both sides of the branch, wasting effort in the case
-    where the gating boolean is constant. In such cases, if-based flow control will
-    conceal the branch not taken from the JAX compiler, decreasing compilation time and
-    code size for the result by not including the code for the branch that cannot be taken.
-
-    This class contains a boolean value `f`, which is either native Python `True` or `False`,
-    or a `jnp` array (typically of boolean dtype although this is not enforced either here
-    or by JAX), together with a concreteness flag. Boolean operations are provided which
-    preserve concreteness _when possible_ (i.e., admixture of a dynamic boolean with a concrete
-    boolean may result in a dynamic boolean, if the value of the concrete boolean does not
-    determine the result).
-    """
-
-    f: bool | BoolArray
-
-    def and_(self, f: "ObsoleteFlag") -> "ObsoleteFlag":
-        # True and X => X. False and X => False.
-        if self.f is True:
-            return f
-        if self.f is False:
-            return self
-        if f.f is True:
-            return self
-        if f.f is False:
-            return f
-        return ObsoleteFlag(jnp.logical_and(self.f, f.f))
-
-    def or_(self, f: "ObsoleteFlag") -> "ObsoleteFlag":
-        # True or X => True. False or X => X.
-        if self.f is True:
-            return self
-        if self.f is False:
-            return f
-        if f.f is True:
-            return f
-        if f.f is False:
-            return self
-        return ObsoleteFlag(jnp.logical_or(self.f, f.f))
-
-    def not_(self) -> "ObsoleteFlag":
-        if self.f is True:
-            return ObsoleteFlag(False)
-        elif self.f is False:
-            return ObsoleteFlag(True)
-        else:
-            return ObsoleteFlag(jnp.logical_not(self.f))
-
-    def concrete_true(self):
-        return self.f is True
-
-    def concrete_false(self):
-        return self.f is False
-
-    def __bool__(self) -> bool:
-        return bool(jnp.all(self.f))
-
-    def where(self, t: ArrayLike, f: ArrayLike) -> ArrayLike:
-        """Return t or f according to the truth value contained in this flag
-        in a manner that works in either the concrete or dynamic context"""
-        if self.f is True:
-            return t
-        if self.f is False:
-            return f
-        return jax.lax.select(self.f, t, f)
-
-    def cond(self, tf: Callable[..., Any], ff: Callable[..., Any], *args: Any):
-        """Invokes `tf` with `args` if flag is true, else `ff`"""
-        if self.f is True:
-            return tf(*args)
-        if self.f is False:
-            return ff(*args)
-        return jax.lax.cond(self.f, tf, ff, *args)
-
-    @staticmethod
-    def as_flag(f) -> "ObsoleteFlag":
-        if isinstance(f, ObsoleteFlag):
-            return f
-        return ObsoleteFlag(f)
 
 
 def staged_check(v):

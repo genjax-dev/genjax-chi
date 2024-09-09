@@ -126,13 +126,6 @@ class Mask(Generic[R], Pytree):
             case _:
                 return self.flag
 
-    def primal_flag(self) -> Flag:
-        match self.flag:
-            case Diff(primal, _):
-                return primal
-            case _:
-                return self.flag
-
 
 def staged_choose(
     idx: ArrayLike,

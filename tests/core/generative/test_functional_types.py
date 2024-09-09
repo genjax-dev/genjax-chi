@@ -17,7 +17,6 @@ import pytest
 
 from genjax._src.checkify import do_checkify
 from genjax._src.core.generative.functional_types import Mask, staged_choose
-from genjax._src.core.interpreters.staging import Flag
 
 
 class TestMask:

@@ -19,7 +19,7 @@ from genjax import ChoiceMap as Chm
 from genjax import ChoiceMapBuilder as C
 from genjax import UpdateProblemBuilder as U
 from genjax import gen, normal
-from genjax._src.core.interpreters.staging import ObsoleteFlag
+from genjax._src.core.interpreters.staging import FlagOp
 from genjax.core.interpreters import get_importance_shape, get_update_shape
 
 
@@ -49,29 +49,28 @@ class TestStaging:
 class TestFlag:
     def test_basic_operation(self):
         true_flags = [
-            ObsoleteFlag(True),
-            ObsoleteFlag(jnp.array(True)),
-            ObsoleteFlag(jnp.array([True, True])),
+            True,
+            jnp.array(True),
+            jnp.array([True, True]),
         ]
         false_flags = [
-            ObsoleteFlag(False),
-            ObsoleteFlag(jnp.array(False)),
-            ObsoleteFlag(jnp.array([True, False])),
-            ObsoleteFlag(jnp.array([False, False])),
+            False,
+            jnp.array(False),
+            jnp.array([False, False]),
         ]
         for t in true_flags:
-            assert t
-            assert not t.not_()
+            assert jnp.all(t)
+            assert not jnp.all(FlagOp.not_(t))
             for f in false_flags:
-                assert not f
-                assert not t.and_(f)
-                assert t.or_(f)
+                assert not jnp.all(f)
+                assert not jnp.all(FlagOp.and_(t, f))
+                assert jnp.all(FlagOp.or_(t, f))
             for u in true_flags:
-                assert t.and_(u)
-                assert t.or_(u)
+                assert jnp.all(FlagOp.and_(t, u))
+                assert jnp.all(FlagOp.or_(t, u))
 
     def test_where(self):
-        assert ObsoleteFlag(True).where(3.0, 4.0) == 3
-        assert ObsoleteFlag(False).where(3.0, 4.0) == 4
-        assert ObsoleteFlag(jnp.array(True)).where(3.0, 4.0) == 3
-        assert ObsoleteFlag(jnp.array(False)).where(3.0, 4.0) == 4
+        assert FlagOp.where(True, 3.0, 4.0) == 3
+        assert FlagOp.where(False, 3.0, 4.0) == 4
+        assert FlagOp.where(jnp.array(True), 3.0, 4.0) == 3
+        assert FlagOp.where(jnp.array(False), 3.0, 4.0) == 4
