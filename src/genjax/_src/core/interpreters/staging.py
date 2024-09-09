@@ -43,6 +43,16 @@ R = TypeVar("R")
 
 
 class FlagOp:
+    """JAX compilation imposes restrictions on the control flow used in the compiled code.
+    Branches gated by booleans must use GPU-compatible branching (e.g., `jax.lax.cond`).
+    However, the GPU must compute both sides of the branch, wasting effort in the case
+    where the gating boolean is constant. In such cases, if-based flow control will
+    conceal the branch not taken from the JAX compiler, decreasing compilation time and
+    code size for the result by not including the code for the branch that cannot be taken.
+
+    This class centralizes the concrete short-cut logic used by GenJAX.
+    """
+
     @staticmethod
     def and_(f: Flag, g: Flag) -> Flag:
         # True and X => X. False and X => False.
