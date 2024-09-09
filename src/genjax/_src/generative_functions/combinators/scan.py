@@ -403,7 +403,9 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             ),
             jnp.sum(ws),
             (carried_out_diff, scanned_out_diff),
-            IncrementalGenericRequest(trace.get_args(), bwd_constraints),
+            IncrementalGenericRequest(
+                Diff.tree_diff_unknown_change(trace.get_args()), bwd_constraints
+            ),
         )
 
     def edit(

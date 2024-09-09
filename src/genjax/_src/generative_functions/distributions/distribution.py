@@ -334,7 +334,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                             ChoiceMapConstraint(ChoiceMap.empty()),
                         ),
                     )
-                elif isinstance(constraint, MaskChm):
+                elif isinstance(constraint.choice_map, MaskChm):
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
                     def _true_branch(key, new_value: R, _):
@@ -352,8 +352,8 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     masked_value: Mask[R] = v
                     flag = masked_value.flag
                     new_value: R = masked_value.value
-                    old_sample = trace.get_choices()
-                    old_value: R = old_sample.get_value()
+                    old_choices = trace.get_choices()
+                    old_value: R = old_choices.get_value()
 
                     new_value, w, score = jax.lax.cond(
                         flag.f,
@@ -367,7 +367,10 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         DistributionTrace(self, primals, new_value, score),
                         w,
                         Diff.tree_diff_unknown_change(new_value),
-                        MaskedRequest(flag, old_sample),
+                        IncrementalGenericRequest(
+                            Diff.tree_diff_unknown_change(trace.get_args()),
+                            ChoiceMapConstraint(old_choices.mask(flag)),
+                        ),
                     )
                 else:
                     raise Exception(
