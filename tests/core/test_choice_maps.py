@@ -23,6 +23,8 @@ class TestSelections:
         new = S["x"] | S["z", "y"]
         assert new["x"]
         assert new["z", "y"]
+        assert new["z", "y", "tail"]
+
         new = S["x"]
         assert new["x"]
         assert new["x", "y"]
@@ -122,22 +124,6 @@ class TestSelections:
         assert not combined_sel["z"]
         assert combined_sel["w"]
 
-    # def test_idx_sel(self):
-    #     # Test IdxSel with a single index
-    #     idx_sel = Selection.at[0]
-    #     assert idx_sel[0].f
-    #     assert not idx_sel[1].f
-    #     assert not idx_sel["x"].f
-
-    #     # Test IdxSel with multiple indices
-    #     multi_idx_sel = Selection.at[0, 2, 4]
-    #     assert multi_idx_sel[0].f
-    #     assert multi_idx_sel[2].f
-    #     assert multi_idx_sel[4].f
-    #     assert not multi_idx_sel[1].f
-    #     assert not multi_idx_sel[3].f
-    #     assert not multi_idx_sel[5].f
-
     def test_static_sel(self):
         xy_sel = Selection.at["x", "y"]
         assert not xy_sel[()]
@@ -169,6 +155,57 @@ class TestSelections:
         empty_chm = ChoiceMap.empty()
         empty_sel = empty_chm.get_selection()
         assert empty_sel == Selection.none()
+
+
+class TestChoiceMapBuilder:
+    def test_set(self):
+        chm = C["a", "b"].set(1)
+        assert chm["a", "b"] == 1
+
+        # membership only returns True for the actual path
+        assert ("a", "b") in chm
+        assert "a" not in chm
+        assert "b" in chm("a")
+
+    # def test_nested_set(self):
+    #     chm = C["x"].set(C["y"].set(2))
+    #     assert chm["x", "y"] == 2
+    #     assert ("x", "y") in chm
+    #     assert "y" not in chm
+
+    # def test_call(self):
+    #     chm = C["f"](1, 2, x=3)
+    #     assert chm["f", "args", 0] == 1
+    #     assert chm["f", "args", 1] == 2
+    #     assert chm["f", "kwargs", "x"] == 3
+
+    # def test_getitem(self):
+    #     chm = C["list"][0].set(5)
+    #     assert chm["list", 0] == 5
+    #     assert "list" in chm
+    #     assert 0 in chm["list"]
+
+    # def test_combine_methods(self):
+    #     chm = C["a"].set(1) ^ C["b"](2) ^ C["c"][0].set(3)
+    #     assert chm["a"] == 1
+    #     assert chm["b", "args", 0] == 2
+    #     assert chm["c", 0] == 3
+
+    # def test_extend(self):
+    #     chm = C["x"].extend("y").set(4)
+    #     assert chm["x", "y"] == 4
+    #     assert "x" in chm
+    #     assert "y" in chm["x"]
+
+    # def test_complex_nesting(self):
+    #     chm = C["a"].set(C["b"](C["c"][0].set(5)))
+    #     assert chm["a", "b", "args", 0, "c", 0] == 5
+    #     assert "a" in chm
+    #     assert "b" in chm["a"]
+    #     assert "args" in chm["a", "b"]
+    #     assert 0 in chm["a", "b", "args"]
+    #     assert "c" in chm["a", "b", "args", 0]
+    #     assert 0 in chm["a", "b", "args", 0, "c"]
 
 
 class TestChoiceMap:

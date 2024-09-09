@@ -63,9 +63,7 @@ K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
 
 @Pytree.dataclass
 class _SelectionBuilder(Pytree):
-    def __getitem__(
-        self, addr: ExtendedAddressComponent | ExtendedAddress
-    ) -> "Selection":
+    def __getitem__(self, addr: StaticAddressComponent | StaticAddress) -> "Selection":
         addr = addr if isinstance(addr, tuple) else (addr,)
 
         return Selection.all().extend(*addr)
@@ -268,7 +266,7 @@ class Selection(ProjectProblem):
         """
         return chm.filter(self)
 
-    def extend(self, *addrs: ExtendedAddressComponent) -> "Selection":
+    def extend(self, *addrs: StaticAddressComponent) -> "Selection":
         """
         Returns a new Selection that is prefixed by the given address components.
 
@@ -292,11 +290,7 @@ class Selection(ProjectProblem):
         """
         acc = self
         for addr in reversed(addrs):
-            if isinstance(addr, ExtendedStaticAddressComponent):
-                # TODO what does it mean to supply an ellipsis in the constructor here?
-                acc = StaticSel.build(acc, addr)
-            else:
-                acc = IdxSel.build(acc, addr)
+            acc = StaticSel.build(acc, addr)
         return acc
 
     def __call__(
@@ -311,14 +305,14 @@ class Selection(ProjectProblem):
 
     def __getitem__(
         self,
-        addr: ExtendedAddressComponent | ExtendedAddress,
+        addr: AddressComponent | Address,
     ) -> Flag:
         subselection = self(addr)
         return subselection.check()
 
     def __contains__(
         self,
-        addr: ExtendedAddressComponent | ExtendedAddress,
+        addr: AddressComponent | Address,
     ) -> Flag:
         return self[addr]
 
@@ -515,74 +509,11 @@ class StaticSel(Selection):
     def check(self) -> Flag:
         return Flag(False)
 
-    def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
+    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         if addr is Ellipsis:
             return self.s
         else:
             check = Flag(addr == self.addr)
-            return self.s.mask(check)
-
-
-@Pytree.dataclass
-class IdxSel(Selection):
-    """Represents a dynamic selection based on an array of address components.
-
-    This selection is used to filter choices based on dynamic address components.
-    It always returns False for the check method, as it's meant to be used in
-    combination with other selections or as part of a larger selection structure.
-
-    Attributes:
-        s: The underlying selection to be applied if the address matches.
-        idxs: The dynamic address components to match against.
-
-    Examples:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        import jax.numpy as jnp
-
-        idx_sel = Selection.at[jnp.array([1, 2, 3])]
-        assert idx_sel.check().f == False
-        assert idx_sel.get_subselection(2).check().f == True
-        assert idx_sel.get_subselection(4).check().f == False
-        ```
-    """
-
-    s: Selection
-    idxs: DynamicAddressComponent
-
-    @staticmethod
-    def build(
-        s: Selection,
-        idxs: DynamicAddressComponent,
-    ) -> Selection:
-        match s:
-            case NoneSel():
-                return s
-            case _:
-                return IdxSel(s, idxs)
-
-    def check(self) -> Flag:
-        return Flag(False)
-
-    def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
-        if addr is Ellipsis:
-            return self.s
-
-        if not isinstance(addr, DynamicAddressComponent):
-            return Selection.none()
-
-        else:
-
-            def check_fn(v):
-                return jnp.logical_and(
-                    v,
-                    jnp.any(v == self.idxs),
-                )
-
-            check = Flag(
-                jax.vmap(check_fn)(addr)
-                if jnp.array(addr, copy=False).shape
-                else check_fn(addr)
-            )
             return self.s.mask(check)
 
 
@@ -738,6 +669,16 @@ class ChmSel(Selection):
 
 @dataclass
 class ChoiceMapNoValueAtAddress(Exception):
+    """Exception raised when a value is not found at a specified address in a ChoiceMap.
+
+    This exception is thrown when attempting to access a value in a ChoiceMap at an address
+    where no value exists.
+
+    Attributes:
+        subaddr (ExtendedAddressComponent | ExtendedAddress): The address or sub-address
+            where the value was not found.
+    """
+
     subaddr: ExtendedAddressComponent | ExtendedAddress
 
 
@@ -766,12 +707,7 @@ class _ChoiceMapBuilder:
 
     def n(self) -> "ChoiceMap":
         """
-        Creates an empty ChoiceMap.
-
-        This method constructs and returns an empty ChoiceMap. It's a convenient
-        way to create a ChoiceMap with no entries, which can be useful as a starting
-        point for building more complex ChoiceMaps or when you need to represent
-        the absence of choices.
+        Returns an empty ChoiceMap. Alias for `ChoiceMap.none()`.
 
         Returns:
             An empty ChoiceMap.
@@ -780,18 +716,27 @@ class _ChoiceMapBuilder:
         return _empty
 
     def v(self, v) -> "ChoiceMap":
-        # TODO add docs
+        """
+        Nests a call to `ChoiceMap.value` under the current address held by the builder.
+        """
         return self.set(ChoiceMap.value(v))
 
     def from_mapping(self, mapping: Iterable[tuple[K_addr, Any]]) -> "ChoiceMap":
+        """
+        Nests a call to `ChoiceMap.from_mapping` under the current address held by the builder.
+        """
         return self.set(ChoiceMap.from_mapping(mapping))
 
     def d(self, d: dict[K_addr, Any]) -> "ChoiceMap":
-        # TODO add docs
+        """
+        Nests a call to `ChoiceMap.d` under the current address held by the builder.
+        """
         return self.set(ChoiceMap.d(d))
 
     def kw(self, **kwargs) -> "ChoiceMap":
-        # TODO add docs
+        """
+        Nests a call to `ChoiceMap.kw` under the current address held by the builder.
+        """
         return self.set(ChoiceMap.kw(**kwargs))
 
 
@@ -1372,8 +1317,13 @@ class StaticChm(ChoiceMap):
         return None
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        check = Flag(addr == self.addr)
-        return self.c.mask(check)
+        # TODO check this.
+        if addr is Ellipsis:
+            return self.c
+
+        else:
+            check = Flag(addr == self.addr)
+            return self.c.mask(check)
 
 
 @Pytree.dataclass
