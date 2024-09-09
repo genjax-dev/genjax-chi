@@ -1395,7 +1395,7 @@ class XorChm(ChoiceMap):
         ```
 
     Raises:
-        RuntimeError: If there's a value collision between the two choice maps.
+        Exception: If there's a value collision between the two choice maps.
     """
 
     c1: ChoiceMap

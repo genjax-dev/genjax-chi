@@ -13,9 +13,13 @@
 # limitations under the License.
 
 
+import jax.numpy as jnp
+import pytest
+
 from genjax import ChoiceMap, Selection
 from genjax import ChoiceMapBuilder as C
 from genjax import SelectionBuilder as S
+from genjax._src.core.generative.choice_map import ChoiceMapNoValueAtAddress
 
 
 class TestSelections:
@@ -77,6 +81,8 @@ class TestSelections:
         and_sel = sel1 & sel2
         assert not and_sel["x"]
         assert and_sel["y"]
+        assert not and_sel.check()
+        assert and_sel.get_subselection("y").check()
         assert not and_sel["z"]
 
         # Test optimization: AllSel() & other = other
@@ -95,6 +101,7 @@ class TestSelections:
         or_sel = sel1 | sel2
         assert or_sel["x"]
         assert or_sel["y"]
+        assert or_sel.get_subselection("y").check()
         assert not or_sel["z"]
 
         # Test optimization: AllSel() | other = AllSel()
@@ -107,14 +114,24 @@ class TestSelections:
         assert (none_sel | sel1) == sel1
         assert (sel1 | none_sel) == sel1
 
+        # masks get pushed inside or
+        assert sel1.mask(jnp.asarray(True)) | sel1.mask(jnp.asarray(False)) == (
+            sel1 | sel1
+        ).mask(jnp.asarray(True))
+
     def test_selection_mask(self):
         from genjax._src.core.interpreters.staging import Flag
 
         sel = S["x"] | S["y"]
-        masked_sel = sel.mask(Flag(True))
+        masked_sel = sel.mask(Flag(jnp.asarray(True)))
         assert masked_sel["x"]
         assert masked_sel["y"]
         assert not masked_sel["z"]
+
+        # masks get pushed inside and
+        assert sel.mask(jnp.asarray(True)) & sel.mask(jnp.asarray(False)) == (
+            sel & sel
+        ).mask(jnp.asarray(False))
 
         masked_sel = sel.mask(Flag(False))
         assert not masked_sel["x"]
@@ -246,6 +263,8 @@ class TestSelections:
 
 class TestChoiceMapBuilder:
     def test_set(self):
+        assert ChoiceMap.builder.set(1.0) == C[()].set(1.0)
+
         chm = C["a", "b"].set(1)
         assert chm["a", "b"] == 1
 
@@ -383,3 +402,116 @@ class TestChoiceMap:
         assert nested_extension["y", "z"] == 2
         assert nested_extension["nested", "a"] == 6
         assert nested_extension["nested", "b"] == 7
+
+    def test_filter(self):
+        chm = ChoiceMap.kw(x=1, y=2, z=3)
+        sel = S["x"] | S["y"]
+        filtered = sel.filter(chm)
+        assert filtered["x"] == 1
+        assert filtered["y"] == 2
+        assert "z" not in filtered
+
+    def test_mask(self):
+        chm = ChoiceMap.kw(x=1, y=2)
+        masked_true = chm.mask(True)
+        assert masked_true == chm
+        masked_false = chm.mask(False)
+        assert masked_false.is_empty()
+
+    def test_extend(self):
+        chm = ChoiceMap.value(1)
+        extended = chm.extend("a", "b")
+        assert extended["a", "b"] == 1
+
+        # ... is a wildcard
+        assert extended[..., "b"] == 1
+        assert extended["a", ...] == 1
+
+        assert extended.get_value() is None
+        assert extended.get_submap("a").get_submap("b").get_value() == 1
+        assert ChoiceMap.empty().extend("a", "b").is_empty()
+
+    def test_extend_dynamic(self):
+        chm = ChoiceMap.value(jnp.asarray([2.3, 4.4, 3.3]))
+        extended = chm.extend(jnp.array([0, 1, 2]))
+        assert extended.get_value() is None
+        assert extended.get_submap("x").is_empty()
+        assert extended[0].unmask() == 2.3
+        assert extended[1].unmask() == 4.4
+        assert extended[2].unmask() == 3.3
+
+        assert ChoiceMap.empty().extend(jnp.array([0, 1, 2])).is_empty()
+
+    def test_merge(self):
+        chm1 = ChoiceMap.kw(x=1)
+        chm2 = ChoiceMap.kw(y=2)
+        merged = chm1.merge(chm2)
+        assert merged["x"] == 1
+        assert merged["y"] == 2
+
+        # merged is equivalent to xor
+        assert merged == chm1 ^ chm2
+
+    def test_get_selection(self):
+        chm = ChoiceMap.kw(x=1, y=2)
+        sel = chm.get_selection()
+        assert sel["x"]
+        assert sel["y"]
+        assert not sel["z"]
+
+    def test_is_empty(self):
+        assert ChoiceMap.empty().is_empty()
+        assert not ChoiceMap.kw(x=1).is_empty()
+
+    def test_xor(self):
+        chm1 = ChoiceMap.kw(x=1)
+        chm2 = ChoiceMap.kw(y=2)
+        xor_chm = chm1 ^ chm2
+        assert xor_chm["x"] == 1
+        assert xor_chm["y"] == 2
+
+        with pytest.raises(
+            Exception,
+            match="The disjoint union of two choice maps have a value collision",
+        ):
+            (chm1 ^ chm1)["x"]
+
+        # Optimization: XorChm.build should return EmptyChm for empty inputs
+        assert (ChoiceMap.empty() ^ ChoiceMap.empty()).is_empty()
+
+        assert (chm1 ^ ChoiceMap.empty()) == chm1
+        assert (ChoiceMap.empty() ^ chm1) == chm1
+
+    def test_or(self):
+        chm1 = ChoiceMap.kw(x=1)
+        chm2 = ChoiceMap.kw(y=2)
+        or_chm = chm1 | chm2
+        assert or_chm.get_value() is None
+        assert or_chm["x"] == 1
+        assert or_chm["y"] == 2
+
+        # Optimization: OrChm.build should return input for empty other input
+        assert (chm1 | ChoiceMap.empty()) == chm1
+        assert (chm1 | ChoiceMap.empty()) == chm1
+        assert (ChoiceMap.empty() | chm1) == chm1
+
+        x_masked = ChoiceMap.value(2.0).mask(jnp.asarray(True))
+        y_masked = ChoiceMap.value(3.0).mask(jnp.asarray(True))
+        assert (x_masked | y_masked).get_value().unmask() == 2.0
+
+    def test_call(self):
+        chm = ChoiceMap.kw(x={"y": 1})
+        assert chm("x")("y") == ChoiceMap.value(1)
+
+    def test_getitem(self):
+        chm = ChoiceMap.kw(x=1)
+        assert chm["x"] == 1
+        with pytest.raises(ChoiceMapNoValueAtAddress, match="y"):
+            chm["y"]
+
+    def test_contains(self):
+        chm = ChoiceMap.kw(x={"y": 1})
+        assert "x" not in chm
+        assert "y" in chm("x")
+        assert ("x", "y") in chm
+        assert "z" not in chm
