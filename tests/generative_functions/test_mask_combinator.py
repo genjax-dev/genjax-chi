@@ -135,15 +135,15 @@ class TestMaskCombinator:
         model = masked_scan_combinator(step, n=len(mask_steps))
         init_particle = model.simulate(key, ((0.0,), mask_steps))
 
-        # Update the model:
-        update = genjax.EditRequestBuilder.g(
+        step_particle, step_weight, _, _ = model.update(
+            key,
+            init_particle,
+            C.n(),
             (
                 genjax.Diff.no_change((0.0,)),
                 genjax.Diff.no_change(Flag(mask_steps)),
             ),
-            C.n(),
         )
-        step_particle, step_weight, _, _ = model.edit(key, init_particle, update)
         assert step_weight == jnp.array(0.0)
         assert step_particle.get_retval() == ((jnp.array(0.0),), None)
         assert step_particle.get_score() == jnp.array(-12.230572)
