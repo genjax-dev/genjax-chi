@@ -317,12 +317,7 @@ class IncrementalGenericRequestHandler(StaticHandler):
         self.address_visitor.visit(addr)
 
     def get_subconstraint(self, addr: StaticAddress) -> ChoiceMapConstraint:
-        match self.constraint:
-            case ChoiceMapConstraint():
-                return self.constraint(addr)  # pyright: ignore
-
-            case _:
-                raise ValueError(f"Not implemented fwd_problem: {self.fwd_problem}")
+        return self.constraint(addr)  # pyright: ignore
 
     def get_subtrace(
         self,
@@ -507,13 +502,8 @@ class AssessHandler(StaticHandler):
     def yield_state(self):
         return (self.score,)
 
-    def get_subsample(self, addr: StaticAddress):
-        match self.choice_map_sample:
-            case ChoiceMapSample():
-                return self.choice_map_sample(addr)
-
-            case _:
-                raise ValueError(f"Not implemented: {self.choice_map_sample}")
+    def get_subsample(self, addr: StaticAddress) -> ChoiceMapSample:
+        return self.choice_map_sample(addr)  # pyright: ignore
 
     def handle_trace(
         self,
@@ -631,7 +621,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     def edit_change_target(
         self,
         key: PRNGKey,
-        trace: Trace[R],
+        trace: StaticTrace[R],
         constraint: ChoiceMapConstraint,
         argdiffs: Argdiffs,
     ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
@@ -731,6 +721,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         edit_request: EditRequest,
     ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
+        assert isinstance(trace, StaticTrace)
         match edit_request:
             case IncrementalGenericRequest(argdiffs, constraint) if isinstance(
                 constraint, ChoiceMapConstraint

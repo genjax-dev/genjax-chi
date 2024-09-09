@@ -300,10 +300,11 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     def project(
         self,
         key: PRNGKey,
-        trace: ScanTrace[Carry, Y],
+        trace: Trace[tuple[Carry, Y]],
         projection: Projection[Any],
     ) -> Weight:
         assert isinstance(projection, SelectionProjection)
+        assert isinstance(trace, ScanTrace)
 
         def _inner_project(
             key: PRNGKey,
@@ -397,6 +398,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             subtrace, scanned_in = scanned_over
             key = jax.random.fold_in(key, idx)
             subconstraint = constraint(idx)
+            assert isinstance(subconstraint, ChoiceMapConstraint)
             (
                 (carried_out, score),
                 (new_subtrace, scanned_out, w, inner_bwd_request),

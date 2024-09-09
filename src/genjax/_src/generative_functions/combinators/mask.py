@@ -197,7 +197,9 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         final_trace = jtu.tree_map(
             lambda v1, v2: jnp.where(check_arg.f, v1, v2), edited_trace, inner_trace
         )
-        inner_chm = bwd_move.constraint.choice_map
+        assert isinstance(bwd_move, IncrementalGenericRequest)
+        inner_chm_constraint = bwd_move.constraint
+        assert isinstance(inner_chm_constraint, ChoiceMapConstraint)
         return (
             MaskTrace(self, final_trace, trace.check),
             check.and_(check_arg).f * weight
@@ -207,7 +209,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             Mask(Diff.tree_diff_unknown_change(check_arg), retdiff),
             IncrementalGenericRequest(
                 Diff.tree_diff_unknown_change(trace.get_args()),
-                ChoiceMapConstraint(inner_chm.mask(check_arg)),
+                ChoiceMapConstraint(inner_chm_constraint.mask(check_arg)),
             ),
         )
 

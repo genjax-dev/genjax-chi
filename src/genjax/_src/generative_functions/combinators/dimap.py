@@ -197,13 +197,10 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         trace: Trace[S],
         edit_request: EditRequest,
     ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
-        match edit_request:
-            case IncrementalGenericRequest(argdiffs, constraint):
-                return self.edit_change_target(key, trace, constraint, argdiffs)
-            case _:
-                return self.edit_change_target(
-                    key, trace, edit_request, Diff.no_change(trace.get_args())
-                )
+        assert isinstance(edit_request, IncrementalGenericRequest)
+        constraint = edit_request.constraint
+        argdiffs = edit_request.argdiffs
+        return self.edit_change_target(key, trace, constraint, argdiffs)
 
     def assess(
         self,

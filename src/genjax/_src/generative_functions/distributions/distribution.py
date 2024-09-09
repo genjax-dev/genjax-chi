@@ -28,12 +28,10 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     EmptyConstraint,
-    EmptyRequest,
     GenerativeFunction,
     IncrementalGenericRequest,
     Mask,
     MaskedConstraint,
-    MaskedRequest,
     Projection,
     R,
     Retdiff,
@@ -44,11 +42,9 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.choice_map import MaskChm
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import Flag, staged_check
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
-    ArrayLike,
     Callable,
     Generic,
     PRNGKey,
@@ -186,11 +182,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         match constraint:
             case ChoiceMapConstraint():
                 tr, w = self.generate_choice_map(key, constraint, args)
-            case MaskedConstraint(flag, inner_constraint):
-                if staged_check(flag):
-                    return self.generate(key, inner_constraint, args)
-                else:
-                    tr, w = self.generate_masked_constraint(key, constraint, args)
             case EmptyConstraint():
                 tr = self.simulate(key, args)
                 w = jnp.array(0.0)
@@ -215,47 +206,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 Diff.no_change(trace.get_args()),
                 ChoiceMapConstraint(ChoiceMap.empty()),
             ),
-        )
-
-    def edit_constraint_masked_constraint(
-        self,
-        key: PRNGKey,
-        trace: Trace[R],
-        constraint: MaskedConstraint,
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        old_sample = trace.get_choices()
-
-        def edit_branch(key, trace, constraint, argdiffs):
-            tr, w, rd, _ = self.edit(
-                key, trace, IncrementalGenericRequest(argdiffs, constraint)
-            )
-            return (
-                tr,
-                w,
-                rd,
-                MaskedRequest(Flag(True), old_sample),
-            )
-
-        def do_nothing_branch(key, trace, _, argdiffs):
-            tr, w, _, _ = self.edit(
-                key, trace, IncrementalGenericRequest(argdiffs, EmptyRequest())
-            )
-            return (
-                tr,
-                w,
-                Diff.tree_diff_unknown_change(tr.get_retval()),
-                MaskedRequest(Flag(False), old_sample),
-            )
-
-        return jax.lax.cond(
-            constraint.flag.f,
-            edit_branch,
-            do_nothing_branch,
-            key,
-            trace,
-            constraint.constraint,
-            argdiffs,
         )
 
     def edit_constraint(
@@ -283,19 +233,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         ChoiceMapConstraint(ChoiceMap.empty()),
                     ),
                 )
-
-            case MaskedConstraint(flag, subconstraint):
-                if staged_check(flag):
-                    return self.edit_incremental_generic_request(
-                        key,
-                        trace,
-                        subconstraint,
-                        argdiffs,
-                    )
-                else:
-                    return self.edit_constraint_masked_constraint(
-                        key, trace, constraint, argdiffs
-                    )
 
             case ChoiceMapConstraint():
                 check = constraint.has_value()
@@ -379,33 +316,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             case _:
                 raise Exception("Unhandled constraint in edit.")
 
-    def edit_masked(
-        self: "Distribution[ArrayLike]",
-        key: PRNGKey,
-        trace: Trace[ArrayLike],
-        flag: Flag,
-        problem: EditRequest,
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[ArrayLike], Weight, Retdiff[ArrayLike], EditRequest]:
-        old_value = trace.get_retval()
-        primals = Diff.tree_primal(argdiffs)
-        possible_trace, w, retdiff, bwd_request = self.edit(
-            key,
-            trace,
-            IncrementalGenericRequest(argdiffs, problem),
-        )
-        new_value = possible_trace.get_retval()
-        w = w * flag
-        bwd_request = MaskedRequest(flag, bwd_request)
-        new_trace = DistributionTrace(
-            self,
-            primals,
-            flag.where(new_value, old_value),
-            jnp.asarray(flag.where(possible_trace.get_score(), trace.get_score())),
-        )
-
-        return new_trace, w, retdiff, bwd_request
-
     def project(
         self,
         key: PRNGKey,
@@ -434,11 +344,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 
             case ChoiceMapConstraint():
                 return self.edit_constraint(key, trace, constraint, argdiffs)
-
-            case MaskedConstraint(flag, subproblem):
-                # TODO (#1239): see if `MaskedProblem` can handle this edit,
-                # without infecting all of `Distribution`
-                return self.edit_masked(key, trace, flag, subproblem, argdiffs)  # pyright: ignore[reportAttributeAccessIssue]
 
             case _:
                 raise Exception(f"Not implement fwd problem: {constraint}.")
