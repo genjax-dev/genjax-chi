@@ -296,7 +296,7 @@ def simulate_transform(source_fn):
 @dataclass
 class IncrementalGenericRequestHandler(StaticHandler):
     key: PRNGKey
-    previous_trace: Trace[Any]
+    previous_trace: StaticTrace[Any]
     constraint: ChoiceMapConstraint
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
@@ -326,7 +326,6 @@ class IncrementalGenericRequestHandler(StaticHandler):
 
     def get_subtrace(
         self,
-        sub_gen_fn: GenerativeFunction[Any],
         addr: StaticAddress,
     ):
         return self.previous_trace.get_subtrace(addr)
@@ -342,7 +341,7 @@ class IncrementalGenericRequestHandler(StaticHandler):
     ):
         argdiffs: Argdiffs = args
         self.visit(addr)
-        subtrace = self.get_subtrace(gen_fn, addr)
+        subtrace = self.get_subtrace(addr)
         constraint = self.get_subconstraint(addr)
         self.key, sub_key = jax.random.split(self.key)
         (tr, w, retval_diff, bwd_request) = gen_fn.edit(
@@ -369,7 +368,7 @@ def incremental_generic_request_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
         key: PRNGKey,
-        previous_trace: Trace[R],
+        previous_trace: StaticTrace[R],
         constraint: ChoiceMapConstraint,
         diffs: tuple[Any, ...],
     ):

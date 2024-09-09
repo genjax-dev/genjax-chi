@@ -160,15 +160,6 @@ class MaskedConstraint(Constraint):
     flag: Flag
     constraint: Constraint
 
-
-@Pytree.dataclass
-class SumConstraint(Constraint):
-    """
-    A `SumConstraint` encodes that one of a set of possible constraints is active _at runtime_, using a provided index.
-
-    Formally, `SumConstraint(idx: IntArray, cs: List[Constraint])` represents the constraint (`x` $\\mapsto$ `xs[idx]`, `ys[idx]`).
-    """
-
     idx: IntArray
     constraint: list[Constraint]
 
@@ -226,12 +217,6 @@ class MaskedRequest(EditRequest):
                 )
 
 
-@Pytree.dataclass
-class SumRequest(EditRequest):
-    idx: Int | IntArray
-    problems: list[EditRequest]
-
-
 @Pytree.dataclass(match_args=True)
 class IncrementalGenericRequest(EditRequest):
     argdiffs: Argdiffs
@@ -275,11 +260,14 @@ class ChoiceMapConstraint(Constraint, ChoiceMap):
     def get_submap(
         self,
         addr: ExtendedAddressComponent,
-    ) -> "ChoiceMap":
+    ) -> ChoiceMap:
         return ChoiceMapConstraint(self.choice_map.get_submap(addr))
 
     def get_value(self) -> Any:
         return self.choice_map.get_value()
+
+    def static_is_empty(self):
+        return self.choice_map.static_is_empty()
 
 
 @Pytree.dataclass
@@ -289,11 +277,14 @@ class ChoiceMapSample(Sample, ChoiceMap):
     def get_submap(
         self,
         addr: ExtendedAddressComponent,
-    ) -> "ChoiceMap":
+    ) -> ChoiceMap:
         return ChoiceMapSample(self.choice_map.get_submap(addr))
 
     def get_value(self) -> Any:
         return self.choice_map.get_value()
+
+    def static_is_empty(self):
+        return self.choice_map.static_is_empty()
 
 
 @Pytree.dataclass(match_args=True)
@@ -616,7 +607,7 @@ class GenerativeFunction(Generic[R], Pytree):
     @abstractmethod
     def assess(
         self,
-        sample: "genjax.ChoiceMap",
+        sample: Sample,
         args: Arguments,
     ) -> tuple[Score, R]:
         """
@@ -670,7 +661,7 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        projection: Projection,
+        projection: Projection[Any],
     ) -> Weight:
         raise NotImplementedError
 

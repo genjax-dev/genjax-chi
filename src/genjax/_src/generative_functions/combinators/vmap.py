@@ -28,7 +28,6 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    ImportanceRequest,
     IncrementalGenericRequest,
     Projection,
     R,
@@ -222,13 +221,13 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
     ) -> Weight:
         raise NotImplementedError
 
-    def update_choice_map(
+    def edit_choice_map_constraint(
         self,
         key: PRNGKey,
-        prev: VmapTrace[R],
-        edit_request: ChoiceMap,
+        trace: VmapTrace[R],
+        constraint: ChoiceMapConstraint,
         argdiffs: Argdiffs,
-    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], ChoiceMap]:
+    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
         primals = Diff.tree_primal(argdiffs)
         self._static_check_broadcastable(primals)
         broadcast_dim_length = self._static_broadcast_dim_length(primals)
@@ -236,42 +235,33 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
         def _update(key, idx, subtrace, argdiffs):
-            subproblem = edit_request(idx)
+            subconstraint = constraint(idx)
             new_subtrace, w, retdiff, bwd_request = self.gen_fn.edit(
-                key, subtrace, IncrementalGenericRequest(argdiffs, subproblem)
+                key, subtrace, IncrementalGenericRequest(argdiffs, subconstraint)
             )
-            return new_subtrace, w, retdiff, ChoiceMap.entry(bwd_request, idx)
+            inner_chm_constraint = bwd_request.constraint
+            return (
+                new_subtrace,
+                w,
+                retdiff,
+                ChoiceMapConstraint(ChoiceMap.entry(inner_chm_constraint, idx)),
+            )
 
-        new_subtraces, w, retdiff, bwd_requests = jax.vmap(
+        new_subtraces, w, retdiff, bwd_constraints = jax.vmap(
             _update, in_axes=(0, 0, 0, self.in_axes)
-        )(sub_keys, idx_array, prev.inner, argdiffs)
+        )(sub_keys, idx_array, trace.inner, argdiffs)
         w = jnp.sum(w)
         retval = new_subtraces.get_retval()
         scores = new_subtraces.get_score()
         map_tr = VmapTrace(self, new_subtraces, primals, retval, jnp.sum(scores))
-        return map_tr, w, retdiff, bwd_requests
-
-    def edit_change_target(
-        self,
-        key: PRNGKey,
-        trace: Trace[R],
-        edit_request: EditRequest,
-        argdiffs: Argdiffs,
-    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
-        match edit_request:
-            case ChoiceMap():
-                assert isinstance(
-                    trace, VmapTrace
-                ), "To change the target with a ChoiceMap, a VmapTrace is required here"
-                return self.update_choice_map(key, trace, edit_request, argdiffs)
-
-            case ImportanceRequest(constraint) if isinstance(
-                constraint, ChoiceMap
-            ) and isinstance(trace, EmptyTrace):
-                return self.update_importance(key, constraint, argdiffs)
-
-            case _:
-                raise Exception(f"Not implemented problem: {edit_request}")
+        return (
+            map_tr,
+            w,
+            retdiff,
+            IncrementalGenericRequest(
+                Diff.tree_diff_unknown_change(trace.get_args()), bwd_constraints
+            ),
+        )
 
     def edit(
         self,
@@ -279,13 +269,17 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         edit_request: EditRequest,
     ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
-        match edit_request:
-            case IncrementalGenericRequest(argdiffs, subproblem):
-                return self.edit_change_target(key, trace, subproblem, argdiffs)
-            case _:
-                return self.edit_change_target(
-                    key, trace, edit_request, Diff.no_change(trace.get_args())
-                )
+        assert isinstance(trace, VmapTrace)
+        assert isinstance(edit_request, IncrementalGenericRequest), type(edit_request)
+        constraint = edit_request.constraint
+        assert isinstance(constraint, ChoiceMapConstraint)
+        argdiffs = edit_request.argdiffs
+        return self.edit_choice_map_constraint(
+            key,
+            trace,
+            constraint,
+            argdiffs,
+        )
 
     def assess(
         self,

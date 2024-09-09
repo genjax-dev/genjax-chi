@@ -19,11 +19,11 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     ChoiceMap,
     ChoiceMapConstraint,
+    ChoiceMapSample,
     EditRequest,
     GenerativeFunction,
     IncrementalGenericRequest,
     Mask,
-    MaskedSample,
     Projection,
     Retdiff,
     Score,
@@ -31,6 +31,7 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.generative.core import Constraint
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import Flag
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -49,14 +50,16 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     inner: Trace[R]
     check: Flag
 
-    def get_args(self) -> tuple[Flag, Any]:
+    def get_args(self) -> tuple[Any, ...]:
         return (self.check, *self.inner.get_args())
 
     def get_gen_fn(self):
         return self.mask_combinator
 
-    def get_sample(self) -> MaskedSample:
-        return MaskedSample(self.check, self.inner.get_sample())
+    def get_sample(self) -> ChoiceMapSample:
+        inner_chm_sample = self.inner.get_sample()
+        assert isinstance(inner_chm_sample, ChoiceMapSample)
+        return ChoiceMapSample(inner_chm_sample.mask(self.check))
 
     def get_choices(self) -> ChoiceMap:
         inner_choice_map = self.inner.get_choices()
@@ -134,12 +137,12 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         check = Flag.as_flag(check)
 
         tr, w = self.gen_fn.generate(key, constraint, inner_args)
-        return MaskTrace(self, tr, check), w * check
+        return MaskTrace(self, tr, check), w * check.f
 
     def project(
         self,
         key: PRNGKey,
-        trace: Trace[R],
+        trace: Trace[Mask[R]],
         projection: Projection[Any],
     ) -> Weight:
         raise NotImplementedError
@@ -154,6 +157,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         assert isinstance(edit_request, IncrementalGenericRequest)
         argdiffs = edit_request.argdiffs
         (check_arg, *rest) = argdiffs
+        check_arg = Diff.tree_primal(check_arg)
         inner_trace = trace.inner
         subrequest = IncrementalGenericRequest(tuple(rest), edit_request.constraint)
         edited_trace, weight, retdiff, bwd_move = inner_trace.edit(key, subrequest)
@@ -191,18 +195,18 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
         check = trace.check
         final_trace = jtu.tree_map(
-            lambda v1, v2: jnp.where(check_arg, v1, v2), edited_trace, inner_trace
+            lambda v1, v2: jnp.where(check_arg.f, v1, v2), edited_trace, inner_trace
         )
         inner_chm = bwd_move.constraint.choice_map
         return (
             MaskTrace(self, final_trace, trace.check),
-            (check and check_arg) * weight
-            + (check and not check_arg) * (-inner_trace.get_score())
-            + (not check and not check_arg) * 0.0
-            + (not check and check_arg) * final_trace.get_score(),
-            retdiff,
+            check.and_(check_arg).f * weight
+            + (check.and_(check_arg.not_())).f * (-inner_trace.get_score())
+            + check.not_().and_(check_arg.not_()).f * 0.0
+            + check.not_().and_(check_arg).f * final_trace.get_score(),
+            Mask(Diff.tree_diff_unknown_change(check_arg), retdiff),
             IncrementalGenericRequest(
-                trace.get_args(),
+                Diff.tree_diff_unknown_change(trace.get_args()),
                 ChoiceMapConstraint(inner_chm.mask(check_arg)),
             ),
         )

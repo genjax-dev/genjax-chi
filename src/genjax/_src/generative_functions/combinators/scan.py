@@ -62,17 +62,17 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
     def get_retval(self) -> tuple[Carry, Y]:
         return self.retval
 
+    def get_choices(self) -> ChoiceMap:
+        return jax.vmap(
+            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_choices(), idx),
+        )(jnp.arange(self.inner.get_score().shape[0]), self.inner)
+
     def get_sample(self) -> ChoiceMapSample:
         return ChoiceMapSample(
             jax.vmap(
                 lambda idx, subtrace: ChoiceMap.entry(subtrace.get_sample(), idx),
             )(jnp.arange(self.inner.get_score().shape[0]), self.inner)
         )
-
-    def get_choices(self) -> ChoiceMap:
-        return jax.vmap(
-            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_choices(), idx),
-        )(jnp.arange(self.inner.get_score().shape[0]), self.inner)
 
     def get_gen_fn(self):
         return self.scan_gen_fn

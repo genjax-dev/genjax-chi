@@ -29,7 +29,6 @@ from genjax._src.core.generative import (
     Retdiff,
     Sample,
     Score,
-    SumRequest,
     Trace,
     Weight,
 )
@@ -271,9 +270,10 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
+        sample = sample if isinstance(sample, Sample) else ChoiceMapSample(sample)
         idx, branch_args = args[0], args[1:]
         self.static_check_num_arguments_equals_num_branches(branch_args)
 
@@ -613,11 +613,17 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         if Diff.tree_tangent(idx_argdiff) == UnknownChange:
             w = w + (score - trace.get_score())
 
+        # TODO: this is totally wrong, fix in future PR.
+        bwd_request = IncrementalGenericRequest(
+            Diff.tree_diff_unknown_change(trace.get_args()),
+            bwd_requests[0].constraint,
+        )
+
         return (
             SwitchTrace(self, primals, subtraces, retval, score),
             w,
             retdiff,
-            SumRequest(idx, bwd_requests),
+            bwd_request,
         )
 
     def edit(

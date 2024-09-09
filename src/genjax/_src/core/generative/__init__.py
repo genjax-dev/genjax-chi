@@ -47,8 +47,6 @@ from .core import (
     Sample,
     Score,
     SelectionProjection,
-    SumConstraint,
-    SumRequest,
     Trace,
     Weight,
 )
@@ -89,8 +87,6 @@ __all__ = [
     "SelectionProjection",
     "StaticAddress",
     "StaticAddressComponent",
-    "SumConstraint",
-    "SumRequest",
     "Trace",
     "Weight",
 ]
