@@ -1105,6 +1105,34 @@ class ChoiceMap(Sample, Constraint):
                 acc = IdxChm.build(acc, addr)
         return acc
 
+    def mask(self, f: Flag) -> "ChoiceMap":
+        """
+        Returns a new ChoiceMap with values masked by a boolean flag.
+
+        This method creates a new ChoiceMap where the values are conditionally
+        included based on the provided flag. If the flag is True, the original
+        values are retained; if False, the ChoiceMap behaves as if it's empty.
+
+        Args:
+            f: A boolean flag determining whether to include the values.
+
+        Returns:
+            A new ChoiceMap with values conditionally masked.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="choicemap"
+            from genjax._src.core.interpreters.staging import Flag
+
+            original_chm = ChoiceMap.value(42)
+            masked_chm = original_chm.mask(True)
+            assert masked_chm.get_value() == 42
+
+            masked_chm = original_chm.mask(False)
+            assert masked_chm.get_value() is None
+            ```
+        """
+        return MaskChm.build(self, f)
+
     def merge(self, other: "ChoiceMap") -> "ChoiceMap":
         """
         Merges this ChoiceMap with another ChoiceMap.
@@ -1560,10 +1588,10 @@ class MaskChm(ChoiceMap):
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         base_chm = ChoiceMap.value(10)
-        mask_chm = base_chm.mask(Flag(True))
+        mask_chm = base_chm.mask(True)
         assert mask_chm.get_value() == 10
 
-        mask_chm = base_chm.mask(Flag(False))
+        mask_chm = base_chm.mask(False)
         assert mask_chm.get_value() is None
         assert mask_chm.static_is_empty() is True
         ```
