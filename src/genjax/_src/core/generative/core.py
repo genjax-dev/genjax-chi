@@ -132,8 +132,6 @@ class MaskedSample(Sample):
 class Constraint(Pytree):
     """
     Constraints represent a request to force a value to satisfy a predicate.
-
-    Constraints can also be used to construct `ImportanceProblem` instances, which are used to implement the [`importance`][genjax.core.GenerativeFunction.importance] interface. This interface implements a restricted SMCP3 move, from the empty target, to the target induced by the constraint.
     """
 
 
