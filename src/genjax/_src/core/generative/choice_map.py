@@ -34,8 +34,8 @@ from genjax._src.core.typing import (
     BoolArray,
     EllipsisType,
     Final,
-    Generic,
     Flag,
+    Generic,
     String,
     TypeVar,
 )
@@ -1320,10 +1320,11 @@ class IdxChm(ChoiceMap):
                 # update of a scan GF with an array of shape (0,) or (0, ...)
                 return ChoiceMap.empty()
 
-            if check_array.shape:
-                return jtu.tree_map(lambda v: v[addr], self.c).mask(check[addr])
-            else:
-                return self.c.mask(check)
+            return (
+                MaskChm.build(jtu.tree_map(lambda v: v[addr], self.c), check[addr])
+                if check_array.shape
+                else self.c.mask(check)
+            )
 
 
 @Pytree.dataclass
