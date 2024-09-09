@@ -1514,6 +1514,8 @@ class FilteredChm(ChoiceMap):
 
 
 # TODO clamp switch inputs?
+# TODO handle ellipsis in StaticChm correctly
+# TODO make the isinstance check first, so we can get a concrete true if possible
 
 # In [6]: ChoiceMap.value("x").mask(Flag(jnp.all(1 == 1))).mask(Flag(jnp.all(1==1)))
 # Out[6]:
