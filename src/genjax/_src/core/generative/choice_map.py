@@ -50,7 +50,7 @@ ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressCompon
 ExtendedAddress = tuple[()] | tuple[ExtendedAddressComponent, ...]
 
 T = TypeVar("T")
-K_addr = TypeVar("K_addr", bound=ExtendedAddressComponent | ExtendedAddress)
+K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
 
 ##############
 # Selections #
@@ -477,7 +477,7 @@ class StaticSel(Selection):
         return Flag(False)
 
     def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
-        if isinstance(addr, EllipsisType):
+        if addr is Ellipsis:
             return self.s
         else:
             check = Flag(addr == self.addr)
@@ -525,7 +525,7 @@ class IdxSel(Selection):
         return Flag(False)
 
     def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
-        if isinstance(addr, EllipsisType):
+        if addr is Ellipsis:
             return self.s
 
         if not isinstance(addr, DynamicAddressComponent):
@@ -713,17 +713,13 @@ class ChoiceMapNoValueAtAddress(Exception):
 
 class _ChoiceMapBuilder:
     choice_map: "ChoiceMap | None"
-    addrs: list[ExtendedAddressComponent]
+    addrs: list[AddressComponent]
 
-    def __init__(
-        self, choice_map: "ChoiceMap | None", addrs: list[ExtendedAddressComponent]
-    ):
+    def __init__(self, choice_map: "ChoiceMap | None", addrs: list[AddressComponent]):
         self.choice_map = choice_map
         self.addrs = addrs
 
-    def __getitem__(
-        self, addr: ExtendedAddressComponent | ExtendedAddress
-    ) -> "_ChoiceMapBuilder":
+    def __getitem__(self, addr: AddressComponent | Address) -> "_ChoiceMapBuilder":
         addr = addr if isinstance(addr, tuple) else (addr,)
         return _ChoiceMapBuilder(
             self.choice_map,
@@ -881,7 +877,7 @@ class ChoiceMap(Sample, Constraint):
         return ValueChm(v)
 
     @staticmethod
-    def entry(v: Any, *addrs: ExtendedAddressComponent) -> "ChoiceMap":
+    def entry(v: Any, *addrs: AddressComponent) -> "ChoiceMap":
         """
         Creates a ChoiceMap with a single value at a specified address.
 
@@ -1034,7 +1030,7 @@ class ChoiceMap(Sample, Constraint):
         """
         return self.filter(Selection.all().mask(f))
 
-    def extend(self, *addrs: ExtendedAddressComponent) -> "ChoiceMap":
+    def extend(self, *addrs: AddressComponent) -> "ChoiceMap":
         """
         Returns a new ChoiceMap with the given address component as its root.
 
@@ -1057,7 +1053,7 @@ class ChoiceMap(Sample, Constraint):
         """
         acc = self
         for addr in reversed(addrs):
-            if isinstance(addr, ExtendedStaticAddressComponent):
+            if isinstance(addr, StaticAddressComponent):
                 acc = StaticChm.build(acc, addr)
             else:
                 acc = IdxChm.build(acc, addr)
@@ -1329,12 +1325,12 @@ class StaticChm(ChoiceMap):
     """
 
     c: ChoiceMap = Pytree.field()
-    addr: ExtendedStaticAddressComponent = Pytree.static()
+    addr: StaticAddressComponent = Pytree.static()
 
     @staticmethod
     def build(
         c: ChoiceMap,
-        addr: ExtendedStaticAddressComponent,
+        addr: StaticAddressComponent,
     ) -> ChoiceMap:
         match c:
             case EmptyChm():
@@ -1539,7 +1535,7 @@ class FilteredChm(ChoiceMap):
         return submap.filter(subselection)
 
 
-# TODO figure out the ellipsis thing:
+# TODO figure out the ellipsis thing. can an ellipsis come in to a Selection ctor?
 
 # In [21]: C[...].set(1.0)(...)
 # Out[21]: ValueChm(v=1.0)
@@ -1556,9 +1552,18 @@ class FilteredChm(ChoiceMap):
 # In [25]: S[...]("x")
 # Out[25]: NoneSel()
 
+# @ Ffrom Colin
+
+# ch[...,'x'] reveals the array of sampled values for x. Nice!
+# u = C[...,'x'].set(jnp.arange(10.0) + 1.0) looks like it works. The naive user thinks that what worked to get, will work to set.
+# tru, w, _, _ = tr.update(jax.random.PRNGKey(1), u) ? It seems to work but w = 0! and the trace is not updated at all!
+
+# But if we v = C[jnp.arange(10), 'x'].set(jnp.arange(10.0) + 1.0) and update with that, the update happens, and we get a nonzero weight.
+# Looking at the data: ch[…,'x'] produces a StaticChm (wrong), while ch[jnp.arange(10), 'x'] produces an IdxChm (correct).
+# So when you say you want to banish Ellipsis from IdxChm, that seems wrong: I wish it just looked at the length of the array and inferred the arange
+
 
 # TODO clamp switch inputs?
-# TODO handle ellipsis in StaticChm correctly
 # TODO make the isinstance check first, so we can get a concrete true if possible
 # TODO can we make `Idx` and friends into FilteredChm?
 
