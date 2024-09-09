@@ -181,45 +181,51 @@ class TestChoiceMapBuilder:
         assert "a" not in chm
         assert "b" in chm("a")
 
-    # def test_nested_set(self):
-    #     chm = C["x"].set(C["y"].set(2))
-    #     assert chm["x", "y"] == 2
-    #     assert ("x", "y") in chm
-    #     assert "y" not in chm
+    def test_nested_set(self):
+        chm = C["x"].set(C["y"].set(2))
+        assert chm["x", "y"] == 2
+        assert ("x", "y") in chm
+        assert "y" not in chm
 
-    # def test_call(self):
-    #     chm = C["f"](1, 2, x=3)
-    #     assert chm["f", "args", 0] == 1
-    #     assert chm["f", "args", 1] == 2
-    #     assert chm["f", "kwargs", "x"] == 3
+    def test_empty(self):
+        assert C.n() == ChoiceMap.empty()
 
-    # def test_getitem(self):
-    #     chm = C["list"][0].set(5)
-    #     assert chm["list", 0] == 5
-    #     assert "list" in chm
-    #     assert 0 in chm["list"]
+        # n() at any level returns the empty choice map
+        assert C["x", "y"].n() == ChoiceMap.empty()
 
-    # def test_combine_methods(self):
-    #     chm = C["a"].set(1) ^ C["b"](2) ^ C["c"][0].set(3)
-    #     assert chm["a"] == 1
-    #     assert chm["b", "args", 0] == 2
-    #     assert chm["c", 0] == 3
+    def test_v_matches_set(self):
+        assert C["a", "b"].set(1) == C["a", "b"].v(1)
 
-    # def test_extend(self):
-    #     chm = C["x"].extend("y").set(4)
-    #     assert chm["x", "y"] == 4
-    #     assert "x" in chm
-    #     assert "y" in chm["x"]
+        inner = C["y"].v(2)
 
-    # def test_complex_nesting(self):
-    #     chm = C["a"].set(C["b"](C["c"][0].set(5)))
-    #     assert chm["a", "b", "args", 0, "c", 0] == 5
-    #     assert "a" in chm
-    #     assert "b" in chm["a"]
-    #     assert "args" in chm["a", "b"]
-    #     assert 0 in chm["a", "b", "args"]
-    #     assert "c" in chm["a", "b", "args", 0]
-    #     assert 0 in chm["a", "b", "args", 0, "c"]
+        # .v on a ChoiceMap wraps the choicemap in ValueChm (not advisable!)
+        assert C["x"].v(inner)("x").get_value() == inner
+
+    def test_from_mapping(self):
+        mapping = [("a", 1.0), (("b", "c"), 2.0), (("b", "d", "e"), 3.0)]
+        chm = C["base"].from_mapping(mapping)
+        assert chm["base", "a"] == 1
+        assert chm["base", "b", "c"] == 2
+        assert chm["base", "b", "d", "e"] == 3
+
+        assert ("base", "a") in chm
+        assert ("base", "b", "c") in chm
+        assert ("b", "c") in chm("base")
+
+    def test_d(self):
+        chm = C["top"].d({
+            "x": 3,
+            "y": C["middle"].d({"z": 4, "w": C["bottom"].d({"v": 5})}),
+        })
+        assert chm["top", "x"] == 3
+        assert chm["top", "y", "middle", "z"] == 4
+        assert chm["top", "y", "middle", "w", "bottom", "v"] == 5
+
+    def test_kw(self):
+        chm = C["root"].kw(a=1, b=C["nested"].kw(c=2, d=C["deep"].kw(e=3)))
+        assert chm["root", "a"] == 1
+        assert chm["root", "b", "nested", "c"] == 2
+        assert chm["root", "b", "nested", "d", "deep", "e"] == 3
 
 
 class TestChoiceMap:
