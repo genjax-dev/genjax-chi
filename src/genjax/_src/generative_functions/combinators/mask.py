@@ -40,6 +40,7 @@ from genjax._src.core.typing import (
     Flag,
     Generic,
     PRNGKey,
+    ScalarFlag,
     TypeVar,
 )
 
@@ -50,7 +51,7 @@ R = TypeVar("R")
 class MaskTrace(Generic[R], Trace[Mask[R]]):
     mask_combinator: "MaskCombinator[R]"
     inner: Trace[R]
-    check: Flag
+    check: ScalarFlag
 
     def get_args(self) -> tuple[Flag, Any]:
         return (self.check, *self.inner.get_args())
