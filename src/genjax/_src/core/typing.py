@@ -61,13 +61,9 @@ Value = Any
 # Trace-time-checked primitives #
 #################################
 
-
-def is_scalar_shaped(arr: object) -> bool:
-    return jnp.array(arr, copy=False).shape == ()
-
-
-ScalarShaped = Is[is_scalar_shaped]
+ScalarShaped = Is[lambda arr: jnp.array(arr, copy=False).shape == ()]
 ScalarFlag = Annotated[Flag, ScalarShaped]
+
 
 ############
 # Generics #

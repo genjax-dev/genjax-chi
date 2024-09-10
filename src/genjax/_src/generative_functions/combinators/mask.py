@@ -13,10 +13,7 @@
 # limitations under the License.
 
 
-from typing import Annotated
-
 import jax.numpy as jnp
-from beartype.vale import Is
 
 from genjax._src.core.generative import (
     Argdiffs,
@@ -43,12 +40,11 @@ from genjax._src.core.typing import (
     Flag,
     Generic,
     PRNGKey,
+    ScalarFlag,
     TypeVar,
-    is_scalar_shaped,
 )
 
 R = TypeVar("R")
-ScalarFlag = Annotated[Flag, Is[lambda flag: is_scalar_shaped(flag.f)]]
 
 
 @Pytree.dataclass
