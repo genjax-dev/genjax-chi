@@ -218,7 +218,7 @@ class Selection(ProjectProblem):
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             leaf_selection = Selection.leaf().extend("a", "b")
             assert leaf_selection["a", "b"]
-            assert not leaf_selection["a", 'b", "anything"]
+            assert not leaf_selection["a", "b", "anything"]
             ```
         """
         return LeafSel()
