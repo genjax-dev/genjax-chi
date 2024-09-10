@@ -861,8 +861,6 @@ class GenerativeFunction(Generic[R], Pytree):
         /,
         *,
         n: Int | None = None,
-        reverse: bool = False,
-        unroll: int | bool = 1,
     ) -> "GenerativeFunction[tuple[Carry, Y]]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)`, returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])` where
@@ -895,10 +893,6 @@ class GenerativeFunction(Generic[R], Pytree):
 
         Args:
             n: optional integer specifying the number of loop iterations, which (if supplied) must agree with the sizes of leading axes of the arrays in the returned function's second argument. If supplied then the returned generative function can take `None` as its second argument.
-
-            reverse: optional boolean specifying whether to run the scan iteration forward (the default) or in reverse, equivalent to reversing the leading axes of the arrays in both `xs` and in `ys`.
-
-            unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many scan iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
 
         Returns:
             A new [`genjax.GenerativeFunction`][] that takes a loop-carried value and a new input, and returns a new loop-carried value along with either `None` or an output to be collected into the second return value.
@@ -949,11 +943,9 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.scan(n=n, reverse=reverse, unroll=unroll)(self)
+        return genjax.scan(n=n)(self)
 
-    def accumulate(
-        self, /, *, reverse: bool = False, unroll: int | bool = 1
-    ) -> "GenerativeFunction[R]":
+    def accumulate(self) -> "GenerativeFunction[R]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `(c, a) -> c`, returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> [c]` where
 
@@ -981,11 +973,6 @@ class GenerativeFunction(Generic[R], Pytree):
 
         The loop-carried value `c` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `c` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
 
-        Args:
-            reverse: optional boolean specifying whether to run the accumulation forward (the default) or in reverse, equivalent to reversing the leading axes of the arrays in both `xs` and in `carries`.
-
-            unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
-
         Examples:
             ```python exec="yes" html="true" source="material-block" session="scan"
             import jax
@@ -1010,11 +997,9 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.accumulate(reverse=reverse, unroll=unroll)(self)
+        return genjax.accumulate()(self)
 
-    def reduce(
-        self, /, *, reverse: bool = False, unroll: int | bool = 1
-    ) -> "GenerativeFunction[R]":
+    def reduce(self) -> "GenerativeFunction[R]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `(c, a) -> c`, returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> c` where
 
@@ -1038,11 +1023,6 @@ class GenerativeFunction(Generic[R], Pytree):
         Unlike that Python version, both `xs` and `carry` may be arbitrary pytree values, and so multiple arrays can be scanned over at once and produce multiple output arrays.
 
         The loop-carried value `c` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `c` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
-
-        Args:
-            reverse: optional boolean specifying whether to run the accumulation forward (the default) or in reverse, equivalent to reversing the leading axis of the array `xs`.
-
-            unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
 
         Examples:
             sum an array of numbers:
@@ -1069,9 +1049,9 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.reduce(reverse=reverse, unroll=unroll)(self)
+        return genjax.reduce()(self)
 
-    def iterate(self, /, *, n: Int, unroll: int | bool = 1) -> "GenerativeFunction[R]":
+    def iterate(self, /, *, n: Int) -> "GenerativeFunction[R]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `a -> a`, returns a new [`genjax.GenerativeFunction`][] of type `a -> [a]` where
 
@@ -1099,8 +1079,6 @@ class GenerativeFunction(Generic[R], Pytree):
         Args:
             n: the number of iterations to run.
 
-            unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
-
         Examples:
             iterative addition, returning all intermediate sums:
             ```python exec="yes" html="true" source="material-block" session="scan"
@@ -1123,11 +1101,9 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.iterate(n=n, unroll=unroll)(self)
+        return genjax.iterate(n=n)(self)
 
-    def iterate_final(
-        self, /, *, n: Int, unroll: int | bool = 1
-    ) -> "GenerativeFunction[R]":
+    def iterate_final(self, /, *, n: Int) -> "GenerativeFunction[R]":
         """
         Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a` where
 
@@ -1153,8 +1129,6 @@ class GenerativeFunction(Generic[R], Pytree):
             Args:
                 n: the number of iterations to run.
 
-            unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
-
         Examples:
             iterative addition:
             ```python exec="yes" html="true" source="material-block" session="scan"
@@ -1177,7 +1151,7 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.iterate_final(n=n, unroll=unroll)(self)
+        return genjax.iterate_final(n=n)(self)
 
     def mask(self, /) -> "GenerativeFunction[genjax.Mask[R]]":
         """
