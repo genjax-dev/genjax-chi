@@ -245,12 +245,86 @@ class Marginal(Generic[R], SampleDistribution[R]):
 
             return (Z, latent_choices)
 
+
     def estimate_logpdf(
         self,
         key: PRNGKey,
         v: ChoiceMap,
         *args,
     ) -> Weight:
+        if self.algorithm is None:
+            _, weight = self.gen_fn.importance(key, v, args)
+            return weight
+        else:
+            target = Target(self.gen_fn, args, v)
+            Z = self.algorithm.estimate_normalizing_constant(key, target)
+            return Z
+
+
+@Pytree.dataclass
+class ExactMarginal(Generic[R], SampleDistribution[R]):
+    """The `Marginal` class represents the marginal distribution of a generative function over a selection of addresses. The return value type is a subtype of `Sample`.
+    """
+
+    gen_fn: GenerativeFunction[R]
+    selection: Selection = Pytree.field(default=Selection.all())
+    algorithm: Algorithm | None = Pytree.field(default=None)
+
+    def random_weighted(
+        self,
+        key: PRNGKey,
+        *args,
+    ) -> tuple[FloatArray, ChoiceMap]:
+        key, sub_key = jax.random.split(key)
+        tr = self.gen_fn.simulate(sub_key, args)
+        choices: ChoiceMap = tr.get_choices()
+        latent_choices = choices.filter(self.selection)
+        marginalised_choices = choices.filter(self.selection.__invert__())
+        choices.filter(self.selection)
+        key, sub_key = jax.random.split(key)
+        bwd_problem = ~self.selection
+        weight = tr.project(sub_key, bwd_problem)
+        if self.algorithm is None:
+            return weight, latent_choices
+        else:
+            target = Target(self.gen_fn, args, latent_choices)
+            other_choices = choices.filter(~self.selection)
+            Z = self.algorithm.estimate_reciprocal_normalizing_constant(
+                key, target, other_choices, weight
+            )
+
+            return (Z, latent_choices)
+
+
+    def estimate_logpdf(
+        self,
+        key: PRNGKey,
+        v: ChoiceMap,
+        *args,
+    ) -> Weight:
+        # Generate all possible combinations for marginalized variables
+        # TODO: this is wrong, need to get the list from the generative function, which is a superset of v.
+        marginalized_vars = v.filter(~self.selection)
+        
+        # Assuming we have a method to get all possible values for marginalized variables
+        # TODO: need to write get_all_combinations
+        all_combinations = self.gen_fn.get_all_combinations(key, marginalized_vars, *args)
+        
+        def compute_weight(combination):
+            # Combine the given choices with the current combination
+            full_choices = ChoiceMap.merge(v, combination)
+                 
+            # Calculate the weight for this combination
+            _, weight = self.gen_fn.importance(key, full_choices, args)
+            return weight
+
+        # Use vmap to compute weights for all combinations
+        weights = jax.vmap(compute_weight)(all_combinations)
+        
+        # Sum the exponentiated weights and take the log
+        total_weight = jnp.log(jnp.sum(jnp.exp(weights)))
+        
+        return total_weight
         if self.algorithm is None:
             _, weight = self.gen_fn.importance(key, v, args)
             return weight
@@ -273,6 +347,21 @@ def marginal(
         gen_fn: GenerativeFunction[R],
     ) -> Marginal[R]:
         return Marginal(
+            gen_fn,
+            selection,
+            algorithm,
+        )
+
+    return decorator
+
+def exactmarginal(
+    selection: Selection = Selection.all(),
+    algorithm: Algorithm | None = None,
+) -> Callable[[GenerativeFunction[R]], ExactMarginal[R]]:
+    def decorator(
+        gen_fn: GenerativeFunction[R],
+    ) -> ExactMarginal[R]:
+        return ExactMarginal(
             gen_fn,
             selection,
             algorithm,
