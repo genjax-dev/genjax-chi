@@ -15,7 +15,7 @@
 import jax.numpy as jnp
 
 from genjax._src.core.generative import GenerativeFunction
-from genjax._src.core.typing import Any, ScalarBool, TypeVar
+from genjax._src.core.typing import Any, ScalarFlag, TypeVar
 
 R = TypeVar("R")
 
@@ -75,7 +75,7 @@ def or_else(
     """
 
     def argument_mapping(
-        b: ScalarBool, if_args: tuple[Any, ...], else_args: tuple[Any, ...]
+        b: ScalarFlag, if_args: tuple[Any, ...], else_args: tuple[Any, ...]
     ):
         # Note that `True` maps to 0 to select the "if" branch, `False` to 1.
         idx = jnp.array(jnp.logical_not(b), dtype=int)

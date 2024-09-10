@@ -80,6 +80,19 @@ class FlagOp:
         return jnp.logical_or(f, g)
 
     @staticmethod
+    def xor_(f: Flag, g: Flag) -> Flag:
+        # True xor X => ~X. False xor X => X.
+        if f is True:
+            return FlagOp.not_(g)
+        if f is False:
+            return g
+        if g is True:
+            return FlagOp.not_(f)
+        if g is False:
+            return f
+        return jnp.logical_xor(f, g)
+
+    @staticmethod
     def not_(f: Flag) -> Flag:
         if f is True:
             return False

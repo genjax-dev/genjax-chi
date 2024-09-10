@@ -65,9 +65,14 @@ class TestFlag:
                 assert not jnp.all(f)
                 assert not jnp.all(FlagOp.and_(t, f))
                 assert jnp.all(FlagOp.or_(t, f))
+                assert jnp.all(FlagOp.xor_(t, f))
             for u in true_flags:
                 assert jnp.all(FlagOp.and_(t, u))
                 assert jnp.all(FlagOp.or_(t, u))
+                assert not jnp.all(FlagOp.xor_(t, u))
+        for f1 in false_flags:
+            for f2 in false_flags:
+                assert not jnp.all(FlagOp.xor_(f1, f2))
 
     def test_where(self):
         assert FlagOp.where(True, 3.0, 4.0) == 3

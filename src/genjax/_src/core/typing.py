@@ -62,7 +62,7 @@ Value = Any
 #################################
 
 ScalarShaped = Is[lambda arr: jnp.array(arr, copy=False).shape == ()]
-ScalarBool = Annotated[Bool | BoolArray, ScalarShaped]
+ScalarFlag = Annotated[Flag, ScalarShaped]
 
 
 ############
@@ -124,7 +124,7 @@ __all__ = [
     "Is",
     "PRNGKey",
     "ParamSpec",
-    "ScalarBool",
+    "ScalarFlag",
     "ScalarShaped",
     "Self",
     "Sequence",
