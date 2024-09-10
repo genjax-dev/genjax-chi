@@ -13,9 +13,11 @@
 # limitations under the License.
 
 
+import jax
 import jax.numpy as jnp
 import pytest
 
+import genjax
 from genjax import ChoiceMap, Selection
 from genjax import ChoiceMapBuilder as C
 from genjax import SelectionBuilder as S
@@ -544,6 +546,34 @@ class TestChoiceMap:
         assert filtered_chm[0, "x"].unmask() == 1.0
         assert filtered_chm[1, "x"].unmask() == 2.0
         assert filtered_chm[2, "x"].unmask() == 3.0
+
+    def test_filtered_chm_update(self):
+        @genjax.gen
+        def f():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = genjax.normal(10.0, 1.0) @ "y"
+            return x, y
+
+        key = jax.random.PRNGKey(0)
+        tr = f.repeat(n=4).simulate(key, ())
+
+        xs = jnp.ones(4)
+        ys = 5 * jnp.ones(4)
+        constraint = C[jnp.arange(4)].set({"x": xs, "y": ys})
+        only_xs = constraint.filter(S[..., "x"])
+        only_ys = constraint.filter(S[..., "y"])
+
+        key, subkey = jax.random.split(key)
+        new_tr, _, _, _ = tr.update(subkey, only_xs)
+        new_choices = new_tr.get_choices()
+        assert jnp.array_equal(new_choices[..., "x"], xs)
+        assert not jnp.array_equal(new_choices[..., "y"], ys)
+
+        key, subkey = jax.random.split(key)
+        new_tr_2, _, _, _ = tr.update(subkey, only_ys)
+        new_choices_2 = new_tr_2.get_choices()
+        assert not jnp.array_equal(new_choices_2[..., "x"], xs)
+        assert jnp.array_equal(new_choices_2[..., "y"], ys)
 
     def test_choicemap_with_static_idx(self):
         chm = C[0].set({"x": 1.0, "y": 2.0})
