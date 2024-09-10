@@ -13,9 +13,11 @@
 # limitations under the License.
 
 
+import jax
 import jax.numpy as jnp
 import pytest
 
+import genjax
 from genjax import ChoiceMap, Selection
 from genjax import ChoiceMapBuilder as C
 from genjax import SelectionBuilder as S
@@ -37,6 +39,13 @@ class TestSelections:
         assert new["x", "y", "z"]
         assert not new["x"]
         assert not new["x", "y"]
+
+    def test_wildcard_selection(self):
+        sel = S["x"] | S[..., "y"]
+
+        assert sel["x"]
+        assert sel["any_address", "y"]
+        assert sel["rando", "y", "tail"]
 
     def test_selection_all(self):
         all_sel = Selection.all()
@@ -513,3 +522,62 @@ class TestChoiceMap:
         assert "y" in chm("x")
         assert ("x", "y") in chm
         assert "z" not in chm
+
+    def test_choicemap_filter_with_wildcard(self):
+        xs = jnp.array([1.0, 2.0, 3.0])
+        ys = jnp.array([4.0, 5.0, 6.0])
+        # Create a ChoiceMap with values at 'x' and 'y' addresses
+        chm = C[jnp.arange(3)].set({"x": xs, "y": ys})
+
+        # Create a Selection with a wildcard for 'x'
+        sel = S[..., "x"]
+
+        # Filter the ChoiceMap using the Selection
+        filtered_chm = chm.filter(sel)
+
+        # Assert that only 'x' values are present in the filtered ChoiceMap
+        assert jnp.all(filtered_chm[..., "x"] == jnp.array([1.0, 2.0, 3.0]))
+
+        # Assert that 'y' values are not present in the filtered ChoiceMap
+        with pytest.raises(ChoiceMapNoValueAtAddress):
+            filtered_chm[..., "y"]
+
+        # Assert that the structure of the filtered ChoiceMap is preserved
+        assert filtered_chm[0, "x"].unmask() == 1.0
+        assert filtered_chm[1, "x"].unmask() == 2.0
+        assert filtered_chm[2, "x"].unmask() == 3.0
+
+    def test_filtered_chm_update(self):
+        @genjax.gen
+        def f():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = genjax.normal(10.0, 1.0) @ "y"
+            return x, y
+
+        key = jax.random.PRNGKey(0)
+        tr = f.repeat(n=4).simulate(key, ())
+
+        xs = jnp.ones(4)
+        ys = 5 * jnp.ones(4)
+        constraint = C[jnp.arange(4)].set({"x": xs, "y": ys})
+        only_xs = constraint.filter(S[..., "x"])
+        only_ys = constraint.filter(S[..., "y"])
+
+        key, subkey = jax.random.split(key)
+        new_tr, _, _, _ = tr.update(subkey, only_xs)
+        new_choices = new_tr.get_choices()
+        assert jnp.array_equal(new_choices[..., "x"], xs)
+        assert not jnp.array_equal(new_choices[..., "y"], ys)
+
+        key, subkey = jax.random.split(key)
+        new_tr_2, _, _, _ = tr.update(subkey, only_ys)
+        new_choices_2 = new_tr_2.get_choices()
+        assert not jnp.array_equal(new_choices_2[..., "x"], xs)
+        assert jnp.array_equal(new_choices_2[..., "y"], ys)
+
+    def test_choicemap_with_static_idx(self):
+        chm = C[0].set({"x": 1.0, "y": 2.0})
+
+        # if the index is NOT an array (i.e. statically known) we get a static value out, not a mask.
+        assert chm[0, "x"] == 1.0
+        assert chm[0, "y"] == 2.0
