@@ -193,7 +193,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
         weight = (
             FlagOp.and_(check, check_arg) * weight
-            + (FlagOp.and_(check, FlagOp.not_(check_arg))) * (-inner_trace.get_score())
+            + FlagOp.and_(check, FlagOp.not_(check_arg)) * -inner_trace.get_score()
             + FlagOp.and_(FlagOp.not_(check), FlagOp.not_(check_arg)) * 0.0
             + FlagOp.and_(FlagOp.not_(check), check_arg) * final_trace.get_score()
         )

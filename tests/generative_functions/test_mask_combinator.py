@@ -67,6 +67,7 @@ class TestMaskCombinator:
         w = tr.update(key, argdiffs)[1]
         assert w == tr.inner.update(key, C.n())[1]
         assert w == 0.0
+
         # mask check arg transition: True --> False
         argdiffs = U.g(
             (
@@ -77,6 +78,31 @@ class TestMaskCombinator:
         )
         w = tr.update(key, argdiffs)[1]
         assert w == -tr.get_score()
+
+    def test_mask_update_weight_to_argdiffs_from_false(self, key):
+        # pre-update mask arg is False
+        tr = jax.jit(model.simulate)(key, (False, 2.0))
+
+        # mask check arg transition: False --> True
+        argdiffs = U.g(
+            (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1])),
+            C.n(),
+        )
+        w = tr.update(key, argdiffs)[1]
+        assert w == tr.inner.update(key, C.n())[1] + tr.inner.get_score()
+        assert w == tr.inner.update(key, C.n())[0].get_score()
+
+        # mask check arg transition: False --> False
+        argdiffs = U.g(
+            (
+                Diff.unknown_change(False),
+                Diff.no_change(tr.get_args()[1]),
+            ),
+            C.n(),
+        )
+        w = tr.update(key, argdiffs)[1]
+        assert w == 0.0
+        assert w == tr.get_score()
 
     def test_mask_vmap(self, key):
         @genjax.gen
@@ -98,29 +124,6 @@ class TestMaskCombinator:
         inner_scores = vmap_tr.inner.get_score()
         # score should be sum of sub-scores masked True
         assert tr.get_score() == inner_scores[0] + inner_scores[2]
-
-    def test_mask_update_weight_to_argdiffs_from_false(self, key):
-        # pre-update mask arg is False
-        tr = jax.jit(model.simulate)(key, (False, 2.0))
-        # mask check arg transition: False --> True
-        argdiffs = U.g(
-            (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1])),
-            C.n(),
-        )
-        w = tr.update(key, argdiffs)[1]
-        assert w == tr.inner.update(key, C.n())[1] + tr.inner.get_score()
-        assert w == tr.inner.update(key, C.n())[0].get_score()
-        # mask check arg transition: False --> False
-        argdiffs = U.g(
-            (
-                Diff.unknown_change(False),
-                Diff.no_change(tr.get_args()[1]),
-            ),
-            C.n(),
-        )
-        w = tr.update(key, argdiffs)[1]
-        assert w == 0.0
-        assert w == tr.get_score()
 
     def test_mask_scan_update(self, key):
         def masked_scan_combinator(step, **scan_kwargs):
