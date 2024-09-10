@@ -31,7 +31,6 @@ from genjax._src.core.generative import (
     GenerativeFunction,
     IncrementalGenericRequest,
     Mask,
-    MaskedConstraint,
     Projection,
     R,
     Retdiff,
@@ -150,29 +149,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 tr = DistributionTrace(self, args, v, w)
                 return tr, w
 
-    def generate_masked_constraint(
-        self,
-        key: PRNGKey,
-        constraint: MaskedConstraint,
-        args: tuple[Any, ...],
-    ) -> tuple[Trace[R], Weight]:
-        def simulate_branch(key, _, args):
-            tr = self.simulate(key, args)
-            return (tr, jnp.array(0.0))
-
-        def generate_branch(key, constraint, args):
-            tr, w = self.generate(key, constraint, args)
-            return (tr, w)
-
-        return jax.lax.cond(
-            constraint.flag.f,
-            generate_branch,
-            simulate_branch,
-            key,
-            constraint.constraint,
-            args,
-        )
-
     def generate(
         self,
         key: PRNGKey,
@@ -271,7 +247,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         ),
                     )
 
-                elif isinstance(constraint, FilteredChm):
+                elif isinstance(constraint.choice_map, FilteredChm):
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
                     def _true_branch(key, new_value: R, _):
