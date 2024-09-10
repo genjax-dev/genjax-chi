@@ -20,12 +20,13 @@ import jax.numpy as jnp
 from penzai.core import formatting_util
 
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import Flag, get_trace_shape
+from genjax._src.core.interpreters.staging import FlagOp, get_trace_shape
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Annotated,
     Any,
     Callable,
+    Flag,
     FloatArray,
     Generic,
     InAxes,
@@ -128,13 +129,13 @@ class MaskedProblem(UpdateProblem):
     def maybe_empty(f: Flag, problem: UpdateProblem):
         match problem:
             case MaskedProblem(flag, subproblem):
-                return MaskedProblem(f.and_(flag), subproblem)
+                return MaskedProblem(FlagOp.and_(f, flag), subproblem)
             case _:
                 return (
                     problem
-                    if f.concrete_true()
+                    if FlagOp.concrete_true(f)
                     else EmptyProblem()
-                    if f.concrete_false()
+                    if FlagOp.concrete_false(f)
                     else MaskedProblem(f, problem)
                 )
 

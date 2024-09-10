@@ -120,10 +120,8 @@ class TestSelections:
         ).mask(jnp.asarray(True))
 
     def test_selection_mask(self):
-        from genjax._src.core.interpreters.staging import Flag
-
         sel = S["x"] | S["y"]
-        masked_sel = sel.mask(Flag(jnp.asarray(True)))
+        masked_sel = sel.mask(jnp.asarray(True))
         assert masked_sel["x"]
         assert masked_sel["y"]
         assert not masked_sel["z"]
@@ -133,13 +131,13 @@ class TestSelections:
             sel & sel
         ).mask(jnp.asarray(False))
 
-        masked_sel = sel.mask(Flag(False))
+        masked_sel = sel.mask(False)
         assert not masked_sel["x"]
         assert not masked_sel["y"]
         assert not masked_sel["z"]
 
         # bool works like flags
-        assert sel.mask(Flag(True)) == sel.mask(True)
+        assert sel.mask(True) == sel.mask(True)
         assert sel.mask(False) == sel.mask(False)
 
     def test_selection_filter(self):
