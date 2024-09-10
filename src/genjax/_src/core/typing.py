@@ -52,6 +52,7 @@ InAxes = int | None | Sequence[Any]
 Int = int
 Float = float
 Bool = bool
+Flag = Bool | BoolArray
 String = str
 
 Value = Any
@@ -61,7 +62,7 @@ Value = Any
 #################################
 
 ScalarShaped = Is[lambda arr: jnp.array(arr, copy=False).shape == ()]
-ScalarBool = Annotated[Bool | BoolArray, ScalarShaped]
+ScalarFlag = Annotated[Flag, ScalarShaped]
 
 
 ############
@@ -112,6 +113,7 @@ __all__ = [
     "Callable",
     "EllipsisType",
     "Final",
+    "Flag",
     "Float",
     "FloatArray",
     "Generator",
@@ -122,7 +124,7 @@ __all__ = [
     "Is",
     "PRNGKey",
     "ParamSpec",
-    "ScalarBool",
+    "ScalarFlag",
     "ScalarShaped",
     "Self",
     "Sequence",

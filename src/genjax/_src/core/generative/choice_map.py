@@ -22,7 +22,10 @@ from beartype.typing import Iterable
 
 from genjax._src.core.generative.core import Constraint, ProjectProblem, Sample
 from genjax._src.core.generative.functional_types import Mask, staged_choose
-from genjax._src.core.interpreters.staging import Flag, staged_err
+from genjax._src.core.interpreters.staging import (
+    FlagOp,
+    staged_err,
+)
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -31,6 +34,7 @@ from genjax._src.core.typing import (
     BoolArray,
     EllipsisType,
     Final,
+    Flag,
     Generic,
     String,
     TypeVar,
@@ -120,8 +124,8 @@ class Selection(ProjectProblem):
         assert sel("z") == Selection.none()
 
         # Querying the selection using [] returns a `Flag` representing whether or not the input matches:
-        assert sel["x"].f == False
-        assert sel["x", "y"].f == True
+        assert sel["x"] == False
+        assert sel["x", "y"] == True
 
         # Querying the selection using "in" acts the same:
         assert not "x" in sel
@@ -167,7 +171,7 @@ class Selection(ProjectProblem):
             from genjax import Selection
 
             all_selection = Selection.all()
-            assert all_selection["any_address"].f == True
+            assert all_selection["any_address"] == True
             ```
         """
         return AllSel()
@@ -183,7 +187,7 @@ class Selection(ProjectProblem):
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             none_selection = Selection.none()
-            assert none_selection["any_address"].f == False
+            assert none_selection["any_address"] == False
             ```
         """
         return NoneSel()
@@ -201,7 +205,7 @@ class Selection(ProjectProblem):
     def __invert__(self) -> "Selection":
         return ComplementSel.build(self)
 
-    def mask(self, flag: Flag | bool | BoolArray) -> "Selection":
+    def mask(self, flag: Flag) -> "Selection":
         """
         Returns a new Selection that is conditionally applied based on a flag.
 
@@ -221,13 +225,12 @@ class Selection(ProjectProblem):
 
             base_selection = Selection.all()
             maybe_selection = base_selection.mask(True)
-            assert maybe_selection["any_address"].f == True
+            assert maybe_selection["any_address"] == True
 
             maybe_selection = base_selection.mask(False)
-            assert maybe_selection["any_address"].f == False
+            assert maybe_selection["any_address"] == False
             ```
         """
-        flag = flag if isinstance(flag, Flag) else Flag(flag)
         return MaskSel.build(self, flag)
 
     def filter(self, chm: "ChoiceMap") -> "ChoiceMap":
@@ -275,8 +278,8 @@ class Selection(ProjectProblem):
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             base_selection = Selection.all()
             indexed_selection = base_selection.extend("x")
-            assert indexed_selection["x", "any_subaddress"].f == True
-            assert indexed_selection["y"].f == False
+            assert indexed_selection["x", "any_subaddress"] == True
+            assert indexed_selection["y"] == False
             ```
         """
         acc = self
@@ -332,12 +335,12 @@ class AllSel(Selection):
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         all_sel = Selection.all()
-        assert all_sel["any_address"].f == True
+        assert all_sel["any_address"] == True
         ```
     """
 
     def check(self) -> Flag:
-        return Flag(True)
+        return True
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         return self
@@ -354,13 +357,13 @@ class NoneSel(Selection):
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         none_sel = Selection.none()
-        assert none_sel["any_address"].f == False
+        assert none_sel["any_address"] == False
         assert none_sel.get_subselection("any_address") == none_sel
         ```
     """
 
     def check(self) -> Flag:
-        return Flag(False)
+        return False
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         return self
@@ -381,13 +384,11 @@ class MaskSel(Selection):
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         base_sel = Selection.all()
-        flag = Flag(True)
-        defer_sel = base_sel.mask(flag)
-        assert defer_sel.check().f == True
+        defer_sel = base_sel.mask(True)
+        assert defer_sel.check() == True
 
-        flag = Flag(False)
-        defer_sel = base_sel.mask(flag)
-        assert defer_sel.check().f == False
+        defer_sel = base_sel.mask(False)
+        assert defer_sel.check() == False
         ```
     """
 
@@ -399,16 +400,16 @@ class MaskSel(Selection):
         s: Selection,
         flag: Flag,
     ) -> Selection:
-        if flag.concrete_true():
+        if FlagOp.concrete_true(flag):
             return s
-        elif flag.concrete_false():
+        elif FlagOp.concrete_false(flag):
             return Selection.none()
         else:
             return MaskSel(s, flag)
 
     def check(self) -> Flag:
         ch = self.s.check()
-        return ch.and_(self.flag)
+        return FlagOp.and_(self.flag, ch)
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining = self.s(addr)
@@ -430,12 +431,12 @@ class ComplementSel(Selection):
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         base_sel = Selection.all()
         comp_sel = ~base_sel
-        assert comp_sel == Selection.none()
+        assert comp_sel.check() == False
 
         specific_sel = Selection.at["x", "y"]
         comp_specific = ~specific_sel
-        assert comp_specific["x", "y"].f == False
-        assert comp_specific["z"].f == True
+        assert comp_specific["x", "y"] == False
+        assert comp_specific["z"] == True
         ```
     """
 
@@ -454,7 +455,7 @@ class ComplementSel(Selection):
                 return ComplementSel(s)
 
     def check(self) -> Flag:
-        return self.s.check().not_()
+        return FlagOp.not_(self.s.check())
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining = self.s(addr)
@@ -476,10 +477,9 @@ class StaticSel(Selection):
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         static_sel = Selection.at["x"]
-
-        assert static_sel.check().f == False
-        assert static_sel.get_subselection("x").check().f == True
-        assert static_sel.get_subselection("y").check().f == False
+        assert static_sel.check() == False
+        assert static_sel.get_subselection("x").check() == True
+        assert static_sel.get_subselection("y").check() == False
         ```
     """
 
@@ -498,14 +498,13 @@ class StaticSel(Selection):
                 return StaticSel(s, addr)
 
     def check(self) -> Flag:
-        return Flag(False)
+        return False
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         if self.addr is Ellipsis or addr is Ellipsis:
             return self.s
-
         else:
-            check = Flag(addr == self.addr)
+            check = addr == self.addr
             return self.s.mask(check)
 
 
@@ -525,9 +524,9 @@ class AndSel(Selection):
         sel2 = Selection.at["y"] | Selection.at["z"]
         and_sel = sel1 & sel2
 
-        assert and_sel["x"].f == False
-        assert and_sel["y"].f == True
-        assert and_sel["z"].f == False
+        assert and_sel["x"] == False
+        assert and_sel["y"] == True
+        assert and_sel["z"] == False
         ```
     """
 
@@ -547,13 +546,13 @@ class AndSel(Selection):
                 return b
 
             case (MaskSel(), MaskSel()):
-                return (a.s & b.s).mask(a.flag.and_(b.flag))
+                return (a.s & b.s).mask(FlagOp.and_(a.flag, b.flag))
 
             case _:
                 return AndSel(a, b)
 
     def check(self) -> Flag:
-        return self.s1.check().and_(self.s2.check())
+        return FlagOp.and_(self.s1.check(), self.s2.check())
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining1 = self.s1(addr)
@@ -578,10 +577,10 @@ class OrSel(Selection):
         sel2 = Selection.at["y"]
         or_sel = sel1 | sel2
 
-        assert or_sel["x", "y"].f == True
-        assert or_sel["x"].f == True
-        assert or_sel["y"].f == True
-        assert or_sel["z"].f == False
+        assert or_sel["x", "y"] == True
+        assert or_sel["x"] == True
+        assert or_sel["y"] == True
+        assert or_sel["z"] == False
         ```
     """
 
@@ -600,13 +599,13 @@ class OrSel(Selection):
             case (_, NoneSel()):
                 return a
             case (MaskSel(), MaskSel()):
-                return (a.s | b.s).mask(a.flag.or_(b.flag))
+                return (a.s | b.s).mask(FlagOp.or_(a.flag, b.flag))
 
             case _:
                 return OrSel(a, b)
 
     def check(self) -> Flag:
-        return self.s1.check().or_(self.s2.check())
+        return FlagOp.or_(self.s1.check(), self.s2.check())
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining1 = self.s1(addr)
@@ -630,9 +629,9 @@ class ChmSel(Selection):
 
         chm = C["x", "y"].set(3.0) ^ C["z"].set(5.0)
         sel = chm.get_selection()
-        assert sel["x", "y"].f == True
-        assert sel["z"].f == True
-        assert sel["w"].f == False
+        assert sel["x", "y"] == True
+        assert sel["z"] == True
+        assert sel["w"] == False
         ```
     """
 
@@ -792,11 +791,11 @@ class ChoiceMap(Sample, Constraint):
     def has_value(self) -> Flag:
         match self.get_value():
             case None:
-                return Flag(False)
+                return False
             case Mask() as m:
-                return m.flag
+                return m.primal_flag()
             case _:
-                return Flag(True)
+                return True
 
     ######################################
     # Convenient syntax for construction #
@@ -1105,8 +1104,8 @@ class ChoiceMap(Sample, Constraint):
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             chm = ChoiceMap.value(5).extend("x")
             sel = chm.get_selection()
-            assert sel["x"].f == True
-            assert sel["y"].f == False
+            assert sel["x"] == True
+            assert sel["y"] == False
             ```
         """
         return ChmSel.build(self)
@@ -1313,7 +1312,7 @@ class IdxChm(ChoiceMap):
                     return ChoiceMap.empty()
                 else:
                     return jtu.tree_map(lambda v: v[addr], self.c).mask(
-                        Flag(check_array[addr])
+                        check_array[addr]
                     )
             else:
                 return self.c.mask(check)
@@ -1360,7 +1359,7 @@ class StaticChm(ChoiceMap):
             return self.c
 
         else:
-            check = Flag(addr == self.addr)
+            check = addr == self.addr
             return self.c.mask(check)
 
 
@@ -1404,7 +1403,7 @@ class XorChm(ChoiceMap):
             case _, _:
                 check1 = c1.has_value()
                 check2 = c2.has_value()
-                err_check = check1.and_(check2)
+                err_check = FlagOp.and_(check1, check2)
                 staged_err(
                     err_check,
                     f"The disjoint union of two choice maps have a value collision:\nc1 = {c1}\nc2 = {c2}",
@@ -1418,7 +1417,7 @@ class XorChm(ChoiceMap):
         v2 = self.c2.get_value()
 
         def pair_flag_to_idx(first: Flag, second: Flag):
-            return first.f + 2 * second.f - 1
+            return first + 2 * second - 1
 
         idx = pair_flag_to_idx(check1, check2)
 
@@ -1483,7 +1482,7 @@ class OrChm(ChoiceMap):
         v2 = self.c2.get_value()
 
         def pair_flag_to_idx(first: Flag, second: Flag):
-            return first.f + 2 * first.not_().and_(second).f - 1
+            return first + 2 * FlagOp.and_(FlagOp.not_(first), second) - 1
 
         idx = pair_flag_to_idx(check1, check2)
         if isinstance(idx, int):

@@ -44,12 +44,13 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.choice_map import FilteredChm
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import Flag, staged_check
+from genjax._src.core.interpreters.staging import FlagOp, staged_check
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
     Callable,
+    Flag,
     Generic,
     PRNGKey,
 )
@@ -140,11 +141,9 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     w = self.estimate_logpdf(key, v, *args)
                     return (w, w, v)
 
-                score, w, new_v = jax.lax.cond(
-                    flag.f, _importance, _simulate, key, value
-                )
+                score, w, new_v = jax.lax.cond(flag, _importance, _simulate, key, value)
                 tr = DistributionTrace(self, args, new_v, score)
-                bwd_problem = MaskedProblem(flag, ProjectProblem())
+                bwd_problem = MaskedProblem(v.primal_flag(), ProjectProblem())
                 return tr, w, bwd_problem
 
             case _:
@@ -164,15 +163,15 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             return (
                 tr,
                 jnp.array(0.0),
-                MaskedProblem(Flag(False), ProjectProblem()),
+                MaskedProblem(False, ProjectProblem()),
             )
 
         def importance_branch(key, constraint, args):
             tr, w = self.importance(key, constraint, args)
-            return tr, w, MaskedProblem(Flag(True), ProjectProblem())
+            return tr, w, MaskedProblem(True, ProjectProblem())
 
-        return jax.lax.cond(
-            constraint.flag.f,
+        return FlagOp.cond(
+            constraint.flag,
             importance_branch,
             simulate_branch,
             key,
@@ -235,7 +234,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 tr,
                 w,
                 rd,
-                MaskedProblem(Flag(True), old_sample),
+                MaskedProblem(True, old_sample),
             )
 
         def do_nothing_branch(key, trace, _, argdiffs):
@@ -246,11 +245,11 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 tr,
                 w,
                 Diff.tree_diff_unknown_change(tr.get_retval()),
-                MaskedProblem(Flag(False), old_sample),
+                MaskedProblem(False, old_sample),
             )
 
-        return jax.lax.cond(
-            constraint.flag.f,
+        return FlagOp.cond(
+            constraint.flag,
             update_branch,
             do_nothing_branch,
             key,
@@ -295,7 +294,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 v = constraint.get_value()
                 if isinstance(v, UpdateProblem):
                     return self.update(key, trace, GenericProblem(argdiffs, v))
-                elif check.concrete_true():
+                elif FlagOp.concrete_true(check):
                     fwd = self.estimate_logpdf(key, v, *primals)
                     bwd = trace.get_score()
                     w = fwd - bwd
@@ -308,7 +307,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         retval_diff,
                         discard,
                     )
-                elif check.concrete_false():
+                elif FlagOp.concrete_false(check):
                     value_chm = trace.get_choices()
                     v = value_chm.get_value()
                     fwd = self.estimate_logpdf(key, v, *primals)
@@ -333,13 +332,13 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         return (old_value, w, fwd)
 
                     masked_value: Mask[R] = v
-                    flag = masked_value.flag
+                    flag = masked_value.primal_flag()
                     new_value: R = masked_value.value
                     old_sample = trace.get_choices()
                     old_value: R = old_sample.get_value()
 
-                    new_value, w, score = jax.lax.cond(
-                        flag.f,
+                    new_value, w, score = FlagOp.cond(
+                        flag,
                         _true_branch,
                         _false_branch,
                         key,
@@ -381,8 +380,10 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         new_trace = DistributionTrace(
             self,
             primals,
-            flag.where(new_value, old_value),
-            jnp.asarray(flag.where(possible_trace.get_score(), trace.get_score())),
+            FlagOp.where(flag, new_value, old_value),
+            jnp.asarray(
+                FlagOp.where(flag, possible_trace.get_score(), trace.get_score())
+            ),
         )
 
         return new_trace, w, retdiff, bwd_problem
@@ -415,7 +416,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             trace,
             GenericProblem(
                 argdiffs,
-                MaskedProblem(Flag(check), ProjectProblem()),
+                MaskedProblem(check, ProjectProblem()),
             ),
         )
 

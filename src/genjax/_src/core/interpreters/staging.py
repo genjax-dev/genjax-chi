@@ -24,12 +24,12 @@ from jax.interpreters import partial_eval as pe
 from jax.util import safe_map
 
 from genjax._src.checkify import optional_check
-from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
-    BoolArray,
     Callable,
+    Flag,
+    TypeVar,
     static_check_is_concrete,
 )
 
@@ -39,9 +39,10 @@ WrappedFunWithAux = tuple[lu.WrappedFun, Callable[[], Any]]
 # Concrete Boolean arithmetic #
 ###############################
 
+R = TypeVar("R")
 
-@Pytree.dataclass
-class Flag(Pytree):
+
+class FlagOp:
     """JAX compilation imposes restrictions on the control flow used in the compiled code.
     Branches gated by booleans must use GPU-compatible branching (e.g., `jax.lax.cond`).
     However, the GPU must compute both sides of the branch, wasting effort in the case
@@ -49,79 +50,82 @@ class Flag(Pytree):
     conceal the branch not taken from the JAX compiler, decreasing compilation time and
     code size for the result by not including the code for the branch that cannot be taken.
 
-    This class contains a boolean value `f`, which is either native Python `True` or `False`,
-    or a `jnp` array (typically of boolean dtype although this is not enforced either here
-    or by JAX), together with a concreteness flag. Boolean operations are provided which
-    preserve concreteness _when possible_ (i.e., admixture of a dynamic boolean with a concrete
-    boolean may result in a dynamic boolean, if the value of the concrete boolean does not
-    determine the result).
+    This class centralizes the concrete short-cut logic used by GenJAX.
     """
 
-    f: bool | BoolArray
-
-    def and_(self, f: "Flag") -> "Flag":
+    @staticmethod
+    def and_(f: Flag, g: Flag) -> Flag:
         # True and X => X. False and X => False.
-        if self.f is True:
+        if f is True:
+            return g
+        if f is False:
             return f
-        if self.f is False:
-            return self
-        if f.f is True:
-            return self
-        if f.f is False:
+        if g is True:
             return f
-        return Flag(jnp.logical_and(self.f, f.f))
-
-    def or_(self, f: "Flag") -> "Flag":
-        # True or X => True. False or X => X.
-        if self.f is True:
-            return self
-        if self.f is False:
-            return f
-        if f.f is True:
-            return f
-        if f.f is False:
-            return self
-        return Flag(jnp.logical_or(self.f, f.f))
-
-    def not_(self) -> "Flag":
-        if self.f is True:
-            return Flag(False)
-        elif self.f is False:
-            return Flag(True)
-        else:
-            return Flag(jnp.logical_not(self.f))
-
-    def concrete_true(self):
-        return self.f is True
-
-    def concrete_false(self):
-        return self.f is False
-
-    def __bool__(self) -> bool:
-        return bool(jnp.all(self.f))
-
-    def where(self, t: ArrayLike, f: ArrayLike) -> ArrayLike:
-        """Return t or f according to the truth value contained in this flag
-        in a manner that works in either the concrete or dynamic context"""
-        if self.f is True:
-            return t
-        if self.f is False:
-            return f
-        return jax.lax.select(self.f, t, f)
-
-    def cond(self, tf: Callable[..., Any], ff: Callable[..., Any], *args: Any):
-        """Invokes `tf` with `args` if flag is true, else `ff`"""
-        if self.f is True:
-            return tf(*args)
-        if self.f is False:
-            return ff(*args)
-        return jax.lax.cond(self.f, tf, ff, *args)
+        if g is False:
+            return g
+        return jnp.logical_and(f, g)
 
     @staticmethod
-    def as_flag(f):
-        if isinstance(f, Flag):
+    def or_(f: Flag, g: Flag) -> Flag:
+        # True or X => True. False or X => X.
+        if f is True:
             return f
-        return Flag(f)
+        if f is False:
+            return g
+        if g is True:
+            return g
+        if g is False:
+            return f
+        return jnp.logical_or(f, g)
+
+    @staticmethod
+    def xor_(f: Flag, g: Flag) -> Flag:
+        # True xor X => ~X. False xor X => X.
+        if f is True:
+            return FlagOp.not_(g)
+        if f is False:
+            return g
+        if g is True:
+            return FlagOp.not_(f)
+        if g is False:
+            return f
+        return jnp.logical_xor(f, g)
+
+    @staticmethod
+    def not_(f: Flag) -> Flag:
+        if f is True:
+            return False
+        if f is False:
+            return True
+        return jnp.logical_not(f)
+
+    @staticmethod
+    def concrete_true(f: Flag) -> bool:
+        return f is True
+
+    @staticmethod
+    def concrete_false(f: Flag) -> bool:
+        return f is False
+
+    @staticmethod
+    def where(f: Flag, tf: ArrayLike, ff: ArrayLike) -> ArrayLike:
+        """Return tf or ff according to the truth value contained in flag
+        in a manner that works in either the concrete or dynamic context"""
+        if f is True:
+            return tf
+        if f is False:
+            return ff
+        return jax.lax.select(f, tf, ff)
+
+    @staticmethod
+    def cond(f: Flag, tf: Callable[..., R], ff: Callable[..., R], *args: Any) -> R:
+        """Invokes `tf` with `args` if flag is true, else `ff`"""
+        if f is True:
+            return tf(*args)
+        if f is False:
+            return ff(*args)
+        return jax.lax.cond(f, tf, ff, *args)
 
 
 def staged_check(v):
@@ -134,14 +138,14 @@ def staged_check(v):
 
 
 def staged_err(check: Flag, msg, **kwargs):
-    if check.concrete_true():
+    if FlagOp.concrete_true(check):
         raise Exception(msg)
-    elif check.concrete_false():
+    elif FlagOp.concrete_false(check):
         pass
     else:
 
         def _check():
-            checkify.check(check.f, msg, **kwargs)
+            checkify.check(check, msg, **kwargs)
 
         optional_check(_check)
 
