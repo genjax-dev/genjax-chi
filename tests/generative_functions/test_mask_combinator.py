@@ -57,16 +57,19 @@ class TestMaskCombinator:
         assert w == 0.0
 
     def test_mask_update_weight_to_argdiffs_from_true(self, key):
-        # pre-update mask arg is True
-        tr = jax.jit(model.simulate)(key, (True, 2.0))
+        # pre-update, the mask is True
+        tr = model.simulate(key, (True, 2.0))
+
         # mask check arg transition: True --> True
         argdiffs = U.g(
-            (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1])),
+            (Diff.no_change(True), Diff.unknown_change(3.0)),
             C.n(),
         )
-        w = tr.update(key, argdiffs)[1]
-        assert w == tr.inner.update(key, C.n())[1]
-        assert w == 0.0
+        pre_weight = tr.update(key, argdiffs)[1]
+        post_weight = tr.inner.update(
+            key, U.g(Diff.tree_diff_unknown_change((3.0,)), C.n())
+        )[1]
+        assert pre_weight == post_weight
 
         # mask check arg transition: True --> False
         argdiffs = U.g(

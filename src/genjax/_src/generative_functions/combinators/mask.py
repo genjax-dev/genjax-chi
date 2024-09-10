@@ -136,73 +136,82 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         assert isinstance(trace, MaskTrace | EmptyTrace)
 
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
-        check_arg: ScalarFlag = Diff.tree_primal(check_diff)
+        post_check: ScalarFlag = Diff.tree_primal(check_diff)
 
         match trace:
             case MaskTrace():
-                check = trace.check
-                inner_trace: Trace[R] = trace.inner
+                pre_check = trace.check
+                original_trace: Trace[R] = trace.inner
             case EmptyTrace():
-                check = False
-                inner_trace = EmptyTrace(self.gen_fn)
+                pre_check = False
+                original_trace = EmptyTrace(self.gen_fn)
 
         subproblem = GenericProblem(inner_argdiffs, update_problem)
 
         premasked_trace, weight, retdiff, bwd_problem = self.gen_fn.update(
-            key, inner_trace, subproblem
+            key, original_trace, subproblem
         )
 
-        #       What's the math for the weight term here?
-        #
-        # Well, if we started with a "masked false trace",
-        # and then we flip the check_arg to True, we can re-use
-        # the sampling process which created the original trace as
-        # part of the move. The weight is the entire new trace's score.
-        #
-        # That's the transition False -> True:
-        #
-        #               w' = final_trace.score()
-        #
-        # On the other hand, if we started True, and went False, no matter
-        # the update, we can make the choice that this move is just removing
-        # the samples from the original trace, and ignoring the move.
-        #
-        # That's the transition True -> False:
-        #
-        #               w' = -original_trace.score()
-        #
-        # For the transition False -> False, we just ignore the move entirely.
-        #
-        #               w' = 0.0
-        #
-        # For the transition True -> True, we apply the move to the existing
-        # unmasked trace. In that case, the weight is just the weight of the move.
-        #
-        #               w' = w
-        #
-        # In any case, we always apply the move... we're not avoiding
-        # that computation
-        if isinstance(inner_trace, EmptyTrace):
+        if isinstance(original_trace, EmptyTrace):
             final_trace = premasked_trace
         else:
             final_trace: Trace[R] = jtu.tree_map(
-                lambda v1, v2: jnp.where(check_arg, v1, v2),
+                lambda v1, v2: jnp.where(post_check, v1, v2),
                 premasked_trace,
-                inner_trace,
+                original_trace,
             )
 
-        weight = (
-            FlagOp.and_(check, check_arg) * weight
-            + FlagOp.and_(check, FlagOp.not_(check_arg)) * -inner_trace.get_score()
-            + FlagOp.and_(FlagOp.not_(check), FlagOp.not_(check_arg)) * 0.0
-            + FlagOp.and_(FlagOp.not_(check), check_arg) * final_trace.get_score()
+        t_to_t = FlagOp.and_(pre_check, post_check)
+        t_to_f = FlagOp.and_(pre_check, FlagOp.not_(post_check))
+        f_to_f = FlagOp.and_(FlagOp.not_(pre_check), FlagOp.not_(post_check))
+        f_to_t = FlagOp.and_(FlagOp.not_(pre_check), post_check)
+
+        final_weight = (
+            #       What's the math for the weight term here?
+            #
+            # Well, if we started with a "masked false trace",
+            # and then we flip the check_arg to True, we can re-use
+            # the sampling process which created the original trace as
+            # part of the move. The weight is the entire new trace's score.
+            #
+            # That's the transition False -> True:
+            #
+            #               final_weight = final_trace.score()
+            #
+            f_to_t * final_trace.get_score()
+            #
+            # On the other hand, if we started True, and went False, no matter
+            # the update, we can make the choice that this move is just removing
+            # the samples from the original trace, and ignoring the move.
+            #
+            # That's the transition True -> False:
+            #
+            #               final_weight = -original_trace.score()
+            #
+            + t_to_f * -original_trace.get_score()
+            #
+            # For the transition False -> False, we just ignore the move entirely.
+            #
+            #               final_weight = 0.0
+            #
+            + f_to_f * 0.0
+            #
+            # For the transition True -> True, we apply the move to the existing
+            # unmasked trace. In that case, the weight is just the weight of the move.
+            #
+            #               final_weight = weight
+            #
+            + t_to_t * weight
+            #
+            # In any case, we always apply the move... we're not avoiding
+            # that computation.
         )
 
         return (
-            MaskTrace(self, premasked_trace, check_arg),
-            weight,
+            MaskTrace(self, premasked_trace, post_check),
+            final_weight,
             Mask.maybe(check_diff, retdiff),
-            MaskedProblem(check_arg, bwd_problem),
+            MaskedProblem(post_check, bwd_problem),
         )
 
     def update(
