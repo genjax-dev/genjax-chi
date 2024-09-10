@@ -366,7 +366,7 @@ class NoneSel(Selection):
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         none_sel = Selection.none()
-        assert none_sel["any_address"] ==False
+        assert none_sel["any_address"] == False
         assert none_sel.get_subselection("any_address") == none_sel
         ```
     """
@@ -505,6 +505,7 @@ class StaticSel(Selection):
                 return s
             case _:
                 return StaticSel(s, addr)
+
     def check(self) -> Flag:
         return False
 
