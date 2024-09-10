@@ -465,7 +465,7 @@ class ADInterpreter(Pytree):
 class ADEVProgram(Pytree):
     source: Callable[..., Any] = Pytree.static()
 
-    def _jvp_estimate(
+    def jvp_estimate(
         self,
         key: PRNGKey,
         dual_tree: DualTree,  # Pytree with Dual leaves.
@@ -497,7 +497,7 @@ class Expectation(Pytree):
         def _identity(v):
             return v
 
-        return self.prog._jvp_estimate(key, dual_tree, _identity)
+        return self.prog.jvp_estimate(key, dual_tree, _identity)
 
     def estimate(self, key, args):
         tangents = jtu.tree_map(lambda _: 0.0, args)

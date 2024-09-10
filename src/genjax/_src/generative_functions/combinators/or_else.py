@@ -15,16 +15,15 @@
 import jax.numpy as jnp
 
 from genjax._src.core.generative import GenerativeFunction
-from genjax._src.core.typing import Any, ScalarBool, TypeVar
+from genjax._src.core.typing import Any, ScalarFlag, TypeVar
 
 R = TypeVar("R")
-T = TypeVar("T")
 
 
 def or_else(
     if_gen_fn: GenerativeFunction[R],
-    else_gen_fn: GenerativeFunction[T],
-) -> GenerativeFunction[R | T]:
+    else_gen_fn: GenerativeFunction[R],
+) -> GenerativeFunction[R]:
     """
     Given two [`genjax.GenerativeFunction`][]s `if_gen_fn` and `else_gen_fn`, returns a new [`genjax.GenerativeFunction`][] that accepts
 
@@ -76,7 +75,7 @@ def or_else(
     """
 
     def argument_mapping(
-        b: ScalarBool, if_args: tuple[Any, ...], else_args: tuple[Any, ...]
+        b: ScalarFlag, if_args: tuple[Any, ...], else_args: tuple[Any, ...]
     ):
         # Note that `True` maps to 0 to select the "if" branch, `False` to 1.
         idx = jnp.array(jnp.logical_not(b), dtype=int)

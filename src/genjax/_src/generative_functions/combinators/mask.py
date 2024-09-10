@@ -36,10 +36,11 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.core import Constraint
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import Flag
+from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    Flag,
     Generic,
     PRNGKey,
     TypeVar,
@@ -65,7 +66,7 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     def get_sample(self):
         inner_sample = self.inner.get_sample()
         if isinstance(inner_sample, ChoiceMap):
-            return ChoiceMap.maybe(self.check, inner_sample)
+            return inner_sample.mask(self.check)
         else:
             return MaskedSample(self.check, self.inner.get_sample())
 
@@ -75,7 +76,7 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     def get_score(self):
         inner_score = self.inner.get_score()
         return jnp.asarray(
-            self.check.where(inner_score, jnp.zeros(shape=inner_score.shape))
+            FlagOp.where(self.check, inner_score, jnp.zeros(shape=inner_score.shape))
         )
 
 
@@ -126,8 +127,9 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         args: tuple[Any, ...],
     ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
+
         tr = self.gen_fn.simulate(key, inner_args)
-        return MaskTrace(self, tr, Flag(check))
+        return MaskTrace(self, tr, check)
 
     def update_change_target(
         self,
@@ -147,10 +149,10 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                 raise NotImplementedError(f"Unexpected trace type: {trace}")
 
         premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
-            key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+            key, inner_trace, GenericProblem(inner_argdiffs, update_problem)
         )
 
-        w = check.where(w, -trace.get_score())
+        w = jnp.asarray(FlagOp.where(check, w, -trace.get_score()))
 
         return (
             MaskTrace(self, premasked_trace, check),
@@ -175,14 +177,17 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         imp_update_problem = ImportanceProblem(update_problem)
 
         premasked_trace, w, _, _ = self.gen_fn.update(
-            key, inner_trace, GenericProblem(tuple(inner_argdiffs), imp_update_problem)
+            key, inner_trace, GenericProblem(inner_argdiffs, imp_update_problem)
         )
 
         _, _, retdiff, bwd_problem = self.gen_fn.update(
-            key, premasked_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+            key, premasked_trace, GenericProblem(inner_argdiffs, update_problem)
         )
 
-        w = check.where(premasked_trace.get_score(), 0.0)
+        premasked_score = premasked_trace.get_score()
+        w = jnp.asarray(
+            FlagOp.where(check, premasked_score, jnp.zeros(premasked_score.shape))
+        )
 
         return (
             MaskTrace(self, premasked_trace, check),
@@ -207,12 +212,13 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             case GenericProblem(argdiffs, subproblem):
                 assert isinstance(trace, MaskTrace)
 
-                if trace.check.concrete_false():
+                if FlagOp.concrete_false(trace.check):
                     raise Exception(
                         "This move is not currently supported! See https://github.com/probcomp/genjax/issues/1230 for notes."
                     )
 
-                return trace.check.cond(
+                return FlagOp.cond(
+                    trace.check,
                     self.update_change_target,
                     self.update_change_target_from_false,
                     key,
@@ -234,7 +240,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         (check, *inner_args) = args
         score, retval = self.gen_fn.assess(sample, tuple(inner_args))
         return (
-            check.f * score,
+            check * score,
             Mask(check, retval),
         )
 
