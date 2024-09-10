@@ -198,3 +198,8 @@ class TestMaskCombinator:
 
         with pytest.raises(TypeError):
             simulate_masked(key, masks)
+
+        tr = model.mask().vmap().simulate(key, (masks,))
+
+        # note that it's still possible to vmap.
+        assert jnp.all(tr.get_retval().flag == masks)
