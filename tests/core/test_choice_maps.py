@@ -28,7 +28,7 @@ class TestSelections:
         assert new["x"]
         assert new["z", "y"]
 
-        # selections match exactly, not beyond
+        # selections don't match beyond
         assert not new["z", "y", "tail"]
 
         new = S["x"]

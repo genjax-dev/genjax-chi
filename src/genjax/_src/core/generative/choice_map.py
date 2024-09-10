@@ -668,7 +668,8 @@ class AndSel(Selection):
                 return a
             case (_, NoneSel()):
                 return b
-
+            case (LeafSel(), LeafSel()):
+                return a
             case (MaskSel(), MaskSel()):
                 return (a.s & b.s).mask(a.flag.and_(b.flag))
 
@@ -721,6 +722,8 @@ class OrSel(Selection):
             case (NoneSel(), _):
                 return b
             case (_, NoneSel()):
+                return a
+            case (LeafSel(), LeafSel()):
                 return a
             case (MaskSel(), MaskSel()):
                 return (a.s | b.s).mask(a.flag.or_(b.flag))
