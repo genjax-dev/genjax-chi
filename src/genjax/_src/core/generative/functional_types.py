@@ -12,18 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import overload
+
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from jax.experimental import checkify
 
 from genjax._src.checkify import optional_check
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import (
-    Flag,
+    FlagOp,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Array,
     ArrayLike,
+    Flag,
     Generic,
     Int,
     TypeVar,
@@ -57,22 +61,31 @@ class Mask(Generic[R], Pytree):
     If you use invalid `Mask(False, data)` data in inference computations, you may encounter silently incorrect results.
     """
 
-    flag: Flag
+    flag: Flag | Diff[Flag]
     value: R
 
+    @overload
     @staticmethod
-    def maybe(f: Flag, v: "R | Mask[R]") -> "Mask[R]":
+    def maybe(f: Flag, v: "Mask[R]") -> "Mask[R]": ...
+
+    @overload
+    @staticmethod
+    def maybe(f: Flag | Diff[Flag], v: R) -> "Mask[R]": ...
+
+    @staticmethod
+    def maybe(f: Flag | Diff[Flag], v: "R | Mask[R]") -> "Mask[R]":
         match v:
-            case Mask(flag, value):
-                return Mask[R](f.and_(flag), value)
+            case Mask(g, value):
+                assert not isinstance(f, Diff) and not isinstance(g, Diff)
+                return Mask[R](FlagOp.and_(f, g), value)
             case _:
                 return Mask[R](f, v)
 
     @staticmethod
     def maybe_none(f: Flag, v: "R | Mask[R]") -> "R | Mask[R] | None":
-        if v is None or f.concrete_false():
+        if v is None or FlagOp.concrete_false(f):
             return None
-        elif f.concrete_true():
+        elif FlagOp.concrete_true(f):
             return v
         else:
             return Mask.maybe(f, v)
@@ -103,7 +116,7 @@ class Mask(Generic[R], Pytree):
 
             def _check():
                 checkify.check(
-                    self.flag.f,
+                    self.primal_flag(),
                     "Attempted to unmask when a mask flag is False: the masked value is invalid.\n",
                 )
 
@@ -112,9 +125,16 @@ class Mask(Generic[R], Pytree):
         else:
 
             def inner(true_v: ArrayLike, false_v: ArrayLike) -> Array:
-                return jnp.where(self.flag.f, true_v, false_v)
+                return jnp.where(self.primal_flag(), true_v, false_v)
 
             return jtu.tree_map(inner, self.value, default)
+
+    def primal_flag(self) -> Flag:
+        match self.flag:
+            case Diff(primal, _):
+                return primal
+            case _:
+                return self.flag
 
 
 def staged_choose(

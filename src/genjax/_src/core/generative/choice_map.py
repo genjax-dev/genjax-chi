@@ -22,7 +22,10 @@ from beartype.typing import Iterable
 
 from genjax._src.core.generative.core import Constraint, ProjectProblem, Sample
 from genjax._src.core.generative.functional_types import Mask, staged_choose
-from genjax._src.core.interpreters.staging import Flag, staged_err
+from genjax._src.core.interpreters.staging import (
+    FlagOp,
+    staged_err,
+)
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -31,6 +34,7 @@ from genjax._src.core.typing import (
     BoolArray,
     EllipsisType,
     Final,
+    Flag,
     Generic,
     String,
     TypeVar,
@@ -232,7 +236,7 @@ class Selection(ProjectProblem):
     def __invert__(self) -> "Selection":
         return ComplementSel.build(self)
 
-    def mask(self, flag: Flag | bool | BoolArray) -> "Selection":
+    def mask(self, flag: Flag) -> "Selection":
         """
         Returns a new Selection that is conditionally applied based on a flag.
 
@@ -258,7 +262,6 @@ class Selection(ProjectProblem):
             assert not maybe_selection["any_address"]
             ```
         """
-        flag = flag if isinstance(flag, Flag) else Flag(flag)
         return MaskSel.build(self, flag)
 
     def filter(self, chm: "ChoiceMap") -> "ChoiceMap":
@@ -391,7 +394,7 @@ class AllSel(Selection):
     """
 
     def check(self) -> Flag:
-        return Flag(True)
+        return True
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         return self
@@ -414,7 +417,7 @@ class NoneSel(Selection):
     """
 
     def check(self) -> Flag:
-        return Flag(False)
+        return False
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         return self
@@ -437,7 +440,7 @@ class LeafSel(Selection):
     """
 
     def check(self) -> Flag:
-        return Flag(True)
+        return True
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         return Selection.none()
@@ -504,13 +507,11 @@ class MaskSel(Selection):
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         base_sel = Selection.all()
-        flag = Flag(True)
-        defer_sel = base_sel.mask(flag)
+        defer_sel = base_sel.mask(True)
         assert defer_sel.check()
 
-        flag = Flag(False)
-        defer_sel = base_sel.mask(flag)
-        assert not defer_sel.check()
+        defer_sel = base_sel.mask(False)
+        assert defer_sel.check()
         ```
     """
 
@@ -522,16 +523,16 @@ class MaskSel(Selection):
         s: Selection,
         flag: Flag,
     ) -> Selection:
-        if flag.concrete_true():
+        if FlagOp.concrete_true(flag):
             return s
-        elif flag.concrete_false():
+        elif FlagOp.concrete_false(flag):
             return Selection.none()
         else:
             return MaskSel(s, flag)
 
     def check(self) -> Flag:
         ch = self.s.check()
-        return ch.and_(self.flag)
+        return FlagOp.and_(self.flag, ch)
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining = self.s(addr)
@@ -553,7 +554,7 @@ class ComplementSel(Selection):
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         base_sel = Selection.all()
         comp_sel = ~base_sel
-        assert comp_sel == Selection.none()
+        assert comp_sel.check() == False
 
         specific_sel = Selection.at["x", "y"]
         comp_specific = ~specific_sel
@@ -577,7 +578,7 @@ class ComplementSel(Selection):
                 return ComplementSel(s)
 
     def check(self) -> Flag:
-        return self.s.check().not_()
+        return FlagOp.not_(self.s.check())
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining = self.s(addr)
@@ -621,14 +622,13 @@ class StaticSel(Selection):
                 return StaticSel(s, addr)
 
     def check(self) -> Flag:
-        return Flag(False)
+        return False
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         if addr is Ellipsis:
             return self.s
-
         else:
-            check = Flag(addr == self.addr)
+            check = addr == self.addr
             return self.s.mask(check)
 
 
@@ -671,13 +671,13 @@ class AndSel(Selection):
             case (LeafSel(), LeafSel()):
                 return a
             case (MaskSel(), MaskSel()):
-                return (a.s & b.s).mask(a.flag.and_(b.flag))
+                return (a.s & b.s).mask(FlagOp.and_(a.flag, b.flag))
 
             case _:
                 return AndSel(a, b)
 
     def check(self) -> Flag:
-        return self.s1.check().and_(self.s2.check())
+        return FlagOp.and_(self.s1.check(), self.s2.check())
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining1 = self.s1(addr)
@@ -726,13 +726,13 @@ class OrSel(Selection):
             case (LeafSel(), LeafSel()):
                 return a
             case (MaskSel(), MaskSel()):
-                return (a.s | b.s).mask(a.flag.or_(b.flag))
+                return (a.s | b.s).mask(FlagOp.or_(a.flag, b.flag))
 
             case _:
                 return OrSel(a, b)
 
     def check(self) -> Flag:
-        return self.s1.check().or_(self.s2.check())
+        return FlagOp.or_(self.s1.check(), self.s2.check())
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining1 = self.s1(addr)
@@ -918,11 +918,11 @@ class ChoiceMap(Sample, Constraint):
     def has_value(self) -> Flag:
         match self.get_value():
             case None:
-                return Flag(False)
+                return False
             case Mask() as m:
-                return m.flag
+                return m.primal_flag()
             case _:
-                return Flag(True)
+                return True
 
     ######################################
     # Convenient syntax for construction #
@@ -1438,9 +1438,9 @@ class IdxChm(ChoiceMap):
                 return ChoiceMap.empty()
 
             if check_array.shape:
-                return jtu.tree_map(lambda v: v[addr], self.c).mask(Flag(check[addr]))
+                return jtu.tree_map(lambda v: v[addr], self.c).mask(check[addr])
             else:
-                return self.c.mask(Flag(check))
+                return self.c.mask(check)
 
 
 @Pytree.dataclass
@@ -1484,7 +1484,7 @@ class StaticChm(ChoiceMap):
             return self.c
 
         else:
-            check = Flag(addr == self.addr)
+            check = addr == self.addr
             return self.c.mask(check)
 
 
@@ -1528,7 +1528,7 @@ class XorChm(ChoiceMap):
             case _, _:
                 check1 = c1.has_value()
                 check2 = c2.has_value()
-                err_check = check1.and_(check2)
+                err_check = FlagOp.and_(check1, check2)
                 staged_err(
                     err_check,
                     f"The disjoint union of two choice maps have a value collision:\nc1 = {c1}\nc2 = {c2}",
@@ -1542,7 +1542,7 @@ class XorChm(ChoiceMap):
         v2 = self.c2.get_value()
 
         def pair_flag_to_idx(first: Flag, second: Flag):
-            return first.f + 2 * second.f - 1
+            return first + 2 * second - 1
 
         idx = pair_flag_to_idx(check1, check2)
 
@@ -1607,7 +1607,7 @@ class OrChm(ChoiceMap):
         v2 = self.c2.get_value()
 
         def pair_flag_to_idx(first: Flag, second: Flag):
-            return first.f + 2 * first.not_().and_(second).f - 1
+            return first + 2 * FlagOp.and_(FlagOp.not_(first), second) - 1
 
         idx = pair_flag_to_idx(check1, check2)
         if isinstance(idx, int):
