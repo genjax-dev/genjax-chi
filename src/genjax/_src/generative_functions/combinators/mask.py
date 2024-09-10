@@ -14,6 +14,7 @@
 
 
 import jax.numpy as jnp
+import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
     Argdiffs,
@@ -21,7 +22,6 @@ from genjax._src.core.generative import (
     EmptyTrace,
     GenerativeFunction,
     GenericProblem,
-    ImportanceProblem,
     Mask,
     MaskedProblem,
     MaskedSample,
@@ -31,7 +31,6 @@ from genjax._src.core.generative import (
     UpdateProblem,
     Weight,
 )
-from genjax._src.core.generative.core import Constraint
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
@@ -134,62 +133,85 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         update_problem: UpdateProblem,
         argdiffs: Argdiffs,
     ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
-        check = Diff.tree_primal(argdiffs)[0]
+        assert isinstance(trace, MaskTrace | EmptyTrace)
+
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
+        post_check: ScalarFlag = Diff.tree_primal(check_diff)
+
         match trace:
             case MaskTrace():
-                inner_trace = trace.inner
+                pre_check = trace.check
+                original_trace: Trace[R] = trace.inner
             case EmptyTrace():
-                inner_trace = EmptyTrace(self.gen_fn)
-            case _:
-                raise NotImplementedError(f"Unexpected trace type: {trace}")
+                pre_check = False
+                original_trace = EmptyTrace(self.gen_fn)
 
-        premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
-            key, inner_trace, GenericProblem(inner_argdiffs, update_problem)
+        subproblem = GenericProblem(inner_argdiffs, update_problem)
+
+        premasked_trace, weight, retdiff, bwd_problem = self.gen_fn.update(
+            key, original_trace, subproblem
         )
 
-        w = jnp.asarray(FlagOp.where(check, w, -trace.get_score()))
+        if isinstance(original_trace, EmptyTrace):
+            final_trace = premasked_trace
+        else:
+            final_trace: Trace[R] = jtu.tree_map(
+                lambda v1, v2: jnp.where(post_check, v1, v2),
+                premasked_trace,
+                original_trace,
+            )
+
+        t_to_t = FlagOp.and_(pre_check, post_check)
+        t_to_f = FlagOp.and_(pre_check, FlagOp.not_(post_check))
+        f_to_f = FlagOp.and_(FlagOp.not_(pre_check), FlagOp.not_(post_check))
+        f_to_t = FlagOp.and_(FlagOp.not_(pre_check), post_check)
+
+        final_weight = (
+            #       What's the math for the weight term here?
+            #
+            # Well, if we started with a "masked false trace",
+            # and then we flip the check_arg to True, we can re-use
+            # the sampling process which created the original trace as
+            # part of the move. The weight is the entire new trace's score.
+            #
+            # That's the transition False -> True:
+            #
+            #               final_weight = final_trace.score()
+            #
+            f_to_t * final_trace.get_score()
+            #
+            # On the other hand, if we started True, and went False, no matter
+            # the update, we can make the choice that this move is just removing
+            # the samples from the original trace, and ignoring the move.
+            #
+            # That's the transition True -> False:
+            #
+            #               final_weight = -original_trace.score()
+            #
+            + t_to_f * -original_trace.get_score()
+            #
+            # For the transition False -> False, we just ignore the move entirely.
+            #
+            #               final_weight = 0.0
+            #
+            + f_to_f * 0.0
+            #
+            # For the transition True -> True, we apply the move to the existing
+            # unmasked trace. In that case, the weight is just the weight of the move.
+            #
+            #               final_weight = weight
+            #
+            + t_to_t * weight
+            #
+            # In any case, we always apply the move... we're not avoiding
+            # that computation.
+        )
 
         return (
-            MaskTrace(self, premasked_trace, check),
-            w,
+            MaskTrace(self, premasked_trace, post_check),
+            final_weight,
             Mask.maybe(check_diff, retdiff),
-            MaskedProblem(check, bwd_problem),
-        )
-
-    def update_change_target_from_false(
-        self,
-        key: PRNGKey,
-        trace: Trace[Mask[R]],
-        update_problem: UpdateProblem,
-        argdiffs: Argdiffs,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
-        check = Diff.tree_primal(argdiffs)[0]
-        check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
-
-        inner_trace = EmptyTrace(self.gen_fn)
-
-        assert isinstance(update_problem, Constraint)
-        imp_update_problem = ImportanceProblem(update_problem)
-
-        premasked_trace, w, _, _ = self.gen_fn.update(
-            key, inner_trace, GenericProblem(inner_argdiffs, imp_update_problem)
-        )
-
-        _, _, retdiff, bwd_problem = self.gen_fn.update(
-            key, premasked_trace, GenericProblem(inner_argdiffs, update_problem)
-        )
-
-        premasked_score = premasked_trace.get_score()
-        w = jnp.asarray(
-            FlagOp.where(check, premasked_score, jnp.zeros(premasked_score.shape))
-        )
-
-        return (
-            MaskTrace(self, premasked_trace, check),
-            w,
-            Mask.maybe(check_diff, retdiff),
-            MaskedProblem(check, bwd_problem),
+            MaskedProblem(post_check, bwd_problem),
         )
 
     def update(
@@ -198,31 +220,9 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         trace: Trace[Mask[R]],
         update_problem: UpdateProblem,
     ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
-        assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
-
         match update_problem:
-            case GenericProblem(argdiffs, subproblem) if isinstance(
-                subproblem, ImportanceProblem
-            ):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
             case GenericProblem(argdiffs, subproblem):
-                assert isinstance(trace, MaskTrace)
-
-                if FlagOp.concrete_false(trace.check):
-                    raise Exception(
-                        "This move is not currently supported! See https://github.com/probcomp/genjax/issues/1230 for notes."
-                    )
-
-                return FlagOp.cond(
-                    trace.check,
-                    self.update_change_target,
-                    self.update_change_target_from_false,
-                    key,
-                    trace,
-                    subproblem,
-                    argdiffs,
-                )
-
+                return self.update_change_target(key, trace, subproblem, argdiffs)
             case _:
                 return self.update_change_target(
                     key, trace, update_problem, Diff.no_change(trace.get_args())
