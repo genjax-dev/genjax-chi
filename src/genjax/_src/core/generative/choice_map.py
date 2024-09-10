@@ -216,7 +216,7 @@ class Selection(ProjectProblem):
     def __invert__(self) -> "Selection":
         return ComplementSel.build(self)
 
-    def mask(self, flag: Flag | bool | BoolArray) -> "Selection":
+    def mask(self, flag: Flag) -> "Selection":
         """
         Returns a new Selection that is conditionally applied based on a flag.
 
@@ -505,40 +505,6 @@ class StaticSel(Selection):
                 return s
             case _:
                 return StaticSel(s, addr)
-
-    def check(self) -> Flag:
-        return False
-
-    def get_subselection(self, addr: EllipsisType | AddressComponent) -> Selection:
-        check = addr == self.addr or isinstance(addr, EllipsisType)
-        return self.s.mask(check)
-
-
-@Pytree.dataclass
-class IdxSel(Selection):
-    """Represents a dynamic selection based on an array of address components.
-
-    This selection is used to filter choices based on dynamic address components.
-    It always returns False for the check method, as it's meant to be used in
-    combination with other selections or as part of a larger selection structure.
-
-    Attributes:
-        s: The underlying selection to be applied if the address matches.
-        idxs: The dynamic address components to match against.
-
-    Examples:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        import jax.numpy as jnp
-
-        idx_sel = Selection.at[jnp.array([1, 2, 3])]
-        assert idx_sel.check() == False
-        assert idx_sel.get_subselection(2).check() == True
-        assert idx_sel.get_subselection(4).check() == False
-        ```
-    """
-
-    s: Selection
-    idxs: DynamicAddressComponent
 
     def check(self) -> Flag:
         return False
@@ -1051,32 +1017,6 @@ class ChoiceMap(Sample, Constraint):
         """
         return FilteredChm.build(self, selection)
 
-    def mask(self, flag: Flag | bool | BoolArray) -> "ChoiceMap":
-        """
-        Returns a new ChoiceMap with values masked by a boolean flag.
-
-        This method creates a new ChoiceMap where the values are conditionally
-        included based on the provided flag. If the flag is True, the original
-        values are retained; if False, the ChoiceMap behaves as if it's empty.
-
-        Args:
-            flag: A boolean flag determining whether to include the values.
-
-        Returns:
-            A new ChoiceMap with values conditionally masked.
-
-        Example:
-            ```python exec="yes" html="true" source="material-block" session="choicemap"
-            original_chm = ChoiceMap.value(42)
-            masked_chm = original_chm.mask(True)
-            assert masked_chm.get_value() == 42
-
-            masked_chm = original_chm.mask(False)
-            assert masked_chm.get_value() is None
-            ```
-        """
-        return self.filter(Selection.all().mask(flag))
-
     def extend(self, *addrs: AddressComponent) -> "ChoiceMap":
         """
         Returns a new ChoiceMap with the given address component as its root.
@@ -1105,34 +1045,6 @@ class ChoiceMap(Sample, Constraint):
             else:
                 acc = IdxChm.build(acc, addr)
         return acc
-
-    def mask(self, f: Flag) -> "ChoiceMap":
-        """
-        Returns a new ChoiceMap with values masked by a boolean flag.
-
-        This method creates a new ChoiceMap where the values are conditionally
-        included based on the provided flag. If the flag is True, the original
-        values are retained; if False, the ChoiceMap behaves as if it's empty.
-
-        Args:
-            f: A boolean flag determining whether to include the values.
-
-        Returns:
-            A new ChoiceMap with values conditionally masked.
-
-        Example:
-            ```python exec="yes" html="true" source="material-block" session="choicemap"
-            from genjax._src.core.interpreters.staging import Flag
-
-            original_chm = ChoiceMap.value(42)
-            masked_chm = original_chm.mask(True)
-            assert masked_chm.get_value() == 42
-
-            masked_chm = original_chm.mask(False)
-            assert masked_chm.get_value() is None
-            ```
-        """
-        return MaskChm.build(self, f)
 
     def merge(self, other: "ChoiceMap") -> "ChoiceMap":
         """
@@ -1381,11 +1293,10 @@ class IdxChm(ChoiceMap):
                 # update of a scan GF with an array of shape (0,) or (0, ...)
                 return ChoiceMap.empty()
 
-            return (
-                MaskChm.build(jtu.tree_map(lambda v: v[addr], self.c), check[addr])
-                if check_array.shape
-                else self.c.mask(check)
-            )
+            if check_array.shape:
+                return jtu.tree_map(lambda v: v[addr], self.c).mask(check[addr])
+            else:
+                return self.c.mask(check)
 
 
 @Pytree.dataclass
@@ -1483,11 +1394,6 @@ class XorChm(ChoiceMap):
     def get_value(self) -> Any:
         check1 = self.c1.has_value()
         check2 = self.c2.has_value()
-        err_check = FlagOp.and_(check1, check2)
-        staged_err(
-            err_check,
-            f"The disjoint union of two choice maps have a value collision:\nc1 = {self.c1}\nc2 = {self.c2}",
-        )
         v1 = self.c1.get_value()
         v2 = self.c2.get_value()
 
@@ -1572,54 +1478,6 @@ class OrChm(ChoiceMap):
         submap2 = self.c2.get_submap(addr)
 
         return submap1 | submap2
-
-
-@Pytree.dataclass
-class MaskChm(ChoiceMap):
-    """Represents a choice map that is conditionally masked.
-
-    This class wraps another choice map and applies a boolean flag to conditionally
-    mask its contents. When the flag is True, the underlying choice map behaves
-    normally. When the flag is False, the choice map appears empty.
-
-    Attributes:
-        c: The underlying choice map.
-        flag: A boolean flag determining whether the choice map is masked.
-
-    Examples:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        base_chm = ChoiceMap.value(10)
-        mask_chm = base_chm.mask(True)
-        assert mask_chm.get_value() == 10
-
-        mask_chm = base_chm.mask(False)
-        assert mask_chm.get_value() is None
-        assert mask_chm.static_is_empty() is True
-        ```
-    """
-
-    c: ChoiceMap
-    flag: Flag
-
-    @staticmethod
-    def build(
-        c: ChoiceMap,
-        flag: Flag,
-    ) -> ChoiceMap:
-        if c.static_is_empty() | FlagOp.concrete_true(flag):
-            return c
-        elif FlagOp.concrete_false(flag):
-            return _empty
-        else:
-            return MaskChm(c, flag)
-
-    def get_value(self) -> Any:
-        v = self.c.get_value()
-        return Mask.maybe_none(self.flag, v)
-
-    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        submap = self.c.get_submap(addr)
-        return submap.mask(self.flag)
 
 
 @Pytree.dataclass
