@@ -53,7 +53,7 @@ class TestMaskCombinator:
         assert score == 0.0
         assert not retval.flag
 
-        _, w = jax.jit(model.importance)(key, C["z"].set(-2.0), tr.get_args())
+        _, w = model.importance(key, C["z"].set(-2.0), tr.get_args())
         assert w == 0.0
 
     def test_mask_update_weight_to_argdiffs_from_true(self, key):
