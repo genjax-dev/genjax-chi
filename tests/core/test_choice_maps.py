@@ -27,12 +27,14 @@ class TestSelections:
         new = S["x"] | S["z", "y"]
         assert new["x"]
         assert new["z", "y"]
-        assert new["z", "y", "tail"]
+
+        # selections match exactly, not beyond
+        assert not new["z", "y", "tail"]
 
         new = S["x"]
         assert new["x"]
-        assert new["x", "y"]
-        assert new["x", "y", "z"]
+        assert not new["x", "y"]
+
         new = S["x", "y", "z"]
         assert new["x", "y", "z"]
         assert not new["x"]
@@ -56,6 +58,53 @@ class TestSelections:
 
         # none can't be extended
         assert Selection.none().extend("a", "b") == Selection.none()
+
+    def test_selection_leaf(self):
+        leaf_sel = Selection.leaf().extend("x", "y")
+        assert not leaf_sel["x"]
+        assert leaf_sel["x", "y"]
+
+        # only exact matches are allowed
+        assert not leaf_sel["x", "y", "z"]
+
+        # wildcards work
+        assert leaf_sel[..., "y"]
+
+    def test_selection_and_then(self):
+        # Test basic and_then functionality
+        sel1 = S["x"]
+        sel2 = S["y"]
+        and_then_sel = sel1.and_then(sel2)
+
+        assert and_then_sel["x", "y"]
+        assert not and_then_sel["x"]
+        assert not and_then_sel["y"]
+        assert not and_then_sel["z"]
+
+        # Test with more complex selections
+        sel3 = S["a"] | S["b"]
+        sel4 = S["c"] | S["d"]
+        complex_and_then = sel3.and_then(sel4).and_then(Selection.all())
+
+        assert complex_and_then["a", "c"]
+        assert complex_and_then["a", "d"]
+        assert complex_and_then["b", "c"]
+        assert complex_and_then["b", "d"]
+        assert complex_and_then["b", "d", "anything"]
+        assert not complex_and_then["a"]
+        assert not complex_and_then["b"]
+        assert not complex_and_then["c"]
+        assert not complex_and_then["d"]
+
+        # Test with Selection.all(), Selection.none()
+        assert Selection.all().and_then(sel1) == Selection.all()
+        assert Selection.none().and_then(sel1) == Selection.none()
+
+        # Test chaining multiple and_then operations
+        chained_and_then = S["a"].and_then(S["b"]).and_then(S["c"])
+
+        assert chained_and_then["a", "b", "c"]
+        assert not chained_and_then["a", "b"]
 
     def test_selection_complement(self):
         sel = S["x"] | S["y"]

@@ -66,7 +66,7 @@ class _SelectionBuilder(Pytree):
     def __getitem__(self, addr: StaticAddressComponent | StaticAddress) -> "Selection":
         addr = addr if isinstance(addr, tuple) else (addr,)
 
-        return Selection.all().extend(*addr)
+        return Selection.leaf().extend(*addr)
 
 
 SelectionBuilder = _SelectionBuilder()
@@ -114,8 +114,8 @@ class Selection(ProjectProblem):
         assert sel("z") == Selection.none()
 
         # Querying the selection using [] returns a `Flag` representing whether or not the input matches:
-        assert sel["x"].f == False
-        assert sel["x", "y"].f == True
+        assert not sel["x"]
+        assert sel["x", "y"]
 
         # Querying the selection using "in" acts the same::
         assert not "x" in sel
@@ -178,7 +178,7 @@ class Selection(ProjectProblem):
             from genjax import Selection
 
             all_selection = Selection.all()
-            assert all_selection["any_address"].f == True
+            assert all_selection["any_address"]
             ```
         """
         return AllSel()
@@ -194,10 +194,30 @@ class Selection(ProjectProblem):
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             none_selection = Selection.none()
-            assert none_selection["any_address"].f == False
+            assert not none_selection["any_address"]
             ```
         """
         return NoneSel()
+
+    @staticmethod
+    def leaf() -> "Selection":
+        """
+        Returns a Selection that selects only leaf addresses.
+
+        A leaf address is an address that doesn't have any sub-addresses.
+        This selection is useful when you want to target only the final elements in a nested structure.
+
+        Returns:
+            A Selection that selects only leaf addresses.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="choicemap"
+            leaf_selection = Selection.leaf().extend("a", "b")
+            assert leaf_selection["a", "b"]
+            assert not leaf_selection["a", 'b", "anything"]
+            ```
+        """
+        return LeafSel()
 
     ######################
     # Combinator methods #
@@ -232,10 +252,10 @@ class Selection(ProjectProblem):
 
             base_selection = Selection.all()
             maybe_selection = base_selection.mask(True)
-            assert maybe_selection["any_address"].f == True
+            assert maybe_selection["any_address"]
 
             maybe_selection = base_selection.mask(False)
-            assert maybe_selection["any_address"].f == False
+            assert not maybe_selection["any_address"]
             ```
         """
         flag = flag if isinstance(flag, Flag) else Flag(flag)
@@ -284,14 +304,39 @@ class Selection(ProjectProblem):
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             base_selection = Selection.all()
             indexed_selection = base_selection.extend("x")
-            assert indexed_selection["x", "any_subaddress"].f == True
-            assert indexed_selection["y"].f == False
+            assert indexed_selection["x", "any_subaddress"]
+            assert not indexed_selection["y"]
             ```
         """
         acc = self
         for addr in reversed(addrs):
             acc = StaticSel.build(acc, addr)
         return acc
+
+    def and_then(self, s2: "Selection") -> "Selection":
+        """
+        Returns a new Selection that applies this Selection and then applies another Selection t the result.
+
+        This method creates a new Selection that first applies the current Selection, and then applies the given Selection (s2) to the result. It allows for chaining multiple selections together.
+
+        Args:
+            s2: The Selection to apply after this Selection.
+
+        Returns:
+            A new Selection representing the sequential application of this Selection
+            followed by s2.
+
+        Example:
+            ```python
+            sel1 = Selection.at["x"]
+            sel2 = Selection.at["y"]
+            combined = sel1.and_then(sel2)
+            assert combined["x", "y"]
+            assert not combined["x"]
+            assert not combined["y"]
+            ```
+        """
+        return AndThenSel.build(self, s2)
 
     def __call__(
         self,
@@ -341,7 +386,7 @@ class AllSel(Selection):
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         all_sel = Selection.all()
-        assert all_sel["any_address"].f == True
+        assert all_sel["any_address"]
         ```
     """
 
@@ -363,7 +408,7 @@ class NoneSel(Selection):
     Examples:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         none_sel = Selection.none()
-        assert none_sel["any_address"].f == False
+        assert not none_sel["any_address"]
         assert none_sel.get_subselection("any_address") == none_sel
         ```
     """
@@ -373,6 +418,75 @@ class NoneSel(Selection):
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         return self
+
+
+@Pytree.dataclass
+class LeafSel(Selection):
+    """Represents a selection that matches only at the current address level.
+
+    This selection returns True for a check at the current level but returns an
+    empty selection (`Selection.none()`) for any subselection, effectively representing a
+    leaf node in the selection hierarchy.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        leaf_sel = LeafSel()
+        assert leaf_sel.check()
+        assert isinstance(leaf_sel.get_subselection("any_address"), NoneSel)
+        ```
+    """
+
+    def check(self) -> Flag:
+        return Flag(True)
+
+    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
+        return Selection.none()
+
+
+@Pytree.dataclass
+class AndThenSel(Selection):
+    """Represents a selection that combines two selections sequentially.
+
+    This selection first applies the first selection (s1) and then applies the second
+    selection (s2) to the result. It's useful for creating more complex selection
+    patterns by chaining simpler selections together.
+
+    Attributes:
+        s1: The first selection to be applied.
+        s2: The second selection to be applied after s1.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        sel1 = Selection.at["x"]
+        sel2 = Selection.at["y"]
+        and_then_sel = sel1.and_then(sel2)
+        assert not and_then_sel["x"]
+        assert and_then_sel["x", "y"]
+        ```
+    """
+
+    s1: Selection
+    s2: Selection
+
+    @staticmethod
+    def build(s1: Selection, s2: Selection) -> Selection:
+        match (s1, s2):
+            case (AllSel() | NoneSel(), _):
+                return s1
+            case (LeafSel(), _):
+                return s2
+            case _:
+                return AndThenSel(s1, s2)
+
+    def check(self) -> Flag:
+        return self.s1.check()
+
+    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
+        if isinstance(self.s1, LeafSel):
+            return self.s2.get_subselection(addr)
+        else:
+            s1_sel = self.s1.get_subselection(addr)
+            return AndThenSel.build(s1_sel, self.s2)
 
 
 @Pytree.dataclass
@@ -392,11 +506,11 @@ class MaskSel(Selection):
         base_sel = Selection.all()
         flag = Flag(True)
         defer_sel = base_sel.mask(flag)
-        assert defer_sel.check().f == True
+        assert defer_sel.check()
 
         flag = Flag(False)
         defer_sel = base_sel.mask(flag)
-        assert defer_sel.check().f == False
+        assert not defer_sel.check()
         ```
     """
 
@@ -443,8 +557,8 @@ class ComplementSel(Selection):
 
         specific_sel = Selection.at["x", "y"]
         comp_specific = ~specific_sel
-        assert comp_specific["x", "y"].f == False
-        assert comp_specific["z"].f == True
+        assert not comp_specific["x", "y"]
+        assert comp_specific["z"]
         ```
     """
 
@@ -486,9 +600,9 @@ class StaticSel(Selection):
         ```python exec="yes" html="true" source="material-block" session="choicemap"
         static_sel = Selection.at["x"]
 
-        assert static_sel.check().f == False
-        assert static_sel.get_subselection("x").check().f == True
-        assert static_sel.get_subselection("y").check().f == False
+        assert not static_sel.check()
+        assert static_sel.get_subselection("x").check()
+        assert not static_sel.get_subselection("y").check()
         ```
     """
 
@@ -534,9 +648,9 @@ class AndSel(Selection):
         sel2 = Selection.at["y"] | Selection.at["z"]
         and_sel = sel1 & sel2
 
-        assert and_sel["x"].f == False
-        assert and_sel["y"].f == True
-        assert and_sel["z"].f == False
+        assert not and_sel["x"]
+        assert and_sel["y"]
+        assert not and_sel["z"]
         ```
     """
 
@@ -587,10 +701,10 @@ class OrSel(Selection):
         sel2 = Selection.at["y"]
         or_sel = sel1 | sel2
 
-        assert or_sel["x", "y"].f == True
-        assert or_sel["x"].f == True
-        assert or_sel["y"].f == True
-        assert or_sel["z"].f == False
+        assert or_sel["x", "y"]
+        assert or_sel["x"]
+        assert or_sel["y"]
+        assert not or_sel["z"]
         ```
     """
 
@@ -639,9 +753,9 @@ class ChmSel(Selection):
 
         chm = C["x", "y"].set(3.0) ^ C["z"].set(5.0)
         sel = chm.get_selection()
-        assert sel["x", "y"].f == True
-        assert sel["z"].f == True
-        assert sel["w"].f == False
+        assert sel["x", "y"]
+        assert sel["z"]
+        assert not sel["w"]
         ```
     """
 
@@ -1114,8 +1228,8 @@ class ChoiceMap(Sample, Constraint):
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             chm = ChoiceMap.value(5).extend("x")
             sel = chm.get_selection()
-            assert sel["x"].f == True
-            assert sel["y"].f == False
+            assert sel["x"]
+            assert not sel["y"]
             ```
         """
         return ChmSel.build(self)
