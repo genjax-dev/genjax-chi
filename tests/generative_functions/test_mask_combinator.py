@@ -185,3 +185,21 @@ class TestMaskCombinator:
 
         tr = model_outside.simulate(key, ())
         assert tr.get_score() == -2.036214
+
+    def test_mask_fails_with_vector_mask(self, key):
+        @genjax.gen
+        def model():
+            return genjax.normal(0.0, 1.0) @ "x"
+
+        masks = jnp.array([True, True, False])
+
+        def simulate_masked(key, masks):
+            return model.mask().simulate(key, (masks,))
+
+        with pytest.raises(TypeError):
+            simulate_masked(key, masks)
+
+        tr = model.mask().vmap().simulate(key, (masks,))
+
+        # note that it's still possible to vmap.
+        assert jnp.all(tr.get_retval().flag == masks)
