@@ -38,6 +38,13 @@ class TestSelections:
         assert not new["x"]
         assert not new["x", "y"]
 
+    def test_wildcard_selection(self):
+        sel = S["x"] | S[..., "y"]
+
+        assert sel["x"]
+        assert sel["any_address", "y"]
+        assert sel["rando", "y", "tail"]
+
     def test_selection_all(self):
         all_sel = Selection.all()
 
@@ -515,3 +522,34 @@ class TestChoiceMap:
         assert "y" in chm("x")
         assert ("x", "y") in chm
         assert "z" not in chm
+
+    def test_choicemap_filter_with_wildcard(self):
+        xs = jnp.array([1.0, 2.0, 3.0])
+        ys = jnp.array([4.0, 5.0, 6.0])
+        # Create a ChoiceMap with values at 'x' and 'y' addresses
+        chm = C[jnp.arange(3)].set({"x": xs, "y": ys})
+
+        # Create a Selection with a wildcard for 'x'
+        sel = S[..., "x"]
+
+        # Filter the ChoiceMap using the Selection
+        filtered_chm = chm.filter(sel)
+
+        # Assert that only 'x' values are present in the filtered ChoiceMap
+        assert jnp.all(filtered_chm[..., "x"] == jnp.array([1.0, 2.0, 3.0]))
+
+        # Assert that 'y' values are not present in the filtered ChoiceMap
+        with pytest.raises(ChoiceMapNoValueAtAddress):
+            filtered_chm[..., "y"]
+
+        # Assert that the structure of the filtered ChoiceMap is preserved
+        assert filtered_chm[0, "x"].unmask() == 1.0
+        assert filtered_chm[1, "x"].unmask() == 2.0
+        assert filtered_chm[2, "x"].unmask() == 3.0
+
+    def test_choicemap_with_static_idx(self):
+        chm = C[0].set({"x": 1.0, "y": 2.0})
+
+        # if the index is NOT an array (i.e. statically known) we get a static value out, not a mask.
+        assert chm[0, "x"] == 1.0
+        assert chm[0, "y"] == 2.0
