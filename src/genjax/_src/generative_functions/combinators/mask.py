@@ -182,9 +182,15 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         #
         # In any case, we always apply the move... we're not avoiding
         # that computation
-        final_trace = jtu.tree_map(
-            lambda v1, v2: jnp.where(check_arg, v1, v2), premasked_trace, inner_trace
-        )
+        if isinstance(inner_trace, EmptyTrace):
+            final_trace = premasked_trace
+        else:
+            final_trace: Trace[R] = jtu.tree_map(
+                lambda v1, v2: jnp.where(check_arg, v1, v2),
+                premasked_trace,
+                inner_trace,
+            )
+
         weight = (
             FlagOp.and_(check, check_arg) * weight
             + (FlagOp.and_(check, FlagOp.not_(check_arg))) * (-inner_trace.get_score())
