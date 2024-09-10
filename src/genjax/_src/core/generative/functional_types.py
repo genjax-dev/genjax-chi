@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import overload
+
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from jax.experimental import checkify
@@ -61,6 +63,14 @@ class Mask(Generic[R], Pytree):
 
     flag: Flag | Diff[Flag]
     value: R
+
+    @overload
+    @staticmethod
+    def maybe(f: Flag, v: "Mask[R]") -> "Mask[R]": ...
+
+    @overload
+    @staticmethod
+    def maybe(f: Flag | Diff[Flag], v: R) -> "Mask[R]": ...
 
     @staticmethod
     def maybe(f: Flag | Diff[Flag], v: "R | Mask[R]") -> "Mask[R]":

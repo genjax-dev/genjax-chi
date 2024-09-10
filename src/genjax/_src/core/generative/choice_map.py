@@ -1490,7 +1490,7 @@ class XorChm(ChoiceMap):
         v1 = self.c1.get_value()
         v2 = self.c2.get_value()
 
-        def pair_flag_to_idx(first, second):
+        def pair_flag_to_idx(first: Flag, second: Flag):
             return first + 2 * second - 1
 
         idx = pair_flag_to_idx(check1, check2)
