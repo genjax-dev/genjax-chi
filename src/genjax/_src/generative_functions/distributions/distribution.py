@@ -40,7 +40,7 @@ from genjax._src.core.generative import (
     Trace,
     Weight,
 )
-from genjax._src.core.generative.choice_map import MaskChm
+from genjax._src.core.generative.choice_map import FilteredChm
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
@@ -270,7 +270,8 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                             ChoiceMapConstraint(ChoiceMap.empty()),
                         ),
                     )
-                elif isinstance(constraint.choice_map, MaskChm):
+
+                elif isinstance(constraint, FilteredChm):
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
                     def _true_branch(key, new_value: R, _):
@@ -310,7 +311,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     )
                 else:
                     raise Exception(
-                        "Only `MaskChm` is currently supported for dynamic flags."
+                        "Only `FilteredChm` is currently supported for dynamic flags."
                     )
 
             case _:
