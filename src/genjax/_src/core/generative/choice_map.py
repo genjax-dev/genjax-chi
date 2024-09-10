@@ -1046,6 +1046,32 @@ class ChoiceMap(Sample, Constraint):
                 acc = IdxChm.build(acc, addr)
         return acc
 
+    def mask(self, flag: Flag | bool | BoolArray) -> "ChoiceMap":
+        """
+        Returns a new ChoiceMap with values masked by a boolean flag.
+
+        This method creates a new ChoiceMap where the values are conditionally
+        included based on the provided flag. If the flag is True, the original
+        values are retained; if False, the ChoiceMap behaves as if it's empty.
+
+        Args:
+            flag: A boolean flag determining whether to include the values.
+
+        Returns:
+            A new ChoiceMap with values conditionally masked.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="choicemap"
+            original_chm = ChoiceMap.value(42)
+            masked_chm = original_chm.mask(True)
+            assert masked_chm.get_value() == 42
+
+            masked_chm = original_chm.mask(False)
+            assert masked_chm.get_value() is None
+            ```
+        """
+        return self.filter(Selection.all().mask(flag))
+
     def merge(self, other: "ChoiceMap") -> "ChoiceMap":
         """
         Merges this ChoiceMap with another ChoiceMap.
