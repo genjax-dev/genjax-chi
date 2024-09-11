@@ -19,7 +19,6 @@ from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
     ChoiceMapConstraint,
-    ChoiceMapSample,
     Constraint,
     EditRequest,
     GenerativeFunction,
@@ -28,7 +27,7 @@ from genjax._src.core.generative import (
     Retdiff,
     Sample,
     Score,
-    SelectionProjection,
+    Selection,
     Trace,
     Weight,
 )
@@ -68,12 +67,10 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
             lambda idx, subtrace: ChoiceMap.entry(subtrace.get_choices(), idx),
         )(jnp.arange(self.inner.get_score().shape[0]), self.inner)
 
-    def get_sample(self) -> ChoiceMapSample:
-        return ChoiceMapSample(
-            jax.vmap(
-                lambda idx, subtrace: ChoiceMap.entry(subtrace.get_sample(), idx),
-            )(jnp.arange(self.inner.get_score().shape[0]), self.inner)
-        )
+    def get_sample(self) -> ChoiceMap:
+        return jax.vmap(
+            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_sample(), idx),
+        )(jnp.arange(self.inner.get_score().shape[0]), self.inner)
 
     def get_gen_fn(self):
         return self.scan_gen_fn
@@ -303,13 +300,13 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         trace: Trace[tuple[Carry, Y]],
         projection: Projection[Any],
     ) -> Weight:
-        assert isinstance(projection, SelectionProjection)
+        assert isinstance(projection, Selection)
         assert isinstance(trace, ScanTrace)
 
         def _inner_project(
             key: PRNGKey,
             subtrace: Trace[Any],
-            projection: SelectionProjection,
+            projection: Selection,
         ) -> Weight:
             w = subtrace.project(
                 key,
@@ -324,7 +321,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             key, idx = carry
             key = jax.random.fold_in(key, idx)
             subprojection = projection(idx)
-            assert isinstance(subprojection, SelectionProjection)
+            assert isinstance(subprojection, Selection)
             w = _inner_project(key, subtrace, subprojection)
 
             return (key, idx + 1), w

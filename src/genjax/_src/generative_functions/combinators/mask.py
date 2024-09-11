@@ -19,13 +19,13 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     ChoiceMap,
     ChoiceMapConstraint,
-    ChoiceMapSample,
     EditRequest,
     GenerativeFunction,
     IncrementalGenericRequest,
     Mask,
     Projection,
     Retdiff,
+    Sample,
     Score,
     Trace,
     Weight,
@@ -56,10 +56,10 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     def get_gen_fn(self):
         return self.mask_combinator
 
-    def get_sample(self) -> ChoiceMapSample:
+    def get_sample(self) -> ChoiceMap:
         inner_chm_sample = self.inner.get_sample()
-        assert isinstance(inner_chm_sample, ChoiceMapSample)
-        return ChoiceMapSample(inner_chm_sample.mask(self.check))
+        assert isinstance(inner_chm_sample, ChoiceMap)
+        return inner_chm_sample.mask(self.check)
 
     def get_choices(self) -> ChoiceMap:
         inner_choice_map = self.inner.get_choices()
@@ -215,9 +215,10 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
     def assess(
         self,
-        sample: ChoiceMap,
+        sample: Sample,
         args: tuple[Any, ...],
     ) -> tuple[Score, Mask[R]]:
+        assert isinstance(sample, ChoiceMap)
         (check, *inner_args) = args
         score, retval = self.gen_fn.assess(sample, tuple(inner_args))
         return (

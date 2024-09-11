@@ -24,7 +24,6 @@ from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
     ChoiceMapConstraint,
-    ChoiceMapSample,
     Constraint,
     EditRequest,
     EmptyRequest,
@@ -32,14 +31,15 @@ from genjax._src.core.generative import (
     IncrementalGenericRequest,
     Projection,
     Retdiff,
+    Sample,
     Score,
-    SelectionProjection,
+    Selection,
     StaticAddress,
     StaticAddressComponent,
     Trace,
     Weight,
 )
-from genjax._src.core.generative.core import R, push_trace_overload_stack
+from genjax._src.core.generative.generative_function import R, push_trace_overload_stack
 from genjax._src.core.interpreters.forward import (
     InitialStylePrimitive,
     StatefulHandler,
@@ -106,10 +106,10 @@ class StaticTrace(Generic[R], Trace[R]):
     def get_gen_fn(self) -> GenerativeFunction[R]:
         return self.gen_fn
 
-    def get_sample(self) -> ChoiceMapSample:
+    def get_sample(self) -> ChoiceMap:
         addresses = self.addresses.get_visited()
         sub_chms = (tr.get_sample() for tr in self.subtraces)
-        return ChoiceMapSample(ChoiceMap.from_mapping(zip(addresses, sub_chms)))
+        return ChoiceMap.from_mapping(zip(addresses, sub_chms))
 
     def get_choices(self) -> ChoiceMap:
         addresses = self.addresses.get_visited()
@@ -495,14 +495,14 @@ def generate_transform(source_fn):
 
 @dataclass
 class AssessHandler(StaticHandler):
-    choice_map_sample: ChoiceMapSample
+    choice_map_sample: ChoiceMap
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def yield_state(self):
         return (self.score,)
 
-    def get_subsample(self, addr: StaticAddress) -> ChoiceMapSample:
+    def get_subsample(self, addr: StaticAddress) -> ChoiceMap:
         return self.choice_map_sample(addr)  # pyright: ignore
 
     def handle_trace(
@@ -519,7 +519,7 @@ class AssessHandler(StaticHandler):
 
 def assess_transform(source_fn):
     @functools.wraps(source_fn)
-    def wrapper(choice_map_sample: ChoiceMapSample, args):
+    def wrapper(choice_map_sample: ChoiceMap, args):
         stateful_handler = AssessHandler(choice_map_sample)
         retval = forward(source_fn)(stateful_handler, *args)
         (score,) = stateful_handler.yield_state()
@@ -704,10 +704,10 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[Any],
-        projection: Projection[ChoiceMapSample],
+        projection: Projection[ChoiceMap],
     ) -> Weight:
         assert isinstance(trace, StaticTrace)
-        assert isinstance(projection, SelectionProjection), type(projection)
+        assert isinstance(projection, Selection), type(projection)
         weight = jnp.array(0.0)
         for addr in trace.addresses.get_visited():
             subprojection = projection(addr)
@@ -737,16 +737,14 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: ChoiceMap | ChoiceMapSample,
+        sample: Sample,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
+        assert isinstance(sample, ChoiceMap)
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (retval, score) = assess_transform(syntax_sugar_handled)(
-            sample if isinstance(sample, ChoiceMapSample) else ChoiceMapSample(sample),
-            args,
-        )
+        (retval, score) = assess_transform(syntax_sugar_handled)(sample, args)
         return (score, retval)
 
     def inline(self, *args):

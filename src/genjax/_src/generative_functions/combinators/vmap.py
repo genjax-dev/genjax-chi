@@ -24,7 +24,6 @@ from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
     ChoiceMapConstraint,
-    ChoiceMapSample,
     Constraint,
     EditRequest,
     GenerativeFunction,
@@ -32,6 +31,7 @@ from genjax._src.core.generative import (
     Projection,
     R,
     Retdiff,
+    Sample,
     Score,
     Trace,
     Weight,
@@ -65,12 +65,12 @@ class VmapTrace(Generic[R], Trace[R]):
     def get_gen_fn(self):
         return self.gen_fn
 
-    def get_sample(self) -> ChoiceMapSample:
-        return ChoiceMapSample(
-            jax.vmap(lambda idx, subtrace: ChoiceMap.entry(subtrace.get_sample(), idx))(
-                jnp.arange(len(self.inner.get_score())),
-                self.inner,
-            )
+    def get_sample(self) -> ChoiceMap:
+        return jax.vmap(
+            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_sample(), idx)
+        )(
+            jnp.arange(len(self.inner.get_score())),
+            self.inner,
         )
 
     def get_choices(self) -> ChoiceMap:
@@ -236,9 +236,16 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
         def _update(key, idx, subtrace, argdiffs):
             subconstraint = constraint(idx)
+            assert isinstance(subconstraint, ChoiceMapConstraint), type(subconstraint)
             new_subtrace, w, retdiff, bwd_request = self.gen_fn.edit(
-                key, subtrace, IncrementalGenericRequest(argdiffs, subconstraint)
+                key,
+                subtrace,
+                IncrementalGenericRequest(
+                    argdiffs,
+                    subconstraint,
+                ),
             )
+            assert isinstance(bwd_request, IncrementalGenericRequest)
             inner_chm_constraint = bwd_request.constraint
             return (
                 new_subtrace,
@@ -283,9 +290,10 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: ChoiceMap,
+        sample: Sample,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
+        assert isinstance(sample, ChoiceMap)
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         idx_array = jnp.arange(0, broadcast_dim_length)

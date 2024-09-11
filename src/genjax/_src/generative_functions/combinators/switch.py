@@ -20,7 +20,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapSample,
     Constraint,
     EditRequest,
     GenerativeFunction,
@@ -87,7 +86,7 @@ class SwitchTrace(Generic[R], Trace[R]):
             chm = chm ^ masked_submap
         return chm
 
-    def get_sample(self) -> Sample:
+    def get_sample(self) -> ChoiceMap:
         subsamples = list(map(lambda v: v.get_sample(), self.subtraces))
         (idx, *_) = self.get_args()
         chm = ChoiceMap.empty()
@@ -95,7 +94,7 @@ class SwitchTrace(Generic[R], Trace[R]):
             assert isinstance(_chm, ChoiceMap)
             masked_submap = _chm.mask(Flag(jnp.all(_idx == idx)))
             chm = chm ^ masked_submap
-        return ChoiceMapSample(chm)
+        return chm
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -270,10 +269,10 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: ChoiceMap,
+        sample: Sample,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
-        sample = sample if isinstance(sample, Sample) else ChoiceMapSample(sample)
+        assert isinstance(sample, ChoiceMap)
         idx, branch_args = args[0], args[1:]
         self.static_check_num_arguments_equals_num_branches(branch_args)
 

@@ -24,7 +24,6 @@ from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
     ChoiceMapConstraint,
-    ChoiceMapSample,
     Constraint,
     EditRequest,
     EmptyConstraint,
@@ -34,8 +33,9 @@ from genjax._src.core.generative import (
     Projection,
     R,
     Retdiff,
+    Sample,
     Score,
-    SelectionProjection,
+    Selection,
     Trace,
     Weight,
 )
@@ -76,8 +76,8 @@ class DistributionTrace(
     def get_score(self) -> Score:
         return self.score
 
-    def get_sample(self) -> ChoiceMapSample:
-        return ChoiceMapSample(ChoiceMap.value(self.value))
+    def get_sample(self) -> ChoiceMap:
+        return ChoiceMap.value(self.value)
 
     def get_choices(self) -> ChoiceMap:
         return ChoiceMap.value(self.value)
@@ -299,14 +299,11 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         projection: Projection[Any],
     ) -> Weight:
-        match projection:
-            case SelectionProjection(selection):
-                return selection.check().where(
-                    trace.get_score(),
-                    jnp.array(0.0),
-                )  # pyright: ignore
-            case _:
-                raise Exception("Unhandled projection.")
+        assert isinstance(projection, Selection)
+        return projection.check().where(
+            trace.get_score(),
+            jnp.array(0.0),
+        )  # pyright: ignore
 
     def edit_incremental_generic_request(
         self,
@@ -343,7 +340,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: ChoiceMap,
+        sample: Sample,
         args: tuple[Any, ...],
     ):
         raise NotImplementedError
@@ -410,9 +407,10 @@ class ExactDensity(Generic[R], Distribution[R]):
 
     def assess(
         self,
-        sample: ChoiceMap,
+        sample: Sample,
         args: tuple[Any, ...],
     ) -> tuple[Weight, R]:
+        assert isinstance(sample, ChoiceMap)
         key = jax.random.PRNGKey(0)
         v = sample.get_value()
         match v:

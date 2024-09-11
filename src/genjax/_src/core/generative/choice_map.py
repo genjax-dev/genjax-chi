@@ -20,6 +20,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 from beartype.typing import Iterable
 
+from genjax._src.core.generative.core import Constraint, Projection, Sample
 from genjax._src.core.generative.functional_types import Mask, staged_choose
 from genjax._src.core.interpreters.staging import Flag, staged_err
 from genjax._src.core.pytree import Pytree
@@ -72,7 +73,7 @@ SelectionBuilder = _SelectionBuilder()
 """Deprecated! please use `Selection.at`."""
 
 
-class Selection(Pytree):
+class Selection(Projection["ChoiceMap"]):
     """
     A class representing a selection of addresses in a ChoiceMap.
 
@@ -239,6 +240,12 @@ class Selection(Pytree):
         """
         flag = flag if isinstance(flag, Flag) else Flag(flag)
         return MaskSel.build(self, flag)
+
+    def project(self, sample: "ChoiceMap") -> "ChoiceMap":
+        return self.filter(sample)
+
+    def complement(self) -> "Selection":
+        return ~self
 
     def filter(self, chm: "ChoiceMap") -> "ChoiceMap":
         """
@@ -738,7 +745,7 @@ class _ChoiceMapBuilder:
         return self.set(ChoiceMap.kw(**kwargs))
 
 
-class ChoiceMap(Pytree):
+class ChoiceMap(Sample):
     """The type `ChoiceMap` denotes a map-like value which can be sampled from
     generative functions.
 
@@ -1556,3 +1563,25 @@ class FilteredChm(ChoiceMap):
         submap = self.c.get_submap(addr)
         subselection = self.selection(addr)
         return submap.filter(subselection)
+
+
+################################
+# Choice map specialized types #
+################################
+
+
+@Pytree.dataclass
+class ChoiceMapConstraint(Constraint, ChoiceMap):
+    choice_map: ChoiceMap
+
+    def get_submap(
+        self,
+        addr: ExtendedAddressComponent,
+    ) -> ChoiceMap:
+        return ChoiceMapConstraint(self.choice_map.get_submap(addr))
+
+    def get_value(self) -> Any:
+        return self.choice_map.get_value()
+
+    def static_is_empty(self):
+        return self.choice_map.static_is_empty()

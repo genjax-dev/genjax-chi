@@ -46,9 +46,7 @@ class TestIterateSimpleNormal:
         key, sub_key = jax.random.split(key)
         tr = jax.jit(scanner.simulate)(sub_key, (0.01,))
         scan_score = tr.get_score()
-
-        # TODO this test is busted! Obviously masking out all choices should not preserve the score.
-        sel = genjax.Selection.none()
+        sel = genjax.Selection.all()
         assert tr.project(key, sel) == scan_score
 
     def test_iterate_simple_normal_importance(self):

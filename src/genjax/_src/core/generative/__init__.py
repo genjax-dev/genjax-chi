@@ -17,6 +17,7 @@ from .choice_map import (
     AddressComponent,
     ChoiceMap,
     ChoiceMapBuilder,
+    ChoiceMapConstraint,
     Selection,
     SelectionBuilder,
     StaticAddress,
@@ -25,16 +26,11 @@ from .choice_map import (
 from .core import (
     Argdiffs,
     Arguments,
-    ChoiceMapConstraint,
-    ChoiceMapSample,
     Constraint,
     EditRequest,
     EmptyConstraint,
     EmptyRequest,
     EmptySample,
-    GenerativeFunction,
-    GenerativeFunctionClosure,
-    IgnoreKwargs,
     IncrementalGenericRequest,
     MaskedConstraint,
     MaskedRequest,
@@ -44,11 +40,15 @@ from .core import (
     Retdiff,
     Sample,
     Score,
-    SelectionProjection,
-    Trace,
     Weight,
 )
 from .functional_types import Mask
+from .generative_function import (
+    GenerativeFunction,
+    GenerativeFunctionClosure,
+    IgnoreKwargs,
+    Trace,
+)
 
 __all__ = [
     "Address",
@@ -58,7 +58,6 @@ __all__ = [
     "ChoiceMap",
     "ChoiceMapBuilder",
     "ChoiceMapConstraint",
-    "ChoiceMapSample",
     "Constraint",
     "EditRequest",
     "EmptyConstraint",
@@ -80,7 +79,6 @@ __all__ = [
     "Score",
     "Selection",
     "SelectionBuilder",
-    "SelectionProjection",
     "StaticAddress",
     "StaticAddressComponent",
     "Trace",
