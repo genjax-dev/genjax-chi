@@ -891,7 +891,7 @@ pipenv = ["pipenv (<=2022.12.19)"]
 name = "equinox"
 version = "0.11.4"
 description = "Elegant easy-to-use neural networks in JAX."
-optional = false
+optional = true
 python-versions = "~=3.9"
 files = [
     {file = "equinox-0.11.4-py3-none-any.whl", hash = "sha256:a9527b1fe0c4778c3c959d9091b1eea28c3fdcca01790a47e71b47df94889315"},
@@ -2904,7 +2904,7 @@ tests = ["pytest", "pytest-cov", "pytest-pep8"]
 name = "ordered-set"
 version = "4.1.0"
 description = "An OrderedSet is a custom MutableSet that remembers its order, so that every"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "ordered-set-4.1.0.tar.gz", hash = "sha256:694a8e44c87657c59292ede72891eb91d34131f6531463aab3009191c77364a8"},
@@ -3126,7 +3126,7 @@ files = [
 name = "penzai"
 version = "0.1.5"
 description = "Penzai: A JAX research toolkit for building, editing, and visualizing neural networks."
-optional = false
+optional = true
 python-versions = ">=3.10"
 files = [
     {file = "penzai-0.1.5-py3-none-any.whl", hash = "sha256:bc46c5f0ed2d0e74b558c1dc39dfb94c168eaddfe5ca446627e9d7affda78e20"},
@@ -4491,6 +4491,26 @@ docs = ["myst-parser", "pydata-sphinx-theme", "sphinx"]
 test = ["argcomplete (>=3.0.3)", "mypy (>=1.7.0)", "pre-commit", "pytest (>=7.0,<8.2)", "pytest-mock", "pytest-mypy-testing"]
 
 [[package]]
+name = "treescope"
+version = "0.1.4"
+description = "Treescope: An interactive HTML pretty-printer for ML research in IPython notebooks."
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "treescope-0.1.4-py3-none-any.whl", hash = "sha256:5dc0f123f9bdaeb5198ffb62503ea32b2887f95cfedf66d1270e3b43a3878621"},
+    {file = "treescope-0.1.4.tar.gz", hash = "sha256:38e78474d8902f19e0c166f68e82d963242a0424259c1d7afbad40907a813900"},
+]
+
+[package.dependencies]
+numpy = ">=1.25.2"
+
+[package.extras]
+dev = ["ipython", "jupyter", "pyink (>=24.3.0)", "pylint (>=2.6.0)"]
+docs = ["ipython", "ipython (>=8.8.0)", "jax[cpu] (>=0.4.23)", "matplotlib (>=3.5.0)", "myst-nb (>=1.0.0)", "myst-parser (>=3.0.1)", "palettable (==3.3.3)", "pandas (==2.2.2)", "penzai (>=0.2.0,<0.3.0)", "plotly (==5.22.0)", "sphinx (>=6.0.0,<7.3.0)", "sphinx-book-theme (>=1.0.1)", "sphinx-hoverxref", "sphinx_contributors", "sphinxcontrib-katex", "torch (==2.3.1)"]
+notebook = ["ipython", "jax (>=0.4.23)", "palettable"]
+test = ["absl-py (>=1.4.0)", "jax (>=0.4.23)", "pytest (>=8.2.2)", "torch (>=2.0.0)"]
+
+[[package]]
 name = "typeguard"
 version = "2.13.3"
 description = "Run-time type checker for Python"
@@ -4807,4 +4827,4 @@ msgpack = ["msgpack"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "96d0eb703f17f45765c73c37033536db7e2a8f1ffae4b766e8b23cd7d5401684"
+content-hash = "7a3ee5b486eb1159dfa5049159cac2f3e9654a89105c36a6915c268cdd403d7e"
