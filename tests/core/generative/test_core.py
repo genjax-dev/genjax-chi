@@ -13,9 +13,23 @@
 # limitations under the License.
 
 
-import genjax
 import jax
 import jax.numpy as jnp
+
+import genjax
+from genjax import Selection
+
+
+class TestTupleAddr:
+    def test_tupled_address(self):
+        @genjax.gen
+        def f():
+            x = genjax.normal(0.0, 1.0) @ ("x", "x0")
+            y = genjax.normal(x, 1.0) @ "y"
+            return y
+
+        tr = f.simulate(jax.random.PRNGKey(0), ())
+        assert -2.7931314 == tr.project(jax.random.PRNGKey(1), Selection.at["x", "x0"])
 
 
 class TestCombinators:
@@ -44,13 +58,9 @@ class TestCombinators:
         assert jnp.array_equal(chm[..., "q"], qarr)
 
         # check alternate access route:
-        assert jnp.array_equal(
-            jnp.array([chm(0)["v"].value, chm(1)["v"].value, chm(2)["v"].value]), varr
-        )
+        assert jnp.array_equal(chm(jnp.arange(3))["v"].unmask(), varr)
 
-        assert jnp.array_equal(
-            jnp.array([chm(0)["q"].value, chm(1)["q"].value, chm(2)["q"].value]), qarr
-        )
+        assert jnp.array_equal(chm(jnp.arange(3))["q"].unmask(), qarr)
 
     def test_repeat(self):
         key = jax.random.PRNGKey(314159)

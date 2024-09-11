@@ -15,8 +15,8 @@
 
 import jax
 import jax.numpy as jnp
-from jax import api_util, make_jaxpr
 from jax import core as jc
+from jax import make_jaxpr
 from jax import tree_util as jtu
 from jax.experimental import checkify
 from jax.extend import linear_util as lu
@@ -24,58 +24,112 @@ from jax.interpreters import partial_eval as pe
 from jax.util import safe_map
 
 from genjax._src.checkify import optional_check
-from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import Bool, Int, static_check_is_concrete
+from genjax._src.core.typing import (
+    Any,
+    ArrayLike,
+    Callable,
+    Flag,
+    TypeVar,
+    static_check_is_concrete,
+)
 
-register_exclusion(__file__)
+WrappedFunWithAux = tuple[lu.WrappedFun, Callable[[], Any]]
 
 ###############################
 # Concrete Boolean arithmetic #
 ###############################
 
+R = TypeVar("R")
+
+
+class FlagOp:
+    """JAX compilation imposes restrictions on the control flow used in the compiled code.
+    Branches gated by booleans must use GPU-compatible branching (e.g., `jax.lax.cond`).
+    However, the GPU must compute both sides of the branch, wasting effort in the case
+    where the gating boolean is constant. In such cases, if-based flow control will
+    conceal the branch not taken from the JAX compiler, decreasing compilation time and
+    code size for the result by not including the code for the branch that cannot be taken.
+
+    This class centralizes the concrete short-cut logic used by GenJAX.
+    """
+
+    @staticmethod
+    def and_(f: Flag, g: Flag) -> Flag:
+        # True and X => X. False and X => False.
+        if f is True:
+            return g
+        if f is False:
+            return f
+        if g is True:
+            return f
+        if g is False:
+            return g
+        return jnp.logical_and(f, g)
+
+    @staticmethod
+    def or_(f: Flag, g: Flag) -> Flag:
+        # True or X => True. False or X => X.
+        if f is True:
+            return f
+        if f is False:
+            return g
+        if g is True:
+            return g
+        if g is False:
+            return f
+        return jnp.logical_or(f, g)
+
+    @staticmethod
+    def xor_(f: Flag, g: Flag) -> Flag:
+        # True xor X => ~X. False xor X => X.
+        if f is True:
+            return FlagOp.not_(g)
+        if f is False:
+            return g
+        if g is True:
+            return FlagOp.not_(f)
+        if g is False:
+            return f
+        return jnp.logical_xor(f, g)
+
+    @staticmethod
+    def not_(f: Flag) -> Flag:
+        if f is True:
+            return False
+        if f is False:
+            return True
+        return jnp.logical_not(f)
+
+    @staticmethod
+    def concrete_true(f: Flag) -> bool:
+        return f is True
+
+    @staticmethod
+    def concrete_false(f: Flag) -> bool:
+        return f is False
+
+    @staticmethod
+    def where(f: Flag, tf: ArrayLike, ff: ArrayLike) -> ArrayLike:
+        """Return tf or ff according to the truth value contained in flag
+        in a manner that works in either the concrete or dynamic context"""
+        if f is True:
+            return tf
+        if f is False:
+            return ff
+        return jax.lax.select(f, tf, ff)
+
+    @staticmethod
+    def cond(f: Flag, tf: Callable[..., R], ff: Callable[..., R], *args: Any) -> R:
+        """Invokes `tf` with `args` if flag is true, else `ff`"""
+        if f is True:
+            return tf(*args)
+        if f is False:
+            return ff(*args)
+        return jax.lax.cond(f, tf, ff, *args)
+
 
 def staged_check(v):
     return static_check_is_concrete(v) and v
-
-
-def staged_and(x, y):
-    if (
-        static_check_is_concrete(x)
-        and static_check_is_concrete(y)
-        and isinstance(x, Bool)
-        and isinstance(y, Bool)
-    ):
-        return x and y
-    else:
-        return jnp.logical_and(x, y)
-
-
-def staged_or(x, y):
-    # Static scalar land.
-    if (
-        static_check_is_concrete(x)
-        and static_check_is_concrete(y)
-        and isinstance(x, Bool)
-        and isinstance(y, Bool)
-    ):
-        return x or y
-    # Array land.
-    else:
-        return jnp.logical_or(x, y)
-
-
-def staged_not(x):
-    if static_check_is_concrete(x) and isinstance(x, Bool):
-        return not x
-    else:
-        return jnp.logical_not(x)
-
-
-def staged_switch(idx, v1, v2):
-    if static_check_is_concrete(idx) and isinstance(idx, Int):
-        return [v1, v2][idx]
-    else:
-        return jax.lax.cond(idx, lambda: v1, lambda: v2)
 
 
 #########################
@@ -83,12 +137,11 @@ def staged_switch(idx, v1, v2):
 #########################
 
 
-def staged_err(check, msg, **kwargs):
-    if static_check_is_concrete(check) and isinstance(check, Bool):
-        if check:
-            raise Exception(msg)
-        else:
-            return None
+def staged_err(check: Flag, msg, **kwargs):
+    if FlagOp.concrete_true(check):
+        raise Exception(msg)
+    elif FlagOp.concrete_false(check):
+        pass
     else:
 
         def _check():
@@ -113,13 +166,26 @@ def cached_stage_dynamic(flat_fun, in_avals):
     return typed_jaxpr
 
 
+@lu.transformation_with_aux
+def _flatten_fun_nokwargs(in_tree, *args_flat):
+    py_args = jtu.tree_unflatten(in_tree, args_flat)
+    ans = yield py_args, {}
+    yield jtu.tree_flatten(ans)
+
+
+# Wrapper to assign a correct type.
+flatten_fun_nokwargs: Callable[[lu.WrappedFun, Any], WrappedFunWithAux] = (
+    _flatten_fun_nokwargs  # pyright: ignore[reportAssignmentType]
+)
+
+
 def stage(f):
     """Returns a function that stages a function to a ClosedJaxpr."""
 
     def wrapped(*args, **kwargs):
         fun = lu.wrap_init(f, kwargs)
         flat_args, in_tree = jtu.tree_flatten(args)
-        flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
+        flat_fun, out_tree = flatten_fun_nokwargs(fun, in_tree)
         flat_avals = safe_map(get_shaped_aval, flat_args)
         typed_jaxpr = cached_stage_dynamic(flat_fun, tuple(flat_avals))
         return typed_jaxpr, (flat_args, in_tree, out_tree)
@@ -153,11 +219,3 @@ def get_importance_shape(gen_fn, constraint, args):
 def get_update_shape(gen_fn, tr, problem):
     key = jax.random.PRNGKey(0)
     return get_data_shape(gen_fn.update)(key, tr, problem)
-
-
-def make_zero_trace(gen_fn, *args):
-    out_tree = get_trace_shape(gen_fn, *args)
-    return jtu.tree_map(
-        lambda v: jnp.zeros(v.shape, v.dtype),
-        out_tree,
-    )

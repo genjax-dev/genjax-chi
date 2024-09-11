@@ -26,42 +26,41 @@ from genjax._src.core.interpreters.forward import (
 )
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Closure, Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
     Callable,
+    Generic,
     Int,
-    Optional,
     String,
-    typecheck,
+    TypeVar,
 )
 
-register_exclusion(__file__)
-
+R = TypeVar("R")
+S = TypeVar("S")
 
 record_p = InitialStylePrimitive("record_p")
 
 
 @Pytree.dataclass
-class FrameRecording(Pytree):
-    f: Callable[..., Any]
-    args: tuple
-    local_retval: Any
-    cont: Callable[..., Any]
+class FrameRecording(Generic[R, S], Pytree):
+    f: Callable[..., R]
+    args: tuple[Any, ...]
+    local_retval: R
+    cont: Callable[..., S]
 
 
 @Pytree.dataclass
-class RecordPoint(Pytree):
-    callable: Closure
-    debug_tag: Optional[String] = Pytree.static()
+class RecordPoint(Generic[R, S], Pytree):
+    callable: Closure[R]
+    debug_tag: String | None = Pytree.static()
 
-    def default_call(self, *args):
+    def default_call(self, *args) -> R:
         return self.callable(*args)
 
-    def handle(self, cont: Callable[..., Any], *args):
+    def handle(self, cont: Callable[[R], tuple[S, Any]], *args):
         @Pytree.partial()
-        def _cont(*args):
+        def _cont(*args) -> S:
             final_ret, _ = cont(self.callable(*args))
             return final_ret
 
@@ -73,7 +72,6 @@ class RecordPoint(Pytree):
             FrameRecording(self.callable, args, ret, _cont),
         )
 
-    @typecheck
     def __call__(self, *args):
         def _cont_prim_call(brk_pt, *args):
             return brk_pt.default_call(*args)
@@ -81,10 +79,9 @@ class RecordPoint(Pytree):
         return initial_style_bind(record_p)(_cont_prim_call)(self, *args)
 
 
-@typecheck
 def rec(
-    callable: Callable[..., Any],
-    debug_tag: Optional[String] = None,
+    callable: Callable[..., R],
+    debug_tag: String | None = None,
 ):
     if not isinstance(callable, Closure):
         callable = Pytree.partial()(callable)
@@ -204,17 +201,17 @@ def time_travel(f):
 @Pytree.dataclass
 class TimeTravelingDebugger(Pytree):
     final_retval: Any
-    sequence: list[FrameRecording]
-    jump_points: dict = Pytree.static()
+    sequence: list[FrameRecording[Any, Any]]
+    jump_points: dict[Any, Any] = Pytree.static()
     ptr: Int = Pytree.static()
 
-    def frame(self) -> tuple[Optional[String], FrameRecording]:
+    def frame(self) -> tuple[String | None, FrameRecording[Any, Any]]:
         frame = self.sequence[self.ptr]
         reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
         jump_tag = reverse_jump_points.get(self.ptr, None)
         return jump_tag, frame
 
-    def summary(self) -> tuple[Any, tuple[Optional[String], FrameRecording]]:
+    def summary(self) -> tuple[Any, tuple[String | None, FrameRecording[Any, Any]]]:
         frame = self.sequence[self.ptr]
         reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
         jump_tag = reverse_jump_points.get(self.ptr, None)
@@ -270,7 +267,6 @@ class TimeTravelingDebugger(Pytree):
         return self.remix(*args)
 
 
-@typecheck
 def _record(source: Callable[..., Any]):
     def inner(*args) -> tuple[Any, TimeTravelingDebugger]:
         retval, next = time_travel(source)(*args)
@@ -288,7 +284,6 @@ def _record(source: Callable[..., Any]):
     return inner
 
 
-@typecheck
 def time_machine(source: Callable[..., Any]):
     def instrumented(*args):
         return tag(rec(source, "_enter")(*args), "exit")

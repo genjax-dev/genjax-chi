@@ -39,8 +39,8 @@ from .core import (
     MaskedProblem,
     MaskedSample,
     ProjectProblem,
+    R,
     Retdiff,
-    Retval,
     Sample,
     Score,
     SumConstraint,
@@ -50,7 +50,7 @@ from .core import (
     UpdateProblemBuilder,
     Weight,
 )
-from .functional_types import Mask, Sum
+from .functional_types import Mask
 
 __all__ = [
     "Address",
@@ -75,15 +75,14 @@ __all__ = [
     "MaskedProblem",
     "MaskedSample",
     "ProjectProblem",
+    "R",
     "Retdiff",
-    "Retval",
     "Sample",
     "Score",
     "Selection",
     "SelectionBuilder",
     "StaticAddress",
     "StaticAddressComponent",
-    "Sum",
     "SumConstraint",
     "SumProblem",
     "Trace",

@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
 import pytest
+from jax import numpy as jnp
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
 from genjax import UpdateProblemBuilder as U
-from jax import numpy as jnp
+from genjax._src.core.typing import Array
 
 
 class TestSwitchCombinator:
@@ -221,8 +223,7 @@ class TestSwitchCombinator:
         keys = jax.random.split(jax.random.PRNGKey(17), 3)
         # Just select 0 in all branches for simplicity:
         tr = jax.vmap(s.simulate, in_axes=(0, None))(keys, (0, (), ()))
-        y = tr.get_choices()["y"]
-        y = y.unmask()
+        y = tr.get_choices()["y"].unmask()
         assert y.shape == (3,)
 
     def test_switch_combinator_with_empty_gen_fn(self):
@@ -233,7 +234,7 @@ class TestSwitchCombinator:
 
         @genjax.gen
         def empty():
-            return 0.0
+            return jnp.asarray(0.0)
 
         @genjax.gen
         def model():
@@ -245,3 +246,40 @@ class TestSwitchCombinator:
         key, sub_key = jax.random.split(key)
         tr = model.simulate(sub_key, ())
         assert 0.0 == tr.get_retval()
+
+    def test_switch_combinator_with_different_return_types(self):
+        @genjax.gen
+        def identity(x: int) -> Array:
+            return jnp.asarray(x)
+
+        @genjax.gen
+        def bool_branch(_: int) -> Array:
+            return jnp.asarray(True)
+
+        k = jax.random.PRNGKey(0)
+
+        switch_model = genjax.switch(identity, bool_branch)
+
+        bare_idx_result = switch_model(1, (10,), (10,))(k)
+        assert bare_idx_result == jnp.asarray(1)
+        assert bare_idx_result.dtype == jnp.int32
+
+        # this case returns 1
+        array_idx_result = switch_model(jnp.array(1), (10,), (10,))(k)
+        assert array_idx_result == jnp.asarray(1)
+        assert array_idx_result.dtype == bare_idx_result.dtype
+
+    def test_runtime_incompatible_types(self):
+        @genjax.gen
+        def three_branch(x: int):
+            return jax.numpy.ones(3)
+
+        @genjax.gen
+        def four_branch(_: int):
+            return jax.numpy.ones(4)
+
+        k = jax.random.PRNGKey(0)
+        switch_model = three_branch.switch(four_branch)
+
+        with pytest.raises(ValueError, match="Incompatible shapes for broadcasting"):
+            switch_model(0, (10,), (10,))(k)

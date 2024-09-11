@@ -14,13 +14,15 @@
 
 from typing import Any
 
-import genjax
 import jax
 import jax.numpy as jnp
 import pytest
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff, Pytree
 from genjax import UpdateProblemBuilder as U
+from genjax._src.core.typing import Array
 from genjax.generative_functions.static import AddressReuse
 from genjax.typing import Float, FloatArray
 
@@ -31,6 +33,53 @@ from genjax.typing import Float, FloatArray
 ##################################
 # Generative function interfaces #
 ##################################
+
+
+class TestStaticGenFnMetadata:
+    def test_docstring_transfer(self):
+        def original_function(x: float, y: float) -> float:
+            """
+            This is a test function that adds two numbers.
+
+            Args:
+                x (float): The first number
+                y (float): The second number
+
+            Returns:
+                float: The sum of x and y
+            """
+            return x + y
+
+        wrapped_function = genjax.gen(original_function)
+
+        assert wrapped_function.__doc__ == original_function.__doc__
+        assert wrapped_function.__name__ == original_function.__name__
+        assert wrapped_function.__module__ == original_function.__module__
+        assert wrapped_function.__qualname__ == original_function.__qualname__
+        assert getattr(wrapped_function, "__wrapped__") == original_function
+
+    def test_docstring_transfer_with_annotations(self):
+        @genjax.gen
+        def annotated_function(x: float, y: float) -> float:
+            """
+            This is an annotated test function that multiplies two numbers.
+
+            Args:
+                x (float): The first number
+                y (float): The second number
+
+            Returns:
+                float: The product of x and y
+            """
+            return x * y
+
+        assert annotated_function.__doc__ is not None
+        assert "This is an annotated test function" in annotated_function.__doc__
+        assert annotated_function.__annotations__ == {
+            "x": float,
+            "y": float,
+            "return": float,
+        }
 
 
 class TestStaticGenFnSimulate:
@@ -154,12 +203,14 @@ def simple_normal(custom_tree):
 
 
 @Pytree.dataclass
-class _CustomNormal(genjax.Distribution):
-    def estimate_logpdf(self, key, v, custom_tree):
-        w, _ = genjax.normal.assess(v, custom_tree.x, custom_tree.y)
+class _CustomNormal(genjax.Distribution[Array]):
+    def estimate_logpdf(self, key, v, *args):
+        v, custom_tree = args
+        w, _ = genjax.normal.assess(v, (custom_tree.x, custom_tree.y))
         return w
 
-    def random_weighted(self, key, custom_tree):
+    def random_weighted(self, key, *args):
+        (custom_tree,) = args
         return genjax.normal.random_weighted(key, custom_tree.x, custom_tree.y)
 
 
@@ -346,7 +397,7 @@ class TestStaticGenFnUpdate:
             key, updated_choice.get_submap("y2"), (0.0, 1.0)
         )
         test_score = score1 + score2
-        assert original_choice[("y1",)] == discard[("y1",)]
+        assert original_choice["y1",] == discard["y1",]
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 

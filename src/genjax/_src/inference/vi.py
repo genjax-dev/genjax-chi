@@ -38,7 +38,6 @@ from genjax._src.core.typing import (
     FloatArray,
     Int,
     PRNGKey,
-    typecheck,
 )
 from genjax._src.generative_functions.distributions.distribution import (
     ExactDensity,
@@ -60,7 +59,6 @@ tfd = tfp.distributions
 ##########################################
 
 
-@typecheck
 def adev_distribution(
     adev_primitive: ADEVPrimitive,
     differentiable_logpdf: Callable[..., Any],
@@ -139,7 +137,6 @@ The type of gradient estimates returned by sampling from gradient estimators for
 """
 
 
-@typecheck
 def ELBO(
     guide: SampleDistribution,
     make_target: Callable[..., Target],
@@ -165,7 +162,6 @@ def ELBO(
     return grad_estimate
 
 
-@typecheck
 def IWELBO(
     proposal: SampleDistribution,
     make_target: Callable[[Any], Target],
@@ -192,7 +188,6 @@ def IWELBO(
     return grad_estimate
 
 
-@typecheck
 def PWake(
     posterior_approx: SampleDistribution,
     make_target: Callable[[Any], Target],
@@ -220,7 +215,6 @@ def PWake(
     return grad_estimate
 
 
-@typecheck
 def QWake(
     proposal: SampleDistribution,
     posterior_approx: SampleDistribution,
