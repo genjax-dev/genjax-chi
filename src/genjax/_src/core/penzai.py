@@ -761,10 +761,14 @@ def struct_attr_style_fn_for_fields(
     return attr_style_fn
 
 
+# This is here to silence a beartype warning about non-runtime-checkable protocols.
+TreescopeSubtreeRenderer = typing.runtime_checkable(renderers.TreescopeSubtreeRenderer)
+
+
 def handle_structs(
     node: Any,
     path: str | None,
-    subtree_renderer: renderers.TreescopeSubtreeRenderer,
+    subtree_renderer: TreescopeSubtreeRenderer,  # pyright: ignore[reportInvalidTypeForm]
 ) -> (
     rendering_parts.RenderableTreePart
     | rendering_parts.RenderableAndLineAnnotations
