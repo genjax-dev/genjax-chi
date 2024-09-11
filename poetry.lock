@@ -888,22 +888,6 @@ conda = ["pyyaml"]
 pipenv = ["pipenv (<=2022.12.19)"]
 
 [[package]]
-name = "equinox"
-version = "0.11.4"
-description = "Elegant easy-to-use neural networks in JAX."
-optional = true
-python-versions = "~=3.9"
-files = [
-    {file = "equinox-0.11.4-py3-none-any.whl", hash = "sha256:a9527b1fe0c4778c3c959d9091b1eea28c3fdcca01790a47e71b47df94889315"},
-    {file = "equinox-0.11.4.tar.gz", hash = "sha256:0033d9731083f402a855b12a0777a80aa8507651f7aa86d9f0f9503bcddfd320"},
-]
-
-[package.dependencies]
-jax = ">=0.4.13"
-jaxtyping = ">=0.2.20"
-typing-extensions = ">=4.5.0"
-
-[[package]]
 name = "exceptiongroup"
 version = "1.2.2"
 description = "Backport of PEP 654 (exception groups)"
@@ -1064,23 +1048,19 @@ files = [
 
 [[package]]
 name = "genstudio"
-version = "2024.7.30.1946"
+version = "2024.9.11.1556.dev0"
 description = ""
 optional = true
 python-versions = ">=3.10,<3.13"
 files = [
-    {file = "genstudio-2024.7.30.1946-py3-none-any.whl", hash = "sha256:458cff3ed5bbb4547fc58f5ee46b6a64ce056e47c1ce7ba01163262c644a37b9"},
-    {file = "genstudio-2024.7.30.1946.tar.gz", hash = "sha256:fd529988669d7bb18899cb653579b75921f4ba2a2cd229451319846cfc19594b"},
+    {file = "genstudio-2024.9.11.1556.dev0-py3-none-any.whl", hash = "sha256:2c92fa2031fb2d56660434e832cc4c5ea9e0152a3807178e30b880f93aa8d276"},
+    {file = "genstudio-2024.9.11.1556.dev0.tar.gz", hash = "sha256:f37a24aa281e6c60fd9ad178bf6e616abccc6d9e5ad3355ff54fefbd997fcee4"},
 ]
 
 [package.dependencies]
 anywidget = ">=0.9.10,<0.10.0"
 html2image = ">=2.0.4.3,<3.0.0.0"
-jax = ">=0.4.24,<0.5.0"
-numpy = ">=1.26.4,<2.0.0"
 orjson = ">=3.10.6,<4.0.0"
-penzai = ">=0.1.1,<0.2.0"
-pillow = ">=10.4.0,<11.0.0"
 traitlets = ">=5.14.3,<6.0.0"
 
 [package.source]
@@ -2901,20 +2881,6 @@ docs = ["numpydoc", "sphinx (==1.2.3)", "sphinx-rtd-theme", "sphinxcontrib-napol
 tests = ["pytest", "pytest-cov", "pytest-pep8"]
 
 [[package]]
-name = "ordered-set"
-version = "4.1.0"
-description = "An OrderedSet is a custom MutableSet that remembers its order, so that every"
-optional = true
-python-versions = ">=3.7"
-files = [
-    {file = "ordered-set-4.1.0.tar.gz", hash = "sha256:694a8e44c87657c59292ede72891eb91d34131f6531463aab3009191c77364a8"},
-    {file = "ordered_set-4.1.0-py3-none-any.whl", hash = "sha256:046e1132c71fcf3330438a539928932caf51ddbc582496833e23de611de14562"},
-]
-
-[package.extras]
-dev = ["black", "mypy", "pytest"]
-
-[[package]]
 name = "orjson"
 version = "3.10.7"
 description = "Fast, correct Python JSON library supporting dataclasses, datetimes, and numpy"
@@ -3121,31 +3087,6 @@ files = [
     {file = "pathspec-0.12.1-py3-none-any.whl", hash = "sha256:a0d503e138a4c123b27490a4f7beda6a01c6f288df0e4a8b79c7eb0dc7b4cc08"},
     {file = "pathspec-0.12.1.tar.gz", hash = "sha256:a482d51503a1ab33b1c67a6c3813a26953dbdc71c31dacaef9a838c4e29f5712"},
 ]
-
-[[package]]
-name = "penzai"
-version = "0.1.5"
-description = "Penzai: A JAX research toolkit for building, editing, and visualizing neural networks."
-optional = true
-python-versions = ">=3.10"
-files = [
-    {file = "penzai-0.1.5-py3-none-any.whl", hash = "sha256:bc46c5f0ed2d0e74b558c1dc39dfb94c168eaddfe5ca446627e9d7affda78e20"},
-    {file = "penzai-0.1.5.tar.gz", hash = "sha256:2feba0079af6689dac9e44623744858e74b144688ad42c368561a6851fe404e4"},
-]
-
-[package.dependencies]
-absl-py = ">=1.4.0"
-equinox = ">=0.11.3"
-jax = ">=0.4.23"
-numpy = ">=1.25.2"
-ordered_set = ">=4.1.0"
-typing_extensions = ">=4.2"
-
-[package.extras]
-dev = ["ipython", "jupyter", "pyink (>=24.3.0)", "pylint (>=2.6.0)", "pytest (>=8.2.2)"]
-docs = ["flax (>=0.8.2)", "ipython", "ipython (>=8.8.0)", "jax[cpu] (>=0.4.23)", "matplotlib (>=3.5.0)", "myst-nb (>=1.0.0)", "myst-parser (>=3.0.1)", "optax", "sphinx (>=6.0.0,<7.3.0)", "sphinx-book-theme (>=1.0.1)", "sphinx-collections (>=0.0.1)", "sphinx-hoverxref", "sphinx_contributors", "sphinxcontrib-katex"]
-extras = ["flax (>=0.8.2)", "ipython", "optax", "torch", "transformers (>=4.41.2)"]
-notebook = ["flax (>=0.8.2)", "ipython", "optax", "orbax-checkpoint", "palettable"]
 
 [[package]]
 name = "pexpect"
@@ -4827,4 +4768,4 @@ msgpack = ["msgpack"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "7a3ee5b486eb1159dfa5049159cac2f3e9654a89105c36a6915c268cdd403d7e"
+content-hash = "e82780f1b1ff2c0803d9401542e8458b7f420e6d0591106917f1fc7c88768c87"

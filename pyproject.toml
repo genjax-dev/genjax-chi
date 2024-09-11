@@ -48,7 +48,7 @@ treescope = "^0.1.4"
 # remove this constraint when that issue is closed.
 numpy = ">=1.22,<2.0.0"
 msgpack = { version = "^1.0.8", optional = true }
-genstudio = { version = "2024.07.30.1946", source = "gcp", optional = true }
+genstudio = { version = "2024.9.11.1556.dev0", source = "gcp", optional = true }
 
 [tool.poetry.group.dev]
 optional = true
