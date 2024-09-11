@@ -93,7 +93,7 @@ def static_check_is_change_tangent(v):
 #############################
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class Diff(Generic[R], Pytree):
     primal: R
     tangent: R

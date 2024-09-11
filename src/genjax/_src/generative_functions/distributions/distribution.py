@@ -41,6 +41,7 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.choice_map import FilteredChm
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
@@ -138,9 +139,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     w = self.estimate_logpdf(key, v, *args)
                     return (w, w, v)
 
-                score, w, new_v = jax.lax.cond(
-                    flag.f, _importance, _simulate, key, value
-                )
+                score, w, new_v = jax.lax.cond(flag, _importance, _simulate, key, value)
                 tr = DistributionTrace(self, args, new_v, score)
                 return tr, w
 
@@ -213,7 +212,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             case ChoiceMapConstraint():
                 check = constraint.has_value()
                 v = constraint.get_value()
-                if check.concrete_true():
+                if FlagOp.concrete_true(check):
                     fwd = self.estimate_logpdf(key, v, *primals)
                     bwd = trace.get_score()
                     w = fwd - bwd
@@ -229,7 +228,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                             ChoiceMapConstraint(discard),
                         ),
                     )
-                elif check.concrete_false():
+                elif FlagOp.concrete_false(check):
                     value_chm = trace.get_choices()
                     v = value_chm.get_value()
                     fwd = self.estimate_logpdf(key, v, *primals)
@@ -263,13 +262,13 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         return (old_value, w, fwd)
 
                     masked_value: Mask[R] = v
-                    flag = masked_value.flag
+                    flag = masked_value.primal_flag()
                     new_value: R = masked_value.value
                     old_choices = trace.get_choices()
                     old_value: R = old_choices.get_value()
 
-                    new_value, w, score = jax.lax.cond(
-                        flag.f,
+                    new_value, w, score = FlagOp.cond(
+                        flag,
                         _true_branch,
                         _false_branch,
                         key,
@@ -300,7 +299,8 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         projection: Projection[Any],
     ) -> Weight:
         assert isinstance(projection, Selection)
-        return projection.check().where(
+        return jnp.where(
+            projection.check(),
             trace.get_score(),
             jnp.array(0.0),
         )  # pyright: ignore

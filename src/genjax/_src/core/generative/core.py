@@ -169,26 +169,6 @@ class EmptyRequest(EditRequest):
 
 
 @Pytree.dataclass(match_args=True)
-class MaskedRequest(EditRequest):
-    flag: Flag
-    problem: EditRequest
-
-    @classmethod
-    def maybe_empty(cls, f: Flag, problem: EditRequest):
-        match problem:
-            case MaskedRequest(flag, subproblem):
-                return MaskedRequest(f.and_(flag), subproblem)
-            case _:
-                return (
-                    problem
-                    if f.concrete_true()
-                    else EmptyRequest()
-                    if f.concrete_false()
-                    else MaskedRequest(f, problem)
-                )
-
-
-@Pytree.dataclass(match_args=True)
 class IncrementalGenericRequest(EditRequest):
     argdiffs: Argdiffs
     constraint: Constraint
