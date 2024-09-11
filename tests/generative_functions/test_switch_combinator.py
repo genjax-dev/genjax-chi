@@ -115,7 +115,6 @@ class TestSwitchCombinator:
         v2 = tr.get_sample().get_submap("y2")
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        print(v1)
         v1_score, _ = genjax.normal.assess(v1, (0.0, 1.0))
         key, sub_key = jax.random.split(key)
         v2_score, _ = genjax.normal.assess(v2, (0.0, 1.0))
