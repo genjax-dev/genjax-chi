@@ -161,7 +161,12 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
                     return leaves[0].shape[axis]
             return ()
 
-        axis_sizes = jax.tree_util.tree_map(find_axis_size, self.in_axes, args)
+        axis_sizes = jax.tree_util.tree_map(
+            lambda x, y: None if x is None else find_axis_size(x, y),
+            self.in_axes,
+            args,
+            is_leaf=lambda x: x is None,
+        )
         axis_sizes = set(jax.tree_util.tree_leaves(axis_sizes))
         if len(axis_sizes) == 1:
             (d_axis_size,) = axis_sizes
