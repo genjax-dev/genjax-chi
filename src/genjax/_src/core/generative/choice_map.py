@@ -18,7 +18,6 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-import treescope
 from beartype.typing import Iterable
 
 from genjax._src.core.generative.core import Constraint, ProjectProblem, Sample
@@ -774,50 +773,6 @@ class ChoiceMap(Sample, Constraint):
         ```
     """
 
-    def _is_verbose(self) -> bool:
-        return False
-
-    def pushdown(self) -> "ChoiceMap":
-        return _pushdown_filters(self)
-
-    def pretty(self):
-        return _flatten_to_dict(self.pushdown())
-
-    def __repr__(self):
-        """Renders this object with treescope, on a single line."""
-        # Defer to Treescope.
-        # import treescope  # pylint: disable=g-import-not-at-top
-
-        print("called")
-        return "cake"
-        # with treescope.using_expansion_strategy(max_height=1):
-        #     return treescope.render_to_text(self.pretty(), ignore_exceptions=True)
-
-    def _repr_pretty_(self, p, cycle):
-        """Pretty-prints this object for an IPython pretty-printer."""
-        del cycle
-        # Defer to Treescope.
-        import treescope  # pylint: disable=g-import-not-at-top
-
-        rendering = treescope.render_to_text(self.pretty(), ignore_exceptions=True)
-        for i, line in enumerate(rendering.split("\n")):
-            if i:
-                p.break_()
-            p.text(line)
-
-    def __treescope_repr__(self, path, subtree_renderer):
-        # Convert the tree to a dictionary
-        dict_repr = self.pretty()
-
-        # Use repr_lib to render the object with a custom label
-        return treescope.repr_lib.render_dictionary_wrapper(
-            object_type=ChoiceMap,
-            wrapped_dict=dict_repr,
-            path=path,
-            subtree_renderer=subtree_renderer,
-            roundtrippable=False,
-        )
-
     #######################
     # Map-like interfaces #
     #######################
@@ -1250,6 +1205,13 @@ class EmptyChm(ChoiceMap):
     def static_is_empty(self) -> Bool:
         return True
 
+    # Simplification
+    def pushdown(self) -> "ChoiceMap":
+        return _pushdown_filters(self)
+
+    def to_dict(self):
+        return _flatten_to_dict(self.pushdown())
+
 
 _empty = EmptyChm()
 ChoiceMapBuilder = _ChoiceMapBuilder(_empty, [])
@@ -1633,8 +1595,6 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
 
 
 def _flatten_to_dict(input: ChoiceMap):
-    print("CAkked!")
-
     def loop(t):
         match t:
             case EmptyChm():
