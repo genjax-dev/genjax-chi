@@ -1179,6 +1179,13 @@ class ChoiceMap(Sample, Constraint):
         """
         return _ChoiceMapBuilder(self, [])
 
+    # Simplification
+    def pushdown(self) -> "ChoiceMap":
+        return _pushdown_filters(self)
+
+    def to_dict(self):
+        return _flatten_to_dict(self.pushdown())
+
 
 @Pytree.dataclass
 class EmptyChm(ChoiceMap):
@@ -1204,13 +1211,6 @@ class EmptyChm(ChoiceMap):
 
     def static_is_empty(self) -> Bool:
         return True
-
-    # Simplification
-    def pushdown(self) -> "ChoiceMap":
-        return _pushdown_filters(self)
-
-    def to_dict(self):
-        return _flatten_to_dict(self.pushdown())
 
 
 _empty = EmptyChm()
