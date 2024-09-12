@@ -27,7 +27,6 @@ from genjax._src.core.generative import (
     Mask,
     Projection,
     Retdiff,
-    Sample,
     Score,
     Trace,
     Weight,
@@ -59,9 +58,7 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
         return self.mask_combinator
 
     def get_sample(self) -> ChoiceMap:
-        inner_chm_sample = self.inner.get_sample()
-        assert isinstance(inner_chm_sample, ChoiceMap)
-        return inner_chm_sample.mask(self.check)
+        return self.get_choices()
 
     def get_choices(self) -> ChoiceMap:
         inner_choice_map = self.inner.get_choices()
@@ -238,10 +235,9 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, Mask[R]]:
-        assert isinstance(sample, ChoiceMap)
         (check, *inner_args) = args
         score, retval = self.gen_fn.assess(sample, tuple(inner_args))
         return (

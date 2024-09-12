@@ -244,7 +244,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         retval: R = staged_choose(idx, retvals)
         return SwitchTrace(self, args, subtraces, retval, score)
 
-    def _empty_assess_defs(self, sample: Sample, args: tuple[Any, ...]):
+    def _empty_assess_defs(self, sample: ChoiceMap, args: tuple[Any, ...]):
         retval_defs = []
         retval_leaves = []
         for static_idx in range(len(self.branches)):
@@ -269,10 +269,9 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
-        assert isinstance(sample, ChoiceMap)
         idx, branch_args = args[0], args[1:]
         self.static_check_num_arguments_equals_num_branches(branch_args)
 

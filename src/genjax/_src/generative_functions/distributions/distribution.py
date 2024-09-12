@@ -33,7 +33,6 @@ from genjax._src.core.generative import (
     Projection,
     R,
     Retdiff,
-    Sample,
     Score,
     Selection,
     Trace,
@@ -78,7 +77,7 @@ class DistributionTrace(
         return self.score
 
     def get_sample(self) -> ChoiceMap:
-        return ChoiceMap.value(self.value)
+        return self.get_choices()
 
     def get_choices(self) -> ChoiceMap:
         return ChoiceMap.value(self.value)
@@ -298,7 +297,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             projection.check(),
             trace.get_score(),
             jnp.array(0.0),
-        )  # pyright: ignore
+        )
 
     def edit_incremental_generic_request(
         self,
@@ -335,7 +334,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple[Any, ...],
     ):
         raise NotImplementedError
@@ -402,10 +401,9 @@ class ExactDensity(Generic[R], Distribution[R]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Weight, R]:
-        assert isinstance(sample, ChoiceMap)
         key = jax.random.PRNGKey(0)
         v = sample.get_value()
         match v:

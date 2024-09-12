@@ -31,7 +31,6 @@ from genjax._src.core.generative import (
     Projection,
     R,
     Retdiff,
-    Sample,
     Score,
     Trace,
     Weight,
@@ -66,12 +65,7 @@ class VmapTrace(Generic[R], Trace[R]):
         return self.gen_fn
 
     def get_sample(self) -> ChoiceMap:
-        return jax.vmap(
-            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_sample(), idx)
-        )(
-            jnp.arange(len(self.inner.get_score())),
-            self.inner,
-        )
+        return self.get_choices()
 
     def get_choices(self) -> ChoiceMap:
         return jax.vmap(
@@ -291,10 +285,9 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
-        assert isinstance(sample, ChoiceMap)
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         idx_array = jnp.arange(0, broadcast_dim_length)

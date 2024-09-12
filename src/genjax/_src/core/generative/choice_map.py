@@ -233,20 +233,17 @@ class Selection(Projection["ChoiceMap"]):
         """
         return MaskSel.build(self, flag)
 
-    def project(self, sample: "ChoiceMap") -> "ChoiceMap":
-        return self.filter(sample)
-
     def complement(self) -> "Selection":
         return ~self
 
-    def filter(self, chm: "ChoiceMap") -> "ChoiceMap":
+    def filter(self, sample: "ChoiceMap") -> "ChoiceMap":
         """
         Returns a new ChoiceMap filtered with this Selection.
 
         This method applies the current Selection to the given ChoiceMap, effectively filtering out addresses that are not matched.
 
         Args:
-            chm: The ChoiceMap to be filtered.
+            sample: The ChoiceMap to be filtered.
 
         Returns:
             A new ChoiceMap containing only the addresses selected by this Selection.
@@ -262,7 +259,7 @@ class Selection(Projection["ChoiceMap"]):
             assert "y" not in filtered_chm
             ```
         """
-        return chm.filter(self)
+        return sample.filter(self)
 
     def extend(self, *addrs: ExtendedStaticAddressComponent) -> "Selection":
         """
