@@ -64,6 +64,13 @@ class Mask(Generic[R], Pytree):
     flag: Flag | Diff[Flag]
     value: R
 
+    @staticmethod
+    def flag_and(a: Flag, b: Flag) -> Flag:
+        if isinstance(a, Array) and isinstance(b, Array):
+            return FlagOp.and_(a.T, b.T).T
+        else:
+            return FlagOp.and_(a, b)
+
     @overload
     @staticmethod
     def maybe(f: Flag, v: "Mask[R]") -> "Mask[R]": ...

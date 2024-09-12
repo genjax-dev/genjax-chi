@@ -369,7 +369,7 @@ class NoneSel(Selection):
         return self
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class MaskSel(Selection):
     """Represents a deferred selection that is conditionally applied based on a flag.
 
@@ -408,8 +408,7 @@ class MaskSel(Selection):
             return MaskSel(s, flag)
 
     def check(self) -> Flag:
-        ch = self.s.check()
-        return FlagOp.and_(self.flag, ch)
+        return Mask.flag_and(self.s.check(), self.flag)
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
         remaining = self.s(addr)
@@ -545,8 +544,9 @@ class AndSel(Selection):
             case (_, NoneSel()):
                 return b
 
-            case (MaskSel(), MaskSel()):
-                return (a.s & b.s).mask(FlagOp.and_(a.flag, b.flag))
+            case (MaskSel(a_sel, a_flag), MaskSel(b_sel, b_flag)):
+                a_and_b_flag = Mask.flag_and(a_flag, b_flag)
+                return (a_sel & b_sel).mask(a_and_b_flag)
 
             case _:
                 return AndSel(a, b)

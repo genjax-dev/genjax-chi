@@ -13,6 +13,8 @@
 # limitations under the License.
 
 
+from typing import overload
+
 import jax
 import jax.numpy as jnp
 from jax import core as jc
@@ -26,6 +28,7 @@ from jax.util import safe_map
 from genjax._src.checkify import optional_check
 from genjax._src.core.typing import (
     Any,
+    Array,
     ArrayLike,
     Callable,
     Flag,
@@ -54,6 +57,18 @@ class FlagOp:
     """
 
     @staticmethod
+    @overload
+    def and_(f: bool, g: bool) -> bool: ...
+
+    @staticmethod
+    @overload
+    def and_(f: Array, g: bool | Array) -> Array: ...
+
+    @staticmethod
+    @overload
+    def and_(f: bool | Array, g: Array) -> Array: ...
+
+    @staticmethod
     def and_(f: Flag, g: Flag) -> Flag:
         # True and X => X. False and X => False.
         if f is True:
@@ -64,7 +79,19 @@ class FlagOp:
             return f
         if g is False:
             return g
-        return jnp.logical_and(f.T, g.T).T
+        return jnp.logical_and(f, g)
+
+    @staticmethod
+    @overload
+    def or_(f: bool, g: bool) -> bool: ...
+
+    @staticmethod
+    @overload
+    def or_(f: Array, g: bool | Array) -> Array: ...
+
+    @staticmethod
+    @overload
+    def or_(f: bool | Array, g: Array) -> Array: ...
 
     @staticmethod
     def or_(f: Flag, g: Flag) -> Flag:
@@ -77,7 +104,19 @@ class FlagOp:
             return g
         if g is False:
             return f
-        return jnp.logical_or(f.T, g.T).T
+        return jnp.logical_or(f, g)
+
+    @staticmethod
+    @overload
+    def xor_(f: bool, g: bool) -> bool: ...
+
+    @staticmethod
+    @overload
+    def xor_(f: Array, g: bool | Array) -> Array: ...
+
+    @staticmethod
+    @overload
+    def xor_(f: bool | Array, g: Array) -> Array: ...
 
     @staticmethod
     def xor_(f: Flag, g: Flag) -> Flag:
@@ -90,7 +129,15 @@ class FlagOp:
             return FlagOp.not_(f)
         if g is False:
             return f
-        return jnp.logical_xor(f.T, g.T).T
+        return jnp.logical_xor(f, g)
+
+    @staticmethod
+    @overload
+    def not_(f: bool) -> bool: ...
+
+    @staticmethod
+    @overload
+    def not_(f: Array) -> Array: ...
 
     @staticmethod
     def not_(f: Flag) -> Flag:
