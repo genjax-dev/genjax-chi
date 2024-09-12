@@ -233,13 +233,10 @@ class Selection(Projection["ChoiceMap"]):
         """
         return MaskSel.build(self, flag)
 
-    def project(self, sample: "ChoiceMap") -> "ChoiceMap":
-        return self.filter(sample)
-
     def complement(self) -> "Selection":
         return ~self
 
-    def filter(self, chm: "ChoiceMap") -> "ChoiceMap":
+    def filter(self, sample: "ChoiceMap") -> "ChoiceMap":
         """
         Returns a new ChoiceMap filtered with this Selection.
 
@@ -262,7 +259,7 @@ class Selection(Projection["ChoiceMap"]):
             assert "y" not in filtered_chm
             ```
         """
-        return chm.filter(self)
+        return sample.filter(self)
 
     def extend(self, *addrs: ExtendedStaticAddressComponent) -> "Selection":
         """

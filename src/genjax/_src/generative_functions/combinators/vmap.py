@@ -66,12 +66,7 @@ class VmapTrace(Generic[R], Trace[R]):
         return self.gen_fn
 
     def get_sample(self) -> ChoiceMap:
-        return jax.vmap(
-            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_sample(), idx)
-        )(
-            jnp.arange(len(self.inner.get_score())),
-            self.inner,
-        )
+        return self.get_choices()
 
     def get_choices(self) -> ChoiceMap:
         return jax.vmap(

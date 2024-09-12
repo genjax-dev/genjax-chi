@@ -78,7 +78,7 @@ class DistributionTrace(
         return self.score
 
     def get_sample(self) -> ChoiceMap:
-        return ChoiceMap.value(self.value)
+        return self.get_choices()
 
     def get_choices(self) -> ChoiceMap:
         return ChoiceMap.value(self.value)
@@ -303,7 +303,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             projection.check(),
             trace.get_score(),
             jnp.array(0.0),
-        )  # pyright: ignore
+        )
 
     def edit_incremental_generic_request(
         self,
