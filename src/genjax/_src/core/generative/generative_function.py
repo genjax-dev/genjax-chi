@@ -459,9 +459,9 @@ class GenerativeFunction(Generic[R], Pytree):
                 key,
                 initial_tr,
                 IncrementalGenericRequest(
-                    Diff.unknown_change((3.0,)),
                     ChoiceMapConstraint(C.empty()),
                 ),
+                Diff.unknown_change((3.0,)),
             )
             ```
 
@@ -508,7 +508,6 @@ class GenerativeFunction(Generic[R], Pytree):
         from genjax import ChoiceMap, ChoiceMapConstraint
 
         g = IncrementalGenericRequest(
-            Diff.unknown_change((1.0,)),  # "Argdiffs"
             ChoiceMapConstraint(ChoiceMap.empty()),  # Constraint
         )
         ```
@@ -520,9 +519,9 @@ class GenerativeFunction(Generic[R], Pytree):
             key,
             initial_tr,
             IncrementalGenericRequest(
-                Diff.unknown_change((3.0,)),
                 ChoiceMapConstraint(C.kw(v1=3.0)),
             ),
+            Diff.unknown_change((3.0,)),
         )
         print((new_tr.get_sample()["v1"], w))
         ```
