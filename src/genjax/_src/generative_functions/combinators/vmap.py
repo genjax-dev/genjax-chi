@@ -27,7 +27,7 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    IncrementalGenericRequest,
+    IncrementalUpdateRequest,
     Projection,
     R,
     Retdiff,
@@ -245,10 +245,10 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             new_subtrace, w, retdiff, bwd_request = self.gen_fn.edit(
                 key,
                 subtrace,
-                IncrementalGenericRequest(subconstraint),
+                IncrementalUpdateRequest(subconstraint),
                 argdiffs,
             )
-            assert isinstance(bwd_request, IncrementalGenericRequest)
+            assert isinstance(bwd_request, IncrementalUpdateRequest)
             inner_chm_constraint = bwd_request.constraint
             return (
                 new_subtrace,
@@ -268,7 +268,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             map_tr,
             w,
             retdiff,
-            IncrementalGenericRequest(bwd_constraints),
+            IncrementalUpdateRequest(bwd_constraints),
         )
 
     def edit(
@@ -279,7 +279,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         argdiffs: Argdiffs,
     ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
         assert isinstance(trace, VmapTrace)
-        assert isinstance(edit_request, IncrementalGenericRequest), type(edit_request)
+        assert isinstance(edit_request, IncrementalUpdateRequest), type(edit_request)
         constraint = edit_request.constraint
         assert isinstance(constraint, ChoiceMapConstraint)
         return self.edit_choice_map_constraint(

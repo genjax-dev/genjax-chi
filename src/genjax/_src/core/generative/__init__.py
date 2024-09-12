@@ -31,7 +31,8 @@ from .core import (
     EmptyConstraint,
     EmptyRequest,
     EmptySample,
-    IncrementalGenericRequest,
+    IncrementalRegenerateRequest,
+    IncrementalUpdateRequest,
     MaskedConstraint,
     MaskedSample,
     Projection,
@@ -39,6 +40,7 @@ from .core import (
     Retdiff,
     Sample,
     Score,
+    UnhandledEditRequestException,
     Weight,
 )
 from .functional_types import Mask
@@ -65,7 +67,8 @@ __all__ = [
     "GenerativeFunction",
     "GenerativeFunctionClosure",
     "IgnoreKwargs",
-    "IncrementalGenericRequest",
+    "IncrementalRegenerateRequest",
+    "IncrementalUpdateRequest",
     "Mask",
     "MaskedConstraint",
     "MaskedConstraint",
@@ -80,5 +83,6 @@ __all__ = [
     "StaticAddress",
     "StaticAddressComponent",
     "Trace",
+    "UnhandledEditRequestException",
     "Weight",
 ]

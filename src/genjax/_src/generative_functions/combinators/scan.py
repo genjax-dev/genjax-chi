@@ -22,7 +22,7 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    IncrementalGenericRequest,
+    IncrementalUpdateRequest,
     Projection,
     Retdiff,
     Sample,
@@ -347,7 +347,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             ) = self.kernel_gen_fn.edit(
                 key,
                 subtrace,
-                IncrementalGenericRequest(subconstraint),
+                IncrementalUpdateRequest(subconstraint),
                 (carry, scanned_in),
             )
             (carry_retdiff, scanned_out_retdiff) = Diff.tree_diff_unknown_change(
@@ -379,7 +379,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 (carried_out, score),
                 (new_subtrace, scanned_out, w, inner_bwd_request),
             ) = _inner_edit(key, subtrace, subconstraint, carried_value, scanned_in)
-            assert isinstance(inner_bwd_request, IncrementalGenericRequest)
+            assert isinstance(inner_bwd_request, IncrementalUpdateRequest)
             bwd_constraint = inner_bwd_request.constraint
             bwd_constraint = ChoiceMapConstraint(ChoiceMap.entry(bwd_constraint, idx))
 
@@ -414,7 +414,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             ),
             jnp.sum(ws),
             (carried_out_diff, scanned_out_diff),
-            IncrementalGenericRequest(bwd_constraints),
+            IncrementalUpdateRequest(bwd_constraints),
         )
 
     def edit(
@@ -424,7 +424,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
-        assert isinstance(edit_request, IncrementalGenericRequest)
+        assert isinstance(edit_request, IncrementalUpdateRequest)
         assert isinstance(trace, ScanTrace)
         return self.edit_generic(
             key,

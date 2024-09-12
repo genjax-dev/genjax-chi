@@ -23,7 +23,7 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    IncrementalGenericRequest,
+    IncrementalUpdateRequest,
     Projection,
     Retdiff,
     Sample,
@@ -431,7 +431,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             key = jax.random.PRNGKey(0)
             trace_shape, _, retdiff_shape, bwd_request_shape = get_data_shape(
                 gen_fn.edit
-            )(key, subtrace, IncrementalGenericRequest(constraint), branch_argdiffs)
+            )(key, subtrace, IncrementalUpdateRequest(constraint), branch_argdiffs)
             empty_trace = jtu.tree_map(
                 lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
             )
@@ -471,7 +471,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         tr, w, rd, bwd_request = gen_fn.edit(
             key,
             subtrace,
-            IncrementalGenericRequest(constraint),
+            IncrementalUpdateRequest(constraint),
             branch_argdiffs,
         )
         (
@@ -503,7 +503,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         _, _, _, bwd_request_shape = get_data_shape(gen_fn.edit)(
             key,
             new_subtrace,
-            IncrementalGenericRequest(constraint),
+            IncrementalUpdateRequest(constraint),
             branch_argdiffs,
         )
         bwd_request_def = jtu.tree_structure(bwd_request_shape)
@@ -512,7 +512,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             tr, w, rd, bwd_request = gen_fn.edit(
                 key,
                 subtrace,
-                IncrementalGenericRequest(constraint),
+                IncrementalUpdateRequest(constraint),
                 branch_argdiffs,
             )
             rd = Diff.tree_diff_unknown_change(rd)
@@ -525,7 +525,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             tr, w, rd, bwd_request = gen_fn.edit(
                 key,
                 subtrace,
-                IncrementalGenericRequest(constraint),
+                IncrementalUpdateRequest(constraint),
                 branch_argdiffs,
             )
             rd = Diff.tree_diff_unknown_change(rd)
@@ -625,7 +625,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             w = w + (score - trace.get_score())
 
         # TODO: this is totally wrong, fix in future PR.
-        bwd_request = IncrementalGenericRequest(
+        bwd_request = IncrementalUpdateRequest(
             bwd_requests[0].constraint,
         )
 
@@ -643,7 +643,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], EditRequest]:
-        assert isinstance(edit_request, IncrementalGenericRequest)
+        assert isinstance(edit_request, IncrementalUpdateRequest)
         assert isinstance(trace, SwitchTrace)
         return self.edit_generic(
             key,
