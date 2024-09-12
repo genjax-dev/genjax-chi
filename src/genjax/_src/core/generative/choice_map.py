@@ -18,6 +18,7 @@ from dataclasses import dataclass
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+import treescope
 from beartype.typing import Iterable
 
 from genjax._src.core.generative.core import Constraint, ProjectProblem, Sample
@@ -773,6 +774,50 @@ class ChoiceMap(Sample, Constraint):
         ```
     """
 
+    def _is_verbose(self) -> bool:
+        return False
+
+    def pushdown(self) -> "ChoiceMap":
+        return _pushdown_filters(self)
+
+    def pretty(self):
+        return _flatten_to_dict(self.pushdown())
+
+    def __repr__(self):
+        """Renders this object with treescope, on a single line."""
+        # Defer to Treescope.
+        # import treescope  # pylint: disable=g-import-not-at-top
+
+        print("called")
+        return "cake"
+        # with treescope.using_expansion_strategy(max_height=1):
+        #     return treescope.render_to_text(self.pretty(), ignore_exceptions=True)
+
+    def _repr_pretty_(self, p, cycle):
+        """Pretty-prints this object for an IPython pretty-printer."""
+        del cycle
+        # Defer to Treescope.
+        import treescope  # pylint: disable=g-import-not-at-top
+
+        rendering = treescope.render_to_text(self.pretty(), ignore_exceptions=True)
+        for i, line in enumerate(rendering.split("\n")):
+            if i:
+                p.break_()
+            p.text(line)
+
+    def __treescope_repr__(self, path, subtree_renderer):
+        # Convert the tree to a dictionary
+        dict_repr = self.pretty()
+
+        # Use repr_lib to render the object with a custom label
+        return treescope.repr_lib.render_dictionary_wrapper(
+            object_type=ChoiceMap,
+            wrapped_dict=dict_repr,
+            path=path,
+            subtree_renderer=subtree_renderer,
+            roundtrippable=False,
+        )
+
     #######################
     # Map-like interfaces #
     #######################
@@ -922,7 +967,7 @@ class ChoiceMap(Sample, Constraint):
 
         for addr, v in pairs:
             addr = addr if isinstance(addr, tuple) else (addr,)
-            acc = ChoiceMap.entry(v, *addr) ^ acc
+            acc = acc ^ ChoiceMap.entry(v, *addr)
 
         return acc
 
@@ -1210,7 +1255,7 @@ _empty = EmptyChm()
 ChoiceMapBuilder = _ChoiceMapBuilder(_empty, [])
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class ValueChm(Generic[T], ChoiceMap):
     """Represents a choice map with a single value.
 
@@ -1251,7 +1296,7 @@ class ValueChm(Generic[T], ChoiceMap):
         return ChoiceMap.empty()
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class IdxChm(ChoiceMap):
     """Represents a choice map with dynamic indexing.
 
@@ -1318,7 +1363,7 @@ class IdxChm(ChoiceMap):
                 return self.c.mask(check)
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class StaticChm(ChoiceMap):
     """Represents a static choice map with a fixed address component.
 
@@ -1363,7 +1408,7 @@ class StaticChm(ChoiceMap):
             return self.c.mask(check)
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class XorChm(ChoiceMap):
     """Represents a disjoint union of two choice maps.
 
@@ -1434,7 +1479,7 @@ class XorChm(ChoiceMap):
         return remaining_1 ^ remaining_2
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class OrChm(ChoiceMap):
     """Represents a choice map that combines two choice maps using an OR operation.
 
@@ -1499,7 +1544,7 @@ class OrChm(ChoiceMap):
         return submap1 | submap2
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class FilteredChm(ChoiceMap):
     """Represents a filtered choice map based on a selection.
 
@@ -1546,6 +1591,85 @@ class FilteredChm(ChoiceMap):
         return Mask.maybe_none(sel_check, v)
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        submap = self.c.get_submap(addr)
+        submap = self.c(addr)
         subselection = self.selection(addr)
         return submap.filter(subselection)
+
+
+## Custom printing
+def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
+    def loop(inner: ChoiceMap, selection: Selection) -> ChoiceMap:
+        match inner:
+            case StaticChm(c, addr) | IdxChm(c, addr):
+                return loop(c, selection(addr)).extend(addr)
+
+            case ValueChm(v):
+                if v is None:
+                    return ChoiceMap.value(None)
+                else:
+                    sel_check = selection[()]
+                    masked = Mask.maybe_none(sel_check, v)
+                    if masked is None:
+                        return ChoiceMap.empty()
+                    else:
+                        return ChoiceMap.value(masked)
+
+            case FilteredChm(c, c_selection):
+                return loop(c, c_selection & selection)
+
+            case XorChm(c1, c2):
+                return loop(c1, selection) ^ loop(c2, selection)
+
+            case OrChm(c1, c2):
+                return loop(c1, selection) | loop(c2, selection)
+
+            case EmptyChm():
+                return inner
+
+            case _:
+                return chm.filter(selection)
+
+    return loop(chm, Selection.all())
+
+
+def _flatten_to_dict(input: ChoiceMap):
+    print("CAkked!")
+
+    def loop(t):
+        match t:
+            case EmptyChm():
+                return {}
+
+            case ValueChm(v):
+                return v
+
+            case StaticChm(c, addr):
+                return {addr: loop(c)}
+
+            case IdxChm(c, addr):
+                # TODO lame, we want to visualize the array properly with treescope.
+                return {addr.__repr__(): loop(c)}
+
+            case OrChm(c1, c2):
+                return loop(c1) | loop(c2)
+
+            case XorChm(c1, c2):
+                ret1 = loop(c1)
+                ret2 = loop(c2)
+
+                set1 = set(ret1.keys())
+                set2 = set(ret2.keys())
+
+                in_common = set1.intersection(set2)
+                if in_common:
+                    raise ValueError(f"Common keys found in XorChm: {in_common}")
+                else:
+                    return ret1 | ret2
+
+            case FilteredChm(c, selection):
+                return loop(c).filter(selection)
+
+            case _:
+                return t
+
+    return loop(input)

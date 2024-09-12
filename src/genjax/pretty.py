@@ -28,6 +28,8 @@ from penzai.treescope.handlers.penzai import struct_handler
 
 from genjax._src.core.pytree import Pytree
 
+"""Implementation of an autovisualizer, visualizing arrays."""
+
 
 def pretty():
     def _pytree_handler(node, subtree_renderer):
