@@ -25,19 +25,26 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 
 ## Quickstart
 
-> [!IMPORTANT]
-> GenJAX is currently private. To configure your machine to access the package,
-> - Run `\invite-genjax <google-account-email>` in any channel in the the probcomp Slack, or [file a ticket requesting access to the GenJAX-Users
-> group](https://github.com/probcomp/genjax/issues/new?assignees=sritchie&projects=&template=access.md&title=%5BACCESS%5D)
-> - [install the Google Cloud command line tools](https://cloud.google.com/sdk/docs/install)
-> - follow the instructions on the [installation page](https://cloud.google.com/sdk/docs/install)
-> - run `gcloud auth application-default login` as described [in this guide](https://cloud.google.com/sdk/docs/initializing).
+
+GenJAX is currently private. To configure your machine to access the package,
+
+- Run `\invite-genjax <google-account-email>` in any channel in the the probcomp Slack, or [file a ticket requesting access to the GenJAX-Users
+group](https://github.com/probcomp/genjax/issues/new?assignees=sritchie&projects=&template=access.md&title=%5BACCESS%5D)
+- [install the Google Cloud command line tools](https://cloud.google.com/sdk/docs/install)
+- follow the instructions on the [installation page](https://cloud.google.com/sdk/docs/install)
+- run `gcloud auth application-default login` as described [in this guide](https://cloud.google.com/sdk/docs/initializing).
 
 To install GenJAX using `pip`:
 
 ```bash
 pip install keyring keyrings.google-artifactregistry-auth
 pip install genjax --extra-index-url https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/
+```
+
+To install a specific version:
+
+```bash
+pip install "genjax==<the_version>" --extra-index-url https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/
 ```
 
 If you're using Poetry:
