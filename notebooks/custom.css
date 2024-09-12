@@ -63,6 +63,10 @@ div.quarto-title-banner {
 .sidebar-title {
   display: none;
 }
+.navbar-title {
+    font-weight: bold;
+    font-family: "Cal Sans";
+}
 
 img.img-fluid {
   margin: auto;
