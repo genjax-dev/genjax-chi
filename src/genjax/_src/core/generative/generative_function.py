@@ -444,7 +444,7 @@ class GenerativeFunction(Generic[R], Pytree):
             from genjax import gen
             from genjax import normal
             from genjax import Diff
-            from genjax import IncrementalGenericRequest
+            from genjax import IncrementalUpdateRequest
             from genjax import ChoiceMapConstraint
             from genjax import ChoiceMap as C
 
@@ -467,7 +467,7 @@ class GenerativeFunction(Generic[R], Pytree):
             new_tr, inc_w, retdiff, bwd_prob = model.edit(
                 key,
                 initial_tr,
-                IncrementalGenericRequest(
+                IncrementalUpdateRequest(
                     ChoiceMapConstraint(C.empty()),
                 ),
                 Diff.unknown_change((3.0,)),
@@ -510,24 +510,24 @@ class GenerativeFunction(Generic[R], Pytree):
 
         An `EditRequest` denotes a function $tr \\mapsto (T, T')$ from traces to a pair of targets (the previous [`Target`][genjax.inference.Target] $T$, and the final [`Target`][genjax.inference.Target] $T'$).
 
-        Several common types of moves can be requested via the `IncrementalGenericRequest` type:
+        Several common types of moves can be requested via the `IncrementalUpdateRequest` type:
 
         ```python exec="yes" source="material-block" session="core"
-        from genjax import IncrementalGenericRequest
+        from genjax import IncrementalUpdateRequest
         from genjax import ChoiceMap, ChoiceMapConstraint
 
-        g = IncrementalGenericRequest(
+        g = IncrementalUpdateRequest(
             ChoiceMapConstraint(ChoiceMap.empty()),  # Constraint
         )
         ```
 
-        `IncrementalGenericRequest` contains information about changes to the arguments of the generative function ([`Argdiffs`][genjax.core.Argdiffs]) and a constraint which specifies an additional move to be performed.
+        `IncrementalUpdateRequest` contains information about changes to the arguments of the generative function ([`Argdiffs`][genjax.core.Argdiffs]) and a constraint which specifies an additional move to be performed.
 
         ```python exec="yes" html="true" source="material-block" session="core"
         new_tr, inc_w, retdiff, bwd_prob = model.edit(
             key,
             initial_tr,
-            IncrementalGenericRequest(
+            IncrementalUpdateRequest(
                 ChoiceMapConstraint(C.kw(v1=3.0)),
             ),
             Diff.unknown_change((3.0,)),
