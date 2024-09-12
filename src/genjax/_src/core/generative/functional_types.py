@@ -71,6 +71,20 @@ class Mask(Generic[R], Pytree):
         else:
             return FlagOp.and_(a, b)
 
+    @staticmethod
+    def flag_or(a: Flag, b: Flag) -> Flag:
+        if isinstance(a, Array) and isinstance(b, Array):
+            return FlagOp.or_(a.T, b.T).T
+        else:
+            return FlagOp.or_(a, b)
+
+    @staticmethod
+    def flag_xor(a: Flag, b: Flag) -> Flag:
+        if isinstance(a, Array) and isinstance(b, Array):
+            return FlagOp.xor_(a.T, b.T).T
+        else:
+            return FlagOp.xor_(a, b)
+
     @overload
     @staticmethod
     def maybe(f: Flag, v: "Mask[R]") -> "Mask[R]": ...
@@ -84,7 +98,7 @@ class Mask(Generic[R], Pytree):
         match v:
             case Mask(g, value):
                 assert not isinstance(f, Diff) and not isinstance(g, Diff)
-                return Mask[R](FlagOp.and_(f, g), value)
+                return Mask[R](Mask.flag_and(f, g), value)
             case _:
                 return Mask[R](f, v)
 
