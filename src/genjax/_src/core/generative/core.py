@@ -16,8 +16,6 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-import jax.numpy as jnp
-
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import Flag
 from genjax._src.core.pytree import Pytree
@@ -26,7 +24,6 @@ from genjax._src.core.typing import (
     Any,
     FloatArray,
     Generic,
-    IntArray,
     Is,
     PRNGKey,
     TypeVar,
@@ -120,30 +117,6 @@ class Constraint(Pytree):
     """
 
 
-@Pytree.dataclass
-class EmptyConstraint(Constraint):
-    """
-    An `EmptyConstraint` encodes the lack of a constraint.
-
-    Formally, `EmptyConstraint(x)` represents the constraint `(x $\\mapsto$ (), ())`.
-    """
-
-    pass
-
-
-@Pytree.dataclass(match_args=True)
-class MaskedConstraint(Constraint):
-    """
-    A `MaskedConstraint` encodes a possible constraint.
-
-    Formally, `MaskedConstraint(f: Bool, c: Constraint)` represents the constraint `Option((x $\\mapsto$ x, x))`,
-    where the None case is represented by `EmptyConstraint`.
-    """
-
-    idx: IntArray
-    constraint: list[Constraint]
-
-
 ###############
 # Projections #
 ###############
@@ -179,22 +152,6 @@ class EditRequest(Pytree):
         argdiffs: Argdiffs,
     ) -> tuple["Trace[R]", Weight, Retdiff[R], "EditRequest"]:
         pass
-
-
-@Pytree.dataclass
-class EmptyRequest(EditRequest):
-    def edit(
-        self,
-        key: PRNGKey,
-        trace: "Trace[R]",
-        argdiffs: Argdiffs,
-    ) -> tuple["Trace[R]", Weight, Retdiff[R], "EditRequest"]:
-        return (
-            trace,
-            jnp.array(0.0),
-            Diff.tree_diff_no_change(trace.get_retval()),
-            EmptyRequest(),
-        )
 
 
 @Pytree.dataclass(match_args=True)

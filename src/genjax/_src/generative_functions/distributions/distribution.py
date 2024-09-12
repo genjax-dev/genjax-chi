@@ -26,7 +26,6 @@ from genjax._src.core.generative import (
     ChoiceMapConstraint,
     Constraint,
     EditRequest,
-    EmptyConstraint,
     GenerativeFunction,
     IncrementalRegenerateRequest,
     IncrementalUpdateRequest,
@@ -159,9 +158,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         match constraint:
             case ChoiceMapConstraint():
                 tr, w = self.generate_choice_map(key, constraint, args)
-            case EmptyConstraint():
-                tr = self.simulate(key, args)
-                w = jnp.array(0.0)
             case _:
                 raise Exception("Unhandled type.")
         return tr, w
@@ -193,22 +189,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     ) -> tuple[Trace[R], Weight, Retdiff[R], IncrementalUpdateRequest]:
         primals = Diff.tree_primal(argdiffs)
         match constraint:
-            case EmptyConstraint():
-                old_sample = trace.get_choices()
-                old_retval = trace.get_retval()
-                new_score, _ = self.assess(old_sample, primals)
-                new_trace = DistributionTrace(
-                    self, primals, old_sample.get_value(), new_score
-                )
-                return (
-                    new_trace,
-                    new_score - trace.get_score(),
-                    Diff.tree_diff_no_change(old_retval),
-                    IncrementalUpdateRequest(
-                        ChoiceMapConstraint(ChoiceMap.empty()),
-                    ),
-                )
-
             case ChoiceMapConstraint():
                 check = constraint.has_value()
                 v = constraint.get_value()
@@ -375,9 +355,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], IncrementalUpdateRequest]:
         match constraint:
-            case EmptyConstraint():
-                return self.edit_empty(trace, argdiffs)
-
             case ChoiceMapConstraint():
                 return self.edit_constraint(key, trace, constraint, argdiffs)
 

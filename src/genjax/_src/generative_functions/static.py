@@ -27,6 +27,7 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
+    IncrementalRegenerateRequest,
     IncrementalUpdateRequest,
     Projection,
     Retdiff,
@@ -38,6 +39,7 @@ from genjax._src.core.generative import (
     Trace,
     Weight,
 )
+from genjax._src.core.generative.core import UnhandledEditRequestException
 from genjax._src.core.generative.generative_function import R, push_trace_overload_stack
 from genjax._src.core.interpreters.forward import (
     InitialStylePrimitive,
@@ -287,9 +289,9 @@ def simulate_transform(source_fn):
     return wrapper
 
 
-##########
-# Update #
-##########
+##############################
+# Incremental update handler #
+##############################
 
 
 @dataclass
@@ -355,7 +357,7 @@ class IncrementalUpdateRequestHandler(StaticHandler):
         return retval_diff
 
 
-def incremental_generic_request_transform(source_fn):
+def incremental_update_request_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
         key: PRNGKey,
@@ -366,6 +368,113 @@ def incremental_generic_request_transform(source_fn):
         stateful_handler = IncrementalUpdateRequestHandler(
             key, previous_trace, constraint
         )
+        diff_primals = Diff.tree_primal(diffs)
+        diff_tangents = Diff.tree_tangent(diffs)
+        retval_diffs = incremental(source_fn)(
+            stateful_handler, diff_primals, diff_tangents
+        )
+        retval_primals = Diff.tree_primal(retval_diffs)
+        (
+            score,
+            weight,
+            address_visitor,
+            address_traces,
+            bwd_requests,
+        ) = stateful_handler.yield_state()
+        return (
+            (
+                retval_diffs,
+                weight,
+                # Trace.
+                (
+                    diff_primals,
+                    retval_primals,
+                    address_visitor,
+                    address_traces,
+                    score,
+                ),
+                # Backward update problem.
+                bwd_requests,
+            ),
+        )
+
+    return wrapper
+
+
+####################################
+# Incremental regeneration handler #
+####################################
+
+
+@dataclass
+class IncrementalRegenerateHandler(StaticHandler):
+    key: PRNGKey
+    previous_trace: StaticTrace[Any]
+    projection: Selection
+    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
+    bwd_constraints: list[ChoiceMapConstraint] = Pytree.field(default_factory=list)
+
+    def yield_state(self):
+        return (
+            self.score,
+            self.weight,
+            self.address_visitor,
+            self.address_traces,
+            self.bwd_constraints,
+        )
+
+    def visit(self, addr):
+        self.address_visitor.visit(addr)
+
+    def get_subprojection(self, addr: StaticAddress) -> Selection:
+        return self.projection(addr)  # pyright: ignore
+
+    def get_subtrace(self, addr: StaticAddress):
+        return self.previous_trace.get_subtrace(addr)
+
+    def handle_retval(self, v):
+        return jtu.tree_leaves(v, is_leaf=lambda v: isinstance(v, Diff))
+
+    def handle_trace(
+        self,
+        addr: StaticAddress,
+        gen_fn: GenerativeFunction[Any],
+        args: tuple[Any, ...],
+    ):
+        argdiffs: Argdiffs = args
+        self.visit(addr)
+        subtrace = self.get_subtrace(addr)
+        subprojection = self.get_subprojection(addr)
+        self.key, sub_key = jax.random.split(self.key)
+        request = IncrementalRegenerateRequest(subprojection)
+        (tr, w, retval_diff, bwd_request) = request.edit(
+            sub_key,
+            subtrace,
+            argdiffs,
+        )
+        assert isinstance(bwd_request, IncrementalUpdateRequest) and isinstance(
+            bwd_request.constraint, ChoiceMapConstraint
+        )
+        self.bwd_constraints.append(bwd_request.constraint)
+        self.score += tr.get_score()
+        self.weight += w
+        self.address_traces.append(tr)
+
+        return retval_diff
+
+
+def incremental_regenerate_request_transform(source_fn):
+    @functools.wraps(source_fn)
+    def wrapper(
+        key: PRNGKey,
+        previous_trace: StaticTrace[R],
+        projection: Selection,
+        diffs: tuple[Any, ...],
+    ):
+        stateful_handler = IncrementalRegenerateHandler(key, previous_trace, projection)
         diff_primals = Diff.tree_primal(diffs)
         diff_tangents = Diff.tree_tangent(diffs)
         retval_diffs = incremental(source_fn)(
@@ -614,55 +723,17 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             score,
         )
 
-    def edit_change_target(
+    def assess(
         self,
-        key: PRNGKey,
-        trace: StaticTrace[R],
-        constraint: ChoiceMapConstraint,
-        argdiffs: Argdiffs,
-    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
+        sample: Sample,
+        args: tuple[Any, ...],
+    ) -> tuple[Score, R]:
+        assert isinstance(sample, ChoiceMap)
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (
-            (
-                retval_diffs,
-                weight,
-                (
-                    arg_primals,
-                    retval_primals,
-                    address_visitor,
-                    address_traces,
-                    score,
-                ),
-                bwd_requests,
-            ),
-        ) = incremental_generic_request_transform(syntax_sugar_handled)(
-            key, trace, constraint, argdiffs
-        )
-
-        def make_bwd_request(visitor, subconstraints):
-            addresses = visitor.get_visited()
-            addresses = Pytree.tree_const_unwrap(addresses)
-            chm = ChoiceMap.from_mapping(zip(addresses, subconstraints))
-            return IncrementalUpdateRequest(
-                ChoiceMapConstraint(chm),
-            )
-
-        bwd_request = make_bwd_request(address_visitor, bwd_requests)
-        return (
-            StaticTrace(
-                self,
-                arg_primals,
-                retval_primals,
-                address_visitor,
-                address_traces,
-                score,
-            ),
-            weight,
-            retval_diffs,
-            bwd_request,
-        )
+        (retval, score) = assess_transform(syntax_sugar_handled)(sample, args)
+        return (score, retval)
 
     def generate(
         self,
@@ -710,6 +781,106 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             weight += subtrace.project(key, subprojection)
         return weight
 
+    def edit_incremental_update_request(
+        self,
+        key: PRNGKey,
+        trace: StaticTrace[R],
+        constraint: ChoiceMapConstraint,
+        argdiffs: Argdiffs,
+    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
+        (
+            (
+                retval_diffs,
+                weight,
+                (
+                    arg_primals,
+                    retval_primals,
+                    address_visitor,
+                    address_traces,
+                    score,
+                ),
+                bwd_requests,
+            ),
+        ) = incremental_update_request_transform(syntax_sugar_handled)(
+            key, trace, constraint, argdiffs
+        )
+
+        def make_bwd_request(visitor, subconstraints):
+            addresses = visitor.get_visited()
+            addresses = Pytree.tree_const_unwrap(addresses)
+            chm = ChoiceMap.from_mapping(zip(addresses, subconstraints))
+            return IncrementalUpdateRequest(
+                ChoiceMapConstraint(chm),
+            )
+
+        bwd_request = make_bwd_request(address_visitor, bwd_requests)
+        return (
+            StaticTrace(
+                self,
+                arg_primals,
+                retval_primals,
+                address_visitor,
+                address_traces,
+                score,
+            ),
+            weight,
+            retval_diffs,
+            bwd_request,
+        )
+
+    def edit_incremental_regenerate_request(
+        self,
+        key: PRNGKey,
+        trace: StaticTrace[R],
+        projection: Selection,
+        argdiffs: Argdiffs,
+    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
+        (
+            (
+                retval_diffs,
+                weight,
+                (
+                    arg_primals,
+                    retval_primals,
+                    address_visitor,
+                    address_traces,
+                    score,
+                ),
+                bwd_requests,
+            ),
+        ) = incremental_regenerate_request_transform(syntax_sugar_handled)(
+            key, trace, projection, argdiffs
+        )
+
+        def make_bwd_request(visitor, subconstraints):
+            addresses = visitor.get_visited()
+            addresses = Pytree.tree_const_unwrap(addresses)
+            chm = ChoiceMap.from_mapping(zip(addresses, subconstraints))
+            return IncrementalUpdateRequest(
+                ChoiceMapConstraint(chm),
+            )
+
+        bwd_request = make_bwd_request(address_visitor, bwd_requests)
+        return (
+            StaticTrace(
+                self,
+                arg_primals,
+                retval_primals,
+                address_visitor,
+                address_traces,
+                score,
+            ),
+            weight,
+            retval_diffs,
+            bwd_request,
+        )
+
     def edit(
         self,
         key: PRNGKey,
@@ -718,27 +889,28 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         argdiffs: Argdiffs,
     ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
         assert isinstance(trace, StaticTrace)
-        assert isinstance(edit_request, IncrementalUpdateRequest) and isinstance(
-            edit_request.constraint, ChoiceMapConstraint
-        )
-        return self.edit_change_target(
-            key,
-            trace,
-            edit_request.constraint,
-            argdiffs,
-        )
+        match edit_request:
+            case IncrementalUpdateRequest(constraint) if isinstance(
+                constraint, ChoiceMapConstraint
+            ):
+                return self.edit_incremental_update_request(
+                    key,
+                    trace,
+                    constraint,
+                    argdiffs,
+                )
 
-    def assess(
-        self,
-        sample: Sample,
-        args: tuple[Any, ...],
-    ) -> tuple[Score, R]:
-        assert isinstance(sample, ChoiceMap)
-        syntax_sugar_handled = push_trace_overload_stack(
-            handler_trace_with_static, self.source
-        )
-        (retval, score) = assess_transform(syntax_sugar_handled)(sample, args)
-        return (score, retval)
+            case IncrementalRegenerateRequest(projection) if isinstance(
+                projection, Selection
+            ):
+                return self.edit_incremental_regenerate_request(
+                    key,
+                    trace,
+                    projection,
+                    argdiffs,
+                )
+            case _:
+                raise UnhandledEditRequestException(self, edit_request)
 
     def inline(self, *args):
         return self.source(*args)
