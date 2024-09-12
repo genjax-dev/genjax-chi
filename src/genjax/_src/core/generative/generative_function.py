@@ -352,7 +352,7 @@ class GenerativeFunction(Generic[R], Pytree):
     @abstractmethod
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: Arguments,
     ) -> tuple[Score, R]:
         """
@@ -1390,7 +1390,7 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: Arguments,
     ) -> tuple[Score, R]:
         (args, _kwargs) = args
@@ -1540,7 +1540,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
         full_args = (*self.args, *args)

@@ -204,10 +204,9 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, S]:
-        assert isinstance(sample, ChoiceMap)
         inner_args = self.argument_mapping(*args)
         w, inner_retval = self.inner.assess(sample, inner_args)
         retval = self.retval_mapping(inner_args, inner_retval)

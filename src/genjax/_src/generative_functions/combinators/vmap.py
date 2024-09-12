@@ -31,7 +31,6 @@ from genjax._src.core.generative import (
     Projection,
     R,
     Retdiff,
-    Sample,
     Score,
     Trace,
     Weight,
@@ -290,10 +289,9 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
-        assert isinstance(sample, ChoiceMap)
         self._static_check_broadcastable(args)
         broadcast_dim_length = self._static_broadcast_dim_length(args)
         idx_array = jnp.arange(0, broadcast_dim_length)

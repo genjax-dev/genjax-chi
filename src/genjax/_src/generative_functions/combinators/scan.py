@@ -25,7 +25,6 @@ from genjax._src.core.generative import (
     IncrementalGenericRequest,
     Projection,
     Retdiff,
-    Sample,
     Score,
     Selection,
     Trace,
@@ -436,11 +435,10 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, Any]:
         (carry, scanned_in) = args
-        assert isinstance(sample, ChoiceMap)
 
         def _inner_assess(sample, carry, scanned_in):
             score, retval = self.kernel_gen_fn.assess(sample, (carry, scanned_in))

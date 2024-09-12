@@ -26,7 +26,6 @@ from genjax._src.core.generative import (
     Mask,
     Projection,
     Retdiff,
-    Sample,
     Score,
     Trace,
     Weight,
@@ -236,10 +235,9 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, Mask[R]]:
-        assert isinstance(sample, ChoiceMap)
         (check, *inner_args) = args
         score, retval = self.gen_fn.assess(sample, tuple(inner_args))
         return (

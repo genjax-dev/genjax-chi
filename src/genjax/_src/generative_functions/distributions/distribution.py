@@ -33,7 +33,6 @@ from genjax._src.core.generative import (
     Projection,
     R,
     Retdiff,
-    Sample,
     Score,
     Selection,
     Trace,
@@ -340,7 +339,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple[Any, ...],
     ):
         raise NotImplementedError
@@ -407,10 +406,9 @@ class ExactDensity(Generic[R], Distribution[R]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Weight, R]:
-        assert isinstance(sample, ChoiceMap)
         key = jax.random.PRNGKey(0)
         v = sample.get_value()
         match v:

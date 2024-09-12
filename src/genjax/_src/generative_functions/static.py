@@ -31,7 +31,6 @@ from genjax._src.core.generative import (
     IncrementalGenericRequest,
     Projection,
     Retdiff,
-    Sample,
     Score,
     Selection,
     StaticAddress,
@@ -737,10 +736,9 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
-        assert isinstance(sample, ChoiceMap)
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
