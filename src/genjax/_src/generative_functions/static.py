@@ -37,9 +37,9 @@ from genjax._src.core.generative import (
     StaticAddress,
     StaticAddressComponent,
     Trace,
+    UnhandledEditRequestException,
     Weight,
 )
-from genjax._src.core.generative.core import UnhandledEditRequestException
 from genjax._src.core.generative.generative_function import R, push_trace_overload_stack
 from genjax._src.core.interpreters.forward import (
     InitialStylePrimitive,

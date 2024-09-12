@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from abc import abstractmethod
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from genjax._src.core.interpreters.incremental import Diff
@@ -25,13 +24,12 @@ from genjax._src.core.typing import (
     FloatArray,
     Generic,
     Is,
-    PRNGKey,
     TypeVar,
 )
 
 # Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
 if TYPE_CHECKING:
-    from genjax import GenerativeFunction, Trace
+    pass
 
 # Generative Function type variables
 R = TypeVar("R")
@@ -130,59 +128,3 @@ class Projection(Generic[S], Pytree):
     @abstractmethod
     def complement(self) -> "Projection[S]":
         raise NotImplementedError
-
-
-#################
-# Edit requests #
-#################
-
-
-class EditRequest(Pytree):
-    """
-    An `EditRequest` is a request to edit a trace of a generative function. Generative functions respond to instances of subtypes of `EditRequest` by providing an [`edit`][genjax.core.GenerativeFunction.edit] implementation.
-
-    Updating a trace is a common operation in inference processes, but naively mutating the trace will invalidate the mathematical invariants that Gen retains. `EditRequest` instances denote requests for _SMC moves_ in the framework of [SMCP3](https://proceedings.mlr.press/v206/lew23a.html), which preserve these invariants.
-    """
-
-    @abstractmethod
-    def edit(
-        self,
-        key: PRNGKey,
-        trace: "Trace[R]",
-        argdiffs: Argdiffs,
-    ) -> tuple["Trace[R]", Weight, Retdiff[R], "EditRequest"]:
-        pass
-
-
-@Pytree.dataclass(match_args=True)
-class IncrementalUpdateRequest(EditRequest):
-    constraint: Constraint
-
-    def edit(
-        self,
-        key: PRNGKey,
-        trace: "Trace[R]",
-        argdiffs: Argdiffs,
-    ) -> tuple["Trace[R]", Weight, Retdiff[R], "EditRequest"]:
-        gen_fn = trace.get_gen_fn()
-        return gen_fn.edit(key, trace, self, argdiffs)
-
-
-@Pytree.dataclass(match_args=True)
-class IncrementalRegenerateRequest(EditRequest):
-    projection: Projection[Any]
-
-    def edit(
-        self,
-        key: PRNGKey,
-        trace: "Trace[R]",
-        argdiffs: Argdiffs,
-    ) -> tuple["Trace[R]", Weight, Retdiff[R], "EditRequest"]:
-        gen_fn = trace.get_gen_fn()
-        return gen_fn.edit(key, trace, self, argdiffs)
-
-
-@dataclass
-class UnhandledEditRequestException(Exception):
-    gen_fn: "GenerativeFunction[Any]"
-    edit_request: EditRequest
