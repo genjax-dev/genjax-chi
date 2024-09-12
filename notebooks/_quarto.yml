@@ -1,53 +1,64 @@
 project:
-  type: book
+  type: website
   output-dir: ../site/cookbook
 
-book:
+website:
   title: "The GenJAX cookbook"
+  navbar:
+      search: true
+      logo: small_logo.png
+      background: "#F5F5F5"
+      pinned: true
+  search:
+      location: navbar
+      type: overlay
   favicon: small_logo.png
   image: small_logo.png
   repo-url: https://github.com/probcomp/genjax/
   repo-branch: main
   repo-subdir: notebooks
   repo-actions: [issue, source]
+  page-navigation: true
+  back-to-top-navigation: true
+  reader-mode: true
   sidebar:
+    alignment: left
+    style: 'floating'
     background: "#F5F5F5"
     logo: small_logo.png
-    search: true
-    style: 'floating'
-  chapters:
-    - index.ipynb
-    # - jax_primer.ipynb
-    - active/intro.ipynb
-    # - combinators.ipynb
-    # - inference_libraries.ipynb
-    - part: basics.qmd
-      chapters:
-        - cookbook/basics/generative_fun.ipynb
-        - cookbook/basics/methods_of_generative_fun.ipynb
-        - cookbook/basics/choicemap_creation_selection.ipynb
-        - cookbook/basics/debugging.ipynb
-        - cookbook/basics/saving_traces.ipynb
-        - cookbook/basics/some_oddities.ipynb
-    - part: expressivity.qmd
-      chapters:
-        - cookbook/expressivity/conditionals.ipynb
-        - cookbook/expressivity/iterating_computation.ipynb
-        - cookbook/expressivity/dynamic_computation.ipynb
-        - cookbook/expressivity/mixture.ipynb
-        - cookbook/expressivity/custom_distribution.ipynb
-        - cookbook/expressivity/stochastic_probabilities.ipynb
-        - cookbook/expressivity/ravi_stack.ipynb
-    - part: inference.qmd
-      chapters:
-        - cookbook/inference/importance_sampling.ipynb
-        - cookbook/inference/custom_proposal.ipynb
-        - cookbook/inference/mcmc.ipynb
-    - part: speed.qmd
-    - part: variance_reduction.qmd
-    - part: library_author.qmd
-      chapters:
-        - cookbook/library_author/dimap_combinator.ipynb
+    collapse: true
+    contents:
+        - index.ipynb
+        - active/intro.ipynb
+        - section: "Basics"
+          href: basics.qmd
+          contents:
+            - cookbook/basics/generative_fun.ipynb
+            - cookbook/basics/methods_of_generative_fun.ipynb
+            - cookbook/basics/choicemap_creation_selection.ipynb
+            - cookbook/basics/debugging.ipynb
+            - cookbook/basics/saving_traces.ipynb
+            - cookbook/basics/some_oddities.ipynb
+        - section: "Expressivity"
+          href: expressivity.qmd
+          contents:
+            - cookbook/expressivity/conditionals.ipynb
+            - cookbook/expressivity/iterating_computation.ipynb
+            - cookbook/expressivity/dynamic_computation.ipynb
+            - cookbook/expressivity/mixture.ipynb
+            - cookbook/expressivity/custom_distribution.ipynb
+            - cookbook/expressivity/stochastic_probabilities.ipynb
+            - cookbook/expressivity/ravi_stack.ipynb
+        - section: "Inference"
+          href: inference.qmd
+          contents:
+            - cookbook/inference/importance_sampling.ipynb
+            - cookbook/inference/custom_proposal.ipynb
+            - cookbook/inference/mcmc.ipynb
+        - section: "Library developers"
+          href: library_author.qmd
+          contents:
+            - cookbook/library_author/dimap_combinator.ipynb
 
 bibliography: references.bib
 
@@ -55,10 +66,11 @@ format:
   html:
     css: custom.css
     theme: cosmo
-    title-block-banner: true
     code-copy: true
     cold-fold: false
     code-overflow: wrap
     highlight-style: ayu
     backgroundcolor: "#F5F5F5"
     logo: ../docs/assets/img/logo.png
+    toc: true
+    smooth-scroll: true
