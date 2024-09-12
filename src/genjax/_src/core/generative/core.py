@@ -1326,7 +1326,7 @@ class GenerativeFunction(Generic[R], Pytree):
             logits = jax.numpy.array([0.3, 0.7])  # Favors component2
             trace = mixture.simulate(key, (logits, (0.0,), (7.0,)))
             print(trace.render_html())
-                ```
+            ```
         """
         import genjax
 
