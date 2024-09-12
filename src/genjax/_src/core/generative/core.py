@@ -170,5 +170,4 @@ class EmptyRequest(EditRequest):
 
 @Pytree.dataclass(match_args=True)
 class IncrementalGenericRequest(EditRequest):
-    argdiffs: Argdiffs
     constraint: Constraint

@@ -167,7 +167,10 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         inner_trace: Trace[R] = trace.inner
 
         tr, w, inner_retdiff, bwd_request = self.inner.edit(
-            key, inner_trace, IncrementalGenericRequest(inner_argdiffs, constraint)
+            key,
+            inner_trace,
+            IncrementalGenericRequest(constraint),
+            inner_argdiffs,
         )
 
         inner_retval_primals = Diff.tree_primal(inner_retdiff)
@@ -196,10 +199,10 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         key: PRNGKey,
         trace: Trace[S],
         edit_request: EditRequest,
+        argdiffs: Argdiffs,
     ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
         assert isinstance(edit_request, IncrementalGenericRequest)
         constraint = edit_request.constraint
-        argdiffs = edit_request.argdiffs
         return self.edit_change_target(key, trace, constraint, argdiffs)
 
     def assess(
