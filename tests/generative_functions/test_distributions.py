@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
-
 import genjax
+import jax
+import jax.numpy as jnp
 from genjax import ChoiceMapBuilder as C
 from genjax import EmptyConstraint
 from genjax.incremental import Diff, NoChange, UnknownChange
@@ -41,7 +41,7 @@ class TestDistributions:
         # Constraint, mask with True flag.
         (tr, w) = genjax.normal.importance(
             key,
-            C.v(1.0).mask(True),
+            C.v(1.0).mask(jnp.array(True)),
             (0.0, 1.0),
         )
         v = tr.get_choices().get_value()
@@ -51,7 +51,7 @@ class TestDistributions:
         # Constraint, mask with False flag.
         (tr, w) = genjax.normal.importance(
             key,
-            C.v(1.0).mask(False),
+            C.v(1.0).mask(jnp.array(False)),
             (0.0, 1.0),
         )
         v = tr.get_choices().get_value()
@@ -131,7 +131,7 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            C.v(1.0).mask(True),
+            C.v(1.0).mask(jnp.array(True)),
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_choices().get_value() == 1.0
