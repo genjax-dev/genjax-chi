@@ -243,7 +243,7 @@ class Selection(Projection["ChoiceMap"]):
         This method applies the current Selection to the given ChoiceMap, effectively filtering out addresses that are not matched.
 
         Args:
-            chm: The ChoiceMap to be filtered.
+            sample: The ChoiceMap to be filtered.
 
         Returns:
             A new ChoiceMap containing only the addresses selected by this Selection.
