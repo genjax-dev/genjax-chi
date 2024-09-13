@@ -32,11 +32,14 @@ from genjax._src.core.generative import (
     UpdateProblem,
     Weight,
 )
+from genjax._src.core.generative.functional_types import Mask
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
+    Flag,
     FloatArray,
     Generic,
     Int,
@@ -535,9 +538,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
 def scan(
     *, n: Int | None = None
-) -> Callable[
-    [GenerativeFunction[tuple[Carry, Y]]], GenerativeFunction[tuple[Carry, Y]]
-]:
+) -> Callable[[GenerativeFunction[tuple[Carry, Y]]], ScanCombinator[Carry, Y]]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `(c, a) -> (c, b)`and returns a new [`genjax.GenerativeFunction`][] of type
     `(c, [a]) -> (c, [b])` where.
@@ -901,3 +902,86 @@ def iterate_final(
         )
 
     return decorator
+
+
+def masked_scan_combinator(
+    step: GenerativeFunction[tuple[Carry, Y]], **scan_kwargs
+) -> GenerativeFunction[tuple[Mask[Carry], Mask[Y]]]:
+    """
+    Given a generative function `step` so that `step.scan(n=N)` is valid,
+    return a generative function accepting an input
+    `(initial_state, masked_input_values_array)` and returning a pair
+    `(masked_final_state, masked_returnvalue_sequence)`.
+    This operates similarly to `step.scan`, but the input values can be masked.
+    """
+
+    def scan_step_pre(
+        masked_carry: Mask[Carry], masked_x: Mask[Any]
+    ) -> tuple[Flag, Carry, Any]:
+        c_flag = masked_carry.flag
+        x_flag = masked_x.flag
+        assert not isinstance(c_flag, Diff) and not isinstance(x_flag, Diff)
+
+        return (FlagOp.and_(c_flag, x_flag), masked_carry.value, masked_x.value)
+
+    def scan_step_post(
+        _, masked_retval: Mask[tuple[Carry, Y]]
+    ) -> tuple[Mask[Carry], Mask[Y]]:
+        flag = masked_retval.flag
+        carry, y = masked_retval.value
+        return (Mask(flag, carry), Mask(flag, y))
+
+    mstep = step.mask().dimap(pre=scan_step_pre, post=scan_step_post)
+
+    # This should be given a pair (
+    #     Mask(True, initial_state),
+    #     Mask(bools_indicating_active, input_vals)
+    # ).
+    # It will output a pair (masked_final_state, masked_returnvalue_sequence).
+    scanned: ScanCombinator[Mask[Carry], Mask[Y]] = mstep.scan(**scan_kwargs)
+
+    def nice_pre(initial_state: Carry, masked_input: Mask[Any]):
+        return Mask(True, initial_state), masked_input
+
+    return scanned.contramap(nice_pre)
+
+
+def masked_iterate_final(
+    step: GenerativeFunction[Carry],
+) -> GenerativeFunction[Mask[Carry]]:
+    def pre_fn(state: Mask[Carry], flag: Flag):
+        return flag, state
+
+    return step.mask().contramap(pre_fn).reduce()
+
+
+import genjax
+
+
+@genjax.gen
+def step(x: Mask[Array]):
+    # vmap over object masks
+    x = genjax.normal.mask().vmap(in_axes=(0, None, None))(x.flag, 0.0, 1.0) @ "x"
+    return x
+
+
+# @genjax.gen
+# def repro():
+#     # Initialize vmasked object
+#     x_masks = jnp.arange(3) < 3
+#     x_inits = genjax.normal.mask().vmap(in_axes=(0, None, None))(x_masks, 0., 1.) @ "x_init"
+
+#     # Wrap a masked_scan_combinator around step function
+#     n = 20
+#     step_masks = jnp.arange(n) < n
+#     out = masked_scan_combinator(step, n=n)(x_inits, step_masks) @ "steps"
+#     return out
+
+# key = jax.random.PRNGKey(100)
+# subkeys = jax.random.split(key, 100)
+# trace = repro.simulate(key, ()).get_sample()
+# try:
+#     # Try to access the masked values inside our step function
+#     x = trace["steps", ..., "x", ...]
+# except Exception as e:
+#     print(e)

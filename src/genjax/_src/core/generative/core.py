@@ -849,7 +849,7 @@ class GenerativeFunction(Generic[R], Pytree):
         /,
         *,
         n: Int | None = None,
-    ) -> "GenerativeFunction[tuple[Carry, Y]]":
+    ) -> "genjax.ScanCombinator[Carry, Y]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)`, returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])` where
 
