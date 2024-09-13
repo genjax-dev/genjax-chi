@@ -16,22 +16,14 @@
 The Pytree interface determines how data classes behave across JAX-transformed function boundaries - it provides a user with the freedom to declare subfields of a class as "static" (meaning, the value of the field cannot be a JAX traced value, it must be a Python literal, or a constant array - and the value is embedded in the `PyTreeDef` of any instance) or "dynamic" (meaning, the value may be a JAX traced value).
 """
 
-import inspect
-from dataclasses import field, fields
+from dataclasses import field
 from typing import overload
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from penzai import pz
-from penzai.treescope import default_renderer
-from penzai.treescope.foldable_representation import (
-    basic_parts,
-    common_structures,
-    common_styles,
-    foldable_impl,
-)
-from penzai.treescope.handlers import builtin_structure_handler
-from penzai.treescope.handlers.penzai import struct_handler
+import penzai.pz as pz
+import treescope
+from treescope import formatting_util
 from typing_extensions import dataclass_transform
 
 from genjax._src.core.typing import (
@@ -44,7 +36,6 @@ from genjax._src.core.typing import (
 )
 
 R = TypeVar("R")
-_T = TypeVar("_T")
 
 
 class Pytree(pz.Struct):
@@ -66,25 +57,25 @@ class Pytree(pz.Struct):
         incoming: None = None,
         /,
         **kwargs,
-    ) -> Callable[[type[_T]], type[_T]]: ...
+    ) -> Callable[[type[R]], type[R]]: ...
 
     @staticmethod
     @overload
     def dataclass(
-        incoming: type[_T],
+        incoming: type[R],
         /,
         **kwargs,
-    ) -> type[_T]: ...
+    ) -> type[R]: ...
 
     @dataclass_transform(
         frozen_default=True,
     )
     @staticmethod
     def dataclass(
-        incoming: type[_T] | None = None,
+        incoming: type[R] | None = None,
         /,
         **kwargs,
-    ) -> type[_T] | Callable[[type[_T]], type[_T]]:
+    ) -> type[R] | Callable[[type[R]], type[R]]:
         """
         Denote that a class (which is inheriting `Pytree`) should be treated as a dataclass, meaning it can hold data in fields which are declared as part of the class.
 
@@ -212,103 +203,23 @@ class Pytree(pz.Struct):
             check = all(map(lambda v: treedef == jtu.tree_structure(v), rest))
             return check
 
-    #############
-    # Utilities #
-    #############
+    def treescope_color(self) -> str | tuple[str, str]:
+        """Computes a CSS color to display for this object in treescope.
+
+        This function can be overridden to change the color for a particular object
+        in treescope, without having to register a new handler.
+
+        (note that we are overriding the Penzai base class's implementation so that ALL structs receive colors, not just classes with `__call__` implemented.)
+
+        Returns:
+          A CSS color string to use as a background/highlight color for this object.
+          Alternatively, a tuple of (border, fill) CSS colors.
+        """
+        type_string = type(self).__module__ + "." + type(self).__qualname__
+        return formatting_util.color_from_string(type_string)
 
     def render_html(self):
-        def _pytree_handler(node, subtree_renderer):
-            constructor_open = struct_handler.render_struct_constructor(node)
-            fs = fields(node)
-
-            (
-                background_color,
-                background_pattern,
-            ) = builtin_structure_handler.parse_color_and_pattern(
-                node.treescope_color(), type(node).__name__
-            )
-
-            if background_pattern is not None:
-                if background_color is None:
-                    raise ValueError(
-                        "background_color must be provided if background_pattern is"
-                    )
-
-                def wrapper1(block):
-                    return common_styles.WithBlockPattern(
-                        block, color=background_color, pattern=background_pattern
-                    )
-
-                wrap_block = wrapper1
-                wrap_topline = common_styles.PatternedTopLineSpanGroup
-                wrap_bottomline = common_styles.PatternedBottomLineSpanGroup
-
-            elif background_color is not None and background_color != "transparent":
-
-                def wrapper2(block):
-                    return common_styles.WithBlockColor(block, color=background_color)
-
-                wrap_block = wrapper2
-                wrap_topline = common_styles.ColoredTopLineSpanGroup
-                wrap_bottomline = common_styles.ColoredBottomLineSpanGroup
-
-            else:
-
-                def id(rendering):
-                    return rendering
-
-                wrap_block = id
-                wrap_topline = id
-                wrap_bottomline = id
-
-            children = builtin_structure_handler.build_field_children(
-                node,
-                None,
-                subtree_renderer,
-                fields_or_attribute_names=fs,
-                key_path_fn=node.key_for_field,
-                attr_style_fn=struct_handler.struct_attr_style_fn_for_fields(fs),
-            )
-            children = basic_parts.IndentedChildren(children)
-
-            suffix = ")"
-
-            return wrap_block(
-                basic_parts.Siblings(
-                    children=[
-                        wrap_topline(constructor_open),
-                        basic_parts.Siblings.build(
-                            foldable_impl.HyperlinkTarget(
-                                foldable_impl.FoldableTreeNodeImpl(
-                                    basic_parts.FoldCondition(
-                                        collapsed=basic_parts.Text("..."),
-                                        expanded=children,
-                                    )
-                                ),
-                                keypath=None,
-                            ),
-                            wrap_bottomline(basic_parts.Text(suffix)),
-                        ),
-                    ],
-                )
-            )
-
-        def custom_handler(node, path, subtree_renderer):
-            del path
-            if inspect.isfunction(node):
-                return common_structures.build_one_line_tree_node(
-                    line=common_styles.CustomTextColor(
-                        basic_parts.Text(f"<fn {node.__name__}>"),
-                        color="blue",
-                    ),
-                    path=None,
-                )
-            if isinstance(node, Pytree):
-                return _pytree_handler(node, subtree_renderer)
-            return NotImplemented
-
-        default_renderer.active_renderer.get().handlers.insert(0, custom_handler)
-        return pz.ts.render_to_html(
+        return treescope.render_to_html(
             self,
             roundtrip_mode=False,
         )
@@ -318,12 +229,10 @@ class Pytree(pz.Struct):
 # Associated utility classes #
 ##############################
 
-_C = TypeVar("_C")
-
 
 # Wrapper for static values (can include callables).
 @Pytree.dataclass
-class Const(Generic[_C], Pytree):
+class Const(Generic[R], Pytree):
     """
     JAX-compatible way to tag a value as a constant. Valid constants include Python literals, strings, essentially anything **that won't hold JAX arrays** inside of a computation.
 
@@ -354,10 +263,12 @@ class Const(Generic[_C], Pytree):
         ```
     """
 
-    val: _C = Pytree.static()
+    val: R = Pytree.static()
 
     def __call__(self, *args):
-        assert isinstance(self.val, Callable)
+        assert isinstance(
+            self.val, Callable
+        ), f"Wrapped `val` {self.val} is not Callable."
         return self.val(*args)
 
     def unwrap(self):
