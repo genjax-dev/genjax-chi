@@ -14,7 +14,6 @@
 
 import jax
 import jax.numpy as jnp
-import penzai.pz as pz
 import pytest
 
 import genjax
@@ -327,7 +326,7 @@ class TestScanUpdate:
         return jax.random.PRNGKey(314159)
 
     def test_scan_update(self, key):
-        @pz.pytree_dataclass
+        @genjax.Pytree.dataclass
         class A(genjax.Pytree):
             x: FloatArray
 
