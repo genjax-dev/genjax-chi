@@ -44,7 +44,6 @@ Callable = btyping.Callable
 Sequence = btyping.Sequence
 Final = btyping.Final
 Generator = btyping.Generator
-Hashable = btyping.Hashable
 
 # JAX Type alias.
 InAxes = int | None | Sequence[Any]
@@ -119,7 +118,6 @@ __all__ = [
     "FloatArray",
     "Generator",
     "Generic",
-    "Hashable",
     "InAxes",
     "Int",
     "IntArray",

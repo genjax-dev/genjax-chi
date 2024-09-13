@@ -582,5 +582,6 @@ class TestChoiceMap:
         assert chm[0, "x"] == 1.0
         assert chm[0, "y"] == 2.0
 
-    def test_chm_struct(self):
-        pass
+    def test_chm_roundtrip(self):
+        chm = ChoiceMap.value(3.0)
+        assert chm == chm.__class__.from_attributes(**chm.attributes_dict())

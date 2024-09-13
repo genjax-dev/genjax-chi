@@ -654,14 +654,10 @@ class Struct(metaclass=AbstractStructMetaclass):
           A CSS color string to use as a background/highlight color for this object.
           Alternatively, a tuple of (border, fill) CSS colors.
         """
-        # By default, we render structs in color if they define __call__.
-        if hasattr(self, "__call__"):
-            from treescope import formatting_util  # pylint: disable=g-import-not-at-top
+        from treescope import formatting_util  # pylint: disable=g-import-not-at-top
 
-            type_string = type(self).__module__ + "." + type(self).__qualname__
-            return formatting_util.color_from_string(type_string)
-        else:
-            return "transparent"
+        type_string = type(self).__module__ + "." + type(self).__qualname__
+        return formatting_util.color_from_string(type_string)
 
     def __repr__(self):
         """Renders this object with treescope, on a single line."""
