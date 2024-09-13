@@ -39,7 +39,6 @@ from genjax._src.core.typing import (
     Flag,
     Generic,
     PRNGKey,
-    ScalarFlag,
     TypeVar,
 )
 
@@ -50,7 +49,7 @@ R = TypeVar("R")
 class MaskTrace(Generic[R], Trace[Mask[R]]):
     mask_combinator: "MaskCombinator[R]"
     inner: Trace[R]
-    check: ScalarFlag
+    check: Flag
 
     def get_args(self) -> tuple[Flag, Any]:
         return (self.check, *self.inner.get_args())
@@ -136,7 +135,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         assert isinstance(trace, MaskTrace | EmptyTrace)
 
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
-        post_check: ScalarFlag = Diff.tree_primal(check_diff)
+        post_check: Flag = Diff.tree_primal(check_diff)
 
         match trace:
             case MaskTrace():

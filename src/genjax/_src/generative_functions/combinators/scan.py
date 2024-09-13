@@ -953,35 +953,3 @@ def masked_iterate_final(
         return flag, state
 
     return step.mask().contramap(pre_fn).reduce()
-
-
-import genjax
-
-
-@genjax.gen
-def step(x: Mask[Array]):
-    # vmap over object masks
-    x = genjax.normal.mask().vmap(in_axes=(0, None, None))(x.flag, 0.0, 1.0) @ "x"
-    return x
-
-
-# @genjax.gen
-# def repro():
-#     # Initialize vmasked object
-#     x_masks = jnp.arange(3) < 3
-#     x_inits = genjax.normal.mask().vmap(in_axes=(0, None, None))(x_masks, 0., 1.) @ "x_init"
-
-#     # Wrap a masked_scan_combinator around step function
-#     n = 20
-#     step_masks = jnp.arange(n) < n
-#     out = masked_scan_combinator(step, n=n)(x_inits, step_masks) @ "steps"
-#     return out
-
-# key = jax.random.PRNGKey(100)
-# subkeys = jax.random.split(key, 100)
-# trace = repro.simulate(key, ()).get_sample()
-# try:
-#     # Try to access the masked values inside our step function
-#     x = trace["steps", ..., "x", ...]
-# except Exception as e:
-#     print(e)
