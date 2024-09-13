@@ -1048,13 +1048,13 @@ files = [
 
 [[package]]
 name = "genstudio"
-version = "2024.9.11.1556.dev0"
+version = "2024.9.3"
 description = ""
 optional = true
 python-versions = ">=3.10,<3.13"
 files = [
-    {file = "genstudio-2024.9.11.1556.dev0-py3-none-any.whl", hash = "sha256:2c92fa2031fb2d56660434e832cc4c5ea9e0152a3807178e30b880f93aa8d276"},
-    {file = "genstudio-2024.9.11.1556.dev0.tar.gz", hash = "sha256:f37a24aa281e6c60fd9ad178bf6e616abccc6d9e5ad3355ff54fefbd997fcee4"},
+    {file = "genstudio-2024.9.3-py3-none-any.whl", hash = "sha256:4718af14d89d81c1f7e9486e61569761e5b85d9b5a9996a42ef36a77596f5b92"},
+    {file = "genstudio-2024.9.3.tar.gz", hash = "sha256:86db98000bab42a1c5edb4f4fadcd6250fff3fbab44f10f2af5bb01e4447bbff"},
 ]
 
 [package.dependencies]
@@ -4768,4 +4768,4 @@ msgpack = ["msgpack"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "e82780f1b1ff2c0803d9401542e8458b7f420e6d0591106917f1fc7c88768c87"
+content-hash = "7f30717920ef3d2640ed1594ebb6d622a307ae866d3418acebf28588687d3a6c"

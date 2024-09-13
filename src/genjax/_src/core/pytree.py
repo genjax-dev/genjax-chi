@@ -21,6 +21,7 @@ from typing import overload
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
+import treescope
 from typing_extensions import dataclass_transform
 
 import genjax._src.core.penzai as penzai
@@ -202,6 +203,12 @@ class Pytree(penzai.Struct):
             treedef = jtu.tree_structure(fst)
             check = all(map(lambda v: treedef == jtu.tree_structure(v), rest))
             return check
+
+    def render_html(self):
+        return treescope.render_to_html(
+            self,
+            roundtrip_mode=False,
+        )
 
 
 ##############################

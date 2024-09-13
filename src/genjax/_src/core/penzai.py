@@ -60,7 +60,7 @@ def is_pytree_dataclass_type(cls: type[Any]) -> bool:
     Returns:
       True if this specific class was registred with @pytree_dataclass.
     """
-    return isinstance(cls, type) and PYTREE_DATACLASS_INFO_ATTR in cls.__dict__
+    return PYTREE_DATACLASS_INFO_ATTR in cls.__dict__
 
 
 class PyTreeDataclassSafetyError(Exception):
@@ -684,7 +684,7 @@ class Struct(metaclass=AbstractStructMetaclass):
             p.text(line)
 
     def __treescope_repr__(self, path: str | None, subtree_renderer: Any):
-        return handle_structs(self, path, subtree_renderer)
+        return _render_struct(self, path, subtree_renderer)
 
 
 # Struct handler!
@@ -765,8 +765,8 @@ def struct_attr_style_fn_for_fields(
 TreescopeSubtreeRenderer = typing.runtime_checkable(renderers.TreescopeSubtreeRenderer)
 
 
-def handle_structs(
-    node: Any,
+def _render_struct(
+    node: Struct,
     path: str | None,
     subtree_renderer: TreescopeSubtreeRenderer,  # pyright: ignore[reportInvalidTypeForm]
 ) -> (
@@ -795,9 +795,6 @@ def handle_structs(
     Returns:
       A rendering, or NotImplemented.
     """
-    if not isinstance(node, Struct):
-        return NotImplemented
-
     assert dataclasses.is_dataclass(node), "Every struct.Struct is a dataclass"
     constructor_open = render_struct_constructor(node)
     fields = dataclasses.fields(node)
