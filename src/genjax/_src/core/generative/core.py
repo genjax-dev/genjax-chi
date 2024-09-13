@@ -1532,6 +1532,14 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         (args, _kwargs) = args
         return self.wrapped.simulate(key, args)
 
+    def assess(
+        self,
+        sample: "genjax.ChoiceMap",
+        args: Arguments,
+    ) -> tuple[Score, R]:
+        (args, _kwargs) = args
+        return self.wrapped.assess(sample, args)
+
     def update(
         self, key: PRNGKey, trace: Trace[R], update_problem: GenericProblem
     ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
