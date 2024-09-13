@@ -687,10 +687,10 @@ class Struct(metaclass=AbstractStructMetaclass):
         return _render_struct(self, path, subtree_renderer)
 
 
-# Struct handler!
+## struct renderers
 
 
-def render_struct_constructor(
+def _render_struct_constructor(
     node: Struct,
 ) -> rendering_parts.RenderableTreePart:
     """Renders the constructor of a Struct, with an open parenthesis."""
@@ -708,32 +708,7 @@ def render_struct_constructor(
         )
 
 
-def render_short_struct_summary(
-    the_struct: Struct,
-) -> rendering_parts.RenderableTreePart:
-    """Renders a short summary of a struct.
-
-    Can be used by other handlers that manipulate structs.
-
-    Args:
-      the_struct: Struct to render.
-
-    Returns:
-      A short, single-line summary of the struct.
-    """
-    background_color, background_pattern = (
-        formatting_util.parse_simple_color_and_pattern_spec(
-            the_struct.treescope_color(), type(the_struct).__name__
-        )
-    )
-    return rendering_parts.build_one_line_tree_node(
-        rendering_parts.text(type(the_struct).__name__ + "(...)"),
-        background_color=background_color,
-        background_pattern=background_pattern,
-    ).renderable
-
-
-def struct_attr_style_fn_for_fields(
+def _struct_attr_style_fn_for_fields(
     fields,
 ) -> Callable[[str], rendering_parts.RenderableTreePart]:
     """Builds a function to render attributes of a struct.
@@ -796,7 +771,7 @@ def _render_struct(
       A rendering, or NotImplemented.
     """
     assert dataclasses.is_dataclass(node), "Every struct.Struct is a dataclass"
-    constructor_open = render_struct_constructor(node)
+    constructor_open = _render_struct_constructor(node)
     fields = dataclasses.fields(node)
 
     background_color, background_pattern = (
@@ -810,7 +785,7 @@ def _render_struct(
         path,
         subtree_renderer,
         fields_or_attribute_names=fields,
-        attr_style_fn=struct_attr_style_fn_for_fields(fields),
+        attr_style_fn=_struct_attr_style_fn_for_fields(fields),
     )
 
     return rendering_parts.build_foldable_tree_node_from_children(

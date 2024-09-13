@@ -368,8 +368,8 @@ class Trace(Generic[R], Pytree):
     # Pretty printing #
     ###################
 
-    def __treescope_color__(self):
-        return self.get_gen_fn().__treescope_color__()
+    def treescope_color(self):
+        return self.get_gen_fn().treescope_color()
 
     ###################
     # Batch semantics #
