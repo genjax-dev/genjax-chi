@@ -27,7 +27,6 @@ book:
         - cookbook/basics/methods_of_generative_fun.ipynb
         - cookbook/basics/choicemap_creation_selection.ipynb
         - cookbook/basics/debugging.ipynb
-        - cookbook/basics/saving_traces.ipynb
         - cookbook/basics/some_oddities.ipynb
     - part: expressivity.qmd
       chapters:
