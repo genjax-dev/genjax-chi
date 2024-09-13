@@ -581,3 +581,7 @@ class TestChoiceMap:
         # if the index is NOT an array (i.e. statically known) we get a static value out, not a mask.
         assert chm[0, "x"] == 1.0
         assert chm[0, "y"] == 2.0
+
+    def test_chm_roundtrip(self):
+        chm = ChoiceMap.value(3.0)
+        assert chm == chm.__class__.from_attributes(**chm.attributes_dict())

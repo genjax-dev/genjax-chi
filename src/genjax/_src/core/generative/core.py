@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING
 
 import jax
 import jax.numpy as jnp
-from penzai.core import formatting_util
 
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import FlagOp, get_trace_shape
@@ -363,13 +362,6 @@ class Trace(Generic[R], Pytree):
             GenericProblem(Diff.no_change(self.get_args()), problem),
         )
         return -w
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def treescope_color(self):
-        return self.get_gen_fn().treescope_color()
 
     ###################
     # Batch semantics #
@@ -766,11 +758,6 @@ class GenerativeFunction(Generic[R], Pytree):
         score = tr.get_score()
         retval = tr.get_retval()
         return sample, score, retval
-
-    # NOTE: Supports pretty printing in penzai.
-    def treescope_color(self):
-        type_string = str(type(self))
-        return formatting_util.color_from_string(type_string)
 
     ######################################################
     # Convenience: postfix syntax for combinators / DSLs #
