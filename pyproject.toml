@@ -48,7 +48,6 @@ treescope = "^0.1.4"
 # Numpy <2.0.0 is due to tfp issues: https://github.com/tensorflow/probability/issues/1814
 # remove this constraint when that issue is closed.
 numpy = ">=1.22,<2.0.0"
-msgpack = { version = "^1.0.8", optional = true }
 genstudio = { version = "2024.09.003", source = "gcp", optional = true }
 
 [tool.poetry.group.dev]
@@ -85,9 +84,8 @@ mkdocstrings-python = { git = "git@github.com:probcomp/mkdocstrings-python.git" 
 black = "^24.4.2"
 
 [tool.poetry.extras]
-msgpack = ["msgpack"]
 genstudio = ["genstudio"]
-all = ["msgpack", "genstudio"]
+all = ["genstudio"]
 
 [[tool.poetry.source]]
 name = "gcp"
@@ -118,9 +116,7 @@ venvPath = "."
 venv = ".venv"
 include = ["src", "tests"]
 # TODO: inference has been excluded because this code my not be ready for type-correctness.
-#       msgpack dependency is optional, so it doesn't typecheck
-#       typecheck doesn't see noxfiles's import of nox
-exclude = ["**/__pycache__", "noxfile.py", "src/genjax/_src/inference/*.py", "src/genjax/_src/core/serialization/msgpack.py"]
+exclude = ["**/__pycache__", "src/genjax/_src/inference/*.py"]
 defineConstant = { DEBUG = true }
 typeCheckingMode = "strict"
 deprecateTypingAliases = true
