@@ -36,8 +36,6 @@ from genjax._src.core.typing import (
 )
 
 R = TypeVar("R")
-_T = TypeVar("_T")
-_C = TypeVar("_C")
 
 
 class Pytree(pz.Struct):
@@ -59,25 +57,25 @@ class Pytree(pz.Struct):
         incoming: None = None,
         /,
         **kwargs,
-    ) -> Callable[[type[_T]], type[_T]]: ...
+    ) -> Callable[[type[R]], type[R]]: ...
 
     @staticmethod
     @overload
     def dataclass(
-        incoming: type[_T],
+        incoming: type[R],
         /,
         **kwargs,
-    ) -> type[_T]: ...
+    ) -> type[R]: ...
 
     @dataclass_transform(
         frozen_default=True,
     )
     @staticmethod
     def dataclass(
-        incoming: type[_T] | None = None,
+        incoming: type[R] | None = None,
         /,
         **kwargs,
-    ) -> type[_T] | Callable[[type[_T]], type[_T]]:
+    ) -> type[R] | Callable[[type[R]], type[R]]:
         """
         Denote that a class (which is inheriting `Pytree`) should be treated as a dataclass, meaning it can hold data in fields which are declared as part of the class.
 
@@ -234,7 +232,7 @@ class Pytree(pz.Struct):
 
 # Wrapper for static values (can include callables).
 @Pytree.dataclass
-class Const(Generic[_C], Pytree):
+class Const(Generic[R], Pytree):
     """
     JAX-compatible way to tag a value as a constant. Valid constants include Python literals, strings, essentially anything **that won't hold JAX arrays** inside of a computation.
 
@@ -265,7 +263,7 @@ class Const(Generic[_C], Pytree):
         ```
     """
 
-    val: _C = Pytree.static()
+    val: R = Pytree.static()
 
     def __call__(self, *args):
         assert isinstance(
