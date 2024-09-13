@@ -21,10 +21,11 @@ from typing import overload
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
+import penzai.pz as pz
 import treescope
+from treescope import formatting_util
 from typing_extensions import dataclass_transform
 
-import genjax._src.core.penzai as penzai
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -39,7 +40,7 @@ _T = TypeVar("_T")
 _C = TypeVar("_C")
 
 
-class Pytree(penzai.Struct):
+class Pytree(pz.Struct):
     """`Pytree` is an abstract base class which registers a class with JAX's `Pytree`
     system. JAX's `Pytree` system tracks how data classes should behave across JAX-transformed function boundaries, like `jax.jit` or `jax.vmap`.
 
@@ -105,7 +106,7 @@ class Pytree(penzai.Struct):
             ```
         """
 
-        return penzai.pytree_dataclass(
+        return pz.pytree_dataclass(
             incoming,
             overwrite_parent_init=True,
             **kwargs,
@@ -203,6 +204,21 @@ class Pytree(penzai.Struct):
             treedef = jtu.tree_structure(fst)
             check = all(map(lambda v: treedef == jtu.tree_structure(v), rest))
             return check
+
+    def treescope_color(self) -> str | tuple[str, str]:
+        """Computes a CSS color to display for this object in treescope.
+
+        This function can be overridden to change the color for a particular object
+        in treescope, without having to register a new handler.
+
+        (note that we are overriding the Penzai base class's implementation so that ALL structs receive colors, not just classes with `__call__` implemented.)
+
+        Returns:
+          A CSS color string to use as a background/highlight color for this object.
+          Alternatively, a tuple of (border, fill) CSS colors.
+        """
+        type_string = type(self).__module__ + "." + type(self).__qualname__
+        return formatting_util.color_from_string(type_string)
 
     def render_html(self):
         return treescope.render_to_html(

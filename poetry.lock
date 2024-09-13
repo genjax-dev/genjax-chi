@@ -2881,6 +2881,20 @@ docs = ["numpydoc", "sphinx (==1.2.3)", "sphinx-rtd-theme", "sphinxcontrib-napol
 tests = ["pytest", "pytest-cov", "pytest-pep8"]
 
 [[package]]
+name = "ordered-set"
+version = "4.1.0"
+description = "An OrderedSet is a custom MutableSet that remembers its order, so that every"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "ordered-set-4.1.0.tar.gz", hash = "sha256:694a8e44c87657c59292ede72891eb91d34131f6531463aab3009191c77364a8"},
+    {file = "ordered_set-4.1.0-py3-none-any.whl", hash = "sha256:046e1132c71fcf3330438a539928932caf51ddbc582496833e23de611de14562"},
+]
+
+[package.extras]
+dev = ["black", "mypy", "pytest"]
+
+[[package]]
 name = "orjson"
 version = "3.10.7"
 description = "Fast, correct Python JSON library supporting dataclasses, datetimes, and numpy"
@@ -3087,6 +3101,31 @@ files = [
     {file = "pathspec-0.12.1-py3-none-any.whl", hash = "sha256:a0d503e138a4c123b27490a4f7beda6a01c6f288df0e4a8b79c7eb0dc7b4cc08"},
     {file = "pathspec-0.12.1.tar.gz", hash = "sha256:a482d51503a1ab33b1c67a6c3813a26953dbdc71c31dacaef9a838c4e29f5712"},
 ]
+
+[[package]]
+name = "penzai"
+version = "0.2.2"
+description = "Penzai: A JAX research toolkit for building, editing, and visualizing neural networks."
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "penzai-0.2.2-py3-none-any.whl", hash = "sha256:387caf4a0af4067658528ae931648421b8fe2d62d0b32eb0c9254b2d95771e7e"},
+    {file = "penzai-0.2.2.tar.gz", hash = "sha256:f08b1c7151ea07dfe80b99abc5c749942fb0da112ed2ba82d5588ec255f8e8be"},
+]
+
+[package.dependencies]
+absl-py = ">=1.4.0"
+jax = ">=0.4.23"
+numpy = ">=1.25.2"
+ordered_set = ">=4.1.0"
+treescope = ">=0.1.3"
+typing_extensions = ">=4.2"
+
+[package.extras]
+dev = ["ipython", "jupyter", "pyink (>=24.3.0)", "pylint (>=2.6.0)", "pytest (>=8.2.2)"]
+docs = ["flax (>=0.8.2)", "ipython", "ipython (>=8.8.0)", "jax[cpu] (>=0.4.23)", "matplotlib (>=3.5.0)", "myst-nb (>=1.0.0)", "myst-parser (>=3.0.1)", "optax", "sphinx (>=6.0.0,<7.3.0)", "sphinx-book-theme (>=1.0.1)", "sphinx-collections (>=0.0.1)", "sphinx-hoverxref", "sphinx_contributors", "sphinxcontrib-katex"]
+extras = ["flax (>=0.8.2)", "ipython", "optax", "torch", "transformers (>=4.41.2)"]
+notebook = ["flax (>=0.8.2)", "ipython", "optax", "orbax-checkpoint", "palettable"]
 
 [[package]]
 name = "pexpect"
@@ -4768,4 +4807,4 @@ msgpack = ["msgpack"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "7f30717920ef3d2640ed1594ebb6d622a307ae866d3418acebf28588687d3a6c"
+content-hash = "871e3eff7555385f7549f4e30a5fb9ceb8f563edece39838961b3d385b32c826"
