@@ -49,6 +49,7 @@ from genjax._src.core.typing import (
 )
 
 Carry = TypeVar("Carry")
+X = TypeVar("X")
 Y = TypeVar("Y")
 
 
@@ -904,52 +905,73 @@ def iterate_final(
     return decorator
 
 
-def masked_scan_combinator(
-    step: GenerativeFunction[tuple[Carry, Y]], **scan_kwargs
+X = TypeVar("X")
+
+
+def masked_scan(
+    step: GenerativeFunction[tuple[Carry, Y]], *, n: Int | None = None
 ) -> GenerativeFunction[tuple[Mask[Carry], Mask[Y]]]:
     """
-    Given a generative function `step` so that `step.scan(n=N)` is valid,
-    return a generative function accepting an input
-    `(initial_state, masked_input_values_array)` and returning a pair
-    `(masked_final_state, masked_returnvalue_sequence)`.
-    This operates similarly to `step.scan`, but the input values can be masked.
+    Given a step of type
+
+    (carry, x) -> (carry, y),
+
+    returns a new function of type
+
+    (mask[carry], [mask[x]]) -> (mask[carry], [mask[y]])
     """
 
-    def scan_step_pre(
-        masked_carry: Mask[Carry], masked_x: Mask[Any]
-    ) -> tuple[Flag, Carry, Any]:
-        c_flag = masked_carry.flag
-        x_flag = masked_x.flag
-        assert not isinstance(c_flag, Diff) and not isinstance(x_flag, Diff)
+    def flag_and(a: Flag | Diff[Flag], b: Flag | Diff[Flag]) -> Flag:
+        assert not isinstance(a, Diff) and not isinstance(b, Diff)
+        return FlagOp.and_(a, b)
 
-        return (FlagOp.and_(c_flag, x_flag), masked_carry.value, masked_x.value)
+    def pre(masked_carry: Mask[Carry], masked_x: Mask[X]) -> tuple[Flag, Carry, X]:
+        return (
+            flag_and(masked_carry.flag, masked_x.flag),
+            masked_carry.value,
+            masked_x.value,
+        )
 
-    def scan_step_post(
-        _, masked_retval: Mask[tuple[Carry, Y]]
-    ) -> tuple[Mask[Carry], Mask[Y]]:
+    def post(_, masked_retval: Mask[tuple[Carry, Y]]) -> tuple[Mask[Carry], Mask[Y]]:
         flag = masked_retval.flag
         carry, y = masked_retval.value
         return (Mask(flag, carry), Mask(flag, y))
 
-    mstep = step.mask().dimap(pre=scan_step_pre, post=scan_step_post)
-
-    # This should be given a pair (
-    #     Mask(True, initial_state),
-    #     Mask(bools_indicating_active, input_vals)
-    # ).
-    # It will output a pair (masked_final_state, masked_returnvalue_sequence).
-    scanned: ScanCombinator[Mask[Carry], Mask[Y]] = mstep.scan(**scan_kwargs)
-
-    def nice_pre(initial_state: Carry, masked_input: Mask[Any]):
-        return Mask(True, initial_state), masked_input
-
-    return scanned.contramap(nice_pre)
+    return step.mask().dimap(pre=pre, post=post).scan(n=n)
 
 
-def masked_iterate_final(
-    step: GenerativeFunction[Carry],
-) -> GenerativeFunction[Mask[Carry]]:
-    def pre_fn(state: Mask[Carry], flag: Flag):
+def masked_scan_2(
+    step: GenerativeFunction[tuple[Carry, Y]],
+) -> GenerativeFunction[tuple[Carry, Y]]:
+    """
+    Given a step of type
+
+    (carry, x) -> (carry, y),
+
+    returns a new function of type
+
+    (mask[carry], [mask[x]]) -> (mask[carry], [mask[y]])
+    """
+
+    def pre(carry: Carry, pair: tuple[Flag, X]) -> tuple[Flag, Carry, X]:
+        return pair[0], carry, pair[1]
+
+    def post(_, masked_retval: Mask[tuple[Carry, Y]]) -> tuple[Carry, Y]:
+        return masked_retval.value
+
+    return (
+        step.mask()
+        .dimap(pre=pre, post=post)
+        .scan()
+        .contramap(lambda acc, masks, vs: (acc, (masks, vs)))
+    )
+
+
+def masked_iterate_final(step: GenerativeFunction[Carry]) -> GenerativeFunction[Carry]:
+    def pre_fn(state: Carry, flag: Flag) -> tuple[Flag, Carry]:
         return flag, state
 
-    return step.mask().contramap(pre_fn).reduce()
+    def post_fn(_, ret: Mask[Carry]) -> Carry:
+        return ret.value
+
+    return step.mask().dimap(pre=pre_fn, post=post_fn).reduce()
