@@ -581,6 +581,15 @@ class TestStaticGenFnUpdate:
             m_linked.partial_apply(m).partial_apply(1.0, 1.0)
         )
 
+        @genjax.gen
+        def m_created_internally(scale: Array):
+            m_internal = Model(scale, scale)
+            return m_internal.run.inline(scale)
+
+        self.update_weight_correctness_general_assertions(
+            m_created_internally.partial_apply(1.0)
+        )
+
     def test_update_pytree_argument(self):
         @Pytree.dataclass
         class SomePytree(genjax.Pytree):
