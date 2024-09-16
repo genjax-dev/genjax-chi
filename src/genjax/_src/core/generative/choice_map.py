@@ -1180,11 +1180,11 @@ class ChoiceMap(Sample, Constraint):
         return _ChoiceMapBuilder(self, [])
 
     # Simplification
-    def pushdown(self) -> "ChoiceMap":
+    def simplify(self) -> "ChoiceMap":
         return _pushdown_filters(self)
 
     def to_dict(self):
-        return _flatten_to_dict(self.pushdown())
+        return _flatten_to_dict(self.simplify())
 
 
 @Pytree.dataclass
