@@ -639,7 +639,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             # Now `partially_applied_model` is equivalent to a model that only takes 'y' as an argument
             ```
         """
-        return gen(Pytree.partial(*args)(self.inline))
+        all_args = self.source.dyn_args + args
+        return gen(Closure[R](all_args, self.source.fn))
 
 
 #############
@@ -651,7 +652,7 @@ def gen(f: Closure[R] | Callable[..., R]) -> StaticGenerativeFunction[R]:
     if isinstance(f, Closure):
         return StaticGenerativeFunction[R](f)
     else:
-        closure = Pytree.partial()(f)
+        closure = Closure[R]((), f)
         return gen(closure)
 
 

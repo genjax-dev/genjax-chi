@@ -801,3 +801,19 @@ class TestStaticGenFnInline:
         assert "y" in chm
         assert "z" in chm
         assert "q" not in chm
+
+    def test_partial_apply(self):
+        @genjax.gen
+        def model(x, y, z):
+            return genjax.normal(x, y + z) @ "x"
+
+        double_curry = model.partial_apply(1.0).partial_apply(1.0)
+        key = jax.random.PRNGKey(0)
+        # outside(1.0)(key)
+
+        tr = double_curry.simulate(key, (2.0,))
+        assert tr.get_args() == (
+            1.0,
+            1.0,
+            2.0,
+        ), "both curried args are present alongside the final arg"
