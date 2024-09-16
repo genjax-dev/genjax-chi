@@ -854,6 +854,10 @@ class TestStaticGenFnInline:
             1.0,
         ), "The curried `self` arg is not present in get_args()"
 
+        assert (
+            tr.gen_fn.partial_args[0] == m
+        ), "`self` is retrievable using `partial_args"
+
         assert "y" in chm
         assert "z" in chm
         assert "q" not in chm
