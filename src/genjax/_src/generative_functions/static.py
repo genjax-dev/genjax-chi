@@ -23,7 +23,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapBuilder,
     EmptyProblem,
     EmptyTrace,
     GenerativeFunction,
@@ -57,6 +56,14 @@ from genjax._src.core.typing import (
     FloatArray,
     Generic,
     PRNGKey,
+)
+
+_WRAPPER_ASSIGNMENTS = (
+    "__module__",
+    "__name__",
+    "__qualname__",
+    "__doc__",
+    "__annotations__",
 )
 
 
@@ -100,11 +107,8 @@ class StaticTrace(Generic[R], Trace[R]):
 
     def get_sample(self) -> ChoiceMap:
         addresses = self.addresses.get_visited()
-        chm = ChoiceMap.empty()
-        for addr, subtrace in zip(addresses, self.subtraces):
-            chm = chm ^ ChoiceMapBuilder.a(addr, subtrace.get_sample())
-
-        return chm
+        sub_chms = (tr.get_choices() for tr in self.subtraces)
+        return ChoiceMap.from_mapping(zip(addresses, sub_chms))
 
     def get_score(self) -> Score:
         return self.score
@@ -490,6 +494,16 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     def __abstract_call__(self, *args) -> Any:
         return self.source(*args)
 
+    def __post_init__(self):
+        wrapped = self.source.fn
+        # Preserve the original function's docstring and name
+        for k in _WRAPPER_ASSIGNMENTS:
+            v = getattr(wrapped, k, None)
+            if v is not None:
+                object.__setattr__(self, k, v)
+
+        object.__setattr__(self, "__wrapped__", wrapped)
+
     def handle_kwargs(self) -> "StaticGenerativeFunction[R]":
         @Pytree.partial()
         def kwarged_source(args, kwargs):
@@ -497,7 +511,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
         return StaticGenerativeFunction(kwarged_source)
 
-    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,
@@ -543,13 +556,11 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             ),
         ) = update_transform(syntax_sugar_handled)(key, trace, update_problem, argdiffs)
 
-        def make_bwd_problem(visitor, subproblems):
+        def make_bwd_problem(
+            visitor: AddressVisitor, subproblems: list[UpdateProblem]
+        ) -> ChoiceMap:
             addresses = visitor.get_visited()
-            addresses = Pytree.tree_const_unwrap(addresses)
-            chm = ChoiceMap.empty()
-            for addr, subproblem in zip(addresses, subproblems):
-                chm = chm ^ ChoiceMapBuilder.a(addr, subproblem)
-            return chm
+            return ChoiceMap.from_mapping(zip(addresses, subproblems))
 
         bwd_problem = make_bwd_problem(address_visitor, bwd_problems)
         return (
@@ -566,7 +577,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             bwd_problem,
         )
 
-    @GenerativeFunction.gfi_boundary
     def update(
         self,
         key: PRNGKey,
@@ -583,7 +593,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     GenericProblem(Diff.no_change(trace.get_args()), update_problem),
                 )
 
-    @GenerativeFunction.gfi_boundary
     def assess(
         self,
         sample: ChoiceMap,
@@ -630,7 +639,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 #############
 
 
-def gen(f: Callable[..., R]) -> StaticGenerativeFunction[R]:
+def gen(f: Closure[R] | Callable[..., R]) -> StaticGenerativeFunction[R]:
     if isinstance(f, Closure):
         return StaticGenerativeFunction[R](f)
     else:

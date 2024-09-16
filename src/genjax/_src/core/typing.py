@@ -42,6 +42,8 @@ FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
 Sequence = btyping.Sequence
+Final = btyping.Final
+Generator = btyping.Generator
 
 # JAX Type alias.
 InAxes = int | None | Sequence[Any]
@@ -50,6 +52,7 @@ InAxes = int | None | Sequence[Any]
 Int = int
 Float = float
 Bool = bool
+Flag = Bool | BoolArray
 String = str
 
 Value = Any
@@ -59,7 +62,8 @@ Value = Any
 #################################
 
 ScalarShaped = Is[lambda arr: jnp.array(arr, copy=False).shape == ()]
-ScalarBool = Annotated[Bool | BoolArray, ScalarShaped]
+ScalarFlag = Annotated[Flag, ScalarShaped]
+
 
 ############
 # Generics #
@@ -108,8 +112,11 @@ __all__ = [
     "BoolArray",
     "Callable",
     "EllipsisType",
+    "Final",
+    "Flag",
     "Float",
     "FloatArray",
+    "Generator",
     "Generic",
     "InAxes",
     "Int",
@@ -117,7 +124,7 @@ __all__ = [
     "Is",
     "PRNGKey",
     "ParamSpec",
-    "ScalarBool",
+    "ScalarFlag",
     "ScalarShaped",
     "Self",
     "Sequence",

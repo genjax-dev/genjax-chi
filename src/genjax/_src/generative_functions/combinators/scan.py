@@ -65,8 +65,8 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
 
     def get_sample(self):
         return jax.vmap(
-            lambda idx, subtrace: ChoiceMap.idx(idx, subtrace.get_sample()),
-        )(jnp.arange(self.scan_gen_fn.length), self.inner)
+            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_sample(), idx),
+        )(jnp.arange(self.inner.get_score().shape[0]), self.inner)
 
     def get_gen_fn(self):
         return self.scan_gen_fn
@@ -128,10 +128,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
         length: optional integer specifying the number of loop iterations, which (if supplied) must agree with the sizes of leading axes of the arrays in the returned function's second argument. If supplied then the returned generative function can take `None` as its second argument.
 
-        reverse: optional boolean specifying whether to run the scan iteration forward (the default) or in reverse, equivalent to reversing the leading axes of the arrays in both `xs` and in `ys`.
-
-        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many scan iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
-
     Examples:
         Use the [`genjax.GenerativeFunction.scan`][] method:
         ```python exec="yes" html="true" source="material-block" session="scan"
@@ -173,8 +169,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
     # Only required for `None` carry inputs
     length: Int | None = Pytree.static()
-    reverse: bool = Pytree.static(default=False)
-    unroll: int | bool = Pytree.static(default=1)
 
     # To get the type of return value, just invoke
     # the scanned over source (with abstract tracer arguments).
@@ -185,14 +179,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             v, scanned_out = self.kernel_gen_fn.__abstract_call__(carry, scanned_in)
             return v, scanned_out
 
-        v, scanned_out = jax.lax.scan(
-            _inner,
-            carry,
-            scanned_in,
-            length=self.length,
-            reverse=self.reverse,
-            unroll=self.unroll,
-        )
+        v, scanned_out = jax.lax.scan(_inner, carry, scanned_in, length=self.length)
 
         return v, scanned_out
 
@@ -203,31 +190,41 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     ) -> ScanTrace[Carry, Y]:
         carry, scanned_in = args
 
-        def _inner_simulate(key, carry, scanned_in):
+        def _inner_simulate(
+            key: PRNGKey, carry: Carry, scanned_in: Any
+        ) -> tuple[tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y]]:
             tr = self.kernel_gen_fn.simulate(key, (carry, scanned_in))
             (carry, scanned_out) = tr.get_retval()
             score = tr.get_score()
             return (carry, score), (tr, scanned_out)
 
-        def _inner(carry, scanned_over):
+        def _inner(
+            carry: tuple[PRNGKey, IntArray, Carry], scanned_over: Any
+        ) -> tuple[
+            tuple[PRNGKey, IntArray, Carry], tuple[Trace[tuple[Carry, Y]], Y, Score]
+        ]:
             key, count, carried_value = carry
             key = jax.random.fold_in(key, count)
-            (carry, score), (tr, scanned_out) = _inner_simulate(
+            (carried_out, score), (tr, scanned_out) = _inner_simulate(
                 key, carried_value, scanned_over
             )
 
-            return (key, count + 1, carry), (tr, scanned_out, score)
+            return (key, count + 1, carried_out), (tr, scanned_out, score)
 
         (_, _, carried_out), (tr, scanned_out, scores) = jax.lax.scan(
             _inner,
-            (key, 0, carry),
+            (key, jnp.asarray(0), carry),
             scanned_in,
             length=self.length,
-            reverse=self.reverse,
-            unroll=self.unroll,
         )
 
-        return ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores))
+        return ScanTrace(
+            self,
+            tr,
+            args,
+            (carried_out, scanned_out),
+            jnp.sum(scores),
+        )
 
     def update_importance(
         self,
@@ -237,7 +234,11 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], UpdateProblem]:
         (carry, scanned_in) = args
 
-        def _inner_importance(key, constraint, carry, scanned_in):
+        def _inner_importance(
+            key: PRNGKey, constraint: ChoiceMap, carry: Carry, scanned_in: Any
+        ) -> tuple[
+            tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y, Weight, UpdateProblem]
+        ]:
             tr, w, _retdiff, bwd_problem = self.kernel_gen_fn.update(
                 key,
                 EmptyTrace(self.kernel_gen_fn),
@@ -250,28 +251,35 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             score = tr.get_score()
             return (carry, score), (tr, scanned_out, w, bwd_problem)
 
-        def _importance(carry, scanned_over):
+        def _importance(
+            carry: tuple[PRNGKey, IntArray, Carry], scanned_over: Any
+        ) -> tuple[
+            tuple[PRNGKey, IntArray, Carry],
+            tuple[Trace[tuple[Carry, Y]], Y, Score, Weight, UpdateProblem],
+        ]:
             key, idx, carried_value = carry
             key = jax.random.fold_in(key, idx)
             submap = constraint.get_submap(idx)
-            (carry, score), (tr, scanned_out, w, inner_bwd_problem) = _inner_importance(
-                key, submap, carried_value, scanned_over
+            (carried_out, score), (tr, scanned_out, w, inner_bwd_problem) = (
+                _inner_importance(key, submap, carried_value, scanned_over)
             )
-            bwd_problem = ChoiceMap.idx(idx, inner_bwd_problem)
+            bwd_problem = ChoiceMap.entry(inner_bwd_problem, idx)
 
-            return (key, idx + 1, carry), (tr, scanned_out, score, w, bwd_problem)
+            return (key, idx + 1, carried_out), (tr, scanned_out, score, w, bwd_problem)
 
         (_, _, carried_out), (tr, scanned_out, scores, ws, bwd_problems) = jax.lax.scan(
             _importance,
-            (key, 0, carry),
+            (key, jnp.asarray(0), carry),
             scanned_in,
             length=self.length,
-            reverse=self.reverse,
-            unroll=self.unroll,
         )
         return (
             ScanTrace[Carry, Y](
-                self, tr, args, (carried_out, scanned_out), jnp.sum(scores)
+                self,
+                tr,
+                args,
+                (carried_out, scanned_out),
+                jnp.sum(scores),
             ),
             jnp.sum(ws),
             Diff.unknown_change((carried_out, scanned_out)),
@@ -301,11 +309,20 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         problem: UpdateProblem,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], UpdateProblem]:
-        carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(
-            Diff.tree_primal(argdiffs)
-        )
+        diffs = Diff.tree_diff_unknown_change(Diff.tree_primal(argdiffs))
+        carry_diff: Carry = diffs[0]
+        scanned_in_diff: Any = diffs[1:]
 
-        def _inner_update(key, subtrace, subproblem, carry, scanned_in):
+        def _inner_update(
+            key: PRNGKey,
+            subtrace: Trace[tuple[Carry, Y]],
+            subproblem: UpdateProblem,
+            carry: Carry,
+            scanned_in: Any,
+        ) -> tuple[
+            tuple[Carry, Score],
+            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Weight, UpdateProblem],
+        ]:
             (
                 new_subtrace,
                 w,
@@ -330,18 +347,24 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 bwd_problem,
             )
 
-        def _update(carry, scanned_over):
+        def _update(
+            carry: tuple[PRNGKey, IntArray, Carry],
+            scanned_over: tuple[Trace[tuple[Carry, Y]], Any],
+        ) -> tuple[
+            tuple[PRNGKey, IntArray, Carry],
+            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Score, Weight, ChoiceMap],
+        ]:
             key, idx, carried_value = carry
             subtrace, scanned_in = scanned_over
             key = jax.random.fold_in(key, idx)
             subproblem = self._get_subproblem(problem, idx)
             (
-                (carry, score),
+                (carried_out, score),
                 (new_subtrace, scanned_out, w, inner_bwd_problem),
             ) = _inner_update(key, subtrace, subproblem, carried_value, scanned_in)
-            bwd_problem = ChoiceMap.idx(idx, inner_bwd_problem)
+            bwd_problem = ChoiceMap.entry(inner_bwd_problem, idx)
 
-            return (key, idx + 1, carry), (
+            return (key, idx + 1, carried_out), (
                 new_subtrace,
                 scanned_out,
                 score,
@@ -354,11 +377,9 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             (new_subtraces, scanned_out_diff, scores, ws, bwd_problems),
         ) = jax.lax.scan(
             _update,
-            (key, 0, carry_diff),
+            (key, jnp.asarray(0), carry_diff),
             (trace.inner, *scanned_in_diff),
             length=self.length,
-            reverse=self.reverse,
-            unroll=self.unroll,
         )
         carried_out, scanned_out = Diff.tree_primal((
             carried_out_diff,
@@ -445,7 +466,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                     return self.update_index(key, trace, index, subproblem)
                 else:
                     return self.update_generic(
-                        key, trace, ChoiceMap.idx(index, subproblem), argdiffs
+                        key, trace, ChoiceMap.entry(subproblem, index), argdiffs
                     )
             case _:
                 assert isinstance(
@@ -453,7 +474,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 ), "You cannot operate on the EmptyTrace in this context"
                 return self.update_generic(key, trace, update_problem, argdiffs)
 
-    @GenerativeFunction.gfi_boundary
     def update(
         self,
         key: PRNGKey,
@@ -474,7 +494,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                     ),
                 )
 
-    @GenerativeFunction.gfi_boundary
     def assess(
         self,
         sample: Sample,
@@ -502,8 +521,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             (0, carry),
             scanned_in,
             length=self.length,
-            reverse=self.reverse,
-            unroll=self.unroll,
         )
         return (
             jnp.sum(scores),
@@ -517,7 +534,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
 
 def scan(
-    *, n: Int | None = None, reverse: bool = False, unroll: int | bool = 1
+    *, n: Int | None = None
 ) -> Callable[
     [GenerativeFunction[tuple[Carry, Y]]], GenerativeFunction[tuple[Carry, Y]]
 ]:
@@ -553,10 +570,6 @@ def scan(
 
     Args:
         n: optional integer specifying the number of loop iterations, which (if supplied) must agree with the sizes of leading axes of the arrays in the returned function's second argument. If supplied then the returned generative function can take `None` as its second argument.
-
-        reverse: optional boolean specifying whether to run the scan iteration forward (the default) or in reverse, equivalent to reversing the leading axes of the arrays in both `xs` and in `ys`.
-
-        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many scan iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
 
     Returns:
         A new [`genjax.GenerativeFunction`][] that takes a loop-carried value and a new input, and returns a new loop-carried value along with either `None` or an output to be collected into the second return value.
@@ -605,7 +618,7 @@ def scan(
     """
 
     def decorator(f: GenerativeFunction[tuple[Carry, Y]]):
-        return ScanCombinator[Carry, Y](f, length=n, reverse=reverse, unroll=unroll)
+        return ScanCombinator[Carry, Y](f, length=n)
 
     return decorator
 
@@ -637,9 +650,7 @@ def prepend_initial_acc(args: tuple[Carry, Any], ret: tuple[Carry, Carry]) -> Ca
     return jax.tree.map(cat, init_acc, xs)
 
 
-def accumulate(
-    *, reverse: bool = False, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]:
+def accumulate() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type
     `(c, [a]) -> [c]` where.
@@ -668,11 +679,6 @@ def accumulate(
 
     The loop-carried value `c` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `c` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
 
-    Args:
-        reverse: optional boolean specifying whether to run the accumulation forward (the default) or in reverse, equivalent to reversing the leading axes of the arrays in both `xs` and in `carries`.
-
-        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
-
     Examples:
         accumulate a running total:
         ```python exec="yes" html="true" source="material-block" session="scan"
@@ -700,16 +706,14 @@ def accumulate(
     def decorator(f: GenerativeFunction[Carry]) -> GenerativeFunction[Carry]:
         return (
             f.map(lambda ret: (ret, ret))
-            .scan(reverse=reverse, unroll=unroll)
+            .scan()
             .dimap(pre=lambda *args: args, post=prepend_initial_acc)
         )
 
     return decorator
 
 
-def reduce(
-    *, reverse: bool = False, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]:
+def reduce() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type
     `(c, [a]) -> c` where.
@@ -734,11 +738,6 @@ def reduce(
     Unlike that Python version, both `xs` and `carry` may be arbitrary pytree values, and so multiple arrays can be scanned over at once and produce multiple output arrays.
 
     The loop-carried value `c` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `c` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
-
-    Args:
-        reverse: optional boolean specifying whether to run the accumulation forward (the default) or in reverse, equivalent to reversing the leading axis of the array `xs`.
-
-        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
 
     Examples:
         sum an array of numbers:
@@ -771,14 +770,12 @@ def reduce(
         def post(ret: tuple[Carry, None]):
             return ret[0]
 
-        return f.map(pre).scan(reverse=reverse, unroll=unroll).map(post)
+        return f.map(pre).scan().map(post)
 
     return decorator
 
 
-def iterate(
-    *, n: Int, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
+def iterate(*, n: Int) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a ->
     [a]` where.
@@ -807,8 +804,6 @@ def iterate(
     Args:
         n: the number of iterations to run.
 
-        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
-
     Examples:
         iterative addition, returning all intermediate sums:
         ```python exec="yes" html="true" source="material-block" session="scan"
@@ -834,7 +829,7 @@ def iterate(
         # strip off the JAX-supplied `None` on the way in, accumulate `ret` on the way out.
         return (
             f.dimap(pre=lambda *args: args[:-1], post=lambda _, ret: (ret, ret))
-            .scan(n=n, unroll=unroll)
+            .scan(n=n)
             .dimap(pre=lambda *args: (*args, None), post=prepend_initial_acc)
         )
 
@@ -842,7 +837,7 @@ def iterate(
 
 
 def iterate_final(
-    *, n: Int, unroll: int | bool = 1
+    *, n: Int
 ) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a`
@@ -869,8 +864,6 @@ def iterate_final(
 
     Args:
         n: the number of iterations to run.
-
-        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
 
     Examples:
         iterative addition:
@@ -903,7 +896,7 @@ def iterate_final(
 
         return (
             f.dimap(pre=lambda *args: args[:-1], post=pre_post)
-            .scan(n=n, unroll=unroll)
+            .scan(n=n)
             .dimap(pre=lambda *args: (*args, None), post=post_post)
         )
 

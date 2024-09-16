@@ -1,7 +1,7 @@
 # Journey to the center of `genjax.core`
 
 
-This page describes the set of core concepts and datatypes in GenJAX, including Gen's generative datatypes and concepts ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`UpdateProblem`][genjax.core.UpdateProblem]), the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree], [`Const`][genjax.core.Const], and [`Closure`][genjax.core.Closure]), as well as functionally inspired `Pytree` extensions ([`Mask`][genjax.core.Mask], [`Sum`][genjax.core.Sum]), and GenJAX's approach to "static" (JAX tracing time) typechecking.
+This page describes the set of core concepts and datatypes in GenJAX, including Gen's generative datatypes and concepts ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`UpdateProblem`][genjax.core.UpdateProblem]), the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree], [`Const`][genjax.core.Const], and [`Closure`][genjax.core.Closure]), as well as functionally inspired `Pytree` extensions ([`Mask`][genjax.core.Mask]), and GenJAX's approach to "static" (JAX tracing time) typechecking.
 
 ::: genjax.core.GenerativeFunction
 
@@ -65,12 +65,6 @@ GenJAX contains a system for tagging data with flags, to indicate if the data is
         members:
           - unmask
           - match
-
-Another mechanism to encode runtime uncertainty (again, inspired by functional programming) is the `Sum` type. This type encodes the possibility that the value inhabiting this type may actually be one of several options, and we can't statically determine which one it is. This type pairs an `idx: IntArray` with a list of values.
-
-::: genjax.core.Sum
-    options:
-        show_root_heading: true
 
 ## Static typing with `genjax.typing` a.k.a 🐻`beartype`🐻
 

@@ -17,16 +17,15 @@ from typing import TYPE_CHECKING
 
 import jax
 import jax.numpy as jnp
-from penzai.core import formatting_util
 
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import Flag, get_trace_shape
+from genjax._src.core.interpreters.staging import FlagOp, get_trace_shape
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import gfi_boundary
 from genjax._src.core.typing import (
     Annotated,
     Any,
     Callable,
+    Flag,
     FloatArray,
     Generic,
     InAxes,
@@ -51,7 +50,6 @@ R = TypeVar("R")
 """
 Generic denoting the return type of a generative function.
 """
-
 S = TypeVar("S")
 
 Carry = TypeVar("Carry")
@@ -126,17 +124,17 @@ class MaskedProblem(UpdateProblem):
     flag: Flag
     problem: UpdateProblem
 
-    @classmethod
-    def maybe_empty(cls, f: Flag, problem: UpdateProblem):
+    @staticmethod
+    def maybe_empty(f: Flag, problem: UpdateProblem):
         match problem:
             case MaskedProblem(flag, subproblem):
-                return MaskedProblem(f.and_(flag), subproblem)
+                return MaskedProblem(FlagOp.and_(f, flag), subproblem)
             case _:
                 return (
                     problem
-                    if f.concrete_true()
+                    if FlagOp.concrete_true(f)
                     else EmptyProblem()
-                    if f.concrete_false()
+                    if FlagOp.concrete_false(f)
                     else MaskedProblem(f, problem)
                 )
 
@@ -164,16 +162,16 @@ class ProjectProblem(UpdateProblem):
 
 
 class UpdateProblemBuilder(Pytree):
-    @classmethod
-    def empty(cls):
+    @staticmethod
+    def empty():
         return EmptyProblem()
 
-    @classmethod
-    def maybe(cls, flag: Flag, problem: "UpdateProblem"):
+    @staticmethod
+    def maybe(flag: Flag, problem: "UpdateProblem"):
         return MaskedProblem.maybe_empty(flag, problem)
 
-    @classmethod
-    def g(cls, argdiffs: Argdiffs, subproblem: "UpdateProblem") -> "GenericProblem":
+    @staticmethod
+    def g(argdiffs: Argdiffs, subproblem: "UpdateProblem") -> "GenericProblem":
         return GenericProblem(argdiffs, subproblem)
 
 
@@ -344,13 +342,13 @@ class Trace(Generic[R], Pytree):
         This method calls out to the underlying [`GenerativeFunction.update`][genjax.core.GenerativeFunction.update] method - see [`UpdateProblem`][genjax.core.UpdateProblem] and [`update`][genjax.core.GenerativeFunction.update] for more information.
         """
         if isinstance(problem, GenericProblem) and argdiffs is None:
-            return self.get_gen_fn().update(key, self, problem)  # pyright: ignore
+            return self.get_gen_fn().update(key, self, problem)  # pyright: ignore[reportReturnType]
         else:
             return self.get_gen_fn().update(
                 key,
                 self,
                 GenericProblem(Diff.tree_diff_no_change(self.get_args()), problem),
-            )  # pyright: ignore
+            )  # pyright: ignore[reportReturnType]
 
     def project(
         self,
@@ -364,13 +362,6 @@ class Trace(Generic[R], Pytree):
             GenericProblem(Diff.no_change(self.get_args()), problem),
         )
         return -w
-
-    ###################
-    # Pretty printing #
-    ###################
-
-    def treescope_color(self):
-        return self.get_gen_fn().treescope_color()
 
     ###################
     # Batch semantics #
@@ -483,10 +474,6 @@ class GenerativeFunction(Generic[R], Pytree):
 
     def get_trace_shape(self, *args) -> Any:
         return get_trace_shape(self, args)
-
-    @classmethod
-    def gfi_boundary(cls, c: _C) -> _C:
-        return gfi_boundary(c)
 
     @abstractmethod
     def simulate(
@@ -772,11 +759,6 @@ class GenerativeFunction(Generic[R], Pytree):
         retval = tr.get_retval()
         return sample, score, retval
 
-    # NOTE: Supports pretty printing in penzai.
-    def treescope_color(self):
-        type_string = str(type(self))
-        return formatting_util.color_from_string(type_string)
-
     ######################################################
     # Convenience: postfix syntax for combinators / DSLs #
     ######################################################
@@ -867,8 +849,6 @@ class GenerativeFunction(Generic[R], Pytree):
         /,
         *,
         n: Int | None = None,
-        reverse: bool = False,
-        unroll: int | bool = 1,
     ) -> "GenerativeFunction[tuple[Carry, Y]]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)`, returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])` where
@@ -901,10 +881,6 @@ class GenerativeFunction(Generic[R], Pytree):
 
         Args:
             n: optional integer specifying the number of loop iterations, which (if supplied) must agree with the sizes of leading axes of the arrays in the returned function's second argument. If supplied then the returned generative function can take `None` as its second argument.
-
-            reverse: optional boolean specifying whether to run the scan iteration forward (the default) or in reverse, equivalent to reversing the leading axes of the arrays in both `xs` and in `ys`.
-
-            unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many scan iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
 
         Returns:
             A new [`genjax.GenerativeFunction`][] that takes a loop-carried value and a new input, and returns a new loop-carried value along with either `None` or an output to be collected into the second return value.
@@ -955,11 +931,9 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.scan(n=n, reverse=reverse, unroll=unroll)(self)
+        return genjax.scan(n=n)(self)
 
-    def accumulate(
-        self, /, *, reverse: bool = False, unroll: int | bool = 1
-    ) -> "GenerativeFunction[R]":
+    def accumulate(self) -> "GenerativeFunction[R]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `(c, a) -> c`, returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> [c]` where
 
@@ -987,11 +961,6 @@ class GenerativeFunction(Generic[R], Pytree):
 
         The loop-carried value `c` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `c` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
 
-        Args:
-            reverse: optional boolean specifying whether to run the accumulation forward (the default) or in reverse, equivalent to reversing the leading axes of the arrays in both `xs` and in `carries`.
-
-            unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
-
         Examples:
             ```python exec="yes" html="true" source="material-block" session="scan"
             import jax
@@ -1016,11 +985,9 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.accumulate(reverse=reverse, unroll=unroll)(self)
+        return genjax.accumulate()(self)
 
-    def reduce(
-        self, /, *, reverse: bool = False, unroll: int | bool = 1
-    ) -> "GenerativeFunction[R]":
+    def reduce(self) -> "GenerativeFunction[R]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `(c, a) -> c`, returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> c` where
 
@@ -1044,11 +1011,6 @@ class GenerativeFunction(Generic[R], Pytree):
         Unlike that Python version, both `xs` and `carry` may be arbitrary pytree values, and so multiple arrays can be scanned over at once and produce multiple output arrays.
 
         The loop-carried value `c` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `c` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
-
-        Args:
-            reverse: optional boolean specifying whether to run the accumulation forward (the default) or in reverse, equivalent to reversing the leading axis of the array `xs`.
-
-            unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
 
         Examples:
             sum an array of numbers:
@@ -1075,9 +1037,9 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.reduce(reverse=reverse, unroll=unroll)(self)
+        return genjax.reduce()(self)
 
-    def iterate(self, /, *, n: Int, unroll: int | bool = 1) -> "GenerativeFunction[R]":
+    def iterate(self, /, *, n: Int) -> "GenerativeFunction[R]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `a -> a`, returns a new [`genjax.GenerativeFunction`][] of type `a -> [a]` where
 
@@ -1105,8 +1067,6 @@ class GenerativeFunction(Generic[R], Pytree):
         Args:
             n: the number of iterations to run.
 
-            unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
-
         Examples:
             iterative addition, returning all intermediate sums:
             ```python exec="yes" html="true" source="material-block" session="scan"
@@ -1129,11 +1089,9 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.iterate(n=n, unroll=unroll)(self)
+        return genjax.iterate(n=n)(self)
 
-    def iterate_final(
-        self, /, *, n: Int, unroll: int | bool = 1
-    ) -> "GenerativeFunction[R]":
+    def iterate_final(self, /, *, n: Int) -> "GenerativeFunction[R]":
         """
         Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a` where
 
@@ -1159,8 +1117,6 @@ class GenerativeFunction(Generic[R], Pytree):
             Args:
                 n: the number of iterations to run.
 
-            unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
-
         Examples:
             iterative addition:
             ```python exec="yes" html="true" source="material-block" session="scan"
@@ -1183,7 +1139,7 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.iterate_final(n=n, unroll=unroll)(self)
+        return genjax.iterate_final(n=n)(self)
 
     def mask(self, /) -> "GenerativeFunction[genjax.Mask[R]]":
         """
@@ -1224,9 +1180,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.mask(self)
 
-    def or_else(
-        self, gen_fn: "GenerativeFunction[S]", /
-    ) -> "GenerativeFunction[R | S]":
+    def or_else(self, gen_fn: "GenerativeFunction[R]", /) -> "GenerativeFunction[R]":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that accepts
 
@@ -1274,7 +1228,9 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.or_else(self, gen_fn)
 
-    def switch(self, *branches: "GenerativeFunction[Any]") -> "GenerativeFunction[Any]":
+    def switch(
+        self, *branches: "GenerativeFunction[R]"
+    ) -> "genjax.SwitchCombinator[R]":
         """
         Given `n` [`genjax.GenerativeFunction`][] inputs, returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
 
@@ -1315,7 +1271,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.switch(self, *branches)
 
-    def mix(self, *fns: "GenerativeFunction[Any]") -> "GenerativeFunction[Any]":
+    def mix(self, *fns: "GenerativeFunction[R]") -> "GenerativeFunction[R]":
         """
         Takes any number of [`genjax.GenerativeFunction`][]s and returns a new [`genjax.GenerativeFunction`][] that represents a mixture model.
 
@@ -1357,7 +1313,7 @@ class GenerativeFunction(Generic[R], Pytree):
             logits = jax.numpy.array([0.3, 0.7])  # Favors component2
             trace = mixture.simulate(key, (logits, (0.0,), (7.0,)))
             print(trace.render_html())
-                ```
+            ```
         """
         import genjax
 
@@ -1555,7 +1511,6 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
     def handle_kwargs(self) -> "GenerativeFunction[R]":
         raise NotImplementedError
 
-    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,
@@ -1564,7 +1519,14 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         (args, _kwargs) = args
         return self.wrapped.simulate(key, args)
 
-    @GenerativeFunction.gfi_boundary
+    def assess(
+        self,
+        sample: "genjax.ChoiceMap",
+        args: Arguments,
+    ) -> tuple[Score, R]:
+        (args, _kwargs) = args
+        return self.wrapped.assess(sample, args)
+
     def update(
         self, key: PRNGKey, trace: Trace[R], update_problem: GenericProblem
     ) -> tuple[Trace[R], Weight, Retdiff[R], UpdateProblem]:
@@ -1601,7 +1563,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
     # This override returns `R`, while the superclass returns a `GenerativeFunctionClosure`; this is
     # a hint that subclassing may not be the right relationship here.
-    def __call__(self, key: PRNGKey, *args) -> R:  # pyright: ignore
+    def __call__(self, key: PRNGKey, *args) -> R:  # pyright: ignore[reportIncompatibleMethodOverride]
         full_args = (*self.args, *args)
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
@@ -1623,7 +1585,6 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     # Support the interface with reduced syntax #
     #############################################
 
-    @GenerativeFunction.gfi_boundary
     def simulate(
         self,
         key: PRNGKey,
@@ -1639,7 +1600,6 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         else:
             return self.gen_fn.simulate(key, full_args)
 
-    @GenerativeFunction.gfi_boundary
     def update(
         self,
         key: PRNGKey,
@@ -1664,7 +1624,6 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
             case _:
                 raise NotImplementedError
 
-    @GenerativeFunction.gfi_boundary
     def assess(
         self,
         sample: "genjax.ChoiceMap",

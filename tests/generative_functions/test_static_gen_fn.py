@@ -35,6 +35,53 @@ from genjax.typing import Float, FloatArray
 ##################################
 
 
+class TestStaticGenFnMetadata:
+    def test_docstring_transfer(self):
+        def original_function(x: float, y: float) -> float:
+            """
+            This is a test function that adds two numbers.
+
+            Args:
+                x (float): The first number
+                y (float): The second number
+
+            Returns:
+                float: The sum of x and y
+            """
+            return x + y
+
+        wrapped_function = genjax.gen(original_function)
+
+        assert wrapped_function.__doc__ == original_function.__doc__
+        assert wrapped_function.__name__ == original_function.__name__
+        assert wrapped_function.__module__ == original_function.__module__
+        assert wrapped_function.__qualname__ == original_function.__qualname__
+        assert getattr(wrapped_function, "__wrapped__") == original_function
+
+    def test_docstring_transfer_with_annotations(self):
+        @genjax.gen
+        def annotated_function(x: float, y: float) -> float:
+            """
+            This is an annotated test function that multiplies two numbers.
+
+            Args:
+                x (float): The first number
+                y (float): The second number
+
+            Returns:
+                float: The product of x and y
+            """
+            return x * y
+
+        assert annotated_function.__doc__ is not None
+        assert "This is an annotated test function" in annotated_function.__doc__
+        assert annotated_function.__annotations__ == {
+            "x": float,
+            "y": float,
+            "return": float,
+        }
+
+
 class TestStaticGenFnSimulate:
     def test_simulate_with_no_choices(self):
         @genjax.gen
