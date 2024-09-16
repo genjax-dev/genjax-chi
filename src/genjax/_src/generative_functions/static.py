@@ -615,6 +615,23 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     def inline(self, *args):
         return self.source(*args)
 
+    @property
+    def partial_args(self) -> tuple[Any, ...]:
+        """
+        Returns the partially applied arguments of the generative function.
+
+        This method retrieves the dynamically applied arguments that were used to create
+        this StaticGenerativeFunction instance through partial application.
+
+        Returns:
+            tuple[Any, ...]: A tuple containing the partially applied arguments.
+
+        Note:
+            This method is particularly useful when working with partially applied
+            generative functions, allowing access to the pre-filled arguments.
+        """
+        return self.source.dyn_args
+
     def partial_apply(self, *args) -> "StaticGenerativeFunction[R]":
         """
         Returns a new [`StaticGenerativeFunction`][] with the given arguments partially applied.

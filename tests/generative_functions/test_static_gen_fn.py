@@ -871,7 +871,7 @@ class TestStaticGenFnInline:
             2.0,
         ), "both curried args are not present alongside the final arg"
 
-        assert tr.gen_fn.source.dyn_args == (
+        assert tr.gen_fn.partial_args == (
             1.0,
             1.0,
-        ), "They are present as a single layer in `dyn_args`"
+        ), "They are present as `partial_args`"
