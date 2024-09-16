@@ -794,9 +794,8 @@ class TestStaticGenFnInline:
         chm = tr.get_choices()
 
         assert tr.get_args() == (
-            m,
             1.0,
-        ), "The curried `self` arg is present in get_args()"
+        ), "The curried `self` arg is not present in get_args()"
 
         assert "y" in chm
         assert "z" in chm
@@ -809,11 +808,13 @@ class TestStaticGenFnInline:
 
         double_curry = model.partial_apply(1.0).partial_apply(1.0)
         key = jax.random.PRNGKey(0)
-        # outside(1.0)(key)
 
         tr = double_curry.simulate(key, (2.0,))
         assert tr.get_args() == (
-            1.0,
-            1.0,
             2.0,
-        ), "both curried args are present alongside the final arg"
+        ), "both curried args are not present alongside the final arg"
+
+        assert tr.gen_fn.source.dyn_args == (
+            1.0,
+            1.0,
+        ), "They are present as a single layer in `dyn_args`"

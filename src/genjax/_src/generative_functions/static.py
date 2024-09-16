@@ -97,7 +97,7 @@ class StaticTrace(Generic[R], Trace[R]):
     score: Score
 
     def get_args(self) -> tuple[Any, ...]:
-        return self.gen_fn.source.dyn_args + self.args
+        return self.args
 
     def get_retval(self) -> R:
         return self.retval
