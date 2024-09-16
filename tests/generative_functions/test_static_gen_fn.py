@@ -482,14 +482,7 @@ class TestStaticGenFnUpdate:
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-    def test_update_weight_correctness(self):
-        @genjax.gen
-        def simple_linked_normal():
-            y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(y1, 1.0) @ "y2"
-            y3 = genjax.normal(y1 + y2, 1.0) @ "y3"
-            return y1 + y2 + y3
-
+    def update_weight_correctness_general_assertions(self, simple_linked_normal):
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         tr = jax.jit(simple_linked_normal.simulate)(sub_key, ())
@@ -532,6 +525,61 @@ class TestStaticGenFnUpdate:
             - genjax.normal.assess(C.v(old_y3), (new_y1 + old_y2, 1.0))[0]
         )
         assert w == pytest.approx(correct_w, 0.0001)
+
+    def test_update_weight_correctness(self):
+        @genjax.gen
+        def simple_linked_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(y1, 1.0) @ "y2"
+            y3 = genjax.normal(y1 + y2, 1.0) @ "y3"
+            return y1 + y2 + y3
+
+        # easy case
+        self.update_weight_correctness_general_assertions(simple_linked_normal)
+
+        @genjax.gen
+        def curried_linked_normal(v1, v2, v3):
+            y1 = genjax.normal(0.0, v1) @ "y1"
+            y2 = genjax.normal(y1, v2) @ "y2"
+            y3 = genjax.normal(y1 + y2, v3) @ "y3"
+            return y1 + y2 + y3
+
+        # curry
+        self.update_weight_correctness_general_assertions(
+            curried_linked_normal.partial_apply(1.0, 1.0, 1.0)
+        )
+
+        # double-curry
+        self.update_weight_correctness_general_assertions(
+            curried_linked_normal.partial_apply(1.0).partial_apply(1.0, 1.0)
+        )
+
+        @Pytree.dataclass
+        class Model(Pytree):
+            v1: Array
+            v2: Array
+
+            @genjax.gen
+            def run(self, v3):
+                y1 = genjax.normal(0.0, self.v1) @ "y1"
+                y2 = genjax.normal(y1, self.v2) @ "y2"
+                y3 = genjax.normal(y1 + y2, v3) @ "y3"
+                return y1 + y2 + y3
+
+        # model method
+        m = Model(jnp.asarray(1.0), jnp.asarray(1.0))
+        self.update_weight_correctness_general_assertions(m.run.partial_apply(1.0))
+
+        @genjax.gen
+        def m_linked(m: Model, v2, v3):
+            y1 = genjax.normal(0.0, m.v1) @ "y1"
+            y2 = genjax.normal(y1, v2) @ "y2"
+            y3 = genjax.normal(y1 + y2, v3) @ "y3"
+            return y1 + y2 + y3
+
+        self.update_weight_correctness_general_assertions(
+            m_linked.partial_apply(m).partial_apply(1.0, 1.0)
+        )
 
     def test_update_pytree_argument(self):
         @Pytree.dataclass
