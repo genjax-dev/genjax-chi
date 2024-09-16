@@ -115,8 +115,7 @@ pythonVersion = "3.11"
 venvPath = "."
 venv = ".venv"
 include = ["src", "tests"]
-# TODO: inference has been excluded because this code my not be ready for type-correctness.
-exclude = ["**/__pycache__", "src/genjax/_src/inference/*.py"]
+exclude = ["**/__pycache__"]
 defineConstant = { DEBUG = true }
 typeCheckingMode = "strict"
 deprecateTypingAliases = true
