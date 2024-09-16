@@ -489,6 +489,9 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     The source program of the generative function. This is a JAX-compatible Python program.
     """
 
+    def __get__(self, instance, _klass) -> "StaticGenerativeFunction[R]":
+        return self.partial_apply(instance) if instance else self
+
     # To get the type of return value, just invoke
     # the source (with abstract tracer arguments).
     def __abstract_call__(self, *args) -> Any:
@@ -644,7 +647,7 @@ def gen(f: Closure[R] | Callable[..., R]) -> StaticGenerativeFunction[R]:
         return StaticGenerativeFunction[R](f)
     else:
         closure = Pytree.partial()(f)
-        return StaticGenerativeFunction[R](closure)
+        return gen(closure)
 
 
 ###########
