@@ -47,6 +47,7 @@ website:
             - cookbook/expressivity/mixture.ipynb
             - cookbook/expressivity/custom_distribution.ipynb
             - cookbook/expressivity/stochastic_probabilities.ipynb
+            - cookbook/expressivity/stochastic_probabilities_math.ipynb
             - cookbook/expressivity/ravi_stack.ipynb
         - section: "Inference"
           href: inference.qmd
