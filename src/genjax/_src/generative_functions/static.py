@@ -490,6 +490,11 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     """
 
     def __get__(self, instance, _klass) -> "StaticGenerativeFunction[R]":
+        """
+        This method allows the @genjax.gen decorator to transform instance methods, turning them into `StaticGenerativeFunction[R]` calls.
+
+        NOTE: if you assign an already-created `StaticGenerativeFunction` to a variable inside of a class, it will always receive the instance as its first method.
+        """
         return self.partial_apply(instance) if instance else self
 
     # To get the type of return value, just invoke

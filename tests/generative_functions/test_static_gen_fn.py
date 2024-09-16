@@ -773,3 +773,25 @@ class TestStaticGenFnInline:
             == genjax.normal.assess(choice.get_submap("y1"), (0.0, 1.0))[0]
             + genjax.normal.assess(choice.get_submap("y2"), (0.0, 1.0))[0]
         )
+
+    def test_gen_method(self):
+        @Pytree.dataclass
+        class Model(Pytree):
+            foo: Array
+            bar: Array
+
+            @genjax.gen
+            def run(self, x):
+                y = genjax.normal(self.foo, self.bar) @ "y"
+                z = genjax.normal(x, 1.0) @ "z"
+                return y + z
+
+        key = jax.random.PRNGKey(0)
+        # outside(1.0)(key)
+
+        m = Model(jnp.asarray(4.0), jnp.asarray(6.0))
+        chm = m.run.simulate(key, (1.0,)).get_choices()
+
+        assert "y" in chm
+        assert "z" in chm
+        assert "q" not in chm
