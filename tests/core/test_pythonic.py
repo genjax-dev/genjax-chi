@@ -1,5 +1,4 @@
 import jax.numpy as jnp
-import penzai.pz as pz
 
 import genjax
 from genjax.typing import FloatArray
@@ -7,7 +6,7 @@ from genjax.typing import FloatArray
 
 class TestPythonic:
     def test_pythonic(self):
-        @pz.pytree_dataclass
+        @genjax.Pytree.dataclass
         class Foo(genjax.PythonicPytree):
             x: FloatArray
             y: FloatArray

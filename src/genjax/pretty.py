@@ -12,18 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from penzai import pz
-
-"""Implementation of an autovisualizer, visualizing arrays."""
+import treescope
 
 
 def pretty():
-    pz.ts.register_as_default()
-    pz.ts.register_autovisualize_magic()
-    pz.enable_interactive_context()
+    treescope.register_as_default()
+    treescope.register_autovisualize_magic()
 
     # Optional: enables automatic array visualization
-    pz.ts.active_autovisualizer.set_interactive(pz.ts.ArrayAutovisualizer())
+    treescope.active_autovisualizer.set_interactive(treescope.ArrayAutovisualizer())
 
 
 __all__ = [
