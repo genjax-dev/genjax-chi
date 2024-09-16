@@ -33,6 +33,7 @@ from genjax._src.core.typing import (
     IntArray,
     Is,
     PRNGKey,
+    PRNGKeyArray,
     Self,
     String,
     TypeVar,
@@ -768,7 +769,9 @@ class GenerativeFunction(Generic[R], Pytree):
     ###############
 
     # TODO think through, or note, that the R that comes out will have to be bounded by pytree.
-    def vmap(self, /, *, in_axes: InAxes = 0) -> "GenerativeFunction[R]":
+    def vmap(
+        self: "GenerativeFunction[R]", /, *, in_axes: InAxes = 0
+    ) -> "GenerativeFunction[R]":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that performs a vectorized map over the argument specified by `in_axes`. Traced values are nested under an index, and the retval is vectorized.
 
@@ -1563,15 +1566,23 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
     # This override returns `R`, while the superclass returns a `GenerativeFunctionClosure`; this is
     # a hint that subclassing may not be the right relationship here.
-    def __call__(self, key: PRNGKey, *args) -> R:  # pyright: ignore[reportIncompatibleMethodOverride]
+    def __call__(self, key: PRNGKey | PRNGKeyArray, *args) -> R:  # pyright: ignore[reportIncompatibleMethodOverride]
         full_args = (*self.args, *args)
         if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-            return maybe_kwarged_gen_fn.simulate(
-                key, (*full_args, self.kwargs)
-            ).get_retval()
+            gen_fn = self.get_gen_fn_with_kwargs()
+            full_args = (*full_args, self.kwargs)
         else:
-            return self.gen_fn.simulate(key, full_args).get_retval()
+            gen_fn = self.gen_fn
+
+        def simulate(k: PRNGKey) -> R:
+            return gen_fn.simulate(k, full_args).get_retval()
+
+        is_single_key = key.shape == (2,)
+
+        if is_single_key:
+            return simulate(key)
+        else:
+            return jax.vmap(simulate)(key)
 
     def __abstract_call__(self, *args) -> R:
         full_args = (*self.args, *args)

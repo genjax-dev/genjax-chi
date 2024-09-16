@@ -1398,13 +1398,13 @@ scipy = [
 
 [[package]]
 name = "jaxtyping"
-version = "0.2.33"
+version = "0.2.34"
 description = "Type annotations and runtime checking for shape and dtype of JAX arrays, and PyTrees."
 optional = false
 python-versions = "~=3.9"
 files = [
-    {file = "jaxtyping-0.2.33-py3-none-any.whl", hash = "sha256:918d6094c73f28d3196185ef55d1832cbcd2804d1d388f180060c4366a9e2107"},
-    {file = "jaxtyping-0.2.33.tar.gz", hash = "sha256:9a9cfccae4fe05114b9fb27a5ea5440be4971a5a075bbd0526f6dd7d2730f83e"},
+    {file = "jaxtyping-0.2.34-py3-none-any.whl", hash = "sha256:2f81fb6d1586e497a6ea2d28c06dcab37b108a096cbb36ea3fe4fa2e1c1f32e5"},
+    {file = "jaxtyping-0.2.34.tar.gz", hash = "sha256:eed9a3458ec8726c84ea5457ebde53c964f65d2c22c0ec40d0555ae3fed5bbaf"},
 ]
 
 [package.dependencies]
@@ -4741,4 +4741,4 @@ genstudio = ["genstudio"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "cddaf8a6bab7171ce90c63a9ae059a8804d347bc7d8c3ec1d0df74f13c7cf1fc"
+content-hash = "5d43257d64c074f68a17d0a73bd1d63bc5675038a5ce8133d6bc8da9b011b284"

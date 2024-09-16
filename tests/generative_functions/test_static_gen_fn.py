@@ -638,11 +638,30 @@ class TestGenFnClosure:
         tr = gfc.simulate(jax.random.PRNGKey(0), ())
         assert tr.get_retval() == 0.9987485
         assert tr.get_score() == 5.205658
+
         # This failed in GEN-420
         tr_u, w = gfc.importance(jax.random.PRNGKey(1), C.kw(x=1.1), ())
         assert tr_u.get_score() == -4994.0176
         assert tr_u.get_retval() == 1.1
         assert w == tr_u.get_score()
+
+    def test_single_and_multiple_keys(self):
+        @genjax.gen
+        def simple_model():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            return x
+
+        # Test with a single key
+        single_key = jax.random.PRNGKey(0)
+        single_result = simple_model()(single_key)
+        assert single_result.shape == ()
+        assert single_result.dtype == jnp.float32
+
+        # Test with multiple keys
+        num_keys = 3
+        keys = jax.random.split(jax.random.PRNGKey(1), num_keys)
+        multiple_results = simple_model()(keys)
+        assert multiple_results.shape == (num_keys,)
 
 
 class TestStaticGenFnInline:

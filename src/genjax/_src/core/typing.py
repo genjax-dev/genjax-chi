@@ -34,9 +34,12 @@ else:
     from typing_extensions import Self
 
 Any = btyping.Any
-PRNGKey = jtyping.PRNGKeyArray
 Array = jtyping.Array
 ArrayLike = jtyping.ArrayLike
+PRNGKey = jtyping.Key[jtyping.Array, ""] | jtyping.UInt32[jtyping.Array, "2"]
+PRNGKeyArray = (
+    jtyping.Key[jtyping.Array, "..."] | jtyping.UInt32[jtyping.Array, "... 2"]
+)
 IntArray = jtyping.Int[jtyping.Array, "..."]
 FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
@@ -123,6 +126,7 @@ __all__ = [
     "IntArray",
     "Is",
     "PRNGKey",
+    "PRNGKeyArray",
     "ParamSpec",
     "ScalarFlag",
     "ScalarShaped",
