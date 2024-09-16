@@ -587,7 +587,7 @@ class TestStaticGenFnUpdate:
             return m_internal.run.inline(scale)
 
         self.update_weight_correctness_general_assertions(
-            m_created_internally.partial_apply(1.0)
+            m_created_internally.partial_apply(jnp.asarray(1.0))
         )
 
     def test_update_pytree_argument(self):
