@@ -790,7 +790,13 @@ class TestStaticGenFnInline:
         # outside(1.0)(key)
 
         m = Model(jnp.asarray(4.0), jnp.asarray(6.0))
-        chm = m.run.simulate(key, (1.0,)).get_choices()
+        tr = m.run.simulate(key, (1.0,))
+        chm = tr.get_choices()
+
+        assert tr.get_args() == (
+            m,
+            1.0,
+        ), "The curried `self` arg is present in get_args()"
 
         assert "y" in chm
         assert "z" in chm

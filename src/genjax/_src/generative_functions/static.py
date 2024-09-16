@@ -89,7 +89,7 @@ class AddressVisitor(Pytree):
 
 @Pytree.dataclass
 class StaticTrace(Generic[R], Trace[R]):
-    gen_fn: GenerativeFunction[R]
+    gen_fn: "StaticGenerativeFunction[R]"
     args: tuple[Any, ...]
     retval: R
     addresses: AddressVisitor
@@ -97,7 +97,7 @@ class StaticTrace(Generic[R], Trace[R]):
     score: Score
 
     def get_args(self) -> tuple[Any, ...]:
-        return self.args
+        return self.gen_fn.source.dyn_args + self.args
 
     def get_retval(self) -> R:
         return self.retval
