@@ -31,7 +31,6 @@ from genjax._src.core.typing import (
     Any,
     ArrayLike,
     Bool,
-    BoolArray,
     EllipsisType,
     Final,
     Flag,
@@ -231,7 +230,7 @@ class Selection(ProjectProblem):
             assert maybe_selection["any_address"] == False
             ```
         """
-        return MaskSel.build(self, flag)
+        return self & MaskSel.build(flag)
 
     def filter(self, chm: "ChoiceMap") -> "ChoiceMap":
         """
@@ -371,14 +370,11 @@ class NoneSel(Selection):
 
 @Pytree.dataclass
 class MaskSel(Selection):
-    """Represents a deferred selection that is conditionally applied based on a flag.
+    """Represents a selection that is conditionally applied based on a flag.
 
-    This selection wraps another selection and a boolean flag. The check and
-    subselection operations are only applied if the flag is True. If the flag
-    is False, the selection behaves as if it's empty.
+    This selection wraps a boolean flag, and returns it from `check`. `get_subselection` returns `self` for all inputs.
 
     Attributes:
-        s: The underlying selection to be conditionally applied.
         flag: A boolean flag determining whether the selection is active.
 
     Examples:
@@ -392,28 +388,22 @@ class MaskSel(Selection):
         ```
     """
 
-    s: Selection
     flag: Flag
 
     @staticmethod
-    def build(
-        s: Selection,
-        flag: Flag,
-    ) -> Selection:
+    def build(flag: Flag) -> Selection:
         if FlagOp.concrete_true(flag):
-            return s
+            return Selection.all()
         elif FlagOp.concrete_false(flag):
             return Selection.none()
         else:
-            return MaskSel(s, flag)
+            return MaskSel(flag)
 
     def check(self) -> Flag:
-        ch = self.s.check()
-        return FlagOp.and_(self.flag, ch)
+        return self.flag
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
-        remaining = self.s(addr)
-        return remaining.mask(self.flag)
+        return self
 
 
 @Pytree.dataclass
@@ -546,7 +536,7 @@ class AndSel(Selection):
                 return b
 
             case (MaskSel(), MaskSel()):
-                return (a.s & b.s).mask(FlagOp.and_(a.flag, b.flag))
+                return MaskSel.build(FlagOp.and_(a.flag, b.flag))
 
             case _:
                 return AndSel(a, b)
@@ -599,7 +589,7 @@ class OrSel(Selection):
             case (_, NoneSel()):
                 return a
             case (MaskSel(), MaskSel()):
-                return (a.s | b.s).mask(FlagOp.or_(a.flag, b.flag))
+                return MaskSel.build(FlagOp.or_(a.flag, b.flag))
 
             case _:
                 return OrSel(a, b)
@@ -1008,7 +998,7 @@ class ChoiceMap(Sample, Constraint):
         """
         return FilteredChm.build(self, selection)
 
-    def mask(self, flag: Flag | bool | BoolArray) -> "ChoiceMap":
+    def mask(self, flag: Flag) -> "ChoiceMap":
         """
         Returns a new ChoiceMap with values masked by a boolean flag.
 
@@ -1032,7 +1022,7 @@ class ChoiceMap(Sample, Constraint):
             assert masked_chm.get_value() is None
             ```
         """
-        return self.filter(Selection.all().mask(flag))
+        return self.filter(MaskSel.build(flag))
 
     def extend(self, *addrs: AddressComponent) -> "ChoiceMap":
         """
@@ -1295,7 +1285,7 @@ class IdxChm(ChoiceMap):
 
         else:
 
-            def check_fn(idx, addr) -> bool | BoolArray:
+            def check_fn(idx, addr) -> Flag:
                 return idx == addr
 
             check = (
