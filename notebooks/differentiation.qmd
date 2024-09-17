@@ -1,0 +1,5 @@
+---
+title: "Differentiation"
+---
+
+This section shows how we can differentiate expected values of probabilistic programs in GenJAX, to solve inference tasks using variational inference, perform inference tuning, or amortized inference using gradient-based optimization more generally.
