@@ -123,11 +123,6 @@ class TestSelections:
         assert (none_sel | sel1) == sel1
         assert (sel1 | none_sel) == sel1
 
-        # masks get pushed inside or
-        assert sel1.mask(jnp.asarray(True)) | sel1.mask(jnp.asarray(False)) == (
-            sel1 | sel1
-        ).mask(jnp.asarray(True))
-
     def test_selection_mask(self):
         sel = S["x"] | S["y"]
         masked_sel = sel.mask(jnp.asarray(True))
@@ -135,10 +130,10 @@ class TestSelections:
         assert masked_sel["y"]
         assert not masked_sel["z"]
 
-        # masks get pushed inside and
-        assert sel.mask(jnp.asarray(True)) & sel.mask(jnp.asarray(False)) == (
-            sel & sel
-        ).mask(jnp.asarray(False))
+        # nested masks are collapsed
+        assert sel.mask(jnp.asarray(True)).mask(jnp.asarray(False)) == sel.mask(
+            jnp.asarray(True)
+        )
 
         masked_sel = sel.mask(False)
         assert not masked_sel["x"]
