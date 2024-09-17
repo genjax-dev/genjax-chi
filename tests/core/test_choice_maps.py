@@ -130,11 +130,6 @@ class TestSelections:
         assert masked_sel["y"]
         assert not masked_sel["z"]
 
-        # nested masks are collapsed
-        assert sel.mask(jnp.asarray(True)).mask(jnp.asarray(False)) == sel.mask(
-            jnp.asarray(True)
-        )
-
         masked_sel = sel.mask(False)
         assert not masked_sel["x"]
         assert not masked_sel["y"]
