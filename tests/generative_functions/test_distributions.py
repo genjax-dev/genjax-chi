@@ -13,11 +13,11 @@
 # limitations under the License.
 
 import jax
+import jax.numpy as jnp
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import EmptyConstraint, MaskedConstraint
-from genjax import UpdateProblemBuilder as U
+from genjax import EmptyConstraint
 from genjax.incremental import Diff, NoChange, UnknownChange
 
 
@@ -42,7 +42,7 @@ class TestDistributions:
         # Constraint, mask with True flag.
         (tr, w) = genjax.normal.importance(
             key,
-            MaskedConstraint(True, C.v(1.0)),
+            C.v(1.0).mask(jnp.array(True)),
             (0.0, 1.0),
         )
         v = tr.get_choices().get_value()
@@ -52,7 +52,7 @@ class TestDistributions:
         # Constraint, mask with False flag.
         (tr, w) = genjax.normal.importance(
             key,
-            MaskedConstraint(False, C.v(1.0)),
+            C.v(1.0).mask(jnp.array(False)),
             (0.0, 1.0),
         )
         v = tr.get_choices().get_value()
@@ -66,7 +66,10 @@ class TestDistributions:
 
         # No constraint, no change to arguments.
         (new_tr, w, _, _) = genjax.normal.update(
-            sub_key, tr, U.g((Diff(0.0, NoChange), Diff(1.0, NoChange)), C.n())
+            sub_key,
+            tr,
+            C.n(),
+            (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_choices().get_value() == tr.get_choices().get_value()
         assert (
@@ -79,10 +82,8 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            U.g(
-                (Diff(0.0, NoChange), Diff(1.0, NoChange)),
-                C.v(1.0),
-            ),
+            C.v(1.0),
+            (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_choices().get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.assess(C.v(1.0), (0.0, 1.0))[0]
@@ -97,7 +98,8 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            U.g((Diff(1.0, UnknownChange), Diff(1.0, NoChange)), C.n()),
+            C.n(),
+            (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_choices().get_value() == tr.get_choices().get_value()
         assert (
@@ -114,10 +116,8 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            U.g(
-                (Diff(1.0, UnknownChange), Diff(2.0, UnknownChange)),
-                C.v(1.0),
-            ),
+            C.v(1.0),
+            (Diff(1.0, UnknownChange), Diff(2.0, UnknownChange)),
         )
         assert new_tr.get_choices().get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.assess(C.v(1.0), (1.0, 2.0))[0]
@@ -132,10 +132,8 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            U.g(
-                (Diff(0.0, NoChange), Diff(1.0, NoChange)),
-                MaskedConstraint(True, C.v(1.0)),
-            ),
+            C.v(1.0).mask(jnp.array(True)),
+            (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_choices().get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.assess(C.v(1.0), (0.0, 1.0))[0]
@@ -150,10 +148,8 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            U.g(
-                (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
-                MaskedConstraint(True, C.v(1.0)),
-            ),
+            C.v(1.0).mask(True),
+            (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_choices().get_value() == 1.0
         assert new_tr.get_score() == genjax.normal.assess(C.v(1.0), (1.0, 1.0))[0]
@@ -168,10 +164,8 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            U.g(
-                (Diff(0.0, NoChange), Diff(1.0, NoChange)),
-                MaskedConstraint(False, C.v(1.0)),
-            ),
+            C.v(1.0).mask(False),
+            (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_choices().get_value() == tr.get_choices().get_value()
         assert (
@@ -184,10 +178,8 @@ class TestDistributions:
         (new_tr, w, _, _) = genjax.normal.update(
             sub_key,
             tr,
-            U.g(
-                (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
-                MaskedConstraint(False, C.v(1.0)),
-            ),
+            C.v(1.0).mask(False),
+            (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
         )
         assert new_tr.get_choices().get_value() == tr.get_choices().get_value()
         assert (

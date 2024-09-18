@@ -19,7 +19,6 @@ import pytest
 import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
-from genjax import UpdateProblemBuilder as U
 from genjax._src.generative_functions.combinators.vmap import VmapTrace
 
 
@@ -61,25 +60,13 @@ class TestMaskCombinator:
         tr = model.simulate(key, (True, 2.0))
 
         # mask check arg transition: True --> True
-        argdiffs = U.g(
-            (Diff.no_change(True), Diff.unknown_change(3.0)),
-            C.n(),
-        )
-        pre_weight = tr.update(key, argdiffs)[1]
-        post_weight = tr.inner.update(
-            key, U.g(Diff.tree_diff_unknown_change((3.0,)), C.n())
-        )[1]
-        assert pre_weight == post_weight
-
+        argdiffs = (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1]))
+        w = tr.update(key, C.n(), argdiffs)[1]
+        assert w == tr.inner.update(key, C.n())[1]
+        assert w == 0.0
         # mask check arg transition: True --> False
-        argdiffs = U.g(
-            (
-                Diff.unknown_change(False),
-                Diff.no_change(tr.get_args()[1]),
-            ),
-            C.n(),
-        )
-        w = tr.update(key, argdiffs)[1]
+        argdiffs = (Diff.unknown_change(False), Diff.no_change(tr.get_args()[1]))
+        w = tr.update(key, C.n(), argdiffs)[1]
         assert w == -tr.get_score()
 
     def test_mask_update_weight_to_argdiffs_from_false(self, key):
@@ -87,23 +74,23 @@ class TestMaskCombinator:
         tr = jax.jit(model.simulate)(key, (False, 2.0))
 
         # mask check arg transition: False --> True
-        argdiffs = U.g(
-            (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1])),
+        w = tr.update(
+            key,
             C.n(),
-        )
-        w = tr.update(key, argdiffs)[1]
+            (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1])),
+        )[1]
         assert w == tr.inner.update(key, C.n())[1] + tr.inner.get_score()
         assert w == tr.inner.update(key, C.n())[0].get_score()
 
         # mask check arg transition: False --> False
-        argdiffs = U.g(
+        w = tr.update(
+            key,
+            C.n(),
             (
                 Diff.unknown_change(False),
                 Diff.no_change(tr.get_args()[1]),
             ),
-            C.n(),
-        )
-        w = tr.update(key, argdiffs)[1]
+        )[1]
         assert w == 0.0
         assert w == tr.get_score()
 
@@ -127,6 +114,20 @@ class TestMaskCombinator:
         inner_scores = vmap_tr.inner.get_score()
         # score should be sum of sub-scores masked True
         assert tr.get_score() == inner_scores[0] + inner_scores[2]
+
+    def test_mask_update_weight_to_argdiffs_from_false_(self, key):
+        # pre-update mask arg is False
+        tr = jax.jit(model.simulate)(key, (False, 2.0))
+        # mask check arg transition: False --> True
+        argdiffs = (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1]))
+        w = tr.update(key, C.n(), argdiffs)[1]
+        assert w == tr.inner.update(key, C.n())[1] + tr.inner.get_score()
+        assert w == tr.inner.update(key, C.n())[0].get_score()
+        # mask check arg transition: False --> False
+        argdiffs = (Diff.unknown_change(False), Diff.no_change(tr.get_args()[1]))
+        w = tr.update(key, C.n(), argdiffs)[1]
+        assert w == 0.0
+        assert w == tr.get_score()
 
     def test_mask_scan_update(self, key):
         def masked_scan_combinator(step, **scan_kwargs):
@@ -156,15 +157,15 @@ class TestMaskCombinator:
         model = masked_scan_combinator(step, n=len(mask_steps))
         init_particle = model.simulate(key, ((0.0,), mask_steps))
 
-        # Update the model:
-        update = genjax.UpdateProblemBuilder.g(
+        step_particle, step_weight, _, _ = model.update(
+            key,
+            init_particle,
+            C.n(),
             (
                 genjax.Diff.no_change((0.0,)),
                 genjax.Diff.no_change(mask_steps),
             ),
-            C.n(),
         )
-        step_particle, step_weight, _, _ = model.update(key, init_particle, update)
         assert step_weight == jnp.array(0.0)
         assert step_particle.get_retval() == ((jnp.array(0.0),), None)
         assert step_particle.get_score() == jnp.array(-12.230572)
