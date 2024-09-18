@@ -20,7 +20,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 from beartype.typing import Iterable
 
-from genjax._src.core.generative.core import Constraint, ProjectProblem, Sample
+from genjax._src.core.generative.core import Constraint, Projection, Sample
 from genjax._src.core.generative.functional_types import Mask, staged_choose
 from genjax._src.core.interpreters.staging import (
     FlagOp,
@@ -80,7 +80,7 @@ SelectionBuilder = _SelectionBuilder()
 """Deprecated! please use `Selection.at`."""
 
 
-class Selection(ProjectProblem):
+class Selection(Projection["ChoiceMap"]):
     """
     A class representing a selection of addresses in a ChoiceMap.
 
@@ -233,14 +233,17 @@ class Selection(ProjectProblem):
         """
         return MaskSel.build(self, flag)
 
-    def filter(self, chm: "ChoiceMap") -> "ChoiceMap":
+    def complement(self) -> "Selection":
+        return ~self
+
+    def filter(self, sample: "ChoiceMap") -> "ChoiceMap":
         """
         Returns a new ChoiceMap filtered with this Selection.
 
         This method applies the current Selection to the given ChoiceMap, effectively filtering out addresses that are not matched.
 
         Args:
-            chm: The ChoiceMap to be filtered.
+            sample: The ChoiceMap to be filtered.
 
         Returns:
             A new ChoiceMap containing only the addresses selected by this Selection.
@@ -256,7 +259,7 @@ class Selection(ProjectProblem):
             assert "y" not in filtered_chm
             ```
         """
-        return chm.filter(self)
+        return sample.filter(self)
 
     def extend(self, *addrs: ExtendedStaticAddressComponent) -> "Selection":
         """
@@ -729,7 +732,7 @@ class _ChoiceMapBuilder:
         return self.set(ChoiceMap.kw(**kwargs))
 
 
-class ChoiceMap(Sample, Constraint):
+class ChoiceMap(Sample):
     """The type `ChoiceMap` denotes a map-like value which can be sampled from
     generative functions.
 
@@ -1549,3 +1552,25 @@ class FilteredChm(ChoiceMap):
         submap = self.c.get_submap(addr)
         subselection = self.selection(addr)
         return submap.filter(subselection)
+
+
+################################
+# Choice map specialized types #
+################################
+
+
+@Pytree.dataclass
+class ChoiceMapConstraint(Constraint, ChoiceMap):
+    choice_map: ChoiceMap
+
+    def get_submap(
+        self,
+        addr: ExtendedAddressComponent,
+    ) -> ChoiceMap:
+        return ChoiceMapConstraint(self.choice_map.get_submap(addr))
+
+    def get_value(self) -> Any:
+        return self.choice_map.get_value()
+
+    def static_is_empty(self):
+        return self.choice_map.static_is_empty()

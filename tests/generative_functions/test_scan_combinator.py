@@ -19,7 +19,6 @@ import pytest
 import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
-from genjax import UpdateProblemBuilder as U
 from genjax._src.core.typing import ArrayLike
 from genjax.typing import FloatArray
 
@@ -46,9 +45,7 @@ class TestIterateSimpleNormal:
         key, sub_key = jax.random.split(key)
         tr = jax.jit(scanner.simulate)(sub_key, (0.01,))
         scan_score = tr.get_score()
-
-        # TODO this test is busted! Obviously masking out all choices should not preserve the score.
-        sel = genjax.Selection.none()
+        sel = genjax.Selection.all()
         assert tr.project(key, sel) == scan_score
 
     def test_iterate_simple_normal_importance(self):
@@ -72,13 +69,11 @@ class TestIterateSimpleNormal:
         key, sub_key = jax.random.split(key)
         for i in range(1, 5):
             tr, _w = jax.jit(scanner.importance)(sub_key, C[i, "z"].set(0.5), (0.01,))
-            new_tr, _w, _rd, _bwd_problem = jax.jit(scanner.update)(
+            new_tr, _w, _rd, _bwd_request = jax.jit(scanner.update)(
                 sub_key,
                 tr,
-                U.g(
-                    Diff.no_change((0.01,)),
-                    C[i, "z"].set(1.0),
-                ),
+                C[i, "z"].set(1.0),
+                Diff.no_change((0.01,)),
             )
             assert new_tr.get_sample()[i, "z"].unmask() == 1.0
 
