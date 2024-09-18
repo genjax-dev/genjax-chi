@@ -211,11 +211,21 @@ def get_trace_shape(gen_fn, args):
     return get_data_shape(gen_fn.simulate)(key, args)
 
 
-def get_importance_shape(gen_fn, constraint, args):
+def get_generate_shape(gen_fn, constraint, args):
     key = jax.random.PRNGKey(0)
-    return get_data_shape(gen_fn.importance)(key, constraint, args)
+    return get_data_shape(gen_fn.generate)(key, constraint, args)
 
 
-def get_update_shape(gen_fn, tr, problem):
+def get_edit_shape(gen_fn, tr, problem):
     key = jax.random.PRNGKey(0)
-    return get_data_shape(gen_fn.update)(key, tr, problem)
+    return get_data_shape(gen_fn.edit)(key, tr, problem)
+
+
+def get_importance_shape(gen_fn, choice_map, args):
+    key = jax.random.PRNGKey(0)
+    return get_data_shape(gen_fn.importance)(key, choice_map, args)
+
+
+def get_update_shape(gen_fn, trace, choice_map, argdiffs):
+    key = jax.random.PRNGKey(0)
+    return get_data_shape(gen_fn.update)(key, trace, choice_map, argdiffs)

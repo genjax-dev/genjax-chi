@@ -17,6 +17,7 @@ import jax
 import jax.numpy as jnp
 
 import genjax
+from genjax import ChoiceMapBuilder as C
 from genjax import Selection
 
 
@@ -29,7 +30,9 @@ class TestTupleAddr:
             return y
 
         tr = f.simulate(jax.random.PRNGKey(0), ())
-        assert -2.7931314 == tr.project(jax.random.PRNGKey(1), Selection.at["x", "x0"])
+        chm = tr.get_choices()
+        x_score, _ = genjax.normal.assess(C.v(chm["x", "x0"]), (0.0, 1.0))
+        assert x_score == tr.project(jax.random.PRNGKey(1), Selection.at["x", "x0"])
 
 
 class TestCombinators:
