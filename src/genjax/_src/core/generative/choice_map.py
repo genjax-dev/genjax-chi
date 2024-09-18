@@ -20,7 +20,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 from beartype.typing import Iterable
 
-from genjax._src.core.generative.core import Constraint, ProjectProblem, Sample
+from genjax._src.core.generative.core import Constraint, Projection, Sample
 from genjax._src.core.generative.functional_types import Mask, staged_choose
 from genjax._src.core.interpreters.staging import (
     FlagOp,
@@ -50,6 +50,7 @@ AddressComponent = StaticAddressComponent | DynamicAddressComponent
 Address = tuple[()] | tuple[AddressComponent, ...]
 StaticAddress = tuple[()] | tuple[StaticAddressComponent, ...]
 ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
+ExtendedStaticAddress = tuple[()] | tuple[ExtendedStaticAddressComponent, ...]
 ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
 ExtendedAddress = tuple[()] | tuple[ExtendedAddressComponent, ...]
 
@@ -67,7 +68,9 @@ K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
 
 @Pytree.dataclass
 class _SelectionBuilder(Pytree):
-    def __getitem__(self, addr: StaticAddressComponent | StaticAddress) -> "Selection":
+    def __getitem__(
+        self, addr: ExtendedStaticAddressComponent | ExtendedStaticAddress
+    ) -> "Selection":
         addr = addr if isinstance(addr, tuple) else (addr,)
 
         return Selection.leaf().extend(*addr)
@@ -77,7 +80,7 @@ SelectionBuilder = _SelectionBuilder()
 """Deprecated! please use `Selection.at`."""
 
 
-class Selection(ProjectProblem):
+class Selection(Projection["ChoiceMap"]):
     """
     A class representing a selection of addresses in a ChoiceMap.
 
@@ -104,6 +107,9 @@ class Selection(ProjectProblem):
         # Select specific addresses
         specific_sel = Selection.at["x", "y"]
 
+        # Match (<wildcard>, "y")
+        wildcard_sel = Selection.at[..., "y"]
+
         # Combine selections
         combined_sel = specific_sel | Selection.at["z"]
         ```
@@ -121,30 +127,13 @@ class Selection(ProjectProblem):
         assert not sel["x"]
         assert sel["x", "y"]
 
-        # Querying the selection using "in" acts the same::
+        # Querying the selection using "in" acts the same:
         assert not "x" in sel
         assert ("x", "y") in sel
 
         # Nested querying
         nested_sel = Selection.at["a", "b", "c"]
         assert nested_sel("a")("b") == Selection.at["c"]
-        ```
-
-        Creating selections:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        from genjax import Selection
-
-        # Select all addresses
-        all_sel = Selection.all()
-
-        # Select no addresses
-        none_sel = Selection.none()
-
-        # Select specific addresses
-        specific_sel = Selection.at["x", "y"]
-
-        # Combine selections
-        combined_sel = specific_sel | Selection.at["z"]
         ```
 
     Selection objects can passed to a `ChoiceMap` via the `filter` method to filter and manipulate data based on address patterns.
@@ -264,14 +253,17 @@ class Selection(ProjectProblem):
         """
         return MaskSel.build(self, flag)
 
-    def filter(self, chm: "ChoiceMap") -> "ChoiceMap":
+    def complement(self) -> "Selection":
+        return ~self
+
+    def filter(self, sample: "ChoiceMap") -> "ChoiceMap":
         """
         Returns a new ChoiceMap filtered with this Selection.
 
         This method applies the current Selection to the given ChoiceMap, effectively filtering out addresses that are not matched.
 
         Args:
-            chm: The ChoiceMap to be filtered.
+            sample: The ChoiceMap to be filtered.
 
         Returns:
             A new ChoiceMap containing only the addresses selected by this Selection.
@@ -287,15 +279,17 @@ class Selection(ProjectProblem):
             assert "y" not in filtered_chm
             ```
         """
-        return chm.filter(self)
+        return sample.filter(self)
 
-    def extend(self, *addrs: StaticAddressComponent) -> "Selection":
+    def extend(self, *addrs: ExtendedStaticAddressComponent) -> "Selection":
         """
         Returns a new Selection that is prefixed by the given address components.
 
         This method creates a new Selection that applies the current selection
         to the specified address components. It handles both static and dynamic
         address components.
+
+        Note that `...` as an address component will match any supplied address.
 
         Args:
             addrs: The address components under which to nest the selection.
@@ -625,7 +619,7 @@ class StaticSel(Selection):
         return False
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
-        if addr is Ellipsis:
+        if self.addr is Ellipsis or addr is Ellipsis:
             return self.s
         else:
             check = addr == self.addr
@@ -856,7 +850,7 @@ class _ChoiceMapBuilder:
         return self.set(ChoiceMap.kw(**kwargs))
 
 
-class ChoiceMap(Sample, Constraint):
+class ChoiceMap(Sample):
     """The type `ChoiceMap` denotes a map-like value which can be sampled from
     generative functions.
 
@@ -1422,8 +1416,8 @@ class IdxChm(ChoiceMap):
 
         else:
 
-            def check_fn(idx, addr) -> BoolArray:
-                return jnp.array(idx == addr, copy=False)
+            def check_fn(idx, addr) -> bool | BoolArray:
+                return idx == addr
 
             check = (
                 jax.vmap(check_fn, in_axes=(None, 0))(addr, self.addr)
@@ -1432,13 +1426,15 @@ class IdxChm(ChoiceMap):
             )
 
             check_array = jnp.asarray(check, copy=False)
-            if check_array.shape and check_array.shape[0] == 0:
-                # this is an obscure case which can arise when doing an importance
-                # update of a scan GF with an array of shape (0,) or (0, ...)
-                return ChoiceMap.empty()
-
             if check_array.shape:
-                return jtu.tree_map(lambda v: v[addr], self.c).mask(check[addr])
+                if check_array.shape[0] == 0:
+                    # this is an obscure case which can arise when doing an importance
+                    # update of a scan GF with an array of shape (0,) or (0, ...)
+                    return ChoiceMap.empty()
+                else:
+                    return jtu.tree_map(lambda v: v[addr], self.c).mask(
+                        check_array[addr]
+                    )
             else:
                 return self.c.mask(check)
 
@@ -1674,3 +1670,25 @@ class FilteredChm(ChoiceMap):
         submap = self.c.get_submap(addr)
         subselection = self.selection(addr)
         return submap.filter(subselection)
+
+
+################################
+# Choice map specialized types #
+################################
+
+
+@Pytree.dataclass
+class ChoiceMapConstraint(Constraint, ChoiceMap):
+    choice_map: ChoiceMap
+
+    def get_submap(
+        self,
+        addr: ExtendedAddressComponent,
+    ) -> ChoiceMap:
+        return ChoiceMapConstraint(self.choice_map.get_submap(addr))
+
+    def get_value(self) -> Any:
+        return self.choice_map.get_value()
+
+    def static_is_empty(self):
+        return self.choice_map.static_is_empty()

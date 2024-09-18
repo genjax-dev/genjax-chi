@@ -232,8 +232,8 @@ class Marginal(Generic[R], SampleDistribution[R]):
         choices: ChoiceMap = tr.get_choices()
         latent_choices = choices.filter(self.selection)
         key, sub_key = jax.random.split(key)
-        bwd_problem = ~self.selection
-        weight = tr.project(sub_key, bwd_problem)
+        bwd_request = ~self.selection
+        weight = tr.project(sub_key, bwd_request)
         if self.algorithm is None:
             return weight, latent_choices
         else:
