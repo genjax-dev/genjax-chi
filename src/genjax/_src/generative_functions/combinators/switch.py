@@ -20,16 +20,15 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    EmptyTrace,
+    Constraint,
+    EditRequest,
     GenerativeFunction,
-    GenericProblem,
-    ImportanceProblem,
+    IncrementalGenericRequest,
+    Projection,
     Retdiff,
     Sample,
     Score,
-    SumProblem,
     Trace,
-    UpdateProblem,
     Weight,
 )
 from genjax._src.core.generative.functional_types import staged_choose
@@ -77,24 +76,18 @@ class SwitchTrace(Generic[R], Trace[R]):
     def get_args(self) -> tuple[Any, ...]:
         return self.args
 
-    def get_sample(self) -> Sample:
-        subsamples = list(map(lambda v: v.get_sample(), self.subtraces))
-        if all(map(lambda v: isinstance(v, ChoiceMap), subsamples)):
-            (idx, *_) = self.get_args()
-            chm = ChoiceMap.empty()
-            for _idx, _chm in enumerate(subsamples):
-                assert isinstance(_chm, ChoiceMap)
-                masked_submap = _chm.mask(_idx == idx)
-                chm = chm ^ masked_submap
-            return chm
-        else:
-            (idx, *_) = self.args
-            return HeterogeneousSwitchSample(
-                idx,
-                list(
-                    map(lambda tr: tr.get_choices(), self.subtraces),
-                ),
-            )
+    def get_choices(self) -> ChoiceMap:
+        (idx, *_) = self.get_args()
+        sub_chms = list(map(lambda v: v.get_choices(), self.subtraces))
+        chm = ChoiceMap.empty()
+        for _idx, _chm in enumerate(sub_chms):
+            assert isinstance(_chm, ChoiceMap)
+            masked_submap = _chm.mask(jnp.all(_idx == idx))
+            chm = chm ^ masked_submap
+        return chm
+
+    def get_sample(self) -> ChoiceMap:
+        return self.get_choices()
 
     def get_gen_fn(self):
         return self.gen_fn
@@ -244,384 +237,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         retval: R = staged_choose(idx, retvals)
         return SwitchTrace(self, args, subtraces, retval, score)
 
-    def _empty_update_defs(
-        self,
-        trace: SwitchTrace[R],
-        problem: UpdateProblem,
-        argdiffs: Argdiffs,
-    ):
-        trace_defs = []
-        trace_leaves = []
-        bwd_problem_defs = []
-        bwd_problem_leaves = []
-        retdiff_defs = []
-        retdiff_leaves = []
-        for static_idx in range(len(self.branches)):
-            subtrace = trace.subtraces[static_idx]
-            gen_fn = self.branches[static_idx]
-            branch_argdiffs = argdiffs[static_idx]
-            key = jax.random.PRNGKey(0)
-            trace_shape, _, retdiff_shape, bwd_problem_shape = get_data_shape(
-                gen_fn.update
-            )(key, subtrace, GenericProblem(branch_argdiffs, problem))
-            empty_trace = jtu.tree_map(
-                lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
-            )
-            empty_retdiff = jtu.tree_map(
-                lambda v: jnp.zeros(v.shape, v.dtype), retdiff_shape
-            )
-            empty_problem = jtu.tree_map(
-                lambda v: jnp.zeros(v.shape, v.dtype), bwd_problem_shape
-            )
-            trace_leaf, trace_def = jtu.tree_flatten(empty_trace)
-            bwd_problem_leaf, bwd_problem_def = jtu.tree_flatten(empty_problem)
-            retdiff_leaf, retdiff_def = jtu.tree_flatten(empty_retdiff)
-            trace_defs.append(trace_def)
-            trace_leaves.append(trace_leaf)
-            bwd_problem_defs.append(bwd_problem_def)
-            bwd_problem_leaves.append(bwd_problem_leaf)
-            retdiff_defs.append(retdiff_def)
-            retdiff_leaves.append(retdiff_leaf)
-        return (
-            (trace_leaves, trace_defs),
-            (retdiff_leaves, retdiff_defs),
-            (bwd_problem_leaves, bwd_problem_defs),
-        )
-
-    def _specialized_update_idx_no_change(
-        self,
-        key: PRNGKey,
-        static_idx: Int,
-        trace: SwitchTrace[R],
-        problem: UpdateProblem,
-        idx: IntArray,
-        argdiffs: Argdiffs,
-    ):
-        subtrace = trace.subtraces[static_idx]
-        gen_fn = self.branches[static_idx]
-        branch_argdiffs = argdiffs[static_idx]
-        tr, w, rd, bwd_problem = gen_fn.update(
-            key, subtrace, GenericProblem(branch_argdiffs, problem)
-        )
-        (
-            (trace_leaves, _),
-            (retdiff_leaves, _),
-            (bwd_problem_leaves, _),
-        ) = self._empty_update_defs(trace, problem, argdiffs)
-        trace_leaves[static_idx] = jtu.tree_leaves(tr)
-        retdiff_leaves[static_idx] = jtu.tree_leaves(rd)
-        bwd_problem_leaves[static_idx] = jtu.tree_leaves(bwd_problem)
-        score = tr.get_score()
-        return (trace_leaves, retdiff_leaves, bwd_problem_leaves), (score, w)
-
-    def _generic_update_idx_change(
-        self,
-        key: PRNGKey,
-        static_idx: Int,
-        trace: SwitchTrace[R],
-        problem: UpdateProblem,
-        idx: IntArray,
-        argdiffs: Argdiffs,
-    ):
-        gen_fn = self.branches[static_idx]
-        branch_argdiffs = argdiffs[static_idx]
-        check = static_idx == idx
-        branch_primals = Diff.tree_primal(branch_argdiffs)
-        new_subtrace = gen_fn.simulate(key, branch_primals)
-        new_subtrace_def = jtu.tree_structure(new_subtrace)
-        _, _, _, bwd_problem_shape = get_data_shape(gen_fn.update)(
-            key, new_subtrace, GenericProblem(branch_argdiffs, problem)
-        )
-        bwd_problem_def = jtu.tree_structure(bwd_problem_shape)
-
-        def _update_same_branch(key, subtrace, problem, branch_argdiffs):
-            tr, w, rd, bwd_problem = gen_fn.update(
-                key, subtrace, GenericProblem(branch_argdiffs, problem)
-            )
-            rd = Diff.tree_diff_unknown_change(rd)
-            tr_leaves = jtu.tree_leaves(tr)
-            problem_leaves = jtu.tree_leaves(bwd_problem)
-            return tr_leaves, w, rd, problem_leaves
-
-        def _update_new_branch(key, subtrace, problem, branch_argdiffs):
-            branch_argdiffs = Diff.tree_diff_no_change(branch_argdiffs)
-            tr, w, rd, bwd_problem = gen_fn.update(
-                key, subtrace, GenericProblem(branch_argdiffs, problem)
-            )
-            rd = Diff.tree_diff_unknown_change(rd)
-            tr_leaves = jtu.tree_leaves(tr)
-            problem_leaves = jtu.tree_leaves(bwd_problem)
-            return tr_leaves, w, rd, problem_leaves
-
-        tr_leaves, w, rd, bwd_problem_leaves = jax.lax.cond(
-            check,
-            _update_same_branch,
-            _update_new_branch,
-            key,
-            new_subtrace,
-            problem,
-            branch_argdiffs,
-        )
-        tr = jtu.tree_unflatten(new_subtrace_def, tr_leaves)
-        bwd_problem = jtu.tree_unflatten(bwd_problem_def, bwd_problem_leaves)
-        (
-            (trace_leaves, _),
-            (retdiff_leaves, _),
-            (bwd_problem_leaves, _),
-        ) = self._empty_update_defs(trace, problem, argdiffs)
-        trace_leaves[static_idx] = jtu.tree_leaves(tr)
-        retdiff_leaves[static_idx] = jtu.tree_leaves(rd)
-        bwd_problem_leaves[static_idx] = jtu.tree_leaves(bwd_problem)
-        score = tr.get_score()
-        return (trace_leaves, retdiff_leaves, bwd_problem_leaves), (score, w)
-
-    def update_generic(
-        self,
-        key: PRNGKey,
-        trace: SwitchTrace[R],
-        problem: UpdateProblem,
-        argdiffs: Argdiffs,
-    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], UpdateProblem]:
-        (idx_argdiff, *branch_argdiffs) = argdiffs
-        self.static_check_num_arguments_equals_num_branches(branch_argdiffs)
-
-        def update_dispatch(static_idx: int):
-            if Diff.tree_tangent(idx_argdiff) == NoChange:
-                return (
-                    lambda key,
-                    trace,
-                    problem,
-                    idx,
-                    argdiffs: self._specialized_update_idx_no_change(
-                        key, static_idx, trace, problem, idx, argdiffs
-                    )
-                )
-            else:
-                return (
-                    lambda key,
-                    trace,
-                    problem,
-                    idx,
-                    argdiffs: self._generic_update_idx_change(
-                        key, static_idx, trace, problem, idx, argdiffs
-                    )
-                )
-
-        primals = Diff.tree_primal(argdiffs)
-        idx = primals[0]
-        branch_functions = list(map(update_dispatch, range(len(self.branches))))
-
-        (trace_leaves, retdiff_leaves, bwd_problem_leaves), (score, w) = jax.lax.switch(
-            idx, branch_functions, key, trace, problem, idx, tuple(branch_argdiffs)
-        )
-        (
-            (_, trace_defs),
-            (_, retdiff_defs),
-            (_, bwd_problem_defs),
-        ) = self._empty_update_defs(trace, problem, tuple(branch_argdiffs))
-        subtraces = list(
-            map(
-                lambda x: jtu.tree_unflatten(trace_defs[x], trace_leaves[x]),
-                range(len(trace_leaves)),
-            )
-        )
-        retdiffs = list(
-            map(
-                lambda x: jtu.tree_unflatten(retdiff_defs[x], retdiff_leaves[x]),
-                range(len(retdiff_leaves)),
-            )
-        )
-        bwd_problems = list(
-            map(
-                lambda x: jtu.tree_unflatten(
-                    bwd_problem_defs[x], bwd_problem_leaves[x]
-                ),
-                range(len(bwd_problem_leaves)),
-            )
-        )
-        retdiff: R = staged_choose(idx_argdiff.primal, retdiffs)
-        retval: R = Diff.tree_primal(retdiff)
-        if Diff.tree_tangent(idx_argdiff) == UnknownChange:
-            w = w + (score - trace.get_score())
-
-        return (
-            SwitchTrace(self, primals, subtraces, retval, score),
-            w,
-            retdiff,
-            SumProblem(idx, bwd_problems),
-        )
-
-    def _empty_importance_defs(
-        self,
-        problem: ImportanceProblem,
-        argdiffs: Argdiffs,
-    ):
-        trace_defs = []
-        trace_leaves = []
-        retval_defs = []
-        retval_leaves = []
-        bwd_problem_defs = []
-        bwd_problem_leaves = []
-        for static_idx in range(len(self.branches)):
-            branch_gen_fn = self.branches[static_idx]
-            branch_argdiffs = argdiffs[static_idx]
-            key = jax.random.PRNGKey(0)
-            trace_shape, _, _, bwd_problem_shape = get_data_shape(branch_gen_fn.update)(
-                key,
-                EmptyTrace(branch_gen_fn),
-                GenericProblem(branch_argdiffs, problem),
-            )
-            empty_trace = jtu.tree_map(
-                lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
-            )
-            empty_problem = jtu.tree_map(
-                lambda v: jnp.zeros(v.shape, v.dtype), bwd_problem_shape
-            )
-            trace_leaf, trace_def = jtu.tree_flatten(empty_trace)
-            retval_leaf, retval_def = jtu.tree_flatten(empty_trace.get_retval())
-            bwd_problem_leaf, bwd_problem_def = jtu.tree_flatten(empty_problem)
-            retval_defs.append(retval_def)
-            retval_leaves.append(retval_leaf)
-            trace_defs.append(trace_def)
-            trace_leaves.append(trace_leaf)
-            bwd_problem_defs.append(bwd_problem_def)
-            bwd_problem_leaves.append(bwd_problem_leaf)
-        return (
-            (trace_leaves, trace_defs),
-            (retval_leaves, retval_defs),
-            (bwd_problem_leaves, bwd_problem_defs),
-        )
-
-    def _importance(
-        self,
-        trace_leaves,
-        retval_leaves,
-        bwd_problem_leaves,
-        key,
-        static_idx: int,
-        constraint,
-        argdiffs,
-    ):
-        branch_gen_fn = self.branches[static_idx]
-        branch_argdiffs = argdiffs[static_idx]
-        tr, w, _, bwd_problem = branch_gen_fn.update(
-            key,
-            EmptyTrace(branch_gen_fn),
-            GenericProblem(branch_argdiffs, constraint),
-        )
-        trace_leaves[static_idx] = jtu.tree_leaves(tr)
-        retval_leaves[static_idx] = jtu.tree_leaves(tr.get_retval())
-        bwd_problem_leaves[static_idx] = jtu.tree_leaves(bwd_problem)
-        score = tr.get_score()
-        return (trace_leaves, retval_leaves, bwd_problem_leaves), (score, w)
-
-    def update_importance(
-        self,
-        key: PRNGKey,
-        problem: ImportanceProblem,
-        argdiffs: tuple[Any, ...],
-    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], UpdateProblem]:
-        args = Diff.tree_primal(argdiffs)
-        (idx, *branch_args) = args
-        (_, *branch_argdiffs) = argdiffs
-        branch_argdiffs = tuple(branch_argdiffs)
-        self.static_check_num_arguments_equals_num_branches(branch_args)
-
-        def _inner(static_idx: int):
-            return (
-                lambda trace_leaves,
-                retval_leaves,
-                bwd_problem_leaves,
-                key,
-                problem,
-                branch_argdiffs: self._importance(
-                    trace_leaves,
-                    retval_leaves,
-                    bwd_problem_leaves,
-                    key,
-                    static_idx,
-                    problem,
-                    branch_argdiffs,
-                )
-            )
-
-        branch_functions = list(map(_inner, range(len(self.branches))))
-        (
-            (trace_leaves, trace_defs),
-            (retval_leaves, retval_defs),
-            (bwd_problem_leaves, bwd_problem_defs),
-        ) = self._empty_importance_defs(problem, branch_argdiffs)
-
-        (trace_leaves, retval_leaves, bwd_problem_leaves), (score, w) = jax.lax.switch(
-            idx,
-            branch_functions,
-            trace_leaves,
-            retval_leaves,
-            bwd_problem_leaves,
-            key,
-            problem,
-            branch_argdiffs,
-        )
-        subtraces = list(
-            map(
-                lambda x: jtu.tree_unflatten(trace_defs[x], trace_leaves[x]),
-                range(len(trace_leaves)),
-            )
-        )
-        retvals = list(
-            map(
-                lambda x: jtu.tree_unflatten(retval_defs[x], retval_leaves[x]),
-                range(len(retval_leaves)),
-            )
-        )
-        bwd_problems = list(
-            map(
-                lambda x: jtu.tree_unflatten(
-                    bwd_problem_defs[x], bwd_problem_leaves[x]
-                ),
-                range(len(bwd_problem_leaves)),
-            )
-        )
-        retval = staged_choose(idx, retvals)
-        return (
-            SwitchTrace(self, args, subtraces, retval, score),
-            w,
-            Diff.unknown_change(retval),
-            SumProblem(idx, bwd_problems),
-        )
-
-    def update_change_target(
-        self,
-        key: PRNGKey,
-        trace: Trace[R],
-        problem: UpdateProblem,
-        argdiffs: Argdiffs,
-    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], UpdateProblem]:
-        assert isinstance(trace, EmptyTrace | SwitchTrace)
-        match trace:
-            case EmptyTrace():
-                assert isinstance(
-                    problem, ImportanceProblem
-                ), f"update_change_target of an EmptyTrace requires an ImportanceProblem, not {problem}"
-                return self.update_importance(key, problem, argdiffs)
-            case SwitchTrace():
-                return self.update_generic(key, trace, problem, argdiffs)
-
-    def update(
-        self,
-        key: PRNGKey,
-        trace: Trace[R],
-        update_problem: UpdateProblem,
-    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], UpdateProblem]:
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
-            case _:
-                return self.update_change_target(
-                    key, trace, update_problem, Diff.no_change(trace.get_args())
-                )
-
-    def _empty_assess_defs(self, sample: Sample, args: tuple[Any, ...]):
+    def _empty_assess_defs(self, sample: ChoiceMap, args: tuple[Any, ...]):
         retval_defs = []
         retval_leaves = []
         for static_idx in range(len(self.branches)):
@@ -646,7 +262,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: Sample,
+        sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
         idx, branch_args = args[0], args[1:]
@@ -669,6 +285,349 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         )
         retval: R = staged_choose(idx, retvals)
         return score, retval
+
+    def _empty_generate_defs(
+        self,
+        constraint: Constraint,
+        args: tuple[Any, ...],
+    ):
+        trace_defs = []
+        trace_leaves = []
+        retval_defs = []
+        retval_leaves = []
+        for static_idx in range(len(self.branches)):
+            branch_gen_fn = self.branches[static_idx]
+            branch_args = args[static_idx]
+            key = jax.random.PRNGKey(0)
+            trace_shape, _ = get_data_shape(branch_gen_fn.generate)(
+                key,
+                constraint,
+                branch_args,
+            )
+            empty_trace = jtu.tree_map(
+                lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
+            )
+            trace_leaf, trace_def = jtu.tree_flatten(empty_trace)
+            retval_leaf, retval_def = jtu.tree_flatten(empty_trace.get_retval())
+            retval_defs.append(retval_def)
+            retval_leaves.append(retval_leaf)
+            trace_defs.append(trace_def)
+            trace_leaves.append(trace_leaf)
+        return (
+            (trace_leaves, trace_defs),
+            (retval_leaves, retval_defs),
+        )
+
+    def _generate(
+        self,
+        trace_leaves,
+        retval_leaves,
+        key,
+        static_idx: int,
+        constraint,
+        args,
+    ):
+        branch_gen_fn = self.branches[static_idx]
+        branch_args = args[static_idx]
+        tr, w = branch_gen_fn.generate(
+            key,
+            constraint,
+            branch_args,
+        )
+        trace_leaves[static_idx] = jtu.tree_leaves(tr)
+        retval_leaves[static_idx] = jtu.tree_leaves(tr.get_retval())
+        score = tr.get_score()
+        return (trace_leaves, retval_leaves), (score, w)
+
+    def generate(
+        self,
+        key: PRNGKey,
+        constraint: Constraint,
+        args: tuple[Any, ...],
+    ) -> tuple[SwitchTrace[R], Weight]:
+        (idx, *branch_args) = args
+        (_, *branch_args) = args
+        branch_args = tuple(branch_args)
+        self.static_check_num_arguments_equals_num_branches(branch_args)
+
+        def _inner(static_idx: int):
+            return (
+                lambda trace_leaves,
+                retval_leaves,
+                key,
+                problem,
+                branch_args: self._generate(
+                    trace_leaves,
+                    retval_leaves,
+                    key,
+                    static_idx,
+                    problem,
+                    branch_args,
+                )
+            )
+
+        branch_functions = list(map(_inner, range(len(self.branches))))
+        (
+            (trace_leaves, trace_defs),
+            (retval_leaves, retval_defs),
+        ) = self._empty_generate_defs(constraint, branch_args)
+
+        (trace_leaves, retval_leaves), (score, w) = jax.lax.switch(
+            idx,
+            branch_functions,
+            trace_leaves,
+            retval_leaves,
+            key,
+            constraint,
+            branch_args,
+        )
+        subtraces = list(
+            map(
+                lambda x: jtu.tree_unflatten(trace_defs[x], trace_leaves[x]),
+                range(len(trace_leaves)),
+            )
+        )
+        retvals = list(
+            map(
+                lambda x: jtu.tree_unflatten(retval_defs[x], retval_leaves[x]),
+                range(len(retval_leaves)),
+            )
+        )
+        retval = staged_choose(idx, retvals)
+        return (SwitchTrace(self, args, subtraces, retval, score), w)
+
+    def project(
+        self,
+        key: PRNGKey,
+        trace: Trace[R],
+        projection: Projection[Any],
+    ) -> Weight:
+        raise NotImplementedError
+
+    def _empty_edit_defs(
+        self,
+        trace: SwitchTrace[R],
+        constraint: Constraint,
+        argdiffs: Argdiffs,
+    ):
+        trace_defs = []
+        trace_leaves = []
+        bwd_request_defs = []
+        bwd_request_leaves = []
+        retdiff_defs = []
+        retdiff_leaves = []
+        for static_idx in range(len(self.branches)):
+            subtrace = trace.subtraces[static_idx]
+            gen_fn = self.branches[static_idx]
+            branch_argdiffs = argdiffs[static_idx]
+            key = jax.random.PRNGKey(0)
+            trace_shape, _, retdiff_shape, bwd_request_shape = get_data_shape(
+                gen_fn.edit
+            )(key, subtrace, IncrementalGenericRequest(branch_argdiffs, constraint))
+            empty_trace = jtu.tree_map(
+                lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
+            )
+            empty_retdiff = jtu.tree_map(
+                lambda v: jnp.zeros(v.shape, v.dtype), retdiff_shape
+            )
+            empty_problem = jtu.tree_map(
+                lambda v: jnp.zeros(v.shape, v.dtype), bwd_request_shape
+            )
+            trace_leaf, trace_def = jtu.tree_flatten(empty_trace)
+            bwd_request_leaf, bwd_request_def = jtu.tree_flatten(empty_problem)
+            retdiff_leaf, retdiff_def = jtu.tree_flatten(empty_retdiff)
+            trace_defs.append(trace_def)
+            trace_leaves.append(trace_leaf)
+            bwd_request_defs.append(bwd_request_def)
+            bwd_request_leaves.append(bwd_request_leaf)
+            retdiff_defs.append(retdiff_def)
+            retdiff_leaves.append(retdiff_leaf)
+        return (
+            (trace_leaves, trace_defs),
+            (retdiff_leaves, retdiff_defs),
+            (bwd_request_leaves, bwd_request_defs),
+        )
+
+    def _specialized_edit_idx_no_change(
+        self,
+        key: PRNGKey,
+        static_idx: Int,
+        trace: SwitchTrace[R],
+        constraint: Constraint,
+        idx: IntArray,
+        argdiffs: Argdiffs,
+    ):
+        subtrace = trace.subtraces[static_idx]
+        gen_fn = self.branches[static_idx]
+        branch_argdiffs = argdiffs[static_idx]
+        tr, w, rd, bwd_request = gen_fn.edit(
+            key, subtrace, IncrementalGenericRequest(branch_argdiffs, constraint)
+        )
+        (
+            (trace_leaves, _),
+            (retdiff_leaves, _),
+            (bwd_request_leaves, _),
+        ) = self._empty_edit_defs(trace, constraint, argdiffs)
+        trace_leaves[static_idx] = jtu.tree_leaves(tr)
+        retdiff_leaves[static_idx] = jtu.tree_leaves(rd)
+        bwd_request_leaves[static_idx] = jtu.tree_leaves(bwd_request)
+        score = tr.get_score()
+        return (trace_leaves, retdiff_leaves, bwd_request_leaves), (score, w)
+
+    def _generic_edit_idx_change(
+        self,
+        key: PRNGKey,
+        static_idx: Int,
+        trace: SwitchTrace[R],
+        constraint: Constraint,
+        idx: IntArray,
+        argdiffs: Argdiffs,
+    ):
+        gen_fn = self.branches[static_idx]
+        branch_argdiffs = argdiffs[static_idx]
+        check = static_idx == idx
+        branch_primals = Diff.tree_primal(branch_argdiffs)
+        new_subtrace = gen_fn.simulate(key, branch_primals)
+        new_subtrace_def = jtu.tree_structure(new_subtrace)
+        _, _, _, bwd_request_shape = get_data_shape(gen_fn.edit)(
+            key, new_subtrace, IncrementalGenericRequest(branch_argdiffs, constraint)
+        )
+        bwd_request_def = jtu.tree_structure(bwd_request_shape)
+
+        def _edit_same_branch(key, subtrace, problem, branch_argdiffs):
+            tr, w, rd, bwd_request = gen_fn.edit(
+                key, subtrace, IncrementalGenericRequest(branch_argdiffs, problem)
+            )
+            rd = Diff.tree_diff_unknown_change(rd)
+            tr_leaves = jtu.tree_leaves(tr)
+            problem_leaves = jtu.tree_leaves(bwd_request)
+            return tr_leaves, w, rd, problem_leaves
+
+        def _edit_new_branch(key, subtrace, problem, branch_argdiffs):
+            branch_argdiffs = Diff.tree_diff_no_change(branch_argdiffs)
+            tr, w, rd, bwd_request = gen_fn.edit(
+                key, subtrace, IncrementalGenericRequest(branch_argdiffs, problem)
+            )
+            rd = Diff.tree_diff_unknown_change(rd)
+            tr_leaves = jtu.tree_leaves(tr)
+            problem_leaves = jtu.tree_leaves(bwd_request)
+            return tr_leaves, w, rd, problem_leaves
+
+        tr_leaves, w, rd, bwd_request_leaves = jax.lax.cond(
+            check,
+            _edit_same_branch,
+            _edit_new_branch,
+            key,
+            new_subtrace,
+            constraint,
+            branch_argdiffs,
+        )
+        tr = jtu.tree_unflatten(new_subtrace_def, tr_leaves)
+        bwd_request = jtu.tree_unflatten(bwd_request_def, bwd_request_leaves)
+        (
+            (trace_leaves, _),
+            (retdiff_leaves, _),
+            (bwd_request_leaves, _),
+        ) = self._empty_edit_defs(trace, constraint, argdiffs)
+        trace_leaves[static_idx] = jtu.tree_leaves(tr)
+        retdiff_leaves[static_idx] = jtu.tree_leaves(rd)
+        bwd_request_leaves[static_idx] = jtu.tree_leaves(bwd_request)
+        score = tr.get_score()
+        return (trace_leaves, retdiff_leaves, bwd_request_leaves), (score, w)
+
+    def edit_generic(
+        self,
+        key: PRNGKey,
+        trace: SwitchTrace[R],
+        constraint: Constraint,
+        argdiffs: Argdiffs,
+    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], EditRequest]:
+        (idx_argdiff, *branch_argdiffs) = argdiffs
+        self.static_check_num_arguments_equals_num_branches(branch_argdiffs)
+
+        def edit_dispatch(static_idx: int):
+            if Diff.tree_tangent(idx_argdiff) == NoChange:
+                return (
+                    lambda key,
+                    trace,
+                    problem,
+                    idx,
+                    argdiffs: self._specialized_edit_idx_no_change(
+                        key, static_idx, trace, problem, idx, argdiffs
+                    )
+                )
+            else:
+                return (
+                    lambda key,
+                    trace,
+                    problem,
+                    idx,
+                    argdiffs: self._generic_edit_idx_change(
+                        key, static_idx, trace, problem, idx, argdiffs
+                    )
+                )
+
+        primals = Diff.tree_primal(argdiffs)
+        idx = primals[0]
+        branch_functions = list(map(edit_dispatch, range(len(self.branches))))
+
+        (trace_leaves, retdiff_leaves, bwd_request_leaves), (score, w) = jax.lax.switch(
+            idx, branch_functions, key, trace, constraint, idx, tuple(branch_argdiffs)
+        )
+        (
+            (_, trace_defs),
+            (_, retdiff_defs),
+            (_, bwd_request_defs),
+        ) = self._empty_edit_defs(trace, constraint, tuple(branch_argdiffs))
+        subtraces = list(
+            map(
+                lambda x: jtu.tree_unflatten(trace_defs[x], trace_leaves[x]),
+                range(len(trace_leaves)),
+            )
+        )
+        retdiffs = list(
+            map(
+                lambda x: jtu.tree_unflatten(retdiff_defs[x], retdiff_leaves[x]),
+                range(len(retdiff_leaves)),
+            )
+        )
+        bwd_requests = list(
+            map(
+                lambda x: jtu.tree_unflatten(
+                    bwd_request_defs[x], bwd_request_leaves[x]
+                ),
+                range(len(bwd_request_leaves)),
+            )
+        )
+        retdiff: R = staged_choose(idx_argdiff.primal, retdiffs)
+        retval: R = Diff.tree_primal(retdiff)
+        if Diff.tree_tangent(idx_argdiff) == UnknownChange:
+            w = w + (score - trace.get_score())
+
+        # TODO: this is totally wrong, fix in future PR.
+        bwd_request = IncrementalGenericRequest(
+            Diff.tree_diff_unknown_change(trace.get_args()),
+            bwd_requests[0].constraint,
+        )
+
+        return (
+            SwitchTrace(self, primals, subtraces, retval, score),
+            w,
+            retdiff,
+            bwd_request,
+        )
+
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: Trace[R],
+        edit_request: EditRequest,
+    ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], EditRequest]:
+        assert isinstance(edit_request, IncrementalGenericRequest)
+        assert isinstance(trace, SwitchTrace)
+        return self.edit_generic(
+            key, trace, edit_request.constraint, edit_request.argdiffs
+        )
 
 
 #############
