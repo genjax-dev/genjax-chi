@@ -15,8 +15,8 @@
 from abc import abstractmethod
 from dataclasses import dataclass
 from operator import or_
-from typing import cast
 
+import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from beartype.typing import Iterable
@@ -31,13 +31,13 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Array,
-    ArrayLike,
     Bool,
     Callable,
     EllipsisType,
     Final,
     Flag,
     Generic,
+    IntArray,
     ScalarInt,
     String,
     TypeVar,
@@ -47,15 +47,26 @@ from genjax._src.core.typing import (
 # Address types #
 #################
 
+# Basic address components
 StaticAddressComponent = String
-DynamicAddressComponent = ArrayLike
-AddressComponent = StaticAddressComponent | DynamicAddressComponent
-Address = tuple[()] | tuple[AddressComponent, ...]
-StaticAddress = tuple[()] | tuple[StaticAddressComponent, ...]
+DynamicAddressComponent = int | IntArray
+
+# Extended address components
 ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
-ExtendedStaticAddress = tuple[()] | tuple[ExtendedStaticAddressComponent, ...]
-ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
-ExtendedAddress = tuple[()] | tuple[ExtendedAddressComponent, ...]
+ExtendedDynamicAddressComponent = DynamicAddressComponent | slice
+
+# Combined address components
+AddressComponent = StaticAddressComponent | ExtendedDynamicAddressComponent
+ExtendedAddressComponent = (
+    ExtendedStaticAddressComponent | ExtendedDynamicAddressComponent
+)
+
+# Address tuples
+Address = tuple[AddressComponent, ...]
+StaticAddress = tuple[StaticAddressComponent, ...]
+ExtendedAddress = tuple[ExtendedAddressComponent, ...]
+ExtendedStaticAddress = tuple[ExtendedStaticAddressComponent, ...]
+ExtendedDynamicAddress = tuple[ExtendedDynamicAddressComponent, ...]
 
 T = TypeVar("T")
 K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
@@ -1248,28 +1259,6 @@ class ValueChm(Generic[T], ChoiceMap):
         return ChoiceMap.empty()
 
 
-def get_single_submap(self: "IdxChm", addr: ScalarInt) -> ChoiceMap:
-    check: Flag = self.addr == addr
-    check_array = jnp.asarray(check, copy=False)
-    if check_array.shape:
-        assert isinstance(self.addr, Array)
-
-        if check_array.shape[0] == 0:
-            # this is an obscure case which can arise when doing an importance
-            # update of a scan GF with an array of shape (0,) or (0, ...)
-            return ChoiceMap.empty()
-        else:
-            # BOOM this works.
-            idx = jnp.argwhere(check_array, size=1, fill_value=0)[0]
-
-            # TODO handle validation of v not having that index. clamp? wrap-around?
-            return jtu.tree_map(lambda v: v[idx], self.c).mask(check_array[idx])
-
-            # TODO this is getting closer but it still is failing on slices in or slices in self.addr... right now the code above is ASSUMING that we
-    else:
-        return self.c.mask(check)
-
-
 @Pytree.dataclass
 class IdxChm(ChoiceMap):
     """Represents a choice map with dynamic indexing.
@@ -1296,31 +1285,58 @@ class IdxChm(ChoiceMap):
     addr: DynamicAddressComponent
 
     @staticmethod
-    def build(chm: ChoiceMap, addr: DynamicAddressComponent) -> ChoiceMap:
+    def _expand_slice(addr: slice) -> Array:
+        return jnp.arange(addr.start, addr.stop, addr.step)
+
+    @staticmethod
+    def build(chm: ChoiceMap, addr: ExtendedDynamicAddressComponent) -> ChoiceMap:
         if chm.static_is_empty():
             return chm
+        elif isinstance(addr, slice):
+            return IdxChm(chm, IdxChm._expand_slice(addr))
         else:
             return IdxChm(chm, addr)
 
     def get_value(self) -> Any:
         return None
 
-    # TODO ONLY allow scalar things...
-    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        # this has gotta be broken in the array
-        # assert not isinstance(addr, Array)
+    def _get_single_submap(self, addr: ScalarInt) -> ChoiceMap:
+        """
+        `get_submap` implementation for a single scalar integer address. This is vmapped by `get_submap` in the case of an array-shaped address.
+        """
+        check: Flag = self.addr == addr
+        check_array = jnp.asarray(check, copy=False)
 
+        if not check_array.shape:
+            return self.c.mask(check)
+        else:
+            # TODO figure this out, why does this happen?
+            if check_array.shape[0] == 0:
+                # this is an obscure case which can arise when doing an importance
+                # update of a scan GF with an array of shape (0,) or (0, ...)
+                return ChoiceMap.empty()
+            else:
+                # If `check_array` contains a match (we know it will be a single match, since we contrain addr to be scalar), then `idx` is the index of the match in `self.addr`.
+                # Else, idx == 0 (selecting "junk data" of the right shape at the leaf) and check_array[idx] == False (masking the junk data).
+                idx = jnp.argwhere(check_array, size=1, fill_value=0)[0, 0]
+
+                # TODO handle validation of v not having the index. clamp? wrap-around?
+                return jtu.tree_map(lambda v: v[idx], self.c.mask(check))
+
+    def get_submap(self, addr: ExtendedAddressComponent | slice) -> ChoiceMap:
         if addr is Ellipsis:
             return self.c
 
-        elif not isinstance(addr, DynamicAddressComponent):
+        elif isinstance(addr, ExtendedStaticAddressComponent):
             return ChoiceMap.empty()
 
-        elif jnp.asarray(addr).shape:
-            # TODO this is busted...
-            raise Exception(f"Hi!, {jnp.asarray(addr).shape}")
+        elif isinstance(addr, slice):
+            return jax.vmap(self._get_single_submap)(self._expand_slice(addr))
+
+        elif jnp.asarray(addr, copy=False).shape:
+            return jax.vmap(self._get_single_submap)(addr)
         else:
-            return get_single_submap(self, cast(ScalarInt, addr))
+            return self._get_single_submap(addr)
 
 
 AddrDict = dict[StaticAddressComponent, ChoiceMap]

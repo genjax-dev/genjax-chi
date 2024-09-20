@@ -439,6 +439,38 @@ class TestChoiceMap:
 
         assert ChoiceMap.empty().extend(jnp.array([0, 1, 2])).static_is_empty()
 
+    def test_access_dynamic(self):
+        # out of order input arrays
+        chm = C[jnp.array([4, 8, 2]), "x"].set(jnp.array([4.0, 8.0, 2.0]))
+        assert chm[2, "x"].unmask() == 2.0
+        assert chm[4, "x"].unmask() == 4.0
+        assert chm[8, "x"].unmask() == 8.0
+
+        # indexed lookups
+        eleven_four = chm[jnp.array([11, 4]), "x"]
+        assert jnp.array_equal(eleven_four.flag, jnp.array([False, True]))
+        assert jnp.array_equal(eleven_four.unmask(), jnp.array([4.0, 4.0]))
+
+        eleven_four = chm[jnp.array([8, 4]), "x"]
+        assert jnp.array_equal(eleven_four.flag, jnp.array([True, True]))
+        assert jnp.array_equal(eleven_four.unmask(), jnp.array([8.0, 4.0]))
+
+        # lookup slices
+        chm = C[1:5, "x"].set(jnp.arange(1, 5))
+        assert jnp.array_equal(chm[1:5, "x"].unmask(), jnp.arange(1, 5))
+        assert jnp.array_equal(chm[1:5:2, "x"].unmask(), jnp.arange(1, 5, 2))
+        assert jnp.array_equal(chm[4:1:-1, "x"].unmask(), jnp.arange(4, 1, -1))
+
+        # creation slices
+        chm = ChoiceMap.builder[1:5, "x"].set({"y": jnp.arange(1, 5)})
+        assert chm[3, "x", "y"].unmask() == 3
+        assert jnp.array_equal(chm[1:5:2, "x", "y"].unmask(), jnp.arange(1, 5, 2))
+        assert jnp.array_equal(chm[4:1:-1, "x", "y"].unmask(), jnp.arange(4, 1, -1))
+
+        # TODO clamp out of bounds?
+
+        # TODO handle validation of v not having that index / being scalar. Do we clamp? Wrap around? What does jnp do if things don't match?
+
     def test_merge(self):
         chm1 = ChoiceMap.kw(x=1)
         chm2 = ChoiceMap.kw(y=2)
