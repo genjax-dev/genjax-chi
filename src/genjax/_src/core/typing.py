@@ -63,6 +63,7 @@ Value = Any
 
 ScalarShaped = Is[lambda arr: jnp.array(arr, copy=False).shape == ()]
 ScalarFlag = Annotated[Flag, ScalarShaped]
+ScalarInt = Annotated[Int, ScalarShaped]
 
 
 ############
@@ -125,6 +126,7 @@ __all__ = [
     "PRNGKey",
     "ParamSpec",
     "ScalarFlag",
+    "ScalarInt",
     "ScalarShaped",
     "Self",
     "Sequence",

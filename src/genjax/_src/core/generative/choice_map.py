@@ -15,8 +15,8 @@
 from abc import abstractmethod
 from dataclasses import dataclass
 from operator import or_
+from typing import cast
 
-import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from beartype.typing import Iterable
@@ -30,6 +30,7 @@ from genjax._src.core.interpreters.staging import (
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    Array,
     ArrayLike,
     Bool,
     Callable,
@@ -37,6 +38,7 @@ from genjax._src.core.typing import (
     Final,
     Flag,
     Generic,
+    ScalarInt,
     String,
     TypeVar,
 )
@@ -1246,6 +1248,28 @@ class ValueChm(Generic[T], ChoiceMap):
         return ChoiceMap.empty()
 
 
+def get_single_submap(self: "IdxChm", addr: ScalarInt) -> ChoiceMap:
+    check: Flag = self.addr == addr
+    check_array = jnp.asarray(check, copy=False)
+    if check_array.shape:
+        assert isinstance(self.addr, Array)
+
+        if check_array.shape[0] == 0:
+            # this is an obscure case which can arise when doing an importance
+            # update of a scan GF with an array of shape (0,) or (0, ...)
+            return ChoiceMap.empty()
+        else:
+            # BOOM this works.
+            idx = jnp.argwhere(check_array, size=1, fill_value=0)[0]
+
+            # TODO handle validation of v not having that index. clamp? wrap-around?
+            return jtu.tree_map(lambda v: v[idx], self.c).mask(check_array[idx])
+
+            # TODO this is getting closer but it still is failing on slices in or slices in self.addr... right now the code above is ASSUMING that we
+    else:
+        return self.c.mask(check)
+
+
 @Pytree.dataclass
 class IdxChm(ChoiceMap):
     """Represents a choice map with dynamic indexing.
@@ -1281,36 +1305,22 @@ class IdxChm(ChoiceMap):
     def get_value(self) -> Any:
         return None
 
+    # TODO ONLY allow scalar things...
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
+        # this has gotta be broken in the array
+        # assert not isinstance(addr, Array)
+
         if addr is Ellipsis:
             return self.c
 
         elif not isinstance(addr, DynamicAddressComponent):
             return ChoiceMap.empty()
 
+        elif jnp.asarray(addr).shape:
+            # TODO this is busted...
+            raise Exception(f"Hi!, {jnp.asarray(addr).shape}")
         else:
-
-            def check_fn(idx, addr) -> Flag:
-                return idx == addr
-
-            check = (
-                jax.vmap(check_fn, in_axes=(None, 0))(addr, self.addr)
-                if jnp.array(self.addr, copy=False).shape
-                else check_fn(addr, self.addr)
-            )
-
-            check_array = jnp.asarray(check, copy=False)
-            if check_array.shape:
-                if check_array.shape[0] == 0:
-                    # this is an obscure case which can arise when doing an importance
-                    # update of a scan GF with an array of shape (0,) or (0, ...)
-                    return ChoiceMap.empty()
-                else:
-                    return jtu.tree_map(lambda v: v[addr], self.c).mask(
-                        check_array[addr]
-                    )
-            else:
-                return self.c.mask(check)
+            return get_single_submap(self, cast(ScalarInt, addr))
 
 
 AddrDict = dict[StaticAddressComponent, ChoiceMap]
