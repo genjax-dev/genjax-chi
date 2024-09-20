@@ -1323,7 +1323,7 @@ class IdxChm(ChoiceMap):
                 # TODO handle validation of v not having the index. clamp? wrap-around?
                 return jtu.tree_map(lambda v: v[idx], self.c.mask(check))
 
-    def get_submap(self, addr: ExtendedAddressComponent | slice) -> ChoiceMap:
+    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         if addr is Ellipsis:
             return self.c
 
