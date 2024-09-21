@@ -1412,14 +1412,7 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        assert isinstance(edit_request, IncrementalGenericRequest)
-        (argdiffs, _kwargdiffs) = argdiffs
-        return self.wrapped.edit(
-            key,
-            trace,
-            edit_request,
-            argdiffs,
-        )
+        raise NotImplementedError
 
 
 @Pytree.dataclass
