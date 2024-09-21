@@ -37,7 +37,6 @@ website:
             - cookbook/basics/methods_of_generative_fun.ipynb
             - cookbook/basics/choicemap_creation_selection.ipynb
             - cookbook/basics/debugging.ipynb
-            - cookbook/basics/saving_traces.ipynb
             - cookbook/basics/some_oddities.ipynb
         - section: "Expressivity"
           href: expressivity.qmd
@@ -55,6 +54,10 @@ website:
             - cookbook/inference/importance_sampling.ipynb
             - cookbook/inference/custom_proposal.ipynb
             - cookbook/inference/mcmc.ipynb
+        - section: "Differentiation"
+          href: differentiation.qmd
+          contents:
+            - cookbook/differentiation/adev_example.ipynb
         - section: "Library developers"
           href: library_author.qmd
           contents:
