@@ -94,6 +94,8 @@ class StaticTrace(Generic[R], Trace[R]):
     addresses: AddressVisitor
     subtraces: list[Trace[Any]]
     score: Score
+    cached_addresses: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    cached_values: list[Any] = Pytree.field(default_factory=list)
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
@@ -113,6 +115,14 @@ class StaticTrace(Generic[R], Trace[R]):
         addresses = self.addresses.get_visited()
         sub_chms = (tr.get_choices() for tr in self.subtraces)
         return ChoiceMap.from_mapping(zip(addresses, sub_chms))
+
+    def get_cache(self) -> ChoiceMap:
+        addresses = self.cached_addresses.get_visited()
+        return ChoiceMap.from_mapping(zip(addresses, self.cached_values))
+
+    def get_cached_state(self, addr: StaticAddress) -> Any:
+        cache = self.get_cache()
+        return cache[addr]
 
     def get_score(self) -> Score:
         return self.score
@@ -142,6 +152,9 @@ class AddressReuse(Exception):
 
 # Generative function trace intrinsic.
 trace_p = InitialStylePrimitive("trace")
+
+# Deterministic caching intrinsic.
+cache_p = InitialStylePrimitive("cache")
 
 
 ############################################################
@@ -181,6 +194,36 @@ def trace(
     )
 
 
+def _abstract_call(
+    _: tuple[Const[StaticAddress], ...],
+    fn: Callable[[Any], R],
+    args: Any,
+) -> R:
+    return fn(*args)
+
+
+def cache(
+    addr: StaticAddress,
+    fn: Callable[[Any], R],
+    args: Any,
+) -> R:
+    """Invoke a deterministic function and expose caching semantics to the
+    current caller.
+
+    Arguments:
+        addr: An address denoting the site of a generative function invocation.
+        fn: A function invoked as a callee of `StaticGenerativeFunction`.
+        args: The arguments to the invocation.
+
+    """
+    addr = Pytree.tree_const(addr)
+    return initial_style_bind(cache_p)(_abstract_call)(
+        addr,
+        fn,
+        args,
+    )
+
+
 ######################################
 #  Generative function interpreters  #
 ######################################
@@ -205,6 +248,14 @@ class StaticHandler(StatefulHandler):
     ):
         raise NotImplementedError
 
+    def handle_cache(
+        self,
+        addr: StaticAddress,
+        fn: Callable[[Any], R],
+        args: Any,
+    ) -> R:
+        return fn(*args)
+
     def handle_retval(self, v):
         return jtu.tree_leaves(v)
 
@@ -223,6 +274,11 @@ class StaticHandler(StatefulHandler):
         if primitive == trace_p:
             v = self.handle_trace(addr, gen_fn, args)
             return self.handle_retval(v)
+        elif primitive == cache_p:
+            addr, fn, args = jtu.tree_unflatten(in_tree, non_const_tracers)
+            addr = Pytree.tree_const_unwrap(addr)
+            v = self.handle_cache(addr, fn, args)
+            return self.handle_retval(v)
         else:
             raise Exception("Illegal primitive: {}".format(primitive))
 
@@ -238,15 +294,22 @@ class SimulateHandler(StaticHandler):
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
+    cache_addresses: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    cached_values: list[Any] = Pytree.field(default_factory=list)
 
     def visit(self, addr):
         self.address_visitor.visit(addr)
+
+    def cache_visit(self, addr: StaticAddress):
+        self.cache_addresses.visit(addr)
 
     def yield_state(self):
         return (
             self.address_visitor,
             self.address_traces,
             self.score,
+            self.cache_addresses,
+            self.cached_values,
         )
 
     def handle_trace(
@@ -264,6 +327,17 @@ class SimulateHandler(StaticHandler):
         v = tr.get_retval()
         return v
 
+    def handle_cache(
+        self,
+        addr: StaticAddress,
+        fn: Callable[[Any], R],
+        args: Any,
+    ) -> R:
+        self.cache_visit(addr)
+        r = fn(*args)
+        self.cached_values.append(r)
+        return r
+
 
 def simulate_transform(source_fn):
     @functools.wraps(source_fn)
@@ -274,6 +348,8 @@ def simulate_transform(source_fn):
             address_visitor,
             address_traces,
             score,
+            cache_addresses,
+            cached_values,
         ) = stateful_handler.yield_state()
         return (
             args,
@@ -281,7 +357,7 @@ def simulate_transform(source_fn):
             address_visitor,
             address_traces,
             score,
-        )
+        ), (cache_addresses, cached_values)
 
     return wrapper
 
@@ -301,6 +377,8 @@ class IncrementalGenericRequestHandler(StaticHandler):
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
     bwd_constraints: list[ChoiceMapConstraint] = Pytree.field(default_factory=list)
+    cache_addresses: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    cached_values: list[Any] = Pytree.field(default_factory=list)
 
     def yield_state(self):
         return (
@@ -309,10 +387,15 @@ class IncrementalGenericRequestHandler(StaticHandler):
             self.address_visitor,
             self.address_traces,
             self.bwd_constraints,
+            self.cache_addresses,
+            self.cached_values,
         )
 
     def visit(self, addr):
         self.address_visitor.visit(addr)
+
+    def cache_visit(self, addr: StaticAddress):
+        self.cache_addresses.visit(addr)
 
     def get_subconstraint(self, addr: StaticAddress) -> ChoiceMapConstraint:
         return self.constraint(addr)  # pyright: ignore
@@ -353,6 +436,23 @@ class IncrementalGenericRequestHandler(StaticHandler):
 
         return retval_diff
 
+    def handle_cache(
+        self,
+        addr: StaticAddress,
+        fn: Callable[[Any], R],
+        args: Any,
+    ) -> R:
+        argdiffs: Argdiffs = args
+        self.visit(addr)
+        self.cache_visit(addr)
+        if Diff.static_check_no_change(argdiffs):
+            return self.previous_trace.get_cached_state(addr)
+        else:
+            args = Diff.tree_primal(argdiffs)
+            r = fn(*args)
+            self.cached_values.append(r)
+            return r
+
 
 def incremental_generic_request_transform(source_fn):
     @functools.wraps(source_fn)
@@ -377,6 +477,8 @@ def incremental_generic_request_transform(source_fn):
             address_visitor,
             address_traces,
             bwd_requests,
+            cache_addresses,
+            cached_values,
         ) = stateful_handler.yield_state()
         return (
             (
@@ -393,6 +495,7 @@ def incremental_generic_request_transform(source_fn):
                 # Backward update problem.
                 bwd_requests,
             ),
+            (cache_addresses, cached_values),
         )
 
     return wrapper
@@ -411,9 +514,14 @@ class GenerateHandler(StaticHandler):
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
+    cache_addresses: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    cached_values: list[Any] = Pytree.field(default_factory=list)
 
     def visit(self, addr: StaticAddress):
         self.address_visitor.visit(addr)
+
+    def cache_visit(self, addr: StaticAddress):
+        self.cache_addresses.visit(addr)
 
     def yield_state(
         self,
@@ -422,12 +530,16 @@ class GenerateHandler(StaticHandler):
         Weight,
         AddressVisitor,
         list[Trace[Any]],
+        AddressVisitor,
+        list[Any],
     ]:
         return (
             self.score,
             self.weight,
             self.address_visitor,
             self.address_traces,
+            self.cache_addresses,
+            self.cached_values,
         )
 
     def get_subconstraint(
@@ -452,6 +564,17 @@ class GenerateHandler(StaticHandler):
 
         return tr.get_retval()
 
+    def handle_cache(
+        self,
+        addr: StaticAddress,
+        fn: Callable[[Any], R],
+        args: Any,
+    ) -> R:
+        self.cache_visit(addr)
+        r = fn(*args)
+        self.cached_values.append(r)
+        return r
+
 
 def generate_transform(source_fn):
     @functools.wraps(source_fn)
@@ -467,6 +590,8 @@ def generate_transform(source_fn):
             weight,
             address_visitor,
             address_traces,
+            cache_addresses,
+            cached_values,
         ) = stateful_handler.yield_state()
         return (
             weight,
@@ -478,6 +603,7 @@ def generate_transform(source_fn):
                 address_traces,
                 score,
             ),
+            (cache_addresses, cached_values),
         )
 
     return wrapper
@@ -510,6 +636,15 @@ class AssessHandler(StaticHandler):
         (score, v) = gen_fn.assess(submap, args)
         self.score += score
         return v
+
+    def handle_cache(
+        self,
+        addr: StaticAddress,
+        fn: Callable[[Any], R],
+        args: Any,
+    ) -> R:
+        r = fn(*args)
+        return r
 
 
 def assess_transform(source_fn):
@@ -601,9 +736,10 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (args, retval, address_visitor, address_traces, score) = simulate_transform(
-            syntax_sugar_handled
-        )(key, args)
+        (
+            (args, retval, address_visitor, address_traces, score),
+            (cache_addresses, cache_values),
+        ) = simulate_transform(syntax_sugar_handled)(key, args)
         return StaticTrace(
             self,
             args,
@@ -611,6 +747,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             address_visitor,
             address_traces,
             score,
+            cache_addresses,
+            cache_values,
         )
 
     def edit_change_target(
@@ -636,6 +774,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_requests,
             ),
+            (cache_addresses, cached_values),
         ) = incremental_generic_request_transform(syntax_sugar_handled)(
             key, trace, constraint, argdiffs
         )
@@ -657,6 +796,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 address_visitor,
                 address_traces,
                 score,
+                cache_addresses,
+                cached_values,
             ),
             weight,
             retval_diffs,
@@ -684,6 +825,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 address_traces,
                 score,
             ),
+            (cache_addresses, cached_values),
         ) = generate_transform(syntax_sugar_handled)(key, constraint, args)
         return StaticTrace(
             self,
@@ -692,6 +834,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             address_visitor,
             address_traces,
             score,
+            cache_addresses,
+            cached_values,
         ), weight
 
     def project(
