@@ -4407,13 +4407,13 @@ test = ["argcomplete (>=3.0.3)", "mypy (>=1.7.0)", "pre-commit", "pytest (>=7.0,
 
 [[package]]
 name = "treescope"
-version = "0.1.4"
+version = "0.1.5"
 description = "Treescope: An interactive HTML pretty-printer for ML research in IPython notebooks."
 optional = false
 python-versions = ">=3.10"
 files = [
-    {file = "treescope-0.1.4-py3-none-any.whl", hash = "sha256:5dc0f123f9bdaeb5198ffb62503ea32b2887f95cfedf66d1270e3b43a3878621"},
-    {file = "treescope-0.1.4.tar.gz", hash = "sha256:38e78474d8902f19e0c166f68e82d963242a0424259c1d7afbad40907a813900"},
+    {file = "treescope-0.1.5-py3-none-any.whl", hash = "sha256:1b07446291212ceafd28e27a26fabcd3299e056307d35f949241991bf190dd65"},
+    {file = "treescope-0.1.5.tar.gz", hash = "sha256:75cff86663dfcac133b922fcc0ee9520f605dc9cbedcb34eb86a80476acbbb32"},
 ]
 
 [package.dependencies]
@@ -4741,4 +4741,4 @@ genstudio = ["genstudio"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "cddaf8a6bab7171ce90c63a9ae059a8804d347bc7d8c3ec1d0df74f13c7cf1fc"
+content-hash = "50c0abd8131f3ded6444b565838c0c239ef11cf916a04d22de51a1428ba127b0"
