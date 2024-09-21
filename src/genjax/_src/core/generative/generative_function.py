@@ -155,7 +155,7 @@ class Trace(Generic[R], Pytree):
         self,
         key: PRNGKey,
         request: EditRequest,
-        argdiffs: Argdiffs,
+        argdiffs: tuple[Any, ...] | None = None,
     ) -> tuple[Self, Weight, Retdiff[R], EditRequest]:
         """
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
@@ -164,7 +164,7 @@ class Trace(Generic[R], Pytree):
             key,
             self,
             request,
-            argdiffs,
+            Diff.tree_diff_no_change(self.get_args()) if argdiffs is None else argdiffs,
         )  # pyright: ignore[reportReturnType]
 
     def update(
@@ -176,20 +176,12 @@ class Trace(Generic[R], Pytree):
         """
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
         """
-        if argdiffs is None:
-            return self.get_gen_fn().update(
-                key,
-                self,
-                constraint,
-                Diff.tree_diff_no_change(self.get_args()),
-            )  # pyright: ignore[reportReturnType]
-        else:
-            return self.get_gen_fn().update(
-                key,
-                self,
-                constraint,
-                argdiffs,
-            )  # pyright: ignore[reportReturnType]
+        return self.get_gen_fn().update(
+            key,
+            self,
+            constraint,
+            Diff.tree_diff_no_change(self.get_args()) if argdiffs is None else argdiffs,
+        )  # pyright: ignore[reportReturnType]
 
     def project(
         self,
@@ -1511,8 +1503,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        full_argdiffs = (*self.args, *argdiffs)
-        return self.gen_fn.edit(key, trace, edit_request, full_argdiffs)
+        raise NotImplementedError
 
     def assess(
         self,
