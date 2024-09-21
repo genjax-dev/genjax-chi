@@ -17,7 +17,6 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
-    Argdiffs,
     ChoiceMap,
     ChoiceMapConstraint,
     Constraint,
@@ -154,6 +153,16 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         assert isinstance(trace, MaskTrace)
         assert isinstance(edit_request, IncrementalGenericRequest)
 
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: Trace[Mask[R]],
+        edit_request: EditRequest,
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], EditRequest]:
+        assert isinstance(trace, MaskTrace)
+        assert isinstance(edit_request, IncrementalGenericRequest)
+
+        argdiffs = edit_request.argdiffs
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
         post_check: ScalarFlag = Diff.tree_primal(check_diff)
 
