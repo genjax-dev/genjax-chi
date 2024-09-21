@@ -120,7 +120,7 @@ class StaticTrace(Generic[R], Trace[R]):
         addresses = self.cached_addresses.get_visited()
         return ChoiceMap.from_mapping(zip(addresses, self.cached_values))
 
-    def get_cached_state(self, addr: StaticAddress) -> Any:
+    def get_cached_state(self, addr) -> Any:
         cache = self.get_cache()
         return cache[addr]
 
@@ -202,11 +202,24 @@ def _abstract_call(
     return fn(*args)
 
 
-def cache(
+def _cache(
     addr: StaticAddress,
     fn: Callable[[Any], R],
     args: Any,
 ) -> R:
+    addr = Pytree.tree_const(addr)
+    fn = Pytree.partial()(fn)
+    return initial_style_bind(cache_p)(_abstract_call)(
+        addr,
+        fn,
+        args,
+    )
+
+
+def cache(
+    fn: Callable[[Any], R],
+    addr: StaticAddressComponent | StaticAddress,
+) -> Callable[[Any], R]:
     """Invoke a deterministic function and expose caching semantics to the
     current caller.
 
@@ -216,12 +229,8 @@ def cache(
         args: The arguments to the invocation.
 
     """
-    addr = Pytree.tree_const(addr)
-    return initial_style_bind(cache_p)(_abstract_call)(
-        addr,
-        fn,
-        args,
-    )
+    addr = addr if isinstance(addr, tuple) else (addr,)
+    return lambda *args: _cache(addr, fn, args)
 
 
 ######################################
@@ -263,7 +272,7 @@ class StaticHandler(StatefulHandler):
     # handle the two primitives we defined above
     # (`trace_p`, for random choices)
     def handles(self, primitive):
-        return primitive == trace_p
+        return primitive == trace_p or primitive == cache_p
 
     def dispatch(self, primitive, *tracers, **_params):
         in_tree = _params["in_tree"]
@@ -446,7 +455,9 @@ class IncrementalGenericRequestHandler(StaticHandler):
         self.visit(addr)
         self.cache_visit(addr)
         if Diff.static_check_no_change(argdiffs):
-            return self.previous_trace.get_cached_state(addr)
+            r = self.previous_trace.get_cached_state(addr)
+            self.cached_values.append(r)
+            return r
         else:
             args = Diff.tree_primal(argdiffs)
             r = fn(*args)

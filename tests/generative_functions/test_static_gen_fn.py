@@ -777,3 +777,37 @@ class TestStaticGenFnInline:
             == genjax.normal.assess(choice.get_submap("y1"), (0.0, 1.0))[0]
             + genjax.normal.assess(choice.get_submap("y2"), (0.0, 1.0))[0]
         )
+
+
+class TestCaching:
+    def f(self, x):
+        return x
+
+    def test_cache_simulate(self):
+        @genjax.gen
+        def simple_normal(x):
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            _ = genjax.cache(self.f, "v")(x)
+            return y1 + y2
+
+        _key = jax.random.PRNGKey(314159)
+        tr = simple_normal.simulate(_key, (5,))
+        assert tr.get_cached_state("v") == 5
+
+        tr, _ = simple_normal.generate(_key, ChoiceMapConstraint(C.kw(y1=5.0)), (6,))
+        assert tr.get_cached_state("v") == 6
+
+        new_tr, *_ = tr.edit(
+            _key,
+            IncrementalGenericRequest(ChoiceMapConstraint(C.kw(y1=3.0))),
+            Diff.unknown_change((7,)),
+        )
+        assert new_tr.get_cached_state("v") == 7
+
+        new_tr, *_ = tr.edit(
+            _key,
+            IncrementalGenericRequest(ChoiceMapConstraint(C.kw(y1=3.0))),
+            Diff.no_change((6,)),
+        )
+        assert new_tr.get_cached_state("v") == 6
