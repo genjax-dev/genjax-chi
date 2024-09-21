@@ -154,12 +154,18 @@ class Trace(Generic[R], Pytree):
     def edit(
         self,
         key: PRNGKey,
-        problem: EditRequest,
+        request: EditRequest,
+        argdiffs: tuple[Any, ...] | None = None,
     ) -> tuple[Self, Weight, Retdiff[R], EditRequest]:
         """
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
         """
-        return self.get_gen_fn().edit(key, self, problem)  # pyright: ignore[reportReturnType]
+        return self.get_gen_fn().edit(
+            key,
+            self,
+            request,
+            Diff.tree_diff_no_change(self.get_args()) if argdiffs is None else argdiffs,
+        )  # pyright: ignore[reportReturnType]
 
     def update(
         self,
@@ -170,20 +176,12 @@ class Trace(Generic[R], Pytree):
         """
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
         """
-        if argdiffs is None:
-            return self.get_gen_fn().update(
-                key,
-                self,
-                constraint,
-                Diff.tree_diff_no_change(self.get_args()),
-            )  # pyright: ignore[reportReturnType]
-        else:
-            return self.get_gen_fn().update(
-                key,
-                self,
-                constraint,
-                argdiffs,
-            )  # pyright: ignore[reportReturnType]
+        return self.get_gen_fn().update(
+            key,
+            self,
+            constraint,
+            Diff.tree_diff_no_change(self.get_args()) if argdiffs is None else argdiffs,
+        )  # pyright: ignore[reportReturnType]
 
     def project(
         self,
@@ -408,6 +406,7 @@ class GenerativeFunction(Generic[R], Pytree):
         key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
+        argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         """
         Update a trace in response to an [`EditRequest`][genjax.core.EditRequest], returning a new [`Trace`][genjax.core.Trace], an incremental [`Weight`][genjax.core.Weight] for the new target, a [`Retdiff`][genjax.core.Retdiff] return value tagged with change information, and a backward [`EditRequest`][genjax.core.EditRequest] which requests the reverse move (to go back to the original trace).
@@ -444,9 +443,9 @@ class GenerativeFunction(Generic[R], Pytree):
                 key,
                 initial_tr,
                 IncrementalGenericRequest(
-                    Diff.unknown_change((3.0,)),
                     ChoiceMapConstraint(C.empty()),
                 ),
+                Diff.unknown_change((3.0,)),
             )
             ```
 
@@ -493,7 +492,6 @@ class GenerativeFunction(Generic[R], Pytree):
         from genjax import ChoiceMap, ChoiceMapConstraint
 
         g = IncrementalGenericRequest(
-            Diff.unknown_change((1.0,)),  # "Argdiffs"
             ChoiceMapConstraint(ChoiceMap.empty()),  # Constraint
         )
         ```
@@ -505,9 +503,9 @@ class GenerativeFunction(Generic[R], Pytree):
             key,
             initial_tr,
             IncrementalGenericRequest(
-                Diff.unknown_change((3.0,)),
                 ChoiceMapConstraint(C.kw(v1=3.0)),
             ),
+            Diff.unknown_change((3.0,)),
         )
         print((new_tr.get_sample()["v1"], w))
         ```
@@ -533,11 +531,11 @@ class GenerativeFunction(Generic[R], Pytree):
             key,
             trace,
             IncrementalGenericRequest(
-                argdiffs,
                 constraint
                 if isinstance(constraint, Constraint)
                 else ChoiceMapConstraint(constraint),
             ),
+            argdiffs,
         )
         assert isinstance(bwd, IncrementalGenericRequest), type(bwd)
         return tr, w, rd, bwd.constraint
@@ -1404,12 +1402,9 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
+        argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        assert isinstance(edit_request, IncrementalGenericRequest)
-        (argdiffs, _kwargdiffs) = edit_request.argdiffs
-        return self.wrapped.edit(
-            key, trace, IncrementalGenericRequest(argdiffs, edit_request.constraint)
-        )
+        raise NotImplementedError
 
 
 @Pytree.dataclass
@@ -1506,24 +1501,9 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
+        argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        match edit_request:
-            case IncrementalGenericRequest(argdiffs, subproblem):
-                full_argdiffs = (*self.args, *argdiffs)
-                if self.kwargs:
-                    maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-                    return maybe_kwarged_gen_fn.edit(
-                        key,
-                        trace,
-                        IncrementalGenericRequest(
-                            (full_argdiffs, self.kwargs),
-                            subproblem,
-                        ),
-                    )
-                else:
-                    return self.gen_fn.edit(key, trace, edit_request)
-            case _:
-                raise NotImplementedError
+        raise NotImplementedError
 
     def assess(
         self,

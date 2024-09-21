@@ -423,7 +423,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             key = jax.random.PRNGKey(0)
             trace_shape, _, retdiff_shape, bwd_request_shape = get_data_shape(
                 gen_fn.edit
-            )(key, subtrace, IncrementalGenericRequest(branch_argdiffs, constraint))
+            )(key, subtrace, IncrementalGenericRequest(constraint), branch_argdiffs)
             empty_trace = jtu.tree_map(
                 lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
             )
@@ -461,7 +461,10 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         gen_fn = self.branches[static_idx]
         branch_argdiffs = argdiffs[static_idx]
         tr, w, rd, bwd_request = gen_fn.edit(
-            key, subtrace, IncrementalGenericRequest(branch_argdiffs, constraint)
+            key,
+            subtrace,
+            IncrementalGenericRequest(constraint),
+            branch_argdiffs,
         )
         (
             (trace_leaves, _),
@@ -490,23 +493,32 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         new_subtrace = gen_fn.simulate(key, branch_primals)
         new_subtrace_def = jtu.tree_structure(new_subtrace)
         _, _, _, bwd_request_shape = get_data_shape(gen_fn.edit)(
-            key, new_subtrace, IncrementalGenericRequest(branch_argdiffs, constraint)
+            key,
+            new_subtrace,
+            IncrementalGenericRequest(constraint),
+            branch_argdiffs,
         )
         bwd_request_def = jtu.tree_structure(bwd_request_shape)
 
-        def _edit_same_branch(key, subtrace, problem, branch_argdiffs):
+        def _edit_same_branch(key, subtrace, constraint, branch_argdiffs):
             tr, w, rd, bwd_request = gen_fn.edit(
-                key, subtrace, IncrementalGenericRequest(branch_argdiffs, problem)
+                key,
+                subtrace,
+                IncrementalGenericRequest(constraint),
+                branch_argdiffs,
             )
             rd = Diff.tree_diff_unknown_change(rd)
             tr_leaves = jtu.tree_leaves(tr)
             problem_leaves = jtu.tree_leaves(bwd_request)
             return tr_leaves, w, rd, problem_leaves
 
-        def _edit_new_branch(key, subtrace, problem, branch_argdiffs):
+        def _edit_new_branch(key, subtrace, constraint, branch_argdiffs):
             branch_argdiffs = Diff.tree_diff_no_change(branch_argdiffs)
             tr, w, rd, bwd_request = gen_fn.edit(
-                key, subtrace, IncrementalGenericRequest(branch_argdiffs, problem)
+                key,
+                subtrace,
+                IncrementalGenericRequest(constraint),
+                branch_argdiffs,
             )
             rd = Diff.tree_diff_unknown_change(rd)
             tr_leaves = jtu.tree_leaves(tr)
@@ -606,7 +618,6 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
 
         # TODO: this is totally wrong, fix in future PR.
         bwd_request = IncrementalGenericRequest(
-            Diff.tree_diff_unknown_change(trace.get_args()),
             bwd_requests[0].constraint,
         )
 
@@ -622,11 +633,15 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
+        argdiffs: Argdiffs,
     ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], EditRequest]:
         assert isinstance(edit_request, IncrementalGenericRequest)
         assert isinstance(trace, SwitchTrace)
         return self.edit_generic(
-            key, trace, edit_request.constraint, edit_request.argdiffs
+            key,
+            trace,
+            edit_request.constraint,
+            argdiffs,
         )
 
 

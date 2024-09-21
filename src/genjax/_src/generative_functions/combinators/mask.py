@@ -17,6 +17,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
+    Argdiffs,
     ChoiceMap,
     ChoiceMapConstraint,
     Constraint,
@@ -148,11 +149,11 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         key: PRNGKey,
         trace: Trace[Mask[R]],
         edit_request: EditRequest,
+        argdiffs: Argdiffs,
     ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], EditRequest]:
         assert isinstance(trace, MaskTrace)
         assert isinstance(edit_request, IncrementalGenericRequest)
 
-        argdiffs = edit_request.argdiffs
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
         post_check: ScalarFlag = Diff.tree_primal(check_diff)
 
@@ -161,10 +162,10 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                 pre_check = trace.check
                 original_trace: Trace[R] = trace.inner
 
-        subrequest = IncrementalGenericRequest(inner_argdiffs, edit_request.constraint)
+        subrequest = IncrementalGenericRequest(edit_request.constraint)
 
         premasked_trace, weight, retdiff, bwd_request = self.gen_fn.edit(
-            key, original_trace, subrequest
+            key, original_trace, subrequest, inner_argdiffs
         )
 
         final_trace: Trace[R] = jtu.tree_map(
@@ -228,7 +229,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             final_weight,
             Mask.maybe(check_diff, retdiff),
             IncrementalGenericRequest(
-                Diff.tree_diff_unknown_change(trace.get_args()),
                 ChoiceMapConstraint(inner_chm_constraint.mask(post_check)),
             ),
         )

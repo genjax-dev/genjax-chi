@@ -177,7 +177,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             new_score - trace.get_score(),
             Diff.tree_diff_no_change(trace.get_retval()),
             IncrementalGenericRequest(
-                Diff.no_change(trace.get_args()),
                 ChoiceMapConstraint(ChoiceMap.empty()),
             ),
         )
@@ -203,7 +202,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     new_score - trace.get_score(),
                     Diff.tree_diff_no_change(old_retval),
                     IncrementalGenericRequest(
-                        Diff.tree_diff_unknown_change(trace.get_args()),
                         ChoiceMapConstraint(ChoiceMap.empty()),
                     ),
                 )
@@ -223,7 +221,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         w,
                         retval_diff,
                         IncrementalGenericRequest(
-                            Diff.tree_diff_unknown_change(trace.get_args()),
                             ChoiceMapConstraint(discard),
                         ),
                     )
@@ -240,7 +237,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         w,
                         retval_diff,
                         IncrementalGenericRequest(
-                            Diff.tree_diff_unknown_change(trace.get_args()),
                             ChoiceMapConstraint(ChoiceMap.empty()),
                         ),
                     )
@@ -279,7 +275,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         w,
                         Diff.tree_diff_unknown_change(new_value),
                         IncrementalGenericRequest(
-                            Diff.tree_diff_unknown_change(trace.get_args()),
                             ChoiceMapConstraint(old_choices.mask(flag)),
                         ),
                     )
@@ -326,9 +321,9 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
+        argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         assert isinstance(edit_request, IncrementalGenericRequest)
-        argdiffs = edit_request.argdiffs
         constraint = edit_request.constraint
         return self.edit_incremental_generic_request(
             key,

@@ -239,10 +239,8 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             new_subtrace, w, retdiff, bwd_request = self.gen_fn.edit(
                 key,
                 subtrace,
-                IncrementalGenericRequest(
-                    argdiffs,
-                    subconstraint,
-                ),
+                IncrementalGenericRequest(subconstraint),
+                argdiffs,
             )
             assert isinstance(bwd_request, IncrementalGenericRequest)
             inner_chm_constraint = bwd_request.constraint
@@ -264,9 +262,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             map_tr,
             w,
             retdiff,
-            IncrementalGenericRequest(
-                Diff.tree_diff_unknown_change(trace.get_args()), bwd_constraints
-            ),
+            IncrementalGenericRequest(bwd_constraints),
         )
 
     def edit(
@@ -274,12 +270,12 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
+        argdiffs: Argdiffs,
     ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
         assert isinstance(trace, VmapTrace)
         assert isinstance(edit_request, IncrementalGenericRequest), type(edit_request)
         constraint = edit_request.constraint
         assert isinstance(constraint, ChoiceMapConstraint)
-        argdiffs = edit_request.argdiffs
         return self.edit_choice_map_constraint(
             key,
             trace,
