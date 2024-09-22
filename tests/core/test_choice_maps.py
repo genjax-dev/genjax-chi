@@ -473,7 +473,7 @@ class TestChoiceMap:
         ):
             (chm1 ^ chm1)["x"]
 
-        # Optimization: XorChm.build should return EmptyChm for empty inputs
+        # Optimization: XorChm.build should return empty for empty inputs
         assert (ChoiceMap.empty() ^ ChoiceMap.empty()).static_is_empty()
 
         assert (chm1 ^ ChoiceMap.empty()) == chm1

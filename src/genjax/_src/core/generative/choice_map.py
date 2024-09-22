@@ -799,12 +799,9 @@ class ChoiceMap(Sample):
     builder: Final[_ChoiceMapBuilder] = _ChoiceMapBuilder(None, [])
 
     @staticmethod
-    def empty() -> "EmptyChm":
+    def empty() -> "ChoiceMap":
         """
-        Returns an empty ChoiceMap.
-
-        This method creates and returns an instance of EmptyChm, which represents
-        a ChoiceMap with no values or submaps.
+        Returns a ChoiceMap with no values or submaps.
 
         Returns:
             An empty ChoiceMap.
@@ -1176,36 +1173,6 @@ class ChoiceMap(Sample):
 
 
 @Pytree.dataclass
-class EmptyChm(ChoiceMap):
-    """Represents an empty choice map.
-
-    This class represents a choice map with no values or submaps. It serves as the base
-    case for hierarchical choice maps and is used when no choices have been made or
-    when all choices have been filtered out.
-
-    Examples:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        empty_chm = ChoiceMap.empty()
-        assert empty_chm.get_value() is None
-        assert empty_chm.get_submap("any_address") == empty_chm
-        ```
-    """
-
-    def get_value(self) -> Any:
-        return None
-
-    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        return self
-
-    def static_is_empty(self) -> Bool:
-        return True
-
-
-_empty = EmptyChm()
-ChoiceMapBuilder = _ChoiceMapBuilder(_empty, [])
-
-
-@Pytree.dataclass
 class ValueChm(Generic[T], ChoiceMap):
     """Represents a choice map with a single value.
 
@@ -1333,12 +1300,7 @@ class StaticChm(ChoiceMap):
     def build(d: AddrDict) -> ChoiceMap:
         # Filter out empty choice maps
         filtered = {k: v for k, v in d.items() if not v.static_is_empty()}
-
-        if not filtered:
-            return ChoiceMap.empty()
-
-        else:
-            return StaticChm(d)
+        return StaticChm(filtered)
 
     @staticmethod
     def merge_with(
@@ -1379,6 +1341,9 @@ class StaticChm(ChoiceMap):
         for k, v in self.wrapped.items():
             acc ^= v.mask(check(k))
         return acc
+
+    def static_is_empty(self) -> Bool:
+        return len(self.wrapped) == 0
 
 
 @Pytree.dataclass
@@ -1574,6 +1539,9 @@ class FilteredChm(ChoiceMap):
         subselection = self.selection(addr)
         return submap.filter(subselection)
 
+
+_empty = StaticChm({})
+ChoiceMapBuilder = _ChoiceMapBuilder(_empty, [])
 
 ################################
 # Choice map specialized types #
