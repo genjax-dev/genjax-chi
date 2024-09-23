@@ -22,7 +22,8 @@ from genjax._src.core.generative import (
     Selection,
     Weight,
 )
-from genjax._src.core.generative.core import Score, Trace
+from genjax._src.core.generative.core import Score
+from genjax._src.core.generative.generative_function import Trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -131,7 +132,7 @@ class Algorithm(Generic[R], SampleDistribution):
     def random_weighted(
         self,
         key: PRNGKey,
-        *args: tuple[Any, ...],
+        *args: Any,
     ) -> tuple[Score, ChoiceMap]:
         """
         Given a [`Target`][genjax.inference.Target], return a [`Sample`][genjax.core.Sample] from an approximation to the normalized distribution of the target, and a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
@@ -207,7 +208,7 @@ class Marginal(Generic[R], SampleDistribution):
     def random_weighted(
         self,
         key: PRNGKey,
-        *args: tuple[Any, ...],
+        *args: Any,
     ) -> tuple[Score, ChoiceMap]:
         key, sub_key = jax.random.split(key)
         tr = self.gen_fn.simulate(sub_key, args)

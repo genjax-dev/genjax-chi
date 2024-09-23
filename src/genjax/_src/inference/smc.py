@@ -163,7 +163,7 @@ class SMCAlgorithm(Generic[R], Algorithm[R]):
     def random_weighted(
         self,
         key: PRNGKey,
-        *args: tuple[Any, ...],
+        *args: Any,
     ) -> tuple[Score, ChoiceMap]:
         assert isinstance(args[0], Target)
 
