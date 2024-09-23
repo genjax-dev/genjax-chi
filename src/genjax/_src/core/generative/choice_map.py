@@ -14,11 +14,14 @@
 
 from abc import abstractmethod
 from dataclasses import dataclass
+from operator import or_
 
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+import treescope.repr_lib as trl
 from beartype.typing import Iterable
+from deprecated import deprecated
 
 from genjax._src.core.generative.core import Constraint, Projection, Sample
 from genjax._src.core.generative.functional_types import Mask, staged_choose
@@ -31,7 +34,7 @@ from genjax._src.core.typing import (
     Any,
     ArrayLike,
     Bool,
-    BoolArray,
+    Callable,
     EllipsisType,
     Final,
     Flag,
@@ -66,7 +69,7 @@ K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
 ###############################
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class _SelectionBuilder(Pytree):
     def __getitem__(
         self, addr: ExtendedStaticAddressComponent | ExtendedStaticAddress
@@ -231,7 +234,7 @@ class Selection(Projection["ChoiceMap"]):
             assert maybe_selection["any_address"] == False
             ```
         """
-        return MaskSel.build(self, flag)
+        return self & MaskSel.build(flag)
 
     def complement(self) -> "Selection":
         return ~self
@@ -327,7 +330,7 @@ class Selection(Projection["ChoiceMap"]):
 #######################
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class AllSel(Selection):
     """Represents a selection that includes all addresses.
 
@@ -349,7 +352,7 @@ class AllSel(Selection):
         return self
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class NoneSel(Selection):
     """Represents a selection that includes no addresses.
 
@@ -372,16 +375,13 @@ class NoneSel(Selection):
         return self
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class MaskSel(Selection):
-    """Represents a deferred selection that is conditionally applied based on a flag.
+    """Represents a selection that is conditionally applied based on a flag.
 
-    This selection wraps another selection and a boolean flag. The check and
-    subselection operations are only applied if the flag is True. If the flag
-    is False, the selection behaves as if it's empty.
+    This selection wraps a boolean flag, and returns it from `check`. `get_subselection` returns `self` for all inputs.
 
     Attributes:
-        s: The underlying selection to be conditionally applied.
         flag: A boolean flag determining whether the selection is active.
 
     Examples:
@@ -395,31 +395,25 @@ class MaskSel(Selection):
         ```
     """
 
-    s: Selection
     flag: Flag
 
     @staticmethod
-    def build(
-        s: Selection,
-        flag: Flag,
-    ) -> Selection:
+    def build(flag: Flag) -> Selection:
         if FlagOp.concrete_true(flag):
-            return s
+            return Selection.all()
         elif FlagOp.concrete_false(flag):
             return Selection.none()
         else:
-            return MaskSel(s, flag)
+            return MaskSel(flag)
 
     def check(self) -> Flag:
-        ch = self.s.check()
-        return FlagOp.and_(self.flag, ch)
+        return self.flag
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
-        remaining = self.s(addr)
-        return remaining.mask(self.flag)
+        return self
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class ComplementSel(Selection):
     """Represents the complement of a selection.
 
@@ -465,7 +459,7 @@ class ComplementSel(Selection):
         return ~remaining
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class StaticSel(Selection):
     """Represents a static selection based on a specific address component.
 
@@ -511,7 +505,7 @@ class StaticSel(Selection):
             return self.s.mask(check)
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class AndSel(Selection):
     """Represents a selection that combines two other selections using a logical AND operation.
 
@@ -549,7 +543,7 @@ class AndSel(Selection):
                 return b
 
             case (MaskSel(), MaskSel()):
-                return (a.s & b.s).mask(FlagOp.and_(a.flag, b.flag))
+                return MaskSel.build(FlagOp.and_(a.flag, b.flag))
 
             case _:
                 return AndSel(a, b)
@@ -563,7 +557,7 @@ class AndSel(Selection):
         return remaining1 & remaining2
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class OrSel(Selection):
     """Represents a selection that combines two other selections using a logical OR operation.
 
@@ -602,7 +596,7 @@ class OrSel(Selection):
             case (_, NoneSel()):
                 return a
             case (MaskSel(), MaskSel()):
-                return (a.s | b.s).mask(FlagOp.or_(a.flag, b.flag))
+                return MaskSel.build(FlagOp.or_(a.flag, b.flag))
 
             case _:
                 return OrSel(a, b)
@@ -616,7 +610,7 @@ class OrSel(Selection):
         return remaining1 | remaining2
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class ChmSel(Selection):
     """Represents a selection based on a ChoiceMap.
 
@@ -711,7 +705,7 @@ class _ChoiceMapBuilder:
         """
         Nests a call to `ChoiceMap.value` under the current address held by the builder.
         """
-        return self.set(ChoiceMap.value(v))
+        return self.set(ChoiceMap.choice(v))
 
     def from_mapping(self, mapping: Iterable[tuple[K_addr, Any]]) -> "ChoiceMap":
         """
@@ -807,12 +801,9 @@ class ChoiceMap(Sample):
     builder: Final[_ChoiceMapBuilder] = _ChoiceMapBuilder(None, [])
 
     @staticmethod
-    def empty() -> "EmptyChm":
+    def empty() -> "ChoiceMap":
         """
-        Returns an empty ChoiceMap.
-
-        This method creates and returns an instance of EmptyChm, which represents
-        a ChoiceMap with no values or submaps.
+        Returns a ChoiceMap with no values or submaps.
 
         Returns:
             An empty ChoiceMap.
@@ -820,11 +811,11 @@ class ChoiceMap(Sample):
         return _empty
 
     @staticmethod
-    def value(v: T) -> "ValueChm[T]":
+    def choice(v: T) -> "Choice[T]":
         """
         Creates a ChoiceMap containing a single value.
 
-        This method creates and returns an instance of ValueChm, which represents
+        This method creates and returns an instance of Choice, which represents
         a ChoiceMap with a single value at the root level.
 
         Args:
@@ -841,7 +832,12 @@ class ChoiceMap(Sample):
             assert value_chm.get_value() == 42
             ```
         """
-        return ValueChm(v)
+        return Choice(v)
+
+    @staticmethod
+    @deprecated("Use ChoiceMap.choice() instead.")
+    def value(v: T) -> "Choice[T]":
+        return ChoiceMap.choice(v)
 
     @staticmethod
     def entry(
@@ -890,7 +886,7 @@ class ChoiceMap(Sample):
         elif isinstance(v, dict):
             chm = ChoiceMap.d(v)
         else:
-            chm = ChoiceMap.value(v)
+            chm = ChoiceMap.choice(v)
 
         return chm.extend(*addrs)
 
@@ -925,7 +921,7 @@ class ChoiceMap(Sample):
 
         for addr, v in pairs:
             addr = addr if isinstance(addr, tuple) else (addr,)
-            acc = ChoiceMap.entry(v, *addr) ^ acc
+            acc ^= ChoiceMap.entry(v, *addr)
 
         return acc
 
@@ -982,9 +978,16 @@ class ChoiceMap(Sample):
     # Combinator methods #
     ######################
 
-    def filter(self, selection: Selection) -> "ChoiceMap":
+    def filter(self, selection: Selection, /, *, eager: bool = False) -> "ChoiceMap":
         """
         Filter the choice map on the `Selection`. The resulting choice map only contains the addresses that return True when presented to the selection.
+
+        Args:
+            selection: The Selection to filter the choice map with.
+            eager: If True, immediately simplify the filtered choice map. Default is False.
+
+        Returns:
+            A new ChoiceMap containing only the addresses selected by the given Selection.
 
         Examples:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
@@ -1007,11 +1010,16 @@ class ChoiceMap(Sample):
             selection = S["x"]
             filtered = chm.filter(selection)
             assert "y" not in filtered
+
+            # Using eager filtering
+            eager_filtered = chm.filter(selection, eager=True)
+            assert "y" not in eager_filtered
             ```
         """
-        return FilteredChm.build(self, selection)
+        ret = Filtered.build(self, selection)
+        return ret if not eager else _pushdown_filters(ret)
 
-    def mask(self, flag: Flag | bool | BoolArray) -> "ChoiceMap":
+    def mask(self, flag: Flag) -> "ChoiceMap":
         """
         Returns a new ChoiceMap with values masked by a boolean flag.
 
@@ -1035,7 +1043,7 @@ class ChoiceMap(Sample):
             assert masked_chm.get_value() is None
             ```
         """
-        return self.filter(Selection.all().mask(flag))
+        return self.filter(MaskSel.build(flag))
 
     def extend(self, *addrs: AddressComponent) -> "ChoiceMap":
         """
@@ -1061,9 +1069,9 @@ class ChoiceMap(Sample):
         acc = self
         for addr in reversed(addrs):
             if isinstance(addr, StaticAddressComponent):
-                acc = StaticChm.build(acc, addr)
+                acc = Static.build({addr: acc})
             else:
-                acc = IdxChm.build(acc, addr)
+                acc = Indexed.build(acc, addr)
         return acc
 
     def merge(self, other: "ChoiceMap") -> "ChoiceMap":
@@ -1124,10 +1132,10 @@ class ChoiceMap(Sample):
     ###########
 
     def __xor__(self, other: "ChoiceMap") -> "ChoiceMap":
-        return XorChm.build(self, other)
+        return Xor.build(self, other)
 
     def __or__(self, other: "ChoiceMap") -> "ChoiceMap":
-        return OrChm.build(self, other)
+        return Or.build(self, other)
 
     def __add__(self, other: "ChoiceMap") -> "ChoiceMap":
         return self | other
@@ -1182,39 +1190,23 @@ class ChoiceMap(Sample):
         """
         return _ChoiceMapBuilder(self, [])
 
+    def simplify(self) -> "ChoiceMap":
+        """
+        Simplifies the choice map by pushing down filters and merging overlapping choicemaps.
 
-@Pytree.dataclass
-class EmptyChm(ChoiceMap):
-    """Represents an empty choice map.
+        This method applies various simplification strategies to the choice map, such as pushing down filters to lower levels of the hierarchy and merging overlapping choices where possible. The result is a more compact and efficient representation of the same choices.
 
-    This class represents a choice map with no values or submaps. It serves as the base
-    case for hierarchical choice maps and is used when no choices have been made or
-    when all choices have been filtered out.
+        Returns:
+            A simplified version of the current choice map.
 
-    Examples:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        empty_chm = ChoiceMap.empty()
-        assert empty_chm.get_value() is None
-        assert empty_chm.get_submap("any_address") == empty_chm
-        ```
-    """
-
-    def get_value(self) -> Any:
-        return None
-
-    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        return self
-
-    def static_is_empty(self) -> Bool:
-        return True
+        Note:
+            The simplification process does not change the semantic meaning of the choice map, only its internal representation.
+        """
+        return _pushdown_filters(self)
 
 
-_empty = EmptyChm()
-ChoiceMapBuilder = _ChoiceMapBuilder(_empty, [])
-
-
-@Pytree.dataclass
-class ValueChm(Generic[T], ChoiceMap):
+@Pytree.dataclass(match_args=True)
+class Choice(Generic[T], ChoiceMap):
     """Represents a choice map with a single value.
 
     This class represents a choice map that contains a single value at the root level.
@@ -1234,18 +1226,18 @@ class ValueChm(Generic[T], ChoiceMap):
     v: T
 
     def __xor__(self, other: "ChoiceMap") -> "ChoiceMap":
-        if isinstance(other, ValueChm):
+        if isinstance(other, Choice):
             raise Exception(
                 f"The disjoint union of two choice maps have a value collision:\nc1 = {self}\nc2 = {other}"
             )
         else:
-            return XorChm.build(self, other)
+            return Xor.build(self, other)
 
     def __or__(self, other: "ChoiceMap") -> "ChoiceMap":
-        if isinstance(other, ValueChm):
+        if isinstance(other, Choice):
             return self
         else:
-            return OrChm.build(self, other)
+            return Or.build(self, other)
 
     def get_value(self) -> T:
         return self.v
@@ -1254,8 +1246,8 @@ class ValueChm(Generic[T], ChoiceMap):
         return ChoiceMap.empty()
 
 
-@Pytree.dataclass
-class IdxChm(ChoiceMap):
+@Pytree.dataclass(match_args=True)
+class Indexed(ChoiceMap):
     """Represents a choice map with dynamic indexing.
 
     This class represents a choice map that uses dynamic (array-based) addressing.
@@ -1284,7 +1276,7 @@ class IdxChm(ChoiceMap):
         if chm.static_is_empty():
             return chm
         else:
-            return IdxChm(chm, addr)
+            return Indexed(chm, addr)
 
     def get_value(self) -> Any:
         return None
@@ -1298,7 +1290,7 @@ class IdxChm(ChoiceMap):
 
         else:
 
-            def check_fn(idx, addr) -> bool | BoolArray:
+            def check_fn(idx, addr) -> Flag:
                 return idx == addr
 
             check = (
@@ -1321,53 +1313,85 @@ class IdxChm(ChoiceMap):
                 return self.c.mask(check)
 
 
-@Pytree.dataclass
-class StaticChm(ChoiceMap):
-    """Represents a static choice map with a fixed address component.
+AddrDict = dict[StaticAddressComponent, ChoiceMap]
 
-    This class is used to create a choice map that is indexed by a static address component.
-    It wraps another choice map and provides access to it only when the given address matches.
+
+@Pytree.dataclass(match_args=True)
+class Static(ChoiceMap):
+    """
+    Represents a static choice map with a dictionary of address-choicemap pairs.
+
+    This class implements a ChoiceMap where the addresses are static (non-dynamic)  components and the values are other ChoiceMaps. It provides an efficient way to  represent and manipulate hierarchical structures of choices.
 
     Attributes:
-        c: The underlying choice map.
-        addr: The static address component used for indexing.
-
-    Examples:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        base_chm = ChoiceMap.value(5)
-        static_chm = base_chm.extend("x")
-        assert static_chm.get_submap("x").get_value() == 5
-        assert static_chm.get_submap("y").static_is_empty() == True
-        ```
+        mapping: A dictionary mapping static address components to ChoiceMaps.
     """
 
-    c: ChoiceMap = Pytree.field()
-    addr: StaticAddressComponent = Pytree.static()
+    mapping: AddrDict
 
     @staticmethod
-    def build(
-        c: ChoiceMap,
-        addr: StaticAddressComponent,
+    def build(d: AddrDict) -> "Static":
+        return Static(
+            # Filter out empty choice maps
+            {k: v for k, v in d.items() if not v.static_is_empty()}
+        )
+
+    @staticmethod
+    def merge_with(
+        merge: Callable[[ChoiceMap, ChoiceMap], ChoiceMap],
+        c1: "Static",
+        c2: "Static",
     ) -> ChoiceMap:
-        if c.static_is_empty():
-            return c
-        else:
-            return StaticChm(c, addr)
+        """
+        Returns a new ChoiceMap generated by merging two Static instances by applying a given merge function to values with overlapping keys and including non-overlapping kv-pairs from both.
+
+        Args:
+            merge: A function that defines how to merge two ChoiceMaps when they share the same key.
+            c1: The first Static to merge.
+            c2: The second Static to merge.
+
+        Returns:
+            ChoiceMap: A new ChoiceMap resulting from merging c1 and c2 using the
+            provided merge function.
+        """
+        merged_dict = {}
+        for key in set(c1.mapping.keys()) | set(c2.mapping.keys()):
+            if key in c1.mapping and key in c2.mapping:
+                merged_dict[key] = merge(c1.mapping[key], c2.mapping[key])
+            elif key in c1.mapping:
+                merged_dict[key] = c1.mapping[key]
+            else:
+                merged_dict[key] = c2.mapping[key]
+        return Static.build(merged_dict)
 
     def get_value(self) -> Any:
         return None
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        if addr is Ellipsis:
-            return self.c
+        def check(k: ExtendedAddressComponent) -> Flag:
+            return True if addr is Ellipsis else k == addr
 
-        else:
-            check = addr == self.addr
-            return self.c.mask(check)
+        acc = ChoiceMap.empty()
+        for k, v in self.mapping.items():
+            acc ^= v.mask(check(k))
+        return acc
+
+    def static_is_empty(self) -> Bool:
+        return len(self.mapping) == 0
+
+    def __treescope_repr__(self, path, subtree_renderer):
+        return trl.render_dictionary_wrapper(
+            object_type=Static,
+            wrapped_dict=self.mapping,
+            path=path,
+            subtree_renderer=subtree_renderer,
+            roundtrippable=False,
+            color=self.treescope_color(),
+        )
 
 
-@Pytree.dataclass
-class XorChm(ChoiceMap):
+@Pytree.dataclass(match_args=True)
+class Xor(ChoiceMap):
     """Represents a disjoint union of two choice maps.
 
     This class combines two choice maps in a way that ensures their domains are disjoint.
@@ -1398,20 +1422,23 @@ class XorChm(ChoiceMap):
         c1: ChoiceMap,
         c2: ChoiceMap,
     ) -> ChoiceMap:
-        match (c1.static_is_empty(), c2.static_is_empty()):
-            case _, True:
-                return c1
-            case True, _:
-                return c2
-            case _, _:
-                check1 = c1.has_value()
-                check2 = c2.has_value()
-                err_check = FlagOp.and_(check1, check2)
-                staged_err(
-                    err_check,
-                    f"The disjoint union of two choice maps have a value collision:\nc1 = {c1}\nc2 = {c2}",
-                )
-                return XorChm(c1, c2)
+        if c2.static_is_empty():
+            return c1
+        elif c1.static_is_empty():
+            return c2
+        else:
+            match (c1, c2):
+                case (Static(), Static()):
+                    return Static.merge_with(lambda a, b: a ^ b, c1, c2)
+                case _:
+                    check1 = c1.has_value()
+                    check2 = c2.has_value()
+                    err_check = FlagOp.and_(check1, check2)
+                    staged_err(
+                        err_check,
+                        f"The disjoint union of two choice maps have a value collision:\nc1 = {c1}\nc2 = {c2}",
+                    )
+                    return Xor(c1, c2)
 
     def get_value(self) -> Any:
         check1 = self.c1.has_value()
@@ -1437,8 +1464,8 @@ class XorChm(ChoiceMap):
         return remaining_1 ^ remaining_2
 
 
-@Pytree.dataclass
-class OrChm(ChoiceMap):
+@Pytree.dataclass(match_args=True)
+class Or(ChoiceMap):
     """Represents a choice map that combines two choice maps using an OR operation.
 
     This class combines two choice maps, prioritizing the first choice map (c1) over the second (c2)
@@ -1470,13 +1497,17 @@ class OrChm(ChoiceMap):
         c1: ChoiceMap,
         c2: ChoiceMap,
     ) -> ChoiceMap:
-        match (c1.static_is_empty(), c2.static_is_empty()):
-            case _, True:
-                return c1
-            case True, _:
-                return c2
-            case _:
-                return OrChm(c1, c2)
+        if c2.static_is_empty():
+            return c1
+        elif c1.static_is_empty():
+            return c2
+        else:
+            match (c1, c2):
+                case (Static(), Static()):
+                    return Static.merge_with(or_, c1, c2)
+
+                case _:
+                    return Or(c1, c2)
 
     def get_value(self) -> Any:
         check1 = self.c1.has_value()
@@ -1498,12 +1529,11 @@ class OrChm(ChoiceMap):
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap1 = self.c1.get_submap(addr)
         submap2 = self.c2.get_submap(addr)
-
         return submap1 | submap2
 
 
-@Pytree.dataclass
-class FilteredChm(ChoiceMap):
+@Pytree.dataclass(match_args=True)
+class Filtered(ChoiceMap):
     """Represents a filtered choice map based on a selection.
 
     This class wraps another choice map and applies a selection to filter its contents.
@@ -1538,10 +1568,10 @@ class FilteredChm(ChoiceMap):
                 return chm
             case (_, NoneSel()):
                 return ChoiceMap.empty()
-            case (FilteredChm(), _):
-                return FilteredChm(chm.c, chm.selection & selection)
+            case (Filtered(), _):
+                return Filtered(chm.c, chm.selection & selection)
             case _:
-                return FilteredChm(chm, selection)
+                return Filtered(chm, selection)
 
     def get_value(self) -> Any:
         v = self.c.get_value()
@@ -1554,12 +1584,53 @@ class FilteredChm(ChoiceMap):
         return submap.filter(subselection)
 
 
+## Custom printing
+def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
+    def loop(inner: ChoiceMap, selection: Selection) -> ChoiceMap:
+        match inner:
+            case Static(mapping):
+                return Static.build({
+                    addr: loop(v, selection(addr)) for addr, v in mapping.items()
+                })
+
+            case Indexed(c, addr):
+                return loop(c, selection(addr)).extend(addr)
+
+            case Choice(v):
+                if v is None:
+                    return inner
+                else:
+                    sel_check = selection[()]
+                    masked = Mask.maybe_none(sel_check, v)
+                    if masked is None:
+                        return ChoiceMap.empty()
+                    else:
+                        return ChoiceMap.choice(masked)
+
+            case Filtered(c, c_selection):
+                return loop(c, c_selection & selection)
+
+            case Xor(c1, c2):
+                return loop(c1, selection) ^ loop(c2, selection)
+
+            case Or(c1, c2):
+                return loop(c1, selection) | loop(c2, selection)
+
+            case _:
+                return chm.filter(selection)
+
+    return loop(chm, Selection.all())
+
+
+_empty = Static({})
+ChoiceMapBuilder = _ChoiceMapBuilder(_empty, [])
+
 ################################
 # Choice map specialized types #
 ################################
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class ChoiceMapConstraint(Constraint, ChoiceMap):
     choice_map: ChoiceMap
 

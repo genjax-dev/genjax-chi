@@ -26,7 +26,6 @@ from genjax._src.core.generative import (
     ChoiceMapConstraint,
     Constraint,
     EditRequest,
-    EmptyRequest,
     GenerativeFunction,
     IncrementalGenericRequest,
     Projection,
@@ -339,18 +338,15 @@ class IncrementalGenericRequestHandler(StaticHandler):
         constraint = self.get_subconstraint(addr)
         self.key, sub_key = jax.random.split(self.key)
         (tr, w, retval_diff, bwd_request) = gen_fn.edit(
-            sub_key, subtrace, IncrementalGenericRequest(argdiffs, constraint)
+            sub_key,
+            subtrace,
+            IncrementalGenericRequest(constraint),
+            argdiffs,
         )
-        match bwd_request:
-            case IncrementalGenericRequest(_, constraint) if isinstance(
-                constraint, ChoiceMapConstraint
-            ):
-                self.bwd_constraints.append(constraint)
-            case EmptyRequest():
-                pass
-            case _:
-                raise Exception(type(bwd_request))
-
+        assert isinstance(bwd_request, IncrementalGenericRequest) and isinstance(
+            bwd_request.constraint, ChoiceMapConstraint
+        )
+        self.bwd_constraints.append(bwd_request.constraint)
         self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
@@ -649,7 +645,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             addresses = Pytree.tree_const_unwrap(addresses)
             chm = ChoiceMap.from_mapping(zip(addresses, subconstraints))
             return IncrementalGenericRequest(
-                Diff.tree_diff_unknown_change(trace.get_args()),
                 ChoiceMapConstraint(chm),
             )
 
@@ -719,20 +714,18 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
+        argdiffs: Argdiffs,
     ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
         assert isinstance(trace, StaticTrace)
-        match edit_request:
-            case IncrementalGenericRequest(argdiffs, constraint) if isinstance(
-                constraint, ChoiceMapConstraint
-            ):
-                return self.edit_change_target(
-                    key,
-                    trace,
-                    constraint,
-                    argdiffs,
-                )
-            case _:
-                raise Exception("Unhandled edit request.")
+        assert isinstance(edit_request, IncrementalGenericRequest) and isinstance(
+            edit_request.constraint, ChoiceMapConstraint
+        )
+        return self.edit_change_target(
+            key,
+            trace,
+            edit_request.constraint,
+            argdiffs,
+        )
 
     def assess(
         self,

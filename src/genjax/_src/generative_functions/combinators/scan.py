@@ -344,10 +344,8 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             ) = self.kernel_gen_fn.edit(
                 key,
                 subtrace,
-                IncrementalGenericRequest(
-                    (carry, scanned_in),
-                    subconstraint,
-                ),
+                IncrementalGenericRequest(subconstraint),
+                (carry, scanned_in),
             )
             (carry_retdiff, scanned_out_retdiff) = Diff.tree_diff_unknown_change(
                 kernel_retdiff
@@ -413,9 +411,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             ),
             jnp.sum(ws),
             (carried_out_diff, scanned_out_diff),
-            IncrementalGenericRequest(
-                Diff.tree_diff_unknown_change(trace.get_args()), bwd_constraints
-            ),
+            IncrementalGenericRequest(bwd_constraints),
         )
 
     def edit(
@@ -423,6 +419,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         key: PRNGKey,
         trace: Trace[tuple[Carry, Y]],
         edit_request: EditRequest,
+        argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
         assert isinstance(edit_request, IncrementalGenericRequest)
         assert isinstance(trace, ScanTrace)
@@ -430,7 +427,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             key,
             trace,
             edit_request.constraint,
-            edit_request.argdiffs,
+            argdiffs,
         )
 
     def assess(

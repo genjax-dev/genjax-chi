@@ -20,7 +20,7 @@ import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import Diff, Pytree
+from genjax import ChoiceMapConstraint, Diff, IncrementalGenericRequest, Pytree
 from genjax._src.core.typing import Array
 from genjax.generative_functions.static import AddressReuse
 from genjax.typing import Float, FloatArray
@@ -506,6 +506,10 @@ class TestStaticGenFnUpdate:
         new = C["y1"].set(new_y1)
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = jitted(sub_key, tr, new, ())
+        (_, w_edit, _, _) = tr.edit(
+            sub_key, IncrementalGenericRequest(ChoiceMapConstraint(new))
+        )
+        assert w_edit == w
 
         # TestStaticGenFn weight correctness.
         updated_sample = updated.get_sample()

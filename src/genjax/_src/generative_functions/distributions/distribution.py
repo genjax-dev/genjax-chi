@@ -38,7 +38,7 @@ from genjax._src.core.generative import (
     Trace,
     Weight,
 )
-from genjax._src.core.generative.choice_map import FilteredChm
+from genjax._src.core.generative.choice_map import Filtered
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Closure, Pytree
@@ -80,7 +80,7 @@ class DistributionTrace(
         return self.get_choices()
 
     def get_choices(self) -> ChoiceMap:
-        return ChoiceMap.value(self.value)
+        return ChoiceMap.choice(self.value)
 
 
 ################
@@ -177,7 +177,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             new_score - trace.get_score(),
             Diff.tree_diff_no_change(trace.get_retval()),
             IncrementalGenericRequest(
-                Diff.no_change(trace.get_args()),
                 ChoiceMapConstraint(ChoiceMap.empty()),
             ),
         )
@@ -203,7 +202,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     new_score - trace.get_score(),
                     Diff.tree_diff_no_change(old_retval),
                     IncrementalGenericRequest(
-                        Diff.tree_diff_unknown_change(trace.get_args()),
                         ChoiceMapConstraint(ChoiceMap.empty()),
                     ),
                 )
@@ -223,7 +221,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         w,
                         retval_diff,
                         IncrementalGenericRequest(
-                            Diff.tree_diff_unknown_change(trace.get_args()),
                             ChoiceMapConstraint(discard),
                         ),
                     )
@@ -240,12 +237,11 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         w,
                         retval_diff,
                         IncrementalGenericRequest(
-                            Diff.tree_diff_unknown_change(trace.get_args()),
                             ChoiceMapConstraint(ChoiceMap.empty()),
                         ),
                     )
 
-                elif isinstance(constraint.choice_map, FilteredChm):
+                elif isinstance(constraint.choice_map, Filtered):
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
                     def _true_branch(key, new_value: R, _):
@@ -279,13 +275,12 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         w,
                         Diff.tree_diff_unknown_change(new_value),
                         IncrementalGenericRequest(
-                            Diff.tree_diff_unknown_change(trace.get_args()),
                             ChoiceMapConstraint(old_choices.mask(flag)),
                         ),
                     )
                 else:
                     raise Exception(
-                        "Only `FilteredChm` is currently supported for dynamic flags."
+                        "Only `choice_map.Filtered` is currently supported for dynamic flags."
                     )
 
             case _:
@@ -326,9 +321,9 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
+        argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         assert isinstance(edit_request, IncrementalGenericRequest)
-        argdiffs = edit_request.argdiffs
         constraint = edit_request.constraint
         return self.edit_incremental_generic_request(
             key,

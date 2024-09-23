@@ -21,7 +21,8 @@ import genjax
 from genjax import ChoiceMap, Selection
 from genjax import ChoiceMapBuilder as C
 from genjax import SelectionBuilder as S
-from genjax._src.core.generative.choice_map import ChoiceMapNoValueAtAddress
+from genjax._src.core.generative.choice_map import ChoiceMapNoValueAtAddress, Static
+from genjax._src.core.generative.functional_types import Mask
 
 
 class TestSelections:
@@ -123,22 +124,12 @@ class TestSelections:
         assert (none_sel | sel1) == sel1
         assert (sel1 | none_sel) == sel1
 
-        # masks get pushed inside or
-        assert sel1.mask(jnp.asarray(True)) | sel1.mask(jnp.asarray(False)) == (
-            sel1 | sel1
-        ).mask(jnp.asarray(True))
-
     def test_selection_mask(self):
         sel = S["x"] | S["y"]
         masked_sel = sel.mask(jnp.asarray(True))
         assert masked_sel["x"]
         assert masked_sel["y"]
         assert not masked_sel["z"]
-
-        # masks get pushed inside and
-        assert sel.mask(jnp.asarray(True)) & sel.mask(jnp.asarray(False)) == (
-            sel & sel
-        ).mask(jnp.asarray(False))
 
         masked_sel = sel.mask(False)
         assert not masked_sel["x"]
@@ -339,7 +330,7 @@ class TestChoiceMap:
         assert empty_chm.static_is_empty()
 
     def test_value(self):
-        value_chm = ChoiceMap.value(42.0)
+        value_chm = ChoiceMap.choice(42.0)
         assert value_chm.get_value() == 42.0
         assert value_chm.has_value()
 
@@ -426,7 +417,7 @@ class TestChoiceMap:
         assert masked_false.static_is_empty()
 
     def test_extend(self):
-        chm = ChoiceMap.value(1)
+        chm = ChoiceMap.choice(1)
         extended = chm.extend("a", "b")
         assert extended["a", "b"] == 1
 
@@ -438,8 +429,40 @@ class TestChoiceMap:
         assert extended.get_submap("a").get_submap("b").get_value() == 1
         assert ChoiceMap.empty().extend("a", "b").static_is_empty()
 
+    def test_static_extend(self):
+        chm = Static.build({"v": ChoiceMap.choice(1.0), "K": ChoiceMap.empty()})
+        assert len(chm.mapping) == 1, "make sure empty chm doesn't make it through"
+
+    def test_simplify(self):
+        chm = ChoiceMap.choice(jnp.asarray([2.3, 4.4, 3.3]))
+        extended = chm.extend(jnp.array([0, 1, 2]))
+        assert extended.simplify() == extended, "no-op with no filters"
+
+        filtered = C["x", "y"].set(2.0).mask(jnp.array(True))
+        maskv = Mask(jnp.array(True), 2.0)
+        assert filtered.simplify() == C["x", "y"].set(maskv), "simplify removes filters"
+
+        xyz = ChoiceMap.d({"x": 1, "y": 2, "z": 3})
+        or_chm = xyz.filter(S["x"]) | xyz.filter(S["y"].mask(jnp.array(True)))
+
+        xor_chm = xyz.filter(S["x"]) ^ xyz.filter(S["y"].mask(jnp.array(True)))
+
+        assert or_chm.simplify() == xor_chm.simplify(), "filters pushed down"
+
+        assert or_chm["x"] == 1
+        assert or_chm["y"] == maskv
+        with pytest.raises(ChoiceMapNoValueAtAddress, match="z"):
+            or_chm["z"]
+
+        assert or_chm.simplify() == ChoiceMap.d({
+            "x": 1,
+            "y": maskv,
+        }), "filters pushed down"
+
+        assert C["x"].set(None).simplify() == C["x"].set(None), "None is not filtered"
+
     def test_extend_dynamic(self):
-        chm = ChoiceMap.value(jnp.asarray([2.3, 4.4, 3.3]))
+        chm = ChoiceMap.choice(jnp.asarray([2.3, 4.4, 3.3]))
         extended = chm.extend(jnp.array([0, 1, 2]))
         assert extended.get_value() is None
         assert extended.get_submap("x").static_is_empty()
@@ -502,13 +525,13 @@ class TestChoiceMap:
         assert (chm1 | ChoiceMap.empty()) == chm1
         assert (ChoiceMap.empty() | chm1) == chm1
 
-        x_masked = ChoiceMap.value(2.0).mask(jnp.asarray(True))
-        y_masked = ChoiceMap.value(3.0).mask(jnp.asarray(True))
+        x_masked = ChoiceMap.choice(2.0).mask(jnp.asarray(True))
+        y_masked = ChoiceMap.choice(3.0).mask(jnp.asarray(True))
         assert (x_masked | y_masked).get_value().unmask() == 2.0
 
     def test_call(self):
         chm = ChoiceMap.kw(x={"y": 1})
-        assert chm("x")("y") == ChoiceMap.value(1)
+        assert chm("x")("y") == ChoiceMap.choice(1)
 
     def test_getitem(self):
         chm = ChoiceMap.kw(x=1)
@@ -583,5 +606,5 @@ class TestChoiceMap:
         assert chm[0, "y"] == 2.0
 
     def test_chm_roundtrip(self):
-        chm = ChoiceMap.value(3.0)
+        chm = ChoiceMap.choice(3.0)
         assert chm == chm.__class__.from_attributes(**chm.attributes_dict())

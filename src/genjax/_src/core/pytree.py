@@ -203,7 +203,7 @@ class Pytree(pz.Struct):
             check = all(map(lambda v: treedef == jtu.tree_structure(v), rest))
             return check
 
-    def treescope_color(self) -> str | tuple[str, str]:
+    def treescope_color(self) -> str:
         """Computes a CSS color to display for this object in treescope.
 
         This function can be overridden to change the color for a particular object
