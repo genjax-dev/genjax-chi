@@ -1184,7 +1184,7 @@ class ChoiceMap(Sample):
         return _pushdown_filters(self)
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class Choice(Generic[T], ChoiceMap):
     """Represents a choice map with a single value.
 
