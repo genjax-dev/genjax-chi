@@ -80,7 +80,7 @@ class DistributionTrace(
         return self.get_choices()
 
     def get_choices(self) -> ChoiceMap:
-        return ChoiceMap.value(self.value)
+        return ChoiceMap.choice(self.value)
 
 
 ################

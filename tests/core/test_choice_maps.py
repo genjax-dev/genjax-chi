@@ -13,8 +13,6 @@
 # limitations under the License.
 
 
-from typing import cast
-
 import jax
 import jax.numpy as jnp
 import pytest
@@ -331,7 +329,7 @@ class TestChoiceMap:
         assert empty_chm.static_is_empty()
 
     def test_value(self):
-        value_chm = ChoiceMap.value(42.0)
+        value_chm = ChoiceMap.choice(42.0)
         assert value_chm.get_value() == 42.0
         assert value_chm.has_value()
 
@@ -418,7 +416,7 @@ class TestChoiceMap:
         assert masked_false.static_is_empty()
 
     def test_extend(self):
-        chm = ChoiceMap.value(1)
+        chm = ChoiceMap.choice(1)
         extended = chm.extend("a", "b")
         assert extended["a", "b"] == 1
 
@@ -431,14 +429,11 @@ class TestChoiceMap:
         assert ChoiceMap.empty().extend("a", "b").static_is_empty()
 
     def test_static_extend(self):
-        chm = cast(
-            Static,
-            Static.build({"v": ChoiceMap.value(1.0), "K": ChoiceMap.empty()}),
-        )
+        chm = Static.build({"v": ChoiceMap.choice(1.0), "K": ChoiceMap.empty()})
         assert len(chm.mapping) == 1, "make sure empty chm doesn't make it through"
 
     def test_extend_dynamic(self):
-        chm = ChoiceMap.value(jnp.asarray([2.3, 4.4, 3.3]))
+        chm = ChoiceMap.choice(jnp.asarray([2.3, 4.4, 3.3]))
         extended = chm.extend(jnp.array([0, 1, 2]))
         assert extended.get_value() is None
         assert extended.get_submap("x").static_is_empty()
@@ -501,13 +496,13 @@ class TestChoiceMap:
         assert (chm1 | ChoiceMap.empty()) == chm1
         assert (ChoiceMap.empty() | chm1) == chm1
 
-        x_masked = ChoiceMap.value(2.0).mask(jnp.asarray(True))
-        y_masked = ChoiceMap.value(3.0).mask(jnp.asarray(True))
+        x_masked = ChoiceMap.choice(2.0).mask(jnp.asarray(True))
+        y_masked = ChoiceMap.choice(3.0).mask(jnp.asarray(True))
         assert (x_masked | y_masked).get_value().unmask() == 2.0
 
     def test_call(self):
         chm = ChoiceMap.kw(x={"y": 1})
-        assert chm("x")("y") == ChoiceMap.value(1)
+        assert chm("x")("y") == ChoiceMap.choice(1)
 
     def test_getitem(self):
         chm = ChoiceMap.kw(x=1)
@@ -582,5 +577,5 @@ class TestChoiceMap:
         assert chm[0, "y"] == 2.0
 
     def test_chm_roundtrip(self):
-        chm = ChoiceMap.value(3.0)
+        chm = ChoiceMap.choice(3.0)
         assert chm == chm.__class__.from_attributes(**chm.attributes_dict())
