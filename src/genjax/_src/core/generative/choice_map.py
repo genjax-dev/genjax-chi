@@ -982,6 +982,13 @@ class ChoiceMap(Sample):
         """
         Filter the choice map on the `Selection`. The resulting choice map only contains the addresses that return True when presented to the selection.
 
+        Args:
+            selection: The Selection to filter the choice map with.
+            eager: If True, immediately simplify the filtered choice map. Default is False.
+
+        Returns:
+            A new ChoiceMap containing only the addresses selected by the given Selection.
+
         Examples:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
             import jax
@@ -1003,6 +1010,10 @@ class ChoiceMap(Sample):
             selection = S["x"]
             filtered = chm.filter(selection)
             assert "y" not in filtered
+
+            # Using eager filtering
+            eager_filtered = chm.filter(selection, eager=True)
+            assert "y" not in eager_filtered
             ```
         """
         ret = Filtered.build(self, selection)
@@ -1179,8 +1190,18 @@ class ChoiceMap(Sample):
         """
         return _ChoiceMapBuilder(self, [])
 
-    # Simplification
     def simplify(self) -> "ChoiceMap":
+        """
+        Simplifies the choice map by pushing down filters and merging overlapping choicemaps.
+
+        This method applies various simplification strategies to the choice map, such as pushing down filters to lower levels of the hierarchy and merging overlapping choices where possible. The result is a more compact and efficient representation of the same choices.
+
+        Returns:
+            A simplified version of the current choice map.
+
+        Note:
+            The simplification process does not change the semantic meaning of the choice map, only its internal representation.
+        """
         return _pushdown_filters(self)
 
 
