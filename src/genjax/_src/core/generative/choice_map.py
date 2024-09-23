@@ -1303,16 +1303,17 @@ class Static(ChoiceMap):
     This class implements a ChoiceMap where the addresses are static (non-dynamic)  components and the values are other ChoiceMaps. It provides an efficient way to  represent and manipulate hierarchical structures of choices.
 
     Attributes:
-        wrapped: A dictionary mapping static address components to ChoiceMaps.
+        mapping: A dictionary mapping static address components to ChoiceMaps.
     """
 
     mapping: AddrDict
 
     @staticmethod
     def build(d: AddrDict) -> "Static":
-        # Filter out empty choice maps
-        filtered = {k: v for k, v in d.items() if not v.static_is_empty()}
-        return Static(filtered)
+        return Static(
+            # Filter out empty choice maps
+            {k: v for k, v in d.items() if not v.static_is_empty()}
+        )
 
     @staticmethod
     def merge_with(
@@ -1566,9 +1567,9 @@ class Filtered(ChoiceMap):
 def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
     def loop(inner: ChoiceMap, selection: Selection) -> ChoiceMap:
         match inner:
-            case Static(wrapped):
+            case Static(mapping):
                 return Static.build({
-                    addr: loop(v, selection(addr)) for addr, v in wrapped.items()
+                    addr: loop(v, selection(addr)) for addr, v in mapping.items()
                 })
 
             case Indexed(c, addr):
@@ -1576,7 +1577,7 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
 
             case Choice(v):
                 if v is None:
-                    return ChoiceMap.choice(None)
+                    return inner
                 else:
                     sel_check = selection[()]
                     masked = Mask.maybe_none(sel_check, v)
