@@ -13,6 +13,8 @@
 # limitations under the License.
 
 
+from typing import cast
+
 import jax
 import jax.numpy as jnp
 import pytest
@@ -21,7 +23,7 @@ import genjax
 from genjax import ChoiceMap, Selection
 from genjax import ChoiceMapBuilder as C
 from genjax import SelectionBuilder as S
-from genjax._src.core.generative.choice_map import ChoiceMapNoValueAtAddress
+from genjax._src.core.generative.choice_map import ChoiceMapNoValueAtAddress, Static
 
 
 class TestSelections:
@@ -427,6 +429,13 @@ class TestChoiceMap:
         assert extended.get_value() is None
         assert extended.get_submap("a").get_submap("b").get_value() == 1
         assert ChoiceMap.empty().extend("a", "b").static_is_empty()
+
+    def test_static_extend(self):
+        chm = cast(
+            Static,
+            Static.build({"v": ChoiceMap.value(1.0), "K": ChoiceMap.empty()}),
+        )
+        assert len(chm.mapping) == 1, "make sure empty chm doesn't make it through"
 
     def test_extend_dynamic(self):
         chm = ChoiceMap.value(jnp.asarray([2.3, 4.4, 3.3]))
