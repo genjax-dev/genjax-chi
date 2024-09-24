@@ -571,6 +571,37 @@ class TestChoiceMap:
         y_masked = ChoiceMap.choice(3.0).mask(jnp.asarray(True))
         assert (x_masked | y_masked).get_value().unmask() == 2.0
 
+    def test_and(self):
+        chm1 = ChoiceMap.kw(x=1, y=2, z=3)
+        chm2 = ChoiceMap.kw(y=20, z=30, w=40)
+
+        and_chm = chm1 & chm2
+
+        # Check that only common keys are present
+        assert "x" not in and_chm
+        assert "y" in and_chm
+        assert "z" in and_chm
+        assert "w" not in and_chm
+
+        # Check that values come from the right-hand side (chm2)
+        assert and_chm["y"] == 20
+        assert and_chm["z"] == 30
+
+        # Test with empty ChoiceMap
+        empty_chm = ChoiceMap.empty()
+        assert (chm1 & empty_chm).static_is_empty()
+        assert (empty_chm & chm1).static_is_empty()
+
+        # Test with nested ChoiceMaps
+        nested_chm1 = ChoiceMap.kw(a={"b": 1, "c": 2}, d=3)
+        nested_chm2 = ChoiceMap.kw(a={"b": 10, "d": 20}, d=30)
+        nested_and_chm = nested_chm1 & nested_chm2
+
+        assert nested_and_chm["a", "b"] == 10
+        assert "c" not in nested_and_chm("a")
+        assert "d" not in nested_and_chm("a")
+        assert nested_and_chm["d"] == 30
+
     def test_call(self):
         chm = ChoiceMap.kw(x={"y": 1})
         assert chm("x")("y") == ChoiceMap.choice(1)

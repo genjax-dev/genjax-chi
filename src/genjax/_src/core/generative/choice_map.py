@@ -1137,6 +1137,9 @@ class ChoiceMap(Sample):
     def __or__(self, other: "ChoiceMap") -> "ChoiceMap":
         return Or.build(self, other)
 
+    def __and__(self, other: "ChoiceMap") -> "ChoiceMap":
+        return other.filter(self.get_selection())
+
     def __add__(self, other: "ChoiceMap") -> "ChoiceMap":
         return self | other
 
