@@ -40,13 +40,7 @@ nox.options.sessions = ("tests", "lint", "build")
 JAXSpecifier = Literal["cpu", "cuda12", "tpu"]
 
 
-def install_jaxlib(session):
-    jax_specifier = None
-    if session.posargs and (session.posargs[0] in get_args(JAXSpecifier)):
-        jax_specifier = session.posargs[0]
-    else:
-        jax_specifier = "cpu"
-
+def install_package(session, lib: str):
     requirements = session.poetry.export_requirements()
     session.run(
         "poetry",
@@ -54,9 +48,19 @@ def install_jaxlib(session):
         "pip",
         "install",
         f"--constraint={requirements}",
-        f"jax[{jax_specifier}]",
+        lib,
         external=True,
     )
+
+
+def install_jaxlib(session):
+    jax_specifier = None
+    if session.posargs and (session.posargs[0] in get_args(JAXSpecifier)):
+        jax_specifier = session.posargs[0]
+    else:
+        jax_specifier = "cpu"
+
+    install_package(session, f"jax[{jax_specifier}]")
 
 
 @session(python=python_version)
@@ -169,16 +173,19 @@ def nbmake(session) -> None:
 @session(python=python_version)
 def safety(session) -> None:
     """Scan dependencies for insecure packages."""
+    install_package(session, "safety")
     requirements = session.poetry.export_requirements()
-    session.install("safety")
     # Ignore 70612 / CVE-2019-8341, Jinja2 is a safety dep, not ours
     session.run(
+        "poetry",
+        "run",
         "safety",
         "check",
         "--ignore",
         "70612",
         "--full-report",
         f"--file={requirements}",
+        external=True,
     )
 
 

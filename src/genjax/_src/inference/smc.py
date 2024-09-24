@@ -28,14 +28,17 @@ from genjax._src.core.generative import (
     ChoiceMap,
     Trace,
 )
+from genjax._src.core.generative.core import Score
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
     BoolArray,
     FloatArray,
+    Generic,
     Int,
     PRNGKey,
+    TypeVar,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
@@ -45,6 +48,8 @@ from genjax._src.inference.sp import (
     SampleDistribution,
     Target,
 )
+
+R = TypeVar("R")
 
 # Utility, for CSMC stacking.
 
@@ -70,20 +75,20 @@ def stack_to_first_dim(arr1: ArrayLike, arr2: ArrayLike):
 
 
 @Pytree.dataclass
-class ParticleCollection(Pytree):
+class ParticleCollection(Generic[R], Pytree):
     """A collection of weighted particles.
 
     Stores the particles (which are `Trace` instances), the log importance weights, the log marginal likelihood estimate, as well as an indicator flag denoting whether the collection is runtime valid or not (`ParticleCollection.is_valid`).
     """
 
-    particles: Trace
+    particles: Trace[R]
     log_weights: FloatArray
     is_valid: BoolArray
 
-    def get_particles(self) -> Trace:
+    def get_particles(self) -> Trace[R]:
         return self.particles
 
-    def get_particle(self, idx) -> Trace:
+    def get_particle(self, idx) -> Trace[R]:
         return jtu.tree_map(lambda v: v[idx], self.particles)
 
     def get_log_weights(self) -> FloatArray:
@@ -95,7 +100,7 @@ class ParticleCollection(Pytree):
     def __getitem__(self, idx) -> tuple[Any, ...]:
         return jtu.tree_map(lambda v: v[idx], (self.particles, self.log_weights))
 
-    def sample_particle(self, key) -> Trace:
+    def sample_particle(self, key) -> Trace[R]:
         """
         Samples a particle from the collection, with probability proportional to its weight.
         """
@@ -110,7 +115,7 @@ class ParticleCollection(Pytree):
 ####################################
 
 
-class SMCAlgorithm(Algorithm):
+class SMCAlgorithm(Generic[R], Algorithm[R]):
     """Abstract class for SMC algorithms."""
 
     @abstractmethod
@@ -125,7 +130,7 @@ class SMCAlgorithm(Algorithm):
     def run_smc(
         self,
         key: PRNGKey,
-    ) -> ParticleCollection:
+    ) -> ParticleCollection[R]:
         raise NotImplementedError
 
     @abstractmethod
@@ -133,7 +138,7 @@ class SMCAlgorithm(Algorithm):
         self,
         key: PRNGKey,
         retained: ChoiceMap,
-    ) -> ParticleCollection:
+    ) -> ParticleCollection[R]:
         raise NotImplementedError
 
     # Convenience method for returning an estimate of the normalizing constant
@@ -141,7 +146,7 @@ class SMCAlgorithm(Algorithm):
     def log_marginal_likelihood_estimate(
         self,
         key: PRNGKey,
-        target: Target | None = None,
+        target: Target[R] | None = None,
     ):
         if target:
             algorithm = ChangeTarget(self, target)
@@ -158,9 +163,11 @@ class SMCAlgorithm(Algorithm):
     def random_weighted(
         self,
         key: PRNGKey,
-        *args: Target,
-    ) -> tuple[FloatArray, ChoiceMap]:
-        (target,) = args
+        *args: Any,
+    ) -> tuple[Score, ChoiceMap]:
+        assert isinstance(args[0], Target)
+
+        target: Target[R] = args[0]
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
         particle_collection = algorithm.run_smc(key)
@@ -176,9 +183,11 @@ class SMCAlgorithm(Algorithm):
         self,
         key: PRNGKey,
         v: ChoiceMap,
-        *args: Target,
-    ) -> FloatArray:
-        (target,) = args
+        *args: tuple[Any, ...],
+    ) -> Score:
+        assert isinstance(args[0], Target)
+
+        target: Target[R] = args[0]
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
         particle_collection = algorithm.run_csmc(key, v)
@@ -196,7 +205,7 @@ class SMCAlgorithm(Algorithm):
     def estimate_normalizing_constant(
         self,
         key: PRNGKey,
-        target: Target,
+        target: Target[R],
     ) -> FloatArray:
         algorithm = ChangeTarget(self, target)
         key, sub_key = jrandom.split(key)
@@ -206,7 +215,7 @@ class SMCAlgorithm(Algorithm):
     def estimate_reciprocal_normalizing_constant(
         self,
         key: PRNGKey,
-        target: Target,
+        target: Target[R],
         latent_choices: ChoiceMap,
         w: FloatArray,
     ) -> FloatArray:
@@ -223,7 +232,7 @@ class SMCAlgorithm(Algorithm):
 
 
 @Pytree.dataclass
-class Importance(SMCAlgorithm):
+class Importance(Generic[R], SMCAlgorithm[R]):
     """Accepts as input a `target: Target` and, optionally, a proposal `q: SampleDistribution`.
     `q` should accept a `Target` as input and return a choicemap on a subset
     of the addresses in `target.gen_fn` not in `target.constraints`.
@@ -234,7 +243,7 @@ class Importance(SMCAlgorithm):
     given `target.constraints` and the choices sampled by `q`.
     """
 
-    target: Target
+    target: Target[R]
     q: SampleDistribution | None = Pytree.field(default=None)
 
     def get_num_particles(self):
@@ -272,12 +281,12 @@ class Importance(SMCAlgorithm):
 
 
 @Pytree.dataclass
-class ImportanceK(SMCAlgorithm):
+class ImportanceK(Generic[R], SMCAlgorithm[R]):
     """Given a `target: Target` and a proposal `q: SampleDistribution`, as well as the
     number of particles `k_particles: Int`, initialize a particle collection using
     importance sampling."""
 
-    target: Target
+    target: Target[R]
     q: SampleDistribution | None = Pytree.field(default=None)
     k_particles: Int = Pytree.static(default=2)
 
@@ -349,9 +358,9 @@ class ImportanceK(SMCAlgorithm):
 
 
 @Pytree.dataclass
-class ChangeTarget(SMCAlgorithm):
-    prev: SMCAlgorithm
-    target: Target
+class ChangeTarget(Generic[R], SMCAlgorithm[R]):
+    prev: SMCAlgorithm[R]
+    target: Target[R]
 
     def get_num_particles(self):
         return self.prev.get_num_particles()
@@ -362,12 +371,12 @@ class ChangeTarget(SMCAlgorithm):
     def run_smc(
         self,
         key: PRNGKey,
-    ) -> ParticleCollection:
+    ) -> ParticleCollection[R]:
         collection = self.prev.run_smc(key)
 
         # Convert the existing set of particles and weights
         # to a new set which is properly weighted for the new target.
-        def _reweight(key, particle, weight):
+        def _reweight(key, particle, weight) -> tuple[Trace[R], Any]:
             latents = self.prev.get_final_target().filter_to_unconstrained(
                 particle.get_sample()
             )
@@ -391,12 +400,12 @@ class ChangeTarget(SMCAlgorithm):
         self,
         key: PRNGKey,
         retained: ChoiceMap,
-    ) -> ParticleCollection:
+    ) -> ParticleCollection[R]:
         collection = self.prev.run_csmc(key, retained)
 
         # Convert the existing set of particles and weights
         # to a new set which is properly weighted for the new target.
-        def _reweight(key, particle, weight):
+        def _reweight(key, particle, weight) -> tuple[Trace[R], Any]:
             latents = self.prev.get_final_target().filter_to_unconstrained(
                 particle.get_sample()
             )
