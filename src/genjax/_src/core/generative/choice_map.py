@@ -1006,7 +1006,7 @@ class ChoiceMap(Sample):
         for _idx, _chm in enumerate(chms):
             assert isinstance(_chm, ChoiceMap)
             masked = _chm.mask(_idx == idx)
-            chm = chm ^ masked
+            chm ^= masked
         return chm
 
     ######################
