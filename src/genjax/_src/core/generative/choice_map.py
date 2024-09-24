@@ -1313,9 +1313,6 @@ class Indexed(ChoiceMap):
                 return self.c.mask(check)
 
 
-AddrDict = dict[StaticAddressComponent, ChoiceMap]
-
-
 @Pytree.dataclass(match_args=True)
 class Static(ChoiceMap):
     """
@@ -1327,13 +1324,19 @@ class Static(ChoiceMap):
         mapping: A dictionary mapping static address components to ChoiceMaps.
     """
 
-    mapping: AddrDict
+    mapping: dict[StaticAddressComponent, ChoiceMap | dict[StaticAddressComponent, Any]]
 
     @staticmethod
-    def build(d: AddrDict) -> "Static":
+    def build(d: dict[StaticAddressComponent, ChoiceMap]) -> "Static":
+        def unwrap(d: ChoiceMap) -> ChoiceMap | dict[StaticAddressComponent, Any]:
+            if isinstance(d, Static):
+                return d.mapping
+            else:
+                return d
+
         return Static(
             # Filter out empty choice maps
-            {k: v for k, v in d.items() if not v.static_is_empty()}
+            {k: unwrap(v) for k, v in d.items() if not v.static_is_empty()}
         )
 
     @staticmethod
@@ -1357,11 +1360,11 @@ class Static(ChoiceMap):
         merged_dict = {}
         for key in set(c1.mapping.keys()) | set(c2.mapping.keys()):
             if key in c1.mapping and key in c2.mapping:
-                merged_dict[key] = merge(c1.mapping[key], c2.mapping[key])
+                merged_dict[key] = merge(c1.get_submap(key), c2.get_submap(key))
             elif key in c1.mapping:
-                merged_dict[key] = c1.mapping[key]
+                merged_dict[key] = c1.get_submap(key)
             else:
-                merged_dict[key] = c2.mapping[key]
+                merged_dict[key] = c2.get_submap(key)
         return Static.build(merged_dict)
 
     def get_value(self) -> Any:
@@ -1373,6 +1376,7 @@ class Static(ChoiceMap):
 
         acc = ChoiceMap.empty()
         for k, v in self.mapping.items():
+            v = Static(v) if isinstance(v, dict) else v
             acc ^= v.mask(check(k))
         return acc
 
@@ -1590,7 +1594,8 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
         match inner:
             case Static(mapping):
                 return Static.build({
-                    addr: loop(v, selection(addr)) for addr, v in mapping.items()
+                    addr: loop(inner.get_submap(addr), selection(addr))
+                    for addr in mapping.keys()
                 })
 
             case Indexed(c, addr):
