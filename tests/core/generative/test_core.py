@@ -13,9 +13,47 @@
 # limitations under the License.
 
 
-import genjax
 import jax
 import jax.numpy as jnp
+
+import genjax
+from genjax import ChoiceMapBuilder as C
+from genjax import Selection
+from genjax import SelectionBuilder as S
+
+
+class TestTupleAddr:
+    def test_tupled_address(self):
+        @genjax.gen
+        def f():
+            x = genjax.normal(0.0, 1.0) @ ("x", "x0")
+            y = genjax.normal(x, 1.0) @ "y"
+            return y
+
+        tr = f.simulate(jax.random.PRNGKey(0), ())
+        chm = tr.get_choices()
+        x_score, _ = genjax.normal.assess(C.v(chm["x", "x0"]), (0.0, 1.0))
+        assert x_score == tr.project(jax.random.PRNGKey(1), Selection.at["x", "x0"])
+
+
+class TestProject:
+    def test_project(self):
+        @genjax.gen
+        def f():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = genjax.normal(0.0, 1.0) @ "y"
+            return x, y
+
+        # get a trace
+        tr = f.simulate(jax.random.PRNGKey(0), ())
+        # evaluations
+        x_score = tr.project(jax.random.PRNGKey(1), S["x"])
+        assert x_score == tr.subtraces[0].get_score()
+
+        y_score = tr.project(jax.random.PRNGKey(1), S["y"])
+        assert y_score == tr.subtraces[1].get_score()
+
+        assert tr.get_score() == x_score + y_score
 
 
 class TestCombinators:
@@ -44,13 +82,9 @@ class TestCombinators:
         assert jnp.array_equal(chm[..., "q"], qarr)
 
         # check alternate access route:
-        assert jnp.array_equal(
-            jnp.array([chm(0)["v"].value, chm(1)["v"].value, chm(2)["v"].value]), varr
-        )
+        assert jnp.array_equal(chm(jnp.arange(3))["v"].unmask(), varr)
 
-        assert jnp.array_equal(
-            jnp.array([chm(0)["q"].value, chm(1)["q"].value, chm(2)["q"].value]), qarr
-        )
+        assert jnp.array_equal(chm(jnp.arange(3))["q"].unmask(), qarr)
 
     def test_repeat(self):
         key = jax.random.PRNGKey(314159)
