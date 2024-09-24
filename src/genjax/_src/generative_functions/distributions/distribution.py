@@ -348,11 +348,11 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 class ExactDensity(Generic[R], Distribution[R]):
     @abstractmethod
     def sample(self, key: PRNGKey, *args) -> R:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def logpdf(self, v: R, *args) -> Score:
-        raise NotImplementedError
+        pass
 
     def __abstract_call__(self, *args):
         key = jax.random.PRNGKey(0)
