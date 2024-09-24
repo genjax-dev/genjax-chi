@@ -1580,7 +1580,7 @@ class Filtered(ChoiceMap):
     def get_value(self) -> Any:
         v = self.c.get_value()
         sel_check = self.selection[()]
-        return Mask.maybe_none(sel_check, v)
+        return Mask.maybe_none(v, sel_check)
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap = self.c.get_submap(addr)
@@ -1606,7 +1606,7 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
                     return inner
                 else:
                     sel_check = selection[()]
-                    masked = Mask.maybe_none(sel_check, v)
+                    masked = Mask.maybe_none(v, sel_check)
                     if masked is None:
                         return ChoiceMap.empty()
                     else:

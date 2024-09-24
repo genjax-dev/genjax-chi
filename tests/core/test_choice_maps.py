@@ -481,7 +481,7 @@ class TestChoiceMap:
         assert extended.simplify() == extended, "no-op with no filters"
 
         filtered = C["x", "y"].set(2.0).mask(jnp.array(True))
-        maskv = Mask(jnp.array(True), 2.0)
+        maskv = Mask(2.0, jnp.array(True))
         assert filtered.simplify() == C["x", "y"].set(maskv), "simplify removes filters"
 
         xyz = ChoiceMap.d({"x": 1, "y": 2, "z": 3})
