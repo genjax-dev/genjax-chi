@@ -449,6 +449,9 @@ class TestChoiceMap:
             "b": ChoiceMap.choice(2),
         }
 
+        # dict is converted back to a Static on the way out.
+        assert isinstance(outer_chm.get_submap("x"), Static)
+
         # Verify values can be accessed correctly
         assert outer_chm["x", "a"] == 1
         assert outer_chm["x", "b"] == 2
