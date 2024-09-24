@@ -91,6 +91,9 @@ class Target(Generic[R], Pytree):
 #######################
 
 SampleDistribution = Distribution[ChoiceMap]
+"""
+The abstract class `SampleDistribution` represents the type of distributions whose return value type is a `Sample`. This is the abstract base class of `Algorithm`, as well as `Marginal`.
+"""
 
 ########################
 # Inference algorithms #
