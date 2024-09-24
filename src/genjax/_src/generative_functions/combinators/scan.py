@@ -62,9 +62,9 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
         return self.retval
 
     def get_choices(self) -> ChoiceMap:
-        return jax.vmap(
-            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_choices(), idx),
-        )(jnp.arange(self.inner.get_score().shape[0]), self.inner)
+        return self.inner.get_choices().extend(
+            jnp.arange(self.inner.get_score().shape[0])
+        )
 
     def get_sample(self) -> ChoiceMap:
         return self.get_choices()
