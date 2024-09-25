@@ -54,6 +54,7 @@ website:
             - cookbook/inference/importance_sampling.ipynb
             - cookbook/inference/custom_proposal.ipynb
             - cookbook/inference/mcmc.ipynb
+            - cookbook/inference/hmc.ipynb
         - section: "Differentiation"
           href: differentiation.qmd
           contents:
