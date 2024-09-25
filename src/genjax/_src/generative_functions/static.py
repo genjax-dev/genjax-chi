@@ -194,32 +194,17 @@ def trace(
     )
 
 
-def _abstract_call(
-    _: tuple[Const[StaticAddress], ...],
-    fn: Callable[[Any], R],
-    args: Any,
-) -> R:
-    return fn(*args)
+###########
+# Caching #
+###########
 
 
 def _cache(
-    addr: StaticAddress,
-    fn: Callable[[Any], R],
-    args: Any,
-) -> R:
-    addr = Pytree.tree_const(addr)
-    fn = Pytree.partial()(fn)
-    return initial_style_bind(cache_p)(_abstract_call)(
-        addr,
-        fn,
-        args,
-    )
-
-
-def cache(
-    fn: Callable[[Any], R],
     addr: StaticAddressComponent | StaticAddress,
-) -> Callable[[Any], R]:
+    fn: Callable[[Any], R],
+    *args: Any,
+    custom_rule: None | Callable[[R, Any], R] = None,
+) -> R:
     """Invoke a deterministic function and expose caching semantics to the
     current caller.
 
@@ -230,7 +215,39 @@ def cache(
 
     """
     addr = addr if isinstance(addr, tuple) else (addr,)
-    return lambda *args: _cache(addr, fn, args)
+
+    def _abstract_call(
+        _: tuple[Const[StaticAddress], ...],
+        fn: Callable[[Any], R],
+        args: Any,
+    ) -> R:
+        return fn(*args)
+
+    addr = Pytree.tree_const(addr)
+    fn = Pytree.partial()(fn)
+    return initial_style_bind(cache_p, custom_rule=custom_rule)(_abstract_call)(
+        addr,
+        fn,
+        args,
+    )
+
+
+@Pytree.dataclass
+class CachedFunction(Generic[R], Pytree):
+    fn: Callable[[Any], R]
+    addr: StaticAddressComponent | StaticAddress
+    custom_rule: None | Callable[[R, Any], R]
+
+    def __call__(self, *args) -> R:
+        return _cache(self.addr, self.fn, *args, custom_rule=self.custom_rule)
+
+
+def cache(
+    addr: StaticAddressComponent | StaticAddress,
+    fn: Callable[[Any], R],
+    custom_rule: None | Callable[[R, Any], R] = None,
+):
+    return CachedFunction(fn, addr, custom_rule)
 
 
 ######################################

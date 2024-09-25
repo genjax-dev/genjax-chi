@@ -788,7 +788,7 @@ class TestCaching:
         def simple_normal(x):
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             y2 = genjax.normal(0.0, 1.0) @ "y2"
-            _ = genjax.cache(self.f, "v")(x)
+            _ = genjax.cache("v", self.f)(x)
             return y1 + y2
 
         _key = jax.random.PRNGKey(314159)
