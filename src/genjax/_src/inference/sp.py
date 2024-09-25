@@ -22,11 +22,12 @@ from genjax._src.core.generative import (
     Selection,
     Weight,
 )
+from genjax._src.core.generative.core import Score
+from genjax._src.core.generative.generative_function import Trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
-    FloatArray,
     Generic,
     PRNGKey,
     TypeVar,
@@ -71,7 +72,9 @@ class Target(Generic[R], Pytree):
     args: tuple[Any, ...]
     constraint: ChoiceMap
 
-    def importance(self, key: PRNGKey, constraint: ChoiceMap):
+    def importance(
+        self, key: PRNGKey, constraint: ChoiceMap
+    ) -> tuple[Trace[R], Weight]:
         merged = self.constraint.merge(constraint)
         return self.p.importance(key, merged, self.args)
 
@@ -87,37 +90,17 @@ class Target(Generic[R], Pytree):
 # Sample distribution #
 #######################
 
-
-@Pytree.dataclass
-class SampleDistribution(Generic[R], Distribution[R]):
-    """
-    The abstract class `SampleDistribution` represents the type of distributions whose return value type is a `Sample`. This is the abstract base class of `Algorithm`, as well as `Marginal`.
-    """
-
-    @abstractmethod
-    def random_weighted(
-        self,
-        key: PRNGKey,
-        *args: Any,
-    ) -> tuple[FloatArray, ChoiceMap]:
-        raise NotImplementedError
-
-    @abstractmethod
-    def estimate_logpdf(
-        self,
-        key: PRNGKey,
-        v: ChoiceMap,
-        *args: Any,
-    ) -> FloatArray:
-        raise NotImplementedError
-
+SampleDistribution = Distribution[ChoiceMap]
+"""
+The abstract class `SampleDistribution` represents the type of distributions whose return value type is a `Sample`. This is the abstract base class of `Algorithm`, as well as `Marginal`.
+"""
 
 ########################
 # Inference algorithms #
 ########################
 
 
-class Algorithm(SampleDistribution):
+class Algorithm(Generic[R], SampleDistribution):
     """`Algorithm` is the type of inference
     algorithms: probabilistic programs which provide interfaces for sampling from
     posterior approximations, and estimating densities.
@@ -152,8 +135,8 @@ class Algorithm(SampleDistribution):
     def random_weighted(
         self,
         key: PRNGKey,
-        *args: Target,
-    ) -> tuple[Weight, ChoiceMap]:
+        *args: Any,
+    ) -> tuple[Score, ChoiceMap]:
         """
         Given a [`Target`][genjax.inference.Target], return a [`Sample`][genjax.core.Sample] from an approximation to the normalized distribution of the target, and a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
 
@@ -167,10 +150,13 @@ class Algorithm(SampleDistribution):
 
         This interface corresponds to **(Defn 3.2) Unbiased Density Sampler** in [[Lew23](https://dl.acm.org/doi/pdf/10.1145/3591290)].
         """
+        assert isinstance(args[0], Target)
         pass
 
     @abstractmethod
-    def estimate_logpdf(self, key: PRNGKey, v: ChoiceMap, *args: Any) -> Weight:
+    def estimate_logpdf(
+        self, key: PRNGKey, v: ChoiceMap, *args: tuple[Any, ...]
+    ) -> Score:
         """
         Given a [`Sample`][genjax.core.Sample] and a [`Target`][genjax.inference.Target], return a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
 
@@ -192,7 +178,7 @@ class Algorithm(SampleDistribution):
     def estimate_normalizing_constant(
         self,
         key: PRNGKey,
-        target: Target,
+        target: Target[R],
     ) -> Weight:
         pass
 
@@ -200,7 +186,7 @@ class Algorithm(SampleDistribution):
     def estimate_reciprocal_normalizing_constant(
         self,
         key: PRNGKey,
-        target: Target,
+        target: Target[R],
         latent_choices: ChoiceMap,
         w: Weight,
     ) -> Weight:
@@ -213,20 +199,20 @@ class Algorithm(SampleDistribution):
 
 
 @Pytree.dataclass
-class Marginal(Generic[R], SampleDistribution[R]):
+class Marginal(Generic[R], SampleDistribution):
     """The `Marginal` class represents the marginal distribution of a generative function over
     a selection of addresses. The return value type is a subtype of `Sample`.
     """
 
     gen_fn: GenerativeFunction[R]
     selection: Selection = Pytree.field(default=Selection.all())
-    algorithm: Algorithm | None = Pytree.field(default=None)
+    algorithm: Algorithm[R] | None = Pytree.field(default=None)
 
     def random_weighted(
         self,
         key: PRNGKey,
-        *args,
-    ) -> tuple[FloatArray, ChoiceMap]:
+        *args: Any,
+    ) -> tuple[Score, ChoiceMap]:
         key, sub_key = jax.random.split(key)
         tr = self.gen_fn.simulate(sub_key, args)
         choices: ChoiceMap = tr.get_choices()
@@ -249,8 +235,8 @@ class Marginal(Generic[R], SampleDistribution[R]):
         self,
         key: PRNGKey,
         v: ChoiceMap,
-        *args,
-    ) -> Weight:
+        *args: tuple[Any, ...],
+    ) -> Score:
         if self.algorithm is None:
             _, weight = self.gen_fn.importance(key, v, args)
             return weight
@@ -267,7 +253,7 @@ class Marginal(Generic[R], SampleDistribution[R]):
 
 def marginal(
     selection: Selection = Selection.all(),
-    algorithm: Algorithm | None = None,
+    algorithm: Algorithm[R] | None = None,
 ) -> Callable[[GenerativeFunction[R]], Marginal[R]]:
     def decorator(
         gen_fn: GenerativeFunction[R],

@@ -429,6 +429,48 @@ class TestChoiceMap:
         assert extended.get_submap("a").get_submap("b").get_value() == 1
         assert ChoiceMap.empty().extend("a", "b").static_is_empty()
 
+    def test_nested_static_choicemap(self):
+        # Create a nested static ChoiceMap
+        inner_chm = ChoiceMap.kw(a=1, b=2)
+        outer_chm = ChoiceMap.kw(x=inner_chm, y=3)
+
+        # Check that the outer ChoiceMap is a Static
+        assert isinstance(outer_chm, Static)
+
+        # Check that the mapping contains the expected structure
+        assert len(outer_chm.mapping) == 2
+        assert "x" in outer_chm.mapping
+        assert "y" in outer_chm.mapping
+
+        # Check that the nested ChoiceMap is stored as a dict in the mapping
+        assert isinstance(outer_chm.mapping["x"], dict)
+        assert outer_chm.mapping["x"] == {
+            "a": ChoiceMap.choice(1),
+            "b": ChoiceMap.choice(2),
+        }
+
+        # dict is converted back to a Static on the way out.
+        assert isinstance(outer_chm.get_submap("x"), Static)
+
+        # Verify values can be accessed correctly
+        assert outer_chm["x", "a"] == 1
+        assert outer_chm["x", "b"] == 2
+        assert outer_chm["y"] == 3
+
+        # Test with a deeper nesting
+        deepest_chm = ChoiceMap.kw(m=4, n=5)
+        deep_chm = ChoiceMap.kw(p=deepest_chm, q=6)
+        root_chm = ChoiceMap.kw(r=deep_chm, s=7)
+
+        # Verify the structure and values
+        assert isinstance(root_chm, Static)
+        assert isinstance(root_chm.mapping["r"], dict)
+        assert isinstance(root_chm.mapping["r"]["p"], dict)
+        assert root_chm["r", "p", "m"] == 4
+        assert root_chm["r", "p", "n"] == 5
+        assert root_chm["r", "q"] == 6
+        assert root_chm["s"] == 7
+
     def test_static_extend(self):
         chm = Static.build({"v": ChoiceMap.choice(1.0), "K": ChoiceMap.empty()})
         assert len(chm.mapping) == 1, "make sure empty chm doesn't make it through"
@@ -439,7 +481,7 @@ class TestChoiceMap:
         assert extended.simplify() == extended, "no-op with no filters"
 
         filtered = C["x", "y"].set(2.0).mask(jnp.array(True))
-        maskv = Mask(jnp.array(True), 2.0)
+        maskv = Mask(2.0, jnp.array(True))
         assert filtered.simplify() == C["x", "y"].set(maskv), "simplify removes filters"
 
         xyz = ChoiceMap.d({"x": 1, "y": 2, "z": 3})
@@ -528,6 +570,37 @@ class TestChoiceMap:
         x_masked = ChoiceMap.choice(2.0).mask(jnp.asarray(True))
         y_masked = ChoiceMap.choice(3.0).mask(jnp.asarray(True))
         assert (x_masked | y_masked).get_value().unmask() == 2.0
+
+    def test_and(self):
+        chm1 = ChoiceMap.kw(x=1, y=2, z=3)
+        chm2 = ChoiceMap.kw(y=20, z=30, w=40)
+
+        and_chm = chm1 & chm2
+
+        # Check that only common keys are present
+        assert "x" not in and_chm
+        assert "y" in and_chm
+        assert "z" in and_chm
+        assert "w" not in and_chm
+
+        # Check that values come from the right-hand side (chm2)
+        assert and_chm["y"] == 20
+        assert and_chm["z"] == 30
+
+        # Test with empty ChoiceMap
+        empty_chm = ChoiceMap.empty()
+        assert (chm1 & empty_chm).static_is_empty()
+        assert (empty_chm & chm1).static_is_empty()
+
+        # Test with nested ChoiceMaps
+        nested_chm1 = ChoiceMap.kw(a={"b": 1, "c": 2}, d=3)
+        nested_chm2 = ChoiceMap.kw(a={"b": 10, "d": 20}, d=30)
+        nested_and_chm = nested_chm1 & nested_chm2
+
+        assert nested_and_chm["a", "b"] == 10
+        assert "c" not in nested_and_chm("a")
+        assert "d" not in nested_and_chm("a")
+        assert nested_and_chm["d"] == 30
 
     def test_call(self):
         chm = ChoiceMap.kw(x={"y": 1})

@@ -255,7 +255,7 @@ class StaticHandler(StatefulHandler):
         gen_fn: GenerativeFunction[R],
         args: tuple[Any, ...],
     ):
-        raise NotImplementedError
+        pass
 
     def handle_cache(
         self,

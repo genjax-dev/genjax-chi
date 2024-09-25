@@ -65,7 +65,7 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
         return inner_choice_map.mask(self.check)
 
     def get_retval(self):
-        return Mask(self.check, self.inner.get_retval())
+        return Mask(self.inner.get_retval(), self.check)
 
     def get_score(self):
         inner_score = self.inner.get_score()
@@ -227,7 +227,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         return (
             MaskTrace(self, premasked_trace, post_check),
             final_weight,
-            Mask.maybe(check_diff, retdiff),
+            Mask.maybe(retdiff, check_diff),
             IncrementalGenericRequest(
                 ChoiceMapConstraint(inner_chm_constraint.mask(post_check)),
             ),
@@ -242,7 +242,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         score, retval = self.gen_fn.assess(sample, tuple(inner_args))
         return (
             check * score,
-            Mask(check, retval),
+            Mask(retval, check),
         )
 
 

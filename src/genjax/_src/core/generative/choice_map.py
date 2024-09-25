@@ -318,11 +318,11 @@ class Selection(Projection["ChoiceMap"]):
 
     @abstractmethod
     def check(self) -> Flag:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def get_subselection(self, addr: ExtendedAddressComponent) -> "Selection":
-        raise NotImplementedError
+        pass
 
 
 #######################
@@ -776,14 +776,14 @@ class ChoiceMap(Sample):
 
     @abstractmethod
     def get_value(self) -> Any:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def get_submap(
         self,
         addr: ExtendedAddressComponent,
     ) -> "ChoiceMap":
-        raise NotImplementedError
+        pass
 
     def has_value(self) -> Flag:
         match self.get_value():
@@ -965,7 +965,7 @@ class ChoiceMap(Sample):
             A ChoiceMap containing the key-value pairs from the input keyword arguments.
 
         Example:
-            ```python
+            ```python exec="yes" html="true" source="material-block" session="choicemap"
             kw_chm = ChoiceMap.kw(x=42, y=[1, 2, 3], z={"w": 10.0})
             assert kw_chm["x"] == 42
             assert kw_chm["y"] == [1, 2, 3]
@@ -973,6 +973,41 @@ class ChoiceMap(Sample):
             ```
         """
         return ChoiceMap.d(kwargs)
+
+    @staticmethod
+    def switch(idx: ArrayLike, chms: Iterable["ChoiceMap"]) -> "ChoiceMap":
+        """
+        Creates a ChoiceMap that switches between multiple ChoiceMaps based on an index.
+
+        This method creates a new ChoiceMap that selectively includes values from a sequence of
+        input ChoiceMaps based on the provided index. The resulting ChoiceMap will contain
+        values from the ChoiceMap at the position specified by the index, while masking out
+        values from all other ChoiceMaps.
+
+        Args:
+            idx: An index or array of indices specifying which ChoiceMap(s) to select from.
+            chms: An iterable of ChoiceMaps to switch between.
+
+        Returns:
+            A new ChoiceMap containing values from the selected ChoiceMap(s).
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="choicemap"
+            chm1 = ChoiceMap.d({"x": 1, "y": 2})
+            chm2 = ChoiceMap.d({"x": 3, "y": 4})
+            chm3 = ChoiceMap.d({"x": 5, "y": 6})
+
+            switched = ChoiceMap.switch(1, [chm1, chm2, chm3])
+            assert switched["x"] == 3
+            assert switched["y"] == 4
+            ```
+        """
+        acc = ChoiceMap.empty()
+        for _idx, _chm in enumerate(chms):
+            assert isinstance(_chm, ChoiceMap)
+            masked = _chm.mask(_idx == idx)
+            acc ^= masked
+        return acc
 
     ######################
     # Combinator methods #
@@ -1136,6 +1171,9 @@ class ChoiceMap(Sample):
 
     def __or__(self, other: "ChoiceMap") -> "ChoiceMap":
         return Or.build(self, other)
+
+    def __and__(self, other: "ChoiceMap") -> "ChoiceMap":
+        return other.filter(self.get_selection())
 
     def __add__(self, other: "ChoiceMap") -> "ChoiceMap":
         return self | other
@@ -1313,9 +1351,6 @@ class Indexed(ChoiceMap):
                 return self.c.mask(check)
 
 
-AddrDict = dict[StaticAddressComponent, ChoiceMap]
-
-
 @Pytree.dataclass(match_args=True)
 class Static(ChoiceMap):
     """
@@ -1327,13 +1362,19 @@ class Static(ChoiceMap):
         mapping: A dictionary mapping static address components to ChoiceMaps.
     """
 
-    mapping: AddrDict
+    mapping: dict[StaticAddressComponent, ChoiceMap | dict[StaticAddressComponent, Any]]
 
     @staticmethod
-    def build(d: AddrDict) -> "Static":
+    def build(d: dict[StaticAddressComponent, ChoiceMap]) -> "Static":
+        def unwrap(d: ChoiceMap) -> ChoiceMap | dict[StaticAddressComponent, Any]:
+            if isinstance(d, Static):
+                return d.mapping
+            else:
+                return d
+
         return Static(
             # Filter out empty choice maps
-            {k: v for k, v in d.items() if not v.static_is_empty()}
+            {k: unwrap(v) for k, v in d.items() if not v.static_is_empty()}
         )
 
     @staticmethod
@@ -1357,11 +1398,11 @@ class Static(ChoiceMap):
         merged_dict = {}
         for key in set(c1.mapping.keys()) | set(c2.mapping.keys()):
             if key in c1.mapping and key in c2.mapping:
-                merged_dict[key] = merge(c1.mapping[key], c2.mapping[key])
+                merged_dict[key] = merge(c1.get_submap(key), c2.get_submap(key))
             elif key in c1.mapping:
-                merged_dict[key] = c1.mapping[key]
+                merged_dict[key] = c1.get_submap(key)
             else:
-                merged_dict[key] = c2.mapping[key]
+                merged_dict[key] = c2.get_submap(key)
         return Static.build(merged_dict)
 
     def get_value(self) -> Any:
@@ -1373,6 +1414,7 @@ class Static(ChoiceMap):
 
         acc = ChoiceMap.empty()
         for k, v in self.mapping.items():
+            v = Static(v) if isinstance(v, dict) else v
             acc ^= v.mask(check(k))
         return acc
 
@@ -1576,7 +1618,7 @@ class Filtered(ChoiceMap):
     def get_value(self) -> Any:
         v = self.c.get_value()
         sel_check = self.selection[()]
-        return Mask.maybe_none(sel_check, v)
+        return Mask.maybe_none(v, sel_check)
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap = self.c.get_submap(addr)
@@ -1590,7 +1632,8 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
         match inner:
             case Static(mapping):
                 return Static.build({
-                    addr: loop(v, selection(addr)) for addr, v in mapping.items()
+                    addr: loop(inner.get_submap(addr), selection(addr))
+                    for addr in mapping.keys()
                 })
 
             case Indexed(c, addr):
@@ -1601,7 +1644,7 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
                     return inner
                 else:
                     sel_check = selection[()]
-                    masked = Mask.maybe_none(sel_check, v)
+                    masked = Mask.maybe_none(v, sel_check)
                     if masked is None:
                         return ChoiceMap.empty()
                     else:

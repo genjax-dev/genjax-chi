@@ -127,7 +127,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 tr = self.simulate(key, args)
                 return tr, jnp.array(0.0)
 
-            case Mask(flag, value):
+            case Mask(value, flag):
 
                 def _simulate(key, v):
                     score, new_v = self.random_weighted(key, *args)
@@ -348,11 +348,11 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 class ExactDensity(Generic[R], Distribution[R]):
     @abstractmethod
     def sample(self, key: PRNGKey, *args) -> R:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def logpdf(self, v: R, *args) -> Score:
-        raise NotImplementedError
+        pass
 
     def __abstract_call__(self, *args):
         key = jax.random.PRNGKey(0)
@@ -407,7 +407,7 @@ class ExactDensity(Generic[R], Distribution[R]):
         key = jax.random.PRNGKey(0)
         v = sample.get_value()
         match v:
-            case Mask(flag, value):
+            case Mask(value, flag):
 
                 def _check():
                     checkify.check(
