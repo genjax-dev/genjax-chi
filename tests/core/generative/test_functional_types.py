@@ -21,51 +21,51 @@ from genjax._src.core.generative.functional_types import Mask, staged_choose
 
 class TestMask:
     def test_mask_unmask_without_default(self):
-        valid_mask = Mask(True, 42)
+        valid_mask = Mask(42, True)
         assert valid_mask.unmask() == 42
 
-        invalid_mask = Mask(False, 42)
+        invalid_mask = Mask(42, False)
         with do_checkify():
             with pytest.raises(Exception):
                 invalid_mask.unmask()
 
     def test_mask_unmask_with_default(self):
-        valid_mask = Mask(True, 42)
+        valid_mask = Mask(42, True)
         assert valid_mask.unmask(default=0) == 42
 
-        invalid_mask = Mask(False, 42)
+        invalid_mask = Mask(42, False)
         assert invalid_mask.unmask(default=0) == 0
 
     def test_mask_unmask_pytree(self):
         pytree = {"a": 1, "b": [2, 3], "c": {"d": 4}}
-        valid_mask = Mask(True, pytree)
+        valid_mask = Mask(pytree, True)
         assert valid_mask.unmask() == pytree
 
-        invalid_mask = Mask(False, pytree)
+        invalid_mask = Mask(pytree, False)
         default = {"a": 0, "b": [0, 0], "c": {"d": 0}}
         result = invalid_mask.unmask(default=default)
         assert result == default
 
     def test_mask_maybe(self):
-        mask = Mask.maybe(True, 42)
+        mask = Mask.maybe(42, True)
         assert isinstance(mask, Mask)
         assert mask.flag is True
         assert mask.value == 42
 
-        nested_mask = Mask.maybe(False, Mask(True, 42))
+        nested_mask = Mask.maybe(Mask(42, True), False)
         assert isinstance(nested_mask, Mask)
         assert nested_mask.flag is False
         assert nested_mask.value == 42
 
     def test_mask_maybe_none(self):
-        result = Mask.maybe_none(True, 42)
+        result = Mask.maybe_none(42, True)
         assert result == 42
 
-        result = Mask.maybe_none(False, 42)
+        result = Mask.maybe_none(42, False)
         assert result is None
 
-        mask = Mask(True, 42)
-        result = Mask.maybe_none(True, mask)
+        mask = Mask(42, True)
+        result = Mask.maybe_none(mask, True)
         assert isinstance(result, Mask)
         assert result.flag is True
         assert result.value == 42

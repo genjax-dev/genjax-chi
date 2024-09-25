@@ -38,7 +38,7 @@ from genjax._src.core.generative import (
     Trace,
     Weight,
 )
-from genjax._src.core.generative.choice_map import FilteredChm
+from genjax._src.core.generative.choice_map import Filtered
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Closure, Pytree
@@ -80,7 +80,7 @@ class DistributionTrace(
         return self.get_choices()
 
     def get_choices(self) -> ChoiceMap:
-        return ChoiceMap.value(self.value)
+        return ChoiceMap.choice(self.value)
 
 
 ################
@@ -127,7 +127,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 tr = self.simulate(key, args)
                 return tr, jnp.array(0.0)
 
-            case Mask(flag, value):
+            case Mask(value, flag):
 
                 def _simulate(key, v):
                     score, new_v = self.random_weighted(key, *args)
@@ -241,7 +241,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         ),
                     )
 
-                elif isinstance(constraint.choice_map, FilteredChm):
+                elif isinstance(constraint.choice_map, Filtered):
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
                     def _true_branch(key, new_value: R, _):
@@ -280,7 +280,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     )
                 else:
                     raise Exception(
-                        "Only `FilteredChm` is currently supported for dynamic flags."
+                        "Only `choice_map.Filtered` is currently supported for dynamic flags."
                     )
 
             case _:
@@ -348,11 +348,11 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 class ExactDensity(Generic[R], Distribution[R]):
     @abstractmethod
     def sample(self, key: PRNGKey, *args) -> R:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def logpdf(self, v: R, *args) -> Score:
-        raise NotImplementedError
+        pass
 
     def __abstract_call__(self, *args):
         key = jax.random.PRNGKey(0)
@@ -407,7 +407,7 @@ class ExactDensity(Generic[R], Distribution[R]):
         key = jax.random.PRNGKey(0)
         v = sample.get_value()
         match v:
-            case Mask(flag, value):
+            case Mask(value, flag):
 
                 def _check():
                     checkify.check(

@@ -37,11 +37,11 @@ class TestMaskCombinator:
     def test_mask_simple_normal_true(self, key):
         tr = jax.jit(model.simulate)(key, (True, -4.0))
         assert tr.get_score() == tr.inner.get_score()
-        assert tr.get_retval() == genjax.Mask(jnp.array(True), tr.inner.get_retval())
+        assert tr.get_retval() == genjax.Mask(tr.inner.get_retval(), jnp.array(True))
 
         tr = jax.jit(model.simulate)(key, (False, -4.0))
         assert tr.get_score() == 0.0
-        assert tr.get_retval() == genjax.Mask(jnp.array(False), tr.inner.get_retval())
+        assert tr.get_retval() == genjax.Mask(tr.inner.get_retval(), jnp.array(False))
 
     def test_mask_simple_normal_false(self, key):
         tr = jax.jit(model.simulate)(key, (False, 2.0))

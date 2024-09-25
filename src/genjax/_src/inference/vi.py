@@ -62,7 +62,7 @@ tfd = tfp.distributions
 def adev_distribution(
     adev_primitive: ADEVPrimitive,
     differentiable_logpdf: Callable[..., Any],
-) -> ExactDensity:
+) -> ExactDensity[Any]:
     """
     Return an [`ExactDensity`][genjax.ExactDensity] distribution whose sampler invokes an ADEV sampling primitive, with a provided differentiable log density function.
 
@@ -139,7 +139,7 @@ The type of gradient estimates returned by sampling from gradient estimators for
 
 def ELBO(
     guide: SampleDistribution,
-    make_target: Callable[..., Target],
+    make_target: Callable[..., Target[Any]],
 ) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
     """
     Return a function that computes the gradient estimate of the ELBO loss term.
@@ -147,8 +147,8 @@ def ELBO(
 
     def grad_estimate(
         key: PRNGKey,
-        args: tuple,
-    ) -> tuple:
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
         # In the source language of ADEV.
         @expectation
         def _loss(*args):
@@ -164,7 +164,7 @@ def ELBO(
 
 def IWELBO(
     proposal: SampleDistribution,
-    make_target: Callable[[Any], Target],
+    make_target: Callable[[Any], Target[Any]],
     N: Int,
 ) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
     """
@@ -190,7 +190,7 @@ def IWELBO(
 
 def PWake(
     posterior_approx: SampleDistribution,
-    make_target: Callable[[Any], Target],
+    make_target: Callable[[Any], Target[Any]],
 ) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
     """
     Return a function that computes the gradient estimate of the PWake loss term.
@@ -198,8 +198,8 @@ def PWake(
 
     def grad_estimate(
         key: PRNGKey,
-        args: tuple,
-    ) -> tuple:
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
         key, sub_key1, sub_key2 = jax.random.split(key, 3)
 
         # In the source language of ADEV.
@@ -218,7 +218,7 @@ def PWake(
 def QWake(
     proposal: SampleDistribution,
     posterior_approx: SampleDistribution,
-    make_target: Callable[[Any], Target],
+    make_target: Callable[[Any], Target[Any]],
 ) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
     """
     Return a function that computes the gradient estimate of the QWake loss term.
@@ -226,8 +226,8 @@ def QWake(
 
     def grad_estimate(
         key: PRNGKey,
-        args: tuple,
-    ) -> tuple:
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
         key, sub_key1, sub_key2 = jax.random.split(key, 3)
 
         # In the source language of ADEV.
