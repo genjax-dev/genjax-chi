@@ -141,15 +141,15 @@ class Trace(Generic[R], Pytree):
     def get_sample(self) -> Sample:
         """Return the [`Sample`][genjax.core.Sample] sampled from the distribution over samples by the generative function during the invocation which created the [`Trace`][genjax.core.Trace]."""
 
-    # TODO: deprecated.
+    @abstractmethod
     def get_choices(self) -> "genjax.ChoiceMap":
         """Version of [`genjax.Trace.get_sample`][] for traces where the sample is an instance of [`genjax.ChoiceMap`][]."""
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def get_gen_fn(self) -> "GenerativeFunction[R]":
         """Returns the [`GenerativeFunction`][genjax.core.GenerativeFunction] whose invocation created the [`Trace`][genjax.core.Trace]."""
-        raise NotImplementedError
+        pass
 
     def edit(
         self,
@@ -337,7 +337,7 @@ class GenerativeFunction(Generic[R], Pytree):
             print(tr.render_html())
             ```
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def assess(
@@ -380,7 +380,7 @@ class GenerativeFunction(Generic[R], Pytree):
             print((score, retval))
             ```
         """
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def generate(
@@ -389,7 +389,7 @@ class GenerativeFunction(Generic[R], Pytree):
         constraint: Constraint,
         args: Arguments,
     ) -> tuple[Trace[R], Weight]:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def project(
@@ -398,7 +398,7 @@ class GenerativeFunction(Generic[R], Pytree):
         trace: Trace[R],
         projection: Projection[Any],
     ) -> Weight:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def edit(
@@ -514,7 +514,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         Argument changes induce changes to the distribution over samples, internal K and L proposals, and (by virtue of changes to $P$) target distributions. The [`Argdiffs`][genjax.core.Argdiffs] type denotes the type of values attached with a _change type_, a piece of data which indicates how the value has changed from the arguments which created the trace. Generative functions can utilize change type information to inform efficient [`edit`][genjax.core.GenerativeFunction.edit] implementations.
         """
-        raise NotImplementedError
+        pass
 
     ######################
     # Derived interfaces #
