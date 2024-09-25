@@ -282,6 +282,15 @@ class StaticHandler(StatefulHandler):
     ) -> R:
         return fn(*args)
 
+    def handle_cache_with_custom_rule(
+        self,
+        addr: StaticAddress,
+        fn: Callable[[Any], R],
+        args: Any,
+        custom_rule: Callable[[R, Any], R],
+    ) -> R:
+        return fn(*args)
+
     def handle_retval(self, v):
         return jtu.tree_leaves(v)
 
@@ -303,7 +312,12 @@ class StaticHandler(StatefulHandler):
         elif primitive == cache_p:
             addr, fn, args = jtu.tree_unflatten(in_tree, non_const_tracers)
             addr = Pytree.tree_const_unwrap(addr)
-            v = self.handle_cache(addr, fn, args)
+            custom_rule = _params["custom_rule"]
+            v = (
+                self.handle_cache_with_custom_rule(addr, fn, args, custom_rule)
+                if custom_rule
+                else self.handle_cache(addr, fn, args)
+            )
             return self.handle_retval(v)
         else:
             raise Exception("Illegal primitive: {}".format(primitive))
@@ -461,6 +475,25 @@ class IncrementalGenericRequestHandler(StaticHandler):
         self.address_traces.append(tr)
 
         return retval_diff
+
+    def handle_cache_with_custom_rule(
+        self,
+        addr: StaticAddress,
+        fn: Callable[[Any], R],
+        args: Any,
+        custom_rule: Callable[[R, Any], R],
+    ) -> R:
+        argdiffs: Argdiffs = args
+        self.visit(addr)
+        self.cache_visit(addr)
+        r = self.previous_trace.get_cached_state(addr)
+        if Diff.static_check_no_change(argdiffs):
+            self.cached_values.append(r)
+            return r
+        else:
+            r = custom_rule(r, argdiffs)
+            self.cached_values.append(r)
+            return r
 
     def handle_cache(
         self,
