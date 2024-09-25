@@ -14,6 +14,7 @@
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
     Argdiffs,
@@ -54,6 +55,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
     args: tuple[Any, ...]
     retval: tuple[Carry, Y]
     score: FloatArray
+    scan_length: int = Pytree.static()
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
@@ -64,7 +66,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
     def get_choices(self) -> ChoiceMap:
         return jax.vmap(
             lambda idx, subtrace: ChoiceMap.entry(subtrace.get_choices(), idx),
-        )(jnp.arange(self.inner.get_score().shape[0]), self.inner)
+        )(jnp.arange(self.scan_length), self.inner)
 
     def get_sample(self) -> ChoiceMap:
         return self.get_choices()
@@ -173,6 +175,12 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
         return v, scanned_out
 
+    @staticmethod
+    def _static_broadcast_dim_length(xs: Any, length: int | None) -> int:
+        # We start by triggering a scan to force all JAX validations to run. If we get past this line we know we have compatible dimensions.
+        jax.lax.scan(lambda c, x: (c, None), None, xs, length=length)
+        return length or jtu.tree_leaves(xs)[0].shape[0]
+
     def simulate(
         self,
         key: PRNGKey,
@@ -214,6 +222,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             args,
             (carried_out, scanned_out),
             jnp.sum(scores),
+            self._static_broadcast_dim_length(scanned_in, self.length),
         )
 
     def generate(
@@ -270,6 +279,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 args,
                 (carried_out, scanned_out),
                 jnp.sum(scores),
+                self._static_broadcast_dim_length(scanned_in, self.length),
             ),
             jnp.sum(ws),
         )
@@ -408,6 +418,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 Diff.tree_primal(argdiffs),
                 (carried_out, scanned_out),
                 jnp.sum(scores),
+                trace.scan_length,
             ),
             jnp.sum(ws),
             (carried_out_diff, scanned_out_diff),
