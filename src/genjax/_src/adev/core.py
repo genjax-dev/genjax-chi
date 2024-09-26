@@ -61,8 +61,8 @@ class ADEVPrimitive(Pytree):
     """
 
     @abstractmethod
-    def sample(self, key, *args):
-        raise NotImplementedError
+    def sample(self, key, *args) -> Any:
+        pass
 
     @abstractmethod
     def jvp_estimate(
@@ -73,7 +73,7 @@ class ADEVPrimitive(Pytree):
     ) -> "Dual":
         pass
 
-    def get_batched_prim(self, dims: tuple[Any, ...]):
+    def get_batched_prim(self, dims: tuple[Any, ...]) -> "ADEVPrimitive":
         """
         To use ADEV primitives inside of `vmap`, they must provide a custom batched primitive version of themselves.
 
@@ -92,7 +92,7 @@ class TailCallADEVPrimitive(ADEVPrimitive):
         key: PRNGKey,
         dual_tree: DualTree,  # Pytree with Dual leaves.
     ) -> "Dual":
-        raise NotImplementedError
+        pass
 
     def jvp_estimate(
         self,

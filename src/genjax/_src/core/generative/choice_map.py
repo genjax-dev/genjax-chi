@@ -25,10 +25,7 @@ from deprecated import deprecated
 
 from genjax._src.core.generative.core import Constraint, Projection, Sample
 from genjax._src.core.generative.functional_types import Mask, staged_choose
-from genjax._src.core.interpreters.staging import (
-    FlagOp,
-    staged_err,
-)
+from genjax._src.core.interpreters.staging import FlagOp, staged_err
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -318,11 +315,11 @@ class Selection(Projection["ChoiceMap"]):
 
     @abstractmethod
     def check(self) -> Flag:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def get_subselection(self, addr: ExtendedAddressComponent) -> "Selection":
-        raise NotImplementedError
+        pass
 
 
 #######################
@@ -776,14 +773,14 @@ class ChoiceMap(Sample):
 
     @abstractmethod
     def get_value(self) -> Any:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def get_submap(
         self,
         addr: ExtendedAddressComponent,
     ) -> "ChoiceMap":
-        raise NotImplementedError
+        pass
 
     def has_value(self) -> Flag:
         match self.get_value():
@@ -1002,12 +999,12 @@ class ChoiceMap(Sample):
             assert switched["y"] == 4
             ```
         """
-        chm = ChoiceMap.empty()
+        acc = ChoiceMap.empty()
         for _idx, _chm in enumerate(chms):
             assert isinstance(_chm, ChoiceMap)
             masked = _chm.mask(_idx == idx)
-            chm ^= masked
-        return chm
+            acc ^= masked
+        return acc
 
     ######################
     # Combinator methods #
@@ -1171,6 +1168,9 @@ class ChoiceMap(Sample):
 
     def __or__(self, other: "ChoiceMap") -> "ChoiceMap":
         return Or.build(self, other)
+
+    def __and__(self, other: "ChoiceMap") -> "ChoiceMap":
+        return other.filter(self.get_selection())
 
     def __add__(self, other: "ChoiceMap") -> "ChoiceMap":
         return self | other
@@ -1615,7 +1615,7 @@ class Filtered(ChoiceMap):
     def get_value(self) -> Any:
         v = self.c.get_value()
         sel_check = self.selection[()]
-        return Mask.maybe_none(sel_check, v)
+        return Mask.maybe_none(v, sel_check)
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap = self.c.get_submap(addr)
@@ -1641,7 +1641,7 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
                     return inner
                 else:
                     sel_check = selection[()]
-                    masked = Mask.maybe_none(sel_check, v)
+                    masked = Mask.maybe_none(v, sel_check)
                     if masked is None:
                         return ChoiceMap.empty()
                     else:

@@ -58,37 +58,37 @@ class Mask(Generic[R], Pytree):
 
     ## Usage of invalid data
 
-    If you use invalid `Mask(False, data)` data in inference computations, you may encounter silently incorrect results.
+    If you use invalid `Mask(data, False)` data in inference computations, you may encounter silently incorrect results.
     """
 
-    flag: Flag | Diff[Flag]
     value: R
+    flag: Flag | Diff[Flag]
 
     @overload
     @staticmethod
-    def maybe(f: Flag, v: "Mask[R]") -> "Mask[R]": ...
+    def maybe(v: "Mask[R]", f: Flag) -> "Mask[R]": ...
 
     @overload
     @staticmethod
-    def maybe(f: Flag | Diff[Flag], v: R) -> "Mask[R]": ...
+    def maybe(v: R, f: Flag | Diff[Flag]) -> "Mask[R]": ...
 
     @staticmethod
-    def maybe(f: Flag | Diff[Flag], v: "R | Mask[R]") -> "Mask[R]":
+    def maybe(v: "R | Mask[R]", f: Flag | Diff[Flag]) -> "Mask[R]":
         match v:
-            case Mask(g, value):
+            case Mask(value, g):
                 assert not isinstance(f, Diff) and not isinstance(g, Diff)
-                return Mask[R](FlagOp.and_(f, g), value)
+                return Mask[R](value, FlagOp.and_(f, g))
             case _:
-                return Mask[R](f, v)
+                return Mask[R](v, f)
 
     @staticmethod
-    def maybe_none(f: Flag, v: "R | Mask[R]") -> "R | Mask[R] | None":
+    def maybe_none(v: "R | Mask[R]", f: Flag) -> "R | Mask[R] | None":
         if v is None or FlagOp.concrete_false(f):
             return None
         elif FlagOp.concrete_true(f):
             return v
         else:
-            return Mask.maybe(f, v)
+            return Mask.maybe(v, f)
 
     ######################
     # Masking interfaces #

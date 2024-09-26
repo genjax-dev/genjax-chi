@@ -143,11 +143,11 @@ class MaskedConstraint(Constraint):
 class Projection(Generic[S], Pytree):
     @abstractmethod
     def filter(self, sample: S) -> S:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def complement(self) -> "Projection[S]":
-        raise NotImplementedError
+        pass
 
 
 #########################
