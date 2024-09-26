@@ -157,7 +157,7 @@ def staged_choose(
         The selected value from the list.
     """
 
-    def inner(*vs: ArrayLike) -> ArrayLike:
+    def inner(*vs):
         # Computing `result` above the branch allows us to:
         # - catch incompatible types / shapes in the result
         # - in the case of compatible types requiring casts (like bool => int),

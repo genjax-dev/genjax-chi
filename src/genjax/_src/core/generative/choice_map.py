@@ -15,6 +15,7 @@
 from abc import abstractmethod
 from dataclasses import dataclass
 from operator import or_
+from typing import TYPE_CHECKING
 
 import jax
 import jax.numpy as jnp
@@ -25,6 +26,7 @@ from deprecated import deprecated
 
 from genjax._src.core.generative.core import Constraint, Projection, Sample
 from genjax._src.core.generative.functional_types import Mask, staged_choose
+from genjax._src.core.interpreters import staging
 from genjax._src.core.interpreters.staging import (
     FlagOp,
     staged_err,
@@ -42,6 +44,9 @@ from genjax._src.core.typing import (
     String,
     TypeVar,
 )
+
+if TYPE_CHECKING:
+    import genjax
 
 #################
 # Address types #
@@ -375,6 +380,29 @@ class NoneSel(Selection):
         return self
 
 
+@Pytree.dataclass
+class LeafSel(Selection):
+    """Represents a selection that matches only at the current address level.
+
+    This selection returns True for a check at the current level but returns an
+    empty selection (`Selection.none()`) for any subselection, effectively representing a
+    leaf node in the selection hierarchy.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        leaf_sel = LeafSel()
+        assert leaf_sel.check()
+        assert isinstance(leaf_sel.get_subselection("any_address"), NoneSel)
+        ```
+    """
+
+    def check(self) -> Flag:
+        return True
+
+    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
+        return Selection.none()
+
+
 @Pytree.dataclass(match_args=True)
 class MaskSel(Selection):
     """Represents a selection that is conditionally applied based on a flag.
@@ -541,10 +569,10 @@ class AndSel(Selection):
                 return a
             case (_, NoneSel()):
                 return b
-
             case (MaskSel(), MaskSel()):
                 return MaskSel.build(FlagOp.and_(a.flag, b.flag))
-
+            case (a, b) if a == b:
+                return a
             case _:
                 return AndSel(a, b)
 
@@ -597,7 +625,8 @@ class OrSel(Selection):
                 return a
             case (MaskSel(), MaskSel()):
                 return MaskSel.build(FlagOp.or_(a.flag, b.flag))
-
+            case (a, b) if a == b:
+                return a
             case _:
                 return OrSel(a, b)
 
@@ -1218,7 +1247,7 @@ class ChoiceMap(Sample):
             A builder object for constructing ChoiceMaps.
 
         Example:
-            ```python
+            ```python exec="yes" html="true" source="material-block" session="choicemap"
             chm = ChoiceMap.d({("x", "y"): 3.0, "z": 12.0})
             updated = chm.at["x", "y"].set(4.0)
 
@@ -1242,6 +1271,44 @@ class ChoiceMap(Sample):
         """
         return _pushdown_filters(self)
 
+    def validate(
+        self,
+        gen_fn: "genjax.GenerativeFunction[Any]",
+        args: tuple[Any, ...],
+    ) -> "ChoiceMap | None":
+        """
+        Validates the choice map against a generative function and its arguments.
+
+        This method checks if all choices in the current ChoiceMap are valid for the given
+        generative function and its arguments. It identifies any extra choices that are not
+        possible in the function's trace.
+
+        Args:
+            gen_fn: The generative function to validate against.
+            args: The arguments to the generative function.
+
+        Returns:
+            A ChoiceMap containing any extra choices not possible in the function's trace, or None if no extra choices are found.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="choicemap"
+            @genjax.gen
+            def model(x):
+                y = bernoulli(0.5) @ "y"
+                return x + y
+
+
+            chm = ChoiceMap.d({"y": 1, "z": 2})
+            extras = chm.validate(model, (1,))
+            assert "z" in extras  # "z" is an extra choice not in the model
+            ```
+        """
+        shape_chm = staging.get_trace_shape(gen_fn, args).get_choices()
+        shape_sel = _shape_selection(shape_chm)
+        extras = self.filter(~shape_sel, eager=True)
+        if not extras.static_is_empty():
+            return extras
+
 
 @Pytree.dataclass(match_args=True)
 class Choice(Generic[T], ChoiceMap):
@@ -1263,13 +1330,13 @@ class Choice(Generic[T], ChoiceMap):
 
     v: T
 
-    def __xor__(self, other: "ChoiceMap") -> "ChoiceMap":
-        if isinstance(other, Choice):
-            raise Exception(
-                f"The disjoint union of two choice maps have a value collision:\nc1 = {self}\nc2 = {other}"
-            )
-        else:
-            return Xor.build(self, other)
+    # def __xor__(self, other: "ChoiceMap") -> "ChoiceMap":
+    #     if isinstance(other, Choice):
+    #         raise Exception(
+    #             f"The disjoint union of two choice maps have a value collision:\nc1 = {self}\nc2 = {other}"
+    #         )
+    #     else:
+    #         return Xor.build(self, other)
 
     def __or__(self, other: "ChoiceMap") -> "ChoiceMap":
         if isinstance(other, Choice):
@@ -1338,6 +1405,7 @@ class Indexed(ChoiceMap):
             )
 
             check_array = jnp.asarray(check, copy=False)
+
             if check_array.shape:
                 if check_array.shape[0] == 0:
                     # this is an obscure case which can arise when doing an importance
@@ -1489,7 +1557,7 @@ class Xor(ChoiceMap):
         v2 = self.c2.get_value()
 
         def pair_flag_to_idx(first: Flag, second: Flag):
-            return first + 2 * second - 1
+            return first + (2 * second) - 1
 
         idx = pair_flag_to_idx(check1, check2)
 
@@ -1622,11 +1690,12 @@ class Filtered(ChoiceMap):
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap = self.c.get_submap(addr)
-        subselection = self.selection(addr)
+
+        # this is one spot where
+        subselection = self.selection.get_subselection(addr)
         return submap.filter(subselection)
 
 
-## Custom printing
 def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
     def loop(inner: ChoiceMap, selection: Selection) -> ChoiceMap:
         match inner:
@@ -1637,13 +1706,14 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
                 })
 
             case Indexed(c, addr):
-                return loop(c, selection(addr)).extend(addr)
+                sel = selection(addr)
+                return loop(c, sel).extend(addr)
 
             case Choice(v):
                 if v is None:
                     return inner
                 else:
-                    sel_check = selection[()]
+                    sel_check = selection.check()
                     masked = Mask.maybe_none(v, sel_check)
                     if masked is None:
                         return ChoiceMap.empty()
@@ -1661,6 +1731,39 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
 
             case _:
                 return chm.filter(selection)
+
+    return loop(chm, Selection.all())
+
+
+def _shape_selection(chm: ChoiceMap) -> Selection:
+    def loop(inner: ChoiceMap, selection: Selection) -> Selection:
+        match inner:
+            case Static(mapping):
+                acc = Selection.none()
+                for addr in mapping.keys():
+                    sub_chm = inner.get_submap(addr)
+                    sub_sel = selection(addr)
+                    acc |= loop(sub_chm, sub_sel).extend(addr)
+                return acc
+
+            case Indexed(c, addr):
+                return loop(c, selection(...)).extend(...)
+
+            case Choice(v):
+                if isinstance(v, Mask) and FlagOp.concrete_false(v.primal_flag()):
+                    return Selection.none()
+                else:
+                    return LeafSel()
+
+            case Filtered(c, c_selection):
+                print(c_selection & selection)
+                return loop(c, c_selection & selection)
+
+            case Xor(c1, c2) | Or(c1, c2):
+                return loop(c1, selection) | loop(c2, selection)
+
+            case _:
+                return selection
 
     return loop(chm, Selection.all())
 
