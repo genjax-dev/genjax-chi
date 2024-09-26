@@ -52,7 +52,19 @@ class VmapTrace(Generic[R], Trace[R]):
     gen_fn: GenerativeFunction[R]
     inner: Trace[R]
     args: tuple[Any, ...]
-    broadcast_dim_length: int = Pytree.static()
+    score: Score
+    chm: ChoiceMap
+
+    @staticmethod
+    def build(
+        gen_fn: GenerativeFunction[R], tr: Trace[R], args: tuple[Any, ...], length: int
+    ) -> "VmapTrace[R]":
+        score = jnp.sum(tr.get_score())
+        chm = jax.vmap(
+            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_choices(), idx),
+        )(jnp.arange(length), tr)
+
+        return VmapTrace(gen_fn, tr, args, score, chm)
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
@@ -67,10 +79,10 @@ class VmapTrace(Generic[R], Trace[R]):
         return self.get_choices()
 
     def get_choices(self) -> ChoiceMap:
-        return self.inner.get_choices().extend(jnp.arange(self.broadcast_dim_length))
+        return self.chm
 
-    def get_score(self):
-        return jnp.sum(self.inner.get_score())
+    def get_score(self) -> Score:
+        return self.score
 
 
 @Pytree.dataclass
@@ -166,7 +178,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         broadcast_dim_length = self._static_broadcast_dim_length(self.in_axes, args)
         sub_keys = jax.random.split(key, broadcast_dim_length)
         tr = jax.vmap(self.gen_fn.simulate, (0, self.in_axes))(sub_keys, args)
-        map_tr = VmapTrace(self, tr, args, broadcast_dim_length)
+        map_tr = VmapTrace.build(self, tr, args, broadcast_dim_length)
         return map_tr
 
     def generate(
@@ -193,7 +205,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             sub_keys, idx_array, constraint, args
         )
         w = jnp.sum(w)
-        map_tr = VmapTrace(self, tr, args, broadcast_dim_length)
+        map_tr = VmapTrace.build(self, tr, args, broadcast_dim_length)
         return map_tr, w
 
     def project(
@@ -238,7 +250,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             _edit, in_axes=(0, 0, 0, self.in_axes)
         )(sub_keys, idx_array, trace.inner, argdiffs)
         w = jnp.sum(w)
-        map_tr = VmapTrace(self, new_subtraces, primals, broadcast_dim_length)
+        map_tr = VmapTrace.build(self, new_subtraces, primals, broadcast_dim_length)
         return (
             map_tr,
             w,

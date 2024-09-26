@@ -55,7 +55,23 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
     args: tuple[Any, ...]
     retval: tuple[Carry, Y]
     score: FloatArray
+    chm: ChoiceMap
     scan_length: int = Pytree.static()
+
+    @staticmethod
+    def build(
+        scan_gen_fn: "ScanCombinator[Carry, Y]",
+        inner: Trace[tuple[Carry, Y]],
+        args: tuple[Any, ...],
+        retval: tuple[Carry, Y],
+        score: FloatArray,
+        scan_length: int,
+    ) -> "ScanTrace[Carry, Y]":
+        chm = jax.vmap(
+            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_choices(), idx),
+        )(jnp.arange(scan_length), inner)
+
+        return ScanTrace(scan_gen_fn, inner, args, retval, score, chm, scan_length)
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
@@ -64,7 +80,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
         return self.retval
 
     def get_choices(self) -> ChoiceMap:
-        return self.inner.get_choices().extend(jnp.arange(self.scan_length))
+        return self.chm
 
     def get_sample(self) -> ChoiceMap:
         return self.get_choices()
@@ -214,7 +230,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             length=self.length,
         )
 
-        return ScanTrace(
+        return ScanTrace.build(
             self,
             tr,
             args,
@@ -271,7 +287,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             length=self.length,
         )
         return (
-            ScanTrace[Carry, Y](
+            ScanTrace[Carry, Y].build(
                 self,
                 tr,
                 args,
@@ -410,7 +426,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             scanned_out_diff,
         ))
         return (
-            ScanTrace(
+            ScanTrace.build(
                 self,
                 new_subtraces,
                 Diff.tree_primal(argdiffs),

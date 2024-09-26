@@ -152,3 +152,25 @@ class TestVmapCombinator:
             match="Found incompatible dtypes, <class 'numpy.float32'> and <class 'numpy.int32'>",
         ):
             foo.vmap(in_axes=(None, 0)).simulate(key, (10.0, jnp.arange(3)))
+
+    def test_vmap_key_vmap(self):
+        @genjax.gen
+        def model(x):
+            y = genjax.normal(x, 1.0) @ "y"
+            return y
+
+        vmapped = model.vmap(in_axes=(0,))
+
+        key = jax.random.PRNGKey(314159)
+        keys = jax.random.split(key, 10)
+        xs = jnp.arange(5, dtype=float)
+
+        results = jax.vmap(lambda k: vmapped.simulate(k, (xs,)))(jnp.array(keys))
+
+        chm = results.get_choices()
+
+        # the inner vmap aggregates a score, while the outer vmap does not accumulate anything
+        assert results.get_score().shape == (10,)
+
+        # the inner vmap has vmap'd over the y's
+        assert chm[..., "y"].shape == (10, 5)
