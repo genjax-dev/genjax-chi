@@ -1049,8 +1049,8 @@ class ChoiceMap(Sample):
             chm3 = ChoiceMap.d({"x": 5, "y": 6})
 
             switched = ChoiceMap.switch(1, [chm1, chm2, chm3])
-            assert switched["x"] == 3
-            assert switched["y"] == 4
+            assert switched["x"].unmask() == 3
+            assert switched["y"].unmask() == 4
             ```
         """
         acc = ChoiceMap.empty()
