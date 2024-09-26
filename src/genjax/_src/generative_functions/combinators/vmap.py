@@ -136,10 +136,6 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
         return jax.vmap(inner, in_axes=self.in_axes)(*args)
 
-    # TODO:
-    # - test that fails if the validations fail in various ways
-    # - test that the vmap works with different pytree depths
-    # - test that the vmap works with different pytree structures
     @staticmethod
     def _static_broadcast_dim_length(in_axes: InAxes, args: tuple[Any, ...]) -> int:
         # We start by triggering a vmap to force all JAX validations to run. If we get past this line we know we have compatible dimensions.
@@ -156,10 +152,9 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             if axis is not None:
                 return x.shape[axis]
 
-        # tree_map uses in_axes as a template. To have passed vmap validation,
-        # Any non-None entry must bottom out in an array-shaped leaf,
-        # and all such leafs must have the same size for the specified
-        # dimension. Fetching the first is sufficient.
+        # tree_map uses in_axes as a template. To have passed vmap validation, Any non-None entry
+        # must bottom out in an array-shaped leaf, and all such leafs must have the same size for
+        # the specified dimension. Fetching the first is sufficient.
         axis_sizes = jax.tree_util.tree_map(
             find_axis_size,
             in_axes,

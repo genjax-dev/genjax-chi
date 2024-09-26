@@ -200,6 +200,26 @@ class Selection(Projection["ChoiceMap"]):
         """
         return NoneSel()
 
+    @staticmethod
+    def leaf() -> "Selection":
+        """
+        Returns a Selection that selects only leaf addresses.
+
+        A leaf address is an address that doesn't have any sub-addresses.
+        This selection is useful when you want to target only the final elements in a nested structure.
+
+        Returns:
+            A Selection that selects only leaf addresses.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="choicemap"
+            leaf_selection = Selection.leaf().extend("a", "b")
+            assert leaf_selection["a", "b"]
+            assert not leaf_selection["a", "b", "anything"]
+            ```
+        """
+        return LeafSel()
+
     ######################
     # Combinator methods #
     ######################
@@ -1330,20 +1350,6 @@ class Choice(Generic[T], ChoiceMap):
 
     v: T
 
-    # def __xor__(self, other: "ChoiceMap") -> "ChoiceMap":
-    #     if isinstance(other, Choice):
-    #         raise Exception(
-    #             f"The disjoint union of two choice maps have a value collision:\nc1 = {self}\nc2 = {other}"
-    #         )
-    #     else:
-    #         return Xor.build(self, other)
-
-    def __or__(self, other: "ChoiceMap") -> "ChoiceMap":
-        if isinstance(other, Choice):
-            return self
-        else:
-            return Or.build(self, other)
-
     def get_value(self) -> T:
         return self.v
 
@@ -1405,7 +1411,6 @@ class Indexed(ChoiceMap):
             )
 
             check_array = jnp.asarray(check, copy=False)
-
             if check_array.shape:
                 if check_array.shape[0] == 0:
                     # this is an obscure case which can arise when doing an importance
@@ -1557,7 +1562,7 @@ class Xor(ChoiceMap):
         v2 = self.c2.get_value()
 
         def pair_flag_to_idx(first: Flag, second: Flag):
-            return first + (2 * second) - 1
+            return first + 2 * second - 1
 
         idx = pair_flag_to_idx(check1, check2)
 
@@ -1690,9 +1695,7 @@ class Filtered(ChoiceMap):
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap = self.c.get_submap(addr)
-
-        # this is one spot where
-        subselection = self.selection.get_subselection(addr)
+        subselection = self.selection(addr)
         return submap.filter(subselection)
 
 
@@ -1706,8 +1709,7 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
                 })
 
             case Indexed(c, addr):
-                sel = selection(addr)
-                return loop(c, sel).extend(addr)
+                return loop(c, selection(addr)).extend(addr)
 
             case Choice(v):
                 if v is None:

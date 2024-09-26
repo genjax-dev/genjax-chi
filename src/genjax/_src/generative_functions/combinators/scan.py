@@ -176,8 +176,8 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         return v, scanned_out
 
     @staticmethod
-    def _static_broadcast_dim_length(xs: Any, length: int | None) -> int:
-        # We start by triggering a scan to force all JAX validations to run. If we get past this line we know we have compatible dimensions.
+    def _static_scan_length(xs: Any, length: int | None) -> int:
+        # We start by triggering a scan to force all JAX validations to run.
         jax.lax.scan(lambda c, x: (c, None), None, xs, length=length)
         return length or jtu.tree_leaves(xs)[0].shape[0]
 
@@ -222,7 +222,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             args,
             (carried_out, scanned_out),
             jnp.sum(scores),
-            self._static_broadcast_dim_length(scanned_in, self.length),
+            self._static_scan_length(scanned_in, self.length),
         )
 
     def generate(
@@ -279,7 +279,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 args,
                 (carried_out, scanned_out),
                 jnp.sum(scores),
-                self._static_broadcast_dim_length(scanned_in, self.length),
+                self._static_scan_length(scanned_in, self.length),
             ),
             jnp.sum(ws),
         )

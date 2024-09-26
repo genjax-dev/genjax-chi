@@ -67,6 +67,17 @@ class TestSelections:
         # none can't be extended
         assert Selection.none().extend("a", "b") == Selection.none()
 
+    def test_selection_leaf(self):
+        leaf_sel = Selection.leaf().extend("x", "y")
+        assert not leaf_sel["x"]
+        assert leaf_sel["x", "y"]
+
+        # only exact matches are allowed
+        assert not leaf_sel["x", "y", "z"]
+
+        # wildcards work
+        assert leaf_sel[..., "y"]
+
     def test_selection_complement(self):
         sel = S["x"] | S["y"]
         comp_sel = ~sel
@@ -105,6 +116,10 @@ class TestSelections:
         assert (none_sel & sel1) == none_sel
         assert (sel1 & none_sel) == none_sel
 
+        # idempotence
+        assert sel1 & sel1 == sel1
+        assert sel2 & sel2 == sel2
+
     def test_selection_or(self):
         sel1 = S["x"]
         sel2 = S["y"]
@@ -123,6 +138,10 @@ class TestSelections:
         none_sel = Selection.none()
         assert (none_sel | sel1) == sel1
         assert (sel1 | none_sel) == sel1
+
+        # idempotence
+        assert sel1 | sel1 == sel1
+        assert sel2 | sel2 == sel2
 
     def test_selection_mask(self):
         sel = S["x"] | S["y"]
