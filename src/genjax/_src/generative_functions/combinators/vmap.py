@@ -275,7 +275,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
         broadcast_dim_length = self._static_broadcast_dim_length(self.in_axes, args)
-        idx_array = jnp.arange(0, broadcast_dim_length)
+        idx_array = jnp.arange(broadcast_dim_length)
 
         def _assess(idx, args):
             submap = sample(idx)
