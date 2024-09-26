@@ -27,7 +27,10 @@ from deprecated import deprecated
 from genjax._src.core.generative.core import Constraint, Projection, Sample
 from genjax._src.core.generative.functional_types import Mask, staged_choose
 from genjax._src.core.interpreters import staging
-from genjax._src.core.interpreters.staging import FlagOp, staged_err
+from genjax._src.core.interpreters.staging import (
+    FlagOp,
+    staged_err,
+)
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -1021,7 +1024,9 @@ class ChoiceMap(Sample):
         return ChoiceMap.d(kwargs)
 
     @staticmethod
-    def switch(idx: ArrayLike, chms: Iterable["ChoiceMap"]) -> "ChoiceMap":
+    def switch(
+        idx: ArrayLike | jax.ShapeDtypeStruct, chms: Iterable["ChoiceMap"]
+    ) -> "ChoiceMap":
         """
         Creates a ChoiceMap that switches between multiple ChoiceMaps based on an index.
 
@@ -1051,7 +1056,7 @@ class ChoiceMap(Sample):
         acc = ChoiceMap.empty()
         for _idx, _chm in enumerate(chms):
             assert isinstance(_chm, ChoiceMap)
-            masked = _chm.mask(_idx == idx)
+            masked = _chm.mask(jnp.all(_idx == idx))
             acc ^= masked
         return acc
 
