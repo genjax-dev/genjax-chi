@@ -27,10 +27,7 @@ from deprecated import deprecated
 from genjax._src.core.generative.core import Constraint, Projection, Sample
 from genjax._src.core.generative.functional_types import Mask, staged_choose
 from genjax._src.core.interpreters import staging
-from genjax._src.core.interpreters.staging import (
-    FlagOp,
-    staged_err,
-)
+from genjax._src.core.interpreters.staging import FlagOp, staged_err
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,

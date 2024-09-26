@@ -77,14 +77,9 @@ class SwitchTrace(Generic[R], Trace[R]):
         return self.args
 
     def get_choices(self) -> ChoiceMap:
-        (idx, *_) = self.get_args()
-        sub_chms = list(map(lambda v: v.get_choices(), self.subtraces))
-        chm = ChoiceMap.empty()
-        for _idx, _chm in enumerate(sub_chms):
-            assert isinstance(_chm, ChoiceMap)
-            masked_submap = _chm.mask(jnp.all(_idx == idx))
-            chm = chm ^ masked_submap
-        return chm
+        idx = self.get_args()[0]
+        sub_chms = (tr.get_choices() for tr in self.subtraces)
+        return ChoiceMap.switch(idx, sub_chms)
 
     def get_sample(self) -> ChoiceMap:
         return self.get_choices()
