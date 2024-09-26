@@ -420,3 +420,22 @@ class TestScanWithParameters:
             trace.get_choices(),
             (2.0, 2.0 + jnp.arange(0, dtype=float)),
         )
+
+    def test_scan_validation(self):
+        @genjax.gen
+        def foo(shift, d):
+            loc = d["loc"]
+            scale = d["scale"]
+            x = genjax.normal(loc, scale) @ "x"
+            return x + shift, None
+
+        key = jax.random.PRNGKey(314159)
+        jax.lax.scan
+        d = {
+            "loc": jnp.array([10.0, 12.0]),
+            "scale": jnp.array([1.0]),
+        }
+        with pytest.raises(
+            ValueError, match="scan got values with different leading axis sizes: 2, 1."
+        ):
+            foo.scan().simulate(key, (jnp.array([1.0]), d))
