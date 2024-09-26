@@ -67,12 +67,7 @@ class VmapTrace(Generic[R], Trace[R]):
         return self.get_choices()
 
     def get_choices(self) -> ChoiceMap:
-        return jax.vmap(
-            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_choices(), idx)
-        )(
-            jnp.arange(self.broadcast_dim_length),
-            self.inner,
-        )
+        return self.inner.get_choices().extend(jnp.arange(self.broadcast_dim_length))
 
     def get_score(self):
         return jnp.sum(self.inner.get_score())

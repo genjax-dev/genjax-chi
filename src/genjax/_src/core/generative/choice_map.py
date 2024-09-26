@@ -1268,6 +1268,8 @@ class ChoiceMap(Sample):
 
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
+            from genjax import ChoiceMap
+
             chm = ChoiceMap.d({("x", "y"): 3.0, "z": 12.0})
             updated = chm.at["x", "y"].set(4.0)
 
