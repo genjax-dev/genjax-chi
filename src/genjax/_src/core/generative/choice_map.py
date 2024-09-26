@@ -1291,24 +1291,23 @@ class ChoiceMap(Sample):
         """
         return _pushdown_filters(self)
 
-    def validate(
+    def invalid_subset(
         self,
         gen_fn: "genjax.GenerativeFunction[Any]",
         args: tuple[Any, ...],
     ) -> "ChoiceMap | None":
         """
-        Validates the choice map against a generative function and its arguments.
+        Identifies the subset of choices that are invalid for a given generative function and its arguments.
 
         This method checks if all choices in the current ChoiceMap are valid for the given
-        generative function and its arguments. It identifies any extra choices that are not
-        possible in the function's trace.
+        generative function and its arguments.
 
         Args:
-            gen_fn: The generative function to validate against.
+            gen_fn: The generative function to check against.
             args: The arguments to the generative function.
 
         Returns:
-            A ChoiceMap containing any extra choices not possible in the function's trace, or None if no extra choices are found.
+            A ChoiceMap containing any extra choices not reachable in the course of `gen_fn`'s execution, or None if no extra choices are found.
 
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
@@ -1319,7 +1318,7 @@ class ChoiceMap(Sample):
 
 
             chm = ChoiceMap.d({"y": 1, "z": 2})
-            extras = chm.validate(model, (1,))
+            extras = chm.invalid_subset(model, (1,))
             assert "z" in extras  # "z" is an extra choice not in the model
             ```
         """
