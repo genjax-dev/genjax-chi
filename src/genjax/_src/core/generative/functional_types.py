@@ -162,7 +162,7 @@ def staged_choose(
         # - catch incompatible types / shapes in the result
         # - in the case of compatible types requiring casts (like bool => int),
         #   result's dtype tells us the final type.
-        result = jnp.choose(idx, vs, mode="wrap")
+        result = jnp.choose(idx, vs, mode="clip")
         if isinstance(idx, Int):
             return jnp.asarray(vs[idx % len(vs)], dtype=result.dtype)
         else:

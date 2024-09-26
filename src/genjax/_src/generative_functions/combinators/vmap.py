@@ -32,6 +32,7 @@ from genjax._src.core.generative import (
     R,
     Retdiff,
     Score,
+    Selection,
     Trace,
     Weight,
 )
@@ -43,6 +44,7 @@ from genjax._src.core.typing import (
     FloatArray,
     Generic,
     InAxes,
+    IntArray,
     PRNGKey,
 )
 
@@ -218,7 +220,32 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         projection: Projection[Any],
     ) -> Weight:
-        raise NotImplementedError
+        assert isinstance(projection, Selection)
+        assert isinstance(trace, VmapTrace)
+
+        def _project(
+            key: PRNGKey,
+            idx: IntArray,
+            projection: Selection,
+            subtrace: Trace[Any],
+        ) -> Weight:
+            key = jax.random.fold_in(key, idx)
+            subprojection = projection(idx)
+            assert isinstance(subprojection, Selection)
+            w = subtrace.project(
+                key,
+                subprojection,
+            )
+
+            return w
+
+        args = trace.get_args()
+        broadcast_dim_length = self._static_broadcast_dim_length(args)
+        idx_array = jnp.arange(0, broadcast_dim_length)
+        ws = jax.vmap(_project, in_axes=(None, 0, None, 0))(
+            key, idx_array, projection, trace.inner
+        )
+        return jnp.sum(ws)
 
     def edit_choice_map_constraint(
         self,

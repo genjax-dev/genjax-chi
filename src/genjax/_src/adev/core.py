@@ -120,7 +120,7 @@ class TailCallBatchedADEVPrimitive(TailCallADEVPrimitive):
         key: PRNGKey,
         dual_tree: DualTree,  # Pytree with Dual leaves.
     ) -> "Dual":
-        key_dim, tree_dim = jax_util.split_list(self.dims, [1])
+        _, tree_dim = jax_util.split_list(self.dims, [1])
         tree_primals = Dual.tree_primal(dual_tree)
         tree_tangents = Dual.tree_tangent(dual_tree)
 
@@ -128,9 +128,10 @@ class TailCallBatchedADEVPrimitive(TailCallADEVPrimitive):
             dual_tree = Dual.dual_tree(tree_primals, tree_tangents)
             return self.original_prim.before_tail_call(key, dual_tree)
 
+        # TODO: does the key need to be split?
         return jax.vmap(
             _before_tail_call,
-            in_axes=(key_dim, tree_dim, tree_dim),
+            in_axes=(None, tree_dim, tree_dim),
         )(key, tree_primals, tree_tangents)
 
 
