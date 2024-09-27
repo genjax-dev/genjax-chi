@@ -41,10 +41,11 @@ from .core import (
 )
 from .functional_types import Mask
 from .generative_function import (
+    ChoiceMapChangeRequest,
+    ChoiceMapEditRequest,
     GenerativeFunction,
     GenerativeFunctionClosure,
     IgnoreKwargs,
-    IncrementalChoiceMapRequest,
     Trace,
 )
 
@@ -55,7 +56,9 @@ __all__ = [
     "Arguments",
     "ChoiceMap",
     "ChoiceMapBuilder",
+    "ChoiceMapChangeRequest",
     "ChoiceMapConstraint",
+    "ChoiceMapEditRequest",
     "Constraint",
     "EditRequest",
     "EmptyConstraint",
@@ -63,7 +66,6 @@ __all__ = [
     "GenerativeFunction",
     "GenerativeFunctionClosure",
     "IgnoreKwargs",
-    "IncrementalChoiceMapRequest",
     "Mask",
     "MaskedConstraint",
     "MaskedConstraint",
