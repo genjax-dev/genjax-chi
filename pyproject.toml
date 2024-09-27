@@ -48,7 +48,8 @@ treescope = "^0.1.5"
 # Numpy <2.0.0 is due to tfp issues: https://github.com/tensorflow/probability/issues/1814
 # remove this constraint when that issue is closed.
 numpy = ">=1.22,<2.0.0"
-genstudio = { version = "2024.09.003", source = "gcp", optional = true }
+msgpack = { version = "^1.0.8", optional = true }
+genstudio = { version = "2024.09.007", source = "gcp", optional = true }
 
 [tool.poetry.group.dev]
 optional = true
@@ -119,6 +120,7 @@ exclude = ["**/__pycache__"]
 defineConstant = { DEBUG = true }
 typeCheckingMode = "strict"
 deprecateTypingAliases = true
+reportUnusedExpression = false
 
 # `strict` sets all of these to error; these remaining `none` entries are tests that we can't yet
 # pass.
