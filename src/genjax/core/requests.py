@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.generative.requests import SelectApply, ChoiceMapEditRequest, Regenerate
+from genjax._src.core.generative.requests import (
+    SelectApply,
+    ChoiceMapEditRequest,
+    Regenerate,
+)
 
 __all__ = ["SelectApply", "ChoiceMapEditRequest", "Regenerate"]
