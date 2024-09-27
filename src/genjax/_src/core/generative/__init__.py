@@ -32,6 +32,7 @@ from .core import (
     EmptySample,
     MaskedConstraint,
     MaskedSample,
+    NotSupportedEditRequest,
     Projection,
     R,
     Retdiff,
@@ -48,6 +49,7 @@ from .generative_function import (
     Trace,
 )
 from .requests import (
+    ChoiceMapEditRequest,
     RegenerateRequest,
     SelectApply,
 )
@@ -61,6 +63,7 @@ __all__ = [
     "ChoiceMapBuilder",
     "ChoiceMapChangeRequest",
     "ChoiceMapConstraint",
+    "ChoiceMapEditRequest",
     "Constraint",
     "EditRequest",
     "EmptyConstraint",
@@ -72,6 +75,7 @@ __all__ = [
     "MaskedConstraint",
     "MaskedConstraint",
     "MaskedSample",
+    "NotSupportedEditRequest",
     "Projection",
     "R",
     "RegenerateRequest",

@@ -30,10 +30,13 @@ from genjax._src.core.generative import (
     EmptyConstraint,
     GenerativeFunction,
     Mask,
+    NotSupportedEditRequest,
     Projection,
     R,
+    RegenerateRequest,
     Retdiff,
     Score,
+    SelectApply,
     Selection,
     Trace,
     Weight,
@@ -299,7 +302,25 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             jnp.array(0.0),
         )
 
-    def edit_incremental_generic_request(
+    def edit_select_apply(
+        self,
+        key: PRNGKey,
+        trace: Trace[R],
+        selection: Selection,
+        request: EditRequest,
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+        raise NotImplementedError
+
+    def edit_regenerate(
+        self,
+        key: PRNGKey,
+        trace: Trace[R],
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+        raise NotImplementedError
+
+    def edit_choice_map_change(
         self,
         key: PRNGKey,
         trace: Trace[R],
@@ -323,14 +344,30 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        assert isinstance(edit_request, ChoiceMapChangeRequest)
-        constraint = edit_request.constraint
-        return self.edit_incremental_generic_request(
-            key,
-            trace,
-            constraint,
-            argdiffs,
-        )
+        match edit_request:
+            case ChoiceMapChangeRequest(constraint):
+                return self.edit_choice_map_change(
+                    key,
+                    trace,
+                    constraint,
+                    argdiffs,
+                )
+            case RegenerateRequest():
+                return self.edit_regenerate(
+                    key,
+                    trace,
+                    argdiffs,
+                )
+            case SelectApply(selection, request):
+                return self.edit_select_apply(
+                    key,
+                    trace,
+                    selection,
+                    request,
+                    argdiffs,
+                )
+            case _:
+                raise NotSupportedEditRequest(edit_request)
 
     def assess(
         self,
