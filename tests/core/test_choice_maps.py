@@ -528,9 +528,9 @@ class TestChoiceMap:
         extended = chm.extend(jnp.array([0, 1, 2]))
         assert extended.get_value() is None
         assert extended.get_submap("x").static_is_empty()
-        assert extended[0].unmask() == 2.3
-        assert extended[1].unmask() == 4.4
-        assert extended[2].unmask() == 3.3
+        assert extended[0] == 2.3
+        assert extended[1] == 4.4
+        assert extended[2] == 3.3
 
         assert ChoiceMap.empty().extend(jnp.array([0, 1, 2])).static_is_empty()
 
@@ -659,9 +659,9 @@ class TestChoiceMap:
             filtered_chm[..., "y"]
 
         # Assert that the structure of the filtered ChoiceMap is preserved
-        assert filtered_chm[0, "x"].unmask() == 1.0
-        assert filtered_chm[1, "x"].unmask() == 2.0
-        assert filtered_chm[2, "x"].unmask() == 3.0
+        assert filtered_chm[0, "x"] == 1.0
+        assert filtered_chm[1, "x"] == 2.0
+        assert filtered_chm[2, "x"] == 3.0
 
     def test_filtered_chm_update(self):
         @genjax.gen

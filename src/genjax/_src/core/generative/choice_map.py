@@ -1399,6 +1399,9 @@ class Indexed(ChoiceMap):
             return ChoiceMap.empty()
 
         else:
+            assert not jnp.asarray(
+                addr, copy=False
+            ).shape, "Only scalar dynamic addresses are supported."
 
             def check_fn(idx, addr) -> Flag:
                 return idx == addr
@@ -1416,9 +1419,7 @@ class Indexed(ChoiceMap):
                     # update of a scan GF with an array of shape (0,) or (0, ...)
                     return ChoiceMap.empty()
                 else:
-                    return jtu.tree_map(lambda v: v[addr], self.c).mask(
-                        check_array[addr]
-                    )
+                    return jtu.tree_map(lambda v: v[addr], self.c)
             else:
                 return self.c.mask(check)
 
