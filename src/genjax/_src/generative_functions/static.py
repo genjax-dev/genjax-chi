@@ -292,7 +292,7 @@ def simulate_transform(source_fn):
 
 
 @dataclass
-class IncrementalGenericRequestHandler(StaticHandler):
+class IncrementalChoiceMapRequestHandler(StaticHandler):
     key: PRNGKey
     previous_trace: StaticTrace[Any]
     constraint: ChoiceMapConstraint
@@ -362,7 +362,7 @@ def incremental_generic_request_transform(source_fn):
         constraint: ChoiceMapConstraint,
         diffs: tuple[Any, ...],
     ):
-        stateful_handler = IncrementalGenericRequestHandler(
+        stateful_handler = IncrementalChoiceMapRequestHandler(
             key, previous_trace, constraint
         )
         diff_primals = Diff.tree_primal(diffs)
