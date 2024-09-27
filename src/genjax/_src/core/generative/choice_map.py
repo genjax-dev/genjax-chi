@@ -37,6 +37,8 @@ from genjax._src.core.typing import (
     Final,
     Flag,
     Generic,
+    Int,
+    IntArray,
     String,
     TypeVar,
 )
@@ -49,7 +51,7 @@ if TYPE_CHECKING:
 #################
 
 StaticAddressComponent = String
-DynamicAddressComponent = ArrayLike
+DynamicAddressComponent = Int | IntArray
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
 Address = tuple[AddressComponent, ...]
 StaticAddress = tuple[StaticAddressComponent, ...]
@@ -1395,18 +1397,17 @@ class Indexed(ChoiceMap):
         if addr is Ellipsis:
             return self.c
 
-        elif not isinstance(addr, DynamicAddressComponent):
+        elif isinstance(addr, StaticAddressComponent):
             return ChoiceMap.empty()
 
         else:
             assert not jnp.asarray(
                 addr, copy=False
-            ).shape, "Only scalar dynamic addresses are supported."
+            ).shape, "Only scalar dynamic addresses are supported by get_submap."
 
-            self_addr_shape = jnp.array(self.addr, copy=False).shape
-            # if it's a dynamic address,
-            if self_addr_shape:
-                if self_addr_shape[0] == 0:
+            a_shape = jnp.array(self.addr, copy=False).shape
+            if a_shape:
+                if a_shape[0] == 0:
                     return ChoiceMap.empty()
                 else:
                     return jtu.tree_map(lambda v: v[addr], self.c)
