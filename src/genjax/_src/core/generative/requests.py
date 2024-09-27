@@ -13,13 +13,10 @@
 # limitations under the License.
 
 
-
 from genjax._src.core.generative.choice_map import (
     Selection,
 )
-from genjax._src.core.generative.generative_function import (
-    Trace
-)
+from genjax._src.core.generative.generative_function import Trace
 from genjax._src.core.generative.core import (
     Argdiffs,
     EditRequest,
@@ -36,7 +33,6 @@ from genjax._src.core.typing import (
 R = TypeVar("R")
 
 
-
 @Pytree.dataclass(match_args=True)
 class RegenerateRequest(EditRequest):
     def edit(
@@ -47,6 +43,7 @@ class RegenerateRequest(EditRequest):
     ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
         gen_fn = tr.get_gen_fn()
         return gen_fn.edit(key, tr, self, argdiffs)
+
 
 @Pytree.dataclass(match_args=True)
 class SelectApply(EditRequest):
