@@ -1403,25 +1403,15 @@ class Indexed(ChoiceMap):
                 addr, copy=False
             ).shape, "Only scalar dynamic addresses are supported."
 
-            def check_fn(idx, addr) -> Flag:
-                return idx == addr
-
-            check = (
-                jax.vmap(check_fn, in_axes=(None, 0))(addr, self.addr)
-                if jnp.array(self.addr, copy=False).shape
-                else check_fn(addr, self.addr)
-            )
-
-            check_array = jnp.asarray(check, copy=False)
-            if check_array.shape:
-                if check_array.shape[0] == 0:
-                    # this is an obscure case which can arise when doing an importance
-                    # update of a scan GF with an array of shape (0,) or (0, ...)
+            self_addr_shape = jnp.array(self.addr, copy=False).shape
+            # if it's a dynamic address,
+            if self_addr_shape:
+                if self_addr_shape[0] == 0:
                     return ChoiceMap.empty()
                 else:
                     return jtu.tree_map(lambda v: v[addr], self.c)
             else:
-                return self.c.mask(check)
+                return self.c.mask(self.addr == addr)
 
 
 @Pytree.dataclass(match_args=True)
