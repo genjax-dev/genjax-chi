@@ -159,10 +159,9 @@ class Trace(Generic[R], Pytree):
         """
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
         """
-        return self.get_gen_fn().edit(
+        return request.edit(
             key,
             self,
-            request,
             Diff.tree_diff_no_change(self.get_args()) if argdiffs is None else argdiffs,
         )  # pyright: ignore[reportReturnType]
 
@@ -526,12 +525,12 @@ class GenerativeFunction(Generic[R], Pytree):
         constraint: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], Constraint]:
-        tr, w, rd, bwd = self.edit(
+        request = IncrementalChoiceMapRequest(
+            ChoiceMapConstraint(constraint),
+        )
+        tr, w, rd, bwd = request.edit(
             key,
             trace,
-            IncrementalChoiceMapRequest(
-                ChoiceMapConstraint(constraint),
-            ),
             argdiffs,
         )
         assert isinstance(bwd, IncrementalChoiceMapRequest), type(bwd)
