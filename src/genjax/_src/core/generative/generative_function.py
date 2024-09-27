@@ -15,8 +15,6 @@
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-import jax
-
 from genjax._src.core.generative.choice_map import (
     ChoiceMap,
     ChoiceMapConstraint,
@@ -34,7 +32,7 @@ from genjax._src.core.generative.core import (
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import get_trace_shape
+from genjax._src.core.interpreters.staging import get_zero_trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -273,13 +271,14 @@ class GenerativeFunction(Generic[R], Pytree):
 
         Generative functions may customize this to improve compilation time.
         """
-        return self.simulate(jax.random.PRNGKey(0), args).get_retval()
+        return self.get_zero_trace(*args).get_retval()
 
     def handle_kwargs(self) -> "GenerativeFunction[R]":
         return IgnoreKwargs(self)
 
-    def get_trace_shape(self, *args) -> Any:
-        return get_trace_shape(self, args)
+    def get_zero_trace(self, *args) -> Trace[R]:
+        # TODO docs!
+        return get_zero_trace(self, args)
 
     @abstractmethod
     def simulate(

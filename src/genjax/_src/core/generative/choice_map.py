@@ -25,12 +25,8 @@ from beartype.typing import Iterable
 from deprecated import deprecated
 
 from genjax._src.core.generative.core import Constraint, Projection, Sample
-from genjax._src.core.generative.functional_types import Mask, staged_choose
-from genjax._src.core.interpreters import staging
-from genjax._src.core.interpreters.staging import (
-    FlagOp,
-    staged_err,
-)
+from genjax._src.core.generative.functional_types import Mask
+from genjax._src.core.interpreters.staging import FlagOp, staged_choose, staged_err
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -55,12 +51,12 @@ if TYPE_CHECKING:
 StaticAddressComponent = String
 DynamicAddressComponent = ArrayLike
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
-Address = tuple[()] | tuple[AddressComponent, ...]
-StaticAddress = tuple[()] | tuple[StaticAddressComponent, ...]
+Address = tuple[AddressComponent, ...]
+StaticAddress = tuple[StaticAddressComponent, ...]
 ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
-ExtendedStaticAddress = tuple[()] | tuple[ExtendedStaticAddressComponent, ...]
+ExtendedStaticAddress = tuple[ExtendedStaticAddressComponent, ...]
 ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
-ExtendedAddress = tuple[()] | tuple[ExtendedAddressComponent, ...]
+ExtendedAddress = tuple[ExtendedAddressComponent, ...]
 
 T = TypeVar("T")
 K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
@@ -1326,7 +1322,7 @@ class ChoiceMap(Sample):
             assert "z" in extras  # "z" is an extra choice not in the model
             ```
         """
-        shape_chm = staging.get_trace_shape(gen_fn, args).get_choices()
+        shape_chm = gen_fn.get_zero_trace(*args).get_choices()
         shape_sel = _shape_selection(shape_chm)
         extras = self.filter(~shape_sel, eager=True)
         if not extras.static_is_empty():

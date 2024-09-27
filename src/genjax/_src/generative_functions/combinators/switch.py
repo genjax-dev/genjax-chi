@@ -31,9 +31,13 @@ from genjax._src.core.generative import (
     Trace,
     Weight,
 )
-from genjax._src.core.generative.functional_types import staged_choose
 from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
-from genjax._src.core.interpreters.staging import get_data_shape
+from genjax._src.core.interpreters.staging import (
+    get_assess_shape,
+    get_edit_shape,
+    get_generate_shape,
+    staged_choose,
+)
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -169,20 +173,20 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         trace_leaves = []
         retval_defs = []
         retval_leaves = []
+
         for static_idx in range(len(self.branches)):
-            key = jax.random.PRNGKey(0)
             branch_gen_fn = self.branches[static_idx]
             branch_args = args[static_idx]
-            trace_shape = get_data_shape(branch_gen_fn.simulate)(key, branch_args)
-            empty_trace = jtu.tree_map(
-                lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
-            )
+
+            empty_trace = branch_gen_fn.get_zero_trace(*branch_args)
+
             retval_leaf, retval_def = jtu.tree_flatten(empty_trace.get_retval())
             trace_leaf, trace_def = jtu.tree_flatten(empty_trace)
             trace_defs.append(trace_def)
             trace_leaves.append(trace_leaf)
             retval_defs.append(retval_def)
             retval_leaves.append(retval_leaf)
+
         return (trace_leaves, trace_defs), (retval_leaves, retval_defs)
 
     def _simulate(self, trace_leaves, retval_leaves, key, static_idx, args):
@@ -238,7 +242,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         for static_idx in range(len(self.branches)):
             branch_gen_fn = self.branches[static_idx]
             branch_args = args[static_idx]
-            _, retval_shape = get_data_shape(branch_gen_fn.assess)(sample, branch_args)
+            _, retval_shape = get_assess_shape(branch_gen_fn, sample, branch_args)
             empty_retval = jtu.tree_map(
                 lambda v: jnp.zeros(v.shape, v.dtype), retval_shape
             )
@@ -293,12 +297,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         for static_idx in range(len(self.branches)):
             branch_gen_fn = self.branches[static_idx]
             branch_args = args[static_idx]
-            key = jax.random.PRNGKey(0)
-            trace_shape, _ = get_data_shape(branch_gen_fn.generate)(
-                key,
-                constraint,
-                branch_args,
-            )
+            trace_shape, _ = get_generate_shape(branch_gen_fn, constraint, branch_args)
             empty_trace = jtu.tree_map(
                 lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
             )
@@ -415,10 +414,11 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             subtrace = trace.subtraces[static_idx]
             gen_fn = self.branches[static_idx]
             branch_argdiffs = argdiffs[static_idx]
-            key = jax.random.PRNGKey(0)
-            trace_shape, _, retdiff_shape, bwd_request_shape = get_data_shape(
-                gen_fn.edit
-            )(key, subtrace, IncrementalGenericRequest(constraint), branch_argdiffs)
+
+            trace_shape, _, retdiff_shape, bwd_request_shape = get_edit_shape(
+                gen_fn, subtrace, IncrementalGenericRequest(constraint), branch_argdiffs
+            )
+            # TODO add a lambda?
             empty_trace = jtu.tree_map(
                 lambda v: jnp.zeros(v.shape, v.dtype), trace_shape
             )
@@ -487,8 +487,8 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         branch_primals = Diff.tree_primal(branch_argdiffs)
         new_subtrace = gen_fn.simulate(key, branch_primals)
         new_subtrace_def = jtu.tree_structure(new_subtrace)
-        _, _, _, bwd_request_shape = get_data_shape(gen_fn.edit)(
-            key,
+        _, _, _, bwd_request_shape = get_edit_shape(
+            gen_fn,
             new_subtrace,
             IncrementalGenericRequest(constraint),
             branch_argdiffs,
