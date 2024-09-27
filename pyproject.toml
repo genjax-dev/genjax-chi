@@ -48,7 +48,7 @@ penzai = "^0.1.1"
 # remove this constraint when that issue is closed.
 numpy = ">=1.22,<2.0.0"
 msgpack = { version = "^1.0.8", optional = true }
-genstudio = { version = "2024.07.30.1946", source = "gcp", optional = true }
+genstudio = { version = "2024.09.007", source = "gcp", optional = true }
 
 [tool.poetry.group.dev]
 optional = true
@@ -123,6 +123,7 @@ exclude = ["**/__pycache__", "noxfile.py", "src/genjax/_src/inference/*.py", "sr
 defineConstant = { DEBUG = true }
 typeCheckingMode = "strict"
 deprecateTypingAliases = true
+reportUnusedExpression = false
 
 # `strict` sets all of these to error; these remaining `none` entries are tests that we can't yet
 # pass.
