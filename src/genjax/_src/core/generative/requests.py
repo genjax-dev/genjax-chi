@@ -13,6 +13,8 @@
 # limitations under the License.
 
 
+import jax.numpy as jnp
+
 from genjax._src.core.generative.choice_map import (
     ChoiceMap,
     Selection,
@@ -24,6 +26,7 @@ from genjax._src.core.generative.core import (
     Weight,
 )
 from genjax._src.core.generative.generative_function import Trace
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     PRNGKey,
@@ -35,7 +38,18 @@ R = TypeVar("R")
 
 
 @Pytree.dataclass(match_args=True)
-class RegenerateRequest(EditRequest):
+class EmptyRequest(EditRequest):
+    def edit(
+        self,
+        key: PRNGKey,
+        tr: Trace[R],
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
+        return tr, jnp.array(0.0), Diff.no_change(tr.get_retval()), EmptyRequest()
+
+
+@Pytree.dataclass(match_args=True)
+class Regenerate(EditRequest):
     def edit(
         self,
         key: PRNGKey,

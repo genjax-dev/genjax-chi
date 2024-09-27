@@ -11,3 +11,30 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import jax
+
+import genjax
+from genjax import SelectionBuilder as S
+
+
+class TestSelectApplyRegenerate:
+    def test_simple_normal_select_apply_regenerate(self):
+        @genjax.gen
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        tr = simple_normal.simulate(sub_key, ())
+        old_v = tr.get_choices()["y1"]
+        request = genjax.SelectApply(S["y1"], genjax.Regenerate())
+        new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
+        new_v = new_tr.get_choices()["y1"]
+        assert old_v != new_v
+        old_tr, bwd_w, _, bwd_request = bwd_request.edit(key, new_tr, ())
+        assert (fwd_w + bwd_w) == 0.0
+        old_old_v = old_tr.get_choices()["y1"]
+        assert old_old_v == old_v

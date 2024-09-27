@@ -42,7 +42,7 @@ from .core import (
 )
 from .functional_types import Mask
 from .generative_function import (
-    ChoiceMapChangeRequest,
+    ChoiceMapChange,
     GenerativeFunction,
     GenerativeFunctionClosure,
     IgnoreKwargs,
@@ -50,7 +50,8 @@ from .generative_function import (
 )
 from .requests import (
     ChoiceMapEditRequest,
-    RegenerateRequest,
+    EmptyRequest,
+    Regenerate,
     SelectApply,
 )
 
@@ -61,12 +62,14 @@ __all__ = [
     "Arguments",
     "ChoiceMap",
     "ChoiceMapBuilder",
-    "ChoiceMapChangeRequest",
+    "ChoiceMapChange",
     "ChoiceMapConstraint",
     "ChoiceMapEditRequest",
     "Constraint",
     "EditRequest",
     "EmptyConstraint",
+    "EmptyRequest",
+    "EmptyRequest",
     "EmptySample",
     "GenerativeFunction",
     "GenerativeFunctionClosure",
@@ -78,7 +81,7 @@ __all__ = [
     "NotSupportedEditRequest",
     "Projection",
     "R",
-    "RegenerateRequest",
+    "Regenerate",
     "Retdiff",
     "Sample",
     "Score",
