@@ -191,17 +191,17 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         idx_array = jnp.arange(broadcast_dim_length)
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
-        def _generate(key, idx, choice_map, args):
-            submap = choice_map(idx)
+        def _generate(key, idx, args):
+            submap = constraint(idx)
             tr, w = self.gen_fn.generate(
                 key,
-                submap,
+                ChoiceMapConstraint(submap),
                 args,
             )
             return tr, w
 
-        (tr, w) = jax.vmap(_generate, in_axes=(0, 0, None, self.in_axes))(
-            sub_keys, idx_array, constraint, args
+        (tr, w) = jax.vmap(_generate, in_axes=(0, 0, self.in_axes))(
+            sub_keys, idx_array, args
         )
         w = jnp.sum(w)
         map_tr = VmapTrace.build(self, tr, args, broadcast_dim_length)
