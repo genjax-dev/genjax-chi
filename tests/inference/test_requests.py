@@ -34,9 +34,11 @@ class TestSelectApplyRegenerate:
         old_v = tr.get_choices()["y1"]
         request = genjax.SelectApply(S["y1"], genjax.Regenerate())
         new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
+        assert fwd_w != 0.0
         new_v = new_tr.get_choices()["y1"]
         assert old_v != new_v
         old_tr, bwd_w, _, bwd_request = bwd_request.edit(key, new_tr, ())
+        assert bwd_w != 0.0
         assert (fwd_w + bwd_w) == 0.0
         old_old_v = old_tr.get_choices()["y1"]
         assert old_old_v == old_v
@@ -45,9 +47,11 @@ class TestSelectApplyRegenerate:
         old_v = tr.get_choices()["y2"]
         request = genjax.SelectApply(S["y2"], genjax.Regenerate())
         new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
+        assert fwd_w != 0.0
         new_v = new_tr.get_choices()["y2"]
         assert old_v != new_v
         old_tr, bwd_w, _, bwd_request = bwd_request.edit(key, new_tr, ())
+        assert bwd_w != 0.0
         assert (fwd_w + bwd_w) == 0.0
         old_old_v = old_tr.get_choices()["y2"]
         assert old_old_v == old_v
