@@ -32,7 +32,7 @@ from genjax._src.core.generative.core import (
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import get_zero_trace
+from genjax._src.core.interpreters.staging import empty_trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -278,7 +278,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
     def get_zero_trace(self, *args) -> Trace[R]:
         # TODO docs!
-        return get_zero_trace(self, args)
+        return empty_trace(self, args)
 
     @abstractmethod
     def simulate(

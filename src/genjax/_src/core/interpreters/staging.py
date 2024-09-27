@@ -259,29 +259,21 @@ def to_shape_fn(
 _fake_key = jnp.array([0, 0], dtype=jnp.uint32)
 
 
-def get_zero_trace(
+def empty_trace(
     gen_fn: "genjax.GenerativeFunction[R]", args: "genjax.Arguments"
 ) -> "genjax.Trace[R]":
     "TODO docs!"
     return to_shape_fn(gen_fn.simulate, jnp.zeros)(_fake_key, args)
 
 
-def get_generate_shape(gen_fn, constraint, args):
-    return to_shape_fn(gen_fn.generate)(_fake_key, constraint, args)
+def empty_generate(gen_fn, constraint, args):
+    # TODO get the FIRST part of the return value
+    return to_shape_fn(gen_fn.generate, jnp.zeros)(_fake_key, constraint, args)
 
 
-def get_edit_shape(gen_fn, trace, edit_request, argdiffs):
-    return to_shape_fn(gen_fn.edit)(_fake_key, trace, edit_request, argdiffs)
+def empty_edit(gen_fn, trace, edit_request, argdiffs):
+    return to_shape_fn(gen_fn.edit, jnp.zeros)(_fake_key, trace, edit_request, argdiffs)
 
 
-def get_importance_shape(gen_fn, choice_map, args):
-    return to_shape_fn(gen_fn.importance)(_fake_key, choice_map, args)
-
-
-def get_assess_shape(gen_fn, choice_map, args):
-    return to_shape_fn(gen_fn.assess)(choice_map, args)
-
-
-def get_update_shape(gen_fn, trace, choice_map, argdiffs):
-    key = jax.random.PRNGKey(0)
-    return to_shape_fn(gen_fn.update)(key, trace, choice_map, argdiffs)
+def empty_assess(gen_fn, choice_map, args):
+    return to_shape_fn(gen_fn.assess, jnp.zeros)(choice_map, args)
