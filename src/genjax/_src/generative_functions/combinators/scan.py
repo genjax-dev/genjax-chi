@@ -23,7 +23,7 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    IncrementalGenericRequest,
+    IncrementalChoiceMapRequest,
     Projection,
     Retdiff,
     Score,
@@ -353,7 +353,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         def _inner_edit(
             key: PRNGKey,
             subtrace: Trace[tuple[Carry, Y]],
-            subconstraint: Constraint,
+            subconstraint: ChoiceMapConstraint,
             carry: Carry,
             scanned_in: Any,
         ) -> tuple[
@@ -368,7 +368,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             ) = self.kernel_gen_fn.edit(
                 key,
                 subtrace,
-                IncrementalGenericRequest(subconstraint),
+                IncrementalChoiceMapRequest(subconstraint),
                 (carry, scanned_in),
             )
             (carry_retdiff, scanned_out_retdiff) = Diff.tree_diff_unknown_change(
@@ -400,7 +400,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 (carried_out, score),
                 (new_subtrace, scanned_out, w, inner_bwd_request),
             ) = _inner_edit(key, subtrace, subconstraint, carried_value, scanned_in)
-            assert isinstance(inner_bwd_request, IncrementalGenericRequest)
+            assert isinstance(inner_bwd_request, IncrementalChoiceMapRequest)
             bwd_constraint = inner_bwd_request.constraint
             bwd_constraint = ChoiceMapConstraint(ChoiceMap.entry(bwd_constraint, idx))
 
@@ -436,7 +436,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             ),
             jnp.sum(ws),
             (carried_out_diff, scanned_out_diff),
-            IncrementalGenericRequest(bwd_constraints),
+            IncrementalChoiceMapRequest(bwd_constraints),
         )
 
     def edit(
@@ -446,7 +446,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
-        assert isinstance(edit_request, IncrementalGenericRequest)
+        assert isinstance(edit_request, IncrementalChoiceMapRequest)
         assert isinstance(trace, ScanTrace)
         return self.edit_generic(
             key,

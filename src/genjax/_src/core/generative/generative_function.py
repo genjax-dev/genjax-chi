@@ -26,7 +26,6 @@ from genjax._src.core.generative.core import (
     Arguments,
     Constraint,
     EditRequest,
-    IncrementalGenericRequest,
     Projection,
     Retdiff,
     Sample,
@@ -524,20 +523,18 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        constraint: ChoiceMap | Constraint,
+        constraint: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], Constraint]:
         tr, w, rd, bwd = self.edit(
             key,
             trace,
-            IncrementalGenericRequest(
-                constraint
-                if isinstance(constraint, Constraint)
-                else ChoiceMapConstraint(constraint),
+            IncrementalChoiceMapRequest(
+                ChoiceMapConstraint(constraint),
             ),
             argdiffs,
         )
-        assert isinstance(bwd, IncrementalGenericRequest), type(bwd)
+        assert isinstance(bwd, IncrementalChoiceMapRequest), type(bwd)
         return tr, w, rd, bwd.constraint
 
     def importance(
@@ -1519,3 +1516,17 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
             )
         else:
             return self.gen_fn.assess(sample, full_args)
+
+
+@Pytree.dataclass(match_args=True)
+class IncrementalChoiceMapRequest(EditRequest):
+    constraint: ChoiceMapConstraint
+
+    def edit(
+        self,
+        key: PRNGKey,
+        tr: Trace[R],
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
+        gen_fn = tr.get_gen_fn()
+        return gen_fn.edit(key, tr, self, argdiffs)

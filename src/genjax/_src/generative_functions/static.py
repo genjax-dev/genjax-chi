@@ -27,7 +27,7 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    IncrementalGenericRequest,
+    IncrementalChoiceMapRequest,
     Projection,
     Retdiff,
     Score,
@@ -340,10 +340,10 @@ class IncrementalGenericRequestHandler(StaticHandler):
         (tr, w, retval_diff, bwd_request) = gen_fn.edit(
             sub_key,
             subtrace,
-            IncrementalGenericRequest(constraint),
+            IncrementalChoiceMapRequest(constraint),
             argdiffs,
         )
-        assert isinstance(bwd_request, IncrementalGenericRequest) and isinstance(
+        assert isinstance(bwd_request, IncrementalChoiceMapRequest) and isinstance(
             bwd_request.constraint, ChoiceMapConstraint
         )
         self.bwd_constraints.append(bwd_request.constraint)
@@ -644,7 +644,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_const_unwrap(addresses)
             chm = ChoiceMap.from_mapping(zip(addresses, subconstraints))
-            return IncrementalGenericRequest(
+            return IncrementalChoiceMapRequest(
                 ChoiceMapConstraint(chm),
             )
 
@@ -717,7 +717,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         argdiffs: Argdiffs,
     ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
         assert isinstance(trace, StaticTrace)
-        assert isinstance(edit_request, IncrementalGenericRequest) and isinstance(
+        assert isinstance(edit_request, IncrementalChoiceMapRequest) and isinstance(
             edit_request.constraint, ChoiceMapConstraint
         )
         return self.edit_change_target(
