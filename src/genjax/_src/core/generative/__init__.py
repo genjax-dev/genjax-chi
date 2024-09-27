@@ -42,11 +42,14 @@ from .core import (
 from .functional_types import Mask
 from .generative_function import (
     ChoiceMapChangeRequest,
-    ChoiceMapEditRequest,
     GenerativeFunction,
     GenerativeFunctionClosure,
     IgnoreKwargs,
     Trace,
+)
+from .requests import (
+    RegenerateRequest,
+    SelectApply,
 )
 
 __all__ = [
@@ -58,7 +61,6 @@ __all__ = [
     "ChoiceMapBuilder",
     "ChoiceMapChangeRequest",
     "ChoiceMapConstraint",
-    "ChoiceMapEditRequest",
     "Constraint",
     "EditRequest",
     "EmptyConstraint",
@@ -72,9 +74,11 @@ __all__ = [
     "MaskedSample",
     "Projection",
     "R",
+    "RegenerateRequest",
     "Retdiff",
     "Sample",
     "Score",
+    "SelectApply",
     "Selection",
     "SelectionBuilder",
     "StaticAddress",

@@ -1529,17 +1529,3 @@ class ChoiceMapChangeRequest(EditRequest):
     ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
         gen_fn = tr.get_gen_fn()
         return gen_fn.edit(key, tr, self, argdiffs)
-
-
-@Pytree.dataclass(match_args=True)
-class ChoiceMapEditRequest(EditRequest):
-    requests: ChoiceMap
-
-    def edit(
-        self,
-        key: PRNGKey,
-        tr: Trace[R],
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
-        gen_fn = tr.get_gen_fn()
-        return gen_fn.edit(key, tr, self, argdiffs)
