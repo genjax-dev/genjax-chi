@@ -17,6 +17,10 @@ from genjax._src.core.generative.choice_map import (
     ChoiceMap,
     Selection,
 )
+<<<<<<< HEAD
+=======
+from genjax._src.core.generative.generative_function import Trace
+>>>>>>> 1610e438f4566ef2aaac9f6d77166a6d3d191f60
 from genjax._src.core.generative.core import (
     Argdiffs,
     EditRequest,
@@ -46,6 +50,7 @@ class RegenerateRequest(EditRequest):
         return gen_fn.edit(key, tr, self, argdiffs)
 
 
+<<<<<<< HEAD
 @Pytree.dataclass(match_args=True)
 class ChoiceMapEditRequest(EditRequest):
     request_choice_map: ChoiceMap
@@ -60,6 +65,8 @@ class ChoiceMapEditRequest(EditRequest):
         return gen_fn.edit(key, tr, self, argdiffs)
 
 
+=======
+>>>>>>> 1610e438f4566ef2aaac9f6d77166a6d3d191f60
 @Pytree.dataclass(match_args=True)
 class SelectApply(EditRequest):
     selection: Selection
