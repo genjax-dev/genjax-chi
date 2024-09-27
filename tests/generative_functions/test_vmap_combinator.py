@@ -131,27 +131,29 @@ class TestVmapCombinator:
             ValueError,
             match="vmap was requested to map its argument along axis 0, which implies that its rank should be at least 1, but is only 0",
         ):
-            foo.vmap(in_axes=(0, None)).simulate(key, (10.0, jnp.arange(3.0)))
+            jax.jit(foo.vmap(in_axes=(0, None)).simulate)(key, (10.0, jnp.arange(3.0)))
 
         # in_axes doesn't match args
         with pytest.raises(
             ValueError,
             match="vmap in_axes specification must be a tree prefix of the corresponding value",
         ):
-            foo.vmap(in_axes=(0, (0, None))).simulate(key, (10.0, jnp.arange(3.0)))
+            jax.jit(foo.vmap(in_axes=(0, (0, None))).simulate)(
+                key, (10.0, jnp.arange(3.0))
+            )
 
         with pytest.raises(
             ValueError,
             match="vmap got inconsistent sizes for array axes to be mapped",
         ):
-            foo.vmap(in_axes=0).simulate(key, (jnp.arange(2), jnp.arange(3)))
+            jax.jit(foo.vmap(in_axes=0).simulate)(key, (jnp.arange(2), jnp.arange(3)))
 
         # in_axes doesn't match args
         with pytest.raises(
             TypeError,
             match="Found incompatible dtypes, <class 'numpy.float32'> and <class 'numpy.int32'>",
         ):
-            foo.vmap(in_axes=(None, 0)).simulate(key, (10.0, jnp.arange(3)))
+            jax.jit(foo.vmap(in_axes=(None, 0)).simulate)(key, (10.0, jnp.arange(3)))
 
     def test_vmap_key_vmap(self):
         @genjax.gen

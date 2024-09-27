@@ -438,7 +438,7 @@ class TestScanWithParameters:
         with pytest.raises(
             ValueError, match="scan got values with different leading axis sizes: 2, 1."
         ):
-            foo.scan().simulate(key, (jnp.array([1.0]), d))
+            jax.jit(foo.scan().simulate)(key, (jnp.array([1.0]), d))
 
     def test_vmap_key_scan(self):
         @genjax.gen

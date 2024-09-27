@@ -67,10 +67,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
         score: FloatArray,
         scan_length: int,
     ) -> "ScanTrace[Carry, Y]":
-        chm = jax.vmap(
-            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_choices(), idx),
-        )(jnp.arange(scan_length), inner)
-
+        chm = inner.get_choices().extend(jnp.arange(scan_length))
         return ScanTrace(scan_gen_fn, inner, args, retval, score, chm, scan_length)
 
     def get_args(self) -> tuple[Any, ...]:
