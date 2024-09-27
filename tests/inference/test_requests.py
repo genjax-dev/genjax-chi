@@ -29,6 +29,8 @@ class TestSelectApplyRegenerate:
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         tr = simple_normal.simulate(sub_key, ())
+
+        # First, try y1
         old_v = tr.get_choices()["y1"]
         request = genjax.SelectApply(S["y1"], genjax.Regenerate())
         new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
@@ -37,4 +39,29 @@ class TestSelectApplyRegenerate:
         old_tr, bwd_w, _, bwd_request = bwd_request.edit(key, new_tr, ())
         assert (fwd_w + bwd_w) == 0.0
         old_old_v = old_tr.get_choices()["y1"]
+        assert old_old_v == old_v
+
+        # Now, do y2
+        old_v = tr.get_choices()["y2"]
+        request = genjax.SelectApply(S["y2"], genjax.Regenerate())
+        new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
+        new_v = new_tr.get_choices()["y2"]
+        assert old_v != new_v
+        old_tr, bwd_w, _, bwd_request = bwd_request.edit(key, new_tr, ())
+        assert (fwd_w + bwd_w) == 0.0
+        old_old_v = old_tr.get_choices()["y2"]
+        assert old_old_v == old_v
+
+        # What about both?
+        old_v = tr.get_choices()["y2"]
+        request = genjax.SelectApply(
+            S["y1"] | S["y2"],
+            genjax.Regenerate(),
+        )
+        new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
+        new_v = new_tr.get_choices()["y2"]
+        assert old_v != new_v
+        old_tr, bwd_w, _, bwd_request = bwd_request.edit(key, new_tr, ())
+        assert (fwd_w + bwd_w) == 0.0
+        old_old_v = old_tr.get_choices()["y2"]
         assert old_old_v == old_v
