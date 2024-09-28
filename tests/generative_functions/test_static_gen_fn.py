@@ -20,7 +20,7 @@ import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import ChoiceMapConstraint, Diff, IncrementalGenericRequest, Pytree
+from genjax import ChoiceMapConstraint, Diff, IncrementalChoiceMapRequest, Pytree
 from genjax._src.core.typing import Array
 from genjax.generative_functions.static import AddressReuse
 from genjax.typing import Float, FloatArray
@@ -507,7 +507,7 @@ class TestStaticGenFnUpdate:
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = jitted(sub_key, tr, new, ())
         (_, w_edit, _, _) = tr.edit(
-            sub_key, IncrementalGenericRequest(ChoiceMapConstraint(new))
+            sub_key, IncrementalChoiceMapRequest(ChoiceMapConstraint(new))
         )
         assert w_edit == w
 

@@ -187,7 +187,7 @@ class TestMaskCombinator:
         # inside or outside of a generative function. When inside, the array is
         # recast by JAX into a numpy array, since it appears in the literal pool of
         # a compiled function, but not when outside, where it escapes such treatment.
-        with pytest.raises(TypeError, match=r"flag.*violates type hint"):
+        with pytest.raises(TypeError, match=r"f.*violates type hint"):
             model_inside.simulate(key, ())
 
         tr = model_outside.simulate(key, ())

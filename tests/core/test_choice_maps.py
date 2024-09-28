@@ -15,6 +15,7 @@
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 import pytest
 
 import genjax
@@ -67,6 +68,17 @@ class TestSelections:
         # none can't be extended
         assert Selection.none().extend("a", "b") == Selection.none()
 
+    def test_selection_leaf(self):
+        leaf_sel = Selection.leaf().extend("x", "y")
+        assert not leaf_sel["x"]
+        assert leaf_sel["x", "y"]
+
+        # only exact matches are allowed
+        assert not leaf_sel["x", "y", "z"]
+
+        # wildcards work
+        assert leaf_sel[..., "y"]
+
     def test_selection_complement(self):
         sel = S["x"] | S["y"]
         comp_sel = ~sel
@@ -105,6 +117,10 @@ class TestSelections:
         assert (none_sel & sel1) == none_sel
         assert (sel1 & none_sel) == none_sel
 
+        # idempotence
+        assert sel1 & sel1 == sel1
+        assert sel2 & sel2 == sel2
+
     def test_selection_or(self):
         sel1 = S["x"]
         sel2 = S["y"]
@@ -123,6 +139,10 @@ class TestSelections:
         none_sel = Selection.none()
         assert (none_sel | sel1) == sel1
         assert (sel1 | none_sel) == sel1
+
+        # idempotence
+        assert sel1 | sel1 == sel1
+        assert sel2 | sel2 == sel2
 
     def test_selection_mask(self):
         sel = S["x"] | S["y"]
@@ -681,3 +701,186 @@ class TestChoiceMap:
     def test_chm_roundtrip(self):
         chm = ChoiceMap.choice(3.0)
         assert chm == chm.__class__.from_attributes(**chm.attributes_dict())
+
+    def test_choicemap_validation(self):
+        @genjax.gen
+        def model(x):
+            y = genjax.normal(x, 1.0) @ "y"
+            z = genjax.bernoulli(0.5) @ "z"
+            return y + z
+
+        # Valid ChoiceMap
+        valid_chm = ChoiceMap.kw(y=1.0, z=1)
+        assert valid_chm.invalid_subset(model, (0.0,)) is None
+
+        # Invalid ChoiceMap - missing 'z'
+        invalid_chm1 = ChoiceMap.kw(x=1.0)
+        assert invalid_chm1.invalid_subset(model, (0.0,)) == invalid_chm1
+
+        # Invalid ChoiceMap - extra address
+        invalid_chm2 = ChoiceMap.kw(y=1.0, z=1, extra=0.5)
+        assert invalid_chm2.invalid_subset(model, (0.0,)) == ChoiceMap.kw(extra=0.5)
+
+    def test_choicemap_nested_validation(self):
+        @genjax.gen
+        def inner_model():
+            a = genjax.normal(0.0, 1.0) @ "a"
+            b = genjax.bernoulli(0.5) @ "b"
+            return a + b
+
+        @genjax.gen
+        def outer_model():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = inner_model() @ "y"
+            return x + y
+
+        # Valid nested ChoiceMap
+        valid_nested_chm = ChoiceMap.kw(x=1.0, y=ChoiceMap.kw(a=0.5, b=1))
+        assert valid_nested_chm.invalid_subset(outer_model, ()) is None
+
+        # Invalid nested ChoiceMap - missing inner 'b'
+        invalid_nested_chm1 = ChoiceMap.kw(x=1.0, y=ChoiceMap.kw(a=0.5))
+        assert (
+            invalid_nested_chm1.invalid_subset(outer_model, ()) is None
+        ), "missing address is fine"
+
+        # Invalid nested ChoiceMap - extra address in inner model
+        invalid_nested_chm2 = ChoiceMap.kw(x=1.0, y=ChoiceMap.kw(a=0.5, b=1, c=2.0))
+        assert invalid_nested_chm2.invalid_subset(outer_model, ()) == ChoiceMap.kw(
+            y=ChoiceMap.kw(c=2.0)
+        )
+
+        # Invalid nested ChoiceMap - extra address in outer model
+        invalid_nested_chm3 = ChoiceMap.kw(x=1.0, y=ChoiceMap.kw(a=0.5, b=1), z=3.0)
+        assert invalid_nested_chm3.invalid_subset(outer_model, ()) == ChoiceMap.kw(
+            z=3.0
+        )
+
+    def test_choicemap_nested_vmap(self):
+        @genjax.gen
+        def inner_model(x):
+            a = genjax.normal(x, 1.0) @ "a"
+            b = genjax.bernoulli(0.5) @ "b"
+            return a + b
+
+        @genjax.gen
+        def outer_model():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = inner_model.vmap(in_axes=(0,))(jnp.array([1.0, 2.0, 3.0])) @ "y"
+            return x + jnp.sum(y)
+
+        # Valid nested ChoiceMap with vmap
+        valid_vmap_chm = ChoiceMap.kw(
+            x=1.0,
+            y=C[jnp.arange(3)].set(
+                ChoiceMap.kw(a=jnp.array([0.5, 1.5, 2.5]), b=jnp.array([1, 0, 1]))
+            ),
+        )
+        assert valid_vmap_chm.invalid_subset(outer_model, ()) is None
+
+        # Invalid nested ChoiceMap - wrong shape for vmapped inner model
+        inner_chm = ChoiceMap.kw(a=jnp.array([0.5, 1.5, 2.5]), b=jnp.array([1, 0, 1]))
+        invalid_vmap_chm1 = ChoiceMap.kw(
+            x=1.0,
+            # missing the index nesting
+            y=inner_chm,
+        )
+        assert invalid_vmap_chm1.invalid_subset(outer_model, ()) == C["y"].set(
+            inner_chm
+        )
+
+        # Invalid nested ChoiceMap - extra address in vmapped inner model
+
+        invalid_vmap_chm2 = ChoiceMap.kw(
+            x=1.0,
+            y=C[jnp.arange(3)].set(
+                ChoiceMap.kw(
+                    a=jnp.array([0.5, 1.5, 2.5]),
+                    b=jnp.array([1, 0, 1]),
+                    c=jnp.array([0.1, 0.2, 0.3]),  # Extra address
+                )
+            ),
+        )
+        expected_result = C["y", jnp.arange(3), "c"].set(jnp.array([0.1, 0.2, 0.3]))
+        actual_result = invalid_vmap_chm2.invalid_subset(outer_model, ())
+        assert jax.tree_util.tree_structure(
+            actual_result
+        ) == jax.tree_util.tree_structure(expected_result)
+        assert jax.tree_util.tree_all(
+            jax.tree_map(
+                lambda x, y: jnp.allclose(x, y), actual_result, expected_result
+            )
+        )
+
+    def test_choicemap_switch(self):
+        @genjax.gen
+        def model1():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            return x
+
+        @genjax.gen
+        def model2():
+            y = genjax.uniform(0.0, 1.0) @ "y"
+            return y
+
+        @genjax.gen
+        def model3():
+            z = genjax.normal(0.0, 1.0) @ "z"
+            return z
+
+        switch_model = genjax.switch(model1, model2, model3)
+
+        @genjax.gen
+        def outer_model():
+            choice = genjax.categorical([0.3, 0.3, 0.4]) @ "choice"
+            return switch_model(choice, (), (), ()) @ "out"
+
+        # Valid ChoiceMap for model1
+        valid_chm1 = ChoiceMap.kw(choice=0, out={"x": 0.5})
+        assert valid_chm1.invalid_subset(outer_model, ()) is None
+
+        # Valid ChoiceMap for model2
+        valid_chm2 = ChoiceMap.kw(choice=1, out={"y": 0.7})
+        assert valid_chm2.invalid_subset(outer_model, ()) is None
+
+        # Valid ChoiceMap for model3
+        valid_chm3 = ChoiceMap.kw(choice=2, out={"z": 1.2})
+        assert valid_chm3.invalid_subset(outer_model, ()) is None
+
+        # Valid ChoiceMap with entries for all models
+        valid_chm_all = ChoiceMap.kw(choice=0, out={"x": 0.5, "y": 0.7, "z": 1.2})
+        assert valid_chm_all.invalid_subset(outer_model, ()) is None
+
+        # Invalid ChoiceMap - extra address
+        invalid_chm2 = ChoiceMap.kw(choice=1, out={"q": 0.5})
+        assert invalid_chm2.invalid_subset(outer_model, ()) == C["out", "q"].set(0.5)
+        pass
+
+    def test_choicemap_scan(self):
+        @genjax.gen
+        def inner_model(mean):
+            return genjax.normal(mean, 1.0) @ "x"
+
+        outer_model = inner_model.iterate(n=4)
+
+        # Test valid ChoiceMap
+        valid_chm = C[jnp.arange(4), "x"].set(jnp.array([0.5, 1.2, 0.8, 0.9]))
+        assert valid_chm.invalid_subset(outer_model, (1.0,)) is None
+
+        # forgot the index layer
+        invalid_chm2 = C["x"].set(jnp.array([0.5, 1.2, 0.8, 0.9]))
+        assert invalid_chm2.invalid_subset(outer_model, (1.0,)) == invalid_chm2
+
+        xs = jnp.array([0.5, 1.2, 0.8, 0.9])
+        zs = jnp.array([0.5, 1.2, 0.8, 0.9])
+        invalid_chm3 = C[jnp.arange(4)].set({"x": xs, "z": zs})
+        invalid_subset = invalid_chm3.invalid_subset(outer_model, (1.0,))
+        expected_invalid = C[jnp.arange(4), "z"].set(zs)
+        assert jtu.tree_structure(invalid_subset) == jtu.tree_structure(
+            expected_invalid
+        )
+        assert jtu.tree_all(
+            jtu.tree_map(
+                lambda x, y: jnp.allclose(x, y), invalid_subset, expected_invalid
+            )
+        )
