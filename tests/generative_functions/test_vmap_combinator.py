@@ -176,3 +176,17 @@ class TestVmapCombinator:
 
         # the inner vmap has vmap'd over the y's
         assert chm[..., "y"].shape == (10, 5)
+
+    def test_zero_length_vmap(self):
+        @genjax.gen
+        def step(state, sigma):
+            new_x = genjax.normal(state, sigma) @ "x"
+            return (new_x, new_x + 1)
+
+        trace = step.vmap(in_axes=(None, 0)).simulate(
+            jax.random.PRNGKey(20), (2.0, jnp.arange(0, dtype=float))
+        )
+
+        assert (
+            trace.get_choices().static_is_empty()
+        ), "zero-length vmap produces empty choicemaps."
