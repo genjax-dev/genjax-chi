@@ -800,14 +800,14 @@ class TestCaching:
 
         new_tr, *_ = tr.edit(
             _key,
-            IncrementalGenericRequest(ChoiceMapConstraint(C.kw(y1=3.0))),
+            IncrementalChoiceMapRequest(ChoiceMapConstraint(C.kw(y1=3.0))),
             Diff.unknown_change((7,)),
         )
         assert new_tr.get_cached_state("v") == 7
 
         new_tr, *_ = tr.edit(
             _key,
-            IncrementalGenericRequest(ChoiceMapConstraint(C.kw(y1=3.0))),
+            IncrementalChoiceMapRequest(ChoiceMapConstraint(C.kw(y1=3.0))),
             Diff.no_change((6,)),
         )
         assert new_tr.get_cached_state("v") == 6
@@ -815,13 +815,13 @@ class TestCaching:
         f_jaxpr = jax.make_jaxpr(self.f)(5)
         jaxpr_1 = jax.make_jaxpr(tr.edit)(
             _key,
-            IncrementalGenericRequest(ChoiceMapConstraint(C.kw(y1=3.0))),
+            IncrementalChoiceMapRequest(ChoiceMapConstraint(C.kw(y1=3.0))),
             Diff.no_change((6,)),
         )
 
         jaxpr_2 = jax.make_jaxpr(tr.edit)(
             _key,
-            IncrementalGenericRequest(ChoiceMapConstraint(C.kw(y1=3.0))),
+            IncrementalChoiceMapRequest(ChoiceMapConstraint(C.kw(y1=3.0))),
             Diff.unknown_change((6,)),
         )
         assert len(jaxpr_2.eqns) - len(f_jaxpr.eqns) == len(jaxpr_1.eqns)
