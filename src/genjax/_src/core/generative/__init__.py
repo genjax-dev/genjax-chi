@@ -42,11 +42,11 @@ from .core import (
 )
 from .functional_types import Mask
 from .generative_function import (
-    ChoiceMapChange,
     GenerativeFunction,
     GenerativeFunctionClosure,
     IgnoreKwargs,
     Trace,
+    Update,
 )
 from .requests import (
     ChoiceMapEditRequest,
@@ -61,7 +61,6 @@ __all__ = [
     "Arguments",
     "ChoiceMap",
     "ChoiceMapBuilder",
-    "ChoiceMapChange",
     "ChoiceMapConstraint",
     "ChoiceMapEditRequest",
     "Constraint",
@@ -89,5 +88,6 @@ __all__ = [
     "StaticAddress",
     "StaticAddressComponent",
     "Trace",
+    "Update",
     "Weight",
 ]

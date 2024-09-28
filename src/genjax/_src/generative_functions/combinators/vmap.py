@@ -24,7 +24,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapChange,
     ChoiceMapConstraint,
     Constraint,
     EditRequest,
@@ -34,6 +33,7 @@ from genjax._src.core.generative import (
     Retdiff,
     Score,
     Trace,
+    Update,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -234,10 +234,10 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             new_subtrace, w, retdiff, bwd_request = self.gen_fn.edit(
                 key,
                 subtrace,
-                ChoiceMapChange(subconstraint),
+                Update(subconstraint),
                 argdiffs,
             )
-            assert isinstance(bwd_request, ChoiceMapChange)
+            assert isinstance(bwd_request, Update)
             inner_chm_constraint = bwd_request.constraint
             return (
                 new_subtrace,
@@ -255,7 +255,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             map_tr,
             w,
             retdiff,
-            ChoiceMapChange(bwd_constraints),
+            Update(bwd_constraints),
         )
 
     def edit(
@@ -266,7 +266,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         argdiffs: Argdiffs,
     ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
         assert isinstance(trace, VmapTrace)
-        assert isinstance(edit_request, ChoiceMapChange), type(edit_request)
+        assert isinstance(edit_request, Update), type(edit_request)
         constraint = edit_request.constraint
         assert isinstance(constraint, ChoiceMapConstraint)
         return self.edit_choice_map_constraint(

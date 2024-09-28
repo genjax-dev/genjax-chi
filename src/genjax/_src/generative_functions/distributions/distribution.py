@@ -24,7 +24,6 @@ from genjax._src.checkify import optional_check
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapChange,
     ChoiceMapConstraint,
     ChoiceMapEditRequest,
     Constraint,
@@ -41,6 +40,7 @@ from genjax._src.core.generative import (
     Score,
     Selection,
     Trace,
+    Update,
     Weight,
 )
 from genjax._src.core.generative.choice_map import Filtered
@@ -174,7 +174,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         self,
         trace: Trace[R],
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], ChoiceMapChange]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], Update]:
         sample = trace.get_choices()
         primals = Diff.tree_primal(argdiffs)
         new_score, _ = self.assess(sample, primals)
@@ -183,7 +183,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             new_trace,
             new_score - trace.get_score(),
             Diff.tree_diff_no_change(trace.get_retval()),
-            ChoiceMapChange(
+            Update(
                 ChoiceMapConstraint(ChoiceMap.empty()),
             ),
         )
@@ -194,7 +194,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         constraint: Constraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], ChoiceMapChange]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], Update]:
         primals = Diff.tree_primal(argdiffs)
         match constraint:
             case EmptyConstraint():
@@ -208,7 +208,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     new_trace,
                     new_score - trace.get_score(),
                     Diff.tree_diff_no_change(old_retval),
-                    ChoiceMapChange(
+                    Update(
                         ChoiceMapConstraint(ChoiceMap.empty()),
                     ),
                 )
@@ -227,7 +227,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         new_tr,
                         w,
                         retval_diff,
-                        ChoiceMapChange(
+                        Update(
                             ChoiceMapConstraint(discard),
                         ),
                     )
@@ -243,7 +243,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         new_tr,
                         w,
                         retval_diff,
-                        ChoiceMapChange(
+                        Update(
                             ChoiceMapConstraint(ChoiceMap.empty()),
                         ),
                     )
@@ -281,7 +281,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         DistributionTrace(self, primals, new_value, score),
                         w,
                         Diff.tree_diff_unknown_change(new_value),
-                        ChoiceMapChange(
+                        Update(
                             ChoiceMapConstraint(old_choices.mask(flag)),
                         ),
                     )
@@ -324,7 +324,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 new_trace,
                 incremental_w,
                 Diff.unknown_change(new_v),
-                ChoiceMapChange(ChoiceMapConstraint(ChoiceMap.choice(old_v))),
+                Update(ChoiceMapConstraint(ChoiceMap.choice(old_v))),
             )
         elif FlagOp.concrete_false(check):
             return (
@@ -352,7 +352,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         constraint: Constraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], ChoiceMapChange]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], Update]:
         match constraint:
             case EmptyConstraint():
                 return self.edit_empty(trace, argdiffs)
@@ -371,7 +371,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         match edit_request:
-            case ChoiceMapChange(constraint):
+            case Update(constraint):
                 return self.edit_choice_map_change(
                     key,
                     trace,

@@ -19,7 +19,6 @@ from genjax._src.core.generative import (
     Arguments,
     ChoiceMap,
     ChoiceMapBuilder,
-    ChoiceMapChange,
     ChoiceMapConstraint,
     Constraint,
     EditRequest,
@@ -36,6 +35,7 @@ from genjax._src.core.generative import (
     Selection,
     SelectionBuilder,
     Trace,
+    Update,
     Weight,
 )
 
@@ -46,7 +46,6 @@ __all__ = [
     "Arguments",
     "ChoiceMap",
     "ChoiceMapBuilder",
-    "ChoiceMapChange",
     "ChoiceMapConstraint",
     "Constraint",
     "EditRequest",
@@ -63,5 +62,6 @@ __all__ = [
     "Selection",
     "SelectionBuilder",
     "Trace",
+    "Update",
     "Weight",
 ]

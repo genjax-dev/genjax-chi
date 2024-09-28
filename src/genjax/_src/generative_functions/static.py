@@ -23,7 +23,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapChange,
     ChoiceMapConstraint,
     ChoiceMapEditRequest,
     Constraint,
@@ -38,6 +37,7 @@ from genjax._src.core.generative import (
     StaticAddress,
     StaticAddressComponent,
     Trace,
+    Update,
     Weight,
 )
 from genjax._src.core.generative.generative_function import R, push_trace_overload_stack
@@ -420,7 +420,7 @@ def generate_transform(source_fn):
 
 
 @dataclass
-class ChoiceMapChangeHandler(StaticHandler):
+class UpdateHandler(StaticHandler):
     key: PRNGKey
     previous_trace: StaticTrace[Any]
     constraint: ChoiceMapConstraint
@@ -468,10 +468,10 @@ class ChoiceMapChangeHandler(StaticHandler):
         (tr, w, retval_diff, bwd_request) = gen_fn.edit(
             sub_key,
             subtrace,
-            ChoiceMapChange(constraint),
+            Update(constraint),
             argdiffs,
         )
-        assert isinstance(bwd_request, ChoiceMapChange) and isinstance(
+        assert isinstance(bwd_request, Update) and isinstance(
             bwd_request.constraint, ChoiceMapConstraint
         )
         self.bwd_constraints.append(bwd_request.constraint)
@@ -490,7 +490,7 @@ def choice_map_change_transform(source_fn):
         constraint: ChoiceMapConstraint,
         diffs: tuple[Any, ...],
     ):
-        stateful_handler = ChoiceMapChangeHandler(key, previous_trace, constraint)
+        stateful_handler = UpdateHandler(key, previous_trace, constraint)
         diff_primals = Diff.tree_primal(diffs)
         diff_tangents = Diff.tree_tangent(diffs)
         retval_diffs = incremental(source_fn)(
@@ -910,7 +910,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_const_unwrap(addresses)
             chm = ChoiceMap.from_mapping(zip(addresses, subconstraints))
-            return ChoiceMapChange(
+            return Update(
                 ChoiceMapConstraint(chm),
             )
 
@@ -1045,7 +1045,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
         assert isinstance(trace, StaticTrace)
         match edit_request:
-            case ChoiceMapChange(constraint):
+            case Update(constraint):
                 return self.edit_change_target(
                     key,
                     trace,
