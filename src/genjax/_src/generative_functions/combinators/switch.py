@@ -13,6 +13,8 @@
 # limitations under the License.
 
 
+import functools
+
 import jax
 import jax.tree_util as jtu
 
@@ -155,6 +157,9 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
 
     branches: tuple[GenerativeFunction[R], ...]
 
+    def _indices(self):
+        return range(len(self.branches))
+
     @staticmethod
     def _to_pairs(seq_of_vs: Iterable[Sequence[Any]]) -> tuple[_UnflatPair, ...]:
         """Takes
@@ -221,7 +226,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             _unpack(f, args) for f, args in zip(self.branches, arg_tuples)
         )
 
-    def _simulate(self, key, static_idx, args, trace_leaves, retval_leaves):
+    def _simulate(self, static_idx, key, args, trace_leaves, retval_leaves):
         """
         This gets run for any particular switch, and populates the correct leaf.
         """
@@ -233,7 +238,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         retval_leaves[static_idx] = jtu.tree_leaves(tr.get_retval())
 
         score = tr.get_score()
-        return (trace_leaves, retval_leaves), score
+        return trace_leaves, retval_leaves, score
 
     def simulate(
         self,
@@ -242,27 +247,46 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
     ) -> SwitchTrace[R]:
         idx: ArrayLike = args[0]
         branch_args = args[1:]
-
         self._check_args_match_branches(branch_args)
 
-        def _inner(idx: int):
-            return lambda key, args, trace_leaves, retval_leaves: self._simulate(
-                key, idx, args, trace_leaves, retval_leaves
-            )
+        # the pattern we are left with is,
+        # - go make a thing that takes an index and a "setter" continuation
+        # - each one is responsible for setting its tr, retval
+        # - they might all have different shapes! But they just set their piece.
+        # - then we go rebuild the subtraces,
+        # - pick the actual retval (or mask it)
 
-        branch_functions = list(map(_inner, range(len(self.branches))))
+        #
+        # what I SHOULD be able to do... is take my template simulate function,
+        # and call "shape" on that to get get them empty thing out.
+        #
+        # the tuple is the pytree, so I SHOULD be able to go do this shit
+        # on the full tuple.
+        #
+        # But that is going to be for after scotland.
+        #
+        # make something that can take a template function,
+        # tear it apart,
+        # run it with a bunch of combos of args
+        # switch each one out
+        # piece it back together
+
+        branch_fns = list(
+            functools.partial(self._simulate, idx) for idx in self._indices()
+        )
         (
             (trace_leaves, trace_defs),
             (retval_leaves, retval_defs),
         ) = self._empty_simulate_defs(branch_args)
 
-        (trace_leaves, retval_leaves), score = jax.lax.switch(
-            idx, branch_functions, key, branch_args, trace_leaves, retval_leaves
+        trace_leaves, retval_leaves, score = jax.lax.switch(
+            idx, branch_fns, key, branch_args, trace_leaves, retval_leaves
         )
-        subtraces = self._unflatten(trace_defs, trace_leaves)
 
+        subtraces = self._unflatten(trace_defs, trace_leaves)
         retvals: list[R] = self._unflatten(retval_defs, retval_leaves)
         retval: R = staged_choose(idx, retvals)
+
         return SwitchTrace(self, args, subtraces, retval, score)
 
     def _empty_assess_defs(
