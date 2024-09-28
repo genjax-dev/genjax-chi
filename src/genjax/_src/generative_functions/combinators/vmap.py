@@ -49,32 +49,39 @@ from genjax._src.core.typing import (
 
 @Pytree.dataclass
 class VmapTrace(Generic[R], Trace[R]):
-    gen_fn: GenerativeFunction[R]
+    # TODO note that the args have vectors, where inner.args received everything inflated (vector for sure)
+    #
+    # The score is the product of all draws, so we sum the logs.
+    gen_fn: "VmapCombinator[R]"
     inner: Trace[R]
     args: tuple[Any, ...]
     score: Score
     chm: ChoiceMap
+
+    # TODO is this really helpful?
     dim_length: int = Pytree.static()
 
     @staticmethod
     def build(
-        gen_fn: GenerativeFunction[R], tr: Trace[R], args: tuple[Any, ...], length: int
+        gen_fn: "VmapCombinator[R]", tr: Trace[R], args: tuple[Any, ...], length: int
     ) -> "VmapTrace[R]":
         score = jnp.sum(tr.get_score())
         chm = tr.get_choices().extend(jnp.arange(length))
+
         return VmapTrace(gen_fn, tr, args, score, chm, length)
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
 
     def get_retval(self):
+        # returns the vectorized retval from self.inner.
         return self.inner.get_retval()
 
     def get_gen_fn(self):
         return self.gen_fn
 
     def get_sample(self) -> ChoiceMap:
-        return self.get_choices()
+        return self.chm
 
     def get_choices(self) -> ChoiceMap:
         return self.chm
@@ -136,10 +143,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
     in_axes: InAxes = Pytree.static()
 
     def __abstract_call__(self, *args) -> Any:
-        def inner(*args):
-            return self.gen_fn.__abstract_call__(*args)
-
-        return jax.vmap(inner, in_axes=self.in_axes)(*args)
+        return jax.vmap(self.gen_fn.__abstract_call__, in_axes=self.in_axes)(*args)
 
     @staticmethod
     def _static_broadcast_dim_length(in_axes: InAxes, args: tuple[Any, ...]) -> int:
@@ -173,12 +177,13 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         args: tuple[Any, ...],
     ) -> VmapTrace[R]:
-        broadcast_dim_length = self._static_broadcast_dim_length(self.in_axes, args)
-        sub_keys = jax.random.split(key, broadcast_dim_length)
+        dim_length = self._static_broadcast_dim_length(self.in_axes, args)
+        sub_keys = jax.random.split(key, dim_length)
 
+        # vmapping over `gen_fn`'s `simulate` gives us a new trace with vector-shaped leaves.
         tr = jax.vmap(self.gen_fn.simulate, (0, self.in_axes))(sub_keys, args)
 
-        return VmapTrace.build(self, tr, args, broadcast_dim_length)
+        return VmapTrace.build(self, tr, args, dim_length)
 
     def generate(
         self,
@@ -187,11 +192,12 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         args: tuple[Any, ...],
     ) -> tuple[VmapTrace[R], Weight]:
         assert isinstance(constraint, ChoiceMapConstraint)
-        broadcast_dim_length = self._static_broadcast_dim_length(self.in_axes, args)
-        idx_array = jnp.arange(broadcast_dim_length)
-        sub_keys = jax.random.split(key, broadcast_dim_length)
 
-        def _generate(key, idx, args):
+        dim_length = self._static_broadcast_dim_length(self.in_axes, args)
+        idx_array = jnp.arange(dim_length)
+        sub_keys = jax.random.split(key, dim_length)
+
+        def _inner(key, idx, args):
             submap = constraint(idx)
             tr, w = self.gen_fn.generate(
                 key,
@@ -200,11 +206,11 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             )
             return tr, w
 
-        (tr, w) = jax.vmap(_generate, in_axes=(0, 0, self.in_axes))(
+        (tr, w) = jax.vmap(_inner, in_axes=(0, 0, self.in_axes))(
             sub_keys, idx_array, args
         )
         w = jnp.sum(w)
-        map_tr = VmapTrace.build(self, tr, args, broadcast_dim_length)
+        map_tr = VmapTrace.build(self, tr, args, dim_length)
         return map_tr, w
 
     def project(
