@@ -52,7 +52,6 @@ from .requests import (
     ChoiceMapEditRequest,
     EmptyRequest,
     Regenerate,
-    SelectApply,
 )
 
 __all__ = [
@@ -85,7 +84,6 @@ __all__ = [
     "Retdiff",
     "Sample",
     "Score",
-    "SelectApply",
     "Selection",
     "SelectionBuilder",
     "StaticAddress",

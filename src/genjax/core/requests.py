@@ -15,7 +15,6 @@
 from genjax._src.core.generative.requests import (
     ChoiceMapEditRequest,
     Regenerate,
-    SelectApply,
 )
 
-__all__ = ["ChoiceMapEditRequest", "Regenerate", "SelectApply"]
+__all__ = ["ChoiceMapEditRequest", "Regenerate"]

@@ -18,6 +18,7 @@ from abc import abstractmethod
 import jax
 import jax.numpy as jnp
 from jax.experimental import checkify
+from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.generative import (
@@ -38,7 +39,6 @@ from genjax._src.core.generative import (
     Regenerate,
     Retdiff,
     Score,
-    SelectApply,
     Selection,
     Trace,
     Weight,
@@ -53,6 +53,8 @@ from genjax._src.core.typing import (
     Generic,
     PRNGKey,
 )
+
+tfd = tfp.distributions
 
 #####
 # DistributionTrace
@@ -304,17 +306,26 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             jnp.array(0.0),
         )
 
-    def edit_select_apply(
+    def edit_regenerate(
         self,
         key: PRNGKey,
         trace: Trace[R],
         selection: Selection,
-        request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         check = () in selection
         if FlagOp.concrete_true(check):
-            return request.edit(key, trace, argdiffs)
+            primals = Diff.tree_primal(argdiffs)
+            w, new_v = self.random_weighted(key, *primals)
+            incremental_w = w - trace.get_score()
+            old_v = trace.get_retval()
+            new_trace = DistributionTrace(self, primals, new_v, w)
+            return (
+                new_trace,
+                incremental_w,
+                Diff.unknown_change(new_v),
+                ChoiceMapChange(ChoiceMapConstraint(ChoiceMap.choice(old_v))),
+            )
         elif FlagOp.concrete_false(check):
             return (
                 trace,
@@ -324,24 +335,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             )
         else:
             raise NotImplementedError
-
-    def edit_regenerate(
-        self,
-        key: PRNGKey,
-        trace: Trace[R],
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        primals = Diff.tree_primal(argdiffs)
-        w, new_v = self.random_weighted(key, *primals)
-        incremental_w = w - trace.get_score()
-        old_v = trace.get_retval()
-        new_trace = DistributionTrace(self, primals, new_v, w)
-        return (
-            new_trace,
-            incremental_w,
-            Diff.unknown_change(new_v),
-            ChoiceMapChange(ChoiceMapConstraint(ChoiceMap.choice(old_v))),
-        )
 
     def edit_choice_map_edit_request(
         self,
@@ -385,25 +378,19 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     constraint,
                     argdiffs,
                 )
-            case Regenerate():
+            case Regenerate(selection):
                 return self.edit_regenerate(
                     key,
                     trace,
+                    selection,
                     argdiffs,
                 )
+
             case ChoiceMapEditRequest(requests_choice_map):
                 return self.edit_choice_map_edit_request(
                     key,
                     trace,
                     requests_choice_map,
-                    argdiffs,
-                )
-            case SelectApply(selection, request):
-                return self.edit_select_apply(
-                    key,
-                    trace,
-                    selection,
-                    request,
                     argdiffs,
                 )
             case _:

@@ -50,6 +50,8 @@ class EmptyRequest(EditRequest):
 
 @Pytree.dataclass(match_args=True)
 class Regenerate(EditRequest):
+    selection: Selection
+
     def edit(
         self,
         key: PRNGKey,
@@ -63,21 +65,6 @@ class Regenerate(EditRequest):
 @Pytree.dataclass(match_args=True)
 class ChoiceMapEditRequest(EditRequest):
     request_choice_map: ChoiceMap
-
-    def edit(
-        self,
-        key: PRNGKey,
-        tr: Trace[R],
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
-        gen_fn = tr.get_gen_fn()
-        return gen_fn.edit(key, tr, self, argdiffs)
-
-
-@Pytree.dataclass(match_args=True)
-class SelectApply(EditRequest):
-    selection: Selection
-    request: EditRequest
 
     def edit(
         self,

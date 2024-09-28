@@ -18,8 +18,8 @@ import genjax
 from genjax import SelectionBuilder as S
 
 
-class TestSelectApplyRegenerate:
-    def test_simple_normal_select_apply_regenerate(self):
+class TestRegenerate:
+    def test_simple_normal_regenerate(self):
         @genjax.gen
         def simple_normal():
             y1 = genjax.normal(0.0, 1.0) @ "y1"
@@ -32,7 +32,7 @@ class TestSelectApplyRegenerate:
 
         # First, try y1
         old_v = tr.get_choices()["y1"]
-        request = genjax.SelectApply(S["y1"], genjax.Regenerate())
+        request = genjax.Regenerate(S["y1"])
         new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
         assert fwd_w != 0.0
         new_v = new_tr.get_choices()["y1"]
@@ -45,7 +45,7 @@ class TestSelectApplyRegenerate:
 
         # Now, do y2
         old_v = tr.get_choices()["y2"]
-        request = genjax.SelectApply(S["y2"], genjax.Regenerate())
+        request = genjax.Regenerate(S["y2"])
         new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
         assert fwd_w != 0.0
         new_v = new_tr.get_choices()["y2"]
@@ -58,9 +58,8 @@ class TestSelectApplyRegenerate:
 
         # What about both?
         old_v = tr.get_choices()["y2"]
-        request = genjax.SelectApply(
+        request = genjax.Regenerate(
             S["y1"] | S["y2"],
-            genjax.Regenerate(),
         )
         new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
         new_v = new_tr.get_choices()["y2"]

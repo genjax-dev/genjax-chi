@@ -31,9 +31,9 @@ from genjax._src.core.generative import (
     GenerativeFunction,
     NotSupportedEditRequest,
     Projection,
+    Regenerate,
     Retdiff,
     Score,
-    SelectApply,
     Selection,
     StaticAddress,
     StaticAddressComponent,
@@ -639,7 +639,7 @@ def choice_map_edit_request_transform(source_fn):
 
 
 @dataclass
-class SelectApplyRequestHandler(StaticHandler):
+class RegenerateRequestHandler(StaticHandler):
     key: PRNGKey
     previous_trace: StaticTrace[Any]
     selection: Selection
@@ -685,7 +685,7 @@ class SelectApplyRequestHandler(StaticHandler):
         subtrace = self.get_subtrace(addr)
         subselection = self.get_subselection(addr)
         self.key, sub_key = jax.random.split(self.key)
-        subrequest = SelectApply(subselection, self.edit_request)
+        subrequest = Regenerate(subselection)
         tr, w, retval_diff, bwd_request = subrequest.edit(sub_key, subtrace, argdiffs)
         self.bwd_requests.append(bwd_request)
         self.score += tr.get_score()
@@ -695,7 +695,7 @@ class SelectApplyRequestHandler(StaticHandler):
         return retval_diff
 
 
-def select_apply_transform(source_fn):
+def regenerate_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
         key: PRNGKey,
@@ -704,7 +704,7 @@ def select_apply_transform(source_fn):
         edit_request: EditRequest,
         diffs: tuple[Any, ...],
     ):
-        stateful_handler = SelectApplyRequestHandler(
+        stateful_handler = RegenerateRequestHandler(
             key,
             previous_trace,
             selection,
@@ -1006,7 +1006,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_requests,
             ),
-        ) = select_apply_transform(syntax_sugar_handled)(
+        ) = regenerate_transform(syntax_sugar_handled)(
             key, trace, selection, edit_request, argdiffs
         )
 
@@ -1060,7 +1060,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     requests_choice_map,
                     argdiffs,
                 )
-            case SelectApply(selection, edit_request):
+            case Regenerate(selection):
                 return self.edit_select_apply(
                     key,
                     trace,
