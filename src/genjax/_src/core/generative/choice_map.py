@@ -30,6 +30,7 @@ from genjax._src.core.interpreters.staging import FlagOp, staged_choose, staged_
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    Array,
     ArrayLike,
     Bool,
     Callable,
@@ -1387,6 +1388,8 @@ class Indexed(ChoiceMap):
     def build(chm: ChoiceMap, addr: DynamicAddressComponent) -> ChoiceMap:
         if chm.static_is_empty():
             return chm
+        elif isinstance(addr, Array) and addr.shape == (0,):
+            return ChoiceMap.empty()
         else:
             return Indexed(chm, addr)
 
@@ -1405,12 +1408,8 @@ class Indexed(ChoiceMap):
                 addr, copy=False
             ).shape, "Only scalar dynamic addresses are supported by get_submap."
 
-            a_shape = jnp.array(self.addr, copy=False).shape
-            if a_shape:
-                if a_shape[0] == 0:
-                    return ChoiceMap.empty()
-                else:
-                    return jtu.tree_map(lambda v: v[addr], self.c)
+            if isinstance(self.addr, Array) and self.addr.shape:
+                return jtu.tree_map(lambda v: v[addr], self.c)
             else:
                 return self.c.mask(self.addr == addr)
 

@@ -199,24 +199,17 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     ) -> ScanTrace[Carry, Y]:
         carry, scanned_in = args
 
-        def _inner_simulate(
-            key: PRNGKey, carry: Carry, scanned_in: Any
-        ) -> tuple[tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y]]:
-            tr = self.kernel_gen_fn.simulate(key, (carry, scanned_in))
-            (carry, scanned_out) = tr.get_retval()
-            score = tr.get_score()
-            return (carry, score), (tr, scanned_out)
-
         def _inner(
-            carry: tuple[PRNGKey, IntArray, Carry], scanned_over: Any
+            carry: tuple[PRNGKey, IntArray, Carry], scanned_in: Any
         ) -> tuple[
             tuple[PRNGKey, IntArray, Carry], tuple[Trace[tuple[Carry, Y]], Y, Score]
         ]:
             key, count, carried_value = carry
             key = jax.random.fold_in(key, count)
-            (carried_out, score), (tr, scanned_out) = _inner_simulate(
-                key, carried_value, scanned_over
-            )
+
+            tr = self.kernel_gen_fn.simulate(key, (carried_value, scanned_in))
+            (carried_out, scanned_out) = tr.get_retval()
+            score = tr.get_score()
 
             return (key, count + 1, carried_out), (tr, scanned_out, score)
 
@@ -304,17 +297,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         assert isinstance(projection, Selection)
         assert isinstance(trace, ScanTrace)
 
-        def _inner_project(
-            key: PRNGKey,
-            subtrace: Trace[Any],
-            projection: Selection,
-        ) -> Weight:
-            w = subtrace.project(
-                key,
-                projection,
-            )
-            return w
-
         def _project(
             carry: tuple[PRNGKey, IntArray],
             subtrace: Trace[Any],
@@ -323,7 +305,10 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             key = jax.random.fold_in(key, idx)
             subprojection = projection(idx)
             assert isinstance(subprojection, Selection)
-            w = _inner_project(key, subtrace, subprojection)
+            w = subtrace.project(
+                key,
+                subprojection,
+            )
 
             return (key, idx + 1), w
 
@@ -459,16 +444,12 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     ) -> tuple[Score, Any]:
         (carry, scanned_in) = args
 
-        def _inner_assess(sample, carry, scanned_in):
-            score, retval = self.kernel_gen_fn.assess(sample, (carry, scanned_in))
-            (carry, scanned_out) = retval
-            return (carry, score), scanned_out
-
-        def _assess(carry, scanned_over):
+        def _assess(carry, scanned_in):
             idx, carried_value = carry
             submap = sample.get_submap(idx)
-            (carry, score), scanned_out = _inner_assess(
-                submap, carried_value, scanned_over
+
+            score, (carry, scanned_out) = self.kernel_gen_fn.assess(
+                submap, (carried_value, scanned_in)
             )
 
             return (idx + 1, carry), (scanned_out, score)
