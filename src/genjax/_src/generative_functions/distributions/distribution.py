@@ -28,7 +28,7 @@ from genjax._src.core.generative import (
     EditRequest,
     EmptyConstraint,
     GenerativeFunction,
-    IncrementalGenericRequest,
+    IncrementalChoiceMapRequest,
     Mask,
     Projection,
     R,
@@ -167,7 +167,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         self,
         trace: Trace[R],
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], IncrementalGenericRequest]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], IncrementalChoiceMapRequest]:
         sample = trace.get_choices()
         primals = Diff.tree_primal(argdiffs)
         new_score, _ = self.assess(sample, primals)
@@ -176,7 +176,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             new_trace,
             new_score - trace.get_score(),
             Diff.tree_diff_no_change(trace.get_retval()),
-            IncrementalGenericRequest(
+            IncrementalChoiceMapRequest(
                 ChoiceMapConstraint(ChoiceMap.empty()),
             ),
         )
@@ -187,7 +187,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         constraint: Constraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], IncrementalGenericRequest]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], IncrementalChoiceMapRequest]:
         primals = Diff.tree_primal(argdiffs)
         match constraint:
             case EmptyConstraint():
@@ -201,7 +201,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     new_trace,
                     new_score - trace.get_score(),
                     Diff.tree_diff_no_change(old_retval),
-                    IncrementalGenericRequest(
+                    IncrementalChoiceMapRequest(
                         ChoiceMapConstraint(ChoiceMap.empty()),
                     ),
                 )
@@ -220,7 +220,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         new_tr,
                         w,
                         retval_diff,
-                        IncrementalGenericRequest(
+                        IncrementalChoiceMapRequest(
                             ChoiceMapConstraint(discard),
                         ),
                     )
@@ -236,7 +236,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         new_tr,
                         w,
                         retval_diff,
-                        IncrementalGenericRequest(
+                        IncrementalChoiceMapRequest(
                             ChoiceMapConstraint(ChoiceMap.empty()),
                         ),
                     )
@@ -274,7 +274,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         DistributionTrace(self, primals, new_value, score),
                         w,
                         Diff.tree_diff_unknown_change(new_value),
-                        IncrementalGenericRequest(
+                        IncrementalChoiceMapRequest(
                             ChoiceMapConstraint(old_choices.mask(flag)),
                         ),
                     )
@@ -305,7 +305,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         constraint: Constraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], IncrementalGenericRequest]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], IncrementalChoiceMapRequest]:
         match constraint:
             case EmptyConstraint():
                 return self.edit_empty(trace, argdiffs)
@@ -323,7 +323,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        assert isinstance(edit_request, IncrementalGenericRequest)
+        assert isinstance(edit_request, IncrementalChoiceMapRequest)
         constraint = edit_request.constraint
         return self.edit_incremental_generic_request(
             key,

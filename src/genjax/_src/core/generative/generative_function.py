@@ -26,7 +26,6 @@ from genjax._src.core.generative.core import (
     Arguments,
     Constraint,
     EditRequest,
-    IncrementalGenericRequest,
     Projection,
     Retdiff,
     Sample,
@@ -160,10 +159,9 @@ class Trace(Generic[R], Pytree):
         """
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
         """
-        return self.get_gen_fn().edit(
+        return request.edit(
             key,
             self,
-            request,
             Diff.tree_diff_no_change(self.get_args()) if argdiffs is None else argdiffs,
         )  # pyright: ignore[reportReturnType]
 
@@ -419,7 +417,7 @@ class GenerativeFunction(Generic[R], Pytree):
             from genjax import gen
             from genjax import normal
             from genjax import Diff
-            from genjax import IncrementalGenericRequest
+            from genjax import IncrementalChoiceMapRequest
             from genjax import ChoiceMapConstraint
             from genjax import ChoiceMap as C
 
@@ -442,7 +440,7 @@ class GenerativeFunction(Generic[R], Pytree):
             new_tr, inc_w, retdiff, bwd_prob = model.edit(
                 key,
                 initial_tr,
-                IncrementalGenericRequest(
+                IncrementalChoiceMapRequest(
                     ChoiceMapConstraint(C.empty()),
                 ),
                 Diff.unknown_change((3.0,)),
@@ -485,24 +483,24 @@ class GenerativeFunction(Generic[R], Pytree):
 
         An `EditRequest` denotes a function $tr \\mapsto (T, T')$ from traces to a pair of targets (the previous [`Target`][genjax.inference.Target] $T$, and the final [`Target`][genjax.inference.Target] $T'$).
 
-        Several common types of moves can be requested via the `IncrementalGenericRequest` type:
+        Several common types of moves can be requested via the `IncrementalChoiceMapRequest` type:
 
         ```python exec="yes" source="material-block" session="core"
-        from genjax import IncrementalGenericRequest
+        from genjax import IncrementalChoiceMapRequest
         from genjax import ChoiceMap, ChoiceMapConstraint
 
-        g = IncrementalGenericRequest(
+        g = IncrementalChoiceMapRequest(
             ChoiceMapConstraint(ChoiceMap.empty()),  # Constraint
         )
         ```
 
-        `IncrementalGenericRequest` contains information about changes to the arguments of the generative function ([`Argdiffs`][genjax.core.Argdiffs]) and a constraint which specifies an additional move to be performed.
+        `IncrementalChoiceMapRequest` contains information about changes to the arguments of the generative function ([`Argdiffs`][genjax.core.Argdiffs]) and a constraint which specifies an additional move to be performed.
 
         ```python exec="yes" html="true" source="material-block" session="core"
         new_tr, inc_w, retdiff, bwd_prob = model.edit(
             key,
             initial_tr,
-            IncrementalGenericRequest(
+            IncrementalChoiceMapRequest(
                 ChoiceMapConstraint(C.kw(v1=3.0)),
             ),
             Diff.unknown_change((3.0,)),
@@ -524,20 +522,18 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        constraint: ChoiceMap | Constraint,
+        constraint: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], Constraint]:
-        tr, w, rd, bwd = self.edit(
+        request = IncrementalChoiceMapRequest(
+            ChoiceMapConstraint(constraint),
+        )
+        tr, w, rd, bwd = request.edit(
             key,
             trace,
-            IncrementalGenericRequest(
-                constraint
-                if isinstance(constraint, Constraint)
-                else ChoiceMapConstraint(constraint),
-            ),
             argdiffs,
         )
-        assert isinstance(bwd, IncrementalGenericRequest), type(bwd)
+        assert isinstance(bwd, IncrementalChoiceMapRequest), type(bwd)
         return tr, w, rd, bwd.constraint
 
     def importance(
@@ -1519,3 +1515,17 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
             )
         else:
             return self.gen_fn.assess(sample, full_args)
+
+
+@Pytree.dataclass(match_args=True)
+class IncrementalChoiceMapRequest(EditRequest):
+    constraint: ChoiceMapConstraint
+
+    def edit(
+        self,
+        key: PRNGKey,
+        tr: Trace[R],
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
+        gen_fn = tr.get_gen_fn()
+        return gen_fn.edit(key, tr, self, argdiffs)
