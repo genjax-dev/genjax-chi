@@ -33,6 +33,7 @@ from genjax._src.core.typing import (
     Callable,
     Flag,
     Int,
+    Sequence,
     TypeVar,
     static_check_is_concrete,
 )
@@ -142,7 +143,7 @@ def staged_check(v):
 
 def staged_choose(
     idx: ArrayLike,
-    pytrees: list[R],
+    pytrees: Sequence[R],
 ) -> R:
     """
     Version of `jax.numpy.choose` that

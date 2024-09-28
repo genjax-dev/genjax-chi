@@ -121,7 +121,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         args: tuple[Any, ...],
     ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
-
         tr = self.gen_fn.simulate(key, inner_args)
         return MaskTrace(self, tr, check)
 
@@ -238,8 +237,8 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, Mask[R]]:
-        (check, *inner_args) = args
-        score, retval = self.gen_fn.assess(sample, tuple(inner_args))
+        check, inner_args = args[0], args[1:]
+        score, retval = self.gen_fn.assess(sample, inner_args)
         return (
             check * score,
             Mask(retval, check),

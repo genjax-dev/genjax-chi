@@ -21,7 +21,6 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import treescope.repr_lib as trl
-from beartype.typing import Iterable
 from deprecated import deprecated
 
 from genjax._src.core.generative.core import Constraint, Projection, Sample
@@ -40,6 +39,7 @@ from genjax._src.core.typing import (
     Generic,
     Int,
     IntArray,
+    Iterable,
     String,
     TypeVar,
 )

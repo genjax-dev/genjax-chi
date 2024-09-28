@@ -45,6 +45,7 @@ from genjax._src.core.typing import (
     Generic,
     Int,
     IntArray,
+    Iterable,
     PRNGKey,
     Sequence,
     TypeVar,
@@ -153,15 +154,12 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
 
     def __abstract_call__(self, *args) -> R:
         idx, args = args[0], args[1:]
-        retvals: list[R] = []
-        for _idx in range(len(self.branches)):
-            branch_gen_fn = self.branches[_idx]
-            branch_args = args[_idx]
-            retval = branch_gen_fn.__abstract_call__(*branch_args)
-            retvals.append(retval)
+        retvals = list(
+            f.__abstract_call__(*f_args) for f, f_args in zip(self.branches, args)
+        )
         return staged_choose(idx, retvals)
 
-    def static_check_num_arguments_equals_num_branches(self, args):
+    def _check_args_match_branches(self, args):
         assert len(args) == len(self.branches)
 
     def _empty_simulate_defs(
@@ -173,10 +171,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         retval_defs = []
         retval_leaves = []
 
-        for static_idx in range(len(self.branches)):
-            branch_gen_fn = self.branches[static_idx]
-            branch_args = args[static_idx]
-
+        for branch_gen_fn, branch_args in zip(self.branches, args):
             empty_trace = branch_gen_fn.get_zero_trace(*branch_args)
 
             retval_leaf, retval_def = jtu.tree_flatten(empty_trace.get_retval())
@@ -186,9 +181,9 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             retval_defs.append(retval_def)
             retval_leaves.append(retval_leaf)
 
-        return (trace_leaves, trace_defs), (retval_leaves, retval_defs)
+        return (trace_leaves, trace_defs, retval_leaves, retval_defs)
 
-    def _simulate(self, trace_leaves, retval_leaves, key, static_idx, args):
+    def _simulate(self, key, trace_leaves, retval_leaves, static_idx, args):
         branch_gen_fn = self.branches[static_idx]
         args = args[static_idx]
         tr = branch_gen_fn.simulate(key, args)
@@ -196,6 +191,12 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         retval_leaves[static_idx] = jtu.tree_leaves(tr.get_retval())
         score = tr.get_score()
         return (trace_leaves, retval_leaves), score
+
+    @staticmethod
+    def _unflatten(
+        defs: Sequence[jtu.PyTreeDef], leaves: Sequence[Iterable[Any]]
+    ) -> list[Any]:
+        return list(jtu.tree_unflatten(d, leaf) for d, leaf in zip(defs, leaves))
 
     def simulate(
         self,
@@ -205,33 +206,27 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         idx: ArrayLike = args[0]
         branch_args = args[1:]
 
-        self.static_check_num_arguments_equals_num_branches(branch_args)
+        self._check_args_match_branches(branch_args)
 
         def _inner(idx: int):
-            return lambda trace_leaves, retval_leaves, key, args: self._simulate(
-                trace_leaves, retval_leaves, key, idx, args
+            return lambda key, trace_leaves, retval_leaves, args: self._simulate(
+                key, trace_leaves, retval_leaves, idx, args
             )
 
         branch_functions = list(map(_inner, range(len(self.branches))))
         (
-            (trace_leaves, trace_defs),
-            (retval_leaves, retval_defs),
+            trace_leaves,
+            trace_defs,
+            retval_leaves,
+            retval_defs,
         ) = self._empty_simulate_defs(branch_args)
+
         (trace_leaves, retval_leaves), score = jax.lax.switch(
-            idx, branch_functions, trace_leaves, retval_leaves, key, branch_args
+            idx, branch_functions, key, trace_leaves, retval_leaves, branch_args
         )
-        subtraces = list(
-            map(
-                lambda x: jtu.tree_unflatten(trace_defs[x], trace_leaves[x]),
-                range(len(trace_leaves)),
-            )
-        )
-        retvals: list[R] = list(
-            map(
-                lambda x: jtu.tree_unflatten(retval_defs[x], retval_leaves[x]),
-                range(len(retval_leaves)),
-            )
-        )
+        subtraces = self._unflatten(trace_defs, trace_leaves)
+
+        retvals: list[R] = self._unflatten(retval_defs, retval_leaves)
         retval: R = staged_choose(idx, retvals)
         return SwitchTrace(self, args, subtraces, retval, score)
 
@@ -261,7 +256,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
         idx, branch_args = args[0], args[1:]
-        self.static_check_num_arguments_equals_num_branches(branch_args)
+        self._check_args_match_branches(branch_args)
 
         def _inner(static_idx: int):
             return lambda sample, args: self._assess(static_idx, sample, args)
@@ -272,12 +267,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             idx, branch_functions, sample, branch_args
         )
         (_, retval_defs) = self._empty_assess_defs(sample, branch_args)
-        retvals = list(
-            map(
-                lambda x: jtu.tree_unflatten(retval_defs[x], retval_leaves[x]),
-                range(len(retval_leaves)),
-            )
-        )
+        retvals = self._unflatten(retval_defs, retval_leaves)
         retval: R = staged_choose(idx, retvals)
         return score, retval
 
@@ -290,8 +280,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         trace_leaves = []
         retval_defs = []
         retval_leaves = []
-        for static_idx, branch_gen_fn in enumerate(self.branches):
-            branch_args = args[static_idx]
+        for branch_gen_fn, branch_args in zip(self.branches, args):
             empty_trace, _ = empty_generate(branch_gen_fn, constraint, branch_args)
             trace_leaf, trace_def = jtu.tree_flatten(empty_trace)
             retval_leaf, retval_def = jtu.tree_flatten(empty_trace.get_retval())
@@ -334,7 +323,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         (idx, *branch_args) = args
         (_, *branch_args) = args
         branch_args = tuple(branch_args)
-        self.static_check_num_arguments_equals_num_branches(branch_args)
+        self._check_args_match_branches(branch_args)
 
         def _inner(static_idx: int):
             return (
@@ -367,18 +356,8 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             constraint,
             branch_args,
         )
-        subtraces = list(
-            map(
-                lambda x: jtu.tree_unflatten(trace_defs[x], trace_leaves[x]),
-                range(len(trace_leaves)),
-            )
-        )
-        retvals = list(
-            map(
-                lambda x: jtu.tree_unflatten(retval_defs[x], retval_leaves[x]),
-                range(len(retval_leaves)),
-            )
-        )
+        subtraces = self._unflatten(trace_defs, trace_leaves)
+        retvals = self._unflatten(retval_defs, retval_leaves)
         retval = staged_choose(idx, retvals)
         return (SwitchTrace(self, args, subtraces, retval, score), w)
 
@@ -532,7 +511,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         argdiffs: Argdiffs,
     ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], EditRequest]:
         (idx_argdiff, *branch_argdiffs) = argdiffs
-        self.static_check_num_arguments_equals_num_branches(branch_argdiffs)
+        self._check_args_match_branches(branch_argdiffs)
 
         def edit_dispatch(static_idx: int):
             if Diff.tree_tangent(idx_argdiff) == NoChange:
@@ -568,26 +547,11 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             (_, retdiff_defs),
             (_, bwd_request_defs),
         ) = self._empty_edit_defs(trace, constraint, tuple(branch_argdiffs))
-        subtraces = list(
-            map(
-                lambda x: jtu.tree_unflatten(trace_defs[x], trace_leaves[x]),
-                range(len(trace_leaves)),
-            )
-        )
-        retdiffs = list(
-            map(
-                lambda x: jtu.tree_unflatten(retdiff_defs[x], retdiff_leaves[x]),
-                range(len(retdiff_leaves)),
-            )
-        )
-        bwd_requests = list(
-            map(
-                lambda x: jtu.tree_unflatten(
-                    bwd_request_defs[x], bwd_request_leaves[x]
-                ),
-                range(len(bwd_request_leaves)),
-            )
-        )
+
+        subtraces = self._unflatten(trace_defs, trace_leaves)
+        retdiffs = self._unflatten(retdiff_defs, retdiff_leaves)
+        bwd_requests = self._unflatten(bwd_request_defs, bwd_request_leaves)
+
         retdiff: R = staged_choose(idx_argdiff.primal, retdiffs)
         retval: R = Diff.tree_primal(retdiff)
         if Diff.tree_tangent(idx_argdiff) == UnknownChange:
@@ -642,11 +606,6 @@ def switch(
 
     Args:
         gen_fns: generative functions that the `SwitchCombinator` will select from.
-
-    Returns:
-
-
-
 
     Examples:
         Create a `SwitchCombinator` via the [`genjax.switch`][] method:

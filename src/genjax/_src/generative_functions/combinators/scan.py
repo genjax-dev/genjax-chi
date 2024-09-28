@@ -173,18 +173,11 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     # Only required for `None` carry inputs
     length: Int | None = Pytree.static()
 
-    # To get the type of return value, just invoke
-    # the scanned over source (with abstract tracer arguments).
+    # To get the type of return value, invoke the scanned over source (with abstract tracer arguments).
     def __abstract_call__(self, *args) -> tuple[Carry, Y]:
-        (carry, scanned_in) = args
-
-        def _inner(carry: Carry, scanned_in: Any):
-            v, scanned_out = self.kernel_gen_fn.__abstract_call__(carry, scanned_in)
-            return v, scanned_out
-
-        v, scanned_out = jax.lax.scan(_inner, carry, scanned_in, length=self.length)
-
-        return v, scanned_out
+        return jax.lax.scan(
+            self.kernel_gen_fn.__abstract_call__, *args, length=self.length
+        )
 
     @staticmethod
     def _static_scan_length(xs: Any, length: int | None) -> int:

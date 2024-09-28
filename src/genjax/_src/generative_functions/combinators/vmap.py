@@ -198,6 +198,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         sub_keys = jax.random.split(key, dim_length)
 
         def _inner(key, idx, args):
+            # Here we have to vmap across indices and perform individual lookups because the user might only constrain a subset of all indices. This forces recomputation
             submap = constraint(idx)
             tr, w = self.gen_fn.generate(
                 key,
@@ -206,10 +207,10 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             )
             return tr, w
 
-        (tr, w) = jax.vmap(_inner, in_axes=(0, 0, self.in_axes))(
+        tr, weight_v = jax.vmap(_inner, in_axes=(0, 0, self.in_axes))(
             sub_keys, idx_array, args
         )
-        w = jnp.sum(w)
+        w = jnp.sum(weight_v)
         map_tr = VmapTrace.build(self, tr, args, dim_length)
         return map_tr, w
 
@@ -229,10 +230,11 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         argdiffs: Argdiffs,
     ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
         primals = Diff.tree_primal(argdiffs)
-        broadcast_dim_length = trace.dim_length
 
-        idx_array = jnp.arange(broadcast_dim_length)
-        sub_keys = jax.random.split(key, broadcast_dim_length)
+        # TODO for McCoy... what if someone has inflated the dimension out from around us? How do we re-use this?
+        dim_length = trace.dim_length
+        idx_array = jnp.arange(dim_length)
+        sub_keys = jax.random.split(key, dim_length)
 
         def _edit(key, idx, subtrace, argdiffs):
             subconstraint = constraint(idx)
@@ -256,7 +258,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             _edit, in_axes=(0, 0, 0, self.in_axes)
         )(sub_keys, idx_array, trace.inner, argdiffs)
         w = jnp.sum(w)
-        map_tr = VmapTrace.build(self, new_subtraces, primals, broadcast_dim_length)
+        map_tr = VmapTrace.build(self, new_subtraces, primals, dim_length)
         return (
             map_tr,
             w,
