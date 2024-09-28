@@ -46,6 +46,7 @@ from .generative_function import (
     GenerativeFunction,
     GenerativeFunctionClosure,
     IgnoreKwargs,
+    IncrementalChoiceMapRequest,
     Trace,
 )
 from .requests import (
