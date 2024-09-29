@@ -589,12 +589,12 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         key: PRNGKey,
         args: Arguments,
-    ) -> tuple[Sample, Score, R]:
+    ) -> tuple[ChoiceMap, Score, R]:
         """
         Samples a [`Sample`][genjax.core.Sample] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the `R` of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
         """
         tr = self.simulate(key, args)
-        sample = tr.get_sample()
+        sample = tr.get_choices()
         score = tr.get_score()
         retval = tr.get_retval()
         return sample, score, retval

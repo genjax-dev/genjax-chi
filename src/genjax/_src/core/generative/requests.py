@@ -25,10 +25,16 @@ from genjax._src.core.generative.core import (
     Retdiff,
     Weight,
 )
-from genjax._src.core.generative.generative_function import Trace
+from genjax._src.core.generative.generative_function import (
+    ChoiceMapConstraint,
+    GenerativeFunction,
+    Trace,
+    Update,
+)
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Any,
     PRNGKey,
     TypeVar,
 )
@@ -60,6 +66,27 @@ class Regenerate(EditRequest):
     ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
         gen_fn = tr.get_gen_fn()
         return gen_fn.edit(key, tr, self, argdiffs)
+
+
+@Pytree.dataclass(match_args=True)
+class ProposalUpdate(EditRequest):
+    proposal: GenerativeFunction[Any]
+    proposal_args: tuple[Any, ...]
+
+    def edit(
+        self,
+        key: PRNGKey,
+        tr: Trace[R],
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
+        proposal_tr = self.proposal.simulate(key, self.proposal_args)
+        chm = proposal_tr.get_choices()
+        request = Update(ChoiceMapConstraint(chm))
+        tr, w, retdiff, bwd_request = request.edit(key, tr, argdiffs)
+        _, bwd_w, _, _ = bwd_request.edit(
+            key, proposal_tr, Diff.no_change(self.proposal_args)
+        )
+        return tr, w + bwd_w, retdiff, bwd_request
 
 
 @Pytree.dataclass(match_args=True)
