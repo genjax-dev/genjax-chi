@@ -150,9 +150,23 @@ class AddressReuse(Exception):
 ##############
 
 # Generative function trace intrinsic.
+"""
+This is an "initial style" custom primitive for JAX which denotes an addressed invocation of another generative function.
+
+This primitive is inserted into the Jaxpr representation of our `StaticGenerativeFunction` programs, and then interpreters which transform the Jaxpr are responsible for eliminating the primitive into pure JAX computations.
+
+This primitive induces a form of generative monadic binding, allowing the invocation of other generative functions, and compositional sequencing with JAX deterministic computations.
+"""
 trace_p = InitialStylePrimitive("trace")
 
 # Deterministic caching intrinsic.
+"""
+This is an "initial style" custom primitive for JAX which denotes an addressed invocation of a cached deterministic function.
+
+This primitive is inserted into the Jaxpr representation of our `StaticGenerativeFunction` programs, and then interpreters which transform the Jaxpr are responsible for eliminating the primitive into pure JAX computations.
+
+This primitive induces a form of incremental aware caching of deterministic state. Interpreters which eliminate this primitive store the result of the computation, and ferry the state into the `Trace` instances which are returned by generative function interfaces. The `edit` interface can then use that deterministic state to avoid re-computing deterministic parts of the computation (when applicable, and valid).
+"""
 cache_p = InitialStylePrimitive("cache")
 
 
@@ -223,10 +237,10 @@ def _cache(
         return fn(*args)
 
     addr = Pytree.tree_const(addr)
-    fn = Pytree.partial()(fn)
+    clos = Closure((), fn)
     return initial_style_bind(cache_p, custom_rule=custom_rule)(_abstract_call)(
         addr,
-        fn,
+        clos,
         args,
     )
 
