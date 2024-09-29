@@ -273,11 +273,17 @@ def cache(
 ###########################
 
 
-# This explicitly makes assumptions about some common fields:
-# e.g. it assumes if you are using `StaticHandler.get_submap`
-# in your code, that your derived instance has a `constraints` field.
 @dataclass
 class StaticHandler(StatefulHandler):
+    """
+    An abstract stateful handler class used to configure the [`forward` interpreter]() in
+    `StaticGenerativeFunction` transformations.
+
+    By default, the handlers provided to the interpreter for this language
+    handle the two primitives we defined above
+    (`trace_p`, for random choices) and (`cache_p`, for cached deterministic computations).
+    """
+
     @abstractmethod
     def handle_trace(
         self,
@@ -307,9 +313,6 @@ class StaticHandler(StatefulHandler):
     def handle_retval(self, v):
         return jtu.tree_leaves(v)
 
-    # By default, the interpreter handlers for this language
-    # handle the two primitives we defined above
-    # (`trace_p`, for random choices)
     def handles(self, primitive):
         return primitive == trace_p or primitive == cache_p
 
