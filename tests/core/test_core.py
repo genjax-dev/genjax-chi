@@ -13,9 +13,10 @@
 # limitations under the License.
 
 
-import genjax
 import jax
 import jax.numpy as jnp
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Selection
 from genjax import SelectionBuilder as S
