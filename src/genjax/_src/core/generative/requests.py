@@ -29,6 +29,7 @@ from genjax._src.core.generative.generative_function import Trace
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    IntArray,
     PRNGKey,
     TypeVar,
 )
@@ -62,8 +63,23 @@ class Regenerate(EditRequest):
         return gen_fn.edit(key, tr, self, argdiffs)
 
 
+@Pytree.dataclass
+class Index(EditRequest):
+    idx: IntArray
+    request: EditRequest
+
+    def edit(
+        self,
+        key: PRNGKey,
+        tr: Trace[R],
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
+        gen_fn = tr.get_gen_fn()
+        return gen_fn.edit(key, tr, self, argdiffs)
+
+
 @Pytree.dataclass(match_args=True)
-class ChoiceMapEditRequest(EditRequest):
+class ChoiceMapRequest(EditRequest):
     request_choice_map: ChoiceMap
 
     def edit(

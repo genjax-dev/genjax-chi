@@ -24,7 +24,7 @@ from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
     ChoiceMapConstraint,
-    ChoiceMapEditRequest,
+    ChoiceMapRequest,
     Constraint,
     EditRequest,
     GenerativeFunction,
@@ -554,7 +554,7 @@ class ChoiceMapEditRequestHandler(StaticHandler):
 
     def get_subrequest(self, addr: StaticAddress) -> EditRequest:
         submap = self.requests_choice_map(addr)
-        return ChoiceMapEditRequest(submap)
+        return ChoiceMapRequest(submap)
 
     def get_subtrace(
         self,
@@ -963,7 +963,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_const_unwrap(addresses)
             chm = ChoiceMap.from_mapping(zip(addresses, subrequests))
-            return ChoiceMapEditRequest(
+            return ChoiceMapRequest(
                 chm,
             )
 
@@ -1017,7 +1017,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_const_unwrap(addresses)
             chm = ChoiceMap.from_mapping(zip(addresses, subrequests))
-            return ChoiceMapEditRequest(
+            return ChoiceMapRequest(
                 chm,
             )
 
@@ -1053,7 +1053,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     argdiffs,
                 )
 
-            case ChoiceMapEditRequest(requests_choice_map):
+            case ChoiceMapRequest(requests_choice_map):
                 return self.edit_choice_map_edit_request(
                     key,
                     trace,

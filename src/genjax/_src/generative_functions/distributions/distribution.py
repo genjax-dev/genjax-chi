@@ -25,7 +25,7 @@ from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
     ChoiceMapConstraint,
-    ChoiceMapEditRequest,
+    ChoiceMapRequest,
     Constraint,
     EditRequest,
     EmptyConstraint,
@@ -386,7 +386,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     argdiffs,
                 )
 
-            case ChoiceMapEditRequest(requests_choice_map):
+            case ChoiceMapRequest(requests_choice_map):
                 return self.edit_choice_map_edit_request(
                     key,
                     trace,

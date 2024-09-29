@@ -23,6 +23,8 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
+    Index,
+    NotSupportedEditRequest,
     Projection,
     Retdiff,
     Score,
@@ -338,6 +340,60 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         )
         return jnp.sum(ws)
 
+    def edit_index(
+        self,
+        key: PRNGKey,
+        trace: ScanTrace[Carry, Y],
+        idx: IntArray,
+        request: EditRequest,
+        argdiffs: Argdiffs,
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+        # For now, we don't allow changes to the arguments for this type of edit.
+        assert Diff.static_check_no_change(argdiffs)
+
+        (_, scanned_argdiff) = argdiffs
+        scanned_in = Diff.tree_primal(scanned_argdiff)
+        (old_carried_out, old_scanned_out) = trace.get_retval()
+        trace_slice = jtu.tree_map(lambda v: v[idx], trace.inner)
+        new_slice, w, retdiff, bwd_request = request.edit(
+            key, trace_slice, Diff.no_change(trace_slice.get_args())
+        )
+        (carry_retdiff, scanned_retdiff) = retdiff
+        next_slice, next_scanned_in = jtu.tree_map(
+            lambda v: v[idx + 1], (trace.inner, scanned_in)
+        )
+        _, next_w, retdiff, _ = request.edit(
+            key, next_slice, (carry_retdiff, Diff.no_change(next_scanned_in))
+        )
+
+        # The carry value better now have changed, otherwise
+        # the assumptions of this edit are not satisfied.
+        #
+        # Here, we could allow the carry from the slice to flow out via the scanned out
+        # value in the next slice, but we just disallow that for now for simplicity.
+        assert Diff.static_check_no_change(retdiff)
+
+        idx_array = jnp.arange(trace.scan_length)
+        new_inner_trace = jtu.tree_map(
+            lambda v1, v2: jnp.where(idx_array == idx, v1, v2), new_slice, trace.inner
+        )
+        delta_score = new_slice.get_score() - trace_slice.get_score()
+        slice_scanned_out = Diff.tree_primal(scanned_retdiff)
+        new_scanned_out: Y = jtu.tree_map(
+            lambda v1, v2: jnp.where(idx_array == idx, v1, v2),
+            slice_scanned_out,
+            old_scanned_out,
+        )
+        new_trace = ScanTrace[Carry, Y].build(
+            self,
+            new_inner_trace,
+            trace.get_args(),
+            (old_carried_out, new_scanned_out),
+            trace.get_score() + delta_score,
+            trace.scan_length,
+        )
+        return new_trace, w * next_w, retdiff, Index(idx, bwd_request)
+
     def edit_generic(
         self,
         key: PRNGKey,
@@ -446,14 +502,27 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
-        assert isinstance(edit_request, Update)
         assert isinstance(trace, ScanTrace)
-        return self.edit_generic(
-            key,
-            trace,
-            edit_request.constraint,
-            argdiffs,
-        )
+        match edit_request:
+            case Update(constraint):
+                return self.edit_generic(
+                    key,
+                    trace,
+                    constraint,
+                    argdiffs,
+                )
+
+            case Index(idx, request):
+                return self.edit_index(
+                    key,
+                    trace,
+                    idx,
+                    request,
+                    argdiffs,
+                )
+
+            case _:
+                raise NotSupportedEditRequest(edit_request)
 
     def assess(
         self,
