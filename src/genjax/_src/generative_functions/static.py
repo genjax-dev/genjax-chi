@@ -54,6 +54,7 @@ from genjax._src.core.interpreters.incremental import (
 from genjax._src.core.pytree import Closure, Const, Pytree
 from genjax._src.core.typing import (
     Any,
+    Bool,
     Callable,
     FloatArray,
     Generic,
@@ -216,7 +217,7 @@ def _cache(
     addr: StaticAddressComponent | StaticAddress,
     fn: Callable[[Any], R],
     *args: Any,
-    custom_rule: None | Callable[[R, Any], R] = None,
+    custom_rule: None | Callable[[Any, R, Any], R] = None,
 ) -> R:
     """Invoke a deterministic function and expose caching semantics to the
     current caller.
@@ -249,7 +250,7 @@ def _cache(
 class CachedFunction(Generic[R], Pytree):
     fn: Callable[[Any], R]
     addr: StaticAddressComponent | StaticAddress
-    custom_rule: None | Callable[[R, Any], R]
+    custom_rule: None | Callable[[Any, R, Any], R]
 
     def __call__(self, *args) -> R:
         return _cache(self.addr, self.fn, *args, custom_rule=self.custom_rule)
@@ -258,7 +259,7 @@ class CachedFunction(Generic[R], Pytree):
 def cache(
     addr: StaticAddressComponent | StaticAddress,
     fn: Callable[[Any], R],
-    custom_rule: None | Callable[[R, Any], R] = None,
+    custom_rule: None | Callable[[Any, R, Any], R] = None,
 ):
     return CachedFunction(fn, addr, custom_rule)
 
@@ -306,7 +307,7 @@ class StaticHandler(StatefulHandler):
         addr: StaticAddress,
         fn: Callable[[Any], R],
         args: Any,
-        custom_rule: Callable[[R, Any], R],
+        custom_rule: Callable[[Any, R, Any], R],
     ) -> R:
         return fn(*args)
 
@@ -315,6 +316,9 @@ class StaticHandler(StatefulHandler):
 
     def handles(self, primitive):
         return primitive == trace_p or primitive == cache_p
+
+    def uses_cache_custom_rule(self) -> Bool:
+        return False
 
     def dispatch(self, primitive, *tracers, **_params):
         in_tree = _params["in_tree"]
@@ -331,7 +335,7 @@ class StaticHandler(StatefulHandler):
             custom_rule = _params["custom_rule"]
             v = (
                 self.handle_cache_with_custom_rule(addr, fn, args, custom_rule)
-                if custom_rule
+                if custom_rule and self.uses_cache_custom_rule()
                 else self.handle_cache(addr, fn, args)
             )
             return self.handle_retval(v)
@@ -598,6 +602,9 @@ class UpdateHandler(StaticHandler):
     def visit(self, addr):
         self.address_visitor.visit(addr)
 
+    def uses_cache_custom_rule(self) -> Bool:
+        return True
+
     def cache_visit(self, addr: StaticAddress):
         self.cache_addresses.visit(addr)
 
@@ -645,7 +652,7 @@ class UpdateHandler(StaticHandler):
         addr: StaticAddress,
         fn: Callable[[Any], R],
         args: Any,
-        custom_rule: Callable[[R, Any], R],
+        custom_rule: Callable[[Any, R, Any], R],
     ) -> R:
         argdiffs: Argdiffs = args
         self.visit(addr)
@@ -653,10 +660,11 @@ class UpdateHandler(StaticHandler):
         r = self.previous_trace.get_cached_state(addr)
         if Diff.static_check_no_change(argdiffs):
             self.cached_values.append(r)
-            return r
+            return Diff.no_change(r)
         else:
-            r = custom_rule(r, argdiffs)
-            self.cached_values.append(r)
+            r = custom_rule(fn, r, argdiffs)
+            raw_r = Diff.tree_primal(r)
+            self.cached_values.append(raw_r)
             return r
 
     def handle_cache(
