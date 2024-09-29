@@ -27,6 +27,8 @@ from genjax._src.core.generative import (
     ChoiceMapEditRequest,
     Constraint,
     EditRequest,
+    ExtendedAddress,
+    ExtendedAddressComponent,
     GenerativeFunction,
     NotSupportedEditRequest,
     Projection,
@@ -123,7 +125,7 @@ class StaticTrace(Generic[R], Trace[R]):
         addresses = self.cached_addresses.get_visited()
         return ChoiceMap.from_mapping(zip(addresses, self.cached_values))
 
-    def get_cached_state(self, addr) -> Any:
+    def get_cached_state(self, addr: ExtendedAddressComponent | ExtendedAddress) -> Any:
         cache = self.get_cache()
         return cache[addr]
 
