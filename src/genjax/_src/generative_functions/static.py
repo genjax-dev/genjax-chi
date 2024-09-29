@@ -458,9 +458,14 @@ class GenerateHandler(StaticHandler):
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
+    cached_addresses: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    cached_values: list[Any] = Pytree.field(default_factory=list)
 
     def visit(self, addr: StaticAddress):
         self.address_visitor.visit(addr)
+
+    def cache_visit(self, addr: StaticAddress):
+        self.cached_addresses.visit(addr)
 
     def yield_state(
         self,
@@ -469,12 +474,16 @@ class GenerateHandler(StaticHandler):
         Weight,
         AddressVisitor,
         list[Trace[Any]],
+        AddressVisitor,
+        list[Any],
     ]:
         return (
             self.score,
             self.weight,
             self.address_visitor,
             self.address_traces,
+            self.cached_addresses,
+            self.cached_values,
         )
 
     def get_subconstraint(
@@ -499,6 +508,17 @@ class GenerateHandler(StaticHandler):
 
         return tr.get_retval()
 
+    def handle_cache(
+        self,
+        addr: StaticAddress,
+        fn: Callable[[Any], R],
+        args: Any,
+    ) -> R:
+        self.cache_visit(addr)
+        r = fn(*args)
+        self.cached_values.append(r)
+        return r
+
 
 def generate_transform(source_fn):
     @functools.wraps(source_fn)
@@ -514,6 +534,8 @@ def generate_transform(source_fn):
             weight,
             address_visitor,
             address_traces,
+            cached_addresses,
+            cached_values,
         ) = stateful_handler.yield_state()
         return (
             weight,
@@ -525,6 +547,7 @@ def generate_transform(source_fn):
                 address_traces,
                 score,
             ),
+            (cached_addresses, cached_values),
         )
 
     return wrapper
@@ -706,7 +729,6 @@ class ChoiceMapEditRequestHandler(StaticHandler):
     cached_values: list[Any] = Pytree.field(default_factory=list)
     bwd_requests: list[EditRequest] = Pytree.field(default_factory=list)
 
-
     def visit(self, addr: StaticAddress):
         self.address_visitor.visit(addr)
 
@@ -733,9 +755,6 @@ class ChoiceMapEditRequestHandler(StaticHandler):
             self.cached_values,
             self.bwd_requests,
         )
-
-    def visit(self, addr):
-        self.address_visitor.visit(addr)
 
     def get_subrequest(self, addr: StaticAddress) -> EditRequest:
         submap = self.requests_choice_map(addr)
@@ -890,6 +909,7 @@ class RegenerateRequestHandler(StaticHandler):
         self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
+        return retval_diff
 
     def handle_cache(
         self,
@@ -1063,6 +1083,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 address_traces,
                 score,
             ),
+            (cached_addresses, cached_values),
         ) = generate_transform(syntax_sugar_handled)(key, constraint, args)
         return StaticTrace(
             self,
@@ -1071,6 +1092,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             address_visitor,
             address_traces,
             score,
+            cached_addresses,
+            cached_values,
         ), weight
 
     def project(
@@ -1164,6 +1187,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_requests,
             ),
+            (cached_addresses, cached_values),
         ) = choice_map_edit_request_transform(syntax_sugar_handled)(
             key, trace, requests_choice_map, argdiffs
         )
@@ -1188,21 +1212,12 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 address_visitor,
                 address_traces,
                 score,
+                cached_addresses,
+                cached_values,
             ),
-            (cache_addresses, cached_values),
-        ) = generate_transform(syntax_sugar_handled)(key, constraint, args)
-        return StaticTrace(
-            self,
-            args,
-            retval,
-            address_visitor,
-            address_traces,
-            score,
-            cache_addresses,
-            cached_values,
-        ), weight,
-           retval_diffs,
-           bwd_request,
+            weight,
+            retval_diffs,
+            bwd_request,
         )
 
     def edit_select_apply(
