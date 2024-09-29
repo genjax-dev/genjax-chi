@@ -176,3 +176,7 @@ class EditRequest(Pytree):
         argdiffs: Argdiffs,
     ) -> tuple["genjax.Trace[R]", Weight, Retdiff[R], "EditRequest"]:
         pass
+
+
+class NotSupportedEditRequest(Exception):
+    pass

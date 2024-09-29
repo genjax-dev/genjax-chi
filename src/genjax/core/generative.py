@@ -25,7 +25,6 @@ from genjax._src.core.generative import (
     EmptyConstraint,
     GenerativeFunction,
     GenerativeFunctionClosure,
-    IncrementalChoiceMapRequest,
     Mask,
     MaskedConstraint,
     MaskedSample,
@@ -36,6 +35,7 @@ from genjax._src.core.generative import (
     Selection,
     SelectionBuilder,
     Trace,
+    Update,
     Weight,
 )
 
@@ -52,7 +52,6 @@ __all__ = [
     "EmptyConstraint",
     "GenerativeFunction",
     "GenerativeFunctionClosure",
-    "IncrementalChoiceMapRequest",
     "Mask",
     "MaskedConstraint",
     "MaskedSample",
@@ -63,5 +62,6 @@ __all__ = [
     "Selection",
     "SelectionBuilder",
     "Trace",
+    "Update",
     "Weight",
 ]

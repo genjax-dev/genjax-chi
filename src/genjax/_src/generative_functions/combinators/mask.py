@@ -23,12 +23,12 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    IncrementalChoiceMapRequest,
     Mask,
     Projection,
     Retdiff,
     Score,
     Trace,
+    Update,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -152,7 +152,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         argdiffs: Argdiffs,
     ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], EditRequest]:
         assert isinstance(trace, MaskTrace)
-        assert isinstance(edit_request, IncrementalChoiceMapRequest)
+        assert isinstance(edit_request, Update)
 
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
         post_check: ScalarFlag = Diff.tree_primal(check_diff)
@@ -162,7 +162,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
                 pre_check = trace.check
                 original_trace: Trace[R] = trace.inner
 
-        subrequest = IncrementalChoiceMapRequest(edit_request.constraint)
+        subrequest = Update(edit_request.constraint)
 
         premasked_trace, weight, retdiff, bwd_request = self.gen_fn.edit(
             key, original_trace, subrequest, inner_argdiffs
@@ -220,7 +220,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             # that computation.
         )
 
-        assert isinstance(bwd_request, IncrementalChoiceMapRequest)
+        assert isinstance(bwd_request, Update)
         inner_chm_constraint = bwd_request.constraint
         assert isinstance(inner_chm_constraint, ChoiceMapConstraint)
 
@@ -228,7 +228,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             MaskTrace(self, premasked_trace, post_check),
             final_weight,
             Mask.maybe(retdiff, check_diff),
-            IncrementalChoiceMapRequest(
+            Update(
                 ChoiceMapConstraint(inner_chm_constraint.mask(post_check)),
             ),
         )

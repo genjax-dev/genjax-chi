@@ -19,12 +19,12 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    IncrementalChoiceMapRequest,
     Projection,
     Retdiff,
     Sample,
     Score,
     Trace,
+    Update,
     Weight,
 )
 from genjax._src.core.generative.choice_map import ChoiceMap
@@ -170,7 +170,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         tr, w, inner_retdiff, bwd_request = self.inner.edit(
             key,
             inner_trace,
-            IncrementalChoiceMapRequest(constraint),
+            Update(constraint),
             inner_argdiffs,
         )
 
@@ -202,7 +202,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
-        assert isinstance(edit_request, IncrementalChoiceMapRequest)
+        assert isinstance(edit_request, Update)
         constraint = edit_request.constraint
         return self.edit_change_target(key, trace, constraint, argdiffs)
 

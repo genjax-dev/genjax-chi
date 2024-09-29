@@ -23,12 +23,12 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    IncrementalChoiceMapRequest,
     Projection,
     Retdiff,
     Score,
     Selection,
     Trace,
+    Update,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -368,7 +368,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             ) = self.kernel_gen_fn.edit(
                 key,
                 subtrace,
-                IncrementalChoiceMapRequest(subconstraint),
+                Update(subconstraint),
                 (carry, scanned_in),
             )
             (carry_retdiff, scanned_out_retdiff) = Diff.tree_diff_unknown_change(
@@ -400,7 +400,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 (carried_out, score),
                 (new_subtrace, scanned_out, w, inner_bwd_request),
             ) = _inner_edit(key, subtrace, subconstraint, carried_value, scanned_in)
-            assert isinstance(inner_bwd_request, IncrementalChoiceMapRequest)
+            assert isinstance(inner_bwd_request, Update)
             bwd_constraint = inner_bwd_request.constraint
             bwd_constraint = ChoiceMapConstraint(ChoiceMap.entry(bwd_constraint, idx))
 
@@ -436,7 +436,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             ),
             jnp.sum(ws),
             (carried_out_diff, scanned_out_diff),
-            IncrementalChoiceMapRequest(bwd_constraints),
+            Update(bwd_constraints),
         )
 
     def edit(
@@ -446,7 +446,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
-        assert isinstance(edit_request, IncrementalChoiceMapRequest)
+        assert isinstance(edit_request, Update)
         assert isinstance(trace, ScanTrace)
         return self.edit_generic(
             key,
