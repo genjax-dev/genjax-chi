@@ -29,7 +29,6 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     EmptyConstraint,
-    EmptyRequest,
     GenerativeFunction,
     Mask,
     NotSupportedEditRequest,
@@ -331,7 +330,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 trace,
                 jnp.array(0.0),
                 Diff.no_change(trace.get_retval()),
-                EmptyRequest(),
+                Update(ChoiceMapConstraint(ChoiceMap.empty())),
             )
         else:
             raise NotImplementedError
@@ -346,7 +345,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         request = requests_choice_map.get_value()
         return request.edit(key, trace, argdiffs)
 
-    def edit_choice_map_change(
+    def edit_update(
         self,
         key: PRNGKey,
         trace: Trace[R],
@@ -372,7 +371,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         match edit_request:
             case Update(constraint):
-                return self.edit_choice_map_change(
+                return self.edit_update(
                     key,
                     trace,
                     constraint,

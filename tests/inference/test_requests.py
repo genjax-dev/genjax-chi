@@ -13,12 +13,41 @@
 # limitations under the License.
 
 import jax
+import jax.numpy as jnp
 
 import genjax
+from genjax import ChoiceMap as C
+from genjax import ChoiceMapConstraint, Diff, Index, Regenerate, Update
 from genjax import SelectionBuilder as S
 
 
 class TestRegenerate:
+    def test_simple_normal_update(self):
+        @genjax.gen
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2
+
+        key = jax.random.PRNGKey(314159)
+        key, sub_key = jax.random.split(key)
+        model_tr = simple_normal.simulate(sub_key, ())
+        request = Update(ChoiceMapConstraint(C.kw(y1=3.0)))
+        old_value = model_tr.get_choices()["y1"]
+        new_tr, fwd_w, _, bwd_request = request.edit(key, model_tr, ())
+        new_value = new_tr.get_choices()["y1"]
+        assert fwd_w != 0.0
+        assert new_value != old_value
+        old_tr, bwd_w, _, _ = bwd_request.edit(
+            key,
+            new_tr,
+            (),
+        )
+        old_old_value = old_tr.get_choices()["y1"]
+        assert old_old_value == old_value
+        assert bwd_w != 0.0
+        assert fwd_w + bwd_w == 0.0
+
     def test_simple_normal_regenerate(self):
         @genjax.gen
         def simple_normal():
@@ -68,3 +97,67 @@ class TestRegenerate:
         assert (fwd_w + bwd_w) == 0.0
         old_old_v = old_tr.get_choices()["y2"]
         assert old_old_v == old_v
+
+
+class TestIndex:
+    def test_simple_scan_index_update(self):
+        @genjax.gen
+        def kernel(carry, scanned_in):
+            y1 = genjax.normal(carry, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2, None
+
+        model = kernel.scan(n=10)
+        key = jax.random.PRNGKey(314159)
+        args = (0.0, None)
+        model_tr = model.simulate(key, args)
+        request = Index(jnp.array(3), Update(ChoiceMapConstraint(C.kw(y1=3.0))))
+        old_value = model_tr.get_choices()[3, "y1"]
+        new_tr, fwd_w, _, bwd_request = request.edit(
+            key,
+            model_tr,
+            Diff.no_change(args),
+        )
+        new_value = new_tr.get_choices()[3, "y1"]
+        assert fwd_w != 0.0
+        assert new_value != old_value
+        old_tr, bwd_w, _, _ = bwd_request.edit(
+            key,
+            new_tr,
+            Diff.no_change(args),
+        )
+        old_old_value = old_tr.get_choices()[3, "y1"]
+        assert old_old_value == old_value
+        assert bwd_w != 0.0
+        assert fwd_w + bwd_w == 0.0
+
+    def test_simple_scan_index_regenerate(self):
+        @genjax.gen
+        def kernel(carry, scanned_in):
+            y1 = genjax.normal(carry, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2, None
+
+        model = kernel.scan(n=10)
+        key = jax.random.PRNGKey(314159)
+        args = (0.0, None)
+        model_tr = model.simulate(key, args)
+        request = Index(jnp.array(3), Regenerate(S["y1"]))
+        old_value = model_tr.get_choices()[3, "y1"]
+        new_tr, fwd_w, _, bwd_request = request.edit(
+            key,
+            model_tr,
+            Diff.no_change(args),
+        )
+        new_value = new_tr.get_choices()[3, "y1"]
+        assert fwd_w != 0.0
+        assert new_value != old_value
+        old_tr, bwd_w, _, _ = bwd_request.edit(
+            key,
+            new_tr,
+            Diff.no_change(args),
+        )
+        old_old_value = old_tr.get_choices()[3, "y1"]
+        assert old_old_value == old_value
+        assert bwd_w != 0.0
+        assert fwd_w + bwd_w == 0.0

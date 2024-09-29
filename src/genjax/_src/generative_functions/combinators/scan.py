@@ -362,7 +362,8 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         next_slice, next_scanned_in = jtu.tree_map(
             lambda v: v[idx + 1], (trace.inner, scanned_in)
         )
-        _, next_w, retdiff, _ = request.edit(
+        next_request = Update(ChoiceMapConstraint(ChoiceMap.empty()))
+        _, next_w, retdiff, _ = next_request.edit(
             key, next_slice, (carry_retdiff, Diff.no_change(next_scanned_in))
         )
 
@@ -395,7 +396,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         new_scanned_retdiff = Diff.unknown_change(new_scanned_out)
         return (
             new_trace,
-            w * next_w,
+            w + next_w,
             (Diff.no_change(old_carried_out), new_scanned_retdiff),
             Index(idx, bwd_request),
         )

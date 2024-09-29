@@ -482,7 +482,7 @@ class UpdateHandler(StaticHandler):
         return retval_diff
 
 
-def choice_map_change_transform(source_fn):
+def update_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
         key: PRNGKey,
@@ -879,7 +879,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             weight += subtrace.project(key, subprojection)
         return weight
 
-    def edit_change_target(
+    def edit_update(
         self,
         key: PRNGKey,
         trace: StaticTrace[R],
@@ -902,9 +902,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_requests,
             ),
-        ) = choice_map_change_transform(syntax_sugar_handled)(
-            key, trace, constraint, argdiffs
-        )
+        ) = update_transform(syntax_sugar_handled)(key, trace, constraint, argdiffs)
 
         def make_bwd_request(visitor, subconstraints):
             addresses = visitor.get_visited()
@@ -1046,7 +1044,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         assert isinstance(trace, StaticTrace)
         match edit_request:
             case Update(constraint):
-                return self.edit_change_target(
+                return self.edit_update(
                     key,
                     trace,
                     constraint,

@@ -46,6 +46,7 @@ class EmptyRequest(EditRequest):
         tr: Trace[R],
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
+        assert Diff.static_check_no_change(argdiffs)
         return tr, jnp.array(0.0), Diff.no_change(tr.get_retval()), EmptyRequest()
 
 
@@ -63,7 +64,7 @@ class Regenerate(EditRequest):
         return gen_fn.edit(key, tr, self, argdiffs)
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class Index(EditRequest):
     idx: IntArray
     request: EditRequest

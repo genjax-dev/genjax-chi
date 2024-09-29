@@ -14,7 +14,12 @@
 
 from genjax._src.core.generative.requests import (
     ChoiceMapRequest,
+    Index,
     Regenerate,
 )
 
-__all__ = ["ChoiceMapRequest", "Regenerate"]
+__all__ = [
+    "ChoiceMapRequest",
+    "Index",
+    "Regenerate",
+]
