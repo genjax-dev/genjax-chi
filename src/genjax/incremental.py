@@ -14,12 +14,16 @@
 
 from genjax._src.core.interpreters.incremental import (
     Diff,
+    IndexChange,
     NoChange,
     UnknownChange,
+    incremental,
 )
 
 __all__ = [
     "Diff",
+    "IndexChange",
     "NoChange",
     "UnknownChange",
+    "incremental",
 ]

@@ -39,8 +39,10 @@ from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    ArrayLike,
     Callable,
     Generic,
+    IntArray,
     TypeVar,
     Value,
 )
@@ -82,6 +84,12 @@ class _NoChange(ChangeTangent):
 
 
 NoChange = _NoChange()
+
+
+@Pytree.dataclass
+class IndexChange(ChangeTangent):
+    idx: IntArray
+    old_val: ArrayLike
 
 
 def static_check_is_change_tangent(v):
