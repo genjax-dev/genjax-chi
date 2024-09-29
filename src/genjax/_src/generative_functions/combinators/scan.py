@@ -392,7 +392,13 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             trace.get_score() + delta_score,
             trace.scan_length,
         )
-        return new_trace, w * next_w, retdiff, Index(idx, bwd_request)
+        new_scanned_retdiff = Diff.unknown_change(new_scanned_out)
+        return (
+            new_trace,
+            w * next_w,
+            (Diff.no_change(old_carried_out), new_scanned_retdiff),
+            Index(idx, bwd_request),
+        )
 
     def edit_generic(
         self,
