@@ -14,6 +14,7 @@
 
 import jax
 import jax.numpy as jnp
+import pytest
 
 import genjax
 from genjax import ChoiceMap as C
@@ -47,6 +48,7 @@ class TestRegenerate:
         assert old_old_value == old_value
         assert bwd_w != 0.0
         assert fwd_w + bwd_w == 0.0
+        assert model_tr.get_score() == old_tr.get_score()
 
     def test_simple_normal_regenerate(self):
         @genjax.gen
@@ -93,10 +95,11 @@ class TestRegenerate:
         new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
         new_v = new_tr.get_choices()["y2"]
         assert old_v != new_v
-        old_tr, bwd_w, _, bwd_request = bwd_request.edit(key, new_tr, ())
+        old_tr, bwd_w, _, _ = bwd_request.edit(key, new_tr, ())
         assert (fwd_w + bwd_w) == 0.0
         old_old_v = old_tr.get_choices()["y2"]
         assert old_old_v == old_v
+        assert tr.get_score() == old_tr.get_score()
 
 
 class TestIndex:
@@ -130,6 +133,7 @@ class TestIndex:
         assert old_old_value == old_value
         assert bwd_w != 0.0
         assert fwd_w + bwd_w == 0.0
+        assert model_tr.get_score() == pytest.approx(old_tr.get_score(), 1e-4)
 
     def test_simple_scan_index_regenerate(self):
         @genjax.gen
@@ -161,3 +165,4 @@ class TestIndex:
         assert old_old_value == old_value
         assert bwd_w != 0.0
         assert fwd_w + bwd_w == 0.0
+        assert model_tr.get_score() == old_tr.get_score()

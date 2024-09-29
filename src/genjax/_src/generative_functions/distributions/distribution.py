@@ -231,21 +231,30 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         ),
                     )
                 elif FlagOp.concrete_false(check):
-                    value_chm = trace.get_choices()
-                    v = value_chm.get_value()
-                    fwd = self.estimate_logpdf(key, v, *primals)
-                    bwd = trace.get_score()
-                    w = fwd - bwd
-                    new_tr = DistributionTrace(self, primals, v, fwd)
-                    retval_diff = Diff.tree_diff_no_change(v)
-                    return (
-                        new_tr,
-                        w,
-                        retval_diff,
-                        Update(
-                            ChoiceMapConstraint(ChoiceMap.empty()),
-                        ),
-                    )
+                    if Diff.static_check_no_change(argdiffs):
+                        return (
+                            trace,
+                            jnp.array(0.0),
+                            Diff.no_change(trace.get_retval()),
+                            Update(
+                                ChoiceMapConstraint(ChoiceMap.empty()),
+                            ),
+                        )
+                    else:
+                        v = trace.get_retval()
+                        fwd = self.estimate_logpdf(key, v, *primals)
+                        bwd = trace.get_score()
+                        w = fwd - bwd
+                        new_tr = DistributionTrace(self, primals, v, fwd)
+                        retval_diff = Diff.tree_diff_no_change(v)
+                        return (
+                            new_tr,
+                            w,
+                            retval_diff,
+                            Update(
+                                ChoiceMapConstraint(ChoiceMap.empty()),
+                            ),
+                        )
 
                 elif isinstance(constraint.choice_map, Filtered):
                     # Whether or not the choice map has a value is dynamic...

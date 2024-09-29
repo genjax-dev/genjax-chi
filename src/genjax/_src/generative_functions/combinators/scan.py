@@ -363,11 +363,11 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             lambda v: v[idx + 1], (trace.inner, scanned_in)
         )
         next_request = Update(ChoiceMapConstraint(ChoiceMap.empty()))
-        _, next_w, retdiff, _ = next_request.edit(
+        new_next_slice, next_w, retdiff, _ = next_request.edit(
             key, next_slice, (carry_retdiff, Diff.no_change(next_scanned_in))
         )
 
-        # The carry value better now have changed, otherwise
+        # The carry value better not have changed, otherwise
         # the assumptions of this edit are not satisfied.
         #
         # Here, we could allow the carry from the slice to flow out via the scanned out
@@ -377,6 +377,11 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         idx_array = jnp.arange(trace.scan_length)
         new_inner_trace = jtu.tree_map(
             lambda v1, v2: jnp.where(idx_array == idx, v1, v2), new_slice, trace.inner
+        )
+        new_inner_trace = jtu.tree_map(
+            lambda v1, v2: jnp.where(idx_array == idx + 1, v1, v2),
+            new_next_slice,
+            new_inner_trace,
         )
         delta_score = new_slice.get_score() - trace_slice.get_score()
         slice_scanned_out = Diff.tree_primal(scanned_retdiff)
