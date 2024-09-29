@@ -20,6 +20,8 @@ import jax
 from genjax._src.core.generative.choice_map import (
     ChoiceMap,
     ChoiceMapConstraint,
+    ExtendedAddress,
+    ExtendedAddressComponent,
 )
 from genjax._src.core.generative.core import (
     Argdiffs,
@@ -149,6 +151,17 @@ class Trace(Generic[R], Pytree):
     def get_gen_fn(self) -> "GenerativeFunction[R]":
         """Returns the [`GenerativeFunction`][genjax.core.GenerativeFunction] whose invocation created the [`Trace`][genjax.core.Trace]."""
         pass
+
+    def get_cache(self) -> ChoiceMap:
+        return ChoiceMap.empty()
+
+    def get_cached_state(self, addr: ExtendedAddressComponent | ExtendedAddress) -> Any:
+        cache = self.get_cache()
+        return cache[addr]
+
+    def __getitem__(self, addr: ExtendedAddressComponent | ExtendedAddress) -> Any:
+        cache = self.get_cache()
+        return cache[addr]
 
     def edit(
         self,
