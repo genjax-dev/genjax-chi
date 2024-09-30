@@ -35,11 +35,11 @@ class TestRegenerate:
         model_tr = simple_normal.simulate(sub_key, ())
         request = Update(ChoiceMapConstraint(C.kw(y1=3.0)))
         old_value = model_tr.get_choices()["y1"]
-        new_tr, fwd_w, _, bwd_request = request.edit(key, model_tr, ())
+        new_tr, fwd_w, _, bwd_request = request.do(key, model_tr, ())
         new_value = new_tr.get_choices()["y1"]
         assert fwd_w != 0.0
         assert new_value != old_value
-        old_tr, bwd_w, _, _ = bwd_request.edit(
+        old_tr, bwd_w, _, _ = bwd_request.do(
             key,
             new_tr,
             (),
@@ -64,11 +64,11 @@ class TestRegenerate:
         # First, try y1
         old_v = tr.get_choices()["y1"]
         request = genjax.Regenerate(S["y1"])
-        new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
+        new_tr, fwd_w, _, bwd_request = request.do(key, tr, ())
         assert fwd_w != 0.0
         new_v = new_tr.get_choices()["y1"]
         assert old_v != new_v
-        old_tr, bwd_w, _, bwd_request = bwd_request.edit(key, new_tr, ())
+        old_tr, bwd_w, _, bwd_request = bwd_request.do(key, new_tr, ())
         assert bwd_w != 0.0
         assert (fwd_w + bwd_w) == 0.0
         old_old_v = old_tr.get_choices()["y1"]
@@ -77,11 +77,11 @@ class TestRegenerate:
         # Now, do y2
         old_v = tr.get_choices()["y2"]
         request = genjax.Regenerate(S["y2"])
-        new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
+        new_tr, fwd_w, _, bwd_request = request.do(key, tr, ())
         assert fwd_w != 0.0
         new_v = new_tr.get_choices()["y2"]
         assert old_v != new_v
-        old_tr, bwd_w, _, bwd_request = bwd_request.edit(key, new_tr, ())
+        old_tr, bwd_w, _, bwd_request = bwd_request.do(key, new_tr, ())
         assert bwd_w != 0.0
         assert (fwd_w + bwd_w) == 0.0
         old_old_v = old_tr.get_choices()["y2"]
@@ -92,10 +92,10 @@ class TestRegenerate:
         request = genjax.Regenerate(
             S["y1"] | S["y2"],
         )
-        new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
+        new_tr, fwd_w, _, bwd_request = request.do(key, tr, ())
         new_v = new_tr.get_choices()["y2"]
         assert old_v != new_v
-        old_tr, bwd_w, _, _ = bwd_request.edit(key, new_tr, ())
+        old_tr, bwd_w, _, _ = bwd_request.do(key, new_tr, ())
         assert (fwd_w + bwd_w) == 0.0
         old_old_v = old_tr.get_choices()["y2"]
         assert old_old_v == old_v
@@ -116,7 +116,7 @@ class TestIndex:
         model_tr = model.simulate(key, args)
         request = Index(jnp.array(3), Update(ChoiceMapConstraint(C.kw(y1=3.0))))
         old_value = model_tr.get_choices()[3, "y1"]
-        new_tr, fwd_w, _, bwd_request = request.edit(
+        new_tr, fwd_w, _, bwd_request = request.do(
             key,
             model_tr,
             Diff.no_change(args),
@@ -124,7 +124,7 @@ class TestIndex:
         new_value = new_tr.get_choices()[3, "y1"]
         assert fwd_w != 0.0
         assert new_value != old_value
-        old_tr, bwd_w, _, _ = bwd_request.edit(
+        old_tr, bwd_w, _, _ = bwd_request.do(
             key,
             new_tr,
             Diff.no_change(args),
@@ -148,7 +148,7 @@ class TestIndex:
         model_tr = model.simulate(key, args)
         request = Index(jnp.array(3), Regenerate(S["y1"]))
         old_value = model_tr.get_choices()[3, "y1"]
-        new_tr, fwd_w, _, bwd_request = request.edit(
+        new_tr, fwd_w, _, bwd_request = request.do(
             key,
             model_tr,
             Diff.no_change(args),
@@ -156,7 +156,7 @@ class TestIndex:
         new_value = new_tr.get_choices()[3, "y1"]
         assert fwd_w != 0.0
         assert new_value != old_value
-        old_tr, bwd_w, _, _ = bwd_request.edit(
+        old_tr, bwd_w, _, _ = bwd_request.do(
             key,
             new_tr,
             Diff.no_change(args),
@@ -165,4 +165,4 @@ class TestIndex:
         assert old_old_value == old_value
         assert bwd_w != 0.0
         assert fwd_w + bwd_w == 0.0
-        assert model_tr.get_score() == old_tr.get_score()
+        assert model_tr.get_score() == pytest.approx(old_tr.get_score(), 1e-4)

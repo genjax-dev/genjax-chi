@@ -33,6 +33,7 @@ from genjax._src.core.generative import (
     Retdiff,
     Score,
     Trace,
+    Tracediff,
     Update,
     Weight,
 )
@@ -43,8 +44,19 @@ from genjax._src.core.typing import (
     Callable,
     Generic,
     InAxes,
+    Int,
     PRNGKey,
 )
+
+
+@Pytree.dataclass
+class VmapTracediff(Tracediff):
+    new_args: tuple[Any, ...]
+    inner_diffs: Tracediff
+    broadcast_length: Int
+
+    def get_score(self):
+        return jax.vmap(lambda diff: diff.get_score())(self.inner_diffs)
 
 
 @Pytree.dataclass
@@ -83,6 +95,20 @@ class VmapTrace(Generic[R], Trace[R]):
 
     def get_score(self) -> Score:
         return self.score
+
+    def merge(self, pull_request: Tracediff) -> "VmapTrace[R]":
+        match pull_request:
+            case VmapTracediff(new_args, inner_diffs, broadcast_dim_length):
+                new_inner = jax.vmap(lambda tr, diff: tr.merge(diff))(
+                    self.inner, inner_diffs
+                )
+                return VmapTrace.build(
+                    self.get_gen_fn(), new_inner, new_args, broadcast_dim_length
+                )
+            case VmapTrace():
+                return pull_request
+            case _:
+                raise NotImplementedError
 
 
 @Pytree.dataclass
@@ -222,7 +248,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         trace: VmapTrace[R],
         constraint: ChoiceMapConstraint,
         argdiffs: Argdiffs,
-    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[VmapTracediff, Weight, Retdiff[R], EditRequest]:
         primals = Diff.tree_primal(argdiffs)
         broadcast_dim_length = self._static_broadcast_dim_length(self.in_axes, primals)
         idx_array = jnp.arange(0, broadcast_dim_length)
@@ -246,13 +272,17 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
                 ChoiceMapConstraint(ChoiceMap.entry(inner_chm_constraint, idx)),
             )
 
-        new_subtraces, w, retdiff, bwd_constraints = jax.vmap(
+        new_subtrace_diffs, w, retdiff, bwd_constraints = jax.vmap(
             _edit, in_axes=(0, 0, 0, self.in_axes)
         )(sub_keys, idx_array, trace.inner, argdiffs)
         w = jnp.sum(w)
-        map_tr = VmapTrace.build(self, new_subtraces, primals, broadcast_dim_length)
+        map_tracediff = VmapTracediff(
+            primals,
+            new_subtrace_diffs,
+            broadcast_dim_length,
+        )
         return (
-            map_tr,
+            map_tracediff,
             w,
             retdiff,
             Update(bwd_constraints),
@@ -264,7 +294,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[VmapTracediff, Weight, Retdiff[R], EditRequest]:
         assert isinstance(trace, VmapTrace)
         assert isinstance(edit_request, Update), type(edit_request)
         constraint = edit_request.constraint

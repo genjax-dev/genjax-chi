@@ -31,6 +31,7 @@ from genjax._src.core.generative import (
     EmptyConstraint,
     GenerativeFunction,
     Mask,
+    MetadataDiff,
     NotSupportedEditRequest,
     Projection,
     R,
@@ -87,6 +88,15 @@ class DistributionTrace(
 
     def get_choices(self) -> ChoiceMap:
         return ChoiceMap.choice(self.value)
+
+    def merge(self, pull_request) -> "DistributionTrace[R]":
+        match pull_request:
+            case MetadataDiff(args, score, retval):
+                return DistributionTrace(self.get_gen_fn(), args, retval, score)
+            case DistributionTrace():
+                return pull_request
+            case _:
+                raise NotImplementedError
 
 
 ################

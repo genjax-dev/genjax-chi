@@ -33,6 +33,7 @@ from genjax._src.generative_functions.combinators.repeat import (
     repeat,
 )
 from genjax._src.generative_functions.combinators.scan import (
+    Checkerboard,
     ScanCombinator,
     accumulate,
     iterate,
@@ -50,6 +51,7 @@ from genjax._src.generative_functions.combinators.vmap import (
 )
 
 __all__ = [
+    "Checkerboard",
     "DimapCombinator",
     "MaskCombinator",
     "RepeatCombinator",

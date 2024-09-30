@@ -15,7 +15,6 @@
 
 from genjax._src.core.generative import (
     Argdiffs,
-    ChoiceMapConstraint,
     Constraint,
     EditRequest,
     GenerativeFunction,
@@ -24,7 +23,7 @@ from genjax._src.core.generative import (
     Sample,
     Score,
     Trace,
-    Update,
+    Tracediff,
     Weight,
 )
 from genjax._src.core.generative.choice_map import ChoiceMap
@@ -42,6 +41,16 @@ from genjax._src.core.typing import (
 ArgTuple = TypeVar("ArgTuple", bound=tuple[Any, ...])
 R = TypeVar("R")
 S = TypeVar("S")
+
+
+@Pytree.dataclass(match_args=True)
+class DimapTracediff(Generic[S], Tracediff):
+    args: tuple[Any, ...]
+    inner: Tracediff
+    retval: S
+
+    def get_score(self) -> Score:
+        return self.inner.get_score()
 
 
 @Pytree.dataclass
@@ -68,6 +77,16 @@ class DimapTrace(Generic[R, S], Trace[S]):
 
     def get_score(self) -> Score:
         return self.inner.get_score()
+
+    def merge(self, pull_request: Tracediff) -> "DimapTrace[R, S]":
+        match pull_request:
+            case DimapTracediff(args, tracediff, retval):
+                new_inner = self.inner.merge(tracediff)
+                return DimapTrace(self.gen_fn, new_inner, args, retval)
+            case DimapTrace():
+                return pull_request
+            case _:
+                raise NotImplementedError
 
 
 @Pytree.dataclass
@@ -148,13 +167,13 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         assert isinstance(trace, DimapTrace)
         return trace.inner.project(key, projection)
 
-    def edit_change_target(
+    def edit(
         self,
         key: PRNGKey,
         trace: Trace[S],
-        constraint: ChoiceMapConstraint,
+        edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
+    ) -> tuple[DimapTracediff[S], Weight, Retdiff[S], EditRequest]:
         assert isinstance(trace, DimapTrace)
 
         primals = Diff.tree_primal(argdiffs)
@@ -167,10 +186,10 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         )
         inner_trace: Trace[R] = trace.inner
 
-        tr, w, inner_retdiff, bwd_request = self.inner.edit(
+        tracediff, w, inner_retdiff, bwd_request = self.inner.edit(
             key,
             inner_trace,
-            Update(constraint),
+            edit_request,
             inner_argdiffs,
         )
 
@@ -189,22 +208,11 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
 
         retval_primal: S = Diff.tree_primal(retval_diff)
         return (
-            DimapTrace(self, tr, primals, retval_primal),
+            DimapTracediff(primals, tracediff, retval_primal),
             w,
             retval_diff,
             bwd_request,
         )
-
-    def edit(
-        self,
-        key: PRNGKey,
-        trace: Trace[S],
-        edit_request: EditRequest,
-        argdiffs: Argdiffs,
-    ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
-        assert isinstance(edit_request, Update)
-        constraint = edit_request.constraint
-        return self.edit_change_target(key, trace, constraint, argdiffs)
 
     def assess(
         self,

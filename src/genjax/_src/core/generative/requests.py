@@ -23,6 +23,8 @@ from genjax._src.core.generative.core import (
     Argdiffs,
     EditRequest,
     Retdiff,
+    Score,
+    Tracediff,
     Weight,
 )
 from genjax._src.core.generative.generative_function import Trace
@@ -38,6 +40,12 @@ from genjax._src.core.typing import (
 R = TypeVar("R")
 
 
+@Pytree.dataclass
+class EmptyTracediff(Tracediff):
+    def get_score(self) -> Score:
+        return jnp.array(0.0)
+
+
 @Pytree.dataclass(match_args=True)
 class EmptyRequest(EditRequest):
     def edit(
@@ -45,9 +53,14 @@ class EmptyRequest(EditRequest):
         key: PRNGKey,
         tr: Trace[R],
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
+    ) -> tuple[EmptyTracediff, Weight, Retdiff[R], "EditRequest"]:
         assert Diff.static_check_no_change(argdiffs)
-        return tr, jnp.array(0.0), Diff.no_change(tr.get_retval()), EmptyRequest()
+        return (
+            EmptyTracediff(),
+            jnp.array(0.0),
+            Diff.no_change(tr.get_retval()),
+            EmptyRequest(),
+        )
 
 
 @Pytree.dataclass(match_args=True)
@@ -59,9 +72,18 @@ class Regenerate(EditRequest):
         key: PRNGKey,
         tr: Trace[R],
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
+    ) -> tuple[Tracediff, Weight, Retdiff[R], "EditRequest"]:
         gen_fn = tr.get_gen_fn()
         return gen_fn.edit(key, tr, self, argdiffs)
+
+
+@Pytree.dataclass(match_args=True)
+class IndexTracediff(Tracediff):
+    idx: IntArray
+    tracediff: Tracediff
+
+    def get_score(self) -> Score:
+        return self.tracediff.get_score()
 
 
 @Pytree.dataclass(match_args=True)
@@ -74,7 +96,7 @@ class Index(EditRequest):
         key: PRNGKey,
         tr: Trace[R],
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
+    ) -> tuple[Tracediff, Weight, Retdiff[R], "EditRequest"]:
         gen_fn = tr.get_gen_fn()
         return gen_fn.edit(key, tr, self, argdiffs)
 
@@ -88,6 +110,6 @@ class ChoiceMapRequest(EditRequest):
         key: PRNGKey,
         tr: Trace[R],
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
+    ) -> tuple[Tracediff, Weight, Retdiff[R], "EditRequest"]:
         gen_fn = tr.get_gen_fn()
         return gen_fn.edit(key, tr, self, argdiffs)

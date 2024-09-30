@@ -30,6 +30,7 @@ from genjax._src.core.generative.core import (
     Retdiff,
     Sample,
     Score,
+    Tracediff,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -70,7 +71,7 @@ Y = TypeVar("Y")
 #########
 
 
-class Trace(Generic[R], Pytree):
+class Trace(Generic[R], Tracediff):
     """
     `Trace` is the type of traces of generative functions.
 
@@ -150,12 +151,25 @@ class Trace(Generic[R], Pytree):
         """Returns the [`GenerativeFunction`][genjax.core.GenerativeFunction] whose invocation created the [`Trace`][genjax.core.Trace]."""
         pass
 
+    @abstractmethod
+    def merge(self, pull_request: Tracediff) -> "Trace[R]":
+        pass
+
+    def get_delta_args(self) -> tuple[Any, ...]:
+        return self.get_args()
+
+    def get_delta_score(self) -> Score:
+        return self.get_score()
+
+    def get_delta_retval(self) -> R:
+        return self.get_retval()
+
     def edit(
         self,
         key: PRNGKey,
         request: EditRequest,
         argdiffs: tuple[Any, ...] | None = None,
-    ) -> tuple[Self, Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[Tracediff, Weight, Retdiff[R], EditRequest]:
         """
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
         """
@@ -405,7 +419,7 @@ class GenerativeFunction(Generic[R], Pytree):
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[Tracediff, Weight, Retdiff[R], EditRequest]:
         """
         Update a trace in response to an [`EditRequest`][genjax.core.EditRequest], returning a new [`Trace`][genjax.core.Trace], an incremental [`Weight`][genjax.core.Weight] for the new target, a [`Retdiff`][genjax.core.Retdiff] return value tagged with change information, and a backward [`EditRequest`][genjax.core.EditRequest] which requests the reverse move (to go back to the original trace).
 
@@ -528,13 +542,14 @@ class GenerativeFunction(Generic[R], Pytree):
         request = Update(
             ChoiceMapConstraint(constraint),
         )
-        tr, w, rd, bwd = request.edit(
+        tracediff, w, rd, bwd = request.edit(
             key,
             trace,
             argdiffs,
         )
+        final = trace.merge(tracediff)
         assert isinstance(bwd, Update), type(bwd)
-        return tr, w, rd, bwd.constraint
+        return final, w, rd, bwd.constraint
 
     def importance(
         self,
@@ -1399,7 +1414,7 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[Tracediff, Weight, Retdiff[R], EditRequest]:
         raise NotImplementedError
 
 
@@ -1498,7 +1513,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[Tracediff, Weight, Retdiff[R], EditRequest]:
         raise NotImplementedError
 
     def assess(
@@ -1526,6 +1541,6 @@ class Update(EditRequest):
         key: PRNGKey,
         tr: Trace[R],
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
+    ) -> tuple[Tracediff, Weight, Retdiff[R], "EditRequest"]:
         gen_fn = tr.get_gen_fn()
         return gen_fn.edit(key, tr, self, argdiffs)

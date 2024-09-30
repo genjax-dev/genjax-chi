@@ -32,12 +32,14 @@ from .core import (
     EmptySample,
     MaskedConstraint,
     MaskedSample,
+    MetadataDiff,
     NotSupportedEditRequest,
     Projection,
     R,
     Retdiff,
     Sample,
     Score,
+    Tracediff,
     Weight,
 )
 from .functional_types import Mask
@@ -52,6 +54,7 @@ from .requests import (
     ChoiceMapRequest,
     EmptyRequest,
     Index,
+    IndexTracediff,
     Regenerate,
 )
 
@@ -73,10 +76,12 @@ __all__ = [
     "GenerativeFunctionClosure",
     "IgnoreKwargs",
     "Index",
+    "IndexTracediff",
     "Mask",
     "MaskedConstraint",
     "MaskedConstraint",
     "MaskedSample",
+    "MetadataDiff",
     "NotSupportedEditRequest",
     "Projection",
     "R",
@@ -89,6 +94,7 @@ __all__ = [
     "StaticAddress",
     "StaticAddressComponent",
     "Trace",
+    "Tracediff",
     "Update",
     "Weight",
 ]

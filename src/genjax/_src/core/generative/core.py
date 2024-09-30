@@ -161,6 +161,22 @@ class Projection(Generic[S], Pytree):
 #################
 
 
+class Tracediff(Pytree):
+    @abstractmethod
+    def get_score(self) -> FloatArray:
+        pass
+
+
+@Pytree.dataclass(match_args=True)
+class MetadataDiff(Tracediff):
+    args: tuple[Any, ...]
+    score: Score
+    retval: Any
+
+    def get_score(self) -> Score:
+        return self.score
+
+
 class EditRequest(Pytree):
     """
     An `EditRequest` is a request to edit a trace of a generative function. Generative functions respond to instances of subtypes of `EditRequest` by providing an [`edit`][genjax.core.GenerativeFunction.edit] implementation.
@@ -174,8 +190,18 @@ class EditRequest(Pytree):
         key: PRNGKey,
         tr: "genjax.Trace[R]",
         argdiffs: Argdiffs,
-    ) -> tuple["genjax.Trace[R]", Weight, Retdiff[R], "EditRequest"]:
+    ) -> tuple[Tracediff, Weight, Retdiff[R], "EditRequest"]:
         pass
+
+    def do(
+        self,
+        key: PRNGKey,
+        tr: "genjax.Trace[R]",
+        argdiffs: Argdiffs,
+    ) -> tuple["genjax.Trace[R]", Weight, Retdiff[R], "EditRequest"]:
+        tracediff, w, retdiff, bwd_request = self.edit(key, tr, argdiffs)
+        trace = tr.merge(tracediff)
+        return trace, w, retdiff, bwd_request
 
 
 class NotSupportedEditRequest(Exception):
