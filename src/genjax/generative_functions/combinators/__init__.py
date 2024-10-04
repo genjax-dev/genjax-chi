@@ -22,12 +22,6 @@ from genjax._src.generative_functions.combinators.mask import (
     MaskCombinator,
     mask,
 )
-from genjax._src.generative_functions.combinators.mixture import (
-    mix,
-)
-from genjax._src.generative_functions.combinators.or_else import (
-    or_else,
-)
 from genjax._src.generative_functions.combinators.repeat import (
     RepeatCombinator,
     repeat,
@@ -41,10 +35,6 @@ from genjax._src.generative_functions.combinators.scan import (
     reduce,
     scan,
 )
-from genjax._src.generative_functions.combinators.switch import (
-    SwitchCombinator,
-    switch,
-)
 from genjax._src.generative_functions.combinators.vmap import (
     VmapCombinator,
     vmap,
@@ -56,7 +46,6 @@ __all__ = [
     "MaskCombinator",
     "RepeatCombinator",
     "ScanCombinator",
-    "SwitchCombinator",
     "VmapCombinator",
     "accumulate",
     "contramap",
@@ -65,11 +54,8 @@ __all__ = [
     "iterate_final",
     "map",
     "mask",
-    "mix",
-    "or_else",
     "reduce",
     "repeat",
     "scan",
-    "switch",
     "vmap",
 ]

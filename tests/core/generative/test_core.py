@@ -110,25 +110,3 @@ class TestCombinators:
 
         # vmap does as well, but they are different due to internal seed splitting:
         assert jnp.array_equal(vmap_tr.get_choices()[..., "x"], varr)
-
-    def test_or_else(self):
-        key = jax.random.PRNGKey(314159)
-
-        @genjax.gen
-        def if_model(x):
-            return genjax.normal(x, 1.0) @ "if_value"
-
-        @genjax.gen
-        def else_model(x):
-            return genjax.normal(x, 5.0) @ "else_value"
-
-        @genjax.gen
-        def switch_model(toss: bool):
-            return if_model.or_else(else_model)(toss, (1.0,), (10.0,)) @ "tossed"
-
-        jit_fn = jax.jit(switch_model.simulate)
-        if_tr = jit_fn(key, (True,))
-        assert "if_value" in if_tr.get_choices()("tossed")
-
-        else_tr = jit_fn(key, (False,))
-        assert "else_value" in else_tr.get_choices()("tossed")

@@ -106,7 +106,7 @@ class TraceTangentMonoidActionException(Exception):
     attempt: TraceTangent
 
 
-class Trace(Generic[R], Pytree):
+class Trace(Generic[R], TraceTangent):
     """
     `Trace` is the type of traces of generative functions.
 
@@ -190,6 +190,12 @@ class Trace(Generic[R], Pytree):
     @abstractmethod
     def pull(self, pull_request: TraceTangent) -> "Trace[R]":
         pass
+
+    def __mul__(self, other: "TraceTangent") -> "TraceTangent":
+        return self.pull(other)
+
+    def get_delta_score(self) -> Score:
+        return self.get_score()
 
     def edit(
         self,
@@ -284,7 +290,9 @@ class Tracediff(Generic[R, Ta], Trace[R]):
         return Tracediff(self.get_primal(), pull_request * self.get_tangent())
 
 
-def IdentityTracediff(primal: Trace[R]):
+def IdentityTracediff(
+    primal: Trace[R],
+) -> Tracediff[R, IdentityTangent]:
     return Tracediff(primal, IdentityTangent())
 
 
@@ -1117,145 +1125,6 @@ class GenerativeFunction(Generic[R], Pytree):
         import genjax
 
         return genjax.mask(self)
-
-    def or_else(self, gen_fn: "GenerativeFunction[R]", /) -> "GenerativeFunction[R]":
-        """
-        Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that accepts
-
-        - a boolean argument
-        - an argument tuple for `self`
-        - an argument tuple for the supplied `gen_fn`
-
-        and acts like `self` when the boolean is `True` or like `gen_fn` otherwise.
-
-        Args:
-            gen_fn: called when the boolean argument is `False`.
-
-        Examples:
-            ```python exec="yes" html="true" source="material-block" session="gen-fn"
-            import jax
-            import jax.numpy as jnp
-            import genjax
-
-
-            @genjax.gen
-            def if_model(x):
-                return genjax.normal(x, 1.0) @ "if_value"
-
-
-            @genjax.gen
-            def else_model(x):
-                return genjax.normal(x, 5.0) @ "else_value"
-
-
-            @genjax.gen
-            def model(toss: bool):
-                # Note that the returned model takes a new boolean predicate in
-                # addition to argument tuples for each branch.
-                return if_model.or_else(else_model)(toss, (1.0,), (10.0,)) @ "tossed"
-
-
-            key = jax.random.PRNGKey(314159)
-
-            tr = jax.jit(model.simulate)(key, (True,))
-
-            print(tr.render_html())
-            ```
-        """
-        import genjax
-
-        return genjax.or_else(self, gen_fn)
-
-    def switch(
-        self, *branches: "GenerativeFunction[R]"
-    ) -> "genjax.SwitchCombinator[R]":
-        """
-        Given `n` [`genjax.GenerativeFunction`][] inputs, returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
-
-        - an index in the range $[0, n+1)$
-        - a tuple of arguments for `self` and each of the input generative functions (`n+1` total tuples)
-
-        and executes the generative function at the supplied index with its provided arguments.
-
-        If `index` is out of bounds, `index` is clamped to within bounds.
-
-        Examples:
-            ```python exec="yes" html="true" source="material-block" session="switch"
-            import jax, genjax
-
-
-            @genjax.gen
-            def branch_1():
-                x = genjax.normal(0.0, 1.0) @ "x1"
-
-
-            @genjax.gen
-            def branch_2():
-                x = genjax.bernoulli(0.3) @ "x2"
-
-
-            switch = branch_1.switch(branch_2)
-
-            key = jax.random.PRNGKey(314159)
-            jitted = jax.jit(switch.simulate)
-
-            # Select `branch_2` by providing 1:
-            tr = jitted(key, (1, (), ()))
-
-            print(tr.render_html())
-            ```
-        """
-        import genjax
-
-        return genjax.switch(self, *branches)
-
-    def mix(self, *fns: "GenerativeFunction[R]") -> "GenerativeFunction[R]":
-        """
-        Takes any number of [`genjax.GenerativeFunction`][]s and returns a new [`genjax.GenerativeFunction`][] that represents a mixture model.
-
-        The returned generative function takes the following arguments:
-
-        - `mixture_logits`: Logits for the categorical distribution used to select a component.
-        - `*args`: Argument tuples for `self` and each of the input generative functions
-
-        and samples from `self` or one of the input generative functions based on a draw from a categorical distribution defined by the provided mixture logits.
-
-        Args:
-            *fns: Variable number of [`genjax.GenerativeFunction`][]s to be mixed with `self`.
-
-        Returns:
-            A new [`genjax.GenerativeFunction`][] representing the mixture model.
-
-        Examples:
-            ```python exec="yes" html="true" source="material-block" session="mix"
-            import jax
-            import genjax
-
-
-            # Define component generative functions
-            @genjax.gen
-            def component1(x):
-                return genjax.normal(x, 1.0) @ "y"
-
-
-            @genjax.gen
-            def component2(x):
-                return genjax.normal(x, 2.0) @ "y"
-
-
-            # Create mixture model
-            mixture = component1.mix(component2)
-
-            # Use the mixture model
-            key = jax.random.PRNGKey(0)
-            logits = jax.numpy.array([0.3, 0.7])  # Favors component2
-            trace = mixture.simulate(key, (logits, (0.0,), (7.0,)))
-            print(trace.render_html())
-                ```
-        """
-        import genjax
-
-        return genjax.mix(self, *fns)
 
     def dimap(
         self,

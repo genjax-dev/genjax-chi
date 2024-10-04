@@ -807,54 +807,10 @@ class TestChoiceMap:
             actual_result
         ) == jax.tree_util.tree_structure(expected_result)
         assert jax.tree_util.tree_all(
-            jax.tree_map(
+            jax.tree_util.tree_map(
                 lambda x, y: jnp.allclose(x, y), actual_result, expected_result
             )
         )
-
-    def test_choicemap_switch(self):
-        @genjax.gen
-        def model1():
-            x = genjax.normal(0.0, 1.0) @ "x"
-            return x
-
-        @genjax.gen
-        def model2():
-            y = genjax.uniform(0.0, 1.0) @ "y"
-            return y
-
-        @genjax.gen
-        def model3():
-            z = genjax.normal(0.0, 1.0) @ "z"
-            return z
-
-        switch_model = genjax.switch(model1, model2, model3)
-
-        @genjax.gen
-        def outer_model():
-            choice = genjax.categorical([0.3, 0.3, 0.4]) @ "choice"
-            return switch_model(choice, (), (), ()) @ "out"
-
-        # Valid ChoiceMap for model1
-        valid_chm1 = ChoiceMap.kw(choice=0, out={"x": 0.5})
-        assert valid_chm1.invalid_subset(outer_model, ()) is None
-
-        # Valid ChoiceMap for model2
-        valid_chm2 = ChoiceMap.kw(choice=1, out={"y": 0.7})
-        assert valid_chm2.invalid_subset(outer_model, ()) is None
-
-        # Valid ChoiceMap for model3
-        valid_chm3 = ChoiceMap.kw(choice=2, out={"z": 1.2})
-        assert valid_chm3.invalid_subset(outer_model, ()) is None
-
-        # Valid ChoiceMap with entries for all models
-        valid_chm_all = ChoiceMap.kw(choice=0, out={"x": 0.5, "y": 0.7, "z": 1.2})
-        assert valid_chm_all.invalid_subset(outer_model, ()) is None
-
-        # Invalid ChoiceMap - extra address
-        invalid_chm2 = ChoiceMap.kw(choice=1, out={"q": 0.5})
-        assert invalid_chm2.invalid_subset(outer_model, ()) == C["out", "q"].set(0.5)
-        pass
 
     def test_choicemap_scan(self):
         @genjax.gen
