@@ -59,7 +59,7 @@ class EmptyRequest(EditRequest):
         argdiffs: Argdiffs,
     ) -> tuple[IdentityTangent, Weight, Retdiff[R], "EditRequest"]:
         assert Diff.static_check_no_change(argdiffs)
-        trace = tracediff.primal
+        trace = tracediff.get_primal()
         return (
             IdentityTangent(),
             jnp.array(0.0),
@@ -78,7 +78,7 @@ class Regenerate(EditRequest):
         tracediff: Tracediff[Any, Any],
         argdiffs: Argdiffs,
     ) -> tuple[TraceTangent, Weight, Retdiff[R], "EditRequest"]:
-        trace = tracediff.primal
+        trace = tracediff.get_primal()
         gen_fn = trace.get_gen_fn()
         return gen_fn.edit(key, tracediff, self, argdiffs)
 
@@ -97,6 +97,9 @@ class IndexTangent(TraceTangent):
             case _:
                 raise NotImplementedError
 
+    def get_delta_score(self) -> Score:
+        return self.tangent.get_delta_score()
+
 
 @Pytree.dataclass(match_args=True)
 class Index(EditRequest):
@@ -109,7 +112,7 @@ class Index(EditRequest):
         tracediff: Tracediff[Any, Any],
         argdiffs: Argdiffs,
     ) -> tuple[TraceTangent, Weight, Retdiff[R], "EditRequest"]:
-        trace = tracediff.primal
+        trace = tracediff.get_primal()
         gen_fn = trace.get_gen_fn()
         return gen_fn.edit(key, tracediff, self, argdiffs)
 
@@ -124,6 +127,6 @@ class ChoiceMapRequest(EditRequest):
         tracediff: Tracediff[Any, Any],
         argdiffs: Argdiffs,
     ) -> tuple[TraceTangent, Weight, Retdiff[R], "EditRequest"]:
-        trace = tracediff.primal
+        trace = tracediff.get_primal()
         gen_fn = trace.get_gen_fn()
         return gen_fn.edit(key, tracediff, self, argdiffs)

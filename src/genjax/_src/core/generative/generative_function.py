@@ -16,6 +16,7 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 import jax
+import jax.numpy as jnp
 
 from genjax._src.core.generative.choice_map import (
     ChoiceMap,
@@ -74,6 +75,10 @@ class TraceTangent(Pytree):
     def __mul__(self, other: "TraceTangent") -> "TraceTangent":
         pass
 
+    @abstractmethod
+    def get_delta_score(self) -> Score:
+        pass
+
 
 @Pytree.dataclass
 class IdentityTangent(TraceTangent):
@@ -88,6 +93,9 @@ class IdentityTangent(TraceTangent):
 
     def __rmul__(self, other: TraceTangent) -> TraceTangent:
         return other
+
+    def get_delta_score(self) -> Score:
+        return jnp.array(0.0)
 
 
 class TraceTangentMonoidOperationException(Exception):
@@ -194,7 +202,7 @@ class Trace(Generic[R], Pytree):
         """
         return request.edit(
             key,
-            Tracediff(self, IdentityTangent()),
+            IdentityTracediff(self),
             Diff.tree_diff_no_change(self.get_args()) if argdiffs is None else argdiffs,
         )  # pyright: ignore[reportReturnType]
 
@@ -235,19 +243,49 @@ class Trace(Generic[R], Pytree):
         return len(self.get_score())
 
 
-Tr = TypeVar("Tr", bound=Trace[Any])
 Ta = TypeVar("Ta", bound=TraceTangent)
 
 
 @Pytree.dataclass(match_args=True)
-class Tracediff(Generic[Tr, Ta], Pytree):
+class Tracediff(Generic[R, Ta], Trace[R]):
     """
     A `Tracediff` represents a "dual trace" (Tr, ΔTr) where Tr is a trace,
     and ΔTr is a trace tangent, a type of change to a trace.
     """
 
-    primal: Tr
+    primal: Trace[R]
     tangent: Ta
+
+    def get_primal(self) -> Trace[R]:
+        return self.primal
+
+    def get_tangent(self) -> Ta:
+        return self.tangent
+
+    def get_args(self) -> tuple[Any, ...]:
+        return self.get_primal().pull(self.get_tangent()).get_args()
+
+    def get_score(self) -> Score:
+        return self.get_primal().pull(self.get_tangent()).get_score()
+
+    def get_gen_fn(self) -> "GenerativeFunction[R]":
+        return self.get_primal().pull(self.get_tangent()).get_gen_fn()
+
+    def get_retval(self) -> R:
+        return self.get_primal().pull(self.get_tangent()).get_retval()
+
+    def get_sample(self) -> Sample:
+        return self.get_primal().pull(self.get_tangent()).get_sample()
+
+    def get_choices(self) -> ChoiceMap:
+        return self.get_primal().pull(self.get_tangent()).get_choices()
+
+    def pull(self, pull_request: TraceTangent):
+        return Tracediff(self.get_primal(), pull_request * self.get_tangent())
+
+
+def IdentityTracediff(primal: Trace[R]):
+    return Tracediff(primal, IdentityTangent())
 
 
 #######################
@@ -576,7 +614,7 @@ class GenerativeFunction(Generic[R], Pytree):
         request = Update(
             ChoiceMapConstraint(constraint),
         )
-        tracediff = Tracediff(trace, IdentityTangent())
+        tracediff = IdentityTracediff(trace)
         tangent, w, rd, bwd = request.edit(
             key,
             tracediff,
@@ -1594,9 +1632,9 @@ class EditRequest(Pytree):
         trace: "genjax.Trace",  # pyright: ignore
         argdiffs: Argdiffs,
     ) -> tuple["genjax.Trace", Weight, Retdiff[R], "EditRequest"]:  # pyright: ignore
-        from genjax import IdentityTangent, Tracediff
+        from genjax import IdentityTracediff
 
-        tracediff = Tracediff(trace, IdentityTangent())
+        tracediff = IdentityTracediff(trace)
         tangent, w, retdiff, bwd_request = self.edit(key, tracediff, argdiffs)
         new_trace = trace.pull(tangent)
         return new_trace, w, retdiff, bwd_request
@@ -1616,6 +1654,6 @@ class Update(EditRequest):
         tracediff: Tracediff[Any, Any],
         argdiffs: Argdiffs,
     ) -> tuple[TraceTangent, Weight, Retdiff[R], "EditRequest"]:
-        trace = tracediff.primal
+        trace = tracediff.get_primal()
         gen_fn = trace.get_gen_fn()
         return gen_fn.edit(key, tracediff, self, argdiffs)

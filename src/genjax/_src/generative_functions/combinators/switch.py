@@ -26,9 +26,9 @@ from genjax._src.core.generative import (
     GenerativeFunction,
     Projection,
     Retdiff,
-    Sample,
     Score,
     Trace,
+    TraceTangent,
     Update,
     Weight,
 )
@@ -39,31 +39,27 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
-    FloatArray,
     Generic,
     Int,
     IntArray,
     PRNGKey,
-    Sequence,
     TypeVar,
 )
 
 R = TypeVar("R")
 
-#######################
-# Switch sample types #
-#######################
-
-
-@Pytree.dataclass
-class HeterogeneousSwitchSample(Sample):
-    index: IntArray
-    subtraces: Sequence[ChoiceMap]
-
 
 ################
 # Switch trace #
 ################
+
+
+@Pytree.dataclass(match_args=True)
+class SwitchTraceTangent(Generic[R], TraceTangent):
+    args: tuple[Any, ...]
+    subtangents: list[TraceTangent]
+    retval: R
+    delta_score: Score
 
 
 @Pytree.dataclass
@@ -72,7 +68,7 @@ class SwitchTrace(Generic[R], Trace[R]):
     args: tuple[Any, ...]
     subtraces: list[Trace[R]]
     retval: R
-    score: FloatArray
+    score: Score
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
@@ -93,6 +89,21 @@ class SwitchTrace(Generic[R], Trace[R]):
 
     def get_score(self):
         return self.score
+
+    def pull(self, pull_request: TraceTangent) -> "SwitchTrace[R]":
+        match pull_request:
+            case SwitchTraceTangent(args, subtangents, retval, delta_score):
+                new_subtraces = [
+                    subtrace.pull(subtangent)
+                    for (subtrace, subtangent) in zip(self.subtraces, subtangents)
+                ]
+                return SwitchTrace(
+                    self.gen_fn,
+                    args,
+                    new_subtraces,
+                    retval,
+                    self.score + delta_score,
+                )
 
 
 #####################

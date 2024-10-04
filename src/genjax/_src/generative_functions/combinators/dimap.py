@@ -51,17 +51,20 @@ S = TypeVar("S")
 @Pytree.dataclass(match_args=True)
 class DimapTraceTangent(Generic[S], TraceTangent):
     args: tuple[Any, ...]
-    inner: TraceTangent
+    tangent: TraceTangent
     retval: S
 
     def __mul__(self, other: TraceTangent) -> TraceTangent:
         match other:
             case DimapTraceTangent(args, inner, retval):
-                return DimapTraceTangent(args, self.inner * inner, retval)
+                return DimapTraceTangent(args, self.tangent * inner, retval)
             case IdentityTangent():
                 return self
             case _:
                 raise TraceTangentMonoidOperationException(other)
+
+    def get_delta_score(self) -> Score:
+        return self.tangent.get_delta_score()
 
 
 @Pytree.dataclass
@@ -185,8 +188,8 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[DimapTraceTangent[S], Weight, Retdiff[S], EditRequest]:
-        trace = tracediff.primal
-        tangent = tracediff.tangent
+        trace = tracediff.get_primal()
+        tangent = tracediff.get_tangent()
         assert isinstance(trace, DimapTrace)
 
         primals = Diff.tree_primal(argdiffs)

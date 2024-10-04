@@ -83,6 +83,9 @@ class DistributionTraceTangent(Generic[R], TraceTangent):
             case _:
                 raise TraceTangentMonoidOperationException(other)
 
+    def get_delta_score(self) -> Score:
+        return self.delta_score
+
 
 @Pytree.dataclass
 class DistributionTrace(Generic[R], Trace[R]):

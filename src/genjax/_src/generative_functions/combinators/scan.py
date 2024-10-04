@@ -57,13 +57,18 @@ Y = TypeVar("Y")
 
 @Pytree.dataclass(match_args=True)
 class ScanTraceTangent(Generic[Carry, Y], TraceTangent):
-    new_subtrace_tangents: TraceTangent
+    subtangents: TraceTangent
     new_args: tuple[Any, ...]
     new_retval: tuple[Carry, Y]
     scan_length: int = Pytree.static()
 
     def __mul__(self, other: TraceTangent) -> TraceTangent:
         raise NotImplementedError
+
+    def get_delta_score(self) -> Score:
+        return jnp.sum(
+            jax.vmap(lambda tangent: tangent.get_delta_score())(self.subtangents)
+        )
 
 
 @Pytree.dataclass
@@ -480,7 +485,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
         def _inner_edit(
             key: PRNGKey,
-            tracediff: Tracediff[Trace[tuple[Carry, Y]], IdentityTangent],
+            tracediff: Tracediff[tuple[Carry, Y], IdentityTangent],
             subconstraint: ChoiceMapConstraint,
             carry: Carry,
             scanned_in: Any,
@@ -511,7 +516,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
         def _edit(
             carry: tuple[PRNGKey, IntArray, Carry],
-            scanned_over: tuple[Tracediff[Trace[tuple[Carry, Y]], Any], Any],
+            scanned_over: tuple[Tracediff[tuple[Carry, Y], Any], Any],
         ) -> tuple[
             tuple[PRNGKey, IntArray, Carry],
             tuple[TraceTangent, Retdiff[Y], Weight, ChoiceMapConstraint],

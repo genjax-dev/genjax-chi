@@ -14,7 +14,7 @@
 
 
 import jax.numpy as jnp
-import jax.tree_util as jtu
+from jax.lax import cond
 
 from genjax._src.core.generative import (
     Argdiffs,
@@ -23,13 +23,21 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
+    IdentityTangent,
+    IdentityTracediff,
     Mask,
     Projection,
     Retdiff,
     Score,
     Trace,
+    Tracediff,
+    TraceTangent,
     Update,
     Weight,
+)
+from genjax._src.core.generative.generative_function import (
+    TraceTangentMonoidActionException,
+    TraceTangentMonoidOperationException,
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import FlagOp
@@ -43,6 +51,24 @@ from genjax._src.core.typing import (
 )
 
 R = TypeVar("R")
+
+
+@Pytree.dataclass(match_args=True)
+class MaskTraceTangent(TraceTangent):
+    tangent: TraceTangent
+    check: ScalarFlag
+
+    def __mul__(self, other: TraceTangent) -> TraceTangent:
+        match other:
+            case MaskTraceTangent(tangent, check):
+                return MaskTraceTangent(
+                    tangent * self.tangent, FlagOp.and_(self.check, check)
+                )
+            case _:
+                raise TraceTangentMonoidOperationException(other)
+
+    def get_delta_score(self) -> Score:
+        return self.tangent.get_delta_score() * self.check
 
 
 @Pytree.dataclass
@@ -72,6 +98,22 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
         return jnp.asarray(
             FlagOp.where(self.check, inner_score, jnp.zeros(shape=inner_score.shape))
         )
+
+    def pull(self, pull_request: TraceTangent) -> "MaskTrace[R]":
+        match pull_request:
+            case MaskTraceTangent(tangent, check):
+                new_inner = cond(
+                    FlagOp.and_(self.check, check),
+                    lambda: self.inner.pull(tangent),
+                    lambda: self.inner,
+                )
+                return MaskTrace(
+                    self.mask_combinator,
+                    new_inner,
+                    FlagOp.and_(self.check, check),
+                )
+            case _:
+                raise TraceTangentMonoidActionException(pull_request)
 
 
 @Pytree.dataclass
@@ -147,10 +189,11 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace[Mask[R]],
+        tracediff: Tracediff[R, IdentityTangent],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], EditRequest]:
+    ) -> tuple[MaskTraceTangent, Weight, Retdiff[Mask[R]], EditRequest]:
+        trace = tracediff.get_primal()
         assert isinstance(trace, MaskTrace)
         assert isinstance(edit_request, Update)
 
@@ -164,14 +207,11 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
         subrequest = Update(edit_request.constraint)
 
-        premasked_trace, weight, retdiff, bwd_request = self.gen_fn.edit(
-            key, original_trace, subrequest, inner_argdiffs
-        )
-
-        final_trace: Trace[R] = jtu.tree_map(
-            lambda v1, v2: jnp.where(post_check, v1, v2),
-            premasked_trace,
-            original_trace,
+        trace_tangent, weight, retdiff, bwd_request = self.gen_fn.edit(
+            key,
+            IdentityTracediff(original_trace),
+            subrequest,
+            inner_argdiffs,
         )
 
         t_to_t = FlagOp.and_(pre_check, post_check)
@@ -191,7 +231,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             #
             #               final_weight = final_trace.score()
             #
-            f_to_t * final_trace.get_score()
+            f_to_t * (original_trace.get_score() + trace_tangent.get_delta_score())
             #
             # On the other hand, if we started True, and went False, no matter
             # the update, we can make the choice that this move is just removing
@@ -225,7 +265,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         assert isinstance(inner_chm_constraint, ChoiceMapConstraint)
 
         return (
-            MaskTrace(self, premasked_trace, post_check),
+            MaskTraceTangent(trace_tangent, post_check),
             final_weight,
             Mask.maybe(retdiff, check_diff),
             Update(

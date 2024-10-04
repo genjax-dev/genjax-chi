@@ -29,6 +29,7 @@ from genjax._src.core.generative import (
     EditRequest,
     GenerativeFunction,
     IdentityTangent,
+    IdentityTracediff,
     Projection,
     R,
     Retdiff,
@@ -48,15 +49,16 @@ from genjax._src.core.typing import (
     Generic,
     InAxes,
     Int,
+    IntArray,
     PRNGKey,
 )
 
 
-@Pytree.dataclass
+@Pytree.dataclass(match_args=True)
 class VmapTraceTangent(TraceTangent):
     new_args: tuple[Any, ...]
-    inner_tangents: TraceTangent
-    broadcast_length: Int
+    subtangents: TraceTangent
+    broadcast_length: Int = Pytree.static()
 
     def __mul__(self, other: TraceTangent) -> TraceTangent:
         match other:
@@ -64,6 +66,11 @@ class VmapTraceTangent(TraceTangent):
                 return self
             case _:
                 raise TraceTangentMonoidOperationException(other)
+
+    def get_delta_score(self) -> Score:
+        return jnp.sum(
+            jax.vmap(lambda tangent: tangent.get_delta_score())(self.subtangents)
+        )
 
 
 @Pytree.dataclass
@@ -110,7 +117,10 @@ class VmapTrace(Generic[R], Trace[R]):
                     self.inner, inner_diffs
                 )
                 return VmapTrace.build(
-                    self.get_gen_fn(), new_inner, new_args, broadcast_dim_length
+                    self.get_gen_fn(),
+                    new_inner,
+                    new_args,
+                    broadcast_dim_length,
                 )
             case IdentityTangent():
                 return self
@@ -262,12 +272,17 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         idx_array = jnp.arange(0, broadcast_dim_length)
         sub_keys = jax.random.split(key, broadcast_dim_length)
 
-        def _edit(key, idx, subtrace, argdiffs):
+        def _edit(
+            key,
+            idx: IntArray,
+            subtrace: Trace[R],
+            argdiffs: Argdiffs,
+        ):
             subconstraint = constraint(idx)
             assert isinstance(subconstraint, ChoiceMapConstraint), type(subconstraint)
             new_subtrace, w, retdiff, bwd_request = self.gen_fn.edit(
                 key,
-                subtrace,
+                IdentityTracediff(subtrace),
                 Update(subconstraint),
                 argdiffs,
             )
@@ -300,13 +315,13 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
     def edit(
         self,
         key: PRNGKey,
-        tracediff: Tracediff[VmapTrace[R], IdentityTangent],
+        tracediff: Tracediff[R, IdentityTangent],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[TraceTangent, Weight, Retdiff[R], EditRequest]:
-        trace = tracediff.primal
+        trace = tracediff.get_primal()
         assert isinstance(trace, VmapTrace)
-        tangent = tracediff.tangent
+        tangent = tracediff.get_tangent()
         assert isinstance(edit_request, Update), type(edit_request)
         constraint = edit_request.constraint
         assert isinstance(constraint, ChoiceMapConstraint)

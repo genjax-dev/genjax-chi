@@ -30,6 +30,7 @@ from genjax._src.core.generative import (
     EditRequest,
     GenerativeFunction,
     IdentityTangent,
+    IdentityTracediff,
     NotSupportedEditRequest,
     Projection,
     Regenerate,
@@ -132,6 +133,11 @@ class StaticTraceTangent(Generic[R], TraceTangent):
                 )
             case _:
                 raise TraceTangentMonoidOperationException(other)
+
+    def get_delta_score(self) -> Score:
+        return jnp.sum(
+            jnp.array([subtangent.get_delta_score() for subtangent in self.subtangents])
+        )
 
 
 @Pytree.dataclass
@@ -499,7 +505,7 @@ def generate_transform(source_fn):
 @dataclass
 class UpdateHandler(StaticHandler):
     key: PRNGKey
-    previous_tracediff: Tracediff[StaticTrace[Any], IdentityTangent]
+    previous_tracediff: Tracediff[Any, IdentityTangent]
     constraint: ChoiceMapConstraint
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
@@ -524,7 +530,7 @@ class UpdateHandler(StaticHandler):
         self,
         addr: StaticAddress,
     ):
-        trace = self.previous_tracediff.primal
+        trace: StaticTrace[R] = self.previous_tracediff.get_primal()  # pyright: ignore
         return trace.get_subtrace(addr)
 
     def handle_retval(self, v):
@@ -631,7 +637,7 @@ class ChoiceMapEditRequestHandler(StaticHandler):
         self,
         addr: StaticAddress,
     ):
-        trace = self.previous_tracediff.primal
+        trace: StaticTrace[Any] = self.previous_tracediff.get_primal()  # pyright: ignore
         return trace.get_subtrace(addr)
 
     def handle_retval(self, v):
@@ -650,7 +656,7 @@ class ChoiceMapEditRequestHandler(StaticHandler):
         self.key, sub_key = jax.random.split(self.key)
         (tracediff, w, retval_diff, bwd_request) = subrequest.edit(
             sub_key,
-            Tracediff(subtrace, IdentityTangent()),
+            IdentityTracediff(subtrace),
             argdiffs,
         )
         self.bwd_requests.append(bwd_request)
@@ -710,7 +716,7 @@ def choice_map_edit_request_transform(source_fn):
 @dataclass
 class RegenerateRequestHandler(StaticHandler):
     key: PRNGKey
-    previous_tracediff: Tracediff[StaticTrace[Any], IdentityTangent]
+    previous_tracediff: Tracediff[Any, IdentityTangent]
     selection: Selection
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
@@ -735,7 +741,7 @@ class RegenerateRequestHandler(StaticHandler):
         self,
         addr: StaticAddress,
     ):
-        trace = self.previous_tracediff.primal
+        trace: StaticTrace[Any] = self.previous_tracediff.get_primal()  # pyright: ignore
         return trace.get_subtrace(addr)
 
     def handle_retval(self, v):
