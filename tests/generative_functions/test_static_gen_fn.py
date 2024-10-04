@@ -483,8 +483,8 @@ class TestStaticGenFnUpdate:
         score3, _ = genjax.normal.assess(C.v(y3), (y1 + y2, 1.0))
         test_score = score1 + score2 + score3
         assert original_choice["y1"] == discard["y1"]
-        assert updated.get_score() == original_score + w
-        assert updated.get_score() == pytest.approx(test_score, 0.01)
+        assert updated.get_score() == pytest.approx(original_score + w, 1e-3)
+        assert updated.get_score() == pytest.approx(test_score, 1e-3)
 
     def test_update_weight_correctness(self):
         @genjax.gen

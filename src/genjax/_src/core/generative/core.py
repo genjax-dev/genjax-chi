@@ -13,11 +13,6 @@
 # limitations under the License.
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING
-
-# Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
-if TYPE_CHECKING:
-    import genjax
 
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import Flag
@@ -29,11 +24,10 @@ from genjax._src.core.typing import (
     Generic,
     IntArray,
     Is,
-    PRNGKey,
     TypeVar,
 )
 
-# Generative Function type variables
+# Generative function type variables
 R = TypeVar("R")
 """
 Generic denoting the return type of a generative function.
@@ -154,55 +148,3 @@ class Projection(Generic[S], Pytree):
     @abstractmethod
     def complement(self) -> "Projection[S]":
         pass
-
-
-#################
-# Edit requests #
-#################
-
-
-class Tracediff(Pytree):
-    @abstractmethod
-    def get_score(self) -> FloatArray:
-        pass
-
-
-@Pytree.dataclass(match_args=True)
-class MetadataDiff(Tracediff):
-    args: tuple[Any, ...]
-    score: Score
-    retval: Any
-
-    def get_score(self) -> Score:
-        return self.score
-
-
-class EditRequest(Pytree):
-    """
-    An `EditRequest` is a request to edit a trace of a generative function. Generative functions respond to instances of subtypes of `EditRequest` by providing an [`edit`][genjax.core.GenerativeFunction.edit] implementation.
-
-    Updating a trace is a common operation in inference processes, but naively mutating the trace will invalidate the mathematical invariants that Gen retains. `EditRequest` instances denote requests for _SMC moves_ in the framework of [SMCP3](https://proceedings.mlr.press/v206/lew23a.html), which preserve these invariants.
-    """
-
-    @abstractmethod
-    def edit(
-        self,
-        key: PRNGKey,
-        tr: "genjax.Trace[R]",
-        argdiffs: Argdiffs,
-    ) -> tuple[Tracediff, Weight, Retdiff[R], "EditRequest"]:
-        pass
-
-    def do(
-        self,
-        key: PRNGKey,
-        tr: "genjax.Trace[R]",
-        argdiffs: Argdiffs,
-    ) -> tuple["genjax.Trace[R]", Weight, Retdiff[R], "EditRequest"]:
-        tracediff, w, retdiff, bwd_request = self.edit(key, tr, argdiffs)
-        trace = tr.merge(tracediff)
-        return trace, w, retdiff, bwd_request
-
-
-class NotSupportedEditRequest(Exception):
-    pass

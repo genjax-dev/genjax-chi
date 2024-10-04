@@ -23,8 +23,9 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
+    IdentityTangent,
     Index,
-    IndexTracediff,
+    IndexTangent,
     NotSupportedEditRequest,
     Projection,
     Retdiff,
@@ -32,6 +33,7 @@ from genjax._src.core.generative import (
     Selection,
     Trace,
     Tracediff,
+    TraceTangent,
     Update,
     Weight,
 )
@@ -54,15 +56,14 @@ Y = TypeVar("Y")
 
 
 @Pytree.dataclass(match_args=True)
-class ScanTracediff(Generic[Carry, Y], Tracediff):
-    new_subtrace_diffs: Tracediff
+class ScanTraceTangent(Generic[Carry, Y], TraceTangent):
+    new_subtrace_tangents: TraceTangent
     new_args: tuple[Any, ...]
     new_retval: tuple[Carry, Y]
-    new_score: Score
     scan_length: int = Pytree.static()
 
-    def get_score(self) -> Score:
-        return self.new_score
+    def __mul__(self, other: TraceTangent) -> TraceTangent:
+        raise NotImplementedError
 
 
 @Pytree.dataclass
@@ -116,21 +117,27 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
     def get_score(self):
         return self.score
 
-    def merge(self, pull_request: Tracediff) -> "ScanTrace[Carry, Y]":
+    def pull(self, pull_request: TraceTangent) -> "ScanTrace[Carry, Y]":
         match pull_request:
-            case ScanTracediff(subtrace_diffs, args, retval, score, scan_length):
+            case ScanTraceTangent(subtrace_diffs, args, retval, scan_length):
                 new_subtrace: Trace[tuple[Carry, Y]] = jax.vmap(
-                    lambda tr, diff: tr.merge(diff)
+                    lambda tr, diff: tr.pull(diff)
                 )(self.inner, subtrace_diffs)
+                scores = jax.vmap(lambda tr: tr.get_score())(new_subtrace)
                 return ScanTrace.build(
-                    self.get_gen_fn(), new_subtrace, args, retval, score, scan_length
+                    self.get_gen_fn(),
+                    new_subtrace,
+                    args,
+                    retval,
+                    jnp.sum(scores),
+                    scan_length,
                 )
-            case IndexTracediff(idxs, subtrace_diffs):
+            case IndexTangent(idxs, subtrace_tangents):
                 new_subtrace = jax.vmap(
-                    lambda idx, diff: jtu.tree_map(lambda v: v[idx], self.inner).merge(
+                    lambda idx, diff: jtu.tree_map(lambda v: v[idx], self.inner).pull(
                         diff
                     )
-                )(idxs, subtrace_diffs)
+                )(idxs, subtrace_tangents)
                 new_inner = jtu.tree_map(
                     lambda v1, v2: v1.at[idxs].set(v2), self.inner, new_subtrace
                 )
@@ -396,27 +403,32 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         self,
         key: PRNGKey,
         trace: ScanTrace[Carry, Y],
+        tangent: IdentityTangent,
         idx: IntArray,
         request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[IndexTracediff, Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+    ) -> tuple[TraceTangent, Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
         # For now, we don't allow changes to the arguments for this type of edit.
         assert Diff.static_check_no_change(argdiffs)
 
         (_, scanned_argdiff) = argdiffs
         scanned_in = Diff.tree_primal(scanned_argdiff)
         (old_carried_out, old_scanned_out) = trace.get_retval()
-        trace_slice = jtu.tree_map(lambda v: v[idx], trace.inner)
-        new_slice_tracediff, w, retdiff, bwd_request = request.edit(
-            key, trace_slice, Diff.no_change(trace_slice.get_args())
+        trace_slice: Trace[tuple[Carry, Y]] = jtu.tree_map(
+            lambda v: v[idx], trace.inner
+        )
+        new_slice_trace_tangent, w, retdiff, bwd_request = request.edit(
+            key, Tracediff(trace_slice, tangent), Diff.no_change(trace_slice.get_args())
         )
         (carry_retdiff, scanned_retdiff) = retdiff
         next_slice, next_scanned_in = jtu.tree_map(
             lambda v: v[idx + 1], (trace.inner, scanned_in)
         )
         next_request = Update(ChoiceMapConstraint(ChoiceMap.empty()))
-        next_slice_tracediff, next_w, retdiff, _ = next_request.edit(
-            key, next_slice, (carry_retdiff, Diff.no_change(next_scanned_in))
+        next_slice_trace_tangent, next_w, retdiff, _ = next_request.edit(
+            key,
+            Tracediff(next_slice, IdentityTangent()),
+            (carry_retdiff, Diff.no_change(next_scanned_in)),
         )
 
         # The carry value better not have changed, otherwise
@@ -427,14 +439,14 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         assert Diff.static_check_no_change(retdiff)
 
         idx_array = jnp.arange(trace.scan_length)
-        tracediff = IndexTracediff(
+        new_trace_tangent = IndexTangent(
             jnp.array([idx, idx + 1]),
             jtu.tree_map(
                 lambda x, y: jnp.concatenate([x, y])
                 if jnp.array(x, copy=False).shape and jnp.array(y, copy=False).shape
                 else jnp.stack([x, y]),
-                new_slice_tracediff,
-                next_slice_tracediff,
+                new_slice_trace_tangent,
+                next_slice_trace_tangent,
             ),
         )
         slice_scanned_out = Diff.tree_primal(scanned_retdiff)
@@ -445,7 +457,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         )
         new_scanned_retdiff = Diff.unknown_change(new_scanned_out)
         return (
-            tracediff,
+            tangent * new_trace_tangent,
             w + next_w,
             (Diff.no_change(old_carried_out), new_scanned_retdiff),
             Index(idx, bwd_request),
@@ -455,9 +467,12 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         self,
         key: PRNGKey,
         trace: ScanTrace[Carry, Y],
+        tangent: IdentityTangent,
         constraint: Constraint,
         argdiffs: Argdiffs,
-    ) -> tuple[ScanTracediff[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+    ) -> tuple[
+        ScanTraceTangent[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest
+    ]:
         assert isinstance(constraint, ChoiceMapConstraint)
         diffs = Diff.tree_diff_unknown_change(Diff.tree_primal(argdiffs))
         carry_diff: Carry = diffs[0]
@@ -465,31 +480,30 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
         def _inner_edit(
             key: PRNGKey,
-            subtrace: Trace[tuple[Carry, Y]],
+            tracediff: Tracediff[Trace[tuple[Carry, Y]], IdentityTangent],
             subconstraint: ChoiceMapConstraint,
             carry: Carry,
             scanned_in: Any,
         ) -> tuple[
-            tuple[Carry, Score],
-            tuple[Tracediff, Retdiff[Y], Weight, EditRequest],
+            Carry,
+            tuple[TraceTangent, Retdiff[Y], Weight, EditRequest],
         ]:
             (
-                new_subtrace_diff,
+                new_subtrace_tangent,
                 w,
                 kernel_retdiff,
                 bwd_request,
             ) = self.kernel_gen_fn.edit(
                 key,
-                subtrace,
+                tracediff,
                 Update(subconstraint),
                 (carry, scanned_in),
             )
             (carry_retdiff, scanned_out_retdiff) = Diff.tree_diff_unknown_change(
                 kernel_retdiff
             )
-            score = new_subtrace_diff.get_score()
-            return (carry_retdiff, score), (
-                new_subtrace_diff,
+            return carry_retdiff, (
+                new_subtrace_tangent,
                 scanned_out_retdiff,
                 w,
                 bwd_request,
@@ -497,10 +511,10 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
         def _edit(
             carry: tuple[PRNGKey, IntArray, Carry],
-            scanned_over: tuple[Trace[tuple[Carry, Y]], Any],
+            scanned_over: tuple[Tracediff[Trace[tuple[Carry, Y]], Any], Any],
         ) -> tuple[
             tuple[PRNGKey, IntArray, Carry],
-            tuple[Tracediff, Retdiff[Y], Score, Weight, ChoiceMapConstraint],
+            tuple[TraceTangent, Retdiff[Y], Weight, ChoiceMapConstraint],
         ]:
             key, idx, carried_value = carry
             subtrace, scanned_in = scanned_over
@@ -508,28 +522,27 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             subconstraint = constraint(idx)
             assert isinstance(subconstraint, ChoiceMapConstraint)
             (
-                (carried_out, score),
-                (new_subtrace_diff, scanned_out, w, inner_bwd_request),
+                carried_out,
+                (new_subtrace_tangent, scanned_out, w, inner_bwd_request),
             ) = _inner_edit(key, subtrace, subconstraint, carried_value, scanned_in)
             assert isinstance(inner_bwd_request, Update)
             bwd_constraint = inner_bwd_request.constraint
             bwd_constraint = ChoiceMapConstraint(ChoiceMap.entry(bwd_constraint, idx))
 
             return (key, idx + 1, carried_out), (
-                new_subtrace_diff,
+                new_subtrace_tangent,
                 scanned_out,
-                score,
                 w,
                 bwd_constraint,
             )
 
         (
             (_, _, carried_out_diff),
-            (new_subtrace_diffs, scanned_out_diff, scores, ws, bwd_constraints),
+            (new_subtrace_tangents, scanned_out_diff, ws, bwd_constraints),
         ) = jax.lax.scan(
             _edit,
             (key, jnp.asarray(0), carry_diff),
-            (trace.inner, *scanned_in_diff),
+            (Tracediff(trace.inner, IdentityTangent()), *scanned_in_diff),
             length=self.length,
         )
         carried_out, scanned_out = Diff.tree_primal((
@@ -537,11 +550,10 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             scanned_out_diff,
         ))
         return (
-            ScanTracediff(
-                new_subtrace_diffs,
+            ScanTraceTangent(
+                new_subtrace_tangents,
                 Diff.tree_primal(argdiffs),
                 (carried_out, scanned_out),
-                jnp.sum(scores),
                 trace.scan_length,
             ),
             jnp.sum(ws),
@@ -552,16 +564,19 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace[tuple[Carry, Y]],
+        tracediff: Tracediff[ScanTrace[Carry, Y], IdentityTangent],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[Tracediff, Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+    ) -> tuple[TraceTangent, Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+        trace = tracediff.primal
         assert isinstance(trace, ScanTrace)
+        tangent = tracediff.tangent
         match edit_request:
             case Update(constraint):
                 return self.edit_update(
                     key,
                     trace,
+                    tangent,
                     constraint,
                     argdiffs,
                 )
@@ -570,6 +585,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 return self.edit_index(
                     key,
                     trace,
+                    tangent,
                     idx,
                     request,
                     argdiffs,
@@ -999,12 +1015,14 @@ class Checkerboard(EditRequest):
     def edit(
         self,
         key: PRNGKey,
-        tr: Trace[tuple[Carry, Y]],
+        tracediff: Tracediff[Any, Any],
         argdiffs: Argdiffs,
-    ) -> tuple[Tracediff, Weight, Retdiff[tuple[Carry, Y]], "EditRequest"]:
-        assert isinstance(tr, ScanTrace)
+    ) -> tuple[TraceTangent, Weight, Retdiff[Any], "EditRequest"]:
+        trace = tracediff.primal
+
+        assert isinstance(trace, ScanTrace)
         assert Diff.static_check_no_change(argdiffs)
-        scan_length = tr.scan_length
+        scan_length = trace.scan_length
         checkerboard_indices = jnp.arange(
             0 if self.even else 1, scan_length, step=2, dtype=int
         )
@@ -1012,11 +1030,12 @@ class Checkerboard(EditRequest):
 
         def parallel_edit(key, idx):
             request = Index(idx, self.edit_request)
-            return request.edit(key, tr, argdiffs)
+            # I need to somehow pass tangent in here...
+            return request.edit(key, tracediff, argdiffs)
 
         sub_keys = jax.random.split(key, num_indices)
-        parallel_tracediff, ws, retdiffs, bwd_requests = jax.vmap(parallel_edit)(
+        parallel_tangent, ws, retdiffs, bwd_requests = jax.vmap(parallel_edit)(
             sub_keys, checkerboard_indices
         )
-        final_tracediff = jtu.tree_map(lambda v: v.flatten(), parallel_tracediff)
-        return final_tracediff, jnp.sum(ws), retdiffs, bwd_requests
+        final_tangent = jtu.tree_map(lambda v: v.flatten(), parallel_tangent)
+        return final_tangent, jnp.sum(ws), retdiffs, bwd_requests

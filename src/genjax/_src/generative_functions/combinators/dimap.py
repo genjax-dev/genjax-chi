@@ -16,17 +16,22 @@
 from genjax._src.core.generative import (
     Argdiffs,
     Constraint,
-    EditRequest,
     GenerativeFunction,
+    IdentityTangent,
     Projection,
     Retdiff,
     Sample,
     Score,
     Trace,
     Tracediff,
+    TraceTangent,
     Weight,
 )
 from genjax._src.core.generative.choice_map import ChoiceMap
+from genjax._src.core.generative.generative_function import (
+    EditRequest,
+    TraceTangentMonoidOperationException,
+)
 from genjax._src.core.interpreters.incremental import Diff, incremental
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -44,13 +49,19 @@ S = TypeVar("S")
 
 
 @Pytree.dataclass(match_args=True)
-class DimapTracediff(Generic[S], Tracediff):
+class DimapTraceTangent(Generic[S], TraceTangent):
     args: tuple[Any, ...]
-    inner: Tracediff
+    inner: TraceTangent
     retval: S
 
-    def get_score(self) -> Score:
-        return self.inner.get_score()
+    def __mul__(self, other: TraceTangent) -> TraceTangent:
+        match other:
+            case DimapTraceTangent(args, inner, retval):
+                return DimapTraceTangent(args, self.inner * inner, retval)
+            case IdentityTangent():
+                return self
+            case _:
+                raise TraceTangentMonoidOperationException(other)
 
 
 @Pytree.dataclass
@@ -78,13 +89,13 @@ class DimapTrace(Generic[R, S], Trace[S]):
     def get_score(self) -> Score:
         return self.inner.get_score()
 
-    def merge(self, pull_request: Tracediff) -> "DimapTrace[R, S]":
+    def pull(self, pull_request: TraceTangent) -> "DimapTrace[R, S]":
         match pull_request:
-            case DimapTracediff(args, tracediff, retval):
-                new_inner = self.inner.merge(tracediff)
+            case DimapTraceTangent(args, tangent, retval):
+                new_inner = self.inner.pull(tangent)
                 return DimapTrace(self.gen_fn, new_inner, args, retval)
-            case DimapTrace():
-                return pull_request
+            case IdentityTangent():
+                return self
             case _:
                 raise NotImplementedError
 
@@ -170,10 +181,12 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace[S],
+        tracediff: Tracediff[Any, Any],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[DimapTracediff[S], Weight, Retdiff[S], EditRequest]:
+    ) -> tuple[DimapTraceTangent[S], Weight, Retdiff[S], EditRequest]:
+        trace = tracediff.primal
+        tangent = tracediff.tangent
         assert isinstance(trace, DimapTrace)
 
         primals = Diff.tree_primal(argdiffs)
@@ -186,9 +199,9 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         )
         inner_trace: Trace[R] = trace.inner
 
-        tracediff, w, inner_retdiff, bwd_request = self.inner.edit(
+        new_tangent, w, inner_retdiff, bwd_request = self.inner.edit(
             key,
-            inner_trace,
+            Tracediff(inner_trace, tangent),
             edit_request,
             inner_argdiffs,
         )
@@ -207,8 +220,9 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         )
 
         retval_primal: S = Diff.tree_primal(retval_diff)
+        dimap_tangent = DimapTraceTangent(primals, new_tangent, retval_primal)
         return (
-            DimapTracediff(primals, tracediff, retval_primal),
+            dimap_tangent,
             w,
             retval_diff,
             bwd_request,

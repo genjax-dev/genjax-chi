@@ -21,16 +21,20 @@ from genjax._src.core.generative.choice_map import (
 )
 from genjax._src.core.generative.core import (
     Argdiffs,
-    EditRequest,
     Retdiff,
     Score,
-    Tracediff,
     Weight,
 )
-from genjax._src.core.generative.generative_function import Trace
+from genjax._src.core.generative.generative_function import (
+    EditRequest,
+    IdentityTangent,
+    Tracediff,
+    TraceTangent,
+)
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Any,
     IntArray,
     PRNGKey,
     TypeVar,
@@ -41,7 +45,7 @@ R = TypeVar("R")
 
 
 @Pytree.dataclass
-class EmptyTracediff(Tracediff):
+class EmptyTracediff(TraceTangent):
     def get_score(self) -> Score:
         return jnp.array(0.0)
 
@@ -51,14 +55,15 @@ class EmptyRequest(EditRequest):
     def edit(
         self,
         key: PRNGKey,
-        tr: Trace[R],
+        tracediff: Tracediff[Any, Any],
         argdiffs: Argdiffs,
-    ) -> tuple[EmptyTracediff, Weight, Retdiff[R], "EditRequest"]:
+    ) -> tuple[IdentityTangent, Weight, Retdiff[R], "EditRequest"]:
         assert Diff.static_check_no_change(argdiffs)
+        trace = tracediff.primal
         return (
-            EmptyTracediff(),
+            IdentityTangent(),
             jnp.array(0.0),
-            Diff.no_change(tr.get_retval()),
+            Diff.no_change(trace.get_retval()),
             EmptyRequest(),
         )
 
@@ -70,20 +75,27 @@ class Regenerate(EditRequest):
     def edit(
         self,
         key: PRNGKey,
-        tr: Trace[R],
+        tracediff: Tracediff[Any, Any],
         argdiffs: Argdiffs,
-    ) -> tuple[Tracediff, Weight, Retdiff[R], "EditRequest"]:
-        gen_fn = tr.get_gen_fn()
-        return gen_fn.edit(key, tr, self, argdiffs)
+    ) -> tuple[TraceTangent, Weight, Retdiff[R], "EditRequest"]:
+        trace = tracediff.primal
+        gen_fn = trace.get_gen_fn()
+        return gen_fn.edit(key, tracediff, self, argdiffs)
 
 
 @Pytree.dataclass(match_args=True)
-class IndexTracediff(Tracediff):
+class IndexTangent(TraceTangent):
     idx: IntArray
-    tracediff: Tracediff
+    tangent: TraceTangent
 
-    def get_score(self) -> Score:
-        return self.tracediff.get_score()
+    def __mul__(self, other: TraceTangent) -> TraceTangent:
+        match other:
+            case IndexTangent(idx, other_subtangent):
+                # TODO: we assume that the idx is the same -- it is an error
+                # if it is not!
+                return IndexTangent(idx, self.tangent * other_subtangent)
+            case _:
+                raise NotImplementedError
 
 
 @Pytree.dataclass(match_args=True)
@@ -94,11 +106,12 @@ class Index(EditRequest):
     def edit(
         self,
         key: PRNGKey,
-        tr: Trace[R],
+        tracediff: Tracediff[Any, Any],
         argdiffs: Argdiffs,
-    ) -> tuple[Tracediff, Weight, Retdiff[R], "EditRequest"]:
-        gen_fn = tr.get_gen_fn()
-        return gen_fn.edit(key, tr, self, argdiffs)
+    ) -> tuple[TraceTangent, Weight, Retdiff[R], "EditRequest"]:
+        trace = tracediff.primal
+        gen_fn = trace.get_gen_fn()
+        return gen_fn.edit(key, tracediff, self, argdiffs)
 
 
 @Pytree.dataclass(match_args=True)
@@ -108,8 +121,9 @@ class ChoiceMapRequest(EditRequest):
     def edit(
         self,
         key: PRNGKey,
-        tr: Trace[R],
+        tracediff: Tracediff[Any, Any],
         argdiffs: Argdiffs,
-    ) -> tuple[Tracediff, Weight, Retdiff[R], "EditRequest"]:
-        gen_fn = tr.get_gen_fn()
-        return gen_fn.edit(key, tr, self, argdiffs)
+    ) -> tuple[TraceTangent, Weight, Retdiff[R], "EditRequest"]:
+        trace = tracediff.primal
+        gen_fn = trace.get_gen_fn()
+        return gen_fn.edit(key, tracediff, self, argdiffs)

@@ -25,12 +25,10 @@ from genjax._src.core.generative.core import (
     Argdiffs,
     Arguments,
     Constraint,
-    EditRequest,
     Projection,
     Retdiff,
     Sample,
     Score,
-    Tracediff,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -71,7 +69,36 @@ Y = TypeVar("Y")
 #########
 
 
-class Trace(Generic[R], Tracediff):
+class TraceTangent(Pytree):
+    @abstractmethod
+    def __mul__(self, other: "TraceTangent") -> "TraceTangent":
+        pass
+
+
+@Pytree.dataclass
+class IdentityTangent(TraceTangent):
+    """
+    this is the "unit" element in the monoid so that:
+        Monoid.action(tr, IdentityTangent()) = tr
+        IdentityTangent * dtr = dtr * IdentityTangent = dtr
+    """
+
+    def __mul__(self, other: TraceTangent) -> TraceTangent:
+        return other
+
+    def __rmul__(self, other: TraceTangent) -> TraceTangent:
+        return other
+
+
+class TraceTangentMonoidOperationException(Exception):
+    attempt: TraceTangent
+
+
+class TraceTangentMonoidActionException(Exception):
+    attempt: TraceTangent
+
+
+class Trace(Generic[R], Pytree):
     """
     `Trace` is the type of traces of generative functions.
 
@@ -151,31 +178,23 @@ class Trace(Generic[R], Tracediff):
         """Returns the [`GenerativeFunction`][genjax.core.GenerativeFunction] whose invocation created the [`Trace`][genjax.core.Trace]."""
         pass
 
+    # Monoid action.
     @abstractmethod
-    def merge(self, pull_request: Tracediff) -> "Trace[R]":
+    def pull(self, pull_request: TraceTangent) -> "Trace[R]":
         pass
-
-    def get_delta_args(self) -> tuple[Any, ...]:
-        return self.get_args()
-
-    def get_delta_score(self) -> Score:
-        return self.get_score()
-
-    def get_delta_retval(self) -> R:
-        return self.get_retval()
 
     def edit(
         self,
         key: PRNGKey,
-        request: EditRequest,
+        request: "EditRequest",
         argdiffs: tuple[Any, ...] | None = None,
-    ) -> tuple[Tracediff, Weight, Retdiff[R], EditRequest]:
+    ) -> tuple["TraceTangent", Weight, Retdiff[R], "EditRequest"]:
         """
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
         """
         return request.edit(
             key,
-            self,
+            Tracediff(self, IdentityTangent()),
             Diff.tree_diff_no_change(self.get_args()) if argdiffs is None else argdiffs,
         )  # pyright: ignore[reportReturnType]
 
@@ -214,6 +233,21 @@ class Trace(Generic[R], Tracediff):
     @property
     def batch_shape(self):
         return len(self.get_score())
+
+
+Tr = TypeVar("Tr", bound=Trace[Any])
+Ta = TypeVar("Ta", bound=TraceTangent)
+
+
+@Pytree.dataclass(match_args=True)
+class Tracediff(Generic[Tr, Ta], Pytree):
+    """
+    A `Tracediff` represents a "dual trace" (Tr, ΔTr) where Tr is a trace,
+    and ΔTr is a trace tangent, a type of change to a trace.
+    """
+
+    primal: Tr
+    tangent: Ta
 
 
 #######################
@@ -416,10 +450,10 @@ class GenerativeFunction(Generic[R], Pytree):
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace[R],
-        edit_request: EditRequest,
+        tracediff: Tracediff[Any, Any],
+        edit_request: "EditRequest",
         argdiffs: Argdiffs,
-    ) -> tuple[Tracediff, Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[TraceTangent, Weight, Retdiff[R], "EditRequest"]:
         """
         Update a trace in response to an [`EditRequest`][genjax.core.EditRequest], returning a new [`Trace`][genjax.core.Trace], an incremental [`Weight`][genjax.core.Weight] for the new target, a [`Retdiff`][genjax.core.Retdiff] return value tagged with change information, and a backward [`EditRequest`][genjax.core.EditRequest] which requests the reverse move (to go back to the original trace).
 
@@ -542,12 +576,13 @@ class GenerativeFunction(Generic[R], Pytree):
         request = Update(
             ChoiceMapConstraint(constraint),
         )
-        tracediff, w, rd, bwd = request.edit(
+        tracediff = Tracediff(trace, IdentityTangent())
+        tangent, w, rd, bwd = request.edit(
             key,
-            trace,
+            tracediff,
             argdiffs,
         )
-        final = trace.merge(tracediff)
+        final = trace.pull(tangent)
         assert isinstance(bwd, Update), type(bwd)
         return final, w, rd, bwd.constraint
 
@@ -1411,10 +1446,10 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace[R],
-        edit_request: EditRequest,
+        tracediff: Tracediff[Any, Any],
+        edit_request: "EditRequest",
         argdiffs: Argdiffs,
-    ) -> tuple[Tracediff, Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[TraceTangent, Weight, Retdiff[R], "EditRequest"]:
         raise NotImplementedError
 
 
@@ -1510,10 +1545,10 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace[R],
-        edit_request: EditRequest,
+        tracediff: Tracediff[Any, Any],
+        edit_request: "EditRequest",
         argdiffs: Argdiffs,
-    ) -> tuple[Tracediff, Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[TraceTangent, Weight, Retdiff[R], "EditRequest"]:
         raise NotImplementedError
 
     def assess(
@@ -1532,6 +1567,45 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
             return self.gen_fn.assess(sample, full_args)
 
 
+#################
+# Edit requests #
+#################
+
+
+class EditRequest(Pytree):
+    """
+    An `EditRequest` is a request to edit a trace of a generative function. Generative functions respond to instances of subtypes of `EditRequest` by providing an [`edit`][genjax.core.GenerativeFunction.edit] implementation.
+
+    Updating a trace is a common operation in inference processes, but naively mutating the trace will invalidate the mathematical invariants that Gen retains. `EditRequest` instances denote requests for _SMC moves_ in the framework of [SMCP3](https://proceedings.mlr.press/v206/lew23a.html), which preserve these invariants.
+    """
+
+    @abstractmethod
+    def edit(
+        self,
+        key: PRNGKey,
+        tracediff: "genjax.Tracediff[Any, Any]",
+        argdiffs: Argdiffs,
+    ) -> tuple["genjax.TraceTangent", Weight, Retdiff[R], "EditRequest"]:
+        pass
+
+    def do(
+        self,
+        key: PRNGKey,
+        trace: "genjax.Trace",  # pyright: ignore
+        argdiffs: Argdiffs,
+    ) -> tuple["genjax.Trace", Weight, Retdiff[R], "EditRequest"]:  # pyright: ignore
+        from genjax import IdentityTangent, Tracediff
+
+        tracediff = Tracediff(trace, IdentityTangent())
+        tangent, w, retdiff, bwd_request = self.edit(key, tracediff, argdiffs)
+        new_trace = trace.pull(tangent)
+        return new_trace, w, retdiff, bwd_request
+
+
+class NotSupportedEditRequest(Exception):
+    pass
+
+
 @Pytree.dataclass(match_args=True)
 class Update(EditRequest):
     constraint: ChoiceMapConstraint
@@ -1539,8 +1613,9 @@ class Update(EditRequest):
     def edit(
         self,
         key: PRNGKey,
-        tr: Trace[R],
+        tracediff: Tracediff[Any, Any],
         argdiffs: Argdiffs,
-    ) -> tuple[Tracediff, Weight, Retdiff[R], "EditRequest"]:
-        gen_fn = tr.get_gen_fn()
-        return gen_fn.edit(key, tr, self, argdiffs)
+    ) -> tuple[TraceTangent, Weight, Retdiff[R], "EditRequest"]:
+        trace = tracediff.primal
+        gen_fn = trace.get_gen_fn()
+        return gen_fn.edit(key, tracediff, self, argdiffs)
