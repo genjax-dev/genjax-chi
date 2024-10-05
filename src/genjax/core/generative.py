@@ -56,8 +56,6 @@ __all__ = [
     "EmptyConstraint",
     "GenerativeFunction",
     "GenerativeFunctionClosure",
-    "UnitTangent",
-    "UnitTracediff",
     "Mask",
     "MaskedConstraint",
     "MaskedSample",
@@ -70,6 +68,8 @@ __all__ = [
     "Trace",
     "TraceTangent",
     "Tracediff",
+    "UnitTangent",
+    "UnitTracediff",
     "Update",
     "Weight",
 ]
