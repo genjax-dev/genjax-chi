@@ -29,9 +29,7 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    IdentityTangent,
-    IdentityTracediff,
-    NotSupportedEditRequest,
+    IncrementalDerivativeException,
     Projection,
     Regenerate,
     Retdiff,
@@ -42,6 +40,8 @@ from genjax._src.core.generative import (
     Trace,
     Tracediff,
     TraceTangent,
+    UnitTangent,
+    UnitTracediff,
     Update,
     Weight,
 )
@@ -101,35 +101,37 @@ class AddressVisitor(Pytree):
 
 @Pytree.dataclass(match_args=True)
 class StaticTraceTangent(Generic[R], TraceTangent):
-    args: tuple[Any, ...]
-    retval: R
+    new_args: tuple[Any, ...]
+    new_retval: R
     addresses: AddressVisitor
     subtangents: list[TraceTangent]
+    delta_score: Score
 
-    def get_subtracediff(self, addr: StaticAddress):
+    def get_subtangent(self, addr: StaticAddress):
         addresses = self.addresses.get_visited()
         idx = addresses.index(addr)
         return self.subtangents[idx]
 
     def __mul__(self, other: TraceTangent) -> TraceTangent:
         match other:
-            case StaticTraceTangent(args, retval, addresses, _):
+            case StaticTraceTangent(new_args, new_retval, addresses, _, delta_score):
                 other_addresses = addresses.get_visited()
                 new_tangents = []
                 for addr, subtangent in zip(
                     self.addresses.get_visited(), self.subtangents
                 ):
                     if addr in other_addresses:
-                        our_subtangent = self.get_subtracediff(addr)
+                        our_subtangent = self.get_subtangent(addr)
                         new_tangent = our_subtangent * subtangent
                     else:
                         new_tangent = subtangent
                     new_tangents.append(new_tangent)
                 return StaticTraceTangent(
-                    args,
-                    retval,
+                    new_args,
+                    new_retval,
                     addresses,
                     new_tangents,
+                    self.delta_score + delta_score,
                 )
             case _:
                 raise TraceTangentMonoidOperationException(other)
@@ -189,7 +191,7 @@ class StaticTrace(Generic[R], Trace[R]):
                 score = jnp.array(0.0)
                 for addr, subtrace in zip(self.addresses.get_visited(), self.subtraces):
                     if addr in pr_addresses:
-                        subtangent = pull_request.get_subtracediff(addr)
+                        subtangent = pull_request.get_subtangent(addr)
                         new_trace = subtrace.pull(subtangent)
                     else:
                         new_trace = subtrace
@@ -505,7 +507,7 @@ def generate_transform(source_fn):
 @dataclass
 class UpdateHandler(StaticHandler):
     key: PRNGKey
-    previous_tracediff: Tracediff[Any, IdentityTangent]
+    previous_tracediff: Tracediff[Any, UnitTangent]
     constraint: ChoiceMapConstraint
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
@@ -549,7 +551,7 @@ class UpdateHandler(StaticHandler):
         self.key, sub_key = jax.random.split(self.key)
         (tangent, w, retval_diff, bwd_request) = gen_fn.edit(
             sub_key,
-            Tracediff(subtrace, IdentityTangent()),
+            Tracediff(subtrace, UnitTangent()),
             Update(constraint),
             argdiffs,
         )
@@ -567,7 +569,7 @@ def update_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
         key: PRNGKey,
-        previous_tracediff: Tracediff[StaticTrace[R], IdentityTangent],
+        previous_tracediff: Tracediff[R, UnitTangent],
         constraint: ChoiceMapConstraint,
         diffs: tuple[Any, ...],
     ):
@@ -611,7 +613,8 @@ def update_transform(source_fn):
 @dataclass
 class ChoiceMapEditRequestHandler(StaticHandler):
     key: PRNGKey
-    previous_tracediff: Tracediff[StaticTrace[Any], IdentityTangent]
+    primal: StaticTrace[Any]
+    tangent: UnitTangent
     requests_choice_map: ChoiceMap
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
@@ -637,8 +640,7 @@ class ChoiceMapEditRequestHandler(StaticHandler):
         self,
         addr: StaticAddress,
     ):
-        trace: StaticTrace[Any] = self.previous_tracediff.get_primal()  # pyright: ignore
-        return trace.get_subtrace(addr)
+        return self.primal.get_subtrace(addr)
 
     def handle_retval(self, v):
         return jtu.tree_leaves(v, is_leaf=lambda v: isinstance(v, Diff))
@@ -656,7 +658,7 @@ class ChoiceMapEditRequestHandler(StaticHandler):
         self.key, sub_key = jax.random.split(self.key)
         (tracediff, w, retval_diff, bwd_request) = subrequest.edit(
             sub_key,
-            IdentityTracediff(subtrace),
+            UnitTracediff(subtrace),
             argdiffs,
         )
         self.bwd_requests.append(bwd_request)
@@ -670,12 +672,13 @@ def choice_map_edit_request_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
         key: PRNGKey,
-        previous_tracediff: Tracediff[StaticTrace[R], IdentityTangent],
+        primal: StaticTrace[Any],
+        tangent: UnitTangent,
         requests_choice_map: ChoiceMap,
         diffs: tuple[Any, ...],
     ):
         stateful_handler = ChoiceMapEditRequestHandler(
-            key, previous_tracediff, requests_choice_map
+            key, primal, tangent, requests_choice_map
         )
         diff_primals = Diff.tree_primal(diffs)
         diff_tangents = Diff.tree_tangent(diffs)
@@ -716,7 +719,8 @@ def choice_map_edit_request_transform(source_fn):
 @dataclass
 class RegenerateRequestHandler(StaticHandler):
     key: PRNGKey
-    previous_tracediff: Tracediff[Any, IdentityTangent]
+    primal: StaticTrace[Any]
+    tangent: UnitTangent | StaticTraceTangent[Any]
     selection: Selection
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
@@ -735,14 +739,17 @@ class RegenerateRequestHandler(StaticHandler):
         self.address_visitor.visit(addr)
 
     def get_subselection(self, addr: StaticAddress) -> Selection:
-        return self.selection(addr)  # pyright: ignore
+        return self.selection(addr)
 
-    def get_subtrace(
-        self,
-        addr: StaticAddress,
-    ):
-        trace: StaticTrace[Any] = self.previous_tracediff.get_primal()  # pyright: ignore
-        return trace.get_subtrace(addr)
+    def get_subtrace(self, addr: StaticAddress):
+        return self.primal.get_subtrace(addr)
+
+    def get_subtangent(self, addr: StaticAddress) -> TraceTangent:
+        match self.tangent:
+            case UnitTangent():
+                return self.tangent
+            case StaticTraceTangent():
+                return self.tangent.get_subtangent(addr)
 
     def handle_retval(self, v):
         return jtu.tree_leaves(v, is_leaf=lambda v: isinstance(v, Diff))
@@ -756,12 +763,13 @@ class RegenerateRequestHandler(StaticHandler):
         argdiffs: Argdiffs = args
         self.visit(addr)
         subtrace = self.get_subtrace(addr)
+        subtangent = self.get_subtangent(addr)
         subselection = self.get_subselection(addr)
         self.key, sub_key = jax.random.split(self.key)
         subrequest = Regenerate(subselection)
         tangent, w, retval_diff, bwd_request = subrequest.edit(
             sub_key,
-            Tracediff(subtrace, IdentityTangent()),
+            Tracediff(subtrace, subtangent),
             argdiffs,
         )
         self.bwd_requests.append(bwd_request)
@@ -775,13 +783,15 @@ def regenerate_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
         key: PRNGKey,
-        previous_tracediff: Tracediff[StaticTrace[R], IdentityTangent],
+        primal: StaticTrace[Any],
+        tangent: UnitTangent | StaticTraceTangent[R],
         selection: Selection,
         diffs: tuple[Any, ...],
     ):
         stateful_handler = RegenerateRequestHandler(
             key,
-            previous_tracediff,
+            primal,
+            tangent,
             selection,
         )
         diff_primals = Diff.tree_primal(diffs)
@@ -954,7 +964,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     def edit_update(
         self,
         key: PRNGKey,
-        tracediff: Tracediff[StaticTrace[R], IdentityTangent],
+        primal: StaticTrace[R],
+        tangent: UnitTangent,
         constraint: ChoiceMapConstraint,
         argdiffs: Argdiffs,
     ) -> tuple[StaticTraceTangent[R], Weight, Retdiff[R], EditRequest]:
@@ -969,11 +980,13 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     arg_primals,
                     retval_primals,
                     address_visitor,
-                    address_tracediffs,
+                    address_tangents,
                 ),
                 bwd_requests,
             ),
-        ) = update_transform(syntax_sugar_handled)(key, tracediff, constraint, argdiffs)
+        ) = update_transform(syntax_sugar_handled)(
+            key, Tracediff(primal, tangent), constraint, argdiffs
+        )
 
         def make_bwd_request(visitor, subconstraints):
             addresses = visitor.get_visited()
@@ -984,12 +997,16 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             )
 
         bwd_request = make_bwd_request(address_visitor, bwd_requests)
+        delta_score = jnp.sum(
+            jnp.array([subtangent.get_delta_score() for subtangent in address_tangents])
+        )
         return (
             StaticTraceTangent(
                 arg_primals,
                 retval_primals,
                 address_visitor,
-                address_tracediffs,
+                address_tangents,
+                delta_score,
             ),
             weight,
             retval_diffs,
@@ -999,7 +1016,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     def edit_choice_map_edit_request(
         self,
         key: PRNGKey,
-        tracediff: Tracediff[StaticTrace[R], IdentityTangent],
+        primal: StaticTrace[R],
+        tangent: UnitTangent,
         requests_choice_map: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[StaticTraceTangent[R], Weight, Retdiff[R], EditRequest]:
@@ -1014,12 +1032,12 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     arg_primals,
                     retval_primals,
                     address_visitor,
-                    address_traces,
+                    address_tangents,
                 ),
                 bwd_requests,
             ),
         ) = choice_map_edit_request_transform(syntax_sugar_handled)(
-            key, tracediff, requests_choice_map, argdiffs
+            key, primal, tangent, requests_choice_map, argdiffs
         )
 
         def make_bwd_request(
@@ -1034,12 +1052,16 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             )
 
         bwd_request = make_bwd_request(address_visitor, bwd_requests)
+        delta_score = jnp.sum(
+            jnp.array([subtangent.get_delta_score() for subtangent in address_tangents])
+        )
         return (
             StaticTraceTangent(
                 arg_primals,
                 retval_primals,
                 address_visitor,
-                address_traces,
+                address_tangents,
+                delta_score,
             ),
             weight,
             retval_diffs,
@@ -1049,7 +1071,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     def edit_regenerate(
         self,
         key: PRNGKey,
-        tracediff: Tracediff[StaticTrace[R], IdentityTangent],
+        primal: StaticTrace[R],
+        tangent: UnitTangent | StaticTraceTangent[R],
         selection: Selection,
         argdiffs: Argdiffs,
     ) -> tuple[StaticTraceTangent[R], Weight, Retdiff[R], EditRequest]:
@@ -1064,12 +1087,12 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     arg_primals,
                     retval_primals,
                     address_visitor,
-                    address_traces,
+                    address_tangents,
                 ),
                 bwd_requests,
             ),
         ) = regenerate_transform(syntax_sugar_handled)(
-            key, tracediff, selection, argdiffs
+            key, primal, tangent, selection, argdiffs
         )
 
         def make_bwd_request(
@@ -1084,12 +1107,16 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             )
 
         bwd_request = make_bwd_request(address_visitor, bwd_requests)
+        delta_score = jnp.sum(
+            jnp.array([subtangent.get_delta_score() for subtangent in address_tangents])
+        )
         return (
             StaticTraceTangent(
                 arg_primals,
                 retval_primals,
                 address_visitor,
-                address_traces,
+                address_tangents,
+                delta_score,
             ),
             weight,
             retval_diffs,
@@ -1099,17 +1126,18 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     def edit(
         self,
         key: PRNGKey,
-        tracediff: Tracediff[StaticTrace[R], Any],
+        tracediff: Tracediff[R, UnitTangent],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[StaticTraceTangent[R], Weight, Retdiff[R], EditRequest]:
-        trace = tracediff.primal
-        assert isinstance(trace, StaticTrace)
+        primal, tangent = tracediff.unzip()
+        assert isinstance(primal, StaticTrace)
         match edit_request:
             case Update(constraint):
                 return self.edit_update(
                     key,
-                    tracediff,
+                    primal,
+                    tangent,
                     constraint,
                     argdiffs,
                 )
@@ -1117,19 +1145,21 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             case ChoiceMapRequest(requests_choice_map):
                 return self.edit_choice_map_edit_request(
                     key,
-                    tracediff,
+                    primal,
+                    tangent,
                     requests_choice_map,
                     argdiffs,
                 )
             case Regenerate(selection):
                 return self.edit_regenerate(
                     key,
-                    tracediff,
+                    primal,
+                    tangent,
                     selection,
                     argdiffs,
                 )
             case _:
-                raise NotSupportedEditRequest(edit_request)
+                raise IncrementalDerivativeException(edit_request)
 
     def assess(
         self,

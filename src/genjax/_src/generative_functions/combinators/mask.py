@@ -23,8 +23,6 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    IdentityTangent,
-    IdentityTracediff,
     Mask,
     Projection,
     Retdiff,
@@ -32,6 +30,8 @@ from genjax._src.core.generative import (
     Trace,
     Tracediff,
     TraceTangent,
+    UnitTangent,
+    UnitTracediff,
     Update,
     Weight,
 )
@@ -189,7 +189,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     def edit(
         self,
         key: PRNGKey,
-        tracediff: Tracediff[R, IdentityTangent],
+        tracediff: Tracediff[R, UnitTangent],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[MaskTraceTangent, Weight, Retdiff[Mask[R]], EditRequest]:
@@ -209,7 +209,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
         trace_tangent, weight, retdiff, bwd_request = self.gen_fn.edit(
             key,
-            IdentityTracediff(original_trace),
+            UnitTracediff(original_trace),
             subrequest,
             inner_argdiffs,
         )

@@ -23,10 +23,9 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    IdentityTangent,
+    IncrementalDerivativeException,
     Index,
     IndexTangent,
-    NotSupportedEditRequest,
     Projection,
     Retdiff,
     Score,
@@ -34,6 +33,7 @@ from genjax._src.core.generative import (
     Trace,
     Tracediff,
     TraceTangent,
+    UnitTangent,
     Update,
     Weight,
 )
@@ -408,7 +408,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         self,
         key: PRNGKey,
         trace: ScanTrace[Carry, Y],
-        tangent: IdentityTangent,
+        tangent: UnitTangent,
         idx: IntArray,
         request: EditRequest,
         argdiffs: Argdiffs,
@@ -432,7 +432,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         next_request = Update(ChoiceMapConstraint(ChoiceMap.empty()))
         next_slice_trace_tangent, next_w, retdiff, _ = next_request.edit(
             key,
-            Tracediff(next_slice, IdentityTangent()),
+            Tracediff(next_slice, UnitTangent()),
             (carry_retdiff, Diff.no_change(next_scanned_in)),
         )
 
@@ -472,7 +472,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         self,
         key: PRNGKey,
         trace: ScanTrace[Carry, Y],
-        tangent: IdentityTangent,
+        tangent: UnitTangent,
         constraint: Constraint,
         argdiffs: Argdiffs,
     ) -> tuple[
@@ -485,7 +485,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
         def _inner_edit(
             key: PRNGKey,
-            tracediff: Tracediff[tuple[Carry, Y], IdentityTangent],
+            tracediff: Tracediff[tuple[Carry, Y], UnitTangent],
             subconstraint: ChoiceMapConstraint,
             carry: Carry,
             scanned_in: Any,
@@ -547,7 +547,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         ) = jax.lax.scan(
             _edit,
             (key, jnp.asarray(0), carry_diff),
-            (Tracediff(trace.inner, IdentityTangent()), *scanned_in_diff),
+            (Tracediff(trace.inner, UnitTangent()), *scanned_in_diff),
             length=self.length,
         )
         carried_out, scanned_out = Diff.tree_primal((
@@ -569,7 +569,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     def edit(
         self,
         key: PRNGKey,
-        tracediff: Tracediff[ScanTrace[Carry, Y], IdentityTangent],
+        tracediff: Tracediff[ScanTrace[Carry, Y], UnitTangent],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[TraceTangent, Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
@@ -597,7 +597,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 )
 
             case _:
-                raise NotSupportedEditRequest(edit_request)
+                raise IncrementalDerivativeException(edit_request)
 
     def assess(
         self,
@@ -1020,7 +1020,7 @@ class Checkerboard(EditRequest):
     def edit(
         self,
         key: PRNGKey,
-        tracediff: Tracediff[Any, Any],
+        tracediff: Tracediff[Any, UnitTangent],
         argdiffs: Argdiffs,
     ) -> tuple[TraceTangent, Weight, Retdiff[Any], "EditRequest"]:
         trace = tracediff.primal

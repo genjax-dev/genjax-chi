@@ -81,7 +81,7 @@ class TraceTangent(Pytree):
 
 
 @Pytree.dataclass
-class IdentityTangent(TraceTangent):
+class UnitTangent(TraceTangent):
     """
     this is the "unit" element in the monoid so that:
         Monoid.action(tr, IdentityTangent()) = tr
@@ -191,6 +191,9 @@ class Trace(Generic[R], TraceTangent):
     def pull(self, pull_request: TraceTangent) -> "Trace[R]":
         pass
 
+    def __add__(self, other: "TraceTangent") -> "Trace[R]":
+        return self.pull(other)
+
     def __mul__(self, other: "TraceTangent") -> "TraceTangent":
         return self.pull(other)
 
@@ -208,7 +211,7 @@ class Trace(Generic[R], TraceTangent):
         """
         return request.edit(
             key,
-            IdentityTracediff(self),
+            UnitTracediff(self),
             Diff.tree_diff_no_change(self.get_args()) if argdiffs is None else argdiffs,
         )  # pyright: ignore[reportReturnType]
 
@@ -268,6 +271,9 @@ class Tracediff(Generic[R, Ta], Trace[R]):
     def get_tangent(self) -> Ta:
         return self.tangent
 
+    def unzip(self) -> tuple[Trace[R], Ta]:
+        return self.primal, self.tangent
+
     def get_args(self) -> tuple[Any, ...]:
         return self.get_primal().pull(self.get_tangent()).get_args()
 
@@ -290,10 +296,10 @@ class Tracediff(Generic[R, Ta], Trace[R]):
         return Tracediff(self.get_primal(), pull_request * self.get_tangent())
 
 
-def IdentityTracediff(
+def UnitTracediff(
     primal: Trace[R],
-) -> Tracediff[R, IdentityTangent]:
-    return Tracediff(primal, IdentityTangent())
+) -> Tracediff[R, UnitTangent]:
+    return Tracediff(primal, UnitTangent())
 
 
 #######################
@@ -622,7 +628,7 @@ class GenerativeFunction(Generic[R], Pytree):
         request = Update(
             ChoiceMapConstraint(constraint),
         )
-        tracediff = IdentityTracediff(trace)
+        tracediff = UnitTracediff(trace)
         tangent, w, rd, bwd = request.edit(
             key,
             tracediff,
@@ -1501,16 +1507,18 @@ class EditRequest(Pytree):
         trace: "genjax.Trace",  # pyright: ignore
         argdiffs: Argdiffs,
     ) -> tuple["genjax.Trace", Weight, Retdiff[R], "EditRequest"]:  # pyright: ignore
-        from genjax import IdentityTracediff
+        from genjax import UnitTracediff
 
-        tracediff = IdentityTracediff(trace)
+        tracediff = UnitTracediff(trace)
         tangent, w, retdiff, bwd_request = self.edit(key, tracediff, argdiffs)
         new_trace = trace.pull(tangent)
         return new_trace, w, retdiff, bwd_request
 
 
-class NotSupportedEditRequest(Exception):
-    pass
+class IncrementalDerivativeException(Exception):
+    request: EditRequest
+    primal_type: Any
+    tangent_type: Any
 
 
 @Pytree.dataclass(match_args=True)

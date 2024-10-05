@@ -29,10 +29,10 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     EmptyConstraint,
+    EmptyRequest,
     GenerativeFunction,
-    IdentityTangent,
+    IncrementalDerivativeException,
     Mask,
-    NotSupportedEditRequest,
     Projection,
     R,
     Regenerate,
@@ -42,6 +42,7 @@ from genjax._src.core.generative import (
     Trace,
     Tracediff,
     TraceTangent,
+    UnitTangent,
     Update,
     Weight,
 )
@@ -67,18 +68,44 @@ tfd = tfp.distributions
 
 
 @Pytree.dataclass(match_args=True)
-class DistributionTraceTangent(Generic[R], TraceTangent):
-    args: tuple[Any, ...]
-    value: R
+class SameValue(TraceTangent):
+    new_args: tuple[Any, ...]
     delta_score: Score
 
     def __mul__(self, other) -> TraceTangent:
         match other:
-            case DistributionTraceTangent(args, value, delta_score):
-                return DistributionTraceTangent(
-                    args, value, self.delta_score + delta_score
+            case SameValue(
+                new_args,
+                delta_score,
+            ):
+                return SameValue(
+                    new_args,
+                    self.delta_score + delta_score,
                 )
-            case IdentityTangent():
+            case UnitTangent():
+                return self
+            case _:
+                raise TraceTangentMonoidOperationException(other)
+
+    def get_delta_score(self) -> Score:
+        return self.delta_score
+
+
+@Pytree.dataclass(match_args=True)
+class ChangedValue(Generic[R], TraceTangent):
+    new_args: tuple[Any, ...]
+    new_value: R
+    delta_score: Score
+
+    def __mul__(self, other) -> TraceTangent:
+        match other:
+            case ChangedValue(new_args, new_value, delta_score):
+                return ChangedValue(
+                    new_args,
+                    new_value,
+                    self.delta_score + delta_score,
+                )
+            case UnitTangent():
                 return self
             case _:
                 raise TraceTangentMonoidOperationException(other)
@@ -114,9 +141,13 @@ class DistributionTrace(Generic[R], Trace[R]):
 
     def pull(self, pull_request: TraceTangent) -> "DistributionTrace[R]":
         match pull_request:
-            case DistributionTraceTangent(args, v, delta_score):
+            case ChangedValue(args, v, delta_score):
                 return DistributionTrace(self.gen_fn, args, v, self.score + delta_score)
-            case IdentityTangent():
+            case SameValue(args, delta_score):
+                return DistributionTrace(
+                    self.gen_fn, args, self.value, self.score + delta_score
+                )
+            case UnitTangent():
                 return self
             case _:
                 raise NotImplementedError
@@ -211,7 +242,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         sample = trace.get_choices()
         primals = Diff.tree_primal(argdiffs)
         new_score, _ = self.assess(sample, primals)
-        tangent = DistributionTraceTangent(
+        tangent = ChangedValue(
             primals, sample.get_value(), new_score - trace.get_score()
         )
         return (
@@ -237,9 +268,8 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 old_sample = trace.get_choices()
                 old_retval = trace.get_retval()
                 new_score, _ = self.assess(old_sample, primals)
-                tangent = DistributionTraceTangent(
+                tangent = SameValue(
                     primals,
-                    old_sample.get_value(),
                     new_score - trace.get_score(),
                 )
                 return (
@@ -258,7 +288,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     fwd = self.estimate_logpdf(key, v, *primals)
                     bwd = trace.get_score()
                     w = fwd - bwd
-                    tangent = DistributionTraceTangent(primals, v, w)
+                    tangent = ChangedValue(primals, v, w)
                     discard = trace.get_choices()
                     retval_diff = Diff.tree_diff_unknown_change(v)
                     return (
@@ -272,7 +302,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 elif FlagOp.concrete_false(check):
                     if Diff.static_check_no_change(argdiffs):
                         return (
-                            IdentityTangent(),
+                            UnitTangent(),
                             jnp.array(0.0),
                             Diff.no_change(trace.get_retval()),
                             Update(
@@ -284,7 +314,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         fwd = self.estimate_logpdf(key, v, *primals)
                         bwd = trace.get_score()
                         w = fwd - bwd
-                        tangent = DistributionTraceTangent(primals, v, w)
+                        tangent = SameValue(primals, w)
                         retval_diff = Diff.tree_diff_no_change(v)
                         return (
                             tangent,
@@ -325,7 +355,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         old_value,
                     )
                     return (
-                        DistributionTraceTangent(primals, new_value, w),
+                        ChangedValue(primals, new_value, w),
                         w,
                         Diff.tree_diff_unknown_change(new_value),
                         Update(
@@ -357,7 +387,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        tangent: TraceTangent,
+        tangent: UnitTangent | ChangedValue[R] | SameValue,
         selection: Selection,
         argdiffs: Argdiffs,
     ) -> tuple[TraceTangent, Weight, Retdiff[R], EditRequest]:
@@ -365,9 +395,9 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         if FlagOp.concrete_true(check):
             primals = Diff.tree_primal(argdiffs)
             w, new_v = self.random_weighted(key, *primals)
-            incremental_w = w - trace.get_score()
+            incremental_w = w - (trace.get_score() + tangent.get_delta_score())
             old_v = trace.get_retval()
-            new_tangent = DistributionTraceTangent(primals, new_v, incremental_w)
+            new_tangent = ChangedValue(primals, new_v, incremental_w)
             return (
                 new_tangent,
                 incremental_w,
@@ -375,40 +405,54 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 Update(ChoiceMapConstraint(ChoiceMap.choice(old_v))),
             )
         elif FlagOp.concrete_false(check):
-            return (
-                tangent * IdentityTangent(),
-                jnp.array(0.0),
-                Diff.no_change(trace.get_retval()),
-                Update(ChoiceMapConstraint(ChoiceMap.empty())),
-            )
+            if Diff.static_check_no_change(argdiffs):
+                return (
+                    tangent,
+                    jnp.array(0.0),
+                    Diff.no_change(trace.get_retval()),
+                    EmptyRequest(),
+                )
+            else:
+                primals = Diff.tree_primal(argdiffs)
+                v = trace.get_retval()
+                w = self.estimate_logpdf(key, v, *primals)
+                incremental_w = w - (trace.get_score() + tangent.get_delta_score())
+                new_tangent = SameValue(primals, incremental_w)
+                retval_diff = Diff.tree_diff_no_change(v)
+                return (
+                    new_tangent,
+                    w,
+                    retval_diff,
+                    EmptyRequest(),
+                )
         else:
             raise NotImplementedError
 
     def edit_choice_map_edit_request(
         self,
         key: PRNGKey,
-        tracediff: Tracediff[Trace[R], TraceTangent],
+        primal: Trace[R],
+        tangent: TraceTangent,
         requests_choice_map: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[TraceTangent, Weight, Retdiff[R], EditRequest]:
         request = requests_choice_map.get_value()
-        return request.edit(key, tracediff, argdiffs)
+        return request.edit(key, Tracediff(primal, tangent), argdiffs)
 
     def edit_update(
         self,
         key: PRNGKey,
-        tracediff: Tracediff[Any, Any],
+        primal: Trace[R],
+        tangent: UnitTangent,
         constraint: Constraint,
         argdiffs: Argdiffs,
     ) -> tuple[TraceTangent, Weight, Retdiff[R], Update]:
-        trace = tracediff.primal
-        tangent = tracediff.tangent
         match constraint:
             case EmptyConstraint():
-                return self.edit_empty(trace, tangent, argdiffs)
+                return self.edit_empty(primal, tangent, argdiffs)
 
             case ChoiceMapConstraint():
-                return self.edit_constraint(key, trace, tangent, constraint, argdiffs)
+                return self.edit_constraint(key, primal, tangent, constraint, argdiffs)
 
             case _:
                 raise Exception(f"Not implement fwd problem: {constraint}.")
@@ -416,24 +460,24 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     def edit(
         self,
         key: PRNGKey,
-        tracediff: Tracediff[Any, Any],
+        tracediff: Tracediff[R, UnitTangent | ChangedValue[R] | SameValue],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[TraceTangent, Weight, Retdiff[R], EditRequest]:
-        trace = tracediff.primal
-        tangent = tracediff.tangent
+        primal, tangent = tracediff.unzip()
         match edit_request:
-            case Update(constraint):
+            case Update(constraint) if isinstance(tangent, UnitTangent):
                 return self.edit_update(
                     key,
-                    tracediff,
+                    primal,
+                    tangent,
                     constraint,
                     argdiffs,
                 )
             case Regenerate(selection):
                 return self.edit_regenerate(
                     key,
-                    trace,
+                    primal,
                     tangent,
                     selection,
                     argdiffs,
@@ -442,12 +486,15 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             case ChoiceMapRequest(requests_choice_map):
                 return self.edit_choice_map_edit_request(
                     key,
-                    tracediff,
+                    primal,
+                    tangent,
                     requests_choice_map,
                     argdiffs,
                 )
             case _:
-                raise NotSupportedEditRequest(edit_request)
+                raise IncrementalDerivativeException(
+                    edit_request, type(primal), type(tangent)
+                )
 
     def assess(
         self,

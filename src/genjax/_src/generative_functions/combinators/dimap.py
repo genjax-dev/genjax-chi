@@ -17,7 +17,6 @@ from genjax._src.core.generative import (
     Argdiffs,
     Constraint,
     GenerativeFunction,
-    IdentityTangent,
     Projection,
     Retdiff,
     Sample,
@@ -25,6 +24,7 @@ from genjax._src.core.generative import (
     Trace,
     Tracediff,
     TraceTangent,
+    UnitTangent,
     Weight,
 )
 from genjax._src.core.generative.choice_map import ChoiceMap
@@ -58,7 +58,7 @@ class DimapTraceTangent(Generic[S], TraceTangent):
         match other:
             case DimapTraceTangent(args, inner, retval):
                 return DimapTraceTangent(args, self.tangent * inner, retval)
-            case IdentityTangent():
+            case UnitTangent():
                 return self
             case _:
                 raise TraceTangentMonoidOperationException(other)
@@ -97,7 +97,7 @@ class DimapTrace(Generic[R, S], Trace[S]):
             case DimapTraceTangent(args, tangent, retval):
                 new_inner = self.inner.pull(tangent)
                 return DimapTrace(self.gen_fn, new_inner, args, retval)
-            case IdentityTangent():
+            case UnitTangent():
                 return self
             case _:
                 raise NotImplementedError

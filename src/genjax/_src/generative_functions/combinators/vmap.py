@@ -28,8 +28,6 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    IdentityTangent,
-    IdentityTracediff,
     Projection,
     R,
     Retdiff,
@@ -38,6 +36,8 @@ from genjax._src.core.generative import (
     Tracediff,
     TraceTangent,
     TraceTangentMonoidOperationException,
+    UnitTangent,
+    UnitTracediff,
     Update,
     Weight,
 )
@@ -62,7 +62,7 @@ class VmapTraceTangent(TraceTangent):
 
     def __mul__(self, other: TraceTangent) -> TraceTangent:
         match other:
-            case IdentityTangent():
+            case UnitTangent():
                 return self
             case _:
                 raise TraceTangentMonoidOperationException(other)
@@ -122,7 +122,7 @@ class VmapTrace(Generic[R], Trace[R]):
                     new_args,
                     broadcast_dim_length,
                 )
-            case IdentityTangent():
+            case UnitTangent():
                 return self
             case _:
                 raise NotImplementedError
@@ -263,7 +263,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: VmapTrace[R],
-        tangent: IdentityTangent,
+        tangent: UnitTangent,
         constraint: ChoiceMapConstraint,
         argdiffs: Argdiffs,
     ) -> tuple[TraceTangent, Weight, Retdiff[R], EditRequest]:
@@ -282,7 +282,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             assert isinstance(subconstraint, ChoiceMapConstraint), type(subconstraint)
             new_subtrace, w, retdiff, bwd_request = self.gen_fn.edit(
                 key,
-                IdentityTracediff(subtrace),
+                UnitTracediff(subtrace),
                 Update(subconstraint),
                 argdiffs,
             )
@@ -315,7 +315,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
     def edit(
         self,
         key: PRNGKey,
-        tracediff: Tracediff[R, IdentityTangent],
+        tracediff: Tracediff[R, UnitTangent],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[TraceTangent, Weight, Retdiff[R], EditRequest]:

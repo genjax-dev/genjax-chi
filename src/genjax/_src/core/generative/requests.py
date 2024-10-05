@@ -27,9 +27,9 @@ from genjax._src.core.generative.core import (
 )
 from genjax._src.core.generative.generative_function import (
     EditRequest,
-    IdentityTangent,
     Tracediff,
     TraceTangent,
+    UnitTangent,
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
@@ -57,11 +57,11 @@ class EmptyRequest(EditRequest):
         key: PRNGKey,
         tracediff: Tracediff[Any, Any],
         argdiffs: Argdiffs,
-    ) -> tuple[IdentityTangent, Weight, Retdiff[R], "EditRequest"]:
+    ) -> tuple[UnitTangent, Weight, Retdiff[R], "EditRequest"]:
         assert Diff.static_check_no_change(argdiffs)
         trace = tracediff.get_primal()
         return (
-            IdentityTangent(),
+            UnitTangent(),
             jnp.array(0.0),
             Diff.no_change(trace.get_retval()),
             EmptyRequest(),

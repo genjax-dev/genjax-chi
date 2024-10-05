@@ -13,45 +13,36 @@
 # limitations under the License.
 
 
-import jax
-import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapConstraint,
     Constraint,
     EditRequest,
     GenerativeFunction,
-    IdentityTangent,
     Projection,
     Retdiff,
-    Sample,
     Score,
     Trace,
     Tracediff,
     TraceTangent,
-    Update,
+    UnitTangent,
+    UnitTracediff,
     Weight,
 )
-from genjax._src.core.generative.functional_types import staged_choose
 from genjax._src.core.generative.generative_function import (
     TraceTangentMonoidActionException,
+    TraceTangentMonoidOperationException,
 )
-from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
-from genjax._src.core.interpreters.staging import get_data_shape
+from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    ArrayLike,
     FloatArray,
     Generic,
-    Int,
     IntArray,
     PRNGKey,
-    ScalarFlag,
-    Sequence,
     TypeVar,
 )
 
@@ -64,22 +55,35 @@ R = TypeVar("R")
 
 
 @Pytree.dataclass(match_args=True)
-class CondTraceTangent(Generic[R], TraceTangent):
-    branch: ScalarFlag
+class SwitchTraceTangent(Generic[R], TraceTangent):
+    branch: IntArray
     args: tuple[Any, ...]
     subtangent: TraceTangent
     retval: R
     delta_score: Score
+
+    def __mul__(self, other: TraceTangent) -> TraceTangent:
+        match other:
+            case SwitchTraceTangent(branch, args, subtangent, retval, delta_score):
+                return SwitchTraceTangent(
+                    branch,
+                    args,
+                    self.subtangent * subtangent,
+                    retval,
+                    self.delta_score + delta_score,
+                )
+            case _:
+                raise TraceTangentMonoidOperationException(other)
 
     def get_delta_score(self) -> Score:
         return self.delta_score
 
 
 @Pytree.dataclass
-class CondTrace(Generic[R], Trace[R]):
-    gen_fn: "CondCombinator[R]"
+class SwitchTrace(Generic[R], Trace[R]):
+    gen_fn: "SwitchCombinator[R]"
+    branch: IntArray
     args: tuple[Any, ...]
-    branch: ScalarFlag
     subtrace: Trace[R]
     retval: R
     score: FloatArray
@@ -102,13 +106,13 @@ class CondTrace(Generic[R], Trace[R]):
     def get_score(self):
         return self.score
 
-    def pull(self, pull_request: TraceTangent) -> "CondTrace[R]":
+    def pull(self, pull_request: TraceTangent) -> "SwitchTrace[R]":
         match pull_request:
-            case CondTraceTangent(branch, args, subtangent, retval, delta_score):
-                return CondTrace(
+            case SwitchTraceTangent(branch, args, subtangent, retval, delta_score):
+                return SwitchTrace(
                     self.gen_fn,
-                    args,
                     branch,
+                    args,
                     self.subtrace.pull(subtangent),
                     retval,
                     self.score + delta_score,
@@ -123,33 +127,27 @@ class CondTrace(Generic[R], Trace[R]):
 
 
 @Pytree.dataclass
-class CondCombinator(Generic[R], GenerativeFunction[R]):
-    fst_gen_fn: GenerativeFunction[R]
-    snd_gen_fn: GenerativeFunction[R]
+class SwitchCombinator(Generic[R], GenerativeFunction[R]):
+    gen_fn: GenerativeFunction[R]
 
     def __abstract_call__(self, *args) -> R:
-        flag, args = args[0], args[1:]
-        return jax.lax.cond(
-            flag,
-            self.fst_gen_fn.__abstract_call__,
-            self.snd_gen_fn.__abstract_call__,
-            *args,
-        )
+        idx, branch_args = args[0], args[1:]
+        selected_branch_args = jtu.tree_map(lambda v: v[idx], *branch_args)
+        return self.gen_fn.__abstract_call__(*selected_branch_args)
 
     def simulate(
         self,
         key: PRNGKey,
         args: tuple[Any, ...],
-    ) -> CondTrace[R]:
-        flag: ScalarFlag = args[0]
-        branch_args = args[1:]
-        subtrace = jax.lax.cond(
-            flag, self.fst_gen_fn.simulate, self.snd_gen_fn.simulate, key, branch_args
-        )
-        return CondTrace(
+    ) -> SwitchTrace[R]:
+        idx: IntArray = args[0]
+        branch_args: tuple[tuple[Any, ...], ...] = args[1:]
+        selected_branch_args = jtu.tree_map(lambda v: v[idx], *branch_args)
+        subtrace = self.gen_fn.simulate(key, selected_branch_args)
+        return SwitchTrace(
             self,
+            idx,
             branch_args,
-            flag,
             subtrace,
             subtrace.get_retval(),
             subtrace.get_score(),
@@ -160,13 +158,9 @@ class CondCombinator(Generic[R], GenerativeFunction[R]):
         sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
-        flag, branch_args = args[0], args[1:]
-        score, retval = jax.lax.cond(
-            flag,
-            self.fst_gen_fn.assess,
-            self.snd_gen_fn.assess,
-            branch_args,
-        )
+        idx, branch_args = args[0], args[1:]
+        selected_branch_args = jtu.tree_map(lambda v: v[idx], *branch_args)
+        score, retval = self.gen_fn.assess(sample, selected_branch_args)
         return score, retval
 
     def generate(
@@ -174,20 +168,14 @@ class CondCombinator(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         constraint: Constraint,
         args: tuple[Any, ...],
-    ) -> tuple[CondTrace[R], Weight]:
-        flag, branch_args = args[0], args[1:]
-        subtrace, weight = jax.lax.cond(
-            flag,
-            self.fst_gen_fn.generate,
-            self.snd_gen_fn.generate,
-            key,
-            constraint,
-            branch_args,
-        )
-        return CondTrace(
+    ) -> tuple[SwitchTrace[R], Weight]:
+        idx, branch_args = args[0], args[1:]
+        selected_branch_args = jtu.tree_map(lambda v: v[idx], *branch_args)
+        subtrace, weight = self.gen_fn.generate(key, constraint, selected_branch_args)
+        return SwitchTrace(
             self,
+            idx,
             branch_args,
-            flag,
             subtrace,
             subtrace.get_retval(),
             subtrace.get_score(),
@@ -204,25 +192,21 @@ class CondCombinator(Generic[R], GenerativeFunction[R]):
     def edit(
         self,
         key: PRNGKey,
-        tracediff: Tracediff[R, IdentityTangent],
+        tracediff: Tracediff[R, UnitTangent],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[CondTrace[R], Weight, Retdiff[R], EditRequest]:
-        flag, branch_args = args[0], args[1:]
-        subtangent, weight, retdiff, bwd_request = jax.lax.cond(
-            flag,
-            self.fst_gen_fn.edit,
-            self.snd_gen_fn.edit,
-            key,
-            tracediff,
-            edit_request,
-            branch_args,
+    ) -> tuple[SwitchTraceTangent[R], Weight, Retdiff[R], EditRequest]:
+        idx, branch_argdiffs = argdiffs[0], argdiffs[1:]
+        primal: SwitchTrace[R] = tracediff.get_primal()  # pyright: ignore
+        selected_branch_argdiffs = jtu.tree_map(lambda v: v[idx], *branch_argdiffs)
+        subtangent, weight, retdiff, bwd_request = edit_request.edit(
+            key, UnitTracediff(primal), selected_branch_argdiffs
         )
         retval = Diff.tree_primal(retdiff)
         return (
-            CondTraceTangent(
-                flag,
-                branch_args,
+            SwitchTraceTangent(
+                idx,
+                Diff.tree_primal(selected_branch_argdiffs),
                 subtangent,
                 retval,
                 subtangent.get_delta_score(),
@@ -238,8 +222,7 @@ class CondCombinator(Generic[R], GenerativeFunction[R]):
 #############
 
 
-def cond(
-    fst_gen_fn: GenerativeFunction[R],
-    snd_gen_fn: GenerativeFunction[R],
-) -> CondCombinator[R]:
-    return CondCombinator[R](fst_gen_fn, snd_gen_fn)
+def switch(
+    gen_fn: GenerativeFunction[R],
+) -> SwitchCombinator[R]:
+    return SwitchCombinator[R](gen_fn)
