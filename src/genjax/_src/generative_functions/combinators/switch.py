@@ -93,11 +93,14 @@ class SwitchTrace(Generic[R], Trace[R]):
     retval: R
     score: FloatArray
 
+    def get_idx(self) -> IntArray:
+        return self.get_args()[0]
+
     def get_args(self) -> tuple[Any, ...]:
         return self.args
 
     def get_choices(self) -> ChoiceMap:
-        idx = self.get_args()[0]
+        idx = self.get_idx()
         sub_chms = (tr.get_choices() for tr in self.subtraces)
         return ChoiceMap.switch(idx, sub_chms)
 
@@ -240,7 +243,14 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         projection: Projection[Any],
     ) -> Weight:
-        raise NotImplementedError
+        assert isinstance(trace, SwitchTrace)
+        idx = trace.get_idx()
+
+        fs = list(f.project for f in self.branches)
+        f_args = list((key, tr, projection) for tr in trace.subtraces)
+
+        weights = _switch(idx, fs, f_args)
+        return staged_choose(idx, weights)
 
     def _make_edit_changed_idx(self, static_idx: int, gen_fn: GenerativeFunction[R]):
         gen_fn = self.branches[static_idx]

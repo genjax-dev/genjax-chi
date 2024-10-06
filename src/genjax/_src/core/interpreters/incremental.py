@@ -120,13 +120,12 @@ class Diff(Generic[R], Pytree):
 
     @staticmethod
     def no_change(tree: R) -> R:
-        assert not isinstance(tree, Diff)
-        tangent_tree: R = jtu.tree_map(lambda _: NoChange, tree)
-        return Diff.tree_diff(tree, tangent_tree)
+        primal_tree: R = Diff.tree_primal(tree)
+        tangent_tree: R = jtu.tree_map(lambda _: NoChange, primal_tree)
+        return Diff.tree_diff(primal_tree, tangent_tree)
 
     @staticmethod
     def unknown_change(tree: R) -> R:
-        assert not isinstance(tree, Diff)
         primal_tree: R = Diff.tree_primal(tree)
         tangent_tree: R = jtu.tree_map(lambda _: UnknownChange, primal_tree)
         return Diff.tree_diff(primal_tree, tangent_tree)
