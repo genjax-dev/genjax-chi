@@ -261,13 +261,17 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             edit_request: IncrementalGenericRequest,
             argdiffs: Argdiffs,
         ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+            """
+            Use the primals to generate a new subtrace and edit that.
+            """
             primals = Diff.tree_primal(argdiffs)
             new_trace = gen_fn.simulate(key, primals)
 
             branch_ad: Argdiffs = jax.lax.cond(
                 static_idx == idx,
-                lambda: argdiffs,
+                # TODO note, how does this make any sense? Why are we doing this? I had flipped the order... but I think there is a bug here, yeah? How does switching the index tell us anything about whether the args have changed?
                 lambda: Diff.no_change(argdiffs),
+                lambda: Diff.unknown_change(argdiffs),
             )
             tr, w, rd, bwd_request = gen_fn.edit(
                 key,
