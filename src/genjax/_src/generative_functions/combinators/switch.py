@@ -13,9 +13,8 @@
 # limitations under the License.
 
 
-import functools
-
 import jax
+import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
@@ -43,6 +42,7 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
+    Callable,
     FloatArray,
     Generic,
     Int,
@@ -72,6 +72,24 @@ class HeterogeneousSwitchSample(Sample):
 ################
 # Switch trace #
 ################
+def _eval_zero(f: Callable[..., Any], *args, **kwargs):
+    shape = jax.eval_shape(f, *args, **kwargs)
+    return jtu.tree_map(lambda x: jnp.zeros(x.shape, x.dtype), shape)
+
+
+def _wrapped(idx: int, f: Callable[..., Any]):
+    def foo(shapes: list[R], arg_tuples) -> list[R]:
+        shapes[idx] = f(*arg_tuples[idx])
+        return shapes
+
+    return foo
+
+
+def _sw(idx, branches: Sequence[Callable[..., Any]], arg_tuples):
+    "Returns a pivoted blah. tuples of the first, second, third etc retvals."
+    shapes = list(_eval_zero(f, *args) for f, args in zip(branches, arg_tuples))
+    fns = list(_wrapped(i, f) for i, f in enumerate(branches))
+    return jax.lax.switch(idx, fns, shapes, arg_tuples)
 
 
 @Pytree.dataclass
@@ -213,33 +231,8 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         assert len(args) == len(self.branches)
 
     ## Simulate methods
-
-    def _empty_simulate_defs(
-        self,
-        arg_tuples: tuple[tuple[Any, ...], ...],
-    ):
-        def _unpack(f, args):
-            empty_trace = f.get_zero_trace(*args)
-            return empty_trace, empty_trace.get_retval()
-
-        return self._to_pairs(
-            _unpack(f, args) for f, args in zip(self.branches, arg_tuples)
-        )
-
-    def _simulate(self, static_idx, key, args, trace_leaves, retval_leaves):
-        """
-        This gets run for any particular switch, and populates the correct leaf.
-        """
-        branch_gen_fn = self.branches[static_idx]
-        args = args[static_idx]
-        tr = branch_gen_fn.simulate(key, args)
-
-        trace_leaves[static_idx] = jtu.tree_leaves(tr)
-        retval_leaves[static_idx] = jtu.tree_leaves(tr.get_retval())
-
-        score = tr.get_score()
-        return trace_leaves, retval_leaves, score
-
+    #
+    # TODO is it a bug that we reuse the same key?
     def simulate(
         self,
         key: PRNGKey,
@@ -249,43 +242,13 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         branch_args = args[1:]
         self._check_args_match_branches(branch_args)
 
-        # the pattern we are left with is,
-        # - go make a thing that takes an index and a "setter" continuation
-        # - each one is responsible for setting its tr, retval
-        # - they might all have different shapes! But they just set their piece.
-        # - then we go rebuild the subtraces,
-        # - pick the actual retval (or mask it)
+        sims = list(f.simulate for f in self.branches)
+        sim_args = list((key, args) for args in branch_args)
 
-        #
-        # what I SHOULD be able to do... is take my template simulate function,
-        # and call "shape" on that to get get them empty thing out.
-        #
-        # the tuple is the pytree, so I SHOULD be able to go do this shit
-        # on the full tuple.
-        #
-        # But that is going to be for after scotland.
-        #
-        # make something that can take a template function,
-        # tear it apart,
-        # run it with a bunch of combos of args
-        # switch each one out
-        # piece it back together
+        subtraces = _sw(idx, sims, sim_args)
 
-        branch_fns = list(
-            functools.partial(self._simulate, idx) for idx in self._indices()
-        )
-        (
-            (trace_leaves, trace_defs),
-            (retval_leaves, retval_defs),
-        ) = self._empty_simulate_defs(branch_args)
-
-        trace_leaves, retval_leaves, score = jax.lax.switch(
-            idx, branch_fns, key, branch_args, trace_leaves, retval_leaves
-        )
-
-        subtraces = self._unflatten(trace_defs, trace_leaves)
-        retvals: list[R] = self._unflatten(retval_defs, retval_leaves)
-        retval: R = staged_choose(idx, retvals)
+        retval: R = staged_choose(idx, list(tr.get_retval() for tr in subtraces))
+        score: Score = staged_choose(idx, list(tr.get_score() for tr in subtraces))
 
         return SwitchTrace(self, args, subtraces, retval, score)
 
