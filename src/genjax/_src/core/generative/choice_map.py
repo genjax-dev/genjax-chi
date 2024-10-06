@@ -88,7 +88,7 @@ SelectionBuilder = _SelectionBuilder()
 """Deprecated! please use `Selection.at`."""
 
 
-class Selection(Projection["ChoiceMap"]):
+class Selection(Projection["ChoiceMap"], Pytree):
     """
     A class representing a selection of addresses in a ChoiceMap.
 
@@ -355,7 +355,7 @@ class Selection(Projection["ChoiceMap"]):
 #######################
 
 
-@Pytree.dataclass(match_args=True)
+@Pytree.dataclass
 class AllSel(Selection):
     """Represents a selection that includes all addresses.
 
@@ -377,7 +377,7 @@ class AllSel(Selection):
         return self
 
 
-@Pytree.dataclass(match_args=True)
+@Pytree.dataclass
 class NoneSel(Selection):
     """Represents a selection that includes no addresses.
 
