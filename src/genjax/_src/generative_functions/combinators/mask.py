@@ -228,7 +228,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             final_weight,
             Mask.maybe(retdiff, check_diff),
             IncrementalGenericRequest(
-                ChoiceMapConstraint(inner_chm_constraint.mask(post_check)),
+                ChoiceMapConstraint(inner_chm_constraint.choice_map.mask(post_check)),
             ),
         )
 
