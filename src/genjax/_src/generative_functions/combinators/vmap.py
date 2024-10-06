@@ -66,7 +66,7 @@ class VmapTrace(Generic[R], Trace[R]):
         gen_fn: "VmapCombinator[R]", tr: Trace[R], args: tuple[Any, ...], length: int
     ) -> "VmapTrace[R]":
         score = jnp.sum(tr.get_score())
-        chm = tr.get_choices().extend(jnp.arange(length))
+        chm = tr.get_choices().extend(slice(None, None, None))
 
         return VmapTrace(gen_fn, tr, args, score, chm, length)
 

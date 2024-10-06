@@ -38,8 +38,8 @@ from genjax._src.core.typing import (
     Flag,
     Generic,
     Int,
-    IntArray,
     Iterable,
+    ScalarInt,
     String,
     TypeVar,
 )
@@ -52,7 +52,7 @@ if TYPE_CHECKING:
 #################
 
 StaticAddressComponent = String
-DynamicAddressComponent = Int | IntArray
+DynamicAddressComponent = Int | ScalarInt | slice
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
 Address = tuple[AddressComponent, ...]
 StaticAddress = tuple[StaticAddressComponent, ...]
@@ -72,9 +72,12 @@ K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
 # Selection builder interface #
 ###############################
 
+# TODO:
+# - see if I can get by accepting a slice for creation??
+# - then only allow full slices and ints for lookup...
 
-@Pytree.dataclass(match_args=True)
-class _SelectionBuilder(Pytree):
+
+class _SelectionBuilder:
     def __getitem__(
         self, addr: ExtendedStaticAddressComponent | ExtendedStaticAddress
     ) -> "Selection":
@@ -859,7 +862,7 @@ class ChoiceMap(Sample):
         return _empty
 
     @staticmethod
-    def choice(v: T) -> "Choice[T]":
+    def choice(v: Any) -> "ChoiceMap":
         """
         Creates a ChoiceMap containing a single value.
 
@@ -880,11 +883,11 @@ class ChoiceMap(Sample):
             assert value_chm.get_value() == 42
             ```
         """
-        return Choice(v)
+        return Choice.build(v)
 
     @staticmethod
     @deprecated("Use ChoiceMap.choice() instead.")
-    def value(v: T) -> "Choice[T]":
+    def value(v: Any) -> "ChoiceMap":
         return ChoiceMap.choice(v)
 
     @staticmethod
@@ -1352,6 +1355,13 @@ class Choice(Generic[T], ChoiceMap):
 
     v: T
 
+    @staticmethod
+    def build(v: T) -> ChoiceMap:
+        if isinstance(v, Array) and v.shape == (0,):
+            return ChoiceMap.empty()
+        else:
+            return Choice(v)
+
     def get_value(self) -> T:
         return self.v
 
@@ -1382,14 +1392,17 @@ class Indexed(ChoiceMap):
     """
 
     c: ChoiceMap
-    addr: DynamicAddressComponent
+    addr: DynamicAddressComponent | None
 
     @staticmethod
     def build(chm: ChoiceMap, addr: DynamicAddressComponent) -> ChoiceMap:
         if chm.static_is_empty():
             return chm
-        elif isinstance(addr, Array) and addr.shape == (0,):
-            return ChoiceMap.empty()
+        elif isinstance(addr, slice):
+            if addr == slice(None, None, None):
+                return Indexed(chm, None)
+            else:
+                raise ValueError(f"Partial slices not supported: {addr}")
         else:
             return Indexed(chm, addr)
 
@@ -1408,7 +1421,7 @@ class Indexed(ChoiceMap):
                 addr, copy=False
             ).shape, "Only scalar dynamic addresses are supported by get_submap."
 
-            if isinstance(self.addr, Array) and self.addr.shape:
+            if self.addr is None:
                 return jtu.tree_map(lambda v: v[addr], self.c)
             else:
                 return self.c.mask(self.addr == addr)
@@ -1699,8 +1712,12 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
                 })
 
             case Indexed(c, addr):
-                return loop(c, selection(addr)).extend(addr)
-
+                if addr is None:
+                    return loop(c, selection(slice(None, None, None))).extend(
+                        slice(None, None, None)
+                    )
+                else:
+                    return loop(c, selection(addr)).extend(addr)
             case Choice(v):
                 if v is None:
                     return inner

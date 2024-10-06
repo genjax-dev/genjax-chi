@@ -43,9 +43,7 @@ class TestVmapCombinator:
 
         key = jax.random.PRNGKey(314159)
         map_over = jnp.arange(0, 3, dtype=float)
-        chm = jax.vmap(lambda idx, v: C[idx, "z"].set(v))(
-            jnp.arange(3), jnp.array([3.0, 2.0, 3.0])
-        )
+        chm = C[:, "z"].set(jnp.array([3.0, 2.0, 3.0]))
 
         (_, w) = jax.jit(kernel.importance)(key, chm, (map_over,))
         assert (
@@ -71,7 +69,7 @@ class TestVmapCombinator:
 
         key, sub_key = jax.random.split(key)
         zv = jnp.array([3.0, -1.0, 2.0])
-        chm = jax.vmap(lambda idx, v: C[idx, "z"].set(v))(jnp.arange(3), zv)
+        chm = C[:, "z"].set(zv)
         (tr, _) = kernel.importance(sub_key, chm, (map_over,))
         for i in range(0, 3):
             v = tr.get_choices()[i, "z"]

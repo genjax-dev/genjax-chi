@@ -64,7 +64,7 @@ Value = Any
 
 ScalarShaped = Is[lambda arr: jnp.array(arr, copy=False).shape == ()]
 ScalarFlag = Annotated[Flag, ScalarShaped]
-
+ScalarInt = Annotated[IntArray, ScalarShaped]
 
 ############
 # Generics #

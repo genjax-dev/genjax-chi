@@ -497,7 +497,7 @@ class TestChoiceMap:
 
     def test_simplify(self):
         chm = ChoiceMap.choice(jnp.asarray([2.3, 4.4, 3.3]))
-        extended = chm.extend(jnp.array([0, 1, 2]))
+        extended = chm.extend(slice(None, None, None))
         assert extended.simplify() == extended, "no-op with no filters"
 
         filtered = C["x", "y"].set(2.0).mask(jnp.array(True))
@@ -525,14 +525,14 @@ class TestChoiceMap:
 
     def test_extend_dynamic(self):
         chm = ChoiceMap.choice(jnp.asarray([2.3, 4.4, 3.3]))
-        extended = chm.extend(jnp.array([0, 1, 2]))
+        extended = chm.extend(slice(None, None, None))
         assert extended.get_value() is None
         assert extended.get_submap("x").static_is_empty()
         assert extended[0] == 2.3
         assert extended[1] == 4.4
         assert extended[2] == 3.3
 
-        assert ChoiceMap.empty().extend(jnp.array([0, 1, 2])).static_is_empty()
+        assert ChoiceMap.empty().extend(slice(None, None, None)).static_is_empty()
 
     def test_merge(self):
         chm1 = ChoiceMap.kw(x=1)
@@ -643,7 +643,7 @@ class TestChoiceMap:
         xs = jnp.array([1.0, 2.0, 3.0])
         ys = jnp.array([4.0, 5.0, 6.0])
         # Create a ChoiceMap with values at 'x' and 'y' addresses
-        chm = C[jnp.arange(3)].set({"x": xs, "y": ys})
+        chm = C[:].set({"x": xs, "y": ys})
 
         # Create a Selection with a wildcard for 'x'
         sel = S[..., "x"]
@@ -675,7 +675,7 @@ class TestChoiceMap:
 
         xs = jnp.ones(4)
         ys = 5 * jnp.ones(4)
-        constraint = C[jnp.arange(4)].set({"x": xs, "y": ys})
+        constraint = C[:].set({"x": xs, "y": ys})
         only_xs = constraint.filter(S[..., "x"])
         only_ys = constraint.filter(S[..., "y"])
 
@@ -772,7 +772,7 @@ class TestChoiceMap:
         # Valid nested ChoiceMap with vmap
         valid_vmap_chm = ChoiceMap.kw(
             x=1.0,
-            y=C[jnp.arange(3)].set(
+            y=C[:].set(
                 ChoiceMap.kw(a=jnp.array([0.5, 1.5, 2.5]), b=jnp.array([1, 0, 1]))
             ),
         )
@@ -793,7 +793,7 @@ class TestChoiceMap:
 
         invalid_vmap_chm2 = ChoiceMap.kw(
             x=1.0,
-            y=C[jnp.arange(3)].set(
+            y=C[:].set(
                 ChoiceMap.kw(
                     a=jnp.array([0.5, 1.5, 2.5]),
                     b=jnp.array([1, 0, 1]),
@@ -801,7 +801,7 @@ class TestChoiceMap:
                 )
             ),
         )
-        expected_result = C["y", jnp.arange(3), "c"].set(jnp.array([0.1, 0.2, 0.3]))
+        expected_result = C["y", :, "c"].set(jnp.array([0.1, 0.2, 0.3]))
         actual_result = invalid_vmap_chm2.invalid_subset(outer_model, ())
         assert jax.tree_util.tree_structure(
             actual_result
@@ -864,7 +864,7 @@ class TestChoiceMap:
         outer_model = inner_model.iterate(n=4)
 
         # Test valid ChoiceMap
-        valid_chm = C[jnp.arange(4), "x"].set(jnp.array([0.5, 1.2, 0.8, 0.9]))
+        valid_chm = C[:, "x"].set(jnp.array([0.5, 1.2, 0.8, 0.9]))
         assert valid_chm.invalid_subset(outer_model, (1.0,)) is None
 
         # forgot the index layer
@@ -873,9 +873,9 @@ class TestChoiceMap:
 
         xs = jnp.array([0.5, 1.2, 0.8, 0.9])
         zs = jnp.array([0.5, 1.2, 0.8, 0.9])
-        invalid_chm3 = C[jnp.arange(4)].set({"x": xs, "z": zs})
+        invalid_chm3 = C[:].set({"x": xs, "z": zs})
         invalid_subset = invalid_chm3.invalid_subset(outer_model, (1.0,))
-        expected_invalid = C[jnp.arange(4), "z"].set(zs)
+        expected_invalid = C[:, "z"].set(zs)
         assert jtu.tree_structure(invalid_subset) == jtu.tree_structure(
             expected_invalid
         )
