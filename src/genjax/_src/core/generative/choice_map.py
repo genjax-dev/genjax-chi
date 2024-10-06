@@ -702,7 +702,7 @@ class ChmSel(Selection):
 ###############
 
 
-@dataclass
+@dataclass(frozen=True)
 class ChoiceMapNoValueAtAddress(Exception):
     """Exception raised when a value is not found at a specified address in a ChoiceMap.
 

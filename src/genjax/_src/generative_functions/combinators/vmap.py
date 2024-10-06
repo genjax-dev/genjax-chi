@@ -58,7 +58,7 @@ class VmapTrace(Generic[R], Trace[R]):
     score: Score
     chm: ChoiceMap
 
-    # TODO is this really helpful?
+    # TODO is this really helpful? what if someone has inflated the dimension out from around us? How do we re-use this?
     dim_length: int = Pytree.static()
 
     @staticmethod
