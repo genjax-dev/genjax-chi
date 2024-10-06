@@ -119,8 +119,6 @@ class EmptyConstraint(Constraint):
     Formally, `EmptyConstraint(x)` represents the constraint `(x $\\mapsto$ (), ())`.
     """
 
-    pass
-
 
 @Pytree.dataclass(match_args=True)
 class MaskedConstraint(Constraint):

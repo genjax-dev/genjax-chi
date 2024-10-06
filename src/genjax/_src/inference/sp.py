@@ -168,7 +168,6 @@ class Algorithm(Generic[R], SampleDistribution):
 
         This interface corresponds to **(Defn 3.1) Positive Unbiased Density Estimator** in [[Lew23](https://dl.acm.org/doi/pdf/10.1145/3591290)].
         """
-        pass
 
     ################
     # VI via GRASP #
