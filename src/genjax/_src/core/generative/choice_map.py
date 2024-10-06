@@ -1023,6 +1023,9 @@ class ChoiceMap(Sample):
         """
         return ChoiceMap.d(kwargs)
 
+    def vec(self) -> "ChoiceMap":
+        return Vector(self)
+
     @staticmethod
     def switch(
         idx: ArrayLike | jax.ShapeDtypeStruct, chms: Iterable["ChoiceMap"]
@@ -1425,6 +1428,39 @@ class Indexed(ChoiceMap):
                     )
             else:
                 return self.c.mask(check)
+
+
+@Pytree.dataclass(match_args=True)
+class Vector(ChoiceMap):
+    """Represents a choice map with static (up to a maximum index) indexing.
+
+    It allows for indexing into the choice map using array-like address components.
+
+    Attributes:
+        c: The underlying choice map.
+    """
+
+    c: ChoiceMap
+
+    @staticmethod
+    def build(chm: ChoiceMap) -> ChoiceMap:
+        if chm.static_is_empty():
+            return chm
+        else:
+            return Vector(chm)
+
+    def get_value(self) -> Any:
+        return None
+
+    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
+        if addr is Ellipsis:
+            return self.c
+
+        elif not isinstance(addr, DynamicAddressComponent):
+            return ChoiceMap.empty()
+
+        else:
+            return jtu.tree_map(lambda v: v[addr], self.c)
 
 
 @Pytree.dataclass(match_args=True)
