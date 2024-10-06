@@ -317,10 +317,9 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         self,
         key: PRNGKey,
         trace: ScanTrace[Carry, Y],
-        constraint: Constraint,
+        constraint: ChoiceMapConstraint,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
-        assert isinstance(constraint, ChoiceMapConstraint)
         diffs = Diff.unknown_change(Diff.tree_primal(argdiffs))
         carry_diff: Carry = diffs[0]
         scanned_in_diff: Any = diffs[1:]
@@ -328,7 +327,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         def _inner_edit(
             key: PRNGKey,
             subtrace: Trace[tuple[Carry, Y]],
-            subconstraint: Constraint,
+            subconstraint: ChoiceMapConstraint,
             carry: Carry,
             scanned_in: Any,
         ) -> tuple[
@@ -421,10 +420,13 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
         assert isinstance(edit_request, IncrementalGenericRequest)
         assert isinstance(trace, ScanTrace)
+        constraint = edit_request.constraint
+        assert isinstance(constraint, ChoiceMapConstraint)
+
         return self.edit_generic(
             key,
             trace,
-            edit_request.constraint,
+            constraint,
             argdiffs,
         )
 
