@@ -67,6 +67,7 @@ from genjax._src.core.typing import (
     Callable,
     FloatArray,
     Generic,
+    Int,
     PRNGKey,
 )
 
@@ -323,9 +324,10 @@ class StaticHandler(StatefulHandler):
 @dataclass
 class SimulateHandler(StaticHandler):
     key: PRNGKey
-    score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    score: list[Score] = Pytree.field(default_factory=list)
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
+    key_counter: Int = Pytree.static(default=1)
 
     def visit(self, addr):
         self.address_visitor.visit(addr)
@@ -334,7 +336,7 @@ class SimulateHandler(StaticHandler):
         return (
             self.address_visitor,
             self.address_traces,
-            self.score,
+            jnp.sum(jnp.array(self.score, copy=False)),
         )
 
     def handle_trace(
@@ -344,11 +346,12 @@ class SimulateHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         self.visit(addr)
-        self.key, sub_key = jax.random.split(self.key)
+        sub_key = jax.random.fold_in(self.key, self.key_counter)
         tr = gen_fn.simulate(sub_key, args)
         score = tr.get_score()
         self.address_traces.append(tr)
-        self.score += score
+        self.score.append(score)
+        self.key_counter += 1
         v = tr.get_retval()
         return v
 
@@ -382,11 +385,11 @@ def simulate_transform(source_fn):
 @dataclass
 class AssessHandler(StaticHandler):
     choice_map_sample: ChoiceMap
-    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    score: list[Score] = Pytree.field(default_factory=list)
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def yield_state(self):
-        return (self.score,)
+        return (jnp.sum(jnp.array(self.score, copy=False)),)
 
     def get_subsample(self, addr: StaticAddress) -> ChoiceMap:
         return self.choice_map_sample(addr)  # pyright: ignore
@@ -399,7 +402,7 @@ class AssessHandler(StaticHandler):
     ):
         submap = self.get_subsample(addr)
         (score, v) = gen_fn.assess(submap, args)
-        self.score += score
+        self.score.append(score)
         return v
 
 
@@ -424,9 +427,10 @@ class GenerateHandler(StaticHandler):
     key: PRNGKey
     choice_map_constraint: ChoiceMapConstraint
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    score: list[Score] = Pytree.field(default_factory=list)
+    weight: list[Weight] = Pytree.field(default_factory=list)
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
+    key_counter: Int = Pytree.static(default=1)
 
     def visit(self, addr: StaticAddress):
         self.address_visitor.visit(addr)
@@ -440,8 +444,8 @@ class GenerateHandler(StaticHandler):
         list[Trace[Any]],
     ]:
         return (
-            self.score,
-            self.weight,
+            jnp.sum(jnp.array(self.score, copy=False)),
+            jnp.sum(jnp.array(self.weight, copy=False)),
             self.address_visitor,
             self.address_traces,
         )
@@ -460,11 +464,12 @@ class GenerateHandler(StaticHandler):
     ):
         self.visit(addr)
         subconstraint = self.get_subconstraint(addr)
-        self.key, sub_key = jax.random.split(self.key)
+        sub_key: PRNGKey = jax.random.fold_in(self.key, self.key_counter)
         (tr, w) = gen_fn.generate(sub_key, subconstraint, args)
-        self.score += tr.get_score()
-        self.weight += w
+        self.score.append(tr.get_score())
+        self.weight.append(w)
         self.address_traces.append(tr)
+        self.key_counter += 1
 
         return tr.get_retval()
 
