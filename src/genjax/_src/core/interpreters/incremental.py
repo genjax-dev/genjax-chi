@@ -84,7 +84,7 @@ class _NoChange(ChangeTangent):
 NoChange = _NoChange()
 
 
-def static_check_is_change_tangent(v):
+def _static_check_is_change_tangent(v):
     return isinstance(v, ChangeTangent)
 
 
@@ -95,17 +95,18 @@ def static_check_is_change_tangent(v):
 
 @Pytree.dataclass(match_args=True)
 class Diff(Generic[R], Pytree):
+    """TODO add docs about how these are meant to be leaf values of a pytree."""
+
     primal: R
-    tangent: R
+    tangent: ChangeTangent
 
     def __post_init__(self):
         assert not isinstance(self.primal, Diff)
-        static_check_is_change_tangent(self.tangent)
 
     def get_primal(self) -> R:
         return self.primal
 
-    def get_tangent(self) -> R:
+    def get_tangent(self) -> ChangeTangent:
         return self.tangent
 
     #############
@@ -121,23 +122,15 @@ class Diff(Generic[R], Pytree):
         )
 
     @staticmethod
-    def tree_diff_no_change(tree: R) -> R:
+    def no_change(tree: R) -> R:
         tangent_tree: R = jtu.tree_map(lambda _: NoChange, tree)
         return Diff.tree_diff(tree, tangent_tree)
 
     @staticmethod
-    def no_change(tree: R) -> R:
-        return Diff.tree_diff_no_change(tree)
-
-    @staticmethod
-    def tree_diff_unknown_change(tree: R) -> R:
+    def unknown_change(tree: R) -> R:
         primal_tree: R = Diff.tree_primal(tree)
         tangent_tree: R = jtu.tree_map(lambda _: UnknownChange, primal_tree)
         return Diff.tree_diff(primal_tree, tangent_tree)
-
-    @staticmethod
-    def unknown_change(tree: R) -> R:
-        return Diff.tree_diff_unknown_change(tree)
 
     @staticmethod
     def tree_primal(v: R | "Diff[R]") -> R:
@@ -150,12 +143,12 @@ class Diff(Generic[R], Pytree):
         return jtu.tree_map(_inner, v, is_leaf=Diff.is_diff)
 
     @staticmethod
-    def tree_tangent(v: R | "Diff[R]") -> R:
-        def _inner(v) -> R:
+    def tree_tangent(v: "R | Diff[R]") -> R:
+        def _inner(v: "R | Diff[R]") -> ChangeTangent:
             if isinstance(v, Diff):
                 return v.get_tangent()
             else:
-                return v
+                return UnknownChange
 
         return jtu.tree_map(_inner, v, is_leaf=Diff.is_diff)
 
@@ -179,14 +172,14 @@ class Diff(Generic[R], Pytree):
     @staticmethod
     def static_check_no_change(v) -> bool:
         def _inner(v):
-            if static_check_is_change_tangent(v):
+            if _static_check_is_change_tangent(v):
                 return isinstance(v, _NoChange)
             else:
                 return True
 
         return all(
             jtu.tree_leaves(
-                jtu.tree_map(_inner, v, is_leaf=static_check_is_change_tangent)
+                jtu.tree_map(_inner, v, is_leaf=_static_check_is_change_tangent)
             )
         )
 
@@ -203,9 +196,9 @@ def default_propagation_rule(prim, *args, **_params):
     args = Diff.tree_primal(args)
     outval = prim.bind(*args, **_params)
     if check:
-        return Diff.tree_diff_no_change(outval)
+        return Diff.no_change(outval)
     else:
-        return Diff.tree_diff_unknown_change(outval)
+        return Diff.unknown_change(outval)
 
 
 @Pytree.dataclass
@@ -223,9 +216,7 @@ class IncrementalInterpreter(Pytree):
         tangents: list[ChangeTangent],
     ):
         dual_env = Environment()
-        jax_util.safe_map(
-            dual_env.write, _jaxpr.constvars, Diff.tree_diff_no_change(consts)
-        )
+        jax_util.safe_map(dual_env.write, _jaxpr.constvars, Diff.no_change(consts))
         jax_util.safe_map(
             dual_env.write, _jaxpr.invars, Diff.tree_diff(primals, tangents)
         )

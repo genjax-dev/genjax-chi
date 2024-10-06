@@ -175,7 +175,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         return (
             new_trace,
             new_score - trace.get_score(),
-            Diff.tree_diff_no_change(trace.get_retval()),
+            Diff.no_change(trace.get_retval()),
             IncrementalGenericRequest(
                 ChoiceMapConstraint(ChoiceMap.empty()),
             ),
@@ -200,7 +200,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 return (
                     new_trace,
                     new_score - trace.get_score(),
-                    Diff.tree_diff_no_change(old_retval),
+                    Diff.no_change(old_retval),
                     IncrementalGenericRequest(
                         ChoiceMapConstraint(ChoiceMap.empty()),
                     ),
@@ -215,7 +215,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     w = fwd - bwd
                     new_tr = DistributionTrace(self, primals, v, fwd)
                     discard = trace.get_choices()
-                    retval_diff = Diff.tree_diff_unknown_change(v)
+                    retval_diff = Diff.unknown_change(v)
                     return (
                         new_tr,
                         w,
@@ -231,7 +231,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     bwd = trace.get_score()
                     w = fwd - bwd
                     new_tr = DistributionTrace(self, primals, v, fwd)
-                    retval_diff = Diff.tree_diff_no_change(v)
+                    retval_diff = Diff.no_change(v)
                     return (
                         new_tr,
                         w,
@@ -273,7 +273,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     return (
                         DistributionTrace(self, primals, new_value, score),
                         w,
-                        Diff.tree_diff_unknown_change(new_value),
+                        Diff.unknown_change(new_value),
                         IncrementalGenericRequest(
                             ChoiceMapConstraint(old_choices.mask(flag)),
                         ),

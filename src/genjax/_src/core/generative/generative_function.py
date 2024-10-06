@@ -162,7 +162,7 @@ class Trace(Generic[R], Pytree):
             key,
             self,
             request,
-            Diff.tree_diff_no_change(self.get_args()) if argdiffs is None else argdiffs,
+            Diff.no_change(self.get_args()) if argdiffs is None else argdiffs,
         )  # pyright: ignore[reportReturnType]
 
     def update(
@@ -178,7 +178,7 @@ class Trace(Generic[R], Pytree):
             key,
             self,
             constraint,
-            Diff.tree_diff_no_change(self.get_args()) if argdiffs is None else argdiffs,
+            Diff.no_change(self.get_args()) if argdiffs is None else argdiffs,
         )  # pyright: ignore[reportReturnType]
 
     def project(

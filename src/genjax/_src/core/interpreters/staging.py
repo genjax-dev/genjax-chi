@@ -265,15 +265,3 @@ def empty_trace(
 ) -> "genjax.Trace[R]":
     "TODO docs!"
     return to_shape_fn(gen_fn.simulate, jnp.zeros)(_fake_key, args)
-
-
-def empty_generate(gen_fn: "genjax.GenerativeFunction[R]", constraint, args):
-    return to_shape_fn(gen_fn.generate, jnp.zeros)(_fake_key, constraint, args)
-
-
-def empty_edit(gen_fn: "genjax.GenerativeFunction[R]", trace, edit_request, argdiffs):
-    return to_shape_fn(gen_fn.edit, jnp.zeros)(_fake_key, trace, edit_request, argdiffs)
-
-
-def empty_assess(gen_fn: "genjax.GenerativeFunction[R]", choice_map, args):
-    return to_shape_fn(gen_fn.assess, jnp.zeros)(choice_map, args)

@@ -566,7 +566,7 @@ class TestStaticGenFnUpdate:
             sub_key,
             tr,
             constraints,
-            (Diff.tree_diff_no_change(init_tree),),
+            (Diff.no_change(init_tree),),
         )
         assert updated.get_sample()["y1"] == new_y1
         new_tree = SomePytree(1.0, 2.0)
@@ -575,7 +575,7 @@ class TestStaticGenFnUpdate:
             sub_key,
             tr,
             constraints,
-            (Diff.tree_diff_unknown_change(new_tree),),
+            (Diff.unknown_change(new_tree),),
         )
         assert updated.get_sample()["y1"] == new_y1
 

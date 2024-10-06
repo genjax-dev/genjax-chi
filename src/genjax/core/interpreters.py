@@ -15,9 +15,6 @@
 from genjax._src.core.interpreters.forward import StatefulHandler, forward
 from genjax._src.core.interpreters.incremental import incremental
 from genjax._src.core.interpreters.staging import (
-    empty_assess,
-    empty_edit,
-    empty_generate,
     get_shaped_aval,
     stage,
     to_shape_fn,
@@ -25,9 +22,6 @@ from genjax._src.core.interpreters.staging import (
 
 __all__ = [
     "StatefulHandler",
-    "empty_assess",
-    "empty_edit",
-    "empty_generate",
     "forward",
     "get_shaped_aval",
     "incremental",
