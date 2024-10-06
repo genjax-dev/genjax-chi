@@ -294,7 +294,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         self._check_args_match_branches(branch_argdiffs)
 
         primals = Diff.tree_primal(argdiffs)
-        idx = primals[0]
+        new_idx = primals[0]
 
         if Diff.tree_tangent(idx_diff) == NoChange:
             # If the index hasn't changed, perform edits on each branch.
@@ -308,14 +308,14 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
                 self._make_edit_changed_idx(i, f) for i, f in enumerate(self.branches)
             )
             f_args = list(
-                (idx, key, edit_request, argdiffs) for argdiffs in branch_argdiffs
+                (new_idx, key, edit_request, argdiffs) for argdiffs in branch_argdiffs
             )
 
-        rets = _switch(idx, fs, f_args)
+        rets = _switch(new_idx, fs, f_args)
 
         subtraces = list(t[0] for t in rets)
         score, weight, retdiff = staged_choose(
-            idx, list((tr.get_score(), w, rd) for tr, w, rd, _ in rets)
+            new_idx, list((tr.get_score(), w, rd) for tr, w, rd, _ in rets)
         )
         retval: R = Diff.tree_primal(retdiff)
 

@@ -40,7 +40,7 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.choice_map import Filtered
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import FlagOp
+from genjax._src.core.interpreters.staging import FlagOp, to_shape_fn
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
@@ -343,6 +343,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 ################
 # ExactDensity #
 ################
+_fake_key = jnp.array([0, 0], dtype=jnp.uint32)
 
 
 class ExactDensity(Generic[R], Distribution[R]):
@@ -355,8 +356,7 @@ class ExactDensity(Generic[R], Distribution[R]):
         pass
 
     def __abstract_call__(self, *args):
-        key = jax.random.PRNGKey(0)
-        return self.sample(key, *args)
+        return to_shape_fn(self.sample, jnp.zeros)(_fake_key, *args)
 
     def handle_kwargs(self) -> GenerativeFunction[R]:
         @Pytree.partial(self)

@@ -48,6 +48,7 @@ from genjax._src.core.interpreters.incremental import (
     Diff,
     incremental,
 )
+from genjax._src.core.interpreters.staging import to_shape_fn
 from genjax._src.core.pytree import Closure, Const, Pytree
 from genjax._src.core.typing import (
     Any,
@@ -574,7 +575,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     # To get the type of return value, just invoke
     # the source (with abstract tracer arguments).
     def __abstract_call__(self, *args) -> Any:
-        return self.source(*args)
+        return to_shape_fn(self.source, jnp.zeros)(*args)
 
     def __post_init__(self):
         wrapped = self.source.fn
