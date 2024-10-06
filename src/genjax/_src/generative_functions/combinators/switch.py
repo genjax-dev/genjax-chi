@@ -171,13 +171,10 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
 
     branches: tuple[GenerativeFunction[R], ...]
 
-    def _indices(self):
-        return range(len(self.branches))
-
     def __abstract_call__(self, *args) -> R:
-        idx, args = args[0], args[1:]
+        idx, branch_args = args[0], args[1:]
         retvals = list(
-            f.__abstract_call__(*f_args) for f, f_args in zip(self.branches, args)
+            f.__abstract_call__(*args) for f, args in zip(self.branches, branch_args)
         )
         return staged_choose(idx, retvals)
 

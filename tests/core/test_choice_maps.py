@@ -297,6 +297,25 @@ class TestChoiceMapBuilder:
         assert ("x", "y") in chm
         assert "y" not in chm
 
+    def test_update(self):
+        chm = C["x", "y"].set(2)
+
+        # update at a spot populated by a choicemap
+        updated = chm.at["x"].update(lambda m: C["z"].set(m))
+        assert updated["x", "z", "y"] == 2
+
+        # update that hits a spot
+        updated_choice = chm.at["x", "y"].update(jnp.square)
+        assert updated_choice["x", "y"] == 4
+
+        # update that hits an empty spot:
+        updated_empty = chm.at["q"].update(lambda m: C["z"].set(m))
+        assert updated_empty(("q", "z")).static_is_empty()
+
+        # filling the spot is fine:
+        updated_empty_2 = chm.at["q"].update(lambda m: C["z"].set(2))
+        assert updated_empty_2["q", "z"] == 2
+
     def test_empty(self):
         assert C.n() == ChoiceMap.empty()
 
@@ -884,3 +903,53 @@ class TestChoiceMap:
                 lambda x, y: jnp.allclose(x, y), invalid_subset, expected_invalid
             )
         )
+
+    def test_choicemap_slice(self):
+        # partial slices are not allowed when setting:
+        with pytest.raises(ValueError):
+            C[:3, "x"].set(jnp.array([1, 2]))
+
+        with pytest.raises(ValueError):
+            C[0:3, "x"].set(jnp.array([1, 2]))
+
+        with pytest.raises(ValueError):
+            C[0:3:1, "x"].set(jnp.array([1, 2]))
+
+        # set with a full slice
+        vals = jnp.arange(10)
+        chm = C[:, "x"].set(vals)
+
+        # Full lookup:
+        assert jnp.array_equal(chm[:, "x"], jnp.arange(10))
+
+        # single int index:
+        assert chm[1, "x"] == vals[1]
+
+        # single array index:
+        assert chm[jnp.array(5), "x"] == vals[5]
+
+        # slice:
+        assert jnp.array_equal(chm[0:4, "x"], vals[0:4])
+
+        # test 2d
+        vals_2d = jnp.array([jnp.arange(0, 3), jnp.arange(3, 6)])
+        chm_2d = C[:, "x", :].set(vals_2d)
+
+        # single values are fine:
+        assert chm_2d[jnp.array(0), "x", 2] == vals_2d[0, 2]
+
+        # stacking fails:
+        # assert chm_2d[:, "x", 2] == vals_2d[:, 2]
+
+
+# NOTES:
+# TODO, notes:
+# - then only allow full slices and ints for lookup...
+# - but this is still busted if I try to do a full slice followed by an index.
+# - one idea is to take the __getitem__ list, filter out all of the non-string things and then pass them in to the array AFTER. That would remove the need for indexed, and the location of slices would not matter...
+# except for the get_submap case, where I build C[0, "x"].set(1.0) and specifically want to override that value. But C[:, "x", 2] will fail too for overrides. That shows that we are busted here and we need to find some other way of specifying these things.
+
+#
+# what if .get_submap for static simply pushed numbers down the line? And indexed caught it? So we can be loosey-goosey with our Indexed, and then Indexed becomes a filter for specific indices... and that's the only sort of thing we support. I think that will work.
+#
+# The problem is... when I build... C[:, "x", 2].set(???), what do I put in there?

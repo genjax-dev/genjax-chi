@@ -64,6 +64,8 @@ ExtendedAddress = tuple[ExtendedAddressComponent, ...]
 T = TypeVar("T")
 K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
 
+_full_slice = slice(None, None, None)
+
 ##############
 # Selections #
 ##############
@@ -71,10 +73,6 @@ K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
 ###############################
 # Selection builder interface #
 ###############################
-
-# TODO:
-# - see if I can get by accepting a slice for creation??
-# - then only allow full slices and ints for lookup...
 
 
 class _SelectionBuilder:
@@ -735,12 +733,24 @@ class _ChoiceMapBuilder:
             [*self.addrs, *addr],
         )
 
-    def set(self, v) -> "ChoiceMap":
+    def set(self, v: "dict[K_addr, Any] | ChoiceMap | Any") -> "ChoiceMap":
         chm = ChoiceMap.entry(v, *self.addrs)
         if self.choice_map is None:
             return chm
         else:
             return chm + self.choice_map
+
+    def update(
+        self, f: Callable[..., "dict[K_addr, Any] | ChoiceMap | Any"]
+    ) -> "ChoiceMap":
+        if self.choice_map is None:
+            return self.set(f(None))
+        else:
+            submap = self.choice_map(tuple(self.addrs))
+            if submap.has_value():
+                return self.set(f(submap.get_value()))
+            else:
+                return self.set(f(submap))
 
     def n(self) -> "ChoiceMap":
         """
@@ -1391,6 +1401,7 @@ class Indexed(ChoiceMap):
         ```
     """
 
+    # TODO note that we use None to denote a full slice.
     c: ChoiceMap
     addr: DynamicAddressComponent | None
 
@@ -1399,7 +1410,7 @@ class Indexed(ChoiceMap):
         if chm.static_is_empty():
             return chm
         elif isinstance(addr, slice):
-            if addr == slice(None, None, None):
+            if addr == _full_slice:
                 return Indexed(chm, None)
             else:
                 raise ValueError(f"Partial slices not supported: {addr}")
@@ -1417,9 +1428,10 @@ class Indexed(ChoiceMap):
             return ChoiceMap.empty()
 
         else:
-            assert not jnp.asarray(
-                addr, copy=False
-            ).shape, "Only scalar dynamic addresses are supported by get_submap."
+            if not isinstance(addr, slice):
+                assert not jnp.asarray(
+                    addr, copy=False
+                ).shape, "Only scalar dynamic addresses are supported by get_submap."
 
             if self.addr is None:
                 return jtu.tree_map(lambda v: v[addr], self.c)
