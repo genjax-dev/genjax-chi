@@ -13,6 +13,11 @@
 # limitations under the License.
 
 from abc import abstractmethod
+from typing import TYPE_CHECKING
+
+# Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
+if TYPE_CHECKING:
+    import genjax
 
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import Flag
@@ -24,6 +29,7 @@ from genjax._src.core.typing import (
     Generic,
     IntArray,
     Is,
+    PRNGKey,
     TypeVar,
 )
 
@@ -143,16 +149,16 @@ class MaskedConstraint(Constraint):
 class Projection(Generic[S], Pytree):
     @abstractmethod
     def filter(self, sample: S) -> S:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def complement(self) -> "Projection[S]":
-        raise NotImplementedError
+        pass
 
 
-#########################
-# Update specifications #
-#########################
+#################
+# Edit requests #
+#################
 
 
 class EditRequest(Pytree):
@@ -162,12 +168,15 @@ class EditRequest(Pytree):
     Updating a trace is a common operation in inference processes, but naively mutating the trace will invalidate the mathematical invariants that Gen retains. `EditRequest` instances denote requests for _SMC moves_ in the framework of [SMCP3](https://proceedings.mlr.press/v206/lew23a.html), which preserve these invariants.
     """
 
+    @abstractmethod
+    def edit(
+        self,
+        key: PRNGKey,
+        tr: "genjax.Trace[R]",
+        argdiffs: Argdiffs,
+    ) -> tuple["genjax.Trace[R]", Weight, Retdiff[R], "EditRequest"]:
+        pass
 
-@Pytree.dataclass
-class EmptyRequest(EditRequest):
+
+class NotSupportedEditRequest(Exception):
     pass
-
-
-@Pytree.dataclass(match_args=True)
-class IncrementalGenericRequest(EditRequest):
-    constraint: Constraint

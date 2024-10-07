@@ -119,19 +119,19 @@ class SMCAlgorithm(Generic[R], Algorithm[R]):
     """Abstract class for SMC algorithms."""
 
     @abstractmethod
-    def get_num_particles(self):
-        raise NotImplementedError
+    def get_num_particles(self) -> int:
+        pass
 
     @abstractmethod
-    def get_final_target(self):
-        raise NotImplementedError
+    def get_final_target(self) -> Target[R]:
+        pass
 
     @abstractmethod
     def run_smc(
         self,
         key: PRNGKey,
     ) -> ParticleCollection[R]:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def run_csmc(
@@ -139,7 +139,7 @@ class SMCAlgorithm(Generic[R], Algorithm[R]):
         key: PRNGKey,
         retained: ChoiceMap,
     ) -> ParticleCollection[R]:
-        raise NotImplementedError
+        pass
 
     # Convenience method for returning an estimate of the normalizing constant
     # of the target.

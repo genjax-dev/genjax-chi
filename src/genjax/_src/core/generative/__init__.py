@@ -29,11 +29,10 @@ from .core import (
     Constraint,
     EditRequest,
     EmptyConstraint,
-    EmptyRequest,
     EmptySample,
-    IncrementalGenericRequest,
     MaskedConstraint,
     MaskedSample,
+    NotSupportedEditRequest,
     Projection,
     R,
     Retdiff,
@@ -47,6 +46,12 @@ from .generative_function import (
     GenerativeFunctionClosure,
     IgnoreKwargs,
     Trace,
+    Update,
+)
+from .requests import (
+    ChoiceMapEditRequest,
+    EmptyRequest,
+    Regenerate,
 )
 
 __all__ = [
@@ -57,6 +62,7 @@ __all__ = [
     "ChoiceMap",
     "ChoiceMapBuilder",
     "ChoiceMapConstraint",
+    "ChoiceMapEditRequest",
     "Constraint",
     "EditRequest",
     "EmptyConstraint",
@@ -65,13 +71,14 @@ __all__ = [
     "GenerativeFunction",
     "GenerativeFunctionClosure",
     "IgnoreKwargs",
-    "IncrementalGenericRequest",
     "Mask",
     "MaskedConstraint",
     "MaskedConstraint",
     "MaskedSample",
+    "NotSupportedEditRequest",
     "Projection",
     "R",
+    "Regenerate",
     "Retdiff",
     "Sample",
     "Score",
@@ -80,5 +87,6 @@ __all__ = [
     "StaticAddress",
     "StaticAddressComponent",
     "Trace",
+    "Update",
     "Weight",
 ]
