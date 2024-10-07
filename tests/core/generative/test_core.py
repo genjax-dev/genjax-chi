@@ -17,7 +17,9 @@ import jax
 import jax.numpy as jnp
 
 import genjax
+from genjax import ChoiceMapBuilder as C
 from genjax import Selection
+from genjax import SelectionBuilder as S
 
 
 class TestTupleAddr:
@@ -29,7 +31,29 @@ class TestTupleAddr:
             return y
 
         tr = f.simulate(jax.random.PRNGKey(0), ())
-        assert -2.7931314 == tr.project(jax.random.PRNGKey(1), Selection.at["x", "x0"])
+        chm = tr.get_choices()
+        x_score, _ = genjax.normal.assess(C.v(chm["x", "x0"]), (0.0, 1.0))
+        assert x_score == tr.project(jax.random.PRNGKey(1), Selection.at["x", "x0"])
+
+
+class TestProject:
+    def test_project(self):
+        @genjax.gen
+        def f():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = genjax.normal(0.0, 1.0) @ "y"
+            return x, y
+
+        # get a trace
+        tr = f.simulate(jax.random.PRNGKey(0), ())
+        # evaluations
+        x_score = tr.project(jax.random.PRNGKey(1), S["x"])
+        assert x_score == tr.subtraces[0].get_score()
+
+        y_score = tr.project(jax.random.PRNGKey(1), S["y"])
+        assert y_score == tr.subtraces[1].get_score()
+
+        assert tr.get_score() == x_score + y_score
 
 
 class TestCombinators:

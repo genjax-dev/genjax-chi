@@ -19,7 +19,6 @@ import pytest
 import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
-from genjax import UpdateProblemBuilder as U
 from genjax._src.core.typing import ArrayLike
 from genjax.typing import FloatArray
 
@@ -46,9 +45,7 @@ class TestIterateSimpleNormal:
         key, sub_key = jax.random.split(key)
         tr = jax.jit(scanner.simulate)(sub_key, (0.01,))
         scan_score = tr.get_score()
-
-        # TODO this test is busted! Obviously masking out all choices should not preserve the score.
-        sel = genjax.Selection.none()
+        sel = genjax.Selection.all()
         assert tr.project(key, sel) == scan_score
 
     def test_iterate_simple_normal_importance(self):
@@ -72,13 +69,11 @@ class TestIterateSimpleNormal:
         key, sub_key = jax.random.split(key)
         for i in range(1, 5):
             tr, _w = jax.jit(scanner.importance)(sub_key, C[i, "z"].set(0.5), (0.01,))
-            new_tr, _w, _rd, _bwd_problem = jax.jit(scanner.update)(
+            new_tr, _w, _rd, _bwd_request = jax.jit(scanner.update)(
                 sub_key,
                 tr,
-                U.g(
-                    Diff.no_change((0.01,)),
-                    C[i, "z"].set(1.0),
-                ),
+                C[i, "z"].set(1.0),
+                Diff.no_change((0.01,)),
             )
             assert new_tr.get_sample()[i, "z"].unmask() == 1.0
 
@@ -425,3 +420,45 @@ class TestScanWithParameters:
             trace.get_choices(),
             (2.0, 2.0 + jnp.arange(0, dtype=float)),
         )
+
+    def test_scan_validation(self):
+        @genjax.gen
+        def foo(shift, d):
+            loc = d["loc"]
+            scale = d["scale"]
+            x = genjax.normal(loc, scale) @ "x"
+            return x + shift, None
+
+        key = jax.random.PRNGKey(314159)
+        jax.lax.scan
+        d = {
+            "loc": jnp.array([10.0, 12.0]),
+            "scale": jnp.array([1.0]),
+        }
+        with pytest.raises(
+            ValueError, match="scan got values with different leading axis sizes: 2, 1."
+        ):
+            foo.scan().simulate(key, (jnp.array([1.0]), d))
+
+    def test_vmap_key_scan(self):
+        @genjax.gen
+        def model(x, _):
+            y = genjax.normal(x, 1.0) @ "y"
+            return y, None
+
+        vmapped = model.scan()
+
+        key = jax.random.PRNGKey(314159)
+        keys = jax.random.split(key, 10)
+        xs = jnp.arange(5, dtype=float)
+        args = (jnp.array(1.0), xs)
+
+        results = jax.vmap(lambda k: vmapped.simulate(k, args))(jnp.array(keys))
+
+        chm = results.get_choices()
+
+        # the inner scan aggregates a score, while the outer vmap does not accumulate anything
+        assert results.get_score().shape == (10,)
+
+        # the inner scan has scanned over the y's
+        assert chm[..., "y"].shape == (10, 5)

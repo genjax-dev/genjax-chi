@@ -46,7 +46,7 @@ h1, h2, h3, h4, h5, h6 {
   font-family: "Cal Sans";
 }
 
-div.treescope_root {
+treescope-container::part(treescope_root) {
   font-family: "Berkeley Mono";
   background: #F5F5F5;
   font-size: 14px;

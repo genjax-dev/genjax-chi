@@ -65,7 +65,7 @@ def build_test_against_exact_inference(
         observation = config.observation_tensor()
         z = categorical(transition[state, :]) @ "z"
         _ = categorical(observation[z, :]) @ "x"
-        return z
+        return z, None
 
     def inference_test_generator(key: PRNGKey):
         key, sub_key = jax.random.split(key)
