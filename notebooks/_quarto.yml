@@ -58,6 +58,10 @@ website:
           href: differentiation.qmd
           contents:
             - cookbook/differentiation/adev_example.ipynb
+        - section: "Speed"
+          href: speed.qmd
+          contents:
+            - cookbook/speed/incremental_computation.ipynb
         - section: "Library developers"
           href: library_author.qmd
           contents:
