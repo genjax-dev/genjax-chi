@@ -30,6 +30,7 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     categorical,
     chi,
     chi2,
+    dirichlet,
     flip,
     geometric,
     gumbel,
