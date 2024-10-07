@@ -25,10 +25,10 @@ from beartype.typing import Iterable
 from deprecated import deprecated
 
 from genjax._src.core.generative.core import Constraint, Projection, Sample
-from genjax._src.core.generative.functional_types import Mask, staged_choose
-from genjax._src.core.interpreters import staging
+from genjax._src.core.generative.functional_types import Mask
 from genjax._src.core.interpreters.staging import (
     FlagOp,
+    staged_choose,
     staged_err,
 )
 from genjax._src.core.pytree import Pytree
@@ -1326,7 +1326,7 @@ class ChoiceMap(Sample):
             assert "z" in extras  # "z" is an extra choice not in the model
             ```
         """
-        shape_chm = staging.get_trace_shape(gen_fn, args).get_choices()
+        shape_chm = gen_fn.get_zero_trace(*args).get_choices()
         shape_sel = _shape_selection(shape_chm)
         extras = self.filter(~shape_sel, eager=True)
         if not extras.static_is_empty():

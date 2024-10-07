@@ -22,12 +22,12 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    IncrementalGenericRequest,
     Projection,
     Retdiff,
     Sample,
     Score,
     Trace,
+    Update,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
@@ -258,7 +258,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         def inner(
             idx: IntArray,
             key: PRNGKey,
-            edit_request: IncrementalGenericRequest,
+            edit_request: Update,
             argdiffs: Argdiffs,
         ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
             """
@@ -291,7 +291,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[SwitchTrace[R], Weight, Retdiff[R], EditRequest]:
-        assert isinstance(edit_request, IncrementalGenericRequest)
+        assert isinstance(edit_request, Update)
         assert isinstance(trace, SwitchTrace)
 
         idx_diff, branch_argdiffs = argdiffs[0], argdiffs[1:]
@@ -327,7 +327,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             weight += score - trace.get_score()
 
         # TODO: this is totally wrong, fix in future PR.
-        bwd_request: IncrementalGenericRequest = rets[0][3]
+        bwd_request: Update = rets[0][3]
 
         return (
             SwitchTrace(self, primals, subtraces, retval, score),

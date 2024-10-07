@@ -13,39 +13,8 @@
 # limitations under the License.
 
 import jax.numpy as jnp
-from jax.random import PRNGKey
 
-from genjax import ChoiceMap as Chm
-from genjax import ChoiceMapBuilder as C
-from genjax import gen, normal
-from genjax._src.core.interpreters.staging import FlagOp
-from genjax.core.interpreters import (
-    get_importance_shape,
-    get_update_shape,
-)
-
-
-class TestStaging:
-    def test_static_importance_shape(self):
-        @gen
-        def model():
-            x = normal(0.0, 1.0) @ "x"
-            return x
-
-        tr, _ = get_importance_shape(model, C.n(), ())
-        assert isinstance(tr.get_sample(), Chm)
-
-    def test_static_update_shape(self):
-        @gen
-        def model():
-            x = normal(0.0, 1.0) @ "x"
-            return x
-
-        key = PRNGKey(0)
-        trace = model.simulate(key, ())
-        new_trace, _w, _rd, bwd_request = get_update_shape(model, trace, C.n(), ())
-        assert isinstance(new_trace.get_sample(), Chm)
-        assert isinstance(bwd_request, Chm)
+from genjax._src.core.interpreters.staging import FlagOp, staged_choose
 
 
 class TestFlag:
@@ -81,3 +50,41 @@ class TestFlag:
         assert FlagOp.where(False, 3.0, 4.0) == 4
         assert FlagOp.where(jnp.array(True), 3.0, 4.0) == 3
         assert FlagOp.where(jnp.array(False), 3.0, 4.0) == 4
+
+
+class TestStagedChoose:
+    def test_static_integer_index(self):
+        result = staged_choose(1, [10, 20, 30])
+        assert result == 20
+
+    def test_jax_array_index(self):
+        """
+        Test that staged_choose works correctly with JAX array indices.
+        This test ensures that when given a JAX array as an index,
+        the function selects the correct value from the list.
+        """
+        result = staged_choose(jnp.array(2), [10, 20, 30])
+        assert jnp.array_equal(result, jnp.array(30))
+
+    def test_heterogeneous_types(self):
+        """
+        Test that staged_choose correctly handles heterogeneous types.
+        It should attempt to cast compatible types (like bool to int)
+        and use the dtype of the result for consistency.
+        """
+        result = staged_choose(2, [True, 2, False])
+        assert result == 0
+        assert jnp.asarray(result).dtype == jnp.int32
+
+    def test_wrap_mode(self):
+        """
+        Test that staged_choose wraps around when the index is out of bounds.
+        This should work for both jnp.array indices and concrete integer indices.
+        """
+        # first, the jnp.array index case:
+        result = staged_choose(jnp.array(3), [10, 20, 30])
+        assert jnp.array_equal(result, jnp.array(10))
+
+        # then the concrete index case:
+        concrete_result = staged_choose(3, [10, 20, 30])
+        assert jnp.array_equal(result, concrete_result)
