@@ -13,66 +13,69 @@
 # limitations under the License.
 
 
-import jax
+import jax.numpy as jnp
+import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    EmptyTrace,
+    ChoiceMapConstraint,
+    Constraint,
+    EditRequest,
     GenerativeFunction,
-    GenericProblem,
-    ImportanceProblem,
     Mask,
-    MaskedProblem,
-    MaskedSample,
+    Projection,
     Retdiff,
-    Sample,
     Score,
     Trace,
-    UpdateProblem,
+    Update,
     Weight,
 )
-from genjax._src.core.generative.core import Constraint
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
-    BoolArray,
+    Any,
+    Generic,
     PRNGKey,
-    typecheck,
+    ScalarFlag,
+    TypeVar,
 )
 
-register_exclusion(__file__)
+R = TypeVar("R")
 
 
 @Pytree.dataclass
-class MaskTrace(Trace):
-    mask_combinator: "MaskCombinator"
-    inner: Trace
-    check: BoolArray
+class MaskTrace(Generic[R], Trace[Mask[R]]):
+    mask_combinator: "MaskCombinator[R]"
+    inner: Trace[R]
+    check: ScalarFlag
 
-    def get_args(self):
+    def get_args(self) -> tuple[Any, ...]:
         return (self.check, *self.inner.get_args())
 
     def get_gen_fn(self):
         return self.mask_combinator
 
-    def get_sample(self):
-        inner_sample = self.inner.get_sample()
-        if isinstance(inner_sample, ChoiceMap):
-            return ChoiceMap.maybe(self.check, inner_sample)
-        else:
-            return MaskedSample(self.check, self.inner.get_sample())
+    def get_sample(self) -> ChoiceMap:
+        return self.get_choices()
+
+    def get_choices(self) -> ChoiceMap:
+        inner_choice_map = self.inner.get_choices()
+        return inner_choice_map.mask(self.check)
 
     def get_retval(self):
-        return Mask(self.check, self.inner.get_retval())
+        return Mask(self.inner.get_retval(), self.check)
 
     def get_score(self):
-        return self.check * self.inner.get_score()
+        inner_score = self.inner.get_score()
+        return jnp.asarray(
+            FlagOp.where(self.check, inner_score, jnp.zeros(shape=inner_score.shape))
+        )
 
 
 @Pytree.dataclass
-class MaskCombinator(GenerativeFunction):
+class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     """
     Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
 
@@ -110,137 +113,136 @@ class MaskCombinator(GenerativeFunction):
         ```
     """
 
-    gen_fn: GenerativeFunction
+    gen_fn: GenerativeFunction[R]
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
-        args: tuple,
-    ) -> MaskTrace:
-        check, *inner_args = args
-        tr = self.gen_fn.simulate(key, tuple(inner_args))
+        args: tuple[Any, ...],
+    ) -> MaskTrace[R]:
+        check, inner_args = args[0], args[1:]
+
+        tr = self.gen_fn.simulate(key, inner_args)
         return MaskTrace(self, tr, check)
 
-    @typecheck
-    def update_change_target(
+    def generate(
         self,
         key: PRNGKey,
-        trace: Trace,
-        update_problem: UpdateProblem,
+        constraint: Constraint,
+        args: tuple[Any, ...],
+    ) -> tuple[MaskTrace[R], Weight]:
+        check, inner_args = args[0], args[1:]
+
+        tr, w = self.gen_fn.generate(key, constraint, inner_args)
+        return MaskTrace(self, tr, check), w * check
+
+    def project(
+        self,
+        key: PRNGKey,
+        trace: Trace[Mask[R]],
+        projection: Projection[Any],
+    ) -> Weight:
+        raise NotImplementedError
+
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: Trace[Mask[R]],
+        edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        (check, *_) = Diff.tree_primal(argdiffs)
-        (check_diff, *inner_argdiffs) = argdiffs
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], EditRequest]:
+        assert isinstance(trace, MaskTrace)
+        assert isinstance(edit_request, Update)
+
+        check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
+        post_check: ScalarFlag = Diff.tree_primal(check_diff)
+
         match trace:
             case MaskTrace():
-                inner_trace = trace.inner
-            case EmptyTrace():
-                inner_trace = EmptyTrace(self.gen_fn)
-            case _:
-                raise NotImplementedError(f"Unexpected trace type: {trace}")
+                pre_check = trace.check
+                original_trace: Trace[R] = trace.inner
 
-        premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
-            key, inner_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
+        subrequest = Update(edit_request.constraint)
+
+        premasked_trace, weight, retdiff, bwd_request = self.gen_fn.edit(
+            key, original_trace, subrequest, inner_argdiffs
         )
 
-        w = jax.lax.select(
-            check,
-            w,
-            -trace.get_score(),
+        final_trace: Trace[R] = jtu.tree_map(
+            lambda v1, v2: jnp.where(post_check, v1, v2),
+            premasked_trace,
+            original_trace,
         )
+
+        t_to_t = FlagOp.and_(pre_check, post_check)
+        t_to_f = FlagOp.and_(pre_check, FlagOp.not_(post_check))
+        f_to_f = FlagOp.and_(FlagOp.not_(pre_check), FlagOp.not_(post_check))
+        f_to_t = FlagOp.and_(FlagOp.not_(pre_check), post_check)
+
+        final_weight = (
+            #       What's the math for the weight term here?
+            #
+            # Well, if we started with a "masked false trace",
+            # and then we flip the check_arg to True, we can re-use
+            # the sampling process which created the original trace as
+            # part of the move. The weight is the entire new trace's score.
+            #
+            # That's the transition False -> True:
+            #
+            #               final_weight = final_trace.score()
+            #
+            f_to_t * final_trace.get_score()
+            #
+            # On the other hand, if we started True, and went False, no matter
+            # the update, we can make the choice that this move is just removing
+            # the samples from the original trace, and ignoring the move.
+            #
+            # That's the transition True -> False:
+            #
+            #               final_weight = -original_trace.score()
+            #
+            + t_to_f * -original_trace.get_score()
+            #
+            # For the transition False -> False, we just ignore the move entirely.
+            #
+            #               final_weight = 0.0
+            #
+            + f_to_f * 0.0
+            #
+            # For the transition True -> True, we apply the move to the existing
+            # unmasked trace. In that case, the weight is just the weight of the move.
+            #
+            #               final_weight = weight
+            #
+            + t_to_t * weight
+            #
+            # In any case, we always apply the move... we're not avoiding
+            # that computation.
+        )
+
+        assert isinstance(bwd_request, Update)
+        inner_chm_constraint = bwd_request.constraint
+        assert isinstance(inner_chm_constraint, ChoiceMapConstraint)
 
         return (
-            MaskTrace(self, premasked_trace, check),
-            w,
-            Mask.maybe(check_diff, retdiff),
-            MaskedProblem(check, bwd_problem),
+            MaskTrace(self, premasked_trace, post_check),
+            final_weight,
+            Mask.maybe(retdiff, check_diff),
+            Update(
+                ChoiceMapConstraint(inner_chm_constraint.mask(post_check)),
+            ),
         )
 
-    @typecheck
-    def update_change_target_from_false(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        update_problem: UpdateProblem,
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        check = Diff.tree_primal(argdiffs)[0]
-        check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
-
-        inner_trace = EmptyTrace(self.gen_fn)
-
-        assert isinstance(update_problem, Constraint)
-        imp_update_problem = ImportanceProblem(update_problem)
-
-        premasked_trace, w, _, _ = self.gen_fn.update(
-            key, inner_trace, GenericProblem(tuple(inner_argdiffs), imp_update_problem)
-        )
-
-        _, _, retdiff, bwd_problem = self.gen_fn.update(
-            key, premasked_trace, GenericProblem(tuple(inner_argdiffs), update_problem)
-        )
-
-        w = jax.lax.select(
-            check,
-            premasked_trace.get_score(),
-            0.0,
-        )
-
-        return (
-            MaskTrace(self, premasked_trace, check),
-            w,
-            Mask.maybe(check_diff, retdiff),
-            MaskedProblem(check, bwd_problem),
-        )
-
-    @typecheck
-    def update(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        update_problem: UpdateProblem,
-    ) -> tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
-
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem) if isinstance(
-                subproblem, ImportanceProblem
-            ):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
-            case GenericProblem(argdiffs, subproblem):
-                assert isinstance(trace, MaskTrace)
-
-                if not trace.check:
-                    raise Exception(
-                        "This move is not currently supported! See https://github.com/probcomp/genjax/issues/1230 for notes."
-                    )
-
-                return jax.lax.cond(
-                    trace.check,
-                    self.update_change_target,
-                    self.update_change_target_from_false,
-                    key,
-                    trace,
-                    subproblem,
-                    argdiffs,
-                )
-            case _:
-                return self.update_change_target(
-                    key, trace, update_problem, Diff.no_change(trace.get_args())
-                )
-
-    @typecheck
     def assess(
         self,
-        sample: Sample,
-        args: tuple,
-    ) -> tuple[Score, Mask]:
+        sample: ChoiceMap,
+        args: tuple[Any, ...],
+    ) -> tuple[Score, Mask[R]]:
         (check, *inner_args) = args
         score, retval = self.gen_fn.assess(sample, tuple(inner_args))
         return (
             check * score,
-            Mask(check, retval),
+            Mask(retval, check),
         )
 
 
@@ -249,8 +251,7 @@ class MaskCombinator(GenerativeFunction):
 #############
 
 
-@typecheck
-def mask(f: GenerativeFunction) -> GenerativeFunction:
+def mask(f: GenerativeFunction[R]) -> MaskCombinator[R]:
     """
     Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
 
