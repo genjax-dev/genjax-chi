@@ -265,8 +265,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         fs = list(f.project for f in self.branches)
         f_args = list((key, tr, projection) for tr in trace.subtraces)
 
-        weights = _switch(idx, fs, f_args)
-        return staged_choose(idx, weights)
+        return staged_choose(idx, _switch(idx, fs, f_args))
 
     def _make_edit_fresh_trace(self, gen_fn: GenerativeFunction[R]):
         """
