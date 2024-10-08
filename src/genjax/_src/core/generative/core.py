@@ -174,7 +174,7 @@ class EditRequest(Pytree):
         key: PRNGKey,
         tr: "genjax.Trace[R]",
         argdiffs: Argdiffs,
-    ) -> tuple["genjax.Trace[R]", Weight, Retdiff[R], "EditRequest"]:
+    ) -> "tuple[genjax.Trace[R], Weight, Retdiff[R], EditRequest]":
         pass
 
 
