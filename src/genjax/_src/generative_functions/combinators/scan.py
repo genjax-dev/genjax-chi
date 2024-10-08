@@ -346,7 +346,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
         assert isinstance(constraint, ChoiceMapConstraint)
-        diffs = Diff.tree_diff_unknown_change(Diff.tree_primal(argdiffs))
+        diffs = Diff.unknown_change(Diff.tree_primal(argdiffs))
         carry_diff: Carry = diffs[0]
         scanned_in_diff: Any = diffs[1:]
 
@@ -371,9 +371,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 Update(subconstraint),
                 (carry, scanned_in),
             )
-            (carry_retdiff, scanned_out_retdiff) = Diff.tree_diff_unknown_change(
-                kernel_retdiff
-            )
+            (carry_retdiff, scanned_out_retdiff) = Diff.unknown_change(kernel_retdiff)
             score = new_subtrace.get_score()
             return (carry_retdiff, score), (
                 new_subtrace,
