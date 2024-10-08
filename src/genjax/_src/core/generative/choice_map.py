@@ -21,19 +21,15 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import treescope.repr_lib as trl
-from beartype.typing import Iterable
 from deprecated import deprecated
 
 from genjax._src.core.generative.core import Constraint, Projection, Sample
 from genjax._src.core.generative.functional_types import Mask
-from genjax._src.core.interpreters.staging import (
-    FlagOp,
-    staged_err,
-    tree_choose,
-)
+from genjax._src.core.interpreters.staging import FlagOp, staged_err, tree_choose
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    Array,
     ArrayLike,
     Bool,
     Callable,
@@ -41,6 +37,9 @@ from genjax._src.core.typing import (
     Final,
     Flag,
     Generic,
+    Int,
+    IntArray,
+    Iterable,
     String,
     TypeVar,
 )
@@ -53,14 +52,14 @@ if TYPE_CHECKING:
 #################
 
 StaticAddressComponent = String
-DynamicAddressComponent = ArrayLike
+DynamicAddressComponent = Int | IntArray
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
-Address = tuple[()] | tuple[AddressComponent, ...]
-StaticAddress = tuple[()] | tuple[StaticAddressComponent, ...]
+Address = tuple[AddressComponent, ...]
+StaticAddress = tuple[StaticAddressComponent, ...]
 ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
-ExtendedStaticAddress = tuple[()] | tuple[ExtendedStaticAddressComponent, ...]
+ExtendedStaticAddress = tuple[ExtendedStaticAddressComponent, ...]
 ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
-ExtendedAddress = tuple[()] | tuple[ExtendedAddressComponent, ...]
+ExtendedAddress = tuple[ExtendedAddressComponent, ...]
 
 T = TypeVar("T")
 K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
@@ -703,7 +702,7 @@ class ChmSel(Selection):
 ###############
 
 
-@dataclass
+@dataclass(frozen=True)
 class ChoiceMapNoValueAtAddress(Exception):
     """Exception raised when a value is not found at a specified address in a ChoiceMap.
 
@@ -927,7 +926,7 @@ class ChoiceMap(Sample):
 
             # Dynamic address
             dynamic_chm = ChoiceMap.entry(jnp.array([1.1, 2.2, 3.3]), jnp.array([1, 2, 3]))
-            assert dynamic_chm[1].unmask() == 2.2
+            assert dynamic_chm[1] == 2.2
             ```
         """
         if isinstance(v, ChoiceMap):
@@ -1378,7 +1377,7 @@ class Indexed(ChoiceMap):
         base_chm = ChoiceMap.value(jnp.array([1, 2, 3]))
         idx_chm = base_chm.extend(jnp.array([0, 1, 2]))
 
-        assert idx_chm.get_submap(1).get_value().unmask() == 2
+        assert idx_chm.get_submap(1).get_value() == 2
         ```
     """
 
@@ -1389,6 +1388,8 @@ class Indexed(ChoiceMap):
     def build(chm: ChoiceMap, addr: DynamicAddressComponent) -> ChoiceMap:
         if chm.static_is_empty():
             return chm
+        elif isinstance(addr, Array) and addr.shape == (0,):
+            return ChoiceMap.empty()
         else:
             return Indexed(chm, addr)
 
@@ -1399,32 +1400,18 @@ class Indexed(ChoiceMap):
         if addr is Ellipsis:
             return self.c
 
-        elif not isinstance(addr, DynamicAddressComponent):
+        elif isinstance(addr, StaticAddressComponent):
             return ChoiceMap.empty()
 
         else:
+            assert not jnp.asarray(
+                addr, copy=False
+            ).shape, "Only scalar dynamic addresses are supported by get_submap."
 
-            def check_fn(idx, addr) -> Flag:
-                return idx == addr
-
-            check = (
-                jax.vmap(check_fn, in_axes=(None, 0))(addr, self.addr)
-                if jnp.array(self.addr, copy=False).shape
-                else check_fn(addr, self.addr)
-            )
-
-            check_array = jnp.asarray(check, copy=False)
-            if check_array.shape:
-                if check_array.shape[0] == 0:
-                    # this is an obscure case which can arise when doing an importance
-                    # update of a scan GF with an array of shape (0,) or (0, ...)
-                    return ChoiceMap.empty()
-                else:
-                    return jtu.tree_map(lambda v: v[addr], self.c).mask(
-                        check_array[addr]
-                    )
+            if isinstance(self.addr, Array) and self.addr.shape:
+                return jtu.tree_map(lambda v: v[addr], self.c)
             else:
-                return self.c.mask(check)
+                return self.c.mask(self.addr == addr)
 
 
 @Pytree.dataclass(match_args=True)
