@@ -274,8 +274,41 @@ class GenerativeFunction(Generic[R], Pytree):
     def handle_kwargs(self) -> "GenerativeFunction[R]":
         return IgnoreKwargs(self)
 
-    def get_zero_trace(self, *args) -> Trace[R]:
-        # TODO docs!
+    def get_zero_trace(self, *args, **_kwargs) -> Trace[R]:
+        """
+        Returns a trace with zero values for all leaves, generated without executing the generative function.
+
+        This method is useful for static analysis and shape inference without executing the generative function. It returns a trace with the same structure as a real trace, but filled with zero or default values.
+
+        Args:
+            *args: The arguments to the generative function.
+            **_kwargs: Ignored keyword arguments.
+
+        Returns:
+            A trace with zero values, matching the structure of a real trace.
+
+        Note:
+            This method uses the `empty_trace` utility function, which creates a trace without spending any FLOPs. The resulting trace has the correct structure but contains placeholder zero values.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="core"
+            @genjax.gen
+            def weather_model():
+                temperature = genjax.normal(20.0, 5.0) @ "temperature"
+                is_sunny = genjax.bernoulli(0.7) @ "is_sunny"
+                return {"temperature": temperature, "is_sunny": is_sunny}
+
+
+            zero_trace = weather_model.get_zero_trace()
+            print("Zero trace structure:")
+            print(zero_trace.render_html())
+
+            print("\nActual simulation:")
+            key = jax.random.PRNGKey(0)
+            actual_trace = weather_model.simulate(key, ())
+            print(actual_trace.render_html())
+            ```
+        """
         return empty_trace(self, args)
 
     @abstractmethod

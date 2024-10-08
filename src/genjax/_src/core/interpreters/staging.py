@@ -240,10 +240,17 @@ def to_shape_fn(
     callable: F, fill_fn: Callable[[tuple[int], jnp.dtype[Any]], Array] | None = None
 ) -> F:
     """
-    Returns a function that stages a function and returns the abstract
-    Pytree shapes of its return value.
+    Convert a callable to a function that returns an empty pytree with the same structure as the original output (without any FLOPs).
 
-    TODO more docs.
+    This function is similar to `jax.eval_shape`, but allows for optional post-processing of the output tree.
+
+    Args:
+        callable: The function to convert.
+        fill_fn: A function to fill the output shapes with values. If None, returns the empty pytree as-is.
+            The fill function takes a shape tuple and dtype as input and should return an array.
+
+    Returns:
+        A wrapped function that returns an empty pytree or a filled pytree with the same structure as the original function's output.
     """
 
     def wrapped(*args, **kwargs):
@@ -263,5 +270,16 @@ _fake_key = jnp.array([0, 0], dtype=jnp.uint32)
 def empty_trace(
     gen_fn: "genjax.GenerativeFunction[R]", args: "genjax.Arguments"
 ) -> "genjax.Trace[R]":
-    "TODO docs!"
+    """
+    Create an empty trace for a generative function with given arguments (without spending any FLOPs).
+
+    This function returns a trace with the same structure as a real trace, but filled with zero values. This is useful for static analysis and shape inference.
+
+    Args:
+        gen_fn: The generative function.
+        args: The arguments to the generative function.
+
+    Returns:
+        A trace with the same structure as a real trace, but filled with zero values.
+    """
     return to_shape_fn(gen_fn.simulate, jnp.zeros)(_fake_key, args)
