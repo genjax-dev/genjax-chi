@@ -66,23 +66,40 @@ class HeterogeneousSwitchSample(Sample):
 ################
 
 
-def _wrapped(static_idx: int, f: Callable[..., Any]):
-    def foo(shapes: list[R], arg_tuples) -> list[R]:
-        shapes[static_idx] = f(*arg_tuples[static_idx])
-        return shapes
-
-    return foo
-
-
 def _switch(
     idx, branches: Iterable[Callable[..., Any]], arg_tuples: Iterable[tuple[Any, ...]]
 ):
-    "Returns a pivoted blah. tuples of the first, second, third etc retvals."
-    shapes = list(
-        to_shape_fn(f, jnp.zeros)(*args) for f, args in zip(branches, arg_tuples)
-    )
-    fns = list(_wrapped(i, f) for i, f in enumerate(branches))
-    return jax.lax.switch(idx, fns, shapes, arg_tuples)
+    """
+    A wrapper around switch that allows selection between functions with differently-shaped return values.
+
+    This function enables switching between branches that may have different output shapes.
+    It creates a list of placeholder shapes for each branch and then uses a switch statement
+    to select the appropriate function to fill in the correct shape.
+
+    Args:
+        idx: The index used to select the branch.
+        branches: An iterable of callable functions representing different branches.
+        arg_tuples: An iterable of argument tuples, one for each branch function.
+
+    Returns:
+        The result of calling the selected branch function with its corresponding arguments.
+
+    Note:
+        This function assumes that the number of branches matches the number of argument tuples.
+        Each branch function should be able to handle its corresponding argument tuple.
+    """
+
+    def _make_setter(static_idx: int, f: Callable[..., Any], args: tuple[Any, ...]):
+        def set_result(shapes: list[R]) -> list[R]:
+            shapes[static_idx] = f(*args)
+            return shapes
+
+        return set_result
+
+    pairs = list(zip(branches, arg_tuples))
+    shapes = list(to_shape_fn(f, jnp.zeros)(*args) for f, args in pairs)
+    fns = list(_make_setter(i, f, args) for i, (f, args) in enumerate(pairs))
+    return jax.lax.switch(idx, fns, operand=shapes)
 
 
 @Pytree.dataclass
@@ -185,8 +202,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         assert len(args) == len(self.branches)
 
     ## Simulate methods
-    #
-    # TODO is it a bug that we reuse the same key?
+
     def simulate(
         self,
         key: PRNGKey,
@@ -252,35 +268,35 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         weights = _switch(idx, fs, f_args)
         return staged_choose(idx, weights)
 
-    def _make_edit_changed_idx(self, static_idx: int, gen_fn: GenerativeFunction[R]):
-        gen_fn = self.branches[static_idx]
+    def _make_edit_fresh_trace(self, gen_fn: GenerativeFunction[R]):
+        """
+        Creates a function to handle editing a fresh trace when the switch index changes.
+
+        This method is used internally by the `edit` method to handle cases where
+        the switch index has changed, requiring the generation of a new trace
+        for the selected branch.
+        """
 
         def inner(
-            idx: IntArray,
             key: PRNGKey,
             edit_request: Update,
             argdiffs: Argdiffs,
         ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-            """
-            Use the primals to generate a new subtrace and edit that.
-            """
+            # the old trace only has a filled-in subtrace for the original index. All other subtraces are filled with zeros. In the case of a changed index we need to
+            #
+            # - generate a fresh trace for the new branch,
+            # - call `edit` with that new trace (setting the argdiffs passed into `edit` as `no_change`, since we used the same args to create the new trace)
+            # - return the edit result with the `retdiff` wrapped in `unknown_change` (since our return value comes from a new branch)
             primals = Diff.tree_primal(argdiffs)
             new_trace = gen_fn.simulate(key, primals)
 
-            branch_ad: Argdiffs = jax.lax.cond(
-                static_idx == idx,
-                # TODO note, how does this make any sense? Why are we doing this? I had flipped the order... but I think there is a bug here, yeah? How does switching the index tell us anything about whether the args have changed?
-                lambda: Diff.no_change(argdiffs),
-                lambda: Diff.unknown_change(argdiffs),
-            )
             tr, w, rd, bwd_request = gen_fn.edit(
                 key,
                 new_trace,
                 edit_request,
-                branch_ad,
+                Diff.no_change(argdiffs),
             )
-            rd = Diff.unknown_change(rd)
-            return tr, w, rd, bwd_request
+            return tr, w, Diff.unknown_change(rd), bwd_request
 
         return inner
 
@@ -308,12 +324,8 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
                 for trace, argdiffs in zip(trace.subtraces, branch_argdiffs)
             )
         else:
-            fs = list(
-                self._make_edit_changed_idx(i, f) for i, f in enumerate(self.branches)
-            )
-            f_args = list(
-                (new_idx, key, edit_request, argdiffs) for argdiffs in branch_argdiffs
-            )
+            fs = list(self._make_edit_fresh_trace(f) for f in self.branches)
+            f_args = list((key, edit_request, argdiffs) for argdiffs in branch_argdiffs)
 
         rets = _switch(new_idx, fs, f_args)
 
