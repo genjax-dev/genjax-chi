@@ -20,7 +20,7 @@ import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import ChoiceMapConstraint, Diff, Pytree, Update
+from genjax import Diff, Pytree, Update
 from genjax._src.core.typing import Array
 from genjax.generative_functions.static import AddressReuse
 from genjax.typing import Float, FloatArray
@@ -550,7 +550,7 @@ class TestStaticGenFnUpdate:
         new = C["y1"].set(new_y1)
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = jitted(sub_key, tr, new, ())
-        (_, w_edit, _, _) = tr.edit(sub_key, Update(ChoiceMapConstraint(new)))
+        (_, w_edit, _, _) = tr.edit(sub_key, Update(new))
         assert w_edit == w
 
         # TestStaticGenFn weight correctness.
@@ -728,7 +728,7 @@ class TestGenFnClosure:
         assert gfc.assess(chm, ()) == model.assess(chm, arg_tuple)
 
         # Test generate with kwargs
-        constraint = ChoiceMapConstraint(C.kw(sampled=3.0))
+        constraint = C.kw(sampled=3.0)
         assert (
             gfc.generate(key, constraint, ())[1]
             == model.generate(key, constraint, arg_tuple)[1]

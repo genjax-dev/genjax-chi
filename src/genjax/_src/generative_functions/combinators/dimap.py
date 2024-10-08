@@ -15,7 +15,6 @@
 
 from genjax._src.core.generative import (
     Argdiffs,
-    ChoiceMapConstraint,
     Constraint,
     EditRequest,
     GenerativeFunction,
@@ -152,7 +151,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         self,
         key: PRNGKey,
         trace: Trace[S],
-        constraint: ChoiceMapConstraint,
+        constraint: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
         assert isinstance(trace, DimapTrace)

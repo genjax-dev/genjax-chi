@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING
 
 from genjax._src.core.generative.choice_map import (
     ChoiceMap,
-    ChoiceMapConstraint,
 )
 from genjax._src.core.generative.core import (
     Argdiffs,
@@ -483,7 +482,6 @@ class GenerativeFunction(Generic[R], Pytree):
             from genjax import normal
             from genjax import Diff
             from genjax import Update
-            from genjax import ChoiceMapConstraint
             from genjax import ChoiceMap as C
 
             key = PRNGKey(0)
@@ -506,7 +504,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 key,
                 initial_tr,
                 Update(
-                    ChoiceMapConstraint(C.empty()),
+                    C.empty(),
                 ),
                 Diff.unknown_change((3.0,)),
             )
@@ -552,10 +550,10 @@ class GenerativeFunction(Generic[R], Pytree):
 
         ```python exec="yes" source="material-block" session="core"
         from genjax import Update
-        from genjax import ChoiceMap, ChoiceMapConstraint
+        from genjax import ChoiceMap
 
         g = Update(
-            ChoiceMapConstraint(ChoiceMap.empty()),  # Constraint
+            ChoiceMap.empty(),  # Constraint
         )
         ```
 
@@ -566,7 +564,7 @@ class GenerativeFunction(Generic[R], Pytree):
             key,
             initial_tr,
             Update(
-                ChoiceMapConstraint(C.kw(v1=3.0)),
+                C.kw(v1=3.0),
             ),
             Diff.unknown_change((3.0,)),
         )
@@ -591,7 +589,7 @@ class GenerativeFunction(Generic[R], Pytree):
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], Constraint]:
         request = Update(
-            ChoiceMapConstraint(constraint),
+            constraint,
         )
         tr, w, rd, bwd = request.edit(
             key,
@@ -644,9 +642,7 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         return self.generate(
             key,
-            constraint
-            if isinstance(constraint, Constraint)
-            else ChoiceMapConstraint(constraint),
+            constraint,
             args,
         )
 
@@ -1619,7 +1615,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
 @Pytree.dataclass(match_args=True)
 class Update(EditRequest):
-    constraint: ChoiceMapConstraint
+    constraint: ChoiceMap
 
     def edit(
         self,

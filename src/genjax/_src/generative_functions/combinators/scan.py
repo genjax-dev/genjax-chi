@@ -19,7 +19,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapConstraint,
     Constraint,
     EditRequest,
     GenerativeFunction,
@@ -228,12 +227,13 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         constraint: Constraint,
         args: tuple[Any, ...],
     ) -> tuple[ScanTrace[Carry, Y], Weight]:
-        assert isinstance(constraint, ChoiceMapConstraint)
+        assert isinstance(constraint, ChoiceMap)
+
         (carry, scanned_in) = args
 
         def _inner_generate(
             key: PRNGKey,
-            constraint: ChoiceMapConstraint,
+            constraint: ChoiceMap,
             carry: Carry,
             scanned_in: Any,
         ) -> tuple[tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y, Weight]]:
@@ -256,7 +256,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             key, idx, carried_value = carry
             key = jax.random.fold_in(key, idx)
             submap = constraint.get_submap(idx)
-            assert isinstance(submap, ChoiceMapConstraint)
+
             (carried_out, score), (tr, scanned_out, w) = _inner_generate(
                 key, submap, carried_value, scanned_over
             )
@@ -317,7 +317,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         self,
         key: PRNGKey,
         trace: ScanTrace[Carry, Y],
-        constraint: ChoiceMapConstraint,
+        constraint: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
         diffs = Diff.unknown_change(Diff.tree_primal(argdiffs))
@@ -327,7 +327,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         def _inner_edit(
             key: PRNGKey,
             subtrace: Trace[tuple[Carry, Y]],
-            subconstraint: ChoiceMapConstraint,
+            subconstraint: ChoiceMap,
             carry: Carry,
             scanned_in: Any,
         ) -> tuple[
@@ -359,22 +359,20 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             scanned_over: tuple[Trace[tuple[Carry, Y]], Any],
         ) -> tuple[
             tuple[PRNGKey, IntArray, Carry],
-            tuple[
-                Trace[tuple[Carry, Y]], Retdiff[Y], Score, Weight, ChoiceMapConstraint
-            ],
+            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Score, Weight, ChoiceMap],
         ]:
             key, idx, carried_value = carry
             subtrace, scanned_in = scanned_over
             key = jax.random.fold_in(key, idx)
             subconstraint = constraint(idx)
-            assert isinstance(subconstraint, ChoiceMapConstraint)
+            assert isinstance(subconstraint, ChoiceMap)
             (
                 (carried_out, score),
                 (new_subtrace, scanned_out, w, inner_bwd_request),
             ) = _inner_edit(key, subtrace, subconstraint, carried_value, scanned_in)
             assert isinstance(inner_bwd_request, Update)
             bwd_constraint = inner_bwd_request.constraint
-            bwd_constraint = ChoiceMapConstraint(ChoiceMap.entry(bwd_constraint, idx))
+            bwd_constraint = ChoiceMap.entry(bwd_constraint, idx)
 
             return (key, idx + 1, carried_out), (
                 new_subtrace,
@@ -420,13 +418,10 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
         assert isinstance(edit_request, Update)
         assert isinstance(trace, ScanTrace)
-        constraint = edit_request.constraint
-        assert isinstance(constraint, ChoiceMapConstraint)
-
         return self.edit_generic(
             key,
             trace,
-            constraint,
+            edit_request.constraint,
             argdiffs,
         )
 

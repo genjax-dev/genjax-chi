@@ -24,7 +24,6 @@ from genjax._src.checkify import optional_check
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapConstraint,
     ChoiceMapEditRequest,
     Constraint,
     EditRequest,
@@ -161,7 +160,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         args: tuple[Any, ...],
     ) -> tuple[Trace[R], Weight]:
         match constraint:
-            case ChoiceMapConstraint():
+            case ChoiceMap():
                 tr, w = self.generate_choice_map(key, constraint, args)
             case EmptyConstraint():
                 tr = self.simulate(key, args)
@@ -184,7 +183,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             new_score - trace.get_score(),
             Diff.no_change(trace.get_retval()),
             Update(
-                ChoiceMapConstraint(ChoiceMap.empty()),
+                ChoiceMap.empty(),
             ),
         )
 
@@ -209,11 +208,11 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     new_score - trace.get_score(),
                     Diff.no_change(old_retval),
                     Update(
-                        ChoiceMapConstraint(ChoiceMap.empty()),
+                        ChoiceMap.empty(),
                     ),
                 )
 
-            case ChoiceMapConstraint():
+            case ChoiceMap():
                 check = constraint.has_value()
                 v = constraint.get_value()
                 if FlagOp.concrete_true(check):
@@ -228,7 +227,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         w,
                         retval_diff,
                         Update(
-                            ChoiceMapConstraint(discard),
+                            discard,
                         ),
                     )
                 elif FlagOp.concrete_false(check):
@@ -244,11 +243,11 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         w,
                         retval_diff,
                         Update(
-                            ChoiceMapConstraint(ChoiceMap.empty()),
+                            ChoiceMap.empty(),
                         ),
                     )
 
-                elif isinstance(constraint.choice_map, Filtered):
+                elif isinstance(constraint, Filtered):
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
                     def _true_branch(key, new_value: R, _):
@@ -282,7 +281,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         w,
                         Diff.unknown_change(new_value),
                         Update(
-                            ChoiceMapConstraint(old_choices.mask(flag)),
+                            old_choices.mask(flag),
                         ),
                     )
                 else:
@@ -324,7 +323,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 new_trace,
                 incremental_w,
                 Diff.unknown_change(new_v),
-                Update(ChoiceMapConstraint(ChoiceMap.choice(old_v))),
+                Update(ChoiceMap.choice(old_v)),
             )
         elif FlagOp.concrete_false(check):
             return (
@@ -357,7 +356,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             case EmptyConstraint():
                 return self.edit_empty(trace, argdiffs)
 
-            case ChoiceMapConstraint():
+            case ChoiceMap():
                 return self.edit_constraint(key, trace, constraint, argdiffs)
 
             case _:

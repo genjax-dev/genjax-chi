@@ -774,7 +774,7 @@ class _ChoiceMapBuilder:
         return self.set(ChoiceMap.kw(**kwargs))
 
 
-class ChoiceMap(Sample):
+class ChoiceMap(Constraint, Sample):
     """The type `ChoiceMap` denotes a map-like value which can be sampled from
     generative functions.
 
@@ -1762,24 +1762,3 @@ def _shape_selection(chm: ChoiceMap) -> Selection:
 
 _empty = Static({})
 ChoiceMapBuilder = _ChoiceMapBuilder(_empty, [])
-
-################################
-# Choice map specialized types #
-################################
-
-
-@Pytree.dataclass(match_args=True)
-class ChoiceMapConstraint(Constraint, ChoiceMap):
-    choice_map: ChoiceMap
-
-    def get_submap(
-        self,
-        addr: ExtendedAddressComponent,
-    ) -> ChoiceMap:
-        return ChoiceMapConstraint(self.choice_map.get_submap(addr))
-
-    def get_value(self) -> Any:
-        return self.choice_map.get_value()
-
-    def static_is_empty(self):
-        return self.choice_map.static_is_empty()
