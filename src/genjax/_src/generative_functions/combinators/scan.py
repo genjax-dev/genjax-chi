@@ -67,10 +67,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
         score: FloatArray,
         scan_length: int,
     ) -> "ScanTrace[Carry, Y]":
-        chm = jax.vmap(
-            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_choices(), idx),
-        )(jnp.arange(scan_length), inner)
-
+        chm = inner.get_choices().extend(jnp.arange(scan_length))
         return ScanTrace(scan_gen_fn, inner, args, retval, score, chm, scan_length)
 
     def get_args(self) -> tuple[Any, ...]:
@@ -176,18 +173,11 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     # Only required for `None` carry inputs
     length: Int | None = Pytree.static()
 
-    # To get the type of return value, just invoke
-    # the scanned over source (with abstract tracer arguments).
+    # To get the type of return value, invoke the scanned over source (with abstract tracer arguments).
     def __abstract_call__(self, *args) -> tuple[Carry, Y]:
-        (carry, scanned_in) = args
-
-        def _inner(carry: Carry, scanned_in: Any):
-            v, scanned_out = self.kernel_gen_fn.__abstract_call__(carry, scanned_in)
-            return v, scanned_out
-
-        v, scanned_out = jax.lax.scan(_inner, carry, scanned_in, length=self.length)
-
-        return v, scanned_out
+        return jax.lax.scan(
+            self.kernel_gen_fn.__abstract_call__, *args, length=self.length
+        )
 
     @staticmethod
     def _static_scan_length(xs: Any, length: int | None) -> int:
@@ -202,24 +192,17 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     ) -> ScanTrace[Carry, Y]:
         carry, scanned_in = args
 
-        def _inner_simulate(
-            key: PRNGKey, carry: Carry, scanned_in: Any
-        ) -> tuple[tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y]]:
-            tr = self.kernel_gen_fn.simulate(key, (carry, scanned_in))
-            (carry, scanned_out) = tr.get_retval()
-            score = tr.get_score()
-            return (carry, score), (tr, scanned_out)
-
         def _inner(
-            carry: tuple[PRNGKey, IntArray, Carry], scanned_over: Any
+            carry: tuple[PRNGKey, IntArray, Carry], scanned_in: Any
         ) -> tuple[
             tuple[PRNGKey, IntArray, Carry], tuple[Trace[tuple[Carry, Y]], Y, Score]
         ]:
             key, count, carried_value = carry
             key = jax.random.fold_in(key, count)
-            (carried_out, score), (tr, scanned_out) = _inner_simulate(
-                key, carried_value, scanned_over
-            )
+
+            tr = self.kernel_gen_fn.simulate(key, (carried_value, scanned_in))
+            (carried_out, scanned_out) = tr.get_retval()
+            score = tr.get_score()
 
             return (key, count + 1, carried_out), (tr, scanned_out, score)
 
@@ -307,17 +290,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         assert isinstance(projection, Selection)
         assert isinstance(trace, ScanTrace)
 
-        def _inner_project(
-            key: PRNGKey,
-            subtrace: Trace[Any],
-            projection: Selection,
-        ) -> Weight:
-            w = subtrace.project(
-                key,
-                projection,
-            )
-            return w
-
         def _project(
             carry: tuple[PRNGKey, IntArray],
             subtrace: Trace[Any],
@@ -326,7 +298,10 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             key = jax.random.fold_in(key, idx)
             subprojection = projection(idx)
             assert isinstance(subprojection, Selection)
-            w = _inner_project(key, subtrace, subprojection)
+            w = subtrace.project(
+                key,
+                subprojection,
+            )
 
             return (key, idx + 1), w
 
@@ -342,10 +317,9 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         self,
         key: PRNGKey,
         trace: ScanTrace[Carry, Y],
-        constraint: Constraint,
+        constraint: ChoiceMapConstraint,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
-        assert isinstance(constraint, ChoiceMapConstraint)
         diffs = Diff.unknown_change(Diff.tree_primal(argdiffs))
         carry_diff: Carry = diffs[0]
         scanned_in_diff: Any = diffs[1:]
@@ -446,10 +420,13 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
         assert isinstance(edit_request, Update)
         assert isinstance(trace, ScanTrace)
+        constraint = edit_request.constraint
+        assert isinstance(constraint, ChoiceMapConstraint)
+
         return self.edit_generic(
             key,
             trace,
-            edit_request.constraint,
+            constraint,
             argdiffs,
         )
 
@@ -460,16 +437,12 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     ) -> tuple[Score, Any]:
         (carry, scanned_in) = args
 
-        def _inner_assess(sample, carry, scanned_in):
-            score, retval = self.kernel_gen_fn.assess(sample, (carry, scanned_in))
-            (carry, scanned_out) = retval
-            return (carry, score), scanned_out
-
-        def _assess(carry, scanned_over):
+        def _assess(carry, scanned_in):
             idx, carried_value = carry
             submap = sample.get_submap(idx)
-            (carry, score), scanned_out = _inner_assess(
-                submap, carried_value, scanned_over
+
+            score, (carry, scanned_out) = self.kernel_gen_fn.assess(
+                submap, (carried_value, scanned_in)
             )
 
             return (idx + 1, carry), (scanned_out, score)
