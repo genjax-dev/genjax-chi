@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from abc import abstractmethod
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from genjax._src.core.generative.choice_map import (
@@ -1384,12 +1385,18 @@ def push_trace_overload_stack(handler, fn):
     return wrapped
 
 
-@Pytree.dataclass
+@dataclass(frozen=True)
 class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
     wrapped: GenerativeFunction[R]
 
     def handle_kwargs(self) -> "GenerativeFunction[R]":
-        raise NotImplementedError
+        return self
+
+    def __call__(self, *args, **_kwargs) -> "GenerativeFunctionClosure[R]":
+        return self.wrapped(args)
+
+    def __abstract_call__(self, *args, **_kwargs) -> R:
+        return self.wrapped.__abstract_call__(*args)
 
     def simulate(
         self,
@@ -1413,7 +1420,8 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         constraint: Constraint,
         args: Arguments,
     ) -> tuple[Trace[Any], Weight]:
-        raise NotImplementedError
+        (args, _kwargs) = args
+        return self.wrapped.generate(key, constraint, args)
 
     def project(
         self,
@@ -1421,7 +1429,7 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         trace: Trace[Any],
         projection: Projection[Any],
     ) -> Weight:
-        raise NotImplementedError
+        return self.wrapped.project(key, trace, projection)
 
     def edit(
         self,
@@ -1430,14 +1438,15 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        raise NotImplementedError
+        (argdiffs, _kwargs) = argdiffs
+        return self.wrapped.edit(key, trace, edit_request, argdiffs)
 
 
 @Pytree.dataclass
 class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     gen_fn: GenerativeFunction[R]
     args: tuple[Any, ...]
-    kwargs: dict[Any, Any]
+    kwargs: dict[String, Any]
 
     def get_gen_fn_with_kwargs(self):
         return self.gen_fn.handle_kwargs()
@@ -1461,17 +1470,17 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     # This override returns `R`, while the superclass returns a `GenerativeFunctionClosure`; this is
     # a hint that subclassing may not be the right relationship here.
     def __call__(self, key: PRNGKey, *args) -> R:  # pyright: ignore[reportIncompatibleMethodOverride]
-        full_args = (*self.args, *args)
+        full_args = self.args + args
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.simulate(
-                key, (*full_args, self.kwargs)
+                key, (full_args, self.kwargs)
             ).get_retval()
         else:
             return self.gen_fn.simulate(key, full_args).get_retval()
 
     def __abstract_call__(self, *args) -> R:
-        full_args = (*self.args, *args)
+        full_args = self.args + args
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.__abstract_call__(*full_args, **self.kwargs)
@@ -1487,7 +1496,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         args: tuple[Any, ...],
     ) -> Trace[R]:
-        full_args = (*self.args, *args)
+        full_args = self.args + args
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.simulate(
@@ -1503,7 +1512,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         constraint: Constraint,
         args: Arguments,
     ) -> tuple[Trace[Any], Weight]:
-        full_args = (*self.args, *args)
+        full_args = self.args + args
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.generate(
@@ -1520,7 +1529,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         trace: Trace[Any],
         projection: Projection[Any],
     ):
-        raise NotImplementedError
+        return self.gen_fn.project(key, trace, projection)
 
     def edit(
         self,
@@ -1529,14 +1538,25 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        raise NotImplementedError
+        self_diffs = Diff.unknown_change(self.args)
+        full_args = self_diffs + argdiffs
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            return maybe_kwarged_gen_fn.edit(
+                key,
+                trace,
+                edit_request,
+                (full_args, Diff.unknown_change(self.kwargs)),
+            )
+        else:
+            return self.gen_fn.edit(key, trace, edit_request, argdiffs)
 
     def assess(
         self,
         sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
-        full_args = (*self.args, *args)
+        full_args = self.args + args
         if self.kwargs:
             maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
             return maybe_kwarged_gen_fn.assess(
