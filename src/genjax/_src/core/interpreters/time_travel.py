@@ -124,7 +124,7 @@ class TimeTravelCPSInterpreter(Pytree):
         ):
             jax_util.safe_map(env.write, invars, flat_args)
 
-            for eqn_idx, eqn in list(enumerate(eqns)):
+            for eqn_idx, eqn in enumerate(eqns):
                 with src_util.user_context(eqn.source_info.traceback):
                     invals = jax_util.safe_map(env.read, eqn.invars)
                     subfuns, params = eqn.primitive.get_bind_params(eqn.params)

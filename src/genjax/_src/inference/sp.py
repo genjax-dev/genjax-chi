@@ -151,7 +151,6 @@ class Algorithm(Generic[R], SampleDistribution):
         This interface corresponds to **(Defn 3.2) Unbiased Density Sampler** in [[Lew23](https://dl.acm.org/doi/pdf/10.1145/3591290)].
         """
         assert isinstance(args[0], Target)
-        pass
 
     @abstractmethod
     def estimate_logpdf(
@@ -168,7 +167,6 @@ class Algorithm(Generic[R], SampleDistribution):
 
         This interface corresponds to **(Defn 3.1) Positive Unbiased Density Estimator** in [[Lew23](https://dl.acm.org/doi/pdf/10.1145/3591290)].
         """
-        pass
 
     ################
     # VI via GRASP #
