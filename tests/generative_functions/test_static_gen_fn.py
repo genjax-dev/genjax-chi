@@ -690,6 +690,81 @@ class TestGenFnClosure:
         assert tr_u.get_retval() == 1.1
         assert w == tr_u.get_score()
 
+    def test_gen_fn_closure_with_kwargs(self):
+        @genjax.gen
+        def model(x, y, z: FloatArray | None = None):
+            if z is None:
+                raise ValueError("z must be provided")
+
+            _sampled = genjax.normal(x + y, z) @ "sampled"
+            return z
+
+        key = jax.random.PRNGKey(0)
+
+        # show that we error with z missing:
+        with pytest.raises(ValueError, match="z must be provided"):
+            model(1.0, 2.0)(key)
+
+        gfc = model(1.0, 2.0, z=3.0)
+
+        # the keyword args are passed through:
+        assert gfc(key) == 3.0
+
+        # we can override z:
+        assert gfc(key, z=10.0) == 10.0
+
+        # handle_kwargs doesn't affect function calls:
+        assert gfc.handle_kwargs()(key, z=5.0) == gfc(key, z=5.0)
+
+        # Test simulate with kwargs
+        arg_tuple = (1.0, 2.0, 3.0)
+        assert (
+            gfc.simulate(key, ()).get_choices()
+            == model.simulate(key, arg_tuple).get_choices()
+        )
+
+        # Test assess with kwargs
+        chm = C.kw(sampled=3.5)
+        assert gfc.assess(chm, ()) == model.assess(chm, arg_tuple)
+
+        # Test generate with kwargs
+        constraint = ChoiceMapConstraint(C.kw(sampled=3.0))
+        assert (
+            gfc.generate(key, constraint, ())[1]
+            == model.generate(key, constraint, arg_tuple)[1]
+        )
+
+        # Test __abstract_call__ with kwargs
+        assert gfc.__abstract_call__() == model.__abstract_call__(*arg_tuple)
+
+        # handle_kwargs is idempotent on a gfc
+        assert gfc.handle_kwargs() == gfc.handle_kwargs().handle_kwargs()
+
+
+class TestHandleKwargs:
+    def test_handle_kwargs(self):
+        @genjax.gen
+        def model(x, y, z: FloatArray | None = None):
+            if z is None:
+                raise ValueError("z must be provided")
+
+            _sampled = genjax.normal(x + y, z) @ "sampled"
+            return z
+
+        # handle_kwargs produces a new model capable of handling keyword args.
+        kwm = model.handle_kwargs()
+
+        key = jax.random.PRNGKey(0)
+        kwm_tr = kwm.simulate(key, ((1.0,), {"y": 2.0, "z": 3.0}))
+        model_tr = model.simulate(key, (1.0, 2.0, 3.0))
+
+        assert kwm_tr.get_choices() == model_tr.get_choices()
+        assert kwm_tr.get_score() == model_tr.get_score()
+        assert kwm_tr.get_retval() == model_tr.get_retval()
+
+        assert kwm_tr.get_args() == ((1.0,), {"y": 2.0, "z": 3.0})
+        assert model_tr.get_args() == (1.0, 2.0, 3.0)
+
 
 class TestStaticGenFnInline:
     def test_inline_simulate(self):

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from abc import abstractmethod
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from genjax._src.core.generative.choice_map import (
@@ -273,6 +272,41 @@ class GenerativeFunction(Generic[R], Pytree):
         return self.get_zero_trace(*args).get_retval()
 
     def handle_kwargs(self) -> "GenerativeFunction[R]":
+        """
+        Returns a new GenerativeFunction like `self`, but where all GFI methods accept a tuple of arguments and a dictionary of keyword arguments.
+
+        The returned GenerativeFunction can be invoked with `__call__` with no special argument handling (just like the original).
+
+        In place of `args` tuples in GFI methods, the new GenerativeFunction expects a 2-tuple containing:
+
+        1. A tuple containing the original positional arguments.
+        2. A dictionary containing the keyword arguments.
+
+        This allows for more flexible argument passing, especially useful in contexts where
+        keyword arguments need to be handled separately or passed through multiple layers.
+
+        Returns:
+            A new GenerativeFunction that accepts (args_tuple, kwargs_dict) for all GFI methods.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="core"
+            import genjax
+            import jax
+
+
+            @genjax.gen
+            def model(x, y, z=1.0):
+                _ = genjax.normal(x + y, z) @ "v"
+                return x + y + z
+
+
+            key = jax.random.PRNGKey(0)
+            kw_model = model.handle_kwargs()
+
+            tr = kw_model.simulate(key, ((1.0, 2.0), {"z": 3.0}))
+            print(tr.render_html())
+            ```
+        """
         return IgnoreKwargs(self)
 
     def get_zero_trace(self, *args, **_kwargs) -> Trace[R]:
@@ -1385,18 +1419,31 @@ def push_trace_overload_stack(handler, fn):
     return wrapped
 
 
-@dataclass(frozen=True)
+@Pytree.dataclass
 class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
+    """
+    A wrapper for a [`genjax.GenerativeFunction`][] that ignores keyword arguments.
+
+    This class wraps another [`genjax.GenerativeFunction`][] and modifies its GFI methods to accept
+    a tuple of (args, kwargs) as the 'args' parameter. The kwargs are then ignored in the
+    actual GFI calls to the wrapped GenerativeFunction.
+
+    This class is used to implement the default behavior of [`genjax.GenerativeFunction.handle_kwargs`][].
+
+    Attributes:
+        wrapped: The original GenerativeFunction being wrapped.
+    """
+
     wrapped: GenerativeFunction[R]
 
     def handle_kwargs(self) -> "GenerativeFunction[R]":
-        return self
+        return self.wrapped.handle_kwargs()
 
-    def __call__(self, *args, **_kwargs) -> "GenerativeFunctionClosure[R]":
-        return self.wrapped(args)
+    def __call__(self, *args, **kwargs):
+        return self.wrapped(*args, **kwargs)
 
-    def __abstract_call__(self, *args, **_kwargs) -> R:
-        return self.wrapped.__abstract_call__(*args)
+    def __abstract_call__(self, *args, **kwargs) -> R:
+        return self.wrapped.__abstract_call__(*args, **kwargs)
 
     def simulate(
         self,
@@ -1448,13 +1495,14 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     args: tuple[Any, ...]
     kwargs: dict[String, Any]
 
-    def get_gen_fn_with_kwargs(self):
+    def _with_kwargs(self):
+        "Returns a kwarg-handling version of the wrapped `gen_fn`."
         return self.gen_fn.handle_kwargs()
 
     # NOTE: Supports callee syntax, and the ability to overload it in callers.
     def __matmul__(self, addr) -> R:
         if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            maybe_kwarged_gen_fn = self._with_kwargs()
             return handle_off_trace_stack(
                 addr,
                 maybe_kwarged_gen_fn,
@@ -1469,21 +1517,23 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
     # This override returns `R`, while the superclass returns a `GenerativeFunctionClosure`; this is
     # a hint that subclassing may not be the right relationship here.
-    def __call__(self, key: PRNGKey, *args) -> R:  # pyright: ignore[reportIncompatibleMethodOverride]
+    def __call__(self, key: PRNGKey, *args, **kwargs) -> R:  # pyright: ignore[reportIncompatibleMethodOverride]
         full_args = self.args + args
-        if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-            return maybe_kwarged_gen_fn.simulate(
-                key, (full_args, self.kwargs)
-            ).get_retval()
+        full_kwargs = self.kwargs | kwargs
+
+        if full_kwargs:
+            kwarg_fn = self._with_kwargs()
+            return kwarg_fn.simulate(key, (full_args, full_kwargs)).get_retval()
         else:
             return self.gen_fn.simulate(key, full_args).get_retval()
 
-    def __abstract_call__(self, *args) -> R:
+    def __abstract_call__(self, *args, **kwargs) -> R:
         full_args = self.args + args
-        if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-            return maybe_kwarged_gen_fn.__abstract_call__(*full_args, **self.kwargs)
+        full_kwargs = kwargs | self.kwargs
+
+        if full_kwargs:
+            kwarg_fn = self._with_kwargs()
+            return kwarg_fn.__abstract_call__(full_args, full_kwargs)
         else:
             return self.gen_fn.__abstract_call__(*full_args)
 
@@ -1498,7 +1548,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     ) -> Trace[R]:
         full_args = self.args + args
         if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            maybe_kwarged_gen_fn = self._with_kwargs()
             return maybe_kwarged_gen_fn.simulate(
                 key,
                 (full_args, self.kwargs),
@@ -1514,7 +1564,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     ) -> tuple[Trace[Any], Weight]:
         full_args = self.args + args
         if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            maybe_kwarged_gen_fn = self._with_kwargs()
             return maybe_kwarged_gen_fn.generate(
                 key,
                 constraint,
@@ -1541,7 +1591,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         self_diffs = Diff.unknown_change(self.args)
         full_args = self_diffs + argdiffs
         if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            maybe_kwarged_gen_fn = self._with_kwargs()
             return maybe_kwarged_gen_fn.edit(
                 key,
                 trace,
@@ -1558,7 +1608,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     ) -> tuple[Score, R]:
         full_args = self.args + args
         if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            maybe_kwarged_gen_fn = self._with_kwargs()
             return maybe_kwarged_gen_fn.assess(
                 sample,
                 (full_args, self.kwargs),
