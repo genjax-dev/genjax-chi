@@ -102,8 +102,8 @@ class Diff(Generic[R], Pytree):
         Diff instances should only be used as leaves of an outer pytree. They should not contain nested Diff instances or be used as internal nodes in a pytree structure.
 
     Attributes:
-        primal (R): The value being tracked.
-        tangent (ChangeTangent): The change tangent indicating whether the value has a known change.
+        primal: The value being tracked.
+        tangent: The change tangent indicating whether the value has a known change.
     """
 
     primal: R
