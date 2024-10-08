@@ -196,10 +196,6 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
         def _inner(key, idx, args):
             # Here we have to vmap across indices and perform individual lookups because the user might only constrain a subset of all indices. This forces recomputation.
-            #
-            # This is the crux to figuring out how to ditch Index.
-            #
-            # We COULD start by storing a : slice, and only supporting that for now...
             submap = constraint(idx)
             tr, w = self.gen_fn.generate(
                 key,
@@ -238,6 +234,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         sub_keys = jax.random.split(key, dim_length)
 
         def _edit(key, idx, subtrace, argdiffs):
+            # Here we have to vmap across indices and perform individual lookups because the user might only constrain a subset of all indices. This forces recomputation.
             subconstraint = constraint(idx)
             assert isinstance(subconstraint, ChoiceMapConstraint), type(subconstraint)
 
