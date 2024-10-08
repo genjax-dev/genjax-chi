@@ -33,6 +33,7 @@ from genjax._src.core.typing import (
     Callable,
     Flag,
     Int,
+    Iterable,
     Sequence,
     TypeVar,
     static_check_is_concrete,
@@ -141,7 +142,7 @@ def staged_check(v):
     return static_check_is_concrete(v) and v
 
 
-def staged_choose(
+def tree_choose(
     idx: ArrayLike,
     pytrees: Sequence[R],
 ) -> R:
@@ -151,7 +152,7 @@ def staged_choose(
     - acts on lists of both `ArrayLike` and `Pytree` instances
     - acts like `vs[idx]` if `idx` is of type `int`.
 
-    In the case of heterogenous types in `vs`, `staged_choose` will attempt to cast, or error if casting isn't possible. (mixed `bool` and `int` entries in `vs` will result in the cast of selected `bool` to `int`, for example.).
+    In the case of heterogenous types in `vs`, `tree_choose` will attempt to cast, or error if casting isn't possible. (mixed `bool` and `int` entries in `vs` will result in the cast of selected `bool` to `int`, for example.).
 
     Args:
         idx: The index used to select a value from `vs`.
@@ -173,6 +174,42 @@ def staged_choose(
             return result
 
     return jtu.tree_map(inner, *pytrees)
+
+
+def multi_switch(
+    idx, branches: Iterable[Callable[..., Any]], arg_tuples: Iterable[tuple[Any, ...]]
+):
+    """
+    A wrapper around switch that allows selection between functions with differently-shaped return values.
+
+    This function enables switching between branches that may have different output shapes.
+    It creates a list of placeholder shapes for each branch and then uses a switch statement
+    to select the appropriate function to fill in the correct shape.
+
+    Args:
+        idx: The index used to select the branch. If the index is out of bounds, it will be clamped to within bounds.
+        branches: An iterable of callable functions representing different branches.
+        arg_tuples: An iterable of argument tuples, one for each branch function.
+
+    Returns:
+        The result of calling the selected branch function with its corresponding arguments.
+
+    Note:
+        This function assumes that the number of branches matches the number of argument tuples.
+        Each branch function should be able to handle its corresponding argument tuple.
+    """
+
+    def _make_setter(static_idx: int, f: Callable[..., Any], args: tuple[Any, ...]):
+        def set_result(shapes: list[R]) -> list[R]:
+            shapes[static_idx] = f(*args)
+            return shapes
+
+        return set_result
+
+    pairs = list(zip(branches, arg_tuples))
+    shapes = list(to_shape_fn(f, jnp.zeros)(*args) for f, args in pairs)
+    fns = list(_make_setter(i, f, args) for i, (f, args) in enumerate(pairs))
+    return jax.lax.switch(idx, fns, operand=shapes)
 
 
 #########################

@@ -28,8 +28,8 @@ from genjax._src.core.generative.core import Constraint, Projection, Sample
 from genjax._src.core.generative.functional_types import Mask
 from genjax._src.core.interpreters.staging import (
     FlagOp,
-    staged_choose,
     staged_err,
+    tree_choose,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -1574,7 +1574,7 @@ class Xor(ChoiceMap):
             # make the choice directly.
             return [v1, v2][idx]
         else:
-            return staged_choose(idx, [v1, v2])
+            return tree_choose(idx, [v1, v2])
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         remaining_1 = self.c1.get_submap(addr)
@@ -1642,7 +1642,7 @@ class Or(ChoiceMap):
             # make the choice directly.
             return [v1, v2][idx]
         else:
-            return staged_choose(idx, [v1, v2])
+            return tree_choose(idx, [v1, v2])
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap1 = self.c1.get_submap(addr)

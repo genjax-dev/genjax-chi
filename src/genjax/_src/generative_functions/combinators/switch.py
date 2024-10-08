@@ -13,9 +13,6 @@
 # limitations under the License.
 
 
-import jax
-import jax.numpy as jnp
-
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
@@ -31,18 +28,13 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
-from genjax._src.core.interpreters.staging import (
-    staged_choose,
-    to_shape_fn,
-)
+from genjax._src.core.interpreters.staging import multi_switch, tree_choose
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    Callable,
     FloatArray,
     Generic,
     IntArray,
-    Iterable,
     PRNGKey,
     Sequence,
     TypeVar,
@@ -66,42 +58,6 @@ class HeterogeneousSwitchSample(Sample):
 ################
 
 
-def _switch(
-    idx, branches: Iterable[Callable[..., Any]], arg_tuples: Iterable[tuple[Any, ...]]
-):
-    """
-    A wrapper around switch that allows selection between functions with differently-shaped return values.
-
-    This function enables switching between branches that may have different output shapes.
-    It creates a list of placeholder shapes for each branch and then uses a switch statement
-    to select the appropriate function to fill in the correct shape.
-
-    Args:
-        idx: The index used to select the branch.
-        branches: An iterable of callable functions representing different branches.
-        arg_tuples: An iterable of argument tuples, one for each branch function.
-
-    Returns:
-        The result of calling the selected branch function with its corresponding arguments.
-
-    Note:
-        This function assumes that the number of branches matches the number of argument tuples.
-        Each branch function should be able to handle its corresponding argument tuple.
-    """
-
-    def _make_setter(static_idx: int, f: Callable[..., Any], args: tuple[Any, ...]):
-        def set_result(shapes: list[R]) -> list[R]:
-            shapes[static_idx] = f(*args)
-            return shapes
-
-        return set_result
-
-    pairs = list(zip(branches, arg_tuples))
-    shapes = list(to_shape_fn(f, jnp.zeros)(*args) for f, args in pairs)
-    fns = list(_make_setter(i, f, args) for i, (f, args) in enumerate(pairs))
-    return jax.lax.switch(idx, fns, operand=shapes)
-
-
 @Pytree.dataclass
 class SwitchTrace(Generic[R], Trace[R]):
     gen_fn: "SwitchCombinator[R]"
@@ -111,6 +67,15 @@ class SwitchTrace(Generic[R], Trace[R]):
     score: FloatArray
 
     def get_idx(self) -> IntArray:
+        """
+        Get the index used to select the branch in this SwitchTrace.
+
+        Returns:
+            The index value used to select the executed branch.
+
+        Note:
+            This method assumes that the first argument passed to the SwitchCombinator was the index used for branch selection.
+        """
         return self.get_args()[0]
 
     def get_args(self) -> tuple[Any, ...]:
@@ -196,7 +161,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         retvals = list(
             f.__abstract_call__(*f_args) for f, f_args in zip(self.branches, args)
         )
-        return staged_choose(idx, retvals)
+        return tree_choose(idx, retvals)
 
     def _check_args_match_branches(self, args):
         assert len(args) == len(self.branches)
@@ -214,8 +179,8 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         fs = list(f.simulate for f in self.branches)
         f_args = list((key, args) for args in branch_args)
 
-        subtraces = _switch(idx, fs, f_args)
-        retval, score = staged_choose(
+        subtraces = multi_switch(idx, fs, f_args)
+        retval, score = tree_choose(
             idx, list((tr.get_retval(), tr.get_score()) for tr in subtraces)
         )
         return SwitchTrace(self, args, subtraces, retval, score)
@@ -231,7 +196,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         fs = list(f.assess for f in self.branches)
         f_args = list((sample, args) for args in branch_args)
 
-        return staged_choose(idx, _switch(idx, fs, f_args))
+        return tree_choose(idx, multi_switch(idx, fs, f_args))
 
     def generate(
         self,
@@ -245,10 +210,10 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         fs = list(f.generate for f in self.branches)
         f_args = list((key, constraint, args) for args in branch_args)
 
-        pairs = _switch(idx, fs, f_args)
+        pairs = multi_switch(idx, fs, f_args)
         subtraces = list(tr for tr, _ in pairs)
 
-        retval, score, weight = staged_choose(
+        retval, score, weight = tree_choose(
             idx, list((tr.get_retval(), tr.get_score(), w) for tr, w in pairs)
         )
         return SwitchTrace(self, args, subtraces, retval, score), weight
@@ -265,7 +230,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         fs = list(f.project for f in self.branches)
         f_args = list((key, tr, projection) for tr in trace.subtraces)
 
-        return staged_choose(idx, _switch(idx, fs, f_args))
+        return tree_choose(idx, multi_switch(idx, fs, f_args))
 
     def _make_edit_fresh_trace(self, gen_fn: GenerativeFunction[R]):
         """
@@ -326,10 +291,10 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
             fs = list(self._make_edit_fresh_trace(f) for f in self.branches)
             f_args = list((key, edit_request, argdiffs) for argdiffs in branch_argdiffs)
 
-        rets = _switch(new_idx, fs, f_args)
+        rets = multi_switch(new_idx, fs, f_args)
 
         subtraces = list(t[0] for t in rets)
-        score, weight, retdiff = staged_choose(
+        score, weight, retdiff = tree_choose(
             new_idx, list((tr.get_score(), w, rd) for tr, w, rd, _ in rets)
         )
         retval: R = Diff.tree_primal(retdiff)
