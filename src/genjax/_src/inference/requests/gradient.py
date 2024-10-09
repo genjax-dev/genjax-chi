@@ -24,14 +24,12 @@ from genjax._src.core.generative.choice_map import (
 from genjax._src.core.generative.core import (
     Argdiffs,
     Retdiff,
-    Score,
     Weight,
 )
 from genjax._src.core.generative.generative_function import (
     EditRequest,
     Tracediff,
     TraceTangent,
-    UnitTangent,
     Update,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -39,7 +37,6 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     FloatArray,
-    IntArray,
     PRNGKey,
     TypeVar,
 )

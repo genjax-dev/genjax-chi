@@ -1364,6 +1364,26 @@ class Choice(Generic[T], ChoiceMap):
 
 
 @Pytree.dataclass(match_args=True)
+class View(ChoiceMap):
+    wrapped: ChoiceMap
+    target: DynamicAddressComponent
+
+    @staticmethod
+    def build(chm: ChoiceMap, addr: DynamicAddressComponent) -> ChoiceMap:
+        if chm.static_is_empty():
+            return chm
+        else:
+            return View(chm, addr)
+
+    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
+        return View.build(self.wrapped.get_submap(addr), self.target)
+
+    def get_value(self) -> Any:
+        inner_value = self.wrapped.get_value()
+        return jtu.tree_map(lambda v: v[self.target], inner_value)
+
+
+@Pytree.dataclass(match_args=True)
 class Indexed(ChoiceMap):
     """Represents a choice map with dynamic indexing.
 
@@ -1423,9 +1443,7 @@ class Indexed(ChoiceMap):
                     # update of a scan GF with an array of shape (0,) or (0, ...)
                     return ChoiceMap.empty()
                 else:
-                    return jtu.tree_map(lambda v: v[addr], self.c).mask(
-                        check_array[addr]
-                    )
+                    return View(self.c.mask(check_array[addr]), addr)
             else:
                 return self.c.mask(check)
 
