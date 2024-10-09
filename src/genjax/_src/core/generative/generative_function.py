@@ -1532,6 +1532,19 @@ class EditRequest(Pytree):
     ) -> tuple["genjax.TraceTangent", Weight, Retdiff[R], "EditRequest"]:
         pass
 
+    # Optional method which can be implemented by inheritors to support
+    # usage of the inheritor request compositionally by larger requests.
+    # The "c" stands for "checked" -- it means that inheritors can specify conditions
+    # under which they can be used compositionally.
+    def cedit(
+        self,
+        key: PRNGKey,
+        tracediff: "genjax.Tracediff[Any, Any]",
+        argdiffs: Argdiffs,
+    ) -> tuple["genjax.TraceTangent", Weight, Retdiff[R], "EditRequest"]:
+        return self.edit(key, tracediff, argdiffs)
+
+    # Run edit -- and eagerly commit the change.
     def do(
         self,
         key: PRNGKey,
@@ -1561,7 +1574,7 @@ class Update(EditRequest):
         key: PRNGKey,
         tracediff: Tracediff[Any, Any],
         argdiffs: Argdiffs,
-    ) -> tuple[TraceTangent, Weight, Retdiff[R], "EditRequest"]:
+    ) -> tuple[TraceTangent, Weight, Retdiff[R], "Update"]:
         trace = tracediff.get_primal()
         gen_fn = trace.get_gen_fn()
-        return gen_fn.edit(key, tracediff, self, argdiffs)
+        return gen_fn.edit(key, tracediff, self, argdiffs)  # pyright: ignore

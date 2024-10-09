@@ -31,8 +31,10 @@ from genjax._src.core.typing import (
     Callable,
     Generic,
     Int,
+    Self,
     TypeVar,
     static_check_is_concrete,
+    static_check_supports_grad,
 )
 
 R = TypeVar("R")
@@ -188,6 +190,18 @@ class Pytree(pz.Struct):
 
     def treedef(self):
         return jtu.tree_structure(self)
+
+    def grad_split(self) -> tuple[Self, Self]:
+        grad_tree = jtu.tree_map(
+            lambda v: v if static_check_supports_grad(v) else None, self
+        )
+        nongrad_tree = jtu.tree_map(
+            lambda v: v if not static_check_supports_grad(v) else None, self
+        )
+        return grad_tree, nongrad_tree
+
+    def merge(self, other):
+        return jtu.tree_map(lambda v1, v2: v1 if v1 else v2, self, other)
 
     #################
     # Static checks #
