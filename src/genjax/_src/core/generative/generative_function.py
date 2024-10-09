@@ -15,7 +15,6 @@
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-import jax
 import jax.numpy as jnp
 
 from genjax._src.core.generative.choice_map import (

@@ -35,10 +35,6 @@ from genjax._src.generative_functions.combinators.scan import (
     reduce,
     scan,
 )
-from genjax._src.generative_functions.combinators.state_space import (
-    StateSpaceCombinator,
-    state_space,
-)
 from genjax._src.generative_functions.combinators.vmap import (
     VmapCombinator,
     vmap,
@@ -50,7 +46,6 @@ __all__ = [
     "MaskCombinator",
     "RepeatCombinator",
     "ScanCombinator",
-    "StateSpaceCombinator",
     "VmapCombinator",
     "accumulate",
     "contramap",
@@ -62,6 +57,5 @@ __all__ = [
     "reduce",
     "repeat",
     "scan",
-    "state_space",
     "vmap",
 ]

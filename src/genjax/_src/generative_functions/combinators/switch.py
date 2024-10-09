@@ -13,8 +13,6 @@
 # limitations under the License.
 
 
-import jax.tree_util as jtu
-
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
@@ -25,17 +23,13 @@ from genjax._src.core.generative import (
     Retdiff,
     Score,
     Trace,
-    Tracediff,
     TraceTangent,
-    UnitTangent,
-    UnitTracediff,
     Weight,
 )
 from genjax._src.core.generative.generative_function import (
     TraceTangentMonoidActionException,
     TraceTangentMonoidOperationException,
 )
-from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
 from genjax._src.core.interpreters.staging import multi_switch, tree_choose
 from genjax._src.core.pytree import Pytree

@@ -19,31 +19,24 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapConstraint,
     Constraint,
     EditRequest,
     ExtendedAddressComponent,
     GenerativeFunction,
-    IncrementalDerivativeException,
-    Index,
     IndexTangent,
     Projection,
     Retdiff,
     Sample,
     Score,
-    Selection,
     Trace,
     Tracediff,
     TraceTangent,
     UnitTangent,
-    Update,
     Weight,
 )
-from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    Bool,
     Callable,
     FloatArray,
     Generic,

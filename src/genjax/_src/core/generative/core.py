@@ -148,29 +148,3 @@ class Projection(Generic[S], Pytree):
     @abstractmethod
     def complement(self) -> "Projection[S]":
         pass
-
-
-#################
-# Edit requests #
-#################
-
-
-class EditRequest(Pytree):
-    """
-    An `EditRequest` is a request to edit a trace of a generative function. Generative functions respond to instances of subtypes of `EditRequest` by providing an [`edit`][genjax.core.GenerativeFunction.edit] implementation.
-
-    Updating a trace is a common operation in inference processes, but naively mutating the trace will invalidate the mathematical invariants that Gen retains. `EditRequest` instances denote requests for _SMC moves_ in the framework of [SMCP3](https://proceedings.mlr.press/v206/lew23a.html), which preserve these invariants.
-    """
-
-    @abstractmethod
-    def edit(
-        self,
-        key: PRNGKey,
-        tr: "genjax.Trace[R]",
-        argdiffs: Argdiffs,
-    ) -> "tuple[genjax.Trace[R], Weight, Retdiff[R], EditRequest]":
-        pass
-
-
-class NotSupportedEditRequest(Exception):
-    pass
