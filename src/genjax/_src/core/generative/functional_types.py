@@ -29,7 +29,6 @@ from genjax._src.core.typing import (
     ArrayLike,
     Flag,
     Generic,
-    Int,
     TypeVar,
 )
 
@@ -135,37 +134,3 @@ class Mask(Generic[R], Pytree):
                 return primal
             case _:
                 return self.flag
-
-
-def staged_choose(
-    idx: ArrayLike,
-    pytrees: list[R],
-) -> R:
-    """
-    Version of `jax.numpy.choose` that
-
-    - acts on lists of both `ArrayLike` and `Pytree` instances
-    - acts like `vs[idx]` if `idx` is of type `int`.
-
-    In the case of heterogenous types in `vs`, `staged_choose` will attempt to cast, or error if casting isn't possible. (mixed `bool` and `int` entries in `vs` will result in the cast of selected `bool` to `int`, for example.).
-
-    Args:
-        idx: The index used to select a value from `vs`.
-        vs: A list of `Pytree` or `ArrayLike` values to choose from.
-
-    Returns:
-        The selected value from the list.
-    """
-
-    def inner(*vs: ArrayLike) -> ArrayLike:
-        # Computing `result` above the branch allows us to:
-        # - catch incompatible types / shapes in the result
-        # - in the case of compatible types requiring casts (like bool => int),
-        #   result's dtype tells us the final type.
-        result = jnp.choose(idx, vs, mode="wrap")
-        if isinstance(idx, Int):
-            return jnp.asarray(vs[idx % len(vs)], dtype=result.dtype)
-        else:
-            return result
-
-    return jtu.tree_map(inner, *pytrees)
