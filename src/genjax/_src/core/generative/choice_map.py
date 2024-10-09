@@ -1361,6 +1361,29 @@ class Choice(Generic[T], ChoiceMap):
 
 
 @Pytree.dataclass(match_args=True)
+class View(ChoiceMap):
+    wrapped: ChoiceMap
+    target: DynamicAddressComponent
+
+    @staticmethod
+    def build(chm: ChoiceMap, addr: DynamicAddressComponent) -> ChoiceMap:
+        if chm.static_is_empty():
+            return chm
+        else:
+            return View(chm, addr)
+
+    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
+        return View.build(
+            self.wrapped.get_submap(addr),
+            self.target,
+        )
+
+    def get_value(self) -> Any:
+        inner_value = self.wrapped.get_value()
+        return jtu.tree_map(lambda v: v[self.target], inner_value)
+
+
+@Pytree.dataclass(match_args=True)
 class Indexed(ChoiceMap):
     """Represents a choice map with dynamic indexing.
 
@@ -1420,11 +1443,54 @@ class Indexed(ChoiceMap):
                     # update of a scan GF with an array of shape (0,) or (0, ...)
                     return ChoiceMap.empty()
                 else:
-                    return jtu.tree_map(lambda v: v[addr], self.c).mask(
-                        check_array[addr]
-                    )
+                    return View(self.c.mask(check_array), addr)
             else:
                 return self.c.mask(check)
+
+
+@Pytree.dataclass(match_args=True)
+class Vector(ChoiceMap):
+    """Represents a choice map with dynamic indexing.
+
+    This class represents a choice map that uses dynamic (array-based) addressing.
+    It allows for indexing into the choice map using array-like address components.
+
+    Attributes:
+        c: The underlying choice map.
+        addr: The dynamic address component used for indexing.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        import jax.numpy as jnp
+
+        base_chm = ChoiceMap.value(jnp.array([1, 2, 3]))
+        idx_chm = base_chm.extend(jnp.array([0, 1, 2]))
+
+        assert idx_chm.get_submap(1).get_value().unmask() == 2
+        ```
+    """
+
+    c: ChoiceMap
+
+    @staticmethod
+    def build(chm: ChoiceMap) -> ChoiceMap:
+        if chm.static_is_empty():
+            return chm
+        else:
+            return Vector(chm)
+
+    def get_value(self) -> Any:
+        return None
+
+    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
+        if addr is Ellipsis:
+            return self.c
+
+        elif not isinstance(addr, DynamicAddressComponent):
+            return ChoiceMap.empty()
+
+        else:
+            return View(self.c, addr)
 
 
 @Pytree.dataclass(match_args=True)

@@ -43,7 +43,6 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import Filtered
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Closure, Pytree
@@ -248,7 +247,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         ),
                     )
 
-                elif isinstance(constraint.choice_map, Filtered):
+                else:
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
                     def _true_branch(key, new_value: R, _):
@@ -284,10 +283,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                         Update(
                             ChoiceMapConstraint(old_choices.mask(flag)),
                         ),
-                    )
-                else:
-                    raise Exception(
-                        "Only `choice_map.Filtered` is currently supported for dynamic flags."
                     )
 
             case _:

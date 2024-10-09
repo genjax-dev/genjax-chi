@@ -884,3 +884,28 @@ class TestChoiceMap:
                 lambda x, y: jnp.allclose(x, y), invalid_subset, expected_invalid
             )
         )
+
+    def test_choicemap_view(self):
+        def patch(x):
+            return C[
+                "i",
+                jnp.array(list(range(0, 5))),
+                "j",
+                jnp.repeat(jnp.array(list(range(0, 5))), 5).reshape(5, -1),
+                "vertex",
+            ].set(
+                jnp.array([
+                    [x, x, x, x, x],
+                    [x, x, x, x, x],
+                    [x, x, x, x, x],
+                    [x, x, x, x, x],
+                    [x, x, x, x, x],
+                ])
+            )
+
+        patch0, patch1 = patch(0), patch(1)
+
+        for i in range(5):
+            for j in range(5):
+                assert patch0["i", i, "j", j, "vertex"].unmask() == 0
+                assert patch1["i", i, "j", j, "vertex"].unmask() == 1
