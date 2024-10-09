@@ -35,12 +35,10 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
-    Bool,
     Callable,
     EllipsisType,
     Final,
     Flag,
-    String,
     TypeVar,
 )
 
@@ -51,7 +49,7 @@ if TYPE_CHECKING:
 # Address types #
 #################
 
-StaticAddressComponent = String
+StaticAddressComponent = str
 DynamicAddressComponent = ArrayLike
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
 Address = tuple[()] | tuple[AddressComponent, ...]
@@ -1206,7 +1204,7 @@ class ChoiceMap(Sample):
         """
         return ChmSel.build(self)
 
-    def static_is_empty(self) -> Bool:
+    def static_is_empty(self) -> bool:
         """
         Returns True if this ChoiceMap is equal to `ChoiceMap.empty()`, False otherwise.
         """
@@ -1493,7 +1491,7 @@ class Static(ChoiceMap):
             acc ^= v.mask(check(k))
         return acc
 
-    def static_is_empty(self) -> Bool:
+    def static_is_empty(self) -> bool:
         return len(self.mapping) == 0
 
     def __treescope_repr__(self, path, subtree_renderer):
