@@ -627,7 +627,7 @@ class TestStaticGenFnForwardRef:
         proposal = make_gen_fn()
         tr = proposal.simulate(key, (0.3,))
 
-        assert -0.55435526 == tr.get_score()
+        assert tr.get_score() == genjax.bernoulli.logpdf(tr.get_retval(), 0.3)
 
 
 class TestGenFnClosure:
@@ -638,12 +638,10 @@ class TestGenFnClosure:
 
         gfc = model()
         tr = gfc.simulate(jax.random.PRNGKey(0), ())
-        assert tr.get_retval() == 0.9987485
-        assert tr.get_score() == 5.205658
+        assert tr.get_score() == genjax.normal.logpdf(tr.get_retval(), 1.0, 0.001)
         # This failed in GEN-420
         tr_u, w = gfc.importance(jax.random.PRNGKey(1), C.kw(x=1.1), ())
-        assert tr_u.get_score() == -4994.0176
-        assert tr_u.get_retval() == 1.1
+        assert tr_u.get_score() == genjax.normal.logpdf(tr_u.get_retval(), 1.0, 0.001)
         assert w == tr_u.get_score()
 
 

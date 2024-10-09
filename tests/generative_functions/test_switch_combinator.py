@@ -38,7 +38,7 @@ class TestSwitchCombinator:
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         tr = model.simulate(sub_key, ())
-        assert 0.5672885 == tr.get_retval()
+        assert tr.get_retval() == tr.get_choices()["s", "x"].unmask()
 
     def test_switch_combinator_simulate(self):
         @genjax.gen
@@ -239,7 +239,8 @@ class TestSwitchCombinator:
 
         key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
-        tr = model.simulate(sub_key, ())
+        chm = C["b"].set(1)
+        tr, _ = model.importance(sub_key, chm, ())
         assert 0.0 == tr.get_retval()
 
     def test_switch_combinator_with_different_return_types(self):

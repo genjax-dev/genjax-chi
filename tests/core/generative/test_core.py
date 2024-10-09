@@ -65,7 +65,7 @@ class TestCombinators:
         @genjax.gen
         def model(x):
             v = genjax.normal(x, 1.0) @ "v"
-            return genjax.normal(v, 0.01) @ "q"
+            return (v, genjax.normal(v, 0.01) @ "q")
 
         vmapped_model = model.vmap()
 
@@ -73,9 +73,7 @@ class TestCombinators:
 
         tr = jit_fn(key, (jnp.array([10.0, 20.0, 30.0]),))
         chm = tr.get_choices()
-
-        varr = jnp.array([11.076874, 18.779837, 27.92488])
-        qarr = jnp.array([11.096466, 18.75329, 27.932695])
+        varr, qarr = tr.get_retval()
 
         # The ellipsis syntax groups everything under a sub-key:
         assert jnp.array_equal(chm[..., "v"], varr)
@@ -99,8 +97,8 @@ class TestCombinators:
         vmap_tr = jax.jit(vmap_model.simulate)(key, (jnp.zeros(3),))
         repeat_tr = jax.jit(repeat_model.simulate)(key, (0.0,))
 
-        repeatarr = jnp.array([1.0768734, -1.220163, -2.0751207])
-        varr = jnp.array([1.0768734, -1.220163, -2.0751207])
+        repeatarr = repeat_tr.get_retval()
+        varr = vmap_tr.get_retval()
 
         # Check that we get 3 repeated values:
         assert jnp.array_equal(repeat_tr.get_choices()[..., "x"], repeatarr)

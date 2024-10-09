@@ -380,17 +380,11 @@ class TestScanWithParameters:
         @genjax.gen
         def walk_step(x, std):
             new_x = genjax.normal(x, std) @ "x"
-            return new_x, None
+            return new_x, new_x
 
         args = (0.0, jnp.array([2.0, 4.0, 3.0, 5.0, 1.0]))
         tr = walk_step.scan(n=5).simulate(key, args)
-        expected = jnp.array([
-            -0.75375533,
-            -5.818158,
-            -3.4942584,
-            -5.0217595,
-            -4.4125495,
-        ])
+        _, expected = tr.get_retval()
         assert jnp.allclose(
             tr.get_choices()[..., "x"],
             expected,

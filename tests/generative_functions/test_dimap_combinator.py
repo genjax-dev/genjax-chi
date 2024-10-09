@@ -43,7 +43,7 @@ class TestDimapCombinator:
         key = jax.random.PRNGKey(0)
         trace = dimap_model.simulate(key, (2.0, 3.0))
         assert (
-            -2.5092335 == trace.get_retval()
+            trace.get_retval() == trace.get_choices()["z"] + 2.0
         ), "initial retval is a square of random draw"
 
         assert (trace.get_score(), trace.get_retval()) == dimap_model.assess(

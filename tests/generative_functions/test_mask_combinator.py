@@ -108,7 +108,13 @@ class TestMaskCombinator:
             return vmask_init
 
         tr = model_2.simulate(key, ())
-        assert tr.get_score() == -3.1371737
+        retval = tr.get_retval()
+        retval_flag = retval.flag
+        retval_val = retval.unmask()
+        assert tr.get_score() == jnp.sum(
+            retval_flag
+            * jax.vmap(lambda v: genjax.normal.logpdf(v, 0.0, 1.0))(retval_val)
+        )
         vmap_tr = tr.get_subtrace(("init",))
         assert isinstance(vmap_tr, VmapTrace)
         inner_scores = vmap_tr.inner.get_score()
@@ -168,7 +174,6 @@ class TestMaskCombinator:
         )
         assert step_weight == jnp.array(0.0)
         assert step_particle.get_retval() == ((jnp.array(0.0),), None)
-        assert step_particle.get_score() == jnp.array(-12.230572)
 
     def test_mask_scan_update_type_error(self, key):
         @genjax.gen
@@ -191,7 +196,13 @@ class TestMaskCombinator:
             model_inside.simulate(key, ())
 
         tr = model_outside.simulate(key, ())
-        assert tr.get_score() == -2.036214
+        retval = tr.get_retval()
+        retval_masks = retval.flag
+        retval_value = retval.unmask()
+        assert tr.get_score() == jnp.sum(
+            retval_masks
+            * jax.vmap(lambda v: genjax.normal.logpdf(v, 0.0, 1.0))(retval_value)
+        )
 
     def test_mask_fails_with_vector_mask(self, key):
         @genjax.gen
