@@ -38,10 +38,8 @@ from genjax._src.core.typing import (
     Callable,
     Generic,
     InAxes,
-    Int,
     PRNGKey,
     Self,
-    String,
     TypeVar,
 )
 
@@ -677,7 +675,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.vmap(in_axes=in_axes)(self)
 
-    def repeat(self, /, *, n: Int) -> "GenerativeFunction[R]":
+    def repeat(self, /, *, n: int) -> "GenerativeFunction[R]":
         """
         Returns a [`genjax.GenerativeFunction`][] that samples from `self` `n` times, returning a vector of `n` results.
 
@@ -718,7 +716,7 @@ class GenerativeFunction(Generic[R], Pytree):
         self: "GenerativeFunction[tuple[Carry, Y]]",
         /,
         *,
-        n: Int | None = None,
+        n: int | None = None,
     ) -> "GenerativeFunction[tuple[Carry, Y]]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)`, returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])` where
@@ -913,7 +911,7 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         /,
         *,
-        n: Int,
+        n: int,
     ) -> "GenerativeFunction[R]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `a -> a`, returns a new [`genjax.GenerativeFunction`][] of type `a -> [a]` where
@@ -970,7 +968,7 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         /,
         *,
-        n: Int,
+        n: int,
     ) -> "GenerativeFunction[R]":
         """
         Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a` where
@@ -1205,7 +1203,7 @@ class GenerativeFunction(Generic[R], Pytree):
         *,
         pre: Callable[..., ArgTuple],
         post: Callable[[ArgTuple, R], S],
-        info: String | None = None,
+        info: str | None = None,
     ) -> "GenerativeFunction[S]":
         """
         Returns a new [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
@@ -1256,7 +1254,7 @@ class GenerativeFunction(Generic[R], Pytree):
         return genjax.dimap(pre=pre, post=post, info=info)(self)
 
     def map(
-        self, f: Callable[[R], S], *, info: String | None = None
+        self, f: Callable[[R], S], *, info: str | None = None
     ) -> "GenerativeFunction[S]":
         """
         Specialized version of [`genjax.dimap`][] where only the post-processing function is applied.
@@ -1297,7 +1295,7 @@ class GenerativeFunction(Generic[R], Pytree):
         return genjax.map(f=f, info=info)(self)
 
     def contramap(
-        self, f: Callable[..., ArgTuple], *, info: String | None = None
+        self, f: Callable[..., ArgTuple], *, info: str | None = None
     ) -> "GenerativeFunction[R]":
         """
         Specialized version of [`genjax.GenerativeFunction.dimap`][] where only the pre-processing function is applied.
