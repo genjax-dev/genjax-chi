@@ -857,7 +857,7 @@ class ChoiceMap(Sample):
         return _empty
 
     @staticmethod
-    def choice(v: T) -> "Choice[T]":
+    def choice(v: ArrayLike | Mask[ArrayLike]) -> "ChoiceMap":
         """
         Creates a ChoiceMap containing a single value.
 
@@ -882,7 +882,7 @@ class ChoiceMap(Sample):
 
     @staticmethod
     @deprecated("Use ChoiceMap.choice() instead.")
-    def value(v: T) -> "Choice[T]":
+    def value(v: ArrayLike | Mask[ArrayLike]) -> "ChoiceMap":
         return ChoiceMap.choice(v)
 
     @staticmethod
@@ -1712,15 +1712,12 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
                 return loop(c, selection(addr)).extend(addr)
 
             case Choice(v):
-                if v is None:
-                    return inner
+                sel_check = selection.check()
+                masked = Mask.maybe_none(v, sel_check)
+                if masked is None:
+                    return ChoiceMap.empty()
                 else:
-                    sel_check = selection.check()
-                    masked = Mask.maybe_none(v, sel_check)
-                    if masked is None:
-                        return ChoiceMap.empty()
-                    else:
-                        return ChoiceMap.choice(masked)
+                    return ChoiceMap.choice(masked)
 
             case Filtered(c, c_selection):
                 return loop(c, c_selection & selection)

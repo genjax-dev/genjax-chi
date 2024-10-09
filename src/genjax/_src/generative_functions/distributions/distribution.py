@@ -34,7 +34,6 @@ from genjax._src.core.generative import (
     Mask,
     NotSupportedEditRequest,
     Projection,
-    R,
     Regenerate,
     Retdiff,
     Score,
@@ -49,8 +48,8 @@ from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
+    Array,
     Callable,
-    Generic,
     PRNGKey,
 )
 
@@ -63,21 +62,20 @@ tfd = tfp.distributions
 
 @Pytree.dataclass
 class DistributionTrace(
-    Generic[R],
-    Trace[R],
+    Trace[Array],
 ):
-    gen_fn: GenerativeFunction[R]
+    gen_fn: GenerativeFunction[Array]
     args: tuple[Any, ...]
-    value: R
+    value: Array
     score: Score
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
 
-    def get_retval(self) -> R:
+    def get_retval(self) -> Array:
         return self.value
 
-    def get_gen_fn(self) -> GenerativeFunction[R]:
+    def get_gen_fn(self) -> GenerativeFunction[Array]:
         return self.gen_fn
 
     def get_score(self) -> Score:
@@ -95,20 +93,20 @@ class DistributionTrace(
 ################
 
 
-class Distribution(Generic[R], GenerativeFunction[R]):
+class Distribution(GenerativeFunction[Array]):
     @abstractmethod
     def random_weighted(
         self,
         key: PRNGKey,
         *args,
-    ) -> tuple[Score, R]:
+    ) -> tuple[Score, Array]:
         pass
 
     @abstractmethod
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        v: R,
+        v: Array,
         *args,
     ) -> Score:
         pass
@@ -117,7 +115,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         args: tuple[Any, ...],
-    ) -> Trace[R]:
+    ) -> Trace[Array]:
         (w, v) = self.random_weighted(key, *args)
         tr = DistributionTrace(self, args, v, w)
         return tr
@@ -127,7 +125,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         chm: ChoiceMap,
         args: tuple[Any, ...],
-    ) -> tuple[Trace[R], Weight]:
+    ) -> tuple[Trace[Array], Weight]:
         v = chm.get_value()
         match v:
             case None:
@@ -159,7 +157,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         constraint: Constraint,
         args: tuple[Any, ...],
-    ) -> tuple[Trace[R], Weight]:
+    ) -> tuple[Trace[Array], Weight]:
         match constraint:
             case ChoiceMapConstraint():
                 tr, w = self.generate_choice_map(key, constraint, args)
@@ -172,9 +170,9 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 
     def edit_empty(
         self,
-        trace: Trace[R],
+        trace: Trace[Array],
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], Update]:
+    ) -> tuple[Trace[Array], Weight, Retdiff[Array], Update]:
         sample = trace.get_choices()
         primals = Diff.tree_primal(argdiffs)
         new_score, _ = self.assess(sample, primals)
@@ -191,10 +189,10 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     def edit_constraint(
         self,
         key: PRNGKey,
-        trace: Trace[R],
+        trace: Trace[Array],
         constraint: Constraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], Update]:
+    ) -> tuple[Trace[Array], Weight, Retdiff[Array], Update]:
         primals = Diff.tree_primal(argdiffs)
         match constraint:
             case EmptyConstraint():
@@ -251,23 +249,23 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 elif isinstance(constraint.choice_map, Filtered):
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
-                    def _true_branch(key, new_value: R, _):
+                    def _true_branch(key, new_value: Array, _):
                         fwd = self.estimate_logpdf(key, new_value, *primals)
                         bwd = trace.get_score()
                         w = fwd - bwd
                         return (new_value, w, fwd)
 
-                    def _false_branch(key, _, old_value: R):
+                    def _false_branch(key, _, old_value: Array):
                         fwd = self.estimate_logpdf(key, old_value, *primals)
                         bwd = trace.get_score()
                         w = fwd - bwd
                         return (old_value, w, fwd)
 
-                    masked_value: Mask[R] = v
+                    masked_value: Mask[Array] = v
                     flag = masked_value.primal_flag()
-                    new_value: R = masked_value.value
+                    new_value: Array = masked_value.value
                     old_choices = trace.get_choices()
-                    old_value: R = old_choices.get_value()
+                    old_value: Array = old_choices.get_value()
 
                     new_value, w, score = FlagOp.cond(
                         flag,
@@ -296,7 +294,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     def project(
         self,
         key: PRNGKey,
-        trace: Trace[R],
+        trace: Trace[Array],
         projection: Projection[Any],
     ) -> Weight:
         assert isinstance(projection, Selection)
@@ -309,10 +307,10 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     def edit_regenerate(
         self,
         key: PRNGKey,
-        trace: Trace[R],
+        trace: Trace[Array],
         selection: Selection,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[Trace[Array], Weight, Retdiff[Array], EditRequest]:
         check = () in selection
         if FlagOp.concrete_true(check):
             primals = Diff.tree_primal(argdiffs)
@@ -339,20 +337,20 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     def edit_choice_map_edit_request(
         self,
         key: PRNGKey,
-        trace: Trace[R],
+        trace: Trace[Array],
         requests_choice_map: ChoiceMap,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[Trace[Array], Weight, Retdiff[Array], EditRequest]:
         request = requests_choice_map.get_value()
         return request.edit(key, trace, argdiffs)
 
     def edit_choice_map_change(
         self,
         key: PRNGKey,
-        trace: Trace[R],
+        trace: Trace[Array],
         constraint: Constraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], Update]:
+    ) -> tuple[Trace[Array], Weight, Retdiff[Array], Update]:
         match constraint:
             case EmptyConstraint():
                 return self.edit_empty(trace, argdiffs)
@@ -366,10 +364,10 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace[R],
+        trace: Trace[Array],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[Trace[Array], Weight, Retdiff[Array], EditRequest]:
         match edit_request:
             case Update(constraint):
                 return self.edit_choice_map_change(
@@ -409,26 +407,26 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 ################
 
 
-class ExactDensity(Generic[R], Distribution[R]):
+class ExactDensity(Distribution):
     @abstractmethod
-    def sample(self, key: PRNGKey, *args) -> R:
+    def sample(self, key: PRNGKey, *args) -> Array:
         pass
 
     @abstractmethod
-    def logpdf(self, v: R, *args) -> Score:
+    def logpdf(self, v: Array, *args) -> Score:
         pass
 
     def __abstract_call__(self, *args):
         key = jax.random.PRNGKey(0)
         return self.sample(key, *args)
 
-    def handle_kwargs(self) -> GenerativeFunction[R]:
+    def handle_kwargs(self) -> GenerativeFunction[Array]:
         @Pytree.partial(self)
-        def sample_with_kwargs(self: "ExactDensity[R]", key, args, kwargs):
+        def sample_with_kwargs(self: "ExactDensity", key, args, kwargs):
             return self.sample(key, *args, **kwargs)
 
         @Pytree.partial(self)
-        def logpdf_with_kwargs(self: "ExactDensity[R]", v, args, kwargs):
+        def logpdf_with_kwargs(self: "ExactDensity", v, args, kwargs):
             return self.logpdf(v, *args, **kwargs)
 
         return ExactDensityFromCallables(
@@ -440,7 +438,7 @@ class ExactDensity(Generic[R], Distribution[R]):
         self,
         key: PRNGKey,
         *args,
-    ) -> tuple[Score, R]:
+    ) -> tuple[Score, Array]:
         """
         Given arguments to the distribution, sample from the distribution, and return the exact log density of the sample, and the sample.
         """
@@ -451,7 +449,7 @@ class ExactDensity(Generic[R], Distribution[R]):
     def estimate_logpdf(
         self,
         key: PRNGKey,
-        v: R,
+        v: Array,
         *args,
     ) -> Weight:
         """
@@ -467,7 +465,7 @@ class ExactDensity(Generic[R], Distribution[R]):
         self,
         sample: ChoiceMap,
         args: tuple[Any, ...],
-    ) -> tuple[Weight, R]:
+    ) -> tuple[Weight, Array]:
         key = jax.random.PRNGKey(0)
         v = sample.get_value()
         match v:
@@ -488,11 +486,11 @@ class ExactDensity(Generic[R], Distribution[R]):
 
 
 @Pytree.dataclass
-class ExactDensityFromCallables(Generic[R], ExactDensity[R]):
-    sampler: Closure[R]
+class ExactDensityFromCallables(ExactDensity):
+    sampler: Closure[Array]
     logpdf_evaluator: Closure[Score]
 
-    def sample(self, key, *args) -> R:
+    def sample(self, key, *args) -> Array:
         return self.sampler(key, *args)
 
     def logpdf(self, v, *args) -> Score:
@@ -500,7 +498,7 @@ class ExactDensityFromCallables(Generic[R], ExactDensity[R]):
 
 
 def exact_density(
-    sample: Callable[..., R],
+    sample: Callable[..., Array],
     logpdf: Callable[..., Score],
 ):
     if not isinstance(sample, Closure):
@@ -509,4 +507,4 @@ def exact_density(
     if not isinstance(logpdf, Closure):
         logpdf = Pytree.partial()(logpdf)
 
-    return ExactDensityFromCallables[R](sample, logpdf)
+    return ExactDensityFromCallables(sample, logpdf)
