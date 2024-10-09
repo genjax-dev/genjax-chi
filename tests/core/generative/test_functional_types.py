@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax.numpy as jnp
 import pytest
 
 from genjax._src.checkify import do_checkify
-from genjax._src.core.generative.functional_types import Mask, staged_choose
+from genjax._src.core.generative.functional_types import Mask
 
 
 class TestMask:
@@ -69,41 +68,3 @@ class TestMask:
         assert isinstance(result, Mask)
         assert result.flag is True
         assert result.value == 42
-
-
-class TestStagedChoose:
-    def test_static_integer_index(self):
-        result = staged_choose(1, [10, 20, 30])
-        assert result == 20
-
-    def test_jax_array_index(self):
-        """
-        Test that staged_choose works correctly with JAX array indices.
-        This test ensures that when given a JAX array as an index,
-        the function selects the correct value from the list.
-        """
-        result = staged_choose(jnp.array(2), [10, 20, 30])
-        assert jnp.array_equal(result, jnp.array(30))
-
-    def test_heterogeneous_types(self):
-        """
-        Test that staged_choose correctly handles heterogeneous types.
-        It should attempt to cast compatible types (like bool to int)
-        and use the dtype of the result for consistency.
-        """
-        result = staged_choose(2, [True, 2, False])
-        assert result == 0
-        assert jnp.asarray(result).dtype == jnp.int32
-
-    def test_wrap_mode(self):
-        """
-        Test that staged_choose wraps around when the index is out of bounds.
-        This should work for both jnp.array indices and concrete integer indices.
-        """
-        # first, the jnp.array index case:
-        result = staged_choose(jnp.array(3), [10, 20, 30])
-        assert jnp.array_equal(result, jnp.array(10))
-
-        # then the concrete index case:
-        concrete_result = staged_choose(3, [10, 20, 30])
-        assert jnp.array_equal(result, concrete_result)

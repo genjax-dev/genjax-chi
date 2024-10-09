@@ -42,6 +42,7 @@ FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
 Sequence = btyping.Sequence
+Iterable = btyping.Iterable
 Final = btyping.Final
 Generator = btyping.Generator
 
@@ -122,6 +123,7 @@ __all__ = [
     "Int",
     "IntArray",
     "Is",
+    "Iterable",
     "PRNGKey",
     "ParamSpec",
     "ScalarFlag",

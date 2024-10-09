@@ -81,6 +81,50 @@ class TestStaticGenFnMetadata:
         }
 
 
+class TestMisc:
+    def test_get_zero_trace(self):
+        @genjax.gen
+        def model(x):
+            y = genjax.normal(x, 1.0) @ "y"
+            z = genjax.bernoulli(0.7) @ "z"
+            return y + z
+
+        zero_trace = model.get_zero_trace(0.0)
+
+        assert isinstance(zero_trace, genjax.Trace)
+        assert zero_trace.get_args() == (0.0,)
+        assert zero_trace.get_retval() == 0.0
+        assert zero_trace.get_score() == 0.0
+
+        zero_choices = zero_trace.get_choices()
+        assert "y" in zero_choices
+        assert "z" in zero_choices
+        assert zero_choices["y"] == 0.0
+        assert zero_choices["z"] == 0.0
+
+    def test_get_zero_trace_with_nested_structure(self):
+        @genjax.gen
+        def nested_model():
+            @genjax.gen
+            def inner_model():
+                return genjax.normal(0.0, 1.0) @ "inner"
+
+            outer = genjax.normal(0.0, 1.0) @ "outer"
+            inner_result = inner_model() @ "nested"
+            return outer + inner_result
+
+        zero_trace = nested_model.get_zero_trace()
+
+        assert isinstance(zero_trace, genjax.Trace)
+        assert zero_trace.get_args() == ()
+        assert zero_trace.get_retval() == 0.0
+        assert zero_trace.get_score() == 0.0
+
+        zero_choices = zero_trace.get_choices()
+        assert zero_choices["outer"] == 0.0
+        assert zero_choices["nested", "inner"] == 0.0
+
+
 class TestStaticGenFnSimulate:
     def test_simulate_with_no_choices(self):
         @genjax.gen
