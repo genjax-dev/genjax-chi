@@ -40,7 +40,6 @@ from genjax._src.core.typing import (
     EllipsisType,
     Final,
     Flag,
-    Generic,
     String,
     TypeVar,
 )
@@ -1334,7 +1333,7 @@ class ChoiceMap(Sample):
 
 
 @Pytree.dataclass(match_args=True)
-class Choice(Generic[T], ChoiceMap):
+class Choice(ChoiceMap):
     """Represents a choice map with a single value.
 
     This class represents a choice map that contains a single value at the root level.
@@ -1351,9 +1350,9 @@ class Choice(Generic[T], ChoiceMap):
         ```
     """
 
-    v: T
+    v: ArrayLike | Mask[ArrayLike]
 
-    def get_value(self) -> T:
+    def get_value(self) -> ArrayLike | Mask[ArrayLike]:
         return self.v
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
