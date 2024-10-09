@@ -36,7 +36,6 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     FloatArray,
-    Int,
     PRNGKey,
 )
 from genjax._src.generative_functions.distributions.distribution import (
@@ -165,7 +164,7 @@ def ELBO(
 def IWELBO(
     proposal: SampleDistribution,
     make_target: Callable[[Any], Target[Any]],
-    N: Int,
+    N: int,
 ) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
     """
     Return a function that computes the gradient estimate of the IWELBO loss term.

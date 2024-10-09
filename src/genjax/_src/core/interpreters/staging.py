@@ -32,7 +32,6 @@ from genjax._src.core.typing import (
     ArrayLike,
     Callable,
     Flag,
-    Int,
     Iterable,
     Sequence,
     TypeVar,
@@ -168,7 +167,7 @@ def tree_choose(
         # - in the case of compatible types requiring casts (like bool => int),
         #   result's dtype tells us the final type.
         result = jnp.choose(idx, vs, mode="wrap")
-        if isinstance(idx, Int):
+        if isinstance(idx, int):
             return jnp.asarray(vs[idx % len(vs)], dtype=result.dtype)
         else:
             return result

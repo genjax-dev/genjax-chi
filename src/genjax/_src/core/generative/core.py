@@ -133,7 +133,7 @@ class MaskedConstraint(Constraint):
     """
     A `MaskedConstraint` encodes a possible constraint.
 
-    Formally, `MaskedConstraint(f: Bool, c: Constraint)` represents the constraint `Option((x $\\mapsto$ x, x))`,
+    Formally, `MaskedConstraint(f: bool, c: Constraint)` represents the constraint `Option((x $\\mapsto$ x, x))`,
     where the None case is represented by `EmptyConstraint`.
     """
 
