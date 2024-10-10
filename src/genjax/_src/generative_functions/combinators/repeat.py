@@ -19,7 +19,6 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.typing import (
     Callable,
-    Int,
     TypeVar,
 )
 
@@ -27,7 +26,7 @@ R = TypeVar("R")
 
 
 def RepeatCombinator(
-    gen_fn: GenerativeFunction[R], /, *, n: Int
+    gen_fn: GenerativeFunction[R], /, *, n: int
 ) -> GenerativeFunction[R]:
     """
     A combinator that samples from a supplied [`genjax.GenerativeFunction`][] `gen_fn` a fixed number of times, returning a vector of `n` results.
@@ -41,7 +40,7 @@ def RepeatCombinator(
     )
 
 
-def repeat(*, n: Int) -> Callable[[GenerativeFunction[R]], GenerativeFunction[R]]:
+def repeat(*, n: int) -> Callable[[GenerativeFunction[R]], GenerativeFunction[R]]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] `gen_fn` of type `a -> b` and returns a new `GenerativeFunction` of type `a -> [b]` that samples from `gen_fn `n` times, returning a vector of `n` results.
 
@@ -66,7 +65,7 @@ def repeat(*, n: Int) -> Callable[[GenerativeFunction[R]], GenerativeFunction[R]
             return genjax.normal(mean, 1.0) @ "x"
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         # Generate 10 draws from a normal distribution with mean 2.0
         tr = jax.jit(normal_draws.simulate)(key, (2.0,))
