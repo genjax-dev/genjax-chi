@@ -73,6 +73,7 @@ __all__ = [
     "categorical",
     "chi",
     "chi2",
+    "dirichlet",
     "exact_density",
     "flip",
     "forward_filtering_backward_sampling",
