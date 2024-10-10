@@ -1443,7 +1443,12 @@ class Indexed(ChoiceMap):
                     # update of a scan GF with an array of shape (0,) or (0, ...)
                     return ChoiceMap.empty()
                 else:
-                    return View(self.c.mask(check_array), addr)
+                    # Find the index where the address matches the internal addresses.
+                    (idx,) = jnp.argwhere(check_array, size=1, fill_value=-1)
+                    return View(
+                        self.c.mask(check_array),
+                        idx[0],  # idx is an array of indices, we take the first one.
+                    )
             else:
                 return self.c.mask(check)
 

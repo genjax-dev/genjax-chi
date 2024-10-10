@@ -889,9 +889,9 @@ class TestChoiceMap:
         def patch(x):
             return C[
                 "i",
-                jnp.array(list(range(0, 5))),
+                jnp.array(list(range(3, 8))),
                 "j",
-                jnp.repeat(jnp.array(list(range(0, 5))), 5).reshape(5, -1),
+                jnp.repeat(jnp.array(list(range(2, 7))), 5).reshape(5, -1),
                 "vertex",
             ].set(
                 jnp.array([
@@ -905,7 +905,37 @@ class TestChoiceMap:
 
         patch0, patch1 = patch(0), patch(1)
 
-        for i in range(5):
-            for j in range(5):
-                assert patch0["i", i, "j", j, "vertex"].unmask() == 0
-                assert patch1["i", i, "j", j, "vertex"].unmask() == 1
+        for i in range(3, 8):
+            for j in range(2, 7):
+                p0 = patch0["i", i, "j", j, "vertex"]
+                assert p0.flag
+                assert p0.unmask() == 0
+                p1 = patch1["i", i, "j", j, "vertex"]
+                assert p1.flag
+                assert p1.unmask() == 1
+
+        # Dense tests...
+        key = jax.random.PRNGKey(0)
+        arr_2d = jax.random.normal(key, shape=(5, 5))
+
+        # create a dense choicemap:
+        chm = C[:, "x", :].set(arr_2d)
+
+        # lookup with full slices:
+        assert jnp.array_equal(chm[:, "x", :], arr_2d)
+
+        # lookup with wildcards:
+        assert jnp.array_equal(chm[..., "x", ...], arr_2d)
+
+        # check that lookups match
+        assert jnp.array_equal(chm[1:3, "x", 2], arr_2d[1:3, 2])
+
+        # create an array and a patch:
+        ones = jnp.ones((10, 5))
+        zs = jnp.zeros(6)
+
+        full_chm = C[:, "x", :].set(ones)
+        constrained = full_chm.at[4:, "x", 2].set(zs)
+
+        # check that the full array matches .at.set jnp style:
+        assert jnp.array_equal(full_chm[:, "x", :], ones.at[4:, 2].set(zs))
