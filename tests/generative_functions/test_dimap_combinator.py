@@ -40,7 +40,7 @@ class TestDimapCombinator:
         )
 
         # Use the dimap model
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
         trace = dimap_model.simulate(key, (2.0, 3.0))
         assert (
             -2.5092335 == trace.get_retval()

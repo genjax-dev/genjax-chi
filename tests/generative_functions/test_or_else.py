@@ -22,7 +22,7 @@ import genjax
 class TestOrElse:
     @pytest.fixture
     def key(self):
-        return jax.random.PRNGKey(314159)
+        return jax.random.key(314159)
 
     def test_assess_or_else(self, key):
         @genjax.gen

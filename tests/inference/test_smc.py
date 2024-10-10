@@ -37,7 +37,7 @@ class TestSMC:
             y = target.constraint.get_submap("y")
             return genjax.flip.assess(y, (0.7,))[0]
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         inference_problem = genjax.Target(flip_flip_trivial, (), C["y"].set(True))
 
         # Single sample IS.
@@ -74,7 +74,7 @@ class TestSMC:
             y_marginal = logsumexp(x_prior + y_likelihood)
             return y_marginal
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         inference_problem = genjax.Target(flip_flip, (), C["y"].set(True))
 
         # K-sample IS.

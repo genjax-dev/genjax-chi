@@ -98,7 +98,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
             return genjax.normal(mean, std) @ "x"
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         tr = jax.jit(transformed_normal_draw.simulate)(
             key,
             (
@@ -263,7 +263,7 @@ def dimap(
 
 
         # Use the dimap model
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
         trace = dimap_model.simulate(key, (2.0, 3.0))
 
         print(trace.render_html())
@@ -311,7 +311,7 @@ def map(
 
 
         # Use the map model
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
         trace = map_model.simulate(key, (2.0,))
 
         print(trace.render_html())
@@ -360,7 +360,7 @@ def contramap(
 
 
         # Use the contramap model
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
         trace = contramap_model.simulate(key, (2.0,))
 
         print(trace.render_html())

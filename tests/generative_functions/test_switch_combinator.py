@@ -35,7 +35,7 @@ class TestSwitchCombinator:
             s = f.switch(f)(jnp.int32(b), (), ()) @ "s"
             return s
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         key, sub_key = jax.random.split(key)
         tr = model.simulate(sub_key, ())
         assert 0.5672885 == tr.get_retval()
@@ -52,7 +52,7 @@ class TestSwitchCombinator:
 
         switch = simple_normal.switch(simple_flip)
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         jitted = jax.jit(switch.simulate)
         key, sub_key = jax.random.split(key)
         tr = jitted(sub_key, (0, (), ()))
@@ -87,7 +87,7 @@ class TestSwitchCombinator:
 
         switch = simple_normal.switch(simple_flip)
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         jitted = jax.jit(switch.simulate)
         tr = jitted(key, (0, (), ()))
         assert "y1" in tr.get_sample()
@@ -106,7 +106,7 @@ class TestSwitchCombinator:
 
         switch = simple_normal.switch(simple_flip)
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         chm = C.n()
         jitted = jax.jit(switch.importance)
         key, sub_key = jax.random.split(key)
@@ -145,7 +145,7 @@ class TestSwitchCombinator:
             _y2 = genjax.normal(0.0, 1.0) @ "y2"
 
         switch = simple_normal.switch()
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         key, sub_key = jax.random.split(key)
         tr = jax.jit(switch.simulate)(sub_key, (0, ()))
         v1 = tr.get_sample()["y1"]
@@ -177,7 +177,7 @@ class TestSwitchCombinator:
             x = genjax.normal(0.0, outlier_stddev) @ "x"
             return x
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         switch = regular.switch(outlier)
         key, importance_key = jax.random.split(key)
 
@@ -215,7 +215,7 @@ class TestSwitchCombinator:
 
         s = f1.switch(f2)
 
-        keys = jax.random.split(jax.random.PRNGKey(17), 3)
+        keys = jax.random.split(jax.random.key(17), 3)
         # Just select 0 in all branches for simplicity:
         tr = jax.vmap(s.simulate, in_axes=(0, None))(keys, (0, (), ()))
         y = tr.get_choices()["y"].unmask()
@@ -237,7 +237,7 @@ class TestSwitchCombinator:
             s = f.switch(empty)(jnp.int32(b), (), ()) @ "s"
             return s
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         key, sub_key = jax.random.split(key)
         tr = model.simulate(sub_key, ())
         assert 0.0 == tr.get_retval()
@@ -251,7 +251,7 @@ class TestSwitchCombinator:
         def bool_branch(_: int) -> Array:
             return jnp.asarray(True)
 
-        k = jax.random.PRNGKey(0)
+        k = jax.random.key(0)
 
         switch_model = genjax.switch(identity, bool_branch)
 
@@ -273,7 +273,7 @@ class TestSwitchCombinator:
         def four_branch(_: int):
             return jax.numpy.ones(4)
 
-        k = jax.random.PRNGKey(0)
+        k = jax.random.key(0)
         switch_model = three_branch.switch(four_branch)
 
         with pytest.raises(ValueError, match="Incompatible shapes for broadcasting"):

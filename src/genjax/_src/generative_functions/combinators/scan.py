@@ -148,7 +148,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
 
         init = 0.5
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         random_walk = random_walk_step.scan(n=1000)
 
@@ -548,7 +548,7 @@ def scan(
 
 
         init = 0.5
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         tr = jax.jit(random_walk.simulate)(key, (init, None))
         print(tr.render_html())
@@ -654,7 +654,7 @@ def accumulate() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Car
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         xs = jnp.ones(10)
 
         tr = jax.jit(add.simulate)(key, (init, xs))
@@ -714,7 +714,7 @@ def reduce() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         xs = jnp.ones(10)
 
         tr = jax.jit(add.simulate)(key, (init, xs))
@@ -777,7 +777,7 @@ def iterate(*, n: int) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         tr = jax.jit(inc.simulate)(key, (init,))
         print(tr.render_html())
@@ -838,7 +838,7 @@ def iterate_final(
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         tr = jax.jit(inc.simulate)(key, (init,))
         print(tr.render_html())

@@ -30,10 +30,10 @@ class TestTupleAddr:
             y = genjax.normal(x, 1.0) @ "y"
             return y
 
-        tr = f.simulate(jax.random.PRNGKey(0), ())
+        tr = f.simulate(jax.random.key(0), ())
         chm = tr.get_choices()
         x_score, _ = genjax.normal.assess(C.v(chm["x", "x0"]), (0.0, 1.0))
-        assert x_score == tr.project(jax.random.PRNGKey(1), Selection.at["x", "x0"])
+        assert x_score == tr.project(jax.random.key(1), Selection.at["x", "x0"])
 
 
 class TestProject:
@@ -45,12 +45,12 @@ class TestProject:
             return x, y
 
         # get a trace
-        tr = f.simulate(jax.random.PRNGKey(0), ())
+        tr = f.simulate(jax.random.key(0), ())
         # evaluations
-        x_score = tr.project(jax.random.PRNGKey(1), S["x"])
+        x_score = tr.project(jax.random.key(1), S["x"])
         assert x_score == tr.subtraces[0].get_score()
 
-        y_score = tr.project(jax.random.PRNGKey(1), S["y"])
+        y_score = tr.project(jax.random.key(1), S["y"])
         assert y_score == tr.subtraces[1].get_score()
 
         assert tr.get_score() == x_score + y_score
@@ -60,7 +60,7 @@ class TestCombinators:
     """Tests for the generative function combinator methods."""
 
     def test_vmap(self):
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         @genjax.gen
         def model(x):
@@ -87,7 +87,7 @@ class TestCombinators:
         assert jnp.array_equal(chm(jnp.arange(3))["q"].unmask(), qarr)
 
     def test_repeat(self):
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         @genjax.gen
         def model(x):
@@ -112,7 +112,7 @@ class TestCombinators:
         assert jnp.array_equal(vmap_tr.get_choices()[..., "x"], varr)
 
     def test_or_else(self):
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         @genjax.gen
         def if_model(x):
