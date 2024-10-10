@@ -1088,7 +1088,7 @@ class ChoiceMap(Sample):
                 return x
 
 
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
             tr = model.simulate(key, ())
             chm = tr.get_sample()
             selection = S["x"]

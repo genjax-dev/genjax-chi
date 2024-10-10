@@ -65,7 +65,7 @@ def repeat(*, n: int) -> Callable[[GenerativeFunction[R]], GenerativeFunction[R]
             return genjax.normal(mean, 1.0) @ "x"
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         # Generate 10 draws from a normal distribution with mean 2.0
         tr = jax.jit(normal_draws.simulate)(key, (2.0,))

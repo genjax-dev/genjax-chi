@@ -302,7 +302,7 @@ class GenerativeFunction(Generic[R], Pytree):
             print(zero_trace.render_html())
 
             print("\nActual simulation:")
-            key = jax.random.PRNGKey(0)
+            key = jax.random.key(0)
             actual_trace = weather_model.simulate(key, ())
             print(actual_trace.render_html())
             ```
@@ -661,7 +661,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
             vmapped = model.vmap(in_axes=0)
 
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
             arr = jnp.ones(100)
 
             # `vmapped` accepts an array if numbers instead of the original
@@ -701,7 +701,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
             normal_draws = normal_draw.repeat(n=10)
 
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
 
             # Generate 10 draws from a normal distribution with mean 2.0
             tr = jax.jit(normal_draws.simulate)(key, (2.0,))
@@ -769,7 +769,7 @@ class GenerativeFunction(Generic[R], Pytree):
             random_walk = random_walk_step.scan(n=1000)
 
             init = 0.5
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
 
             tr = jax.jit(random_walk.simulate)(key, (init, None))
             print(tr.render_html())
@@ -844,7 +844,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
 
             init = 0.0
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
             xs = jnp.ones(10)
 
             tr = jax.jit(add.simulate)(key, (init, xs))
@@ -896,7 +896,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
 
             init = 0.0
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
             xs = jnp.ones(10)
 
             tr = jax.jit(add.simulate)(key, (init, xs))
@@ -954,7 +954,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
 
             init = 0.0
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
 
             tr = jax.jit(inc.simulate)(key, (init,))
             print(tr.render_html())
@@ -1009,7 +1009,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
 
             init = 0.0
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
 
             tr = jax.jit(inc.simulate)(key, (init,))
             print(tr.render_html())
@@ -1043,7 +1043,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
             masked_normal_draw = normal_draw.mask()
 
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
             tr = jax.jit(masked_normal_draw.simulate)(
                 key,
                 (
@@ -1095,7 +1095,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return if_model.or_else(else_model)(toss, (1.0,), (10.0,)) @ "tossed"
 
 
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
 
             tr = jax.jit(model.simulate)(key, (True,))
 
@@ -1136,7 +1136,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
             switch = branch_1.switch(branch_2)
 
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
             jitted = jax.jit(switch.simulate)
 
             # Select `branch_2` by providing 1:
@@ -1187,7 +1187,7 @@ class GenerativeFunction(Generic[R], Pytree):
             mixture = component1.mix(component2)
 
             # Use the mixture model
-            key = jax.random.PRNGKey(0)
+            key = jax.random.key(0)
             logits = jax.numpy.array([0.3, 0.7])  # Favors component2
             trace = mixture.simulate(key, (logits, (0.0,), (7.0,)))
             print(trace.render_html())
@@ -1243,7 +1243,7 @@ class GenerativeFunction(Generic[R], Pytree):
             )
 
             # Use the dimap model
-            key = jax.random.PRNGKey(0)
+            key = jax.random.key(0)
             trace = dimap_model.simulate(key, (2.0, 3.0))
 
             print(trace.render_html())
@@ -1284,7 +1284,7 @@ class GenerativeFunction(Generic[R], Pytree):
             map_model = model.map(square, info="Square of normal")
 
             # Use the map model
-            key = jax.random.PRNGKey(0)
+            key = jax.random.key(0)
             trace = map_model.simulate(key, (2.0,))
 
             print(trace.render_html())
@@ -1326,7 +1326,7 @@ class GenerativeFunction(Generic[R], Pytree):
             contramap_model = model.contramap(add_one, info="Add one to input")
 
             # Use the contramap model
-            key = jax.random.PRNGKey(0)
+            key = jax.random.key(0)
             trace = contramap_model.simulate(key, (2.0,))
 
             print(trace.render_html())
