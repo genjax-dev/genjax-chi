@@ -244,6 +244,11 @@ class SimulateHandler(StaticHandler):
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
     key_counter: Int = Pytree.static(default=1)
 
+    def fresh_key_and_increment(self):
+        new_key = jax.random.fold_in(self.key, self.key_counter)
+        self.key_counter += 1
+        return new_key
+
     def visit(self, addr):
         self.address_visitor.visit(addr)
 
@@ -261,12 +266,11 @@ class SimulateHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         self.visit(addr)
-        sub_key = jax.random.fold_in(self.key, self.key_counter)
+        sub_key = self.fresh_key_and_increment()
         tr = gen_fn.simulate(sub_key, args)
         score = tr.get_score()
         self.address_traces.append(tr)
         self.score += score
-        self.key_counter += 1
         v = tr.get_retval()
         return v
 
@@ -347,6 +351,11 @@ class GenerateHandler(StaticHandler):
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
     key_counter: Int = Pytree.static(default=1)
 
+    def fresh_key_and_increment(self):
+        new_key = jax.random.fold_in(self.key, self.key_counter)
+        self.key_counter += 1
+        return new_key
+
     def visit(self, addr: StaticAddress):
         self.address_visitor.visit(addr)
 
@@ -379,12 +388,11 @@ class GenerateHandler(StaticHandler):
     ):
         self.visit(addr)
         subconstraint = self.get_subconstraint(addr)
-        sub_key = jax.random.fold_in(self.key, self.key_counter)
+        sub_key = self.fresh_key_and_increment()
         (tr, w) = gen_fn.generate(sub_key, subconstraint, args)
         self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
-        self.key_counter += 1
 
         return tr.get_retval()
 
@@ -436,6 +444,11 @@ class UpdateHandler(StaticHandler):
     bwd_constraints: list[ChoiceMapConstraint] = Pytree.field(default_factory=list)
     key_counter: Int = Pytree.static(default=1)
 
+    def fresh_key_and_increment(self):
+        new_key = jax.random.fold_in(self.key, self.key_counter)
+        self.key_counter += 1
+        return new_key
+
     def yield_state(self):
         return (
             self.score,
@@ -470,7 +483,7 @@ class UpdateHandler(StaticHandler):
         self.visit(addr)
         subtrace = self.get_subtrace(addr)
         constraint = self.get_subconstraint(addr)
-        sub_key = jax.random.fold_in(self.key, self.key_counter)
+        sub_key = self.fresh_key_and_increment()
         (tr, w, retval_diff, bwd_request) = gen_fn.edit(
             sub_key,
             subtrace,
@@ -484,7 +497,6 @@ class UpdateHandler(StaticHandler):
         self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
-        self.key_counter += 1
 
         return retval_diff
 
@@ -548,6 +560,11 @@ class ChoiceMapEditRequestHandler(StaticHandler):
     bwd_requests: list[EditRequest] = Pytree.field(default_factory=list)
     key_counter: Int = Pytree.static(default=1)
 
+    def fresh_key_and_increment(self):
+        new_key = jax.random.fold_in(self.key, self.key_counter)
+        self.key_counter += 1
+        return new_key
+
     def yield_state(self):
         return (
             self.score,
@@ -583,7 +600,7 @@ class ChoiceMapEditRequestHandler(StaticHandler):
         self.visit(addr)
         subtrace = self.get_subtrace(addr)
         subrequest = self.get_subrequest(addr)
-        sub_key = jax.random.fold_in(self.key, self.key_counter)
+        sub_key = self.fresh_key_and_increment()
         (tr, w, retval_diff, bwd_request) = subrequest.edit(
             sub_key,
             subtrace,
@@ -593,7 +610,6 @@ class ChoiceMapEditRequestHandler(StaticHandler):
         self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
-        self.key_counter += 1
 
         return retval_diff
 
@@ -660,6 +676,11 @@ class RegenerateRequestHandler(StaticHandler):
     bwd_requests: list[EditRequest] = Pytree.field(default_factory=list)
     key_counter: Int = Pytree.static(default=1)
 
+    def fresh_key_and_increment(self):
+        new_key = jax.random.fold_in(self.key, self.key_counter)
+        self.key_counter += 1
+        return new_key
+
     def yield_state(self):
         return (
             self.score,
@@ -694,14 +715,13 @@ class RegenerateRequestHandler(StaticHandler):
         self.visit(addr)
         subtrace = self.get_subtrace(addr)
         subselection = self.get_subselection(addr)
-        sub_key = jax.random.fold_in(self.key, self.key_counter)
+        sub_key = self.fresh_key_and_increment()
         subrequest = Regenerate(subselection)
         tr, w, retval_diff, bwd_request = subrequest.edit(sub_key, subtrace, argdiffs)
         self.bwd_requests.append(bwd_request)
         self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
-        self.key_counter += 1
 
         return retval_diff
 
