@@ -57,7 +57,6 @@ from genjax._src.core.typing import (
     Callable,
     FloatArray,
     Generic,
-    Int,
     PRNGKey,
 )
 
@@ -242,7 +241,7 @@ class SimulateHandler(StaticHandler):
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
-    key_counter: Int = Pytree.static(default=1)
+    key_counter: int = Pytree.static(default=1)
 
     def fresh_key_and_increment(self):
         new_key = jax.random.fold_in(self.key, self.key_counter)
@@ -349,7 +348,7 @@ class GenerateHandler(StaticHandler):
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
-    key_counter: Int = Pytree.static(default=1)
+    key_counter: int = Pytree.static(default=1)
 
     def fresh_key_and_increment(self):
         new_key = jax.random.fold_in(self.key, self.key_counter)
@@ -442,7 +441,7 @@ class UpdateHandler(StaticHandler):
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
     bwd_constraints: list[ChoiceMapConstraint] = Pytree.field(default_factory=list)
-    key_counter: Int = Pytree.static(default=1)
+    key_counter: int = Pytree.static(default=1)
 
     def fresh_key_and_increment(self):
         new_key = jax.random.fold_in(self.key, self.key_counter)
@@ -558,7 +557,7 @@ class ChoiceMapEditRequestHandler(StaticHandler):
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
     bwd_requests: list[EditRequest] = Pytree.field(default_factory=list)
-    key_counter: Int = Pytree.static(default=1)
+    key_counter: int = Pytree.static(default=1)
 
     def fresh_key_and_increment(self):
         new_key = jax.random.fold_in(self.key, self.key_counter)
@@ -674,7 +673,7 @@ class RegenerateRequestHandler(StaticHandler):
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
     bwd_requests: list[EditRequest] = Pytree.field(default_factory=list)
-    key_counter: Int = Pytree.static(default=1)
+    key_counter: int = Pytree.static(default=1)
 
     def fresh_key_and_increment(self):
         new_key = jax.random.fold_in(self.key, self.key_counter)
