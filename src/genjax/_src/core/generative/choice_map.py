@@ -25,23 +25,21 @@ from beartype.typing import Iterable
 from deprecated import deprecated
 
 from genjax._src.core.generative.core import Constraint, Projection, Sample
-from genjax._src.core.generative.functional_types import Mask, staged_choose
-from genjax._src.core.interpreters import staging
+from genjax._src.core.generative.functional_types import Mask
 from genjax._src.core.interpreters.staging import (
     FlagOp,
     staged_err,
+    tree_choose,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
-    Bool,
     Callable,
     EllipsisType,
     Final,
     Flag,
     Generic,
-    String,
     TypeVar,
 )
 
@@ -52,7 +50,7 @@ if TYPE_CHECKING:
 # Address types #
 #################
 
-StaticAddressComponent = String
+StaticAddressComponent = str
 DynamicAddressComponent = ArrayLike
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
 Address = tuple[()] | tuple[AddressComponent, ...]
@@ -1207,7 +1205,7 @@ class ChoiceMap(Sample):
         """
         return ChmSel.build(self)
 
-    def static_is_empty(self) -> Bool:
+    def static_is_empty(self) -> bool:
         """
         Returns True if this ChoiceMap is equal to `ChoiceMap.empty()`, False otherwise.
         """
@@ -1326,7 +1324,7 @@ class ChoiceMap(Sample):
             assert "z" in extras  # "z" is an extra choice not in the model
             ```
         """
-        shape_chm = staging.get_trace_shape(gen_fn, args).get_choices()
+        shape_chm = gen_fn.get_zero_trace(*args).get_choices()
         shape_sel = _shape_selection(shape_chm)
         extras = self.filter(~shape_sel, eager=True)
         if not extras.static_is_empty():
@@ -1494,7 +1492,7 @@ class Static(ChoiceMap):
             acc ^= v.mask(check(k))
         return acc
 
-    def static_is_empty(self) -> Bool:
+    def static_is_empty(self) -> bool:
         return len(self.mapping) == 0
 
     def __treescope_repr__(self, path, subtree_renderer):
@@ -1574,7 +1572,7 @@ class Xor(ChoiceMap):
             # make the choice directly.
             return [v1, v2][idx]
         else:
-            return staged_choose(idx, [v1, v2])
+            return tree_choose(idx, [v1, v2])
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         remaining_1 = self.c1.get_submap(addr)
@@ -1642,7 +1640,7 @@ class Or(ChoiceMap):
             # make the choice directly.
             return [v1, v2][idx]
         else:
-            return staged_choose(idx, [v1, v2])
+            return tree_choose(idx, [v1, v2])
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap1 = self.c1.get_submap(addr)

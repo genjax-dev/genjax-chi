@@ -803,11 +803,9 @@ class TestChoiceMap:
         )
         expected_result = C["y", jnp.arange(3), "c"].set(jnp.array([0.1, 0.2, 0.3]))
         actual_result = invalid_vmap_chm2.invalid_subset(outer_model, ())
-        assert jax.tree_util.tree_structure(
-            actual_result
-        ) == jax.tree_util.tree_structure(expected_result)
-        assert jax.tree_util.tree_all(
-            jax.tree_map(
+        assert jtu.tree_structure(actual_result) == jtu.tree_structure(expected_result)
+        assert jtu.tree_all(
+            jtu.tree_map(
                 lambda x, y: jnp.allclose(x, y), actual_result, expected_result
             )
         )

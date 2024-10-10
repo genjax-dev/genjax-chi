@@ -15,8 +15,6 @@
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-import jax
-
 from genjax._src.core.generative.choice_map import (
     ChoiceMap,
     ChoiceMapConstraint,
@@ -33,17 +31,15 @@ from genjax._src.core.generative.core import (
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import get_trace_shape
+from genjax._src.core.interpreters.staging import empty_trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
     Generic,
     InAxes,
-    Int,
     PRNGKey,
     Self,
-    String,
     TypeVar,
 )
 
@@ -271,13 +267,47 @@ class GenerativeFunction(Generic[R], Pytree):
 
         Generative functions may customize this to improve compilation time.
         """
-        return self.simulate(jax.random.PRNGKey(0), args).get_retval()
+        return self.get_zero_trace(*args).get_retval()
 
     def handle_kwargs(self) -> "GenerativeFunction[R]":
         return IgnoreKwargs(self)
 
-    def get_trace_shape(self, *args) -> Any:
-        return get_trace_shape(self, args)
+    def get_zero_trace(self, *args, **_kwargs) -> Trace[R]:
+        """
+        Returns a trace with zero values for all leaves, generated without executing the generative function.
+
+        This method is useful for static analysis and shape inference without executing the generative function. It returns a trace with the same structure as a real trace, but filled with zero or default values.
+
+        Args:
+            *args: The arguments to the generative function.
+            **_kwargs: Ignored keyword arguments.
+
+        Returns:
+            A trace with zero values, matching the structure of a real trace.
+
+        Note:
+            This method uses the `empty_trace` utility function, which creates a trace without spending any FLOPs. The resulting trace has the correct structure but contains placeholder zero values.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="core"
+            @genjax.gen
+            def weather_model():
+                temperature = genjax.normal(20.0, 5.0) @ "temperature"
+                is_sunny = genjax.bernoulli(0.7) @ "is_sunny"
+                return {"temperature": temperature, "is_sunny": is_sunny}
+
+
+            zero_trace = weather_model.get_zero_trace()
+            print("Zero trace structure:")
+            print(zero_trace.render_html())
+
+            print("\nActual simulation:")
+            key = jax.random.PRNGKey(0)
+            actual_trace = weather_model.simulate(key, ())
+            print(actual_trace.render_html())
+            ```
+        """
+        return empty_trace(self, args)
 
     @abstractmethod
     def simulate(
@@ -335,7 +365,6 @@ class GenerativeFunction(Generic[R], Pytree):
             print(tr.render_html())
             ```
         """
-        pass
 
     @abstractmethod
     def assess(
@@ -378,7 +407,6 @@ class GenerativeFunction(Generic[R], Pytree):
             print((score, retval))
             ```
         """
-        pass
 
     @abstractmethod
     def generate(
@@ -647,7 +675,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.vmap(in_axes=in_axes)(self)
 
-    def repeat(self, /, *, n: Int) -> "GenerativeFunction[R]":
+    def repeat(self, /, *, n: int) -> "GenerativeFunction[R]":
         """
         Returns a [`genjax.GenerativeFunction`][] that samples from `self` `n` times, returning a vector of `n` results.
 
@@ -688,7 +716,7 @@ class GenerativeFunction(Generic[R], Pytree):
         self: "GenerativeFunction[tuple[Carry, Y]]",
         /,
         *,
-        n: Int | None = None,
+        n: int | None = None,
     ) -> "GenerativeFunction[tuple[Carry, Y]]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)`, returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])` where
@@ -883,7 +911,7 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         /,
         *,
-        n: Int,
+        n: int,
     ) -> "GenerativeFunction[R]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `a -> a`, returns a new [`genjax.GenerativeFunction`][] of type `a -> [a]` where
@@ -940,7 +968,7 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         /,
         *,
-        n: Int,
+        n: int,
     ) -> "GenerativeFunction[R]":
         """
         Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a` where
@@ -1175,7 +1203,7 @@ class GenerativeFunction(Generic[R], Pytree):
         *,
         pre: Callable[..., ArgTuple],
         post: Callable[[ArgTuple, R], S],
-        info: String | None = None,
+        info: str | None = None,
     ) -> "GenerativeFunction[S]":
         """
         Returns a new [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
@@ -1226,7 +1254,7 @@ class GenerativeFunction(Generic[R], Pytree):
         return genjax.dimap(pre=pre, post=post, info=info)(self)
 
     def map(
-        self, f: Callable[[R], S], *, info: String | None = None
+        self, f: Callable[[R], S], *, info: str | None = None
     ) -> "GenerativeFunction[S]":
         """
         Specialized version of [`genjax.dimap`][] where only the post-processing function is applied.
@@ -1267,7 +1295,7 @@ class GenerativeFunction(Generic[R], Pytree):
         return genjax.map(f=f, info=info)(self)
 
     def contramap(
-        self, f: Callable[..., ArgTuple], *, info: String | None = None
+        self, f: Callable[..., ArgTuple], *, info: str | None = None
     ) -> "GenerativeFunction[R]":
         """
         Specialized version of [`genjax.GenerativeFunction.dimap`][] where only the pre-processing function is applied.
