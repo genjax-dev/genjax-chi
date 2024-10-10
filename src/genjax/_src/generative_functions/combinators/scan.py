@@ -38,7 +38,6 @@ from genjax._src.core.typing import (
     Callable,
     FloatArray,
     Generic,
-    Int,
     IntArray,
     PRNGKey,
     TypeVar,
@@ -149,7 +148,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
 
         init = 0.5
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         random_walk = random_walk_step.scan(n=1000)
 
@@ -174,7 +173,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     kernel_gen_fn: GenerativeFunction[tuple[Carry, Y]]
 
     # Only required for `None` carry inputs
-    length: Int | None = Pytree.static()
+    length: int | None = Pytree.static()
 
     # To get the type of return value, just invoke
     # the scanned over source (with abstract tracer arguments).
@@ -494,7 +493,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
 
 def scan(
-    *, n: Int | None = None
+    *, n: int | None = None
 ) -> Callable[
     [GenerativeFunction[tuple[Carry, Y]]], GenerativeFunction[tuple[Carry, Y]]
 ]:
@@ -549,7 +548,7 @@ def scan(
 
 
         init = 0.5
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         tr = jax.jit(random_walk.simulate)(key, (init, None))
         print(tr.render_html())
@@ -655,7 +654,7 @@ def accumulate() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Car
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         xs = jnp.ones(10)
 
         tr = jax.jit(add.simulate)(key, (init, xs))
@@ -715,7 +714,7 @@ def reduce() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         xs = jnp.ones(10)
 
         tr = jax.jit(add.simulate)(key, (init, xs))
@@ -735,7 +734,7 @@ def reduce() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]
     return decorator
 
 
-def iterate(*, n: Int) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
+def iterate(*, n: int) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a ->
     [a]` where.
@@ -778,7 +777,7 @@ def iterate(*, n: Int) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         tr = jax.jit(inc.simulate)(key, (init,))
         print(tr.render_html())
@@ -797,7 +796,7 @@ def iterate(*, n: Int) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y
 
 
 def iterate_final(
-    *, n: Int
+    *, n: int
 ) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a`
@@ -839,7 +838,7 @@ def iterate_final(
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         tr = jax.jit(inc.simulate)(key, (init,))
         print(tr.render_html())

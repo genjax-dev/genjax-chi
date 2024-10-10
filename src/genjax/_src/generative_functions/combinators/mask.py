@@ -101,7 +101,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             return genjax.normal(mean, 1.0) @ "x"
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         tr = jax.jit(masked_normal_draw.simulate)(
             key,
             (
@@ -277,7 +277,7 @@ def mask(f: GenerativeFunction[R]) -> MaskCombinator[R]:
             return genjax.normal(mean, 1.0) @ "x"
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         tr = jax.jit(masked_normal_draw.simulate)(
             key,
             (

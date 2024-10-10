@@ -32,7 +32,7 @@ def model(x):
 class TestMaskCombinator:
     @pytest.fixture
     def key(self):
-        return jax.random.PRNGKey(314159)
+        return jax.random.key(314159)
 
     def test_mask_simple_normal_true(self, key):
         tr = jax.jit(model.simulate)(key, (True, -4.0))
@@ -137,7 +137,7 @@ class TestMaskCombinator:
             def scan_step_post(_unused_args, masked_retval):
                 return masked_retval.value, None
 
-            # scan_step: (a, Bool) -> a
+            # scan_step: (a, bool) -> a
             scan_step = step.mask().dimap(pre=scan_step_pre, post=scan_step_post)
             return scan_step.scan(**scan_kwargs)
 
@@ -152,7 +152,7 @@ class TestMaskCombinator:
             return x
 
         # Create some initial traces:
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
         mask_steps = jnp.arange(10) < 5
         model = masked_scan_combinator(step, n=len(mask_steps))
         init_particle = model.simulate(key, ((0.0,), mask_steps))

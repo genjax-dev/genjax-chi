@@ -26,7 +26,7 @@ class TestRegenerate:
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         key, sub_key = jax.random.split(key)
         tr = simple_normal.simulate(sub_key, ())
 
