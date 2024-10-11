@@ -55,7 +55,7 @@ For instance, JAX disallows usage of runtime values to resolve Python control fl
 
 In GenJAX, we take advantage of JAX's tracing to construct code which, when traced, produces specialized code _depending on static information_. At the same time, we are careful to encode Gen's interfaces to respect JAX's rules which govern how static / runtime values can be used.
 
-The most primitive way to encode _runtime uncertainty_ about a piece of data is to attach a `Bool` to it, which indicates whether the data is "on" or "off".
+The most primitive way to encode _runtime uncertainty_ about a piece of data is to attach a `bool` to it, which indicates whether the data is "on" or "off".
 
 GenJAX contains a system for tagging data with flags, to indicate if the data is valid or invalid during inference interface computations _at runtime_. The key data structure which supports this system is `genjax.core.Mask`.
 

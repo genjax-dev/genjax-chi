@@ -42,11 +42,11 @@ class TestDiff:
         assert result == {"a": 1, "b": [2, 3]}
 
     def test_tree_tangent(self):
-        tree = {"a": 1, "b": [Diff(2, NoChange), 3]}
+        tree = {"a": 1, "b": [Diff(2, UnknownChange), 3]}
         result = Diff.tree_tangent(tree)
 
         # note that non-Diffs are marked as UnknownChange, the default tangent value.
-        assert result == {"a": UnknownChange, "b": [NoChange, UnknownChange]}
+        assert result == {"a": NoChange, "b": [UnknownChange, NoChange]}
 
     def test_static_check_tree_diff(self):
         tree1 = {"a": Diff(1, NoChange), "b": [Diff(2, UnknownChange)]}

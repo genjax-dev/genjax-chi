@@ -419,7 +419,7 @@ class ExactDensity(Generic[R], Distribution[R]):
         pass
 
     def __abstract_call__(self, *args):
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
         return self.sample(key, *args)
 
     def handle_kwargs(self) -> GenerativeFunction[R]:
@@ -468,7 +468,7 @@ class ExactDensity(Generic[R], Distribution[R]):
         sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Weight, R]:
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
         v = sample.get_value()
         match v:
             case Mask(value, flag):

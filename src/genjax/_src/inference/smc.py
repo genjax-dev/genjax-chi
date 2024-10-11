@@ -36,7 +36,6 @@ from genjax._src.core.typing import (
     BoolArray,
     FloatArray,
     Generic,
-    Int,
     PRNGKey,
     TypeVar,
 )
@@ -283,12 +282,12 @@ class Importance(Generic[R], SMCAlgorithm[R]):
 @Pytree.dataclass
 class ImportanceK(Generic[R], SMCAlgorithm[R]):
     """Given a `target: Target` and a proposal `q: SampleDistribution`, as well as the
-    number of particles `k_particles: Int`, initialize a particle collection using
+    number of particles `k_particles: int`, initialize a particle collection using
     importance sampling."""
 
     target: Target[R]
     q: SampleDistribution | None = Pytree.field(default=None)
-    k_particles: Int = Pytree.static(default=2)
+    k_particles: int = Pytree.static(default=2)
 
     def get_num_particles(self):
         return self.k_particles
