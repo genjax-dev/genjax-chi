@@ -121,7 +121,7 @@ def run_inference(obs: bool):
 
     # Everything is JAX compatible by default.
     # JIT, vmap, to your heart's content.
-    key = jax.random.PRNGKey(314159)
+    key = jax.random.key(314159)
     sub_keys = jax.random.split(key, 50)
     _, p_chm = jax.vmap(alg.random_weighted, in_axes=(0, None))(
         sub_keys, posterior_target

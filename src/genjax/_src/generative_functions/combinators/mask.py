@@ -19,16 +19,16 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    EmptyTrace,
+    ChoiceMapConstraint,
+    Constraint,
+    EditRequest,
     GenerativeFunction,
-    GenericProblem,
     Mask,
-    MaskedProblem,
-    MaskedSample,
+    Projection,
     Retdiff,
     Score,
     Trace,
-    UpdateProblem,
+    Update,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -36,7 +36,6 @@ from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    Flag,
     Generic,
     PRNGKey,
     ScalarFlag,
@@ -52,21 +51,21 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     inner: Trace[R]
     check: ScalarFlag
 
-    def get_args(self) -> tuple[Flag, Any]:
+    def get_args(self) -> tuple[Any, ...]:
         return (self.check, *self.inner.get_args())
 
     def get_gen_fn(self):
         return self.mask_combinator
 
-    def get_sample(self):
-        inner_sample = self.inner.get_sample()
-        if isinstance(inner_sample, ChoiceMap):
-            return inner_sample.mask(self.check)
-        else:
-            return MaskedSample(self.check, self.inner.get_sample())
+    def get_sample(self) -> ChoiceMap:
+        return self.get_choices()
+
+    def get_choices(self) -> ChoiceMap:
+        inner_choice_map = self.inner.get_choices()
+        return inner_choice_map.mask(self.check)
 
     def get_retval(self):
-        return Mask(self.check, self.inner.get_retval())
+        return Mask(self.inner.get_retval(), self.check)
 
     def get_score(self):
         inner_score = self.inner.get_score()
@@ -102,7 +101,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             return genjax.normal(mean, 1.0) @ "x"
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         tr = jax.jit(masked_normal_draw.simulate)(
             key,
             (
@@ -122,18 +121,37 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         args: tuple[Any, ...],
     ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
-
         tr = self.gen_fn.simulate(key, inner_args)
         return MaskTrace(self, tr, check)
 
-    def update_change_target(
+    def generate(
+        self,
+        key: PRNGKey,
+        constraint: Constraint,
+        args: tuple[Any, ...],
+    ) -> tuple[MaskTrace[R], Weight]:
+        check, inner_args = args[0], args[1:]
+
+        tr, w = self.gen_fn.generate(key, constraint, inner_args)
+        return MaskTrace(self, tr, check), w * check
+
+    def project(
         self,
         key: PRNGKey,
         trace: Trace[Mask[R]],
-        update_problem: UpdateProblem,
+        projection: Projection[Any],
+    ) -> Weight:
+        raise NotImplementedError
+
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: Trace[Mask[R]],
+        edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
-        assert isinstance(trace, MaskTrace | EmptyTrace)
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], EditRequest]:
+        assert isinstance(trace, MaskTrace)
+        assert isinstance(edit_request, Update)
 
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
         post_check: ScalarFlag = Diff.tree_primal(check_diff)
@@ -142,24 +160,18 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             case MaskTrace():
                 pre_check = trace.check
                 original_trace: Trace[R] = trace.inner
-            case EmptyTrace():
-                pre_check = False
-                original_trace = EmptyTrace(self.gen_fn)
 
-        subproblem = GenericProblem(inner_argdiffs, update_problem)
+        subrequest = Update(edit_request.constraint)
 
-        premasked_trace, weight, retdiff, bwd_problem = self.gen_fn.update(
-            key, original_trace, subproblem
+        premasked_trace, weight, retdiff, bwd_request = self.gen_fn.edit(
+            key, original_trace, subrequest, inner_argdiffs
         )
 
-        if isinstance(original_trace, EmptyTrace):
-            final_trace = premasked_trace
-        else:
-            final_trace: Trace[R] = jtu.tree_map(
-                lambda v1, v2: jnp.where(post_check, v1, v2),
-                premasked_trace,
-                original_trace,
-            )
+        final_trace: Trace[R] = jtu.tree_map(
+            lambda v1, v2: jnp.where(post_check, v1, v2),
+            premasked_trace,
+            original_trace,
+        )
 
         t_to_t = FlagOp.and_(pre_check, post_check)
         t_to_f = FlagOp.and_(pre_check, FlagOp.not_(post_check))
@@ -207,37 +219,29 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             # that computation.
         )
 
+        assert isinstance(bwd_request, Update)
+        inner_chm_constraint = bwd_request.constraint
+        assert isinstance(inner_chm_constraint, ChoiceMapConstraint)
+
         return (
             MaskTrace(self, premasked_trace, post_check),
             final_weight,
-            Mask.maybe(check_diff, retdiff),
-            MaskedProblem(post_check, bwd_problem),
+            Mask.maybe(retdiff, check_diff),
+            Update(
+                ChoiceMapConstraint(inner_chm_constraint.choice_map.mask(post_check)),
+            ),
         )
-
-    def update(
-        self,
-        key: PRNGKey,
-        trace: Trace[Mask[R]],
-        update_problem: UpdateProblem,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
-            case _:
-                return self.update_change_target(
-                    key, trace, update_problem, Diff.no_change(trace.get_args())
-                )
 
     def assess(
         self,
         sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, Mask[R]]:
-        (check, *inner_args) = args
-        score, retval = self.gen_fn.assess(sample, tuple(inner_args))
+        check, inner_args = args[0], args[1:]
+        score, retval = self.gen_fn.assess(sample, inner_args)
         return (
             check * score,
-            Mask(check, retval),
+            Mask(retval, check),
         )
 
 
@@ -272,7 +276,7 @@ def mask(f: GenerativeFunction[R]) -> MaskCombinator[R]:
             return genjax.normal(mean, 1.0) @ "x"
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         tr = jax.jit(masked_normal_draw.simulate)(
             key,
             (

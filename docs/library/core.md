@@ -1,7 +1,7 @@
 # Journey to the center of `genjax.core`
 
 
-This page describes the set of core concepts and datatypes in GenJAX, including Gen's generative datatypes and concepts ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`UpdateProblem`][genjax.core.UpdateProblem]), the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree], [`Const`][genjax.core.Const], and [`Closure`][genjax.core.Closure]), as well as functionally inspired `Pytree` extensions ([`Mask`][genjax.core.Mask]), and GenJAX's approach to "static" (JAX tracing time) typechecking.
+This page describes the set of core concepts and datatypes in GenJAX, including Gen's generative datatypes and concepts ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`EditRequest`][genjax.core.EditRequest]), the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree], [`Const`][genjax.core.Const], and [`Closure`][genjax.core.Closure]), as well as functionally inspired `Pytree` extensions ([`Mask`][genjax.core.Mask]), and GenJAX's approach to "static" (JAX tracing time) typechecking.
 
 ::: genjax.core.GenerativeFunction
 
@@ -9,7 +9,7 @@ Traces are data structures which record (execution and inference) data about the
 
 ::: genjax.core.Trace
 ::: genjax.core.Sample
-::: genjax.core.UpdateProblem
+::: genjax.core.EditRequest
 ::: genjax.core.Constraint
 
 ## Generative functions with addressed random choices
@@ -55,7 +55,7 @@ For instance, JAX disallows usage of runtime values to resolve Python control fl
 
 In GenJAX, we take advantage of JAX's tracing to construct code which, when traced, produces specialized code _depending on static information_. At the same time, we are careful to encode Gen's interfaces to respect JAX's rules which govern how static / runtime values can be used.
 
-The most primitive way to encode _runtime uncertainty_ about a piece of data is to attach a `Bool` to it, which indicates whether the data is "on" or "off".
+The most primitive way to encode _runtime uncertainty_ about a piece of data is to attach a `bool` to it, which indicates whether the data is "on" or "off".
 
 GenJAX contains a system for tagging data with flags, to indicate if the data is valid or invalid during inference interface computations _at runtime_. The key data structure which supports this system is `genjax.core.Mask`.
 

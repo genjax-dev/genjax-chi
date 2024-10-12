@@ -58,14 +58,10 @@ div.md-header__ellipsis {
   font-weight: bold;
 }
 
-div.treescope_root {
+treescope-container::part(treescope_root) {
   font-family: "Berkeley Mono";
   font-size: 13px;
   word-wrap: break-word;
   width: fit-content;
   display: block;
-}
-
-.fl {
-  float: none !important;
 }
