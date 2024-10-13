@@ -66,7 +66,7 @@ def mix(*gen_fns: GenerativeFunction[R]) -> GenerativeFunction[R]:
         mixture = genjax.mix(component1, component2)
 
         # Use the mixture model
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
         logits = jax.numpy.array([0.3, 0.7])  # Favors component2
         trace = mixture.simulate(key, (logits, (0.0,), (7.0,)))
         print(trace.render_html())
