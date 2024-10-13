@@ -1491,7 +1491,7 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
 class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     gen_fn: GenerativeFunction[R]
     args: tuple[Any, ...]
-    kwargs: dict[String, Any]
+    kwargs: dict[str, Any]
 
     def _with_kwargs(self):
         "Returns a kwarg-handling version of the wrapped `gen_fn`."

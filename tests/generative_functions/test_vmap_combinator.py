@@ -96,6 +96,33 @@ class TestVmapCombinator:
         assert w == genjax.normal.assess(C.v(1.0), (1.0, 1.0))[0]
 
     def test_vmap_combinator_vmap_pytree(self):
+        @genjax.gen
+        def model2(x):
+            _ = genjax.normal(x, 1.0) @ "y"
+            return x
+
+        model_mv2 = model2.mask().vmap()
+        masks = jnp.array([
+            True,
+            False,
+            True,
+            False,
+            True,
+            False,
+            True,
+            False,
+            True,
+            False,
+        ])
+        xs = jnp.arange(0.0, 10.0, 1.0)
+
+        key = jax.random.key(314159)
+
+        # show that we don't error if we map along multiple axes via the default.
+        tr = jax.jit(model_mv2.simulate)(key, (masks, xs))
+        assert jnp.array_equal(tr.get_retval().value, xs)
+        assert jnp.array_equal(tr.get_retval().flag, masks)
+
         @genjax.vmap(in_axes=(None, (0, None)))
         @genjax.gen
         def foo(y, args):
@@ -103,7 +130,6 @@ class TestVmapCombinator:
             x = genjax.normal(loc, scale) @ "x"
             return x + y
 
-        key = jax.random.key(314159)
         _ = jax.jit(foo.simulate)(key, (10.0, (jnp.arange(3.0), (1.0, jnp.arange(3)))))
 
     def test_vmap_combinator_assess(self):
