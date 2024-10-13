@@ -141,7 +141,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
 
         switch = genjax.switch(branch_1, branch_2)
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         jitted = jax.jit(switch.simulate)
 
         # Select `branch_2` by providing 1:
@@ -352,7 +352,7 @@ def switch(
 
         switch = genjax.switch(branch_1, branch_2)
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         jitted = jax.jit(switch.simulate)
 
         # Select `branch_2` by providing 1:

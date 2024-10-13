@@ -231,7 +231,7 @@ class Diff(Generic[R], Pytree):
             if isinstance(v, Diff):
                 return v.get_tangent()
             else:
-                return UnknownChange
+                return NoChange
 
         return jtu.tree_map(_inner, v, is_leaf=Diff.is_diff)
 

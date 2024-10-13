@@ -31,16 +31,13 @@ from genjax._src.core.typing import (
     Any,
     Array,
     ArrayLike,
-    Bool,
     Callable,
     EllipsisType,
     Final,
     Flag,
     Generic,
-    Int,
     IntArray,
     Iterable,
-    String,
     TypeVar,
 )
 
@@ -51,8 +48,8 @@ if TYPE_CHECKING:
 # Address types #
 #################
 
-StaticAddressComponent = String
-DynamicAddressComponent = Int | IntArray
+StaticAddressComponent = str
+DynamicAddressComponent = int | IntArray
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
 Address = tuple[AddressComponent, ...]
 StaticAddress = tuple[StaticAddressComponent, ...]
@@ -1089,7 +1086,7 @@ class ChoiceMap(Sample):
                 return x
 
 
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
             tr = model.simulate(key, ())
             chm = tr.get_sample()
             selection = S["x"]
@@ -1206,7 +1203,7 @@ class ChoiceMap(Sample):
         """
         return ChmSel.build(self)
 
-    def static_is_empty(self) -> Bool:
+    def static_is_empty(self) -> bool:
         """
         Returns True if this ChoiceMap is equal to `ChoiceMap.empty()`, False otherwise.
         """
@@ -1481,7 +1478,7 @@ class Static(ChoiceMap):
             acc ^= v.mask(check(k))
         return acc
 
-    def static_is_empty(self) -> Bool:
+    def static_is_empty(self) -> bool:
         return len(self.mapping) == 0
 
     def __treescope_repr__(self, path, subtree_renderer):

@@ -670,7 +670,7 @@ class TestChoiceMap:
             y = genjax.normal(10.0, 1.0) @ "y"
             return x, y
 
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
         tr = f.repeat(n=4).simulate(key, ())
 
         xs = jnp.ones(4)

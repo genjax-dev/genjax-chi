@@ -28,7 +28,7 @@ class TestVmapCombinator:
             z = genjax.normal(x, 1.0) @ "z"
             return z
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         map_over = jnp.arange(0, 50, dtype=float)
         tr = jax.jit(model.simulate)(key, (map_over,))
         map_score = tr.get_score()
@@ -41,7 +41,7 @@ class TestVmapCombinator:
             z = genjax.normal(x, 1.0) @ "z"
             return z
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         map_over = jnp.arange(0, 3, dtype=float)
         chm = jax.vmap(lambda idx, v: C[idx, "z"].set(v))(
             jnp.arange(3), jnp.array([3.0, 2.0, 3.0])
@@ -62,7 +62,7 @@ class TestVmapCombinator:
             z = genjax.normal(x, 1.0) @ "z"
             return z
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         map_over = jnp.arange(0, 3, dtype=float)
         chm = C[0, "z"].set(3.0)
         key, sub_key = jax.random.split(key)
@@ -89,13 +89,40 @@ class TestVmapCombinator:
         def higher_model(x):
             return model(x) @ "outer"
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         map_over = jnp.ones((3, 3), dtype=float)
         chm = C[0, "outer", 1, "z"].set(1.0)
         (_, w) = jax.jit(higher_model.importance)(key, chm, (map_over,))
         assert w == genjax.normal.assess(C.v(1.0), (1.0, 1.0))[0]
 
     def test_vmap_combinator_vmap_pytree(self):
+        @genjax.gen
+        def model2(x):
+            _ = genjax.normal(x, 1.0) @ "y"
+            return x
+
+        model_mv2 = model2.mask().vmap()
+        masks = jnp.array([
+            True,
+            False,
+            True,
+            False,
+            True,
+            False,
+            True,
+            False,
+            True,
+            False,
+        ])
+        xs = jnp.arange(0.0, 10.0, 1.0)
+
+        key = jax.random.key(314159)
+
+        # show that we don't error if we map along multiple axes via the default.
+        tr = jax.jit(model_mv2.simulate)(key, (masks, xs))
+        assert jnp.array_equal(tr.get_retval().value, xs)
+        assert jnp.array_equal(tr.get_retval().flag, masks)
+
         @genjax.vmap(in_axes=(None, (0, None)))
         @genjax.gen
         def foo(y, args):
@@ -103,7 +130,6 @@ class TestVmapCombinator:
             x = genjax.normal(loc, scale) @ "x"
             return x + y
 
-        key = jax.random.PRNGKey(314159)
         _ = jax.jit(foo.simulate)(key, (10.0, (jnp.arange(3.0), (1.0, jnp.arange(3)))))
 
     def test_vmap_combinator_assess(self):
@@ -113,7 +139,7 @@ class TestVmapCombinator:
             z = genjax.normal(x, 1.0) @ "z"
             return z
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         map_over = jnp.arange(0, 50, dtype=float)
         tr = jax.jit(model.simulate)(key, (map_over,))
         sample = tr.get_sample()
@@ -125,7 +151,7 @@ class TestVmapCombinator:
         def foo(loc: float, scale: float):
             return genjax.normal(loc, scale) @ "x"
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         with pytest.raises(
             ValueError,
@@ -163,7 +189,7 @@ class TestVmapCombinator:
 
         vmapped = model.vmap(in_axes=(0,))
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         keys = jax.random.split(key, 10)
         xs = jnp.arange(5, dtype=float)
 
