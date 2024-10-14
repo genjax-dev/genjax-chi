@@ -233,13 +233,13 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
         def _inner_generate(
             key: PRNGKey,
-            constraint: ChoiceMap,
+            constraint: Constraint,
             carry: Carry,
             scanned_in: Any,
         ) -> tuple[tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y, Weight]]:
             tr, w = self.kernel_gen_fn.generate(
                 key,
-                ChoiceMapConstraint(constraint),
+                constraint,
                 (carry, scanned_in),
             )
             (carry, scanned_out) = tr.get_retval()
@@ -256,9 +256,10 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             key, idx, carried_value = carry
             key = jax.random.fold_in(key, idx)
             submap = constraint.choice_map.get_submap(idx)
+            subconstraint = ChoiceMapConstraint(submap)
 
             (carried_out, score), (tr, scanned_out, w) = _inner_generate(
-                key, submap, carried_value, scanned_over
+                key, subconstraint, carried_value, scanned_over
             )
 
             return (key, idx + 1, carried_out), (tr, scanned_out, score, w)
@@ -371,15 +372,14 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 (new_subtrace, scanned_out, w, inner_bwd_request),
             ) = _inner_edit(key, subtrace, subconstraint, carried_value, scanned_in)
             assert isinstance(inner_bwd_request, Update)
-            bwd_constraint = inner_bwd_request.constraint
-            bwd_constraint = ChoiceMap.entry(bwd_constraint, idx)
+            bwd_chm = inner_bwd_request.constraint.extend(idx)
 
             return (key, idx + 1, carried_out), (
                 new_subtrace,
                 scanned_out,
                 score,
                 w,
-                bwd_constraint,
+                bwd_chm,
             )
 
         (

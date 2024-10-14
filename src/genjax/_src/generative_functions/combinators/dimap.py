@@ -150,7 +150,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         self,
         key: PRNGKey,
         trace: Trace[S],
-        constraint: ChoiceMap,
+        request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
         assert isinstance(trace, DimapTrace)
@@ -168,7 +168,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         tr, w, inner_retdiff, bwd_request = self.inner.edit(
             key,
             inner_trace,
-            Update(constraint),
+            request,
             inner_argdiffs,
         )
 
@@ -201,8 +201,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         argdiffs: Argdiffs,
     ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
         assert isinstance(edit_request, Update)
-        constraint = edit_request.constraint
-        return self.edit_change_target(key, trace, constraint, argdiffs)
+        return self.edit_change_target(key, trace, edit_request, argdiffs)
 
     def assess(
         self,

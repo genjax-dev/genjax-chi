@@ -219,7 +219,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
     ) -> Weight:
         raise NotImplementedError
 
-    def edit_choice_map_constraint(
+    def edit_choice_map(
         self,
         key: PRNGKey,
         trace: VmapTrace[R],
@@ -245,12 +245,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             )
             assert isinstance(bwd_request, Update)
             inner_chm = bwd_request.constraint
-            return (
-                new_subtrace,
-                w,
-                retdiff,
-                ChoiceMap.entry(inner_chm, idx),
-            )
+            return (new_subtrace, w, retdiff, inner_chm.extend(idx))
 
         new_subtraces, w, retdiff, bwd_constraints = jax.vmap(
             _edit, in_axes=(0, 0, 0, self.in_axes)
@@ -274,7 +269,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         assert isinstance(trace, VmapTrace)
         assert isinstance(edit_request, Update), type(edit_request)
         constraint = edit_request.constraint
-        return self.edit_choice_map_constraint(
+        return self.edit_choice_map(
             key,
             trace,
             constraint,
