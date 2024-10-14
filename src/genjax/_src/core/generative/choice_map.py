@@ -21,6 +21,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import treescope.repr_lib as trl
+from beartype.typing import cast
 from deprecated import deprecated
 
 from genjax._src.core.generative.core import Constraint, Projection
@@ -72,7 +73,7 @@ _full_slice = slice(None, None, None)
 ###############################
 
 
-class _SelectionBuilder(Pytree):
+class _SelectionBuilder:
     def __getitem__(
         self, addr: ExtendedStaticAddressComponent | ExtendedStaticAddress
     ) -> "Selection":
@@ -544,11 +545,14 @@ class StaticSel(Selection):
         return False
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
-        if self.addr is Ellipsis or addr is Ellipsis:
+        if isinstance(self.addr, EllipsisType) or isinstance(addr, EllipsisType):
             return self.s
+
+        elif isinstance(addr, StaticAddressComponent):
+            return self.s.mask(addr == self.addr)
+
         else:
-            check = addr == self.addr
-            return self.s.mask(check)
+            return Selection.none()
 
 
 @Pytree.dataclass(match_args=True)
@@ -716,6 +720,54 @@ class ChoiceMapNoValueAtAddress(Exception):
     subaddr: ExtendedAddressComponent | ExtendedAddress
 
 
+def _validate_addr(
+    addr: ExtendedAddressComponent | ExtendedAddress, allow_partial_slices: bool = False
+) -> ExtendedAddress:
+    """
+    Validates the address components to ensure consistency in dynamic addressing.
+
+    This method checks that all dynamic components (slices or arrays) in the address
+    are of the same type. Indexed can only handle all slices or all arrays, with no mixing
+    allowed.
+
+    TODO:
+
+    - we want to allow any number of leading ints, then a single non-scalar array or partial slice, then only full slices after that.
+    """
+    addr = addr if isinstance(addr, tuple) else (addr,)
+    dynamic_components = [
+        comp for comp in addr if isinstance(comp, (slice, int, Array))
+    ]
+
+    if dynamic_components:
+        all_slice = all(isinstance(comp, slice) for comp in dynamic_components)
+        all_array = all(isinstance(comp, (int, Array)) for comp in dynamic_components)
+
+        if not (all_slice or all_array):
+            raise ValueError(
+                f"Dynamic address components must be all slices or all arrays, not mixed. Found these dynamic components: {dynamic_components}"
+            )
+
+        if all_slice:
+            if not allow_partial_slices and dynamic_components[0] != _full_slice:
+                raise ValueError(
+                    f"Partial slices are only allowed. Found: {dynamic_components}"
+                )
+
+            # Check that all but the first slice are equal to _full_slice:
+            if not all(s == _full_slice for s in dynamic_components[1:]):
+                if allow_partial_slices:
+                    caveat = "past the first position"
+                else:
+                    caveat = ""
+
+                raise ValueError(
+                    f"Partial slices are not allowed {caveat}. Found: {dynamic_components}"
+                )
+
+    return addr
+
+
 class _ChoiceMapBuilder:
     choice_map: "ChoiceMap | None"
     addrs: list[AddressComponent]
@@ -732,7 +784,12 @@ class _ChoiceMapBuilder:
         )
 
     def set(self, v) -> "ChoiceMap":
-        chm = ChoiceMap.entry(v, *self.addrs)
+        addrs = _validate_addr(tuple(self.addrs), allow_partial_slices=False)
+
+        # this is safe, as we know we didn't pass any ellipses in.
+        addrs = cast(Address, addrs)
+
+        chm = ChoiceMap.entry(v, *addrs)
         if self.choice_map is None:
             return chm
         else:
@@ -1263,7 +1320,8 @@ class ChoiceMap(Pytree):
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
     ) -> "ChoiceMap":
-        addr = addr if isinstance(addr, tuple) else (addr,)
+        addr = _validate_addr(addr, allow_partial_slices=True)
+
         submap = self
         for comp in addr:
             submap = submap.get_submap(comp)
@@ -1422,14 +1480,22 @@ class Indexed(ChoiceMap):
     """
 
     c: ChoiceMap
-    addr: DynamicAddressComponent
+    addr: int | IntArray | None
 
     @staticmethod
     def build(chm: ChoiceMap, addr: DynamicAddressComponent) -> ChoiceMap:
         if chm.static_is_empty():
             return chm
+
+        elif isinstance(addr, slice):
+            if addr == _full_slice:
+                return Indexed(chm, None)
+            else:
+                raise ValueError(f"Partial slices not supported: {addr}")
+
         elif isinstance(addr, Array) and addr.shape == (0,):
             return ChoiceMap.empty()
+
         else:
             return Indexed(chm, addr)
 
@@ -1437,24 +1503,36 @@ class Indexed(ChoiceMap):
         return None
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        if addr is Ellipsis:
+        if isinstance(addr, EllipsisType):
             return self.c
 
         elif isinstance(addr, StaticAddressComponent):
             return ChoiceMap.empty()
 
         else:
-            assert not jnp.asarray(
-                addr, copy=False
-            ).shape, "Only scalar dynamic addresses are supported by get_submap."
+            if not isinstance(addr, slice):
+                # If we allowed non-scalar addresses, the `get_submap` call would not reduce the leaf by a dimension, and further get_submap calls would target the same dimension.
+                assert not jnp.asarray(
+                    addr, copy=False
+                ).shape, "Only scalar dynamic addresses are supported by get_submap."
 
-            if isinstance(self.addr, Array) and self.addr.shape:
+            if self.addr is None:
+                # None means that this instance was created with `:`, so no masking is required and we assume that the user will provide an in-bounds `int | ScalarInt`` address. If they don't they will run up against JAX's clamping behavior.
+                return jtu.tree_map(lambda v: v[addr], self.c)
+
+            elif isinstance(self.addr, Array) and self.addr.shape:
+                # We can't allow slices, as self.addr might look like, e.g. `[2,5,6]`, and we don't have any way to combine this "sparse array selector" with an incoming slice.
+                assert not isinstance(
+                    addr, slice
+                ), "Slices not allowed against array-shaped dynamic addresses"
+
                 check = self.addr == addr
 
                 # If `check` contains a match (we know it will be a single match, since we constrain addr to be scalar), then `idx` is the index of the match in `self.addr`.
                 # Else, idx == 0 (selecting "junk data" of the right shape at the leaf) and check_array[idx] == False (masking the junk data).
                 idx = jnp.argwhere(check, size=1, fill_value=0)[0, 0]
                 return jtu.tree_map(lambda v: v[idx], self.c.mask(check))
+
             else:
                 return self.c.mask(self.addr == addr)
 
@@ -1744,6 +1822,7 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
                 })
 
             case Indexed(c, addr):
+                addr = _full_slice if addr is None else addr
                 return loop(c, selection(addr)).extend(addr)
 
             case Choice(v):

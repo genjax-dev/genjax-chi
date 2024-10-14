@@ -523,7 +523,7 @@ class TestChoiceMap:
 
     def test_simplify(self):
         chm = ChoiceMap.choice(jnp.asarray([2.3, 4.4, 3.3]))
-        extended = chm.extend(jnp.array([0, 1, 2]))
+        extended = chm.extend(slice(None, None, None))
         assert extended.simplify() == extended, "no-op with no filters"
 
         filtered = C["x", "y"].set(2.0).mask(jnp.array(True))
@@ -551,14 +551,14 @@ class TestChoiceMap:
 
     def test_extend_dynamic(self):
         chm = ChoiceMap.choice(jnp.asarray([2.3, 4.4, 3.3]))
-        extended = chm.extend(jnp.array([0, 1, 2]))
+        extended = chm.extend(slice(None, None, None))
         assert extended.get_value() is None
         assert extended.get_submap("x").static_is_empty()
-        assert extended[0] == genjax.Mask(2.3, True)
-        assert extended[1] == genjax.Mask(4.4, True)
-        assert extended[2] == genjax.Mask(3.3, True)
+        assert extended[0] == 2.3
+        assert extended[1] == 4.4
+        assert extended[2] == 3.3
 
-        assert ChoiceMap.empty().extend(jnp.array([0, 1, 2])).static_is_empty()
+        assert ChoiceMap.empty().extend(slice(None, None, None)).static_is_empty()
 
     def test_access_dynamic(self):
         # out of order input arrays
@@ -680,7 +680,7 @@ class TestChoiceMap:
         xs = jnp.array([1.0, 2.0, 3.0])
         ys = jnp.array([4.0, 5.0, 6.0])
         # Create a ChoiceMap with values at 'x' and 'y' addresses
-        chm = C[jnp.arange(3)].set({"x": xs, "y": ys})
+        chm = C[:].set({"x": xs, "y": ys})
 
         # Create a Selection with a wildcard for 'x'
         sel = S[..., "x"]
@@ -696,9 +696,9 @@ class TestChoiceMap:
             filtered_chm[..., "y"]
 
         # Assert that the structure of the filtered ChoiceMap is preserved
-        assert filtered_chm[0, "x"] == genjax.Mask(1.0, True)
-        assert filtered_chm[1, "x"] == genjax.Mask(2.0, True)
-        assert filtered_chm[2, "x"] == genjax.Mask(3.0, True)
+        assert filtered_chm[0, "x"] == 1.0
+        assert filtered_chm[1, "x"] == 2.0
+        assert filtered_chm[2, "x"] == 3.0
 
     def test_filtered_chm_update(self):
         @genjax.gen
@@ -712,7 +712,7 @@ class TestChoiceMap:
 
         xs = jnp.ones(4)
         ys = 5 * jnp.ones(4)
-        constraint = C[jnp.arange(4)].set({"x": xs, "y": ys})
+        constraint = C[:].set({"x": xs, "y": ys})
         only_xs = constraint.filter(S[..., "x"])
         only_ys = constraint.filter(S[..., "y"])
 
@@ -809,7 +809,7 @@ class TestChoiceMap:
         # Valid nested ChoiceMap with vmap
         valid_vmap_chm = ChoiceMap.kw(
             x=1.0,
-            y=C[jnp.arange(3)].set(
+            y=C[:].set(
                 ChoiceMap.kw(a=jnp.array([0.5, 1.5, 2.5]), b=jnp.array([1, 0, 1]))
             ),
         )
@@ -830,7 +830,7 @@ class TestChoiceMap:
 
         invalid_vmap_chm2 = ChoiceMap.kw(
             x=1.0,
-            y=C[jnp.arange(3)].set(
+            y=C[:].set(
                 ChoiceMap.kw(
                     a=jnp.array([0.5, 1.5, 2.5]),
                     b=jnp.array([1, 0, 1]),
@@ -838,7 +838,7 @@ class TestChoiceMap:
                 )
             ),
         )
-        expected_result = C["y", jnp.arange(3), "c"].set(jnp.array([0.1, 0.2, 0.3]))
+        expected_result = C["y", :, "c"].set(jnp.array([0.1, 0.2, 0.3]))
         actual_result = invalid_vmap_chm2.invalid_subset(outer_model, ())
         assert jtu.tree_structure(actual_result) == jtu.tree_structure(expected_result)
         assert jtu.tree_all(
@@ -899,7 +899,7 @@ class TestChoiceMap:
         outer_model = inner_model.iterate(n=4)
 
         # Test valid ChoiceMap
-        valid_chm = C[jnp.arange(4), "x"].set(jnp.array([0.5, 1.2, 0.8, 0.9]))
+        valid_chm = C[:, "x"].set(jnp.array([0.5, 1.2, 0.8, 0.9]))
         assert valid_chm.invalid_subset(outer_model, (1.0,)) is None
 
         # forgot the index layer
@@ -908,9 +908,9 @@ class TestChoiceMap:
 
         xs = jnp.array([0.5, 1.2, 0.8, 0.9])
         zs = jnp.array([0.5, 1.2, 0.8, 0.9])
-        invalid_chm3 = C[jnp.arange(4)].set({"x": xs, "z": zs})
+        invalid_chm3 = C[:].set({"x": xs, "z": zs})
         invalid_subset = invalid_chm3.invalid_subset(outer_model, (1.0,))
-        expected_invalid = C[jnp.arange(4), "z"].set(zs)
+        expected_invalid = C[:, "z"].set(zs)
         assert jtu.tree_structure(invalid_subset) == jtu.tree_structure(
             expected_invalid
         )
@@ -919,3 +919,76 @@ class TestChoiceMap:
                 lambda x, y: jnp.allclose(x, y), invalid_subset, expected_invalid
             )
         )
+
+    def test_choicemap_slice(self):
+        # partial slices are not allowed when setting:
+        with pytest.raises(ValueError):
+            C[:3, "x"].set(jnp.array([1, 2]))
+
+        with pytest.raises(ValueError):
+            C[0:3, "x"].set(jnp.array([1, 2]))
+
+        with pytest.raises(ValueError):
+            C[0:3:1, "x"].set(jnp.array([1, 2]))
+
+        # set with a full slice
+        vals = jnp.arange(10)
+        chm = C[:, "x"].set(vals)
+
+        # Full lookup:
+        assert jnp.array_equal(chm[:, "x"], jnp.arange(10))
+
+        # single int index:
+        assert chm[1, "x"] == vals[1]
+
+        # single array index:
+        assert chm[jnp.array(5), "x"] == vals[5]
+
+        # one non-full slices is allowed:
+        assert jnp.array_equal(chm[0:4, "x"], vals[0:4])
+
+        assert jnp.array_equal(chm[0:4, "x"], vals[0:4])
+
+    def test_choicemap_slice_validation(self):
+        # Test full slices mixed with strings
+        C[:, "x"].set(jnp.arange(5))
+        C[:, "x", :].set(jnp.ones((3, 3)))
+        C["y", :, "z"].set(jnp.zeros((4, 2)))
+
+        # Test arrays or ints mixed with strings
+        C["y", 5].set(10)
+
+        # with pytest.raises(ValueError):
+        #     C[0, "z", jnp.array([1, 2, 3])].set(jnp.ones(3))
+
+        # Test mixing slices with arrays/ints (should fail)
+        with pytest.raises(ValueError):
+            C[:, jnp.array([0, 1]), "x"].set(jnp.zeros((2, 2)))
+
+        with pytest.raises(ValueError):
+            C[0, :, "y"].set(jnp.ones(3))
+
+        # Test partial slices (should fail)
+        with pytest.raises(ValueError):
+            C[1:3, "x"].set(jnp.arange(2))
+
+        with pytest.raises(ValueError):
+            C["y", :3].set(jnp.ones(3))
+
+        with pytest.raises(ValueError):
+            C[::-1, "z"].set(jnp.arange(5))
+
+        # Test more complex combinations
+        with pytest.raises(ValueError):
+            C[:, "x", 1:3, :].set(jnp.ones((3, 2, 4)))
+
+        # test 2d
+        vals_2d = jnp.array([jnp.arange(0, 3), jnp.arange(3, 6)])
+        chm_2d = C[:, "x", :].set(vals_2d)
+
+        # single values are fine:
+        assert chm_2d[jnp.array(0), "x", 2] == vals_2d[0, 2]
+
+        with pytest.raises(ValueError):
+            # partial slices are not allowed:
+            chm_2d[:, "x", jnp.array(2)]

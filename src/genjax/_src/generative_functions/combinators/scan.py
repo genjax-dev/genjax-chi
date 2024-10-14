@@ -66,7 +66,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
         score: FloatArray,
         scan_length: int,
     ) -> "ScanTrace[Carry, Y]":
-        chm = inner.get_choices().extend(jnp.arange(scan_length))
+        chm = inner.get_choices().extend(slice(None, None, None))
         return ScanTrace(scan_gen_fn, inner, args, retval, score, chm, scan_length)
 
     def get_args(self) -> tuple[Any, ...]:
