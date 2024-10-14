@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 #################
 
 StaticAddressComponent = str
-DynamicAddressComponent = int | IntArray
+DynamicAddressComponent = int | IntArray | slice
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
 Address = tuple[AddressComponent, ...]
 StaticAddress = tuple[StaticAddressComponent, ...]
@@ -61,6 +61,8 @@ ExtendedAddress = tuple[ExtendedAddressComponent, ...]
 T = TypeVar("T")
 K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
 
+_full_slice = slice(None, None, None)
+
 ##############
 # Selections #
 ##############
@@ -70,7 +72,6 @@ K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
 ###############################
 
 
-@Pytree.dataclass(match_args=True)
 class _SelectionBuilder(Pytree):
     def __getitem__(
         self, addr: ExtendedStaticAddressComponent | ExtendedStaticAddress
