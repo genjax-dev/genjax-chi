@@ -15,9 +15,7 @@
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from genjax._src.core.generative.choice_map import (
-    ChoiceMap,
-)
+from genjax._src.core.generative.choice_map import ChoiceMap, ChoiceMapConstraint
 from genjax._src.core.generative.core import (
     Argdiffs,
     Arguments,
@@ -595,7 +593,7 @@ class GenerativeFunction(Generic[R], Pytree):
             argdiffs,
         )
         assert isinstance(bwd, Update), type(bwd)
-        return tr, w, rd, bwd.constraint
+        return tr, w, rd, ChoiceMapConstraint(bwd.constraint)
 
     def importance(
         self,
@@ -638,6 +636,9 @@ class GenerativeFunction(Generic[R], Pytree):
 
         Under the hood, creates an [`EditRequest`][genjax.core.EditRequest] which requests that the generative function respond with a move from the _empty_ trace (the only possible value for _empty_ target $\\delta_\\emptyset$) to the target induced by the generative function for constraint $C$ with arguments $a$.
         """
+        if isinstance(constraint, ChoiceMap):
+            constraint = ChoiceMapConstraint(constraint)
+
         return self.generate(
             key,
             constraint,

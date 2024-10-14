@@ -30,6 +30,7 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
+from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -226,7 +227,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         constraint: Constraint,
         args: tuple[Any, ...],
     ) -> tuple[ScanTrace[Carry, Y], Weight]:
-        assert isinstance(constraint, ChoiceMap)
+        assert isinstance(constraint, ChoiceMapConstraint)
 
         (carry, scanned_in) = args
 
@@ -238,7 +239,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         ) -> tuple[tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y, Weight]]:
             tr, w = self.kernel_gen_fn.generate(
                 key,
-                constraint,
+                ChoiceMapConstraint(constraint),
                 (carry, scanned_in),
             )
             (carry, scanned_out) = tr.get_retval()
@@ -254,7 +255,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         ]:
             key, idx, carried_value = carry
             key = jax.random.fold_in(key, idx)
-            submap = constraint.get_submap(idx)
+            submap = constraint.choice_map.get_submap(idx)
 
             (carried_out, score), (tr, scanned_out, w) = _inner_generate(
                 key, submap, carried_value, scanned_over

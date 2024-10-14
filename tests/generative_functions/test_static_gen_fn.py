@@ -21,6 +21,7 @@ import pytest
 import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff, Pytree, Update
+from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.typing import Array
 from genjax.generative_functions.static import AddressReuse
 from genjax.typing import FloatArray
@@ -435,6 +436,8 @@ class TestStaticGenFnUpdate:
             new,
             (),
         )
+        assert isinstance(discard, ChoiceMapConstraint)
+
         updated_choice = updated.get_sample()
         _y1 = updated_choice["y1"]
         _y2 = updated_choice["y2"]
@@ -445,7 +448,7 @@ class TestStaticGenFnUpdate:
             key, updated_choice.get_submap("y2"), (0.0, 1.0)
         )
         test_score = score1 + score2
-        assert original_choice["y1",] == discard["y1",]
+        assert original_choice["y1",] == discard.choice_map["y1",]
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
@@ -480,6 +483,9 @@ class TestStaticGenFnUpdate:
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
+
+        assert isinstance(discard, ChoiceMapConstraint)
+
         updated_choice = updated.get_sample()
         y1 = updated_choice["y1"]
         y2 = updated_choice["y2"]
@@ -488,7 +494,7 @@ class TestStaticGenFnUpdate:
         score2, _ = genjax.normal.assess(C.v(y2), (y1, 1.0))
         score3, _ = genjax.normal.assess(y3, (y1 + y2, 1.0))
         test_score = score1 + score2 + score3
-        assert original_choice["y1"] == discard["y1"]
+        assert original_choice["y1"] == discard.choice_map["y1"]
         assert updated.get_score() == pytest.approx(original_score + w, 0.01)
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
@@ -514,7 +520,10 @@ class TestStaticGenFnUpdate:
         original_choice = tr.get_sample()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
+
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
+        assert isinstance(discard, ChoiceMapConstraint)
+
         updated_choice = updated.get_sample()
         y1 = updated_choice["y1"]
         y2 = updated_choice["y2", "y1"]
@@ -526,7 +535,7 @@ class TestStaticGenFnUpdate:
         score2, _ = genjax.normal.assess(C.v(y2), (y1, 1.0))
         score3, _ = genjax.normal.assess(C.v(y3), (y1 + y2, 1.0))
         test_score = score1 + score2 + score3
-        assert original_choice["y1"] == discard["y1"]
+        assert original_choice["y1"] == discard.choice_map["y1"]
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
@@ -728,8 +737,8 @@ class TestGenFnClosure:
         # Test generate with kwargs
         constraint = C.kw(sampled=3.0)
         assert (
-            gfc.generate(key, constraint, ())[1]
-            == model.generate(key, constraint, arg_tuple)[1]
+            gfc.generate(key, ChoiceMapConstraint(constraint), ())[1]
+            == model.generate(key, ChoiceMapConstraint(constraint), arg_tuple)[1]
         )
 
         # Test __abstract_call__ with kwargs

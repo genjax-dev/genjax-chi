@@ -23,6 +23,7 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
+    ChoiceMapConstraint,
     ChoiceMapEditRequest,
     Constraint,
     EditRequest,
@@ -343,7 +344,7 @@ def assess_transform(source_fn):
 @dataclass
 class GenerateHandler(StaticHandler):
     key: PRNGKey
-    choice_map_constraint: ChoiceMap
+    choice_map: ChoiceMap
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
@@ -376,8 +377,8 @@ class GenerateHandler(StaticHandler):
     def get_subconstraint(
         self,
         addr: StaticAddress,
-    ) -> ChoiceMap:
-        return self.choice_map_constraint(addr)  # pyright: ignore
+    ) -> Constraint:
+        return ChoiceMapConstraint(self.choice_map(addr))
 
     def handle_trace(
         self,
@@ -400,10 +401,10 @@ def generate_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
         key: PRNGKey,
-        choice_map_constraint: ChoiceMap,
+        choice_map: ChoiceMap,
         args: tuple[Any, ...],
     ):
-        stateful_handler = GenerateHandler(key, choice_map_constraint)
+        stateful_handler = GenerateHandler(key, choice_map)
         retval = forward(source_fn)(stateful_handler, *args)
         (
             score,
@@ -869,7 +870,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         constraint: Constraint,
         args: tuple[Any, ...],
     ) -> tuple[StaticTrace[R], Weight]:
-        assert isinstance(constraint, ChoiceMap), type(constraint)
+        assert isinstance(constraint, ChoiceMapConstraint), type(constraint)
+
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -884,7 +886,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 address_traces,
                 score,
             ),
-        ) = generate_transform(syntax_sugar_handled)(key, constraint, args)
+        ) = generate_transform(syntax_sugar_handled)(key, constraint.choice_map, args)
         return StaticTrace(
             self,
             args,

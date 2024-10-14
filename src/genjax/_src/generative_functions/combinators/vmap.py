@@ -35,6 +35,7 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
+from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -187,7 +188,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         constraint: Constraint,
         args: tuple[Any, ...],
     ) -> tuple[VmapTrace[R], Weight]:
-        assert isinstance(constraint, ChoiceMap)
+        assert isinstance(constraint, ChoiceMapConstraint)
 
         dim_length = self._static_broadcast_dim_length(self.in_axes, args)
         idx_array = jnp.arange(dim_length)
@@ -195,10 +196,10 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
         def _inner(key, idx, args):
             # Here we have to vmap across indices and perform individual lookups because the user might only constrain a subset of all indices. This forces recomputation.
-            submap = constraint(idx)
+            submap = constraint.choice_map(idx)
             tr, w = self.gen_fn.generate(
                 key,
-                submap,
+                ChoiceMapConstraint(submap),
                 args,
             )
             return tr, w
