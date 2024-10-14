@@ -108,11 +108,6 @@ class StaticTrace(Generic[R], Trace[R]):
     def get_gen_fn(self) -> GenerativeFunction[R]:
         return self.gen_fn
 
-    def get_sample(self) -> ChoiceMap:
-        addresses = self.addresses.get_visited()
-        sub_chms = (tr.get_sample() for tr in self.subtraces)
-        return ChoiceMap.from_mapping(zip(addresses, sub_chms))
-
     def get_choices(self) -> ChoiceMap:
         addresses = self.addresses.get_visited()
         sub_chms = (tr.get_choices() for tr in self.subtraces)

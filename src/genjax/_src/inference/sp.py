@@ -92,7 +92,7 @@ class Target(Generic[R], Pytree):
 
 SampleDistribution = Distribution[ChoiceMap]
 """
-The abstract class `SampleDistribution` represents the type of distributions whose return value type is a `Sample`. This is the abstract base class of `Algorithm`, as well as `Marginal`.
+The abstract class `SampleDistribution` represents the type of distributions whose return value type is a `ChoiceMap`. This is the abstract base class of `Algorithm`, as well as `Marginal`.
 """
 
 ########################
@@ -138,7 +138,7 @@ class Algorithm(Generic[R], SampleDistribution):
         *args: Any,
     ) -> tuple[Score, ChoiceMap]:
         """
-        Given a [`Target`][genjax.inference.Target], return a [`Sample`][genjax.core.Sample] from an approximation to the normalized distribution of the target, and a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
+        Given a [`Target`][genjax.inference.Target], return a [`ChoiceMap`][genjax.core.ChoiceMap] from an approximation to the normalized distribution of the target, and a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
 
         The `sample` is a sample on the support of `target.gen_fn` which _are not in_ `target.constraints`, produced by running the inference algorithm.
 
@@ -157,7 +157,7 @@ class Algorithm(Generic[R], SampleDistribution):
         self, key: PRNGKey, v: ChoiceMap, *args: tuple[Any, ...]
     ) -> Score:
         """
-        Given a [`Sample`][genjax.core.Sample] and a [`Target`][genjax.inference.Target], return a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
+        Given a [`ChoiceMap`][genjax.core.ChoiceMap] and a [`Target`][genjax.inference.Target], return a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
 
         Let $T_P(a, c)$ denote the target, with $P$ the distribution on samples represented by `target.gen_fn`, and $S$ denote the sample. Let $w$ denote the weight `w`. The weight $w$ is a random weight such that $w$ satisfies:
 
@@ -199,7 +199,7 @@ class Algorithm(Generic[R], SampleDistribution):
 @Pytree.dataclass
 class Marginal(Generic[R], SampleDistribution):
     """The `Marginal` class represents the marginal distribution of a generative function over
-    a selection of addresses. The return value type is a subtype of `Sample`.
+    a selection of addresses.
     """
 
     gen_fn: GenerativeFunction[R]
