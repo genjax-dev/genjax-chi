@@ -100,6 +100,7 @@ class Selection(Projection["ChoiceMap"]):
     Examples:
         Creating selections:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
+        import genjax
         from genjax import Selection
 
         # Select all addresses
@@ -907,6 +908,7 @@ class ChoiceMap(Sample):
 
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
+            import genjax
             import jax.numpy as jnp
 
             # Using an existing ChoiceMap
@@ -923,7 +925,7 @@ class ChoiceMap(Sample):
 
             # Dynamic address
             dynamic_chm = ChoiceMap.entry(jnp.array([1.1, 2.2, 3.3]), jnp.array([1, 2, 3]))
-            assert dynamic_chm[1] == 2.2
+            assert dynamic_chm[1] == genjax.Mask(1.1, True)
             ```
         """
         if isinstance(v, ChoiceMap):
@@ -1374,7 +1376,7 @@ class Indexed(ChoiceMap):
         base_chm = ChoiceMap.value(jnp.array([1, 2, 3]))
         idx_chm = base_chm.extend(jnp.array([0, 1, 2]))
 
-        assert idx_chm.get_submap(1).get_value() == 2
+        assert idx_chm.get_submap(1).get_value() == genjax.Mask(2, True)
         ```
     """
 
@@ -1406,7 +1408,12 @@ class Indexed(ChoiceMap):
             ).shape, "Only scalar dynamic addresses are supported by get_submap."
 
             if isinstance(self.addr, Array) and self.addr.shape:
-                return jtu.tree_map(lambda v: v[addr], self.c)
+                check = self.addr == addr
+
+                # If `check` contains a match (we know it will be a single match, since we constrain addr to be scalar), then `idx` is the index of the match in `self.addr`.
+                # Else, idx == 0 (selecting "junk data" of the right shape at the leaf) and check_array[idx] == False (masking the junk data).
+                idx = jnp.argwhere(check, size=1, fill_value=0)[0, 0]
+                return jtu.tree_map(lambda v: v[idx], self.c.mask(check))
             else:
                 return self.c.mask(self.addr == addr)
 

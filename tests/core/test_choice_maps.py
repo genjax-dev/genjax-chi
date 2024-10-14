@@ -528,11 +528,22 @@ class TestChoiceMap:
         extended = chm.extend(jnp.array([0, 1, 2]))
         assert extended.get_value() is None
         assert extended.get_submap("x").static_is_empty()
-        assert extended[0] == 2.3
-        assert extended[1] == 4.4
-        assert extended[2] == 3.3
+        assert extended[0] == genjax.Mask(2.3, True)
+        assert extended[1] == genjax.Mask(4.4, True)
+        assert extended[2] == genjax.Mask(3.3, True)
 
         assert ChoiceMap.empty().extend(jnp.array([0, 1, 2])).static_is_empty()
+
+    def test_access_dynamic(self):
+        # out of order input arrays
+        chm = C[jnp.array([4, 8, 2]), "x"].set(jnp.array([4.0, 8.0, 2.0]))
+        assert chm[2, "x"] == genjax.Mask(2.0, True)
+        assert chm[4, "x"] == genjax.Mask(4.0, True)
+        assert chm[8, "x"] == genjax.Mask(8.0, True)
+
+        # indices that don't exist are flagged False.
+        assert jnp.array_equal(chm[0, "x"].primal_flag(), jnp.asarray(False))
+        assert jnp.array_equal(chm[11, "x"].primal_flag(), jnp.asarray(False))
 
     def test_merge(self):
         chm1 = ChoiceMap.kw(x=1)
@@ -659,9 +670,9 @@ class TestChoiceMap:
             filtered_chm[..., "y"]
 
         # Assert that the structure of the filtered ChoiceMap is preserved
-        assert filtered_chm[0, "x"] == 1.0
-        assert filtered_chm[1, "x"] == 2.0
-        assert filtered_chm[2, "x"] == 3.0
+        assert filtered_chm[0, "x"] == genjax.Mask(1.0, True)
+        assert filtered_chm[1, "x"] == genjax.Mask(2.0, True)
+        assert filtered_chm[2, "x"] == genjax.Mask(3.0, True)
 
     def test_filtered_chm_update(self):
         @genjax.gen
