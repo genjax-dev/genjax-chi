@@ -955,7 +955,9 @@ class ChoiceMap(Pytree):
             assert static_chm["x"] == 42
 
             # Dynamic address
-            dynamic_chm = ChoiceMap.entry(jnp.array([1.1, 2.2, 3.3]), jnp.array([1, 2, 3]))
+            dynamic_chm = ChoiceMap.entry(
+                jnp.array([1.1, 2.2, 3.3]), jnp.array([1, 2, 3])
+            )
             assert dynamic_chm[1] == genjax.Mask(1.1, True)
             ```
         """
