@@ -761,7 +761,7 @@ class _ChoiceMapBuilder:
             ```
         """
         if self.choice_map is None:
-            return self.set(f(None))
+            return self.set(f(_empty))
         else:
             submap = self.choice_map(tuple(self.addrs))
             if submap.has_value():
