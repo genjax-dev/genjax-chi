@@ -210,7 +210,7 @@ class TestVmapCombinator:
             return (new_x, new_x + 1)
 
         trace = step.vmap(in_axes=(None, 0)).simulate(
-            jax.random.PRNGKey(20), (2.0, jnp.arange(0, dtype=float))
+            jax.random.key(20), (2.0, jnp.arange(0, dtype=float))
         )
 
         assert (

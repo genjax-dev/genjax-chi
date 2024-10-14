@@ -110,7 +110,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             return x + noise1 + noise2
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         arr = jnp.ones(100)
 
         tr = jax.jit(mapped.simulate)(key, (arr,))
@@ -314,7 +314,7 @@ def vmap(
             return genjax.normal(v, 0.01) @ "q"
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         arr = jnp.ones(100)
 
         # `vmapped_model` accepts an array of numbers:

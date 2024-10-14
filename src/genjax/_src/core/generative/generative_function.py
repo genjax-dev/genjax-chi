@@ -221,7 +221,6 @@ class GenerativeFunction(Generic[R], Pytree):
         ```python exec="yes" html="true" source="material-block" session="core"
         import jax
         from jax.scipy.special import logsumexp
-        from jax.random import PRNGKey
         import jax.tree_util as jtu
         from genjax import ChoiceMapBuilder as C
         from genjax import gen, uniform, flip, categorical
@@ -246,7 +245,7 @@ class GenerativeFunction(Generic[R], Pytree):
             return jtu.tree_map(lambda v: v[idx], tr.get_sample())
 
 
-        sub_keys = jax.random.split(PRNGKey(0), 50)
+        sub_keys = jax.random.split(jax.random.key(0), 50)
         samples = jax.jit(jax.vmap(importance_sampling, in_axes=(0, None)))(
             sub_keys, C.kw(f1=True, f2=True)
         )
@@ -294,7 +293,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return x + y + z
 
 
-            key = jax.random.PRNGKey(0)
+            key = jax.random.key(0)
             kw_model = model.handle_kwargs()
 
             tr = kw_model.simulate(key, ((1.0, 2.0), {"z": 3.0}))
@@ -358,8 +357,8 @@ class GenerativeFunction(Generic[R], Pytree):
         Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
             import genjax
+            import jax
             from jax import vmap, jit
-            from jax.random import PRNGKey
             from jax.random import split
 
 
@@ -369,7 +368,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return x
 
 
-            key = PRNGKey(0)
+            key = jax.random.key(0)
             tr = model.simulate(key, ())
             print(tr.render_html())
             ```
@@ -382,14 +381,14 @@ class GenerativeFunction(Generic[R], Pytree):
                 return x
 
 
-            key = PRNGKey(0)
+            key = jax.random.key(0)
             tr = model.repeat(n=10).simulate(key, ())
             print(tr.render_html())
             ```
 
             (**Fun, flirty, fast ... parallel?**) Feel free to use `jax.jit` and `jax.vmap`!
             ```python exec="yes" html="true" source="material-block" session="core"
-            key = PRNGKey(0)
+            key = jax.random.key(0)
             sub_keys = split(key, 10)
             sim = model.repeat(n=10).simulate
             tr = jit(vmap(sim, in_axes=(0, None)))(sub_keys, ())
@@ -473,13 +472,10 @@ class GenerativeFunction(Generic[R], Pytree):
         Examples:
             Updating a trace in response to a request for a [`Target`][genjax.inference.Target] change induced by a change to the arguments:
             ```python exec="yes" source="material-block" session="core"
-            from genjax import gen
-            from genjax import normal
-            from genjax import Diff
-            from genjax import Update
-            from genjax import ChoiceMap as C
+            import jax
+            from genjax import gen, normal, Diff, Update, ChoiceMap as C
 
-            key = PRNGKey(0)
+            key = jax.random.key(0)
 
 
             @gen
@@ -606,11 +602,11 @@ class GenerativeFunction(Generic[R], Pytree):
         Examples:
             (**Full constraints**) A simple example using the `importance` interface on distributions:
             ```python exec="yes" html="true" source="material-block" session="core"
+            import jax
             from genjax import normal
             from genjax import ChoiceMapBuilder as C
-            from jax.random import PRNGKey
 
-            key = PRNGKey(0)
+            key = jax.random.key(0)
 
             tr, w = normal.importance(key, C.v(1.0), (0.0, 1.0))
             print(tr.get_sample().render_html())

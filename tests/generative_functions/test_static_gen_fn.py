@@ -690,10 +690,10 @@ class TestGenFnClosure:
             return genjax.normal(1.0, 0.001) @ "x"
 
         gfc = model()
-        tr = gfc.simulate(jax.random.PRNGKey(0), ())
+        tr = gfc.simulate(jax.random.key(0), ())
         assert tr.get_score() == genjax.normal.logpdf(tr.get_retval(), 1.0, 0.001)
         # This failed in GEN-420
-        tr_u, w = gfc.importance(jax.random.PRNGKey(1), C.kw(x=1.1), ())
+        tr_u, w = gfc.importance(jax.random.key(1), C.kw(x=1.1), ())
         assert tr_u.get_score() == genjax.normal.logpdf(tr_u.get_retval(), 1.0, 0.001)
         assert w == tr_u.get_score()
 
@@ -706,7 +706,7 @@ class TestGenFnClosure:
             _sampled = genjax.normal(x + y, z) @ "sampled"
             return z
 
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
 
         # show that we error with z missing:
         with pytest.raises(ValueError, match="z must be provided"):
@@ -761,7 +761,7 @@ class TestHandleKwargs:
         # handle_kwargs produces a new model capable of handling keyword args.
         kwm = model.handle_kwargs()
 
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
         kwm_tr = kwm.simulate(key, ((1.0,), {"y": 2.0, "z": 3.0}))
         model_tr = model.simulate(key, (1.0, 2.0, 3.0))
 
