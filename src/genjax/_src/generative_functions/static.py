@@ -311,7 +311,7 @@ class AssessHandler(StaticHandler):
         return (self.score,)
 
     def get_subsample(self, addr: StaticAddress) -> ChoiceMap:
-        return self.choice_map_sample(addr)  # pyright: ignore
+        return self.choice_map_sample(addr)
 
     def handle_trace(
         self,
@@ -462,7 +462,7 @@ class UpdateHandler(StaticHandler):
         self.address_visitor.visit(addr)
 
     def get_subconstraint(self, addr: StaticAddress) -> ChoiceMap:
-        return self.constraint(addr)  # pyright: ignore
+        return self.constraint(addr)
 
     def get_subtrace(
         self,
@@ -694,7 +694,7 @@ class RegenerateRequestHandler(StaticHandler):
         self.address_visitor.visit(addr)
 
     def get_subselection(self, addr: StaticAddress) -> Selection:
-        return self.selection(addr)  # pyright: ignore
+        return self.selection(addr)
 
     def get_subtrace(
         self,
