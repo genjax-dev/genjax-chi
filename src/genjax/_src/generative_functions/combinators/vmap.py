@@ -77,9 +77,6 @@ class VmapTrace(Generic[R], Trace[R]):
     def get_gen_fn(self):
         return self.gen_fn
 
-    def get_sample(self) -> ChoiceMap:
-        return self.chm
-
     def get_choices(self) -> ChoiceMap:
         return self.chm
 

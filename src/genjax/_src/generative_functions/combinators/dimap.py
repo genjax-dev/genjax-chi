@@ -20,7 +20,6 @@ from genjax._src.core.generative import (
     GenerativeFunction,
     Projection,
     Retdiff,
-    Sample,
     Score,
     Trace,
     Update,
@@ -54,9 +53,6 @@ class DimapTrace(Generic[R, S], Trace[S]):
 
     def get_gen_fn(self) -> GenerativeFunction[S]:
         return self.gen_fn
-
-    def get_sample(self) -> Sample:
-        return self.inner.get_sample()
 
     def get_choices(self) -> ChoiceMap:
         return self.inner.get_choices()

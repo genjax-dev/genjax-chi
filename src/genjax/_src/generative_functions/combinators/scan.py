@@ -78,9 +78,6 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
     def get_choices(self) -> ChoiceMap:
         return self.chm
 
-    def get_sample(self) -> ChoiceMap:
-        return self.get_choices()
-
     def get_gen_fn(self):
         return self.scan_gen_fn
 

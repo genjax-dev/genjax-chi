@@ -82,9 +82,6 @@ class DistributionTrace(
     def get_score(self) -> Score:
         return self.score
 
-    def get_sample(self) -> ChoiceMap:
-        return self.get_choices()
-
     def get_choices(self) -> ChoiceMap:
         return ChoiceMap.choice(self.value)
 

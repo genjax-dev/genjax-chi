@@ -1,22 +1,19 @@
 # Journey to the center of `genjax.core`
 
 
-This page describes the set of core concepts and datatypes in GenJAX, including Gen's generative datatypes and concepts ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`EditRequest`][genjax.core.EditRequest]), the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree], [`Const`][genjax.core.Const], and [`Closure`][genjax.core.Closure]), as well as functionally inspired `Pytree` extensions ([`Mask`][genjax.core.Mask]), and GenJAX's approach to "static" (JAX tracing time) typechecking.
+This page describes the set of core concepts and datatypes in GenJAX, including Gen's generative datatypes and concepts ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`ChoiceMap`][genjax.core.ChoiceMap], [`Constraint`][genjax.core.Constraint], and [`EditRequest`][genjax.core.EditRequest]), the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree], [`Const`][genjax.core.Const], and [`Closure`][genjax.core.Closure]), as well as functionally inspired `Pytree` extensions ([`Mask`][genjax.core.Mask]), and GenJAX's approach to "static" (JAX tracing time) typechecking.
 
 ::: genjax.core.GenerativeFunction
 
 Traces are data structures which record (execution and inference) data about the invocation of generative functions. Traces are often specialized to a generative function language, to take advantage of data locality, and other representation optimizations. Traces support a _trace interface_: a set of accessor methods designed to provide convenient manipulation when handling traces in inference algorithms. We document this interface below for the `Trace` data type.
 
 ::: genjax.core.Trace
-::: genjax.core.Sample
 ::: genjax.core.EditRequest
 ::: genjax.core.Constraint
 
 ## Generative functions with addressed random choices
 
-Generative functions will often include _addressed_ random choices. These are random choices which are given a name via an addressing syntax, and can be accessed by name via extended interfaces on the `Sample` type which supports the addressing.
-
-The standard `Sample` type for this type of generative function is the `ChoiceMap` type.
+Generative functions will often include _addressed_ random choices. These are random choices which are given a name via an addressing syntax, and can be accessed by name via extended interfaces on the `ChoiceMap` type which supports the addressing.
 
 ::: genjax.core.ChoiceMap
 ::: genjax.core.Selection

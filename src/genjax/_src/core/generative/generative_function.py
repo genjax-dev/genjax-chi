@@ -23,7 +23,6 @@ from genjax._src.core.generative.core import (
     EditRequest,
     Projection,
     Retdiff,
-    Sample,
     Score,
     Weight,
 )
@@ -129,9 +128,9 @@ class Trace(Generic[R], Pytree):
 
         """
 
-    @abstractmethod
-    def get_sample(self) -> Sample:
-        """Return the [`Sample`][genjax.core.Sample] sampled from the distribution over samples by the generative function during the invocation which created the [`Trace`][genjax.core.Trace]."""
+    def get_sample(self) -> "genjax.ChoiceMap":
+        """alias for [`genjax.Trace.get_choices`][]."""
+        return self.get_choices()
 
     @abstractmethod
     def get_choices(self) -> "genjax.ChoiceMap":
@@ -407,7 +406,7 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         Return [the score][genjax.core.Trace.get_score] and [the return value][genjax.core.Trace.get_retval] when the generative function is invoked with the provided arguments, and constrained to take the provided sample as the sampled value.
 
-        It is an error if the provided sample value is off the support of the distribution over the `Sample` type, or otherwise induces a partial constraint on the execution of the generative function (which would require the generative function to provide an `edit` implementation which responds to the `EditRequest` induced by the [`importance`][genjax.core.GenerativeFunction.importance] interface).
+        It is an error if the provided sample value is off the support of the distribution over the `ChoiceMap` type, or otherwise induces a partial constraint on the execution of the generative function (which would require the generative function to provide an `edit` implementation which responds to the `EditRequest` induced by the [`importance`][genjax.core.GenerativeFunction.importance] interface).
 
         Examples:
             This method is similar to density evaluation interfaces for distributions.
@@ -649,9 +648,9 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         key: PRNGKey,
         args: Arguments,
-    ) -> tuple[Sample, Score, R]:
+    ) -> tuple[ChoiceMap, Score, R]:
         """
-        Samples a [`Sample`][genjax.core.Sample] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the `R` of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
+        Samples a [`ChoiceMap`][genjax.core.ChoiceMap] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the `R` of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
         """
         tr = self.simulate(key, args)
         sample = tr.get_sample()
