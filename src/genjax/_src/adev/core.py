@@ -142,7 +142,7 @@ class TailCallBatchedADEVPrimitive(TailCallADEVPrimitive):
 sample_p = InitialStylePrimitive("sample")
 
 
-def sample_primitive(adev_prim: ADEVPrimitive, *args, key=jax.random.PRNGKey(0)):
+def sample_primitive(adev_prim: ADEVPrimitive, *args, key=jax.random.key(0)):
     def _adev_prim_call(adev_prim, *args):
         # When used for abstract tracing, value of the key doesn't matter.
         # However, we support overloading the key for other transformations,

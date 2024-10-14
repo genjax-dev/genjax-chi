@@ -468,7 +468,7 @@ class ExactDensity(Generic[R], Distribution[R]):
         sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Weight, R]:
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
         v = sample.get_value()
         match v:
             case Mask(value, flag):

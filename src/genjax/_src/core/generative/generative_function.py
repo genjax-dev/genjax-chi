@@ -37,10 +37,8 @@ from genjax._src.core.typing import (
     Callable,
     Generic,
     InAxes,
-    Int,
     PRNGKey,
     Self,
-    String,
     TypeVar,
 )
 
@@ -338,7 +336,7 @@ class GenerativeFunction(Generic[R], Pytree):
             print(zero_trace.render_html())
 
             print("\nActual simulation:")
-            key = jax.random.PRNGKey(0)
+            key = jax.random.key(0)
             actual_trace = weather_model.simulate(key, ())
             print(actual_trace.render_html())
             ```
@@ -694,7 +692,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
             vmapped = model.vmap(in_axes=0)
 
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
             arr = jnp.ones(100)
 
             # `vmapped` accepts an array if numbers instead of the original
@@ -708,7 +706,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.vmap(in_axes=in_axes)(self)
 
-    def repeat(self, /, *, n: Int) -> "GenerativeFunction[R]":
+    def repeat(self, /, *, n: int) -> "GenerativeFunction[R]":
         """
         Returns a [`genjax.GenerativeFunction`][] that samples from `self` `n` times, returning a vector of `n` results.
 
@@ -734,7 +732,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
             normal_draws = normal_draw.repeat(n=10)
 
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
 
             # Generate 10 draws from a normal distribution with mean 2.0
             tr = jax.jit(normal_draws.simulate)(key, (2.0,))
@@ -749,7 +747,7 @@ class GenerativeFunction(Generic[R], Pytree):
         self: "GenerativeFunction[tuple[Carry, Y]]",
         /,
         *,
-        n: Int | None = None,
+        n: int | None = None,
     ) -> "GenerativeFunction[tuple[Carry, Y]]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)`, returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])` where
@@ -802,7 +800,7 @@ class GenerativeFunction(Generic[R], Pytree):
             random_walk = random_walk_step.scan(n=1000)
 
             init = 0.5
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
 
             tr = jax.jit(random_walk.simulate)(key, (init, None))
             print(tr.render_html())
@@ -877,7 +875,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
 
             init = 0.0
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
             xs = jnp.ones(10)
 
             tr = jax.jit(add.simulate)(key, (init, xs))
@@ -929,7 +927,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
 
             init = 0.0
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
             xs = jnp.ones(10)
 
             tr = jax.jit(add.simulate)(key, (init, xs))
@@ -944,7 +942,7 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         /,
         *,
-        n: Int,
+        n: int,
     ) -> "GenerativeFunction[R]":
         """
         When called on a [`genjax.GenerativeFunction`][] of type `a -> a`, returns a new [`genjax.GenerativeFunction`][] of type `a -> [a]` where
@@ -987,7 +985,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
 
             init = 0.0
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
 
             tr = jax.jit(inc.simulate)(key, (init,))
             print(tr.render_html())
@@ -1001,7 +999,7 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         /,
         *,
-        n: Int,
+        n: int,
     ) -> "GenerativeFunction[R]":
         """
         Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a` where
@@ -1042,7 +1040,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
 
             init = 0.0
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
 
             tr = jax.jit(inc.simulate)(key, (init,))
             print(tr.render_html())
@@ -1076,7 +1074,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
             masked_normal_draw = normal_draw.mask()
 
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
             tr = jax.jit(masked_normal_draw.simulate)(
                 key,
                 (
@@ -1128,7 +1126,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return if_model.or_else(else_model)(toss, (1.0,), (10.0,)) @ "tossed"
 
 
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
 
             tr = jax.jit(model.simulate)(key, (True,))
 
@@ -1169,7 +1167,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
             switch = branch_1.switch(branch_2)
 
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
             jitted = jax.jit(switch.simulate)
 
             # Select `branch_2` by providing 1:
@@ -1220,7 +1218,7 @@ class GenerativeFunction(Generic[R], Pytree):
             mixture = component1.mix(component2)
 
             # Use the mixture model
-            key = jax.random.PRNGKey(0)
+            key = jax.random.key(0)
             logits = jax.numpy.array([0.3, 0.7])  # Favors component2
             trace = mixture.simulate(key, (logits, (0.0,), (7.0,)))
             print(trace.render_html())
@@ -1236,7 +1234,7 @@ class GenerativeFunction(Generic[R], Pytree):
         *,
         pre: Callable[..., ArgTuple],
         post: Callable[[ArgTuple, R], S],
-        info: String | None = None,
+        info: str | None = None,
     ) -> "GenerativeFunction[S]":
         """
         Returns a new [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
@@ -1276,7 +1274,7 @@ class GenerativeFunction(Generic[R], Pytree):
             )
 
             # Use the dimap model
-            key = jax.random.PRNGKey(0)
+            key = jax.random.key(0)
             trace = dimap_model.simulate(key, (2.0, 3.0))
 
             print(trace.render_html())
@@ -1287,7 +1285,7 @@ class GenerativeFunction(Generic[R], Pytree):
         return genjax.dimap(pre=pre, post=post, info=info)(self)
 
     def map(
-        self, f: Callable[[R], S], *, info: String | None = None
+        self, f: Callable[[R], S], *, info: str | None = None
     ) -> "GenerativeFunction[S]":
         """
         Specialized version of [`genjax.dimap`][] where only the post-processing function is applied.
@@ -1317,7 +1315,7 @@ class GenerativeFunction(Generic[R], Pytree):
             map_model = model.map(square, info="Square of normal")
 
             # Use the map model
-            key = jax.random.PRNGKey(0)
+            key = jax.random.key(0)
             trace = map_model.simulate(key, (2.0,))
 
             print(trace.render_html())
@@ -1328,7 +1326,7 @@ class GenerativeFunction(Generic[R], Pytree):
         return genjax.map(f=f, info=info)(self)
 
     def contramap(
-        self, f: Callable[..., ArgTuple], *, info: String | None = None
+        self, f: Callable[..., ArgTuple], *, info: str | None = None
     ) -> "GenerativeFunction[R]":
         """
         Specialized version of [`genjax.GenerativeFunction.dimap`][] where only the pre-processing function is applied.
@@ -1359,7 +1357,7 @@ class GenerativeFunction(Generic[R], Pytree):
             contramap_model = model.contramap(add_one, info="Add one to input")
 
             # Use the contramap model
-            key = jax.random.PRNGKey(0)
+            key = jax.random.key(0)
             trace = contramap_model.simulate(key, (2.0,))
 
             print(trace.render_html())
@@ -1489,7 +1487,7 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
 class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     gen_fn: GenerativeFunction[R]
     args: tuple[Any, ...]
-    kwargs: dict[String, Any]
+    kwargs: dict[str, Any]
 
     def _with_kwargs(self):
         "Returns a kwarg-handling version of the wrapped `gen_fn`."

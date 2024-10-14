@@ -31,16 +31,13 @@ from genjax._src.core.typing import (
     Any,
     Array,
     ArrayLike,
-    Bool,
     Callable,
     EllipsisType,
     Final,
     Flag,
     Generic,
-    Int,
     IntArray,
     Iterable,
-    String,
     TypeVar,
 )
 
@@ -51,8 +48,8 @@ if TYPE_CHECKING:
 # Address types #
 #################
 
-StaticAddressComponent = String
-DynamicAddressComponent = Int | IntArray
+StaticAddressComponent = str
+DynamicAddressComponent = int | IntArray
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
 Address = tuple[AddressComponent, ...]
 StaticAddress = tuple[StaticAddressComponent, ...]
@@ -103,6 +100,7 @@ class Selection(Projection["ChoiceMap"]):
     Examples:
         Creating selections:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
+        import genjax
         from genjax import Selection
 
         # Select all addresses
@@ -910,6 +908,7 @@ class ChoiceMap(Constraint, Sample):
 
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
+            import genjax
             import jax.numpy as jnp
 
             # Using an existing ChoiceMap
@@ -926,7 +925,7 @@ class ChoiceMap(Constraint, Sample):
 
             # Dynamic address
             dynamic_chm = ChoiceMap.entry(jnp.array([1.1, 2.2, 3.3]), jnp.array([1, 2, 3]))
-            assert dynamic_chm[1] == 2.2
+            assert dynamic_chm[1] == genjax.Mask(1.1, True)
             ```
         """
         if isinstance(v, ChoiceMap):
@@ -1089,7 +1088,7 @@ class ChoiceMap(Constraint, Sample):
                 return x
 
 
-            key = jax.random.PRNGKey(314159)
+            key = jax.random.key(314159)
             tr = model.simulate(key, ())
             chm = tr.get_sample()
             selection = S["x"]
@@ -1206,7 +1205,7 @@ class ChoiceMap(Constraint, Sample):
         """
         return ChmSel.build(self)
 
-    def static_is_empty(self) -> Bool:
+    def static_is_empty(self) -> bool:
         """
         Returns True if this ChoiceMap is equal to `ChoiceMap.empty()`, False otherwise.
         """
@@ -1377,7 +1376,7 @@ class Indexed(ChoiceMap):
         base_chm = ChoiceMap.value(jnp.array([1, 2, 3]))
         idx_chm = base_chm.extend(jnp.array([0, 1, 2]))
 
-        assert idx_chm.get_submap(1).get_value() == 2
+        assert idx_chm.get_submap(1).get_value() == genjax.Mask(2, True)
         ```
     """
 
@@ -1409,7 +1408,12 @@ class Indexed(ChoiceMap):
             ).shape, "Only scalar dynamic addresses are supported by get_submap."
 
             if isinstance(self.addr, Array) and self.addr.shape:
-                return jtu.tree_map(lambda v: v[addr], self.c)
+                check = self.addr == addr
+
+                # If `check` contains a match (we know it will be a single match, since we constrain addr to be scalar), then `idx` is the index of the match in `self.addr`.
+                # Else, idx == 0 (selecting "junk data" of the right shape at the leaf) and check_array[idx] == False (masking the junk data).
+                idx = jnp.argwhere(check, size=1, fill_value=0)[0, 0]
+                return jtu.tree_map(lambda v: v[idx], self.c.mask(check))
             else:
                 return self.c.mask(self.addr == addr)
 
@@ -1481,7 +1485,7 @@ class Static(ChoiceMap):
             acc ^= v.mask(check(k))
         return acc
 
-    def static_is_empty(self) -> Bool:
+    def static_is_empty(self) -> bool:
         return len(self.mapping) == 0
 
     def __treescope_repr__(self, path, subtree_renderer):

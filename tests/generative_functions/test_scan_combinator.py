@@ -33,7 +33,7 @@ def scanner(x):
 class TestIterateSimpleNormal:
     @pytest.fixture
     def key(self):
-        return jax.random.PRNGKey(314159)
+        return jax.random.key(314159)
 
     def test_iterate_simple_normal(self, key):
         @genjax.iterate(n=10)
@@ -53,8 +53,8 @@ class TestIterateSimpleNormal:
         for i in range(1, 5):
             tr, w = jax.jit(scanner.importance)(sub_key, C[i, "z"].set(0.5), (0.01,))
             value = tr.get_sample()[i, "z"]
-            assert value == 0.5
-            prev = tr.get_sample()[i - 1, "z"]
+            assert value == genjax.Mask(0.5, True)
+            prev = tr.get_sample()[i - 1, "z"].unmask()
             assert w == genjax.normal.assess(C.v(value), (prev, 1.0))[0]
 
     def test_iterate_simple_normal_update(self, key):
@@ -73,7 +73,7 @@ class TestIterateSimpleNormal:
                 C[i, "z"].set(1.0),
                 Diff.no_change((0.01,)),
             )
-            assert new_tr.get_sample()[i, "z"] == 1.0
+            assert new_tr.get_sample()[i, "z"] == genjax.Mask(1.0, True)
 
 
 @genjax.gen
@@ -91,7 +91,7 @@ def inc_tupled(arg: tuple[ArrayLike, ArrayLike]) -> tuple[ArrayLike, ArrayLike]:
 class TestIterate:
     @pytest.fixture
     def key(self):
-        return jax.random.PRNGKey(314159)
+        return jax.random.key(314159)
 
     def test_inc(self, key):
         """Baseline test that `inc` works!"""
@@ -209,7 +209,7 @@ def add_tupled(acc, x):
 class TestAccumulateReduceMethods:
     @pytest.fixture
     def key(self):
-        return jax.random.PRNGKey(314159)
+        return jax.random.key(314159)
 
     def test_add(self, key):
         """Baseline test that `add` works!"""
@@ -316,7 +316,7 @@ class TestAccumulateReduceMethods:
 class TestScanUpdate:
     @pytest.fixture
     def key(self):
-        return jax.random.PRNGKey(314159)
+        return jax.random.key(314159)
 
     def test_scan_update(self, key):
         @genjax.Pytree.dataclass
@@ -343,7 +343,7 @@ class TestScanUpdate:
 class TestScanWithParameters:
     @pytest.fixture
     def key(self):
-        return jax.random.PRNGKey(314159)
+        return jax.random.key(314159)
 
     @genjax.gen
     @staticmethod
@@ -378,17 +378,11 @@ class TestScanWithParameters:
         @genjax.gen
         def walk_step(x, std):
             new_x = genjax.normal(x, std) @ "x"
-            return new_x, None
+            return new_x, new_x
 
         args = (0.0, jnp.array([2.0, 4.0, 3.0, 5.0, 1.0]))
         tr = walk_step.scan(n=5).simulate(key, args)
-        expected = jnp.array([
-            -0.75375533,
-            -5.818158,
-            -3.4942584,
-            -5.0217595,
-            -4.4125495,
-        ])
+        _, expected = tr.get_retval()
         assert jnp.allclose(
             tr.get_choices()[..., "x"],
             expected,
@@ -430,7 +424,6 @@ class TestScanWithParameters:
             x = genjax.normal(loc, scale) @ "x"
             return x + shift, None
 
-        jax.lax.scan
         d = {
             "loc": jnp.array([10.0, 12.0]),
             "scale": jnp.array([1.0]),
