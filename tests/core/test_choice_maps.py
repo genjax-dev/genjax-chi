@@ -297,6 +297,25 @@ class TestChoiceMapBuilder:
         assert ("x", "y") in chm
         assert "y" not in chm
 
+    def test_update(self):
+        chm = C["x", "y"].set(2)
+
+        # update at a spot populated by a choicemap
+        updated = chm.at["x"].update(lambda m: C["z"].set(m))
+        assert updated["x", "z", "y"] == 2
+
+        # update that hits a spot
+        updated_choice = chm.at["x", "y"].update(jnp.square)
+        assert updated_choice["x", "y"] == 4
+
+        # update that hits an empty spot:
+        updated_empty = chm.at["q"].update(lambda m: C["z"].set(m))
+        assert updated_empty(("q", "z")).static_is_empty()
+
+        # filling the spot is fine:
+        updated_empty_2 = chm.at["q"].update(lambda m: C["z"].set(2))
+        assert updated_empty_2["q", "z"] == 2
+
     def test_empty(self):
         assert C.n() == ChoiceMap.empty()
 
@@ -356,6 +375,13 @@ class TestChoiceMap:
 
         # NO sub-paths are inside a ValueChm.
         assert () in value_chm
+
+        # A value chm with a mask that is concrete False is empty.
+        assert ChoiceMap.choice(Mask(42.0, False)).static_is_empty()
+
+        # non-concrete values survive.
+        masked_v = Mask(42.0, jnp.array(False))
+        assert ChoiceMap.choice(masked_v).get_value() == masked_v
 
     def test_kv(self):
         chm = ChoiceMap.kw(x=1, y=2)

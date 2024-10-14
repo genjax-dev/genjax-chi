@@ -123,7 +123,7 @@ class MaskedConstraint(Constraint):
 ###############
 
 
-class Projection(Generic[S], Pytree):
+class Projection(Generic[S]):
     @abstractmethod
     def filter(self, sample: S) -> S:
         pass

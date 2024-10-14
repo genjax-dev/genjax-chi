@@ -84,7 +84,7 @@ SelectionBuilder = _SelectionBuilder()
 """Deprecated! please use `Selection.at`."""
 
 
-class Selection(Projection["ChoiceMap"]):
+class Selection(Projection["ChoiceMap"], Pytree):
     """
     A class representing a selection of addresses in a ChoiceMap.
 
@@ -737,6 +737,37 @@ class _ChoiceMapBuilder:
         else:
             return chm + self.choice_map
 
+    def update(
+        self, f: Callable[..., "dict[K_addr, Any] | ChoiceMap | Any"]
+    ) -> "ChoiceMap":
+        """
+        Updates an existing value or ChoiceMap at the current address.
+        This method allows updating a value or ChoiceMap at the address specified by the builder.
+        The provided function `f` is called with the current value or ChoiceMap at that address.
+        Args:
+            f: A callable that takes the current value (or None) and returns a new value,
+               dict, or ChoiceMap to be set at the current address.
+        Returns:
+            A new ChoiceMap with the updated value at the specified address.
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="choicemap"
+            chm = ChoiceMap.d({"x": 5, "y": {"z": 10}})
+            updated = chm.at["y", "z"].update(lambda v: v * 2)
+            assert updated["y", "z"] == 20
+            # Updating a non-existent address
+            new_chm = chm.at["w"].update(lambda _: 42)
+            assert new_chm["w"] == 42
+            ```
+        """
+        if self.choice_map is None:
+            return self.set(f(None))
+        else:
+            submap = self.choice_map(tuple(self.addrs))
+            if submap.has_value():
+                return self.set(f(submap.get_value()))
+            else:
+                return self.set(f(submap))
+
     def n(self) -> "ChoiceMap":
         """
         Returns an empty ChoiceMap. Alias for `ChoiceMap.none()`.
@@ -857,7 +888,7 @@ class ChoiceMap(Pytree):
         return _empty
 
     @staticmethod
-    def choice(v: T) -> "Choice[T]":
+    def choice(v: Any) -> "ChoiceMap":
         """
         Creates a ChoiceMap containing a single value.
 
@@ -878,11 +909,11 @@ class ChoiceMap(Pytree):
             assert value_chm.get_value() == 42
             ```
         """
-        return Choice(v)
+        return Choice.build(v)
 
     @staticmethod
     @deprecated("Use ChoiceMap.choice() instead.")
-    def value(v: T) -> "Choice[T]":
+    def value(v: Any) -> "ChoiceMap":
         return ChoiceMap.choice(v)
 
     @staticmethod
@@ -1350,6 +1381,15 @@ class Choice(Generic[T], ChoiceMap):
     """
 
     v: T
+
+    @staticmethod
+    def build(v: T) -> ChoiceMap:
+        if isinstance(v, Array) and v.shape == (0,):
+            return ChoiceMap.empty()
+        elif isinstance(v, Mask) and FlagOp.concrete_false(v.primal_flag()):
+            return ChoiceMap.empty()
+        else:
+            return Choice(v)
 
     def get_value(self) -> T:
         return self.v
