@@ -720,50 +720,71 @@ class ChoiceMapNoValueAtAddress(Exception):
     subaddr: ExtendedAddressComponent | ExtendedAddress
 
 
+def _drop_prefix(
+    dynamic_components: list[DynamicAddressComponent],
+) -> list[DynamicAddressComponent]:
+    # Check for prefix of int or scalar Array instances
+    prefix_end = 0
+    for comp in dynamic_components:
+        if isinstance(comp, int) or (isinstance(comp, Array) and comp.shape == ()):
+            prefix_end += 1
+        else:
+            break
+
+    return dynamic_components[prefix_end:]
+
+
 def _validate_addr(
-    addr: ExtendedAddressComponent | ExtendedAddress, allow_partial_slices: bool = False
+    addr: ExtendedAddressComponent | ExtendedAddress, allow_partial_slice: bool = False
 ) -> ExtendedAddress:
     """
-    Validates the address components to ensure consistency in dynamic addressing.
+    Validates the structure of an address tuple.
 
-    This method checks that all dynamic components (slices or arrays) in the address
-    are of the same type. Indexed can only handle all slices or all arrays, with no mixing
-    allowed.
+    This function checks if the given address adheres to the following structure:
 
-    TODO:
+    1. A prefix consisting of only scalar addresses (int or an IntArray with shape == ())
+    2. Optionally (if `allow_partial_slice` is True), a single non-full-slice or non-scalar array
+    3. A tail of full slices (: or slice(None,None,None))
 
-    - we want to allow any number of leading ints, then a single non-scalar array or partial slice, then only full slices after that.
+    Args:
+        addr: The address (or address component) to validate.
+        allow_partial_slice: If True, allows a single partial slice or non-scalar array. Defaults to False.
+
+    Returns:
+        The validated address tuple.
+
+    Raises:
+        ValueError: If the address structure is invalid.
     """
+
     addr = addr if isinstance(addr, tuple) else (addr,)
     dynamic_components = [
         comp for comp in addr if isinstance(comp, (slice, int, Array))
     ]
 
     if dynamic_components:
-        all_slice = all(isinstance(comp, slice) for comp in dynamic_components)
-        all_array = all(isinstance(comp, (int, Array)) for comp in dynamic_components)
+        remaining = _drop_prefix(dynamic_components)
 
-        if not (all_slice or all_array):
+        if len(remaining) > 0:
+            first = remaining[0]
+            if isinstance(first, Array) and first.shape != ():
+                remaining = remaining[1:]
+            elif (
+                allow_partial_slice
+                and isinstance(first, slice)
+                and first != _full_slice
+            ):
+                remaining = remaining[1:]
+
+        if not all(s == _full_slice for s in remaining):
+            if allow_partial_slice:
+                caveat = "an optional partial slice or Array, and then only full slices"
+            else:
+                caveat = "full slices"
+
             raise ValueError(
-                f"Dynamic address components must be all slices or all arrays, not mixed. Found these dynamic components: {dynamic_components}"
+                f"Address must consist of scalar components, followed by {caveat}. Found: {dynamic_components}"
             )
-
-        if all_slice:
-            if not allow_partial_slices and dynamic_components[0] != _full_slice:
-                raise ValueError(
-                    f"Partial slices are only allowed. Found: {dynamic_components}"
-                )
-
-            # Check that all but the first slice are equal to _full_slice:
-            if not all(s == _full_slice for s in dynamic_components[1:]):
-                if allow_partial_slices:
-                    caveat = "past the first position"
-                else:
-                    caveat = ""
-
-                raise ValueError(
-                    f"Partial slices are not allowed {caveat}. Found: {dynamic_components}"
-                )
 
     return addr
 
@@ -784,7 +805,7 @@ class _ChoiceMapBuilder:
         )
 
     def set(self, v) -> "ChoiceMap":
-        addrs = _validate_addr(tuple(self.addrs), allow_partial_slices=False)
+        addrs = _validate_addr(tuple(self.addrs), allow_partial_slice=False)
 
         # this is safe, as we know we didn't pass any ellipses in.
         addrs = cast(Address, addrs)
@@ -1320,7 +1341,7 @@ class ChoiceMap(Pytree):
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
     ) -> "ChoiceMap":
-        addr = _validate_addr(addr, allow_partial_slices=True)
+        addr = _validate_addr(addr, allow_partial_slice=True)
 
         submap = self
         for comp in addr:
@@ -1524,7 +1545,7 @@ class Indexed(ChoiceMap):
                 # We can't allow slices, as self.addr might look like, e.g. `[2,5,6]`, and we don't have any way to combine this "sparse array selector" with an incoming slice.
                 assert not isinstance(
                     addr, slice
-                ), "Slices not allowed against array-shaped dynamic addresses"
+                ), f"Slices are not allowed against array-shaped dynamic addresses. Tried to apply {addr} to {self.addr}."
 
                 check = self.addr == addr
 
@@ -1823,6 +1844,7 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
 
             case Indexed(c, addr):
                 addr = _full_slice if addr is None else addr
+
                 return loop(c, selection(addr)).extend(addr)
 
             case Choice(v):

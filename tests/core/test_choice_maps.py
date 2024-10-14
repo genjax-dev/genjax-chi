@@ -950,45 +950,57 @@ class TestChoiceMap:
         assert jnp.array_equal(chm[0:4, "x"], vals[0:4])
 
     def test_choicemap_slice_validation(self):
-        # Test full slices mixed with strings
-        C[:, "x"].set(jnp.arange(5))
-        C[:, "x", :].set(jnp.ones((3, 3)))
-        C["y", :, "z"].set(jnp.zeros((4, 2)))
+        # Creation with scalar and string keys
+        chm = C[0, "x", 1].set(10)
+        assert chm[0, "x", 1] == 10
 
-        # Test arrays or ints mixed with strings
-        C["y", 5].set(10)
+        # Creation with IntArray (shape == ())
+        idx = jnp.array(2, dtype=jnp.int32)
+        chm = C[idx, "y"].set(20)
+        assert chm[2, "y"] == genjax.Mask(20, True)
 
-        # with pytest.raises(ValueError):
-        #     C[0, "z", jnp.array([1, 2, 3])].set(jnp.ones(3))
+        # Creation with optional single array of indices
+        indices = jnp.array([0, 1, 2])
+        values = jnp.array([5, 10, 15])
+        chm = C["z", indices].set(values)
 
-        # Test mixing slices with arrays/ints (should fail)
+        # querying array-shaped indices with a slice is not allowed:
+        with pytest.raises(
+            AssertionError,
+            match="Slices are not allowed against array-shaped dynamic addresses.",
+        ):
+            chm["z", :]
+
+        # Creation with full slices after array
+        chm = C[0, "w", indices, :, :].set(jnp.ones((3, 2, 2)))
+        assert jnp.array_equal(chm[0, "w", 1, :, :].unmask(), jnp.ones((2, 2)))
+
+        # Lookup with scalar and string keys
+        assert chm[0, "w", 1, 0, 0] == genjax.Mask(1, True)
+
+        # Lookup with IntArray (shape == ())
+        assert chm[0, "w", idx, 0, 0] == genjax.Mask(1, True)
+
+        # Lookup with single partial slice
+        partial_result = chm[0, "w", 0, 1:3, :]
+        assert jnp.array_equal(partial_result.unmask(), jnp.ones((1, 2)))
+        assert jnp.array_equal(partial_result.primal_flag(), jnp.array(True))
+
+        # Lookup with full slices
+        full_result = jax.vmap(lambda i: chm[0, "w", i, :, :])(indices)
+        assert full_result.unmask().shape == (3, 2, 2)
+
+        # Ensure dynamic components are deferred to leaf
+        complex_chm = C[0, "a", indices, :, "b"].set(jnp.ones((3, 2)))
+        assert jnp.array_equal(complex_chm[0, "a", 1, :, "b"].unmask(), jnp.ones(2))
+
+        # Verify that partial slices are not allowed in creation
         with pytest.raises(ValueError):
-            C[:, jnp.array([0, 1]), "x"].set(jnp.zeros((2, 2)))
+            C[0, "x", 1:3].set(jnp.array([1, 2]))
 
+        # Verify that multiple arrays are not allowed in creation
         with pytest.raises(ValueError):
-            C[0, :, "y"].set(jnp.ones(3))
+            C[indices, indices].set(jnp.ones((3, 3)))
 
-        # Test partial slices (should fail)
-        with pytest.raises(ValueError):
-            C[1:3, "x"].set(jnp.arange(2))
-
-        with pytest.raises(ValueError):
-            C["y", :3].set(jnp.ones(3))
-
-        with pytest.raises(ValueError):
-            C[::-1, "z"].set(jnp.arange(5))
-
-        # Test more complex combinations
-        with pytest.raises(ValueError):
-            C[:, "x", 1:3, :].set(jnp.ones((3, 2, 4)))
-
-        # test 2d
-        vals_2d = jnp.array([jnp.arange(0, 3), jnp.arange(3, 6)])
-        chm_2d = C[:, "x", :].set(vals_2d)
-
-        # single values are fine:
-        assert chm_2d[jnp.array(0), "x", 2] == vals_2d[0, 2]
-
-        with pytest.raises(ValueError):
-            # partial slices are not allowed:
-            chm_2d[:, "x", jnp.array(2)]
+        # Verify that partial slices are allowed in lookup
+        assert complex_chm[0, "a", 0, 1:3, "b"] == genjax.Mask(jnp.array([1.0]), True)
