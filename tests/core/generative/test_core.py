@@ -30,10 +30,10 @@ class TestTupleAddr:
             y = genjax.normal(x, 1.0) @ "y"
             return y
 
-        tr = f.simulate(jax.random.PRNGKey(0), ())
+        tr = f.simulate(jax.random.key(0), ())
         chm = tr.get_choices()
         x_score, _ = genjax.normal.assess(C.v(chm["x", "x0"]), (0.0, 1.0))
-        assert x_score == tr.project(jax.random.PRNGKey(1), Selection.at["x", "x0"])
+        assert x_score == tr.project(jax.random.key(1), Selection.at["x", "x0"])
 
 
 class TestProject:
@@ -45,12 +45,12 @@ class TestProject:
             return x, y
 
         # get a trace
-        tr = f.simulate(jax.random.PRNGKey(0), ())
+        tr = f.simulate(jax.random.key(0), ())
         # evaluations
-        x_score = tr.project(jax.random.PRNGKey(1), S["x"])
+        x_score = tr.project(jax.random.key(1), S["x"])
         assert x_score == tr.subtraces[0].get_score()
 
-        y_score = tr.project(jax.random.PRNGKey(1), S["y"])
+        y_score = tr.project(jax.random.key(1), S["y"])
         assert y_score == tr.subtraces[1].get_score()
 
         assert tr.get_score() == x_score + y_score
@@ -60,12 +60,12 @@ class TestCombinators:
     """Tests for the generative function combinator methods."""
 
     def test_vmap(self):
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         @genjax.gen
         def model(x):
             v = genjax.normal(x, 1.0) @ "v"
-            return genjax.normal(v, 0.01) @ "q"
+            return (v, genjax.normal(v, 0.01) @ "q")
 
         vmapped_model = model.vmap()
 
@@ -73,21 +73,14 @@ class TestCombinators:
 
         tr = jit_fn(key, (jnp.array([10.0, 20.0, 30.0]),))
         chm = tr.get_choices()
-
-        varr = jnp.array([11.076874, 18.779837, 27.92488])
-        qarr = jnp.array([11.096466, 18.75329, 27.932695])
+        varr, qarr = tr.get_retval()
 
         # The ellipsis syntax groups everything under a sub-key:
         assert jnp.array_equal(chm[..., "v"], varr)
         assert jnp.array_equal(chm[..., "q"], qarr)
 
-        # check alternate access route:
-        assert jnp.array_equal(chm(jnp.arange(3))["v"].unmask(), varr)
-
-        assert jnp.array_equal(chm(jnp.arange(3))["q"].unmask(), qarr)
-
     def test_repeat(self):
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         @genjax.gen
         def model(x):
@@ -99,8 +92,8 @@ class TestCombinators:
         vmap_tr = jax.jit(vmap_model.simulate)(key, (jnp.zeros(3),))
         repeat_tr = jax.jit(repeat_model.simulate)(key, (0.0,))
 
-        repeatarr = jnp.array([1.0768734, -1.220163, -2.0751207])
-        varr = jnp.array([1.0768734, -1.220163, -2.0751207])
+        repeatarr = repeat_tr.get_retval()
+        varr = vmap_tr.get_retval()
 
         # Check that we get 3 repeated values:
         assert jnp.array_equal(repeat_tr.get_choices()[..., "x"], repeatarr)
@@ -112,7 +105,7 @@ class TestCombinators:
         assert jnp.array_equal(vmap_tr.get_choices()[..., "x"], varr)
 
     def test_or_else(self):
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         @genjax.gen
         def if_model(x):

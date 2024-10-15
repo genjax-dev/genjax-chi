@@ -19,7 +19,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapConstraint,
     Constraint,
     EditRequest,
     GenerativeFunction,
@@ -31,6 +30,7 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
+from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -38,7 +38,6 @@ from genjax._src.core.typing import (
     Callable,
     FloatArray,
     Generic,
-    Int,
     IntArray,
     PRNGKey,
     TypeVar,
@@ -67,10 +66,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
         score: FloatArray,
         scan_length: int,
     ) -> "ScanTrace[Carry, Y]":
-        chm = jax.vmap(
-            lambda idx, subtrace: ChoiceMap.entry(subtrace.get_choices(), idx),
-        )(jnp.arange(scan_length), inner)
-
+        chm = inner.get_choices().extend(slice(None, None, None))
         return ScanTrace(scan_gen_fn, inner, args, retval, score, chm, scan_length)
 
     def get_args(self) -> tuple[Any, ...]:
@@ -81,9 +77,6 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
 
     def get_choices(self) -> ChoiceMap:
         return self.chm
-
-    def get_sample(self) -> ChoiceMap:
-        return self.get_choices()
 
     def get_gen_fn(self):
         return self.scan_gen_fn
@@ -149,7 +142,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
 
         init = 0.5
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         random_walk = random_walk_step.scan(n=1000)
 
@@ -174,20 +167,13 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     kernel_gen_fn: GenerativeFunction[tuple[Carry, Y]]
 
     # Only required for `None` carry inputs
-    length: Int | None = Pytree.static()
+    length: int | None = Pytree.static()
 
-    # To get the type of return value, just invoke
-    # the scanned over source (with abstract tracer arguments).
+    # To get the type of return value, invoke the scanned over source (with abstract tracer arguments).
     def __abstract_call__(self, *args) -> tuple[Carry, Y]:
-        (carry, scanned_in) = args
-
-        def _inner(carry: Carry, scanned_in: Any):
-            v, scanned_out = self.kernel_gen_fn.__abstract_call__(carry, scanned_in)
-            return v, scanned_out
-
-        v, scanned_out = jax.lax.scan(_inner, carry, scanned_in, length=self.length)
-
-        return v, scanned_out
+        return jax.lax.scan(
+            self.kernel_gen_fn.__abstract_call__, *args, length=self.length
+        )
 
     @staticmethod
     def _static_scan_length(xs: Any, length: int | None) -> int:
@@ -202,24 +188,17 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     ) -> ScanTrace[Carry, Y]:
         carry, scanned_in = args
 
-        def _inner_simulate(
-            key: PRNGKey, carry: Carry, scanned_in: Any
-        ) -> tuple[tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y]]:
-            tr = self.kernel_gen_fn.simulate(key, (carry, scanned_in))
-            (carry, scanned_out) = tr.get_retval()
-            score = tr.get_score()
-            return (carry, score), (tr, scanned_out)
-
         def _inner(
-            carry: tuple[PRNGKey, IntArray, Carry], scanned_over: Any
+            carry: tuple[PRNGKey, IntArray, Carry], scanned_in: Any
         ) -> tuple[
             tuple[PRNGKey, IntArray, Carry], tuple[Trace[tuple[Carry, Y]], Y, Score]
         ]:
             key, count, carried_value = carry
             key = jax.random.fold_in(key, count)
-            (carried_out, score), (tr, scanned_out) = _inner_simulate(
-                key, carried_value, scanned_over
-            )
+
+            tr = self.kernel_gen_fn.simulate(key, (carried_value, scanned_in))
+            (carried_out, scanned_out) = tr.get_retval()
+            score = tr.get_score()
 
             return (key, count + 1, carried_out), (tr, scanned_out, score)
 
@@ -246,11 +225,12 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         args: tuple[Any, ...],
     ) -> tuple[ScanTrace[Carry, Y], Weight]:
         assert isinstance(constraint, ChoiceMapConstraint)
+
         (carry, scanned_in) = args
 
         def _inner_generate(
             key: PRNGKey,
-            constraint: ChoiceMapConstraint,
+            constraint: Constraint,
             carry: Carry,
             scanned_in: Any,
         ) -> tuple[tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y, Weight]]:
@@ -272,10 +252,11 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         ]:
             key, idx, carried_value = carry
             key = jax.random.fold_in(key, idx)
-            submap = constraint.get_submap(idx)
-            assert isinstance(submap, ChoiceMapConstraint)
+            submap = constraint.choice_map.get_submap(idx)
+            subconstraint = ChoiceMapConstraint(submap)
+
             (carried_out, score), (tr, scanned_out, w) = _inner_generate(
-                key, submap, carried_value, scanned_over
+                key, subconstraint, carried_value, scanned_over
             )
 
             return (key, idx + 1, carried_out), (tr, scanned_out, score, w)
@@ -307,17 +288,6 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         assert isinstance(projection, Selection)
         assert isinstance(trace, ScanTrace)
 
-        def _inner_project(
-            key: PRNGKey,
-            subtrace: Trace[Any],
-            projection: Selection,
-        ) -> Weight:
-            w = subtrace.project(
-                key,
-                projection,
-            )
-            return w
-
         def _project(
             carry: tuple[PRNGKey, IntArray],
             subtrace: Trace[Any],
@@ -326,7 +296,10 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             key = jax.random.fold_in(key, idx)
             subprojection = projection(idx)
             assert isinstance(subprojection, Selection)
-            w = _inner_project(key, subtrace, subprojection)
+            w = subtrace.project(
+                key,
+                subprojection,
+            )
 
             return (key, idx + 1), w
 
@@ -342,18 +315,17 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         self,
         key: PRNGKey,
         trace: ScanTrace[Carry, Y],
-        constraint: Constraint,
+        constraint: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
-        assert isinstance(constraint, ChoiceMapConstraint)
-        diffs = Diff.tree_diff_unknown_change(Diff.tree_primal(argdiffs))
+        diffs = Diff.unknown_change(Diff.tree_primal(argdiffs))
         carry_diff: Carry = diffs[0]
         scanned_in_diff: Any = diffs[1:]
 
         def _inner_edit(
             key: PRNGKey,
             subtrace: Trace[tuple[Carry, Y]],
-            subconstraint: ChoiceMapConstraint,
+            subconstraint: ChoiceMap,
             carry: Carry,
             scanned_in: Any,
         ) -> tuple[
@@ -371,9 +343,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 Update(subconstraint),
                 (carry, scanned_in),
             )
-            (carry_retdiff, scanned_out_retdiff) = Diff.tree_diff_unknown_change(
-                kernel_retdiff
-            )
+            (carry_retdiff, scanned_out_retdiff) = Diff.unknown_change(kernel_retdiff)
             score = new_subtrace.get_score()
             return (carry_retdiff, score), (
                 new_subtrace,
@@ -387,29 +357,26 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             scanned_over: tuple[Trace[tuple[Carry, Y]], Any],
         ) -> tuple[
             tuple[PRNGKey, IntArray, Carry],
-            tuple[
-                Trace[tuple[Carry, Y]], Retdiff[Y], Score, Weight, ChoiceMapConstraint
-            ],
+            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Score, Weight, ChoiceMap],
         ]:
             key, idx, carried_value = carry
             subtrace, scanned_in = scanned_over
             key = jax.random.fold_in(key, idx)
             subconstraint = constraint(idx)
-            assert isinstance(subconstraint, ChoiceMapConstraint)
+            assert isinstance(subconstraint, ChoiceMap)
             (
                 (carried_out, score),
                 (new_subtrace, scanned_out, w, inner_bwd_request),
             ) = _inner_edit(key, subtrace, subconstraint, carried_value, scanned_in)
             assert isinstance(inner_bwd_request, Update)
-            bwd_constraint = inner_bwd_request.constraint
-            bwd_constraint = ChoiceMapConstraint(ChoiceMap.entry(bwd_constraint, idx))
+            bwd_chm = inner_bwd_request.constraint.extend(idx)
 
             return (key, idx + 1, carried_out), (
                 new_subtrace,
                 scanned_out,
                 score,
                 w,
-                bwd_constraint,
+                bwd_chm,
             )
 
         (
@@ -462,16 +429,12 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     ) -> tuple[Score, Any]:
         (carry, scanned_in) = args
 
-        def _inner_assess(sample, carry, scanned_in):
-            score, retval = self.kernel_gen_fn.assess(sample, (carry, scanned_in))
-            (carry, scanned_out) = retval
-            return (carry, score), scanned_out
-
-        def _assess(carry, scanned_over):
+        def _assess(carry, scanned_in):
             idx, carried_value = carry
             submap = sample.get_submap(idx)
-            (carry, score), scanned_out = _inner_assess(
-                submap, carried_value, scanned_over
+
+            score, (carry, scanned_out) = self.kernel_gen_fn.assess(
+                submap, (carried_value, scanned_in)
             )
 
             return (idx + 1, carry), (scanned_out, score)
@@ -494,7 +457,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
 
 def scan(
-    *, n: Int | None = None
+    *, n: int | None = None
 ) -> Callable[
     [GenerativeFunction[tuple[Carry, Y]]], GenerativeFunction[tuple[Carry, Y]]
 ]:
@@ -549,7 +512,7 @@ def scan(
 
 
         init = 0.5
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         tr = jax.jit(random_walk.simulate)(key, (init, None))
         print(tr.render_html())
@@ -655,7 +618,7 @@ def accumulate() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Car
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         xs = jnp.ones(10)
 
         tr = jax.jit(add.simulate)(key, (init, xs))
@@ -715,7 +678,7 @@ def reduce() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         xs = jnp.ones(10)
 
         tr = jax.jit(add.simulate)(key, (init, xs))
@@ -735,7 +698,7 @@ def reduce() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]
     return decorator
 
 
-def iterate(*, n: Int) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
+def iterate(*, n: int) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a ->
     [a]` where.
@@ -778,7 +741,7 @@ def iterate(*, n: Int) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         tr = jax.jit(inc.simulate)(key, (init,))
         print(tr.render_html())
@@ -797,7 +760,7 @@ def iterate(*, n: Int) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y
 
 
 def iterate_final(
-    *, n: Int
+    *, n: int
 ) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
     """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
     `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a`
@@ -839,7 +802,7 @@ def iterate_final(
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         tr = jax.jit(inc.simulate)(key, (init,))
         print(tr.render_html())

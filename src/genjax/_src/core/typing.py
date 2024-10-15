@@ -42,18 +42,14 @@ FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
 Sequence = btyping.Sequence
+Iterable = btyping.Iterable
 Final = btyping.Final
 Generator = btyping.Generator
 
 # JAX Type alias.
 InAxes = int | None | Sequence[Any]
 
-# Types of Python literals.
-Int = int
-Float = float
-Bool = bool
-Flag = Bool | BoolArray
-String = str
+Flag = bool | BoolArray
 
 Value = Any
 
@@ -63,7 +59,7 @@ Value = Any
 
 ScalarShaped = Is[lambda arr: jnp.array(arr, copy=False).shape == ()]
 ScalarFlag = Annotated[Flag, ScalarShaped]
-
+ScalarInt = Annotated[IntArray, ScalarShaped]
 
 ############
 # Generics #
@@ -79,7 +75,7 @@ ParamSpec = btyping.ParamSpec
 #################
 
 
-def static_check_is_array(v: Any) -> Bool:
+def static_check_is_array(v: Any) -> bool:
     return (
         isinstance(v, jnp.ndarray)
         or isinstance(v, np.ndarray)
@@ -97,7 +93,7 @@ def static_check_supports_grad(v):
     return static_check_is_array(v) and v.dtype == np.float32
 
 
-def static_check_shape_dtype_equivalence(vs: list[Array]) -> Bool:
+def static_check_shape_dtype_equivalence(vs: list[Array]) -> bool:
     shape_dtypes = [(v.shape, v.dtype) for v in vs]
     num_unique = set(shape_dtypes)
     return len(num_unique) == 1
@@ -108,23 +104,22 @@ __all__ = [
     "Any",
     "Array",
     "ArrayLike",
-    "Bool",
     "BoolArray",
     "Callable",
     "EllipsisType",
     "Final",
     "Flag",
-    "Float",
     "FloatArray",
     "Generator",
     "Generic",
     "InAxes",
-    "Int",
     "IntArray",
     "Is",
+    "Iterable",
     "PRNGKey",
     "ParamSpec",
     "ScalarFlag",
+    "ScalarInt",
     "ScalarShaped",
     "Self",
     "Sequence",
