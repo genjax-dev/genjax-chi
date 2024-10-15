@@ -26,8 +26,6 @@ By default, `genjax` provides two types of `ChangeTangent`:
 `ChangeTangents` are provided along with primal values into `Diff` instances. The generative function `edit` interface expects tuples of `Pytree` instances whose leaves are `Diff` instances (`argdiffs`).
 """
 
-# TODO: Think about when tangents don't share the same Pytree shape as primals.
-
 import functools
 
 import jax.core as jc
@@ -73,19 +71,13 @@ class _UnknownChange(ChangeTangent):
     pass
 
 
-UnknownChange = _UnknownChange()
-
-
 @Pytree.dataclass
 class _NoChange(ChangeTangent):
     pass
 
 
+UnknownChange = _UnknownChange()
 NoChange = _NoChange()
-
-
-def static_check_is_change_tangent(v):
-    return isinstance(v, ChangeTangent)
 
 
 #############################
@@ -95,17 +87,32 @@ def static_check_is_change_tangent(v):
 
 @Pytree.dataclass(match_args=True)
 class Diff(Generic[R], Pytree):
-    primal: R
-    tangent: R
+    """
+    A class representing a difference type in incremental computation.
 
-    def __post_init__(self):
-        assert not isinstance(self.primal, Diff)
-        static_check_is_change_tangent(self.tangent)
+    This class pairs a value with a change tangent, which indicates whether the value
+    has a known change. It is used to track changes in values during incremental computation.
+
+    The Diff class stores a value along with a marker (ChangeTangent) saying whether or not
+    that value has a known change.
+
+    Create Diff instances with `Diff.no_change` and `Diff.unknown_change`.
+
+    Note:
+        Diff instances should only be used as leaves of an outer pytree. They should not contain nested Diff instances or be used as internal nodes in a pytree structure.
+
+    Attributes:
+        primal: The value being tracked.
+        tangent: The change tangent indicating whether the value has a known change.
+    """
+
+    primal: R
+    tangent: ChangeTangent
 
     def get_primal(self) -> R:
         return self.primal
 
-    def get_tangent(self) -> R:
+    def get_tangent(self) -> ChangeTangent:
         return self.tangent
 
     #############
@@ -114,6 +121,28 @@ class Diff(Generic[R], Pytree):
 
     @staticmethod
     def tree_diff(tree: R, tangent_tree: R) -> R:
+        """
+        Create a Diff tree by combining a primal tree with a tangent tree.
+
+        This static method takes two trees of the same structure and combines them
+        into a single tree where each node is a Diff instance. The primal values
+        come from the `tree` argument, and the tangent values come from the
+        `tangent_tree` argument.
+
+        Args:
+            tree: The tree containing primal values.
+            tangent_tree: The tree containing ChangeTangent values, with the same
+                          structure as `tree`.
+
+        Returns:
+            A new tree with the same structure as the input trees, where each
+            node is a Diff instance combining the corresponding primal and
+            tangent values.
+
+        Note:
+            The input trees must have the same structure, or a ValueError will
+            be raised during the tree_map operation.
+        """
         return jtu.tree_map(
             lambda p, t: Diff(p, t),
             tree,
@@ -121,26 +150,63 @@ class Diff(Generic[R], Pytree):
         )
 
     @staticmethod
-    def tree_diff_no_change(tree: R) -> R:
-        tangent_tree: R = jtu.tree_map(lambda _: NoChange, tree)
-        return Diff.tree_diff(tree, tangent_tree)
-
-    @staticmethod
     def no_change(tree: R) -> R:
-        return Diff.tree_diff_no_change(tree)
+        """
+        Create a Diff tree with NoChange tangents for all nodes, used to represent a tree where no values have changed.
+
+        Args:
+            tree: The input tree to be converted.
+
+        Returns:
+            A new tree with the same structure as the input, where each
+            node is a Diff instance with the original value as the primal
+            and NoChange as the tangent.
+
+        Note:
+            This method first extracts the primal values from the input tree
+            (in case it already contains Diff instances) before creating the
+            new Diff tree. If any leaf in the input tree is already a Diff
+            instance, its existing ChangeTangent will be replaced with NoChange.
+        """
+        primal_tree: R = Diff.tree_primal(tree)
+        tangent_tree: R = jtu.tree_map(lambda _: NoChange, primal_tree)
+        return Diff.tree_diff(primal_tree, tangent_tree)
 
     @staticmethod
-    def tree_diff_unknown_change(tree: R) -> R:
+    def unknown_change(tree: R) -> R:
+        """
+        Create a Diff tree with UnknownChange tangents for all nodes, used to represent a tree where values may have changed.
+
+        Args:
+            tree: The input tree to be converted.
+
+        Returns:
+            A new tree with the same structure as the input, where each
+            node is a Diff instance with the original value as the primal
+            and UnknownChange as the tangent.
+
+        Note:
+            This method first extracts the primal values from the input tree
+            (in case it already contains Diff instances) before creating the
+            new Diff tree. If any leaf in the input tree is already a Diff
+            instance, its existing ChangeTangent will be replaced with UnknownChange.
+        """
         primal_tree: R = Diff.tree_primal(tree)
         tangent_tree: R = jtu.tree_map(lambda _: UnknownChange, primal_tree)
         return Diff.tree_diff(primal_tree, tangent_tree)
 
     @staticmethod
-    def unknown_change(tree: R) -> R:
-        return Diff.tree_diff_unknown_change(tree)
-
-    @staticmethod
     def tree_primal(v: R | "Diff[R]") -> R:
+        """
+        Converts a pytree that may contain Diff instances into a pytree of primal values.
+
+        Args:
+            v: A tree structure that may contain Diff instances or regular values.
+
+        Returns:
+            A new tree with the same structure as the input, where all Diff instances are replaced with their primal values.
+        """
+
         def _inner(v) -> R:
             if isinstance(v, Diff):
                 return v.get_primal()
@@ -150,12 +216,22 @@ class Diff(Generic[R], Pytree):
         return jtu.tree_map(_inner, v, is_leaf=Diff.is_diff)
 
     @staticmethod
-    def tree_tangent(v: R | "Diff[R]") -> R:
-        def _inner(v) -> R:
+    def tree_tangent(v: "R | Diff[R]") -> R:
+        """
+        Converts a pytree that may contain Diff instances into a pytree of ChangeTangent values.
+
+        Args:
+            v: A tree structure that may contain Diff instances or regular values.
+
+        Returns:
+            A new tree with the same structure as the input, where all Diff instances are replaced with their ChangeTangent values, and all other values are replaced with UnknownChange.
+        """
+
+        def _inner(v: R | Diff[R]) -> ChangeTangent:
             if isinstance(v, Diff):
                 return v.get_tangent()
             else:
-                return v
+                return NoChange
 
         return jtu.tree_map(_inner, v, is_leaf=Diff.is_diff)
 
@@ -164,29 +240,52 @@ class Diff(Generic[R], Pytree):
     #################
 
     @staticmethod
-    def is_diff(v) -> bool:
+    def is_diff(v: Any) -> bool:
+        """
+        Checks if a value is a Diff instance.
+
+        Args:
+            v: The value to check.
+
+        Returns:
+            True if the value is a Diff instance, False otherwise.
+        """
         return isinstance(v, Diff)
 
     @staticmethod
+    def is_change_tangent(v: Any) -> bool:
+        """
+        Checks if a value is a ChangeTangent instance.
+
+        Args:
+            v: The value to check.
+
+        Returns:
+            True if the value is a ChangeTangent instance, False otherwise.
+        """
+        return isinstance(v, ChangeTangent)
+
+    @staticmethod
     def static_check_tree_diff(v) -> bool:
+        """
+        Returns true if all leaves in a pytree are Diff instances, False otherwise.
+        """
         return all(
             map(
-                lambda v: isinstance(v, Diff),
+                Diff.is_diff,
                 jtu.tree_leaves(v, is_leaf=Diff.is_diff),
             )
         )
 
     @staticmethod
     def static_check_no_change(v) -> bool:
-        def _inner(v):
-            if static_check_is_change_tangent(v):
-                return isinstance(v, _NoChange)
-            else:
-                return True
-
+        """
+        Returns true if all leaves in a pytree are NoChange, False otherwise.
+        """
         return all(
-            jtu.tree_leaves(
-                jtu.tree_map(_inner, v, is_leaf=static_check_is_change_tangent)
+            map(
+                lambda leaf: isinstance(leaf, _NoChange),
+                jtu.tree_leaves(Diff.tree_tangent(v), is_leaf=Diff.is_change_tangent),
             )
         )
 
@@ -203,9 +302,9 @@ def default_propagation_rule(prim, *args, **_params):
     args = Diff.tree_primal(args)
     outval = prim.bind(*args, **_params)
     if check:
-        return Diff.tree_diff_no_change(outval)
+        return Diff.no_change(outval)
     else:
-        return Diff.tree_diff_unknown_change(outval)
+        return Diff.unknown_change(outval)
 
 
 @Pytree.dataclass
@@ -223,9 +322,7 @@ class IncrementalInterpreter(Pytree):
         tangents: list[ChangeTangent],
     ):
         dual_env = Environment()
-        jax_util.safe_map(
-            dual_env.write, _jaxpr.constvars, Diff.tree_diff_no_change(consts)
-        )
+        jax_util.safe_map(dual_env.write, _jaxpr.constvars, Diff.no_change(consts))
         jax_util.safe_map(
             dual_env.write, _jaxpr.invars, Diff.tree_diff(primals, tangents)
         )

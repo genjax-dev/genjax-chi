@@ -13,9 +13,13 @@
 # limitations under the License.
 
 from abc import abstractmethod
+from typing import TYPE_CHECKING
+
+# Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
+if TYPE_CHECKING:
+    import genjax
 
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import Flag
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Annotated,
@@ -24,6 +28,7 @@ from genjax._src.core.typing import (
     Generic,
     IntArray,
     Is,
+    PRNGKey,
     TypeVar,
 )
 
@@ -80,26 +85,6 @@ Retdiff = Annotated[
 When used under type checking, `Retdiff` assumes that the return value is a `Pytree` (either, defined via GenJAX's `Pytree` interface or registered with JAX's system). It checks that _the leaves_ are `Diff` type with attached `ChangeType`.
 """
 
-###########
-# Samples #
-###########
-
-
-class Sample(Pytree):
-    """A `Sample` is a value which can be sampled from generative functions. Samples can be scalar values, or map-like values ([`ChoiceMap`][genjax.core.ChoiceMap]). Different sample types can induce different interfaces: `ChoiceMap`, for instance, supports interfaces for accessing sub-maps and values."""
-
-
-@Pytree.dataclass
-class EmptySample(Sample):
-    pass
-
-
-@Pytree.dataclass(match_args=True)
-class MaskedSample(Sample):
-    flag: Flag
-    sample: Sample
-
-
 ###############
 # Constraints #
 ###############
@@ -119,15 +104,13 @@ class EmptyConstraint(Constraint):
     Formally, `EmptyConstraint(x)` represents the constraint `(x $\\mapsto$ (), ())`.
     """
 
-    pass
-
 
 @Pytree.dataclass(match_args=True)
 class MaskedConstraint(Constraint):
     """
     A `MaskedConstraint` encodes a possible constraint.
 
-    Formally, `MaskedConstraint(f: Bool, c: Constraint)` represents the constraint `Option((x $\\mapsto$ x, x))`,
+    Formally, `MaskedConstraint(f: bool, c: Constraint)` represents the constraint `Option((x $\\mapsto$ x, x))`,
     where the None case is represented by `EmptyConstraint`.
     """
 
@@ -140,19 +123,19 @@ class MaskedConstraint(Constraint):
 ###############
 
 
-class Projection(Generic[S], Pytree):
+class Projection(Generic[S]):
     @abstractmethod
     def filter(self, sample: S) -> S:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def complement(self) -> "Projection[S]":
-        raise NotImplementedError
+        pass
 
 
-#########################
-# Update specifications #
-#########################
+#################
+# Edit requests #
+#################
 
 
 class EditRequest(Pytree):
@@ -162,12 +145,15 @@ class EditRequest(Pytree):
     Updating a trace is a common operation in inference processes, but naively mutating the trace will invalidate the mathematical invariants that Gen retains. `EditRequest` instances denote requests for _SMC moves_ in the framework of [SMCP3](https://proceedings.mlr.press/v206/lew23a.html), which preserve these invariants.
     """
 
+    @abstractmethod
+    def edit(
+        self,
+        key: PRNGKey,
+        tr: "genjax.Trace[R]",
+        argdiffs: Argdiffs,
+    ) -> "tuple[genjax.Trace[R], Weight, Retdiff[R], EditRequest]":
+        pass
 
-@Pytree.dataclass
-class EmptyRequest(EditRequest):
+
+class NotSupportedEditRequest(Exception):
     pass
-
-
-@Pytree.dataclass(match_args=True)
-class IncrementalGenericRequest(EditRequest):
-    constraint: Constraint

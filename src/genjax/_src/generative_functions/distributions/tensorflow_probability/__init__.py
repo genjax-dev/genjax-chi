@@ -92,6 +92,11 @@ chi2 = tfp_distribution(tfd.Chi2)
 A `tfp_distribution` generative function which wraps the [`tfd.Chi2`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Chi2) distribution from TensorFlow Probability distributions.
 """
 
+dirichlet = tfp_distribution(tfd.Dirichlet)
+"""
+A `tfp_distribution` generative function which wraps the [`tfd.Dirichlet`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Dirichlet) distribution from TensorFlow Probability distributions.
+"""
+
 geometric = tfp_distribution(tfd.Geometric)
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Geometric`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Geometric) distribution from TensorFlow Probability distributions.

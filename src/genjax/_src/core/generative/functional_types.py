@@ -29,7 +29,6 @@ from genjax._src.core.typing import (
     ArrayLike,
     Flag,
     Generic,
-    Int,
     TypeVar,
 )
 
@@ -44,7 +43,7 @@ R = TypeVar("R")
 class Mask(Generic[R], Pytree):
     """The `Mask` datatype wraps a value in a Boolean flag which denotes whether the data is valid or invalid to use in inference computations.
 
-    Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as `Sample` instances, and participate in generative and inference computations (like scores, and importance weights or density ratios). Invalid data **should** be considered unusable, and should be handled with care.
+    Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as `ChoiceMap` leaves, and participate in generative and inference computations (like scores, and importance weights or density ratios). Invalid data **should** be considered unusable, and should be handled with care.
 
     Masks are also used internally by generative function combinators which include uncertainty over structure.
 
@@ -58,37 +57,37 @@ class Mask(Generic[R], Pytree):
 
     ## Usage of invalid data
 
-    If you use invalid `Mask(False, data)` data in inference computations, you may encounter silently incorrect results.
+    If you use invalid `Mask(data, False)` data in inference computations, you may encounter silently incorrect results.
     """
 
-    flag: Flag | Diff[Flag]
     value: R
+    flag: Flag | Diff[Flag]
 
     @overload
     @staticmethod
-    def maybe(f: Flag, v: "Mask[R]") -> "Mask[R]": ...
+    def maybe(v: "Mask[R]", f: Flag) -> "Mask[R]": ...
 
     @overload
     @staticmethod
-    def maybe(f: Flag | Diff[Flag], v: R) -> "Mask[R]": ...
+    def maybe(v: R, f: Flag | Diff[Flag]) -> "Mask[R]": ...
 
     @staticmethod
-    def maybe(f: Flag | Diff[Flag], v: "R | Mask[R]") -> "Mask[R]":
+    def maybe(v: "R | Mask[R]", f: Flag | Diff[Flag]) -> "Mask[R]":
         match v:
-            case Mask(g, value):
+            case Mask(value, g):
                 assert not isinstance(f, Diff) and not isinstance(g, Diff)
-                return Mask[R](FlagOp.and_(f, g), value)
+                return Mask[R](value, FlagOp.and_(f, g))
             case _:
-                return Mask[R](f, v)
+                return Mask[R](v, f)
 
     @staticmethod
-    def maybe_none(f: Flag, v: "R | Mask[R]") -> "R | Mask[R] | None":
+    def maybe_none(v: "R | Mask[R]", f: Flag) -> "R | Mask[R] | None":
         if v is None or FlagOp.concrete_false(f):
             return None
         elif FlagOp.concrete_true(f):
             return v
         else:
-            return Mask.maybe(f, v)
+            return Mask.maybe(v, f)
 
     ######################
     # Masking interfaces #
@@ -135,37 +134,3 @@ class Mask(Generic[R], Pytree):
                 return primal
             case _:
                 return self.flag
-
-
-def staged_choose(
-    idx: ArrayLike,
-    pytrees: list[R],
-) -> R:
-    """
-    Version of `jax.numpy.choose` that
-
-    - acts on lists of both `ArrayLike` and `Pytree` instances
-    - acts like `vs[idx]` if `idx` is of type `int`.
-
-    In the case of heterogenous types in `vs`, `staged_choose` will attempt to cast, or error if casting isn't possible. (mixed `bool` and `int` entries in `vs` will result in the cast of selected `bool` to `int`, for example.).
-
-    Args:
-        idx: The index used to select a value from `vs`.
-        vs: A list of `Pytree` or `ArrayLike` values to choose from.
-
-    Returns:
-        The selected value from the list.
-    """
-
-    def inner(*vs: ArrayLike) -> ArrayLike:
-        # Computing `result` above the branch allows us to:
-        # - catch incompatible types / shapes in the result
-        # - in the case of compatible types requiring casts (like bool => int),
-        #   result's dtype tells us the final type.
-        result = jnp.choose(idx, vs, mode="wrap")
-        if isinstance(idx, Int):
-            return jnp.asarray(vs[idx % len(vs)], dtype=result.dtype)
-        else:
-            return result
-
-    return jtu.tree_map(inner, *pytrees)

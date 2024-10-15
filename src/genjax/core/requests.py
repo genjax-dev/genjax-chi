@@ -12,19 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.interpreters.forward import StatefulHandler, forward
-from genjax._src.core.interpreters.incremental import incremental
-from genjax._src.core.interpreters.staging import (
-    get_shaped_aval,
-    stage,
-    to_shape_fn,
+from genjax._src.core.generative.requests import (
+    ChoiceMapEditRequest,
+    Regenerate,
 )
 
-__all__ = [
-    "StatefulHandler",
-    "forward",
-    "get_shaped_aval",
-    "incremental",
-    "stage",
-    "to_shape_fn",
-]
+__all__ = ["ChoiceMapEditRequest", "Regenerate"]

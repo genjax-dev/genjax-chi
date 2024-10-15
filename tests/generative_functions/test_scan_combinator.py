@@ -33,7 +33,7 @@ def scanner(x):
 class TestIterateSimpleNormal:
     @pytest.fixture
     def key(self):
-        return jax.random.PRNGKey(314159)
+        return jax.random.key(314159)
 
     def test_iterate_simple_normal(self, key):
         @genjax.iterate(n=10)
@@ -48,24 +48,22 @@ class TestIterateSimpleNormal:
         sel = genjax.Selection.all()
         assert tr.project(key, sel) == scan_score
 
-    def test_iterate_simple_normal_importance(self):
-        key = jax.random.PRNGKey(314159)
+    def test_iterate_simple_normal_importance(self, key):
         key, sub_key = jax.random.split(key)
         for i in range(1, 5):
             tr, w = jax.jit(scanner.importance)(sub_key, C[i, "z"].set(0.5), (0.01,))
-            value = tr.get_sample()[i, "z"].unmask()
-            assert value == 0.5
+            value = tr.get_sample()[i, "z"]
+            assert value == genjax.Mask(0.5, True)
             prev = tr.get_sample()[i - 1, "z"].unmask()
             assert w == genjax.normal.assess(C.v(value), (prev, 1.0))[0]
 
-    def test_iterate_simple_normal_update(self):
+    def test_iterate_simple_normal_update(self, key):
         @genjax.iterate(n=10)
         @genjax.gen
         def scanner(x):
             z = genjax.normal(x, 1.0) @ "z"
             return z
 
-        key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         for i in range(1, 5):
             tr, _w = jax.jit(scanner.importance)(sub_key, C[i, "z"].set(0.5), (0.01,))
@@ -75,7 +73,7 @@ class TestIterateSimpleNormal:
                 C[i, "z"].set(1.0),
                 Diff.no_change((0.01,)),
             )
-            assert new_tr.get_sample()[i, "z"].unmask() == 1.0
+            assert new_tr.get_sample()[i, "z"] == genjax.Mask(1.0, True)
 
 
 @genjax.gen
@@ -93,7 +91,7 @@ def inc_tupled(arg: tuple[ArrayLike, ArrayLike]) -> tuple[ArrayLike, ArrayLike]:
 class TestIterate:
     @pytest.fixture
     def key(self):
-        return jax.random.PRNGKey(314159)
+        return jax.random.key(314159)
 
     def test_inc(self, key):
         """Baseline test that `inc` works!"""
@@ -211,7 +209,7 @@ def add_tupled(acc, x):
 class TestAccumulateReduceMethods:
     @pytest.fixture
     def key(self):
-        return jax.random.PRNGKey(314159)
+        return jax.random.key(314159)
 
     def test_add(self, key):
         """Baseline test that `add` works!"""
@@ -318,7 +316,7 @@ class TestAccumulateReduceMethods:
 class TestScanUpdate:
     @pytest.fixture
     def key(self):
-        return jax.random.PRNGKey(314159)
+        return jax.random.key(314159)
 
     def test_scan_update(self, key):
         @genjax.Pytree.dataclass
@@ -345,7 +343,7 @@ class TestScanUpdate:
 class TestScanWithParameters:
     @pytest.fixture
     def key(self):
-        return jax.random.PRNGKey(314159)
+        return jax.random.key(314159)
 
     @genjax.gen
     @staticmethod
@@ -380,17 +378,11 @@ class TestScanWithParameters:
         @genjax.gen
         def walk_step(x, std):
             new_x = genjax.normal(x, std) @ "x"
-            return new_x, None
+            return new_x, new_x
 
         args = (0.0, jnp.array([2.0, 4.0, 3.0, 5.0, 1.0]))
         tr = walk_step.scan(n=5).simulate(key, args)
-        expected = jnp.array([
-            -0.75375533,
-            -5.818158,
-            -3.4942584,
-            -5.0217595,
-            -4.4125495,
-        ])
+        _, expected = tr.get_retval()
         assert jnp.allclose(
             tr.get_choices()[..., "x"],
             expected,
@@ -411,12 +403,54 @@ class TestScanWithParameters:
             new_x = genjax.normal(state, sigma) @ "x"
             return (new_x, new_x + 1)
 
-        trace = step.scan(n=0).simulate(
-            jax.random.PRNGKey(20), (2.0, jnp.arange(0, dtype=float))
-        )
+        trace = step.scan(n=0).simulate(key, (2.0, jnp.arange(0, dtype=float)))
 
+        assert (
+            trace.get_choices().static_is_empty()
+        ), "zero-length scan produces empty choicemaps."
+
+        key, subkey = jax.random.split(key)
         step.scan().importance(
-            jax.random.PRNGKey(20),
+            subkey,
             trace.get_choices(),
             (2.0, 2.0 + jnp.arange(0, dtype=float)),
         )
+
+    def test_scan_validation(self, key):
+        @genjax.gen
+        def foo(shift, d):
+            loc = d["loc"]
+            scale = d["scale"]
+            x = genjax.normal(loc, scale) @ "x"
+            return x + shift, None
+
+        d = {
+            "loc": jnp.array([10.0, 12.0]),
+            "scale": jnp.array([1.0]),
+        }
+        with pytest.raises(
+            ValueError, match="scan got values with different leading axis sizes: 2, 1."
+        ):
+            jax.jit(foo.scan().simulate)(key, (jnp.array([1.0]), d))
+
+    def test_vmap_key_scan(self, key):
+        @genjax.gen
+        def model(x, _):
+            y = genjax.normal(x, 1.0) @ "y"
+            return y, None
+
+        vmapped = model.scan()
+
+        keys = jax.random.split(key, 10)
+        xs = jnp.arange(5, dtype=float)
+        args = (jnp.array(1.0), xs)
+
+        results = jax.vmap(lambda k: vmapped.simulate(k, args))(jnp.array(keys))
+
+        chm = results.get_choices()
+
+        # the inner scan aggregates a score, while the outer vmap does not accumulate anything
+        assert results.get_score().shape == (10,)
+
+        # the inner scan has scanned over the y's
+        assert chm[..., "y"].shape == (10, 5)

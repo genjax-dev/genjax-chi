@@ -18,29 +18,33 @@ from abc import abstractmethod
 import jax
 import jax.numpy as jnp
 from jax.experimental import checkify
+from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapConstraint,
+    ChoiceMapEditRequest,
     Constraint,
     EditRequest,
     EmptyConstraint,
+    EmptyRequest,
     GenerativeFunction,
-    IncrementalGenericRequest,
     Mask,
+    NotSupportedEditRequest,
     Projection,
     R,
+    Regenerate,
     Retdiff,
     Score,
     Selection,
     Trace,
+    Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import Filtered
+from genjax._src.core.generative.choice_map import ChoiceMapConstraint, Filtered
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import FlagOp
+from genjax._src.core.interpreters.staging import FlagOp, to_shape_fn
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
@@ -48,6 +52,8 @@ from genjax._src.core.typing import (
     Generic,
     PRNGKey,
 )
+
+tfd = tfp.distributions
 
 #####
 # DistributionTrace
@@ -75,9 +81,6 @@ class DistributionTrace(
 
     def get_score(self) -> Score:
         return self.score
-
-    def get_sample(self) -> ChoiceMap:
-        return self.get_choices()
 
     def get_choices(self) -> ChoiceMap:
         return ChoiceMap.choice(self.value)
@@ -127,7 +130,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 tr = self.simulate(key, args)
                 return tr, jnp.array(0.0)
 
-            case Mask(flag, value):
+            case Mask(value, flag):
 
                 def _simulate(key, v):
                     score, new_v = self.random_weighted(key, *args)
@@ -154,8 +157,8 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         args: tuple[Any, ...],
     ) -> tuple[Trace[R], Weight]:
         match constraint:
-            case ChoiceMapConstraint():
-                tr, w = self.generate_choice_map(key, constraint, args)
+            case ChoiceMapConstraint(chm):
+                tr, w = self.generate_choice_map(key, chm, args)
             case EmptyConstraint():
                 tr = self.simulate(key, args)
                 w = jnp.array(0.0)
@@ -167,7 +170,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         self,
         trace: Trace[R],
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], IncrementalGenericRequest]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], Update]:
         sample = trace.get_choices()
         primals = Diff.tree_primal(argdiffs)
         new_score, _ = self.assess(sample, primals)
@@ -175,9 +178,9 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         return (
             new_trace,
             new_score - trace.get_score(),
-            Diff.tree_diff_no_change(trace.get_retval()),
-            IncrementalGenericRequest(
-                ChoiceMapConstraint(ChoiceMap.empty()),
+            Diff.no_change(trace.get_retval()),
+            Update(
+                ChoiceMap.empty(),
             ),
         )
 
@@ -187,7 +190,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         constraint: Constraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], IncrementalGenericRequest]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], Update]:
         primals = Diff.tree_primal(argdiffs)
         match constraint:
             case EmptyConstraint():
@@ -200,28 +203,28 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 return (
                     new_trace,
                     new_score - trace.get_score(),
-                    Diff.tree_diff_no_change(old_retval),
-                    IncrementalGenericRequest(
-                        ChoiceMapConstraint(ChoiceMap.empty()),
+                    Diff.no_change(old_retval),
+                    Update(
+                        ChoiceMap.empty(),
                     ),
                 )
 
-            case ChoiceMapConstraint():
-                check = constraint.has_value()
-                v = constraint.get_value()
+            case ChoiceMapConstraint(chm):
+                check = chm.has_value()
+                v = chm.get_value()
                 if FlagOp.concrete_true(check):
                     fwd = self.estimate_logpdf(key, v, *primals)
                     bwd = trace.get_score()
                     w = fwd - bwd
                     new_tr = DistributionTrace(self, primals, v, fwd)
                     discard = trace.get_choices()
-                    retval_diff = Diff.tree_diff_unknown_change(v)
+                    retval_diff = Diff.unknown_change(v)
                     return (
                         new_tr,
                         w,
                         retval_diff,
-                        IncrementalGenericRequest(
-                            ChoiceMapConstraint(discard),
+                        Update(
+                            discard,
                         ),
                     )
                 elif FlagOp.concrete_false(check):
@@ -231,17 +234,17 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     bwd = trace.get_score()
                     w = fwd - bwd
                     new_tr = DistributionTrace(self, primals, v, fwd)
-                    retval_diff = Diff.tree_diff_no_change(v)
+                    retval_diff = Diff.no_change(v)
                     return (
                         new_tr,
                         w,
                         retval_diff,
-                        IncrementalGenericRequest(
-                            ChoiceMapConstraint(ChoiceMap.empty()),
+                        Update(
+                            ChoiceMap.empty(),
                         ),
                     )
 
-                elif isinstance(constraint.choice_map, Filtered):
+                elif isinstance(chm, Filtered):
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
                     def _true_branch(key, new_value: R, _):
@@ -273,18 +276,18 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     return (
                         DistributionTrace(self, primals, new_value, score),
                         w,
-                        Diff.tree_diff_unknown_change(new_value),
-                        IncrementalGenericRequest(
-                            ChoiceMapConstraint(old_choices.mask(flag)),
+                        Diff.unknown_change(new_value),
+                        Update(
+                            old_choices.mask(flag),
                         ),
                     )
                 else:
                     raise Exception(
-                        "Only `choice_map.Filtered` is currently supported for dynamic flags."
+                        f"Only `choice_map.Filtered` is currently supported for dynamic flags. Found {type(constraint)}."
                     )
 
             case _:
-                raise Exception("Unhandled constraint in edit.")
+                raise Exception(f"Unhandled constraint in edit: {type(constraint)}.")
 
     def project(
         self,
@@ -299,13 +302,53 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             jnp.array(0.0),
         )
 
-    def edit_incremental_generic_request(
+    def edit_regenerate(
+        self,
+        key: PRNGKey,
+        trace: Trace[R],
+        selection: Selection,
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+        check = () in selection
+        if FlagOp.concrete_true(check):
+            primals = Diff.tree_primal(argdiffs)
+            w, new_v = self.random_weighted(key, *primals)
+            incremental_w = w - trace.get_score()
+            old_v = trace.get_retval()
+            new_trace = DistributionTrace(self, primals, new_v, w)
+            return (
+                new_trace,
+                incremental_w,
+                Diff.unknown_change(new_v),
+                Update(ChoiceMap.choice(old_v)),
+            )
+        elif FlagOp.concrete_false(check):
+            return (
+                trace,
+                jnp.array(0.0),
+                Diff.no_change(trace.get_retval()),
+                EmptyRequest(),
+            )
+        else:
+            raise NotImplementedError
+
+    def edit_choice_map_edit_request(
+        self,
+        key: PRNGKey,
+        trace: Trace[R],
+        requests_choice_map: ChoiceMap,
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+        request = requests_choice_map.get_value()
+        return request.edit(key, trace, argdiffs)
+
+    def edit_choice_map_change(
         self,
         key: PRNGKey,
         trace: Trace[R],
         constraint: Constraint,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], IncrementalGenericRequest]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], Update]:
         match constraint:
             case EmptyConstraint():
                 return self.edit_empty(trace, argdiffs)
@@ -323,14 +366,31 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        assert isinstance(edit_request, IncrementalGenericRequest)
-        constraint = edit_request.constraint
-        return self.edit_incremental_generic_request(
-            key,
-            trace,
-            constraint,
-            argdiffs,
-        )
+        match edit_request:
+            case Update(chm):
+                return self.edit_choice_map_change(
+                    key,
+                    trace,
+                    ChoiceMapConstraint(chm),
+                    argdiffs,
+                )
+            case Regenerate(selection):
+                return self.edit_regenerate(
+                    key,
+                    trace,
+                    selection,
+                    argdiffs,
+                )
+
+            case ChoiceMapEditRequest(requests_choice_map):
+                return self.edit_choice_map_edit_request(
+                    key,
+                    trace,
+                    requests_choice_map,
+                    argdiffs,
+                )
+            case _:
+                raise NotSupportedEditRequest(edit_request)
 
     def assess(
         self,
@@ -344,19 +404,20 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 # ExactDensity #
 ################
 
+_fake_key = jnp.array([0, 0], dtype=jnp.uint32)
+
 
 class ExactDensity(Generic[R], Distribution[R]):
     @abstractmethod
     def sample(self, key: PRNGKey, *args) -> R:
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def logpdf(self, v: R, *args) -> Score:
-        raise NotImplementedError
+        pass
 
     def __abstract_call__(self, *args):
-        key = jax.random.PRNGKey(0)
-        return self.sample(key, *args)
+        return to_shape_fn(self.sample, jnp.zeros)(_fake_key, *args)
 
     def handle_kwargs(self) -> GenerativeFunction[R]:
         @Pytree.partial(self)
@@ -404,10 +465,10 @@ class ExactDensity(Generic[R], Distribution[R]):
         sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Weight, R]:
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
         v = sample.get_value()
         match v:
-            case Mask(flag, value):
+            case Mask(value, flag):
 
                 def _check():
                     checkify.check(
