@@ -4288,12 +4288,12 @@ tests = ["cython", "littleutils", "pygments", "pytest", "typeguard"]
 
 [[package]]
 name = "tensorflow-probability"
-version = "0.24.0"
+version = "0.23.0"
 description = "Probabilistic modeling and statistical inference in TensorFlow"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "tensorflow_probability-0.24.0-py2.py3-none-any.whl", hash = "sha256:8c1774683e38359dbcaf3697e79b7e6a4e69b9c7b3679e78ee18f43e59e5759b"},
+    {file = "tensorflow_probability-0.23.0-py2.py3-none-any.whl", hash = "sha256:dda5cacfe50cb19ecd96f3ce81e6ff8680d84213bcfe94ca0aaf6e5f51c88061"},
 ]
 
 [package.dependencies]
@@ -4307,7 +4307,6 @@ six = ">=1.10.0"
 
 [package.extras]
 jax = ["jax", "jaxlib"]
-tf = ["tensorflow (>=2.16)", "tf-keras (>=2.16)"]
 tfds = ["tensorflow-datasets (>=2.2.0)"]
 
 [[package]]
@@ -4742,4 +4741,4 @@ genstudio = ["genstudio"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "5ee1c0cd5ae37a774a2aa7679528a5ea8cbee0f5a734b7960b4affeb89cd47de"
+content-hash = "d2abe8ab67a11a83d9d58edf8c8d32eabcde0c26b448a26b72c61c1405f9d929"
