@@ -19,7 +19,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapConstraint,
     Constraint,
     EditRequest,
     GenerativeFunction,
@@ -56,9 +55,6 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
 
     def get_gen_fn(self):
         return self.mask_combinator
-
-    def get_sample(self) -> ChoiceMap:
-        return self.get_choices()
 
     def get_choices(self) -> ChoiceMap:
         inner_choice_map = self.inner.get_choices()
@@ -101,7 +97,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             return genjax.normal(mean, 1.0) @ "x"
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         tr = jax.jit(masked_normal_draw.simulate)(
             key,
             (
@@ -121,7 +117,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         args: tuple[Any, ...],
     ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
-
         tr = self.gen_fn.simulate(key, inner_args)
         return MaskTrace(self, tr, check)
 
@@ -221,15 +216,14 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         )
 
         assert isinstance(bwd_request, Update)
-        inner_chm_constraint = bwd_request.constraint
-        assert isinstance(inner_chm_constraint, ChoiceMapConstraint)
+        inner_chm = bwd_request.constraint
 
         return (
             MaskTrace(self, premasked_trace, post_check),
             final_weight,
             Mask.maybe(retdiff, check_diff),
             Update(
-                ChoiceMapConstraint(inner_chm_constraint.mask(post_check)),
+                inner_chm.mask(post_check),
             ),
         )
 
@@ -238,8 +232,8 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, Mask[R]]:
-        (check, *inner_args) = args
-        score, retval = self.gen_fn.assess(sample, tuple(inner_args))
+        check, inner_args = args[0], args[1:]
+        score, retval = self.gen_fn.assess(sample, inner_args)
         return (
             check * score,
             Mask(retval, check),
@@ -277,7 +271,7 @@ def mask(f: GenerativeFunction[R]) -> MaskCombinator[R]:
             return genjax.normal(mean, 1.0) @ "x"
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         tr = jax.jit(masked_normal_draw.simulate)(
             key,
             (

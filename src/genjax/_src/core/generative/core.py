@@ -20,7 +20,6 @@ if TYPE_CHECKING:
     import genjax
 
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import Flag
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Annotated,
@@ -86,26 +85,6 @@ Retdiff = Annotated[
 When used under type checking, `Retdiff` assumes that the return value is a `Pytree` (either, defined via GenJAX's `Pytree` interface or registered with JAX's system). It checks that _the leaves_ are `Diff` type with attached `ChangeType`.
 """
 
-###########
-# Samples #
-###########
-
-
-class Sample(Pytree):
-    """A `Sample` is a value which can be sampled from generative functions. Samples can be scalar values, or map-like values ([`ChoiceMap`][genjax.core.ChoiceMap]). Different sample types can induce different interfaces: `ChoiceMap`, for instance, supports interfaces for accessing sub-maps and values."""
-
-
-@Pytree.dataclass
-class EmptySample(Sample):
-    pass
-
-
-@Pytree.dataclass(match_args=True)
-class MaskedSample(Sample):
-    flag: Flag
-    sample: Sample
-
-
 ###############
 # Constraints #
 ###############
@@ -125,15 +104,13 @@ class EmptyConstraint(Constraint):
     Formally, `EmptyConstraint(x)` represents the constraint `(x $\\mapsto$ (), ())`.
     """
 
-    pass
-
 
 @Pytree.dataclass(match_args=True)
 class MaskedConstraint(Constraint):
     """
     A `MaskedConstraint` encodes a possible constraint.
 
-    Formally, `MaskedConstraint(f: Bool, c: Constraint)` represents the constraint `Option((x $\\mapsto$ x, x))`,
+    Formally, `MaskedConstraint(f: bool, c: Constraint)` represents the constraint `Option((x $\\mapsto$ x, x))`,
     where the None case is represented by `EmptyConstraint`.
     """
 
@@ -146,7 +123,7 @@ class MaskedConstraint(Constraint):
 ###############
 
 
-class Projection(Generic[S], Pytree):
+class Projection(Generic[S]):
     @abstractmethod
     def filter(self, sample: S) -> S:
         pass
@@ -174,7 +151,7 @@ class EditRequest(Pytree):
         key: PRNGKey,
         tr: "genjax.Trace[R]",
         argdiffs: Argdiffs,
-    ) -> tuple["genjax.Trace[R]", Weight, Retdiff[R], "EditRequest"]:
+    ) -> "tuple[genjax.Trace[R], Weight, Retdiff[R], EditRequest]":
         pass
 
 
