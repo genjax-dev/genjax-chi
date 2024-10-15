@@ -21,25 +21,24 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import treescope.repr_lib as trl
-from beartype.typing import Iterable
+from beartype.typing import cast
 from deprecated import deprecated
 
-from genjax._src.core.generative.core import Constraint, Projection, Sample
+from genjax._src.core.generative.core import Constraint, Projection
 from genjax._src.core.generative.functional_types import Mask
-from genjax._src.core.interpreters.staging import (
-    FlagOp,
-    staged_err,
-    tree_choose,
-)
+from genjax._src.core.interpreters.staging import FlagOp, staged_err, tree_choose
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    Array,
     ArrayLike,
     Callable,
     EllipsisType,
     Final,
     Flag,
     Generic,
+    IntArray,
+    Iterable,
     TypeVar,
 )
 
@@ -51,17 +50,19 @@ if TYPE_CHECKING:
 #################
 
 StaticAddressComponent = str
-DynamicAddressComponent = ArrayLike
+DynamicAddressComponent = int | IntArray | slice
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
-Address = tuple[()] | tuple[AddressComponent, ...]
-StaticAddress = tuple[()] | tuple[StaticAddressComponent, ...]
+Address = tuple[AddressComponent, ...]
+StaticAddress = tuple[StaticAddressComponent, ...]
 ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
-ExtendedStaticAddress = tuple[()] | tuple[ExtendedStaticAddressComponent, ...]
+ExtendedStaticAddress = tuple[ExtendedStaticAddressComponent, ...]
 ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
-ExtendedAddress = tuple[()] | tuple[ExtendedAddressComponent, ...]
+ExtendedAddress = tuple[ExtendedAddressComponent, ...]
 
 T = TypeVar("T")
 K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
+
+_full_slice = slice(None, None, None)
 
 ##############
 # Selections #
@@ -72,8 +73,7 @@ K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
 ###############################
 
 
-@Pytree.dataclass(match_args=True)
-class _SelectionBuilder(Pytree):
+class _SelectionBuilder:
     def __getitem__(
         self, addr: ExtendedStaticAddressComponent | ExtendedStaticAddress
     ) -> "Selection":
@@ -86,7 +86,7 @@ SelectionBuilder = _SelectionBuilder()
 """Deprecated! please use `Selection.at`."""
 
 
-class Selection(Projection["ChoiceMap"]):
+class Selection(Projection["ChoiceMap"], Pytree):
     """
     A class representing a selection of addresses in a ChoiceMap.
 
@@ -102,6 +102,7 @@ class Selection(Projection["ChoiceMap"]):
     Examples:
         Creating selections:
         ```python exec="yes" html="true" source="material-block" session="choicemap"
+        import genjax
         from genjax import Selection
 
         # Select all addresses
@@ -544,11 +545,14 @@ class StaticSel(Selection):
         return False
 
     def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
-        if self.addr is Ellipsis or addr is Ellipsis:
+        if isinstance(self.addr, EllipsisType) or isinstance(addr, EllipsisType):
             return self.s
+
+        elif isinstance(addr, StaticAddressComponent):
+            return self.s.mask(addr == self.addr)
+
         else:
-            check = addr == self.addr
-            return self.s.mask(check)
+            return Selection.none()
 
 
 @Pytree.dataclass(match_args=True)
@@ -701,7 +705,7 @@ class ChmSel(Selection):
 ###############
 
 
-@dataclass
+@dataclass(frozen=True)
 class ChoiceMapNoValueAtAddress(Exception):
     """Exception raised when a value is not found at a specified address in a ChoiceMap.
 
@@ -714,6 +718,75 @@ class ChoiceMapNoValueAtAddress(Exception):
     """
 
     subaddr: ExtendedAddressComponent | ExtendedAddress
+
+
+def _drop_prefix(
+    dynamic_components: list[DynamicAddressComponent],
+) -> list[DynamicAddressComponent]:
+    # Check for prefix of int or scalar Array instances
+    prefix_end = 0
+    for comp in dynamic_components:
+        if isinstance(comp, int) or (isinstance(comp, Array) and comp.shape == ()):
+            prefix_end += 1
+        else:
+            break
+
+    return dynamic_components[prefix_end:]
+
+
+def _validate_addr(
+    addr: ExtendedAddressComponent | ExtendedAddress, allow_partial_slice: bool = False
+) -> ExtendedAddress:
+    """
+    Validates the structure of an address tuple.
+
+    This function checks if the given address adheres to the following structure:
+
+    1. A prefix consisting of only scalar addresses (int or an IntArray with shape == ())
+    2. Optionally (if `allow_partial_slice` is True), a single non-full-slice or non-scalar array
+    3. A tail of full slices (: or slice(None,None,None))
+
+    Args:
+        addr: The address (or address component) to validate.
+        allow_partial_slice: If True, allows a single partial slice or non-scalar array. Defaults to False.
+
+    Returns:
+        The validated address tuple.
+
+    Raises:
+        ValueError: If the address structure is invalid.
+    """
+
+    addr = addr if isinstance(addr, tuple) else (addr,)
+    dynamic_components = [
+        comp for comp in addr if isinstance(comp, (slice, int, Array))
+    ]
+
+    if dynamic_components:
+        remaining = _drop_prefix(dynamic_components)
+
+        if len(remaining) > 0:
+            first = remaining[0]
+            if isinstance(first, Array) and first.shape != ():
+                remaining = remaining[1:]
+            elif (
+                allow_partial_slice
+                and isinstance(first, slice)
+                and first != _full_slice
+            ):
+                remaining = remaining[1:]
+
+        if not all(s == _full_slice for s in remaining):
+            if allow_partial_slice:
+                caveat = "an optional partial slice or Array, and then only full slices"
+            else:
+                caveat = "full slices"
+
+            raise ValueError(
+                f"Address must consist of scalar components, followed by {caveat}. Found: {dynamic_components}"
+            )
+
+    return addr
 
 
 class _ChoiceMapBuilder:
@@ -732,11 +805,47 @@ class _ChoiceMapBuilder:
         )
 
     def set(self, v) -> "ChoiceMap":
-        chm = ChoiceMap.entry(v, *self.addrs)
+        addrs = _validate_addr(tuple(self.addrs), allow_partial_slice=False)
+
+        # this is safe, as we know we didn't pass any ellipses in.
+        addrs = cast(Address, addrs)
+
+        chm = ChoiceMap.entry(v, *addrs)
         if self.choice_map is None:
             return chm
         else:
             return chm + self.choice_map
+
+    def update(
+        self, f: Callable[..., "dict[K_addr, Any] | ChoiceMap | Any"]
+    ) -> "ChoiceMap":
+        """
+        Updates an existing value or ChoiceMap at the current address.
+        This method allows updating a value or ChoiceMap at the address specified by the builder.
+        The provided function `f` is called with the current value or ChoiceMap at that address.
+        Args:
+            f: A callable that takes the current value (or None) and returns a new value,
+               dict, or ChoiceMap to be set at the current address.
+        Returns:
+            A new ChoiceMap with the updated value at the specified address.
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="choicemap"
+            chm = ChoiceMap.d({"x": 5, "y": {"z": 10}})
+            updated = chm.at["y", "z"].update(lambda v: v * 2)
+            assert updated["y", "z"] == 20
+            # Updating a non-existent address
+            new_chm = chm.at["w"].update(lambda _: 42)
+            assert new_chm["w"] == 42
+            ```
+        """
+        if self.choice_map is None:
+            return self.set(f(_empty))
+        else:
+            submap = self.choice_map(tuple(self.addrs))
+            if submap.has_value():
+                return self.set(f(submap.get_value()))
+            else:
+                return self.set(f(submap))
 
     def n(self) -> "ChoiceMap":
         """
@@ -773,7 +882,7 @@ class _ChoiceMapBuilder:
         return self.set(ChoiceMap.kw(**kwargs))
 
 
-class ChoiceMap(Sample):
+class ChoiceMap(Pytree):
     """The type `ChoiceMap` denotes a map-like value which can be sampled from
     generative functions.
 
@@ -858,7 +967,7 @@ class ChoiceMap(Sample):
         return _empty
 
     @staticmethod
-    def choice(v: T) -> "Choice[T]":
+    def choice(v: Any) -> "ChoiceMap":
         """
         Creates a ChoiceMap containing a single value.
 
@@ -879,11 +988,11 @@ class ChoiceMap(Sample):
             assert value_chm.get_value() == 42
             ```
         """
-        return Choice(v)
+        return Choice.build(v)
 
     @staticmethod
     @deprecated("Use ChoiceMap.choice() instead.")
-    def value(v: T) -> "Choice[T]":
+    def value(v: Any) -> "ChoiceMap":
         return ChoiceMap.choice(v)
 
     @staticmethod
@@ -909,6 +1018,7 @@ class ChoiceMap(Sample):
 
         Example:
             ```python exec="yes" html="true" source="material-block" session="choicemap"
+            import genjax
             import jax.numpy as jnp
 
             # Using an existing ChoiceMap
@@ -924,8 +1034,10 @@ class ChoiceMap(Sample):
             assert static_chm["x"] == 42
 
             # Dynamic address
-            dynamic_chm = ChoiceMap.entry(jnp.array([1.1, 2.2, 3.3]), jnp.array([1, 2, 3]))
-            assert dynamic_chm[1].unmask() == 2.2
+            dynamic_chm = ChoiceMap.entry(
+                jnp.array([1.1, 2.2, 3.3]), jnp.array([1, 2, 3])
+            )
+            assert dynamic_chm[1] == genjax.Mask(1.1, True)
             ```
         """
         if isinstance(v, ChoiceMap):
@@ -1231,7 +1343,8 @@ class ChoiceMap(Sample):
         self,
         addr: ExtendedAddressComponent | ExtendedAddress,
     ) -> "ChoiceMap":
-        addr = addr if isinstance(addr, tuple) else (addr,)
+        addr = _validate_addr(addr, allow_partial_slice=True)
+
         submap = self
         for comp in addr:
             submap = submap.get_submap(comp)
@@ -1351,6 +1464,15 @@ class Choice(Generic[T], ChoiceMap):
 
     v: T
 
+    @staticmethod
+    def build(v: T) -> ChoiceMap:
+        if isinstance(v, Array) and v.shape == (0,):
+            return ChoiceMap.empty()
+        elif isinstance(v, Mask) and FlagOp.concrete_false(v.primal_flag()):
+            return ChoiceMap.empty()
+        else:
+            return Choice(v)
+
     def get_value(self) -> T:
         return self.v
 
@@ -1376,17 +1498,27 @@ class Indexed(ChoiceMap):
         base_chm = ChoiceMap.value(jnp.array([1, 2, 3]))
         idx_chm = base_chm.extend(jnp.array([0, 1, 2]))
 
-        assert idx_chm.get_submap(1).get_value().unmask() == 2
+        assert idx_chm.get_submap(1).get_value() == genjax.Mask(2, True)
         ```
     """
 
     c: ChoiceMap
-    addr: DynamicAddressComponent
+    addr: int | IntArray | None
 
     @staticmethod
     def build(chm: ChoiceMap, addr: DynamicAddressComponent) -> ChoiceMap:
         if chm.static_is_empty():
             return chm
+
+        elif isinstance(addr, slice):
+            if addr == _full_slice:
+                return Indexed(chm, None)
+            else:
+                raise ValueError(f"Partial slices not supported: {addr}")
+
+        elif isinstance(addr, Array) and addr.shape == (0,):
+            return ChoiceMap.empty()
+
         else:
             return Indexed(chm, addr)
 
@@ -1394,35 +1526,38 @@ class Indexed(ChoiceMap):
         return None
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        if addr is Ellipsis:
+        if isinstance(addr, EllipsisType):
             return self.c
 
-        elif not isinstance(addr, DynamicAddressComponent):
+        elif isinstance(addr, StaticAddressComponent):
             return ChoiceMap.empty()
 
         else:
+            if not isinstance(addr, slice):
+                # If we allowed non-scalar addresses, the `get_submap` call would not reduce the leaf by a dimension, and further get_submap calls would target the same dimension.
+                assert not jnp.asarray(
+                    addr, copy=False
+                ).shape, "Only scalar dynamic addresses are supported by get_submap."
 
-            def check_fn(idx, addr) -> Flag:
-                return idx == addr
+            if self.addr is None:
+                # None means that this instance was created with `:`, so no masking is required and we assume that the user will provide an in-bounds `int | ScalarInt`` address. If they don't they will run up against JAX's clamping behavior.
+                return jtu.tree_map(lambda v: v[addr], self.c)
 
-            check = (
-                jax.vmap(check_fn, in_axes=(None, 0))(addr, self.addr)
-                if jnp.array(self.addr, copy=False).shape
-                else check_fn(addr, self.addr)
-            )
+            elif isinstance(self.addr, Array) and self.addr.shape:
+                # We can't allow slices, as self.addr might look like, e.g. `[2,5,6]`, and we don't have any way to combine this "sparse array selector" with an incoming slice.
+                assert not isinstance(
+                    addr, slice
+                ), f"Slices are not allowed against array-shaped dynamic addresses. Tried to apply {addr} to {self.addr}."
 
-            check_array = jnp.asarray(check, copy=False)
-            if check_array.shape:
-                if check_array.shape[0] == 0:
-                    # this is an obscure case which can arise when doing an importance
-                    # update of a scan GF with an array of shape (0,) or (0, ...)
-                    return ChoiceMap.empty()
-                else:
-                    return jtu.tree_map(lambda v: v[addr], self.c).mask(
-                        check_array[addr]
-                    )
+                check = self.addr == addr
+
+                # If `check` contains a match (we know it will be a single match, since we constrain addr to be scalar), then `idx` is the index of the match in `self.addr`.
+                # Else, idx == 0 (selecting "junk data" of the right shape at the leaf) and check_array[idx] == False (masking the junk data).
+                idx = jnp.argwhere(check, size=1, fill_value=0)[0, 0]
+                return jtu.tree_map(lambda v: v[idx], self.c.mask(check))
+
             else:
-                return self.c.mask(check)
+                return self.c.mask(self.addr == addr)
 
 
 @Pytree.dataclass(match_args=True)
@@ -1710,6 +1845,8 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
                 })
 
             case Indexed(c, addr):
+                addr = _full_slice if addr is None else addr
+
                 return loop(c, selection(addr)).extend(addr)
 
             case Choice(v):
@@ -1780,17 +1917,5 @@ ChoiceMapBuilder = _ChoiceMapBuilder(_empty, [])
 
 
 @Pytree.dataclass(match_args=True)
-class ChoiceMapConstraint(Constraint, ChoiceMap):
+class ChoiceMapConstraint(Constraint):
     choice_map: ChoiceMap
-
-    def get_submap(
-        self,
-        addr: ExtendedAddressComponent,
-    ) -> ChoiceMap:
-        return ChoiceMapConstraint(self.choice_map.get_submap(addr))
-
-    def get_value(self) -> Any:
-        return self.choice_map.get_value()
-
-    def static_is_empty(self):
-        return self.choice_map.static_is_empty()

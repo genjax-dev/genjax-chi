@@ -19,7 +19,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapConstraint,
     Constraint,
     EditRequest,
     GenerativeFunction,
@@ -56,9 +55,6 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
 
     def get_gen_fn(self):
         return self.mask_combinator
-
-    def get_sample(self) -> ChoiceMap:
-        return self.get_choices()
 
     def get_choices(self) -> ChoiceMap:
         inner_choice_map = self.inner.get_choices()
@@ -220,15 +216,14 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         )
 
         assert isinstance(bwd_request, Update)
-        inner_chm_constraint = bwd_request.constraint
-        assert isinstance(inner_chm_constraint, ChoiceMapConstraint)
+        inner_chm = bwd_request.constraint
 
         return (
             MaskTrace(self, premasked_trace, post_check),
             final_weight,
             Mask.maybe(retdiff, check_diff),
             Update(
-                ChoiceMapConstraint(inner_chm_constraint.choice_map.mask(post_check)),
+                inner_chm.mask(post_check),
             ),
         )
 

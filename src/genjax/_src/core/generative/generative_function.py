@@ -15,10 +15,7 @@
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from genjax._src.core.generative.choice_map import (
-    ChoiceMap,
-    ChoiceMapConstraint,
-)
+from genjax._src.core.generative.choice_map import ChoiceMap, ChoiceMapConstraint
 from genjax._src.core.generative.core import (
     Argdiffs,
     Arguments,
@@ -26,7 +23,6 @@ from genjax._src.core.generative.core import (
     EditRequest,
     Projection,
     Retdiff,
-    Sample,
     Score,
     Weight,
 )
@@ -132,9 +128,9 @@ class Trace(Generic[R], Pytree):
 
         """
 
-    @abstractmethod
-    def get_sample(self) -> Sample:
-        """Return the [`Sample`][genjax.core.Sample] sampled from the distribution over samples by the generative function during the invocation which created the [`Trace`][genjax.core.Trace]."""
+    def get_sample(self) -> "genjax.ChoiceMap":
+        """alias for [`genjax.Trace.get_choices`][]."""
+        return self.get_choices()
 
     @abstractmethod
     def get_choices(self) -> "genjax.ChoiceMap":
@@ -225,7 +221,6 @@ class GenerativeFunction(Generic[R], Pytree):
         ```python exec="yes" html="true" source="material-block" session="core"
         import jax
         from jax.scipy.special import logsumexp
-        from jax.random import PRNGKey
         import jax.tree_util as jtu
         from genjax import ChoiceMapBuilder as C
         from genjax import gen, uniform, flip, categorical
@@ -250,7 +245,7 @@ class GenerativeFunction(Generic[R], Pytree):
             return jtu.tree_map(lambda v: v[idx], tr.get_sample())
 
 
-        sub_keys = jax.random.split(PRNGKey(0), 50)
+        sub_keys = jax.random.split(jax.random.key(0), 50)
         samples = jax.jit(jax.vmap(importance_sampling, in_axes=(0, None)))(
             sub_keys, C.kw(f1=True, f2=True)
         )
@@ -270,6 +265,41 @@ class GenerativeFunction(Generic[R], Pytree):
         return self.get_zero_trace(*args).get_retval()
 
     def handle_kwargs(self) -> "GenerativeFunction[R]":
+        """
+        Returns a new GenerativeFunction like `self`, but where all GFI methods accept a tuple of arguments and a dictionary of keyword arguments.
+
+        The returned GenerativeFunction can be invoked with `__call__` with no special argument handling (just like the original).
+
+        In place of `args` tuples in GFI methods, the new GenerativeFunction expects a 2-tuple containing:
+
+        1. A tuple containing the original positional arguments.
+        2. A dictionary containing the keyword arguments.
+
+        This allows for more flexible argument passing, especially useful in contexts where
+        keyword arguments need to be handled separately or passed through multiple layers.
+
+        Returns:
+            A new GenerativeFunction that accepts (args_tuple, kwargs_dict) for all GFI methods.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="core"
+            import genjax
+            import jax
+
+
+            @genjax.gen
+            def model(x, y, z=1.0):
+                _ = genjax.normal(x + y, z) @ "v"
+                return x + y + z
+
+
+            key = jax.random.key(0)
+            kw_model = model.handle_kwargs()
+
+            tr = kw_model.simulate(key, ((1.0, 2.0), {"z": 3.0}))
+            print(tr.render_html())
+            ```
+        """
         return IgnoreKwargs(self)
 
     def get_zero_trace(self, *args, **_kwargs) -> Trace[R]:
@@ -327,8 +357,8 @@ class GenerativeFunction(Generic[R], Pytree):
         Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
             import genjax
+            import jax
             from jax import vmap, jit
-            from jax.random import PRNGKey
             from jax.random import split
 
 
@@ -338,7 +368,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return x
 
 
-            key = PRNGKey(0)
+            key = jax.random.key(0)
             tr = model.simulate(key, ())
             print(tr.render_html())
             ```
@@ -351,14 +381,14 @@ class GenerativeFunction(Generic[R], Pytree):
                 return x
 
 
-            key = PRNGKey(0)
+            key = jax.random.key(0)
             tr = model.repeat(n=10).simulate(key, ())
             print(tr.render_html())
             ```
 
             (**Fun, flirty, fast ... parallel?**) Feel free to use `jax.jit` and `jax.vmap`!
             ```python exec="yes" html="true" source="material-block" session="core"
-            key = PRNGKey(0)
+            key = jax.random.key(0)
             sub_keys = split(key, 10)
             sim = model.repeat(n=10).simulate
             tr = jit(vmap(sim, in_axes=(0, None)))(sub_keys, ())
@@ -375,7 +405,7 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         Return [the score][genjax.core.Trace.get_score] and [the return value][genjax.core.Trace.get_retval] when the generative function is invoked with the provided arguments, and constrained to take the provided sample as the sampled value.
 
-        It is an error if the provided sample value is off the support of the distribution over the `Sample` type, or otherwise induces a partial constraint on the execution of the generative function (which would require the generative function to provide an `edit` implementation which responds to the `EditRequest` induced by the [`importance`][genjax.core.GenerativeFunction.importance] interface).
+        It is an error if the provided sample value is off the support of the distribution over the `ChoiceMap` type, or otherwise induces a partial constraint on the execution of the generative function (which would require the generative function to provide an `edit` implementation which responds to the `EditRequest` induced by the [`importance`][genjax.core.GenerativeFunction.importance] interface).
 
         Examples:
             This method is similar to density evaluation interfaces for distributions.
@@ -442,14 +472,10 @@ class GenerativeFunction(Generic[R], Pytree):
         Examples:
             Updating a trace in response to a request for a [`Target`][genjax.inference.Target] change induced by a change to the arguments:
             ```python exec="yes" source="material-block" session="core"
-            from genjax import gen
-            from genjax import normal
-            from genjax import Diff
-            from genjax import Update
-            from genjax import ChoiceMapConstraint
-            from genjax import ChoiceMap as C
+            import jax
+            from genjax import gen, normal, Diff, Update, ChoiceMap as C
 
-            key = PRNGKey(0)
+            key = jax.random.key(0)
 
 
             @gen
@@ -469,7 +495,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 key,
                 initial_tr,
                 Update(
-                    ChoiceMapConstraint(C.empty()),
+                    C.empty(),
                 ),
                 Diff.unknown_change((3.0,)),
             )
@@ -515,10 +541,10 @@ class GenerativeFunction(Generic[R], Pytree):
 
         ```python exec="yes" source="material-block" session="core"
         from genjax import Update
-        from genjax import ChoiceMap, ChoiceMapConstraint
+        from genjax import ChoiceMap
 
         g = Update(
-            ChoiceMapConstraint(ChoiceMap.empty()),  # Constraint
+            ChoiceMap.empty(),  # Constraint
         )
         ```
 
@@ -529,7 +555,7 @@ class GenerativeFunction(Generic[R], Pytree):
             key,
             initial_tr,
             Update(
-                ChoiceMapConstraint(C.kw(v1=3.0)),
+                C.kw(v1=3.0),
             ),
             Diff.unknown_change((3.0,)),
         )
@@ -554,7 +580,7 @@ class GenerativeFunction(Generic[R], Pytree):
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], Constraint]:
         request = Update(
-            ChoiceMapConstraint(constraint),
+            constraint,
         )
         tr, w, rd, bwd = request.edit(
             key,
@@ -562,7 +588,7 @@ class GenerativeFunction(Generic[R], Pytree):
             argdiffs,
         )
         assert isinstance(bwd, Update), type(bwd)
-        return tr, w, rd, bwd.constraint
+        return tr, w, rd, ChoiceMapConstraint(bwd.constraint)
 
     def importance(
         self,
@@ -576,11 +602,11 @@ class GenerativeFunction(Generic[R], Pytree):
         Examples:
             (**Full constraints**) A simple example using the `importance` interface on distributions:
             ```python exec="yes" html="true" source="material-block" session="core"
+            import jax
             from genjax import normal
             from genjax import ChoiceMapBuilder as C
-            from jax.random import PRNGKey
 
-            key = PRNGKey(0)
+            key = jax.random.key(0)
 
             tr, w = normal.importance(key, C.v(1.0), (0.0, 1.0))
             print(tr.get_sample().render_html())
@@ -605,11 +631,12 @@ class GenerativeFunction(Generic[R], Pytree):
 
         Under the hood, creates an [`EditRequest`][genjax.core.EditRequest] which requests that the generative function respond with a move from the _empty_ trace (the only possible value for _empty_ target $\\delta_\\emptyset$) to the target induced by the generative function for constraint $C$ with arguments $a$.
         """
+        if isinstance(constraint, ChoiceMap):
+            constraint = ChoiceMapConstraint(constraint)
+
         return self.generate(
             key,
-            constraint
-            if isinstance(constraint, Constraint)
-            else ChoiceMapConstraint(constraint),
+            constraint,
             args,
         )
 
@@ -617,9 +644,9 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         key: PRNGKey,
         args: Arguments,
-    ) -> tuple[Sample, Score, R]:
+    ) -> tuple[ChoiceMap, Score, R]:
         """
-        Samples a [`Sample`][genjax.core.Sample] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the `R` of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
+        Samples a [`ChoiceMap`][genjax.core.ChoiceMap] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the `R` of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
         """
         tr = self.simulate(key, args)
         sample = tr.get_sample()
@@ -1384,10 +1411,29 @@ def push_trace_overload_stack(handler, fn):
 
 @Pytree.dataclass
 class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
+    """
+    A wrapper for a [`genjax.GenerativeFunction`][] that ignores keyword arguments.
+
+    This class wraps another [`genjax.GenerativeFunction`][] and modifies its GFI methods to accept
+    a tuple of (args, kwargs) as the 'args' parameter. The kwargs are then ignored in the
+    actual GFI calls to the wrapped GenerativeFunction.
+
+    This class is used to implement the default behavior of [`genjax.GenerativeFunction.handle_kwargs`][].
+
+    Attributes:
+        wrapped: The original GenerativeFunction being wrapped.
+    """
+
     wrapped: GenerativeFunction[R]
 
     def handle_kwargs(self) -> "GenerativeFunction[R]":
-        raise NotImplementedError
+        return self.wrapped.handle_kwargs()
+
+    def __call__(self, *args, **kwargs):
+        return self.wrapped(*args, **kwargs)
+
+    def __abstract_call__(self, *args, **kwargs) -> R:
+        return self.wrapped.__abstract_call__(*args, **kwargs)
 
     def simulate(
         self,
@@ -1411,7 +1457,8 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         constraint: Constraint,
         args: Arguments,
     ) -> tuple[Trace[Any], Weight]:
-        raise NotImplementedError
+        (args, _kwargs) = args
+        return self.wrapped.generate(key, constraint, args)
 
     def project(
         self,
@@ -1419,7 +1466,7 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         trace: Trace[Any],
         projection: Projection[Any],
     ) -> Weight:
-        raise NotImplementedError
+        return self.wrapped.project(key, trace, projection)
 
     def edit(
         self,
@@ -1428,22 +1475,24 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        raise NotImplementedError
+        (argdiffs, _kwargs) = argdiffs
+        return self.wrapped.edit(key, trace, edit_request, argdiffs)
 
 
 @Pytree.dataclass
 class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     gen_fn: GenerativeFunction[R]
     args: tuple[Any, ...]
-    kwargs: dict[Any, Any]
+    kwargs: dict[str, Any]
 
-    def get_gen_fn_with_kwargs(self):
+    def _with_kwargs(self):
+        "Returns a kwarg-handling version of the wrapped `gen_fn`."
         return self.gen_fn.handle_kwargs()
 
     # NOTE: Supports callee syntax, and the ability to overload it in callers.
     def __matmul__(self, addr) -> R:
         if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            maybe_kwarged_gen_fn = self._with_kwargs()
             return handle_off_trace_stack(
                 addr,
                 maybe_kwarged_gen_fn,
@@ -1458,21 +1507,23 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
     # This override returns `R`, while the superclass returns a `GenerativeFunctionClosure`; this is
     # a hint that subclassing may not be the right relationship here.
-    def __call__(self, key: PRNGKey, *args) -> R:  # pyright: ignore[reportIncompatibleMethodOverride]
-        full_args = (*self.args, *args)
-        if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-            return maybe_kwarged_gen_fn.simulate(
-                key, (*full_args, self.kwargs)
-            ).get_retval()
+    def __call__(self, key: PRNGKey, *args, **kwargs) -> R:  # pyright: ignore[reportIncompatibleMethodOverride]
+        full_args = self.args + args
+        full_kwargs = self.kwargs | kwargs
+
+        if full_kwargs:
+            kwarg_fn = self._with_kwargs()
+            return kwarg_fn.simulate(key, (full_args, full_kwargs)).get_retval()
         else:
             return self.gen_fn.simulate(key, full_args).get_retval()
 
-    def __abstract_call__(self, *args) -> R:
-        full_args = (*self.args, *args)
-        if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
-            return maybe_kwarged_gen_fn.__abstract_call__(*full_args, **self.kwargs)
+    def __abstract_call__(self, *args, **kwargs) -> R:
+        full_args = self.args + args
+        full_kwargs = kwargs | self.kwargs
+
+        if full_kwargs:
+            kwarg_fn = self._with_kwargs()
+            return kwarg_fn.__abstract_call__(full_args, full_kwargs)
         else:
             return self.gen_fn.__abstract_call__(*full_args)
 
@@ -1485,9 +1536,9 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         args: tuple[Any, ...],
     ) -> Trace[R]:
-        full_args = (*self.args, *args)
+        full_args = self.args + args
         if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            maybe_kwarged_gen_fn = self._with_kwargs()
             return maybe_kwarged_gen_fn.simulate(
                 key,
                 (full_args, self.kwargs),
@@ -1501,9 +1552,9 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         constraint: Constraint,
         args: Arguments,
     ) -> tuple[Trace[Any], Weight]:
-        full_args = (*self.args, *args)
+        full_args = self.args + args
         if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            maybe_kwarged_gen_fn = self._with_kwargs()
             return maybe_kwarged_gen_fn.generate(
                 key,
                 constraint,
@@ -1518,7 +1569,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         trace: Trace[Any],
         projection: Projection[Any],
     ):
-        raise NotImplementedError
+        return self.gen_fn.project(key, trace, projection)
 
     def edit(
         self,
@@ -1527,16 +1578,27 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        raise NotImplementedError
+        self_diffs = Diff.unknown_change(self.args)
+        full_args = self_diffs + argdiffs
+        if self.kwargs:
+            maybe_kwarged_gen_fn = self._with_kwargs()
+            return maybe_kwarged_gen_fn.edit(
+                key,
+                trace,
+                edit_request,
+                (full_args, Diff.unknown_change(self.kwargs)),
+            )
+        else:
+            return self.gen_fn.edit(key, trace, edit_request, argdiffs)
 
     def assess(
         self,
         sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
-        full_args = (*self.args, *args)
+        full_args = self.args + args
         if self.kwargs:
-            maybe_kwarged_gen_fn = self.get_gen_fn_with_kwargs()
+            maybe_kwarged_gen_fn = self._with_kwargs()
             return maybe_kwarged_gen_fn.assess(
                 sample,
                 (full_args, self.kwargs),
@@ -1547,7 +1609,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
 @Pytree.dataclass(match_args=True)
 class Update(EditRequest):
-    constraint: ChoiceMapConstraint
+    constraint: ChoiceMap
 
     def edit(
         self,

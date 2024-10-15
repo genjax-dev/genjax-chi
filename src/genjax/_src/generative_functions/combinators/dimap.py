@@ -15,13 +15,11 @@
 
 from genjax._src.core.generative import (
     Argdiffs,
-    ChoiceMapConstraint,
     Constraint,
     EditRequest,
     GenerativeFunction,
     Projection,
     Retdiff,
-    Sample,
     Score,
     Trace,
     Update,
@@ -55,9 +53,6 @@ class DimapTrace(Generic[R, S], Trace[S]):
 
     def get_gen_fn(self) -> GenerativeFunction[S]:
         return self.gen_fn
-
-    def get_sample(self) -> Sample:
-        return self.inner.get_sample()
 
     def get_choices(self) -> ChoiceMap:
         return self.inner.get_choices()
@@ -151,7 +146,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         self,
         key: PRNGKey,
         trace: Trace[S],
-        constraint: ChoiceMapConstraint,
+        request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
         assert isinstance(trace, DimapTrace)
@@ -169,7 +164,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         tr, w, inner_retdiff, bwd_request = self.inner.edit(
             key,
             inner_trace,
-            Update(constraint),
+            request,
             inner_argdiffs,
         )
 
@@ -202,8 +197,7 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         argdiffs: Argdiffs,
     ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
         assert isinstance(edit_request, Update)
-        constraint = edit_request.constraint
-        return self.edit_change_target(key, trace, constraint, argdiffs)
+        return self.edit_change_target(key, trace, edit_request, argdiffs)
 
     def assess(
         self,

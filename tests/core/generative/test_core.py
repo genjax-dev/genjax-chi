@@ -79,11 +79,6 @@ class TestCombinators:
         assert jnp.array_equal(chm[..., "v"], varr)
         assert jnp.array_equal(chm[..., "q"], qarr)
 
-        # check alternate access route:
-        assert jnp.array_equal(chm(jnp.arange(3))["v"].unmask(), varr)
-
-        assert jnp.array_equal(chm(jnp.arange(3))["q"].unmask(), qarr)
-
     def test_repeat(self):
         key = jax.random.key(314159)
 

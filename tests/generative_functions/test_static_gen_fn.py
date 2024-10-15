@@ -20,7 +20,8 @@ import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import ChoiceMapConstraint, Diff, Pytree, Update
+from genjax import Diff, Pytree, Update
+from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.typing import Array
 from genjax.generative_functions.static import AddressReuse
 from genjax.typing import FloatArray
@@ -435,6 +436,8 @@ class TestStaticGenFnUpdate:
             new,
             (),
         )
+        assert isinstance(discard, ChoiceMapConstraint)
+
         updated_choice = updated.get_sample()
         _y1 = updated_choice["y1"]
         _y2 = updated_choice["y2"]
@@ -445,7 +448,7 @@ class TestStaticGenFnUpdate:
             key, updated_choice.get_submap("y2"), (0.0, 1.0)
         )
         test_score = score1 + score2
-        assert original_choice["y1",] == discard["y1",]
+        assert original_choice["y1",] == discard.choice_map["y1",]
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
@@ -480,6 +483,9 @@ class TestStaticGenFnUpdate:
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
+
+        assert isinstance(discard, ChoiceMapConstraint)
+
         updated_choice = updated.get_sample()
         y1 = updated_choice["y1"]
         y2 = updated_choice["y2"]
@@ -488,7 +494,7 @@ class TestStaticGenFnUpdate:
         score2, _ = genjax.normal.assess(C.v(y2), (y1, 1.0))
         score3, _ = genjax.normal.assess(y3, (y1 + y2, 1.0))
         test_score = score1 + score2 + score3
-        assert original_choice["y1"] == discard["y1"]
+        assert original_choice["y1"] == discard.choice_map["y1"]
         assert updated.get_score() == pytest.approx(original_score + w, 0.01)
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
@@ -514,7 +520,10 @@ class TestStaticGenFnUpdate:
         original_choice = tr.get_sample()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
+
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
+        assert isinstance(discard, ChoiceMapConstraint)
+
         updated_choice = updated.get_sample()
         y1 = updated_choice["y1"]
         y2 = updated_choice["y2", "y1"]
@@ -526,7 +535,7 @@ class TestStaticGenFnUpdate:
         score2, _ = genjax.normal.assess(C.v(y2), (y1, 1.0))
         score3, _ = genjax.normal.assess(C.v(y3), (y1 + y2, 1.0))
         test_score = score1 + score2 + score3
-        assert original_choice["y1"] == discard["y1"]
+        assert original_choice["y1"] == discard.choice_map["y1"]
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
@@ -550,7 +559,7 @@ class TestStaticGenFnUpdate:
         new = C["y1"].set(new_y1)
         key, sub_key = jax.random.split(key)
         (updated, w, _, _) = jitted(sub_key, tr, new, ())
-        (_, w_edit, _, _) = tr.edit(sub_key, Update(ChoiceMapConstraint(new)))
+        (_, w_edit, _, _) = tr.edit(sub_key, Update(new))
         assert w_edit == w
 
         # TestStaticGenFn weight correctness.
@@ -681,12 +690,87 @@ class TestGenFnClosure:
             return genjax.normal(1.0, 0.001) @ "x"
 
         gfc = model()
-        tr = gfc.simulate(jax.random.PRNGKey(0), ())
+        tr = gfc.simulate(jax.random.key(0), ())
         assert tr.get_score() == genjax.normal.logpdf(tr.get_retval(), 1.0, 0.001)
         # This failed in GEN-420
-        tr_u, w = gfc.importance(jax.random.PRNGKey(1), C.kw(x=1.1), ())
+        tr_u, w = gfc.importance(jax.random.key(1), C.kw(x=1.1), ())
         assert tr_u.get_score() == genjax.normal.logpdf(tr_u.get_retval(), 1.0, 0.001)
         assert w == tr_u.get_score()
+
+    def test_gen_fn_closure_with_kwargs(self):
+        @genjax.gen
+        def model(x, y, z: FloatArray | None = None):
+            if z is None:
+                raise ValueError("z must be provided")
+
+            _sampled = genjax.normal(x + y, z) @ "sampled"
+            return z
+
+        key = jax.random.key(0)
+
+        # show that we error with z missing:
+        with pytest.raises(ValueError, match="z must be provided"):
+            model(1.0, 2.0)(key)
+
+        gfc = model(1.0, 2.0, z=3.0)
+
+        # the keyword args are passed through:
+        assert gfc(key) == 3.0
+
+        # we can override z:
+        assert gfc(key, z=10.0) == 10.0
+
+        # handle_kwargs doesn't affect function calls:
+        assert gfc.handle_kwargs()(key, z=5.0) == gfc(key, z=5.0)
+
+        # Test simulate with kwargs
+        arg_tuple = (1.0, 2.0, 3.0)
+        assert (
+            gfc.simulate(key, ()).get_choices()
+            == model.simulate(key, arg_tuple).get_choices()
+        )
+
+        # Test assess with kwargs
+        chm = C.kw(sampled=3.5)
+        assert gfc.assess(chm, ()) == model.assess(chm, arg_tuple)
+
+        # Test generate with kwargs
+        constraint = C.kw(sampled=3.0)
+        assert (
+            gfc.generate(key, ChoiceMapConstraint(constraint), ())[1]
+            == model.generate(key, ChoiceMapConstraint(constraint), arg_tuple)[1]
+        )
+
+        # Test __abstract_call__ with kwargs
+        assert gfc.__abstract_call__() == model.__abstract_call__(*arg_tuple)
+
+        # handle_kwargs is idempotent on a gfc
+        assert gfc.handle_kwargs() == gfc.handle_kwargs().handle_kwargs()
+
+
+class TestHandleKwargs:
+    def test_handle_kwargs(self):
+        @genjax.gen
+        def model(x, y, z: FloatArray | None = None):
+            if z is None:
+                raise ValueError("z must be provided")
+
+            _sampled = genjax.normal(x + y, z) @ "sampled"
+            return z
+
+        # handle_kwargs produces a new model capable of handling keyword args.
+        kwm = model.handle_kwargs()
+
+        key = jax.random.key(0)
+        kwm_tr = kwm.simulate(key, ((1.0,), {"y": 2.0, "z": 3.0}))
+        model_tr = model.simulate(key, (1.0, 2.0, 3.0))
+
+        assert kwm_tr.get_choices() == model_tr.get_choices()
+        assert kwm_tr.get_score() == model_tr.get_score()
+        assert kwm_tr.get_retval() == model_tr.get_retval()
+
+        assert kwm_tr.get_args() == ((1.0,), {"y": 2.0, "z": 3.0})
+        assert model_tr.get_args() == (1.0, 2.0, 3.0)
 
 
 class TestStaticGenFnInline:

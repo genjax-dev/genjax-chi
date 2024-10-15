@@ -21,7 +21,6 @@ from genjax._src.core.generative import (
     GenerativeFunction,
     Projection,
     Retdiff,
-    Sample,
     Score,
     Trace,
     Update,
@@ -36,22 +35,10 @@ from genjax._src.core.typing import (
     Generic,
     IntArray,
     PRNGKey,
-    Sequence,
     TypeVar,
 )
 
 R = TypeVar("R")
-
-#######################
-# Switch sample types #
-#######################
-
-
-@Pytree.dataclass
-class HeterogeneousSwitchSample(Sample):
-    index: IntArray
-    subtraces: Sequence[ChoiceMap]
-
 
 ################
 # Switch trace #
@@ -85,9 +72,6 @@ class SwitchTrace(Generic[R], Trace[R]):
         idx = self.get_idx()
         sub_chms = (tr.get_choices() for tr in self.subtraces)
         return ChoiceMap.switch(idx, sub_chms)
-
-    def get_sample(self) -> ChoiceMap:
-        return self.get_choices()
 
     def get_gen_fn(self):
         return self.gen_fn

@@ -75,7 +75,7 @@ class TestVmapCombinator:
         (tr, _) = kernel.importance(sub_key, chm, (map_over,))
         for i in range(0, 3):
             v = tr.get_choices()[i, "z"]
-            assert v.unmask() == zv[i]
+            assert v == zv[i]
 
     def test_vmap_combinator_nested_indexed_choice_map_importance(self):
         @genjax.vmap(in_axes=(0,))
@@ -96,6 +96,33 @@ class TestVmapCombinator:
         assert w == genjax.normal.assess(C.v(1.0), (1.0, 1.0))[0]
 
     def test_vmap_combinator_vmap_pytree(self):
+        @genjax.gen
+        def model2(x):
+            _ = genjax.normal(x, 1.0) @ "y"
+            return x
+
+        model_mv2 = model2.mask().vmap()
+        masks = jnp.array([
+            True,
+            False,
+            True,
+            False,
+            True,
+            False,
+            True,
+            False,
+            True,
+            False,
+        ])
+        xs = jnp.arange(0.0, 10.0, 1.0)
+
+        key = jax.random.key(314159)
+
+        # show that we don't error if we map along multiple axes via the default.
+        tr = jax.jit(model_mv2.simulate)(key, (masks, xs))
+        assert jnp.array_equal(tr.get_retval().value, xs)
+        assert jnp.array_equal(tr.get_retval().flag, masks)
+
         @genjax.vmap(in_axes=(None, (0, None)))
         @genjax.gen
         def foo(y, args):
@@ -103,7 +130,6 @@ class TestVmapCombinator:
             x = genjax.normal(loc, scale) @ "x"
             return x + y
 
-        key = jax.random.key(314159)
         _ = jax.jit(foo.simulate)(key, (10.0, (jnp.arange(3.0), (1.0, jnp.arange(3)))))
 
     def test_vmap_combinator_assess(self):
@@ -131,27 +157,29 @@ class TestVmapCombinator:
             ValueError,
             match="vmap was requested to map its argument along axis 0, which implies that its rank should be at least 1, but is only 0",
         ):
-            foo.vmap(in_axes=(0, None)).simulate(key, (10.0, jnp.arange(3.0)))
+            jax.jit(foo.vmap(in_axes=(0, None)).simulate)(key, (10.0, jnp.arange(3.0)))
 
         # in_axes doesn't match args
         with pytest.raises(
             ValueError,
             match="vmap in_axes specification must be a tree prefix of the corresponding value",
         ):
-            foo.vmap(in_axes=(0, (0, None))).simulate(key, (10.0, jnp.arange(3.0)))
+            jax.jit(foo.vmap(in_axes=(0, (0, None))).simulate)(
+                key, (10.0, jnp.arange(3.0))
+            )
 
         with pytest.raises(
             ValueError,
             match="vmap got inconsistent sizes for array axes to be mapped",
         ):
-            foo.vmap(in_axes=0).simulate(key, (jnp.arange(2), jnp.arange(3)))
+            jax.jit(foo.vmap(in_axes=0).simulate)(key, (jnp.arange(2), jnp.arange(3)))
 
         # in_axes doesn't match args
         with pytest.raises(
             TypeError,
             match="Found incompatible dtypes, <class 'numpy.float32'> and <class 'numpy.int32'>",
         ):
-            foo.vmap(in_axes=(None, 0)).simulate(key, (10.0, jnp.arange(3)))
+            jax.jit(foo.vmap(in_axes=(None, 0)).simulate)(key, (10.0, jnp.arange(3)))
 
     def test_vmap_key_vmap(self):
         @genjax.gen
@@ -174,3 +202,17 @@ class TestVmapCombinator:
 
         # the inner vmap has vmap'd over the y's
         assert chm[..., "y"].shape == (10, 5)
+
+    def test_zero_length_vmap(self):
+        @genjax.gen
+        def step(state, sigma):
+            new_x = genjax.normal(state, sigma) @ "x"
+            return (new_x, new_x + 1)
+
+        trace = step.vmap(in_axes=(None, 0)).simulate(
+            jax.random.key(20), (2.0, jnp.arange(0, dtype=float))
+        )
+
+        assert (
+            trace.get_choices().static_is_empty()
+        ), "zero-length vmap produces empty choicemaps."
