@@ -132,7 +132,7 @@ class StaticTrace(Generic[R], Trace[R]):
 
 
 @Pytree.dataclass(match_args=True)
-class StaticEditRequest(EditRequest):
+class StaticRequest(EditRequest):
     addressed: dict[StaticAddressComponent | StaticAddress, EditRequest]
 
     def edit(
@@ -1014,7 +1014,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             addresses = Pytree.tree_const_unwrap(addresses)
             addresses = map(collapse_address, addresses)
             bwd_addressed = dict(zip(addresses, subrequests))
-            return StaticEditRequest(bwd_addressed)
+            return StaticRequest(bwd_addressed)
 
         bwd_request = make_bwd_request(address_visitor, bwd_requests)
         return (
@@ -1067,7 +1067,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             addresses = Pytree.tree_const_unwrap(addresses)
             addresses = map(collapse_address, addresses)
             bwd_addressed = dict(zip(addresses, subrequests))
-            return StaticEditRequest(bwd_addressed)
+            return StaticRequest(bwd_addressed)
 
         bwd_request = make_bwd_request(address_visitor, bwd_requests)
         return (
@@ -1101,7 +1101,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     argdiffs,
                 )
 
-            case StaticEditRequest(addressed):
+            case StaticRequest(addressed):
                 return self.edit_static_edit_request(
                     key,
                     trace,

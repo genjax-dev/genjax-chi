@@ -20,7 +20,7 @@ import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import Diff, Pytree, Regenerate, StaticEditRequest, Update
+from genjax import Diff, Pytree, Regenerate, StaticRequest, Update
 from genjax import Selection as S
 from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.typing import Array
@@ -759,7 +759,7 @@ class TestStaticEditRequest:
 
         key = jax.random.key(0)
         tr = simple_normal.simulate(key, ())
-        request = StaticEditRequest({
+        request = StaticRequest({
             "y1": Regenerate(S.all()),
             "y2": Update(C.v(3.0)),
         })

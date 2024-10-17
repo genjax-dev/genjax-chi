@@ -14,8 +14,8 @@
 
 from genjax._src.generative_functions.static import (
     AddressReuse,
-    StaticEditRequest,
     StaticGenerativeFunction,
+    StaticRequest,
     gen,
     trace,
     trace_p,
@@ -23,8 +23,8 @@ from genjax._src.generative_functions.static import (
 
 __all__ = [
     "AddressReuse",
-    "StaticEditRequest",
     "StaticGenerativeFunction",
+    "StaticRequest",
     "gen",
     "trace",
     "trace_p",
