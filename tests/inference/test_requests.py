@@ -18,7 +18,7 @@ import jax.random as jrand
 import pytest
 
 import genjax
-from genjax import ChoiceMap, Selection
+from genjax import ChoiceMap, Diff, Selection
 from genjax import SelectionBuilder as S
 from genjax.inference.requests import HMC
 
@@ -93,3 +93,25 @@ class TestHMC:
             key, sub_key = jrand.split(key)
             new_tr, *_ = editor(sub_key, new_tr, ())
         assert new_tr.get_choices()["x"] == pytest.approx(3.0, 5e-3)
+
+    def test_simple_scan_hmc(self):
+        @genjax.gen
+        def kernel(z, scanned_in):
+            z = genjax.normal(z, 1.0) @ "x"
+            _ = genjax.normal(z, 0.01) @ "y"
+            return z, None
+
+        key = jrand.key(0)
+        key, sub_key = jrand.split(key)
+        model = kernel.scan(n=10)
+        vchm = jax.vmap(lambda idx: ChoiceMap.empty().at[idx, "y"].set(3.0))(
+            jnp.arange(10)
+        )
+        tr, _ = model.importance(sub_key, vchm, (0.0, None))
+        request = HMC(Selection.at[..., "x"], jnp.array(1e-2))
+        editor = jax.jit(request.edit)
+        new_tr = tr
+        for _ in range(20):
+            key, sub_key = jrand.split(key)
+            new_tr, *_ = editor(sub_key, new_tr, Diff.no_change((0.0, None)))
+        assert new_tr.get_choices()[..., "x"] == pytest.approx(3.0, 8e-3)
