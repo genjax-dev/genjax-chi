@@ -129,7 +129,7 @@ class StaticTrace(Generic[R], Trace[R]):
 
 @Pytree.dataclass(match_args=True)
 class StaticEditRequest(EditRequest):
-    addressed: dict[StaticAddress, EditRequest]
+    addressed: dict[StaticAddressComponent | StaticAddress, EditRequest]
 
     def edit(
         self,
@@ -515,7 +515,7 @@ class UpdateHandler(StaticHandler):
         return retval_diff
 
 
-def choice_map_change_transform(source_fn):
+def update_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
         key: PRNGKey,
@@ -566,7 +566,7 @@ def choice_map_change_transform(source_fn):
 class StaticEditRequestHandler(StaticHandler):
     key: PRNGKey
     previous_trace: StaticTrace[Any]
-    addressed: dict[StaticAddress, EditRequest]
+    addressed: dict[StaticAddressComponent | StaticAddress, EditRequest]
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
@@ -591,9 +591,11 @@ class StaticEditRequestHandler(StaticHandler):
     def visit(self, addr):
         self.address_visitor.visit(addr)
 
-    def get_subrequest(self, addr: StaticAddress) -> EditRequest:
-        subrequest = self.addressed.get(addr, EmptyRequest())
-        return subrequest
+    def get_subrequest(
+        self, addr: StaticAddressComponent | StaticAddress
+    ) -> EditRequest:
+        addr = addr[0] if isinstance(addr, tuple) and len(addr) == 1 else addr
+        return self.addressed.get(addr, EmptyRequest())
 
     def get_subtrace(
         self,
@@ -633,7 +635,7 @@ def static_edit_request_transform(source_fn):
     def wrapper(
         key: PRNGKey,
         previous_trace: StaticTrace[R],
-        addressed: dict[StaticAddress, EditRequest],
+        addressed: dict[StaticAddressComponent | StaticAddress, EditRequest],
         diffs: tuple[Any, ...],
     ):
         stateful_handler = StaticEditRequestHandler(
@@ -927,7 +929,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             weight += subtrace.project(key, subprojection)
         return weight
 
-    def edit_change_target(
+    def edit_update(
         self,
         key: PRNGKey,
         trace: StaticTrace[R],
@@ -950,17 +952,13 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_requests,
             ),
-        ) = choice_map_change_transform(syntax_sugar_handled)(
-            key, trace, constraint, argdiffs
-        )
+        ) = update_transform(syntax_sugar_handled)(key, trace, constraint, argdiffs)
 
         def make_bwd_request(visitor, subconstraints):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_const_unwrap(addresses)
             chm = ChoiceMap.from_mapping(zip(addresses, subconstraints))
-            return Update(
-                chm,
-            )
+            return Update(chm)
 
         bwd_request = make_bwd_request(address_visitor, bwd_requests)
         return (
@@ -981,7 +979,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: StaticTrace[R],
-        addressed: dict[StaticAddress, EditRequest],
+        addressed: dict[StaticAddressComponent | StaticAddress, EditRequest],
         argdiffs: Argdiffs,
     ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
         syntax_sugar_handled = push_trace_overload_stack(
@@ -1010,6 +1008,14 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         ):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_const_unwrap(addresses)
+            addresses = list(
+                map(
+                    lambda addr: addr[0]
+                    if isinstance(addr, tuple) and len(addr) == 1
+                    else addr,
+                    addresses,
+                )
+            )
             bwd_addressed = dict(zip(addresses, subrequests))
             return StaticEditRequest(bwd_addressed)
 
@@ -1090,7 +1096,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         assert isinstance(trace, StaticTrace)
         match edit_request:
             case Update(constraint):
-                return self.edit_change_target(
+                return self.edit_update(
                     key,
                     trace,
                     constraint,

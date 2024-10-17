@@ -20,7 +20,8 @@ import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import Diff, Pytree, Update
+from genjax import Diff, Pytree, Regenerate, StaticEditRequest, Update
+from genjax import Selection as S
 from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.typing import Array
 from genjax.generative_functions.static import AddressReuse
@@ -746,6 +747,31 @@ class TestGenFnClosure:
 
         # handle_kwargs is idempotent on a gfc
         assert gfc.handle_kwargs() == gfc.handle_kwargs().handle_kwargs()
+
+
+class TestStaticEditRequest:
+    def test_static_edit_request_composition(self):
+        @genjax.gen
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2
+
+        key = jax.random.key(0)
+        tr = simple_normal.simulate(key, ())
+        request = StaticEditRequest({
+            "y1": Regenerate(S.all()),
+            "y2": Update(C.v(3.0)),
+        })
+        key, sub_key = jax.random.split(key)
+        new_tr, w, _, bwd_request = request.edit(key, tr, ())
+        print(bwd_request)
+        assert new_tr.get_choices()["y2"] == 3.0
+        assert w != 0.0
+        old_tr, w_, _, _ = bwd_request.edit(sub_key, new_tr, ())
+        assert old_tr.get_choices()["y2"] == tr.get_choices()["y2"]
+        assert w_ != 0.0
+        assert w + w_ == 0.0
 
 
 class TestHandleKwargs:
