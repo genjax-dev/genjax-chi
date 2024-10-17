@@ -41,6 +41,7 @@ IntArray = jtyping.Int[jtyping.Array, "..."]
 FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
+TypeAlias = btyping.TypeAlias
 Sequence = btyping.Sequence
 Iterable = btyping.Iterable
 Final = btyping.Final
@@ -123,6 +124,7 @@ __all__ = [
     "ScalarShaped",
     "Self",
     "Sequence",
+    "TypeAlias",
     "TypeVar",
     "Value",
     "static_check_is_array",
