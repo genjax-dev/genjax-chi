@@ -128,14 +128,14 @@ class HMC(EditRequest):
             )
             values = jtu.tree_map(lambda v, m: v + self.eps * m, values, momenta)
             new_key = jrand.fold_in(key, int_seed)
-            new_trace, *_ = Update(values).edit(new_key, trace, argdiffs)
+            new_trace, _, retdiff, _ = Update(values).edit(new_key, trace, argdiffs)
             values, gradient = selection_gradient(self.selection, new_trace, argdiffs)
             momenta = jtu.tree_map(
                 lambda v, g: v + (self.eps / 2) * g, momenta, gradient
             )
-            return (new_trace, values, gradient, momenta), None
+            return (new_trace, values, gradient, momenta), retdiff
 
-        (final_trace, _, _, final_momenta), _ = scan(
+        (final_trace, _, _, final_momenta), retdiffs = scan(
             kernel, (tr, choice_values, choice_gradients, momenta), None, length=self.L
         )
 
@@ -147,9 +147,11 @@ class HMC(EditRequest):
             + final_momenta_score
             - original_momenta_score
         )
+        # Grab the last retdiff.
+        retdiff = jtu.tree_map(lambda v: v[-1], retdiffs)
         return (
             final_trace,
             alpha,
-            Diff.unknown_change(final_trace.get_retval()),
+            retdiff,
             HMC(self.selection, self.eps, self.L),
         )
