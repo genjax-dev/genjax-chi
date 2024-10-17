@@ -13,9 +13,12 @@
 # limitations under the License.
 
 import jax
+import pytest
 
 import genjax
+from genjax import Diff, DiffCoercion, EmptyRequest, Regenerate, Selection
 from genjax import SelectionBuilder as S
+from genjax._src.generative_functions.static import StaticRequest
 
 
 class TestRegenerate:
@@ -68,3 +71,31 @@ class TestRegenerate:
         assert (fwd_w + bwd_w) == 0.0
         old_old_v = old_tr.get_choices()["y2"]
         assert old_old_v == old_v
+
+
+class TestDiffCoercion:
+    def test_diff_coercion(self):
+        @genjax.gen
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(y1, 1.0) @ "y2"
+            return y1 + y2
+
+        key = jax.random.key(314159)
+        key, sub_key = jax.random.split(key)
+        tr = simple_normal.simulate(sub_key, ())
+
+        def should_raise_diff_assert(v):
+            assert Diff.static_check_no_change(v)
+            return v
+
+        request = StaticRequest({
+            "y1": Regenerate(Selection.all()),
+            "y2": DiffCoercion(
+                EmptyRequest(),
+                should_raise_diff_assert,
+            ),
+        })
+
+        with pytest.raises(Exception):
+            request.edit(key, tr, ())

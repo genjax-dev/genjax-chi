@@ -13,8 +13,13 @@
 # limitations under the License.
 
 from genjax._src.core.generative.requests import (
+    DiffCoercion,
     EmptyRequest,
     Regenerate,
 )
 
-__all__ = ["EmptyRequest", "Regenerate"]
+__all__ = [
+    "DiffCoercion",
+    "EmptyRequest",
+    "Regenerate",
+]
