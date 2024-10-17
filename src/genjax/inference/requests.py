@@ -12,26 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.inference.sp import (
-    Algorithm,
-    Marginal,
-    SampleDistribution,
-    Target,
-    marginal,
-)
-from genjax.inference import (
-    requests,
-    smc,
-    vi,
-)
+from genjax._src.inference.requests.hmc import HMC
 
-__all__ = [
-    "Algorithm",
-    "Marginal",
-    "SampleDistribution",
-    "Target",
-    "marginal",
-    "requests",
-    "smc",
-    "vi",
-]
+__all__ = ["HMC"]
