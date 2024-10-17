@@ -37,7 +37,6 @@ class TestRegenerate:
         assert fwd_w != 0.0
         new_v = new_tr.get_choices()["y1"]
         assert old_v != new_v
-        print(bwd_request)
         old_tr, bwd_w, _, bwd_request = bwd_request.edit(sub_key, new_tr, ())
         assert bwd_w != 0.0
         assert (fwd_w + bwd_w) == 0.0
