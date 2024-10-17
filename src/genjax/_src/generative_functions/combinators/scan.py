@@ -350,6 +350,10 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         next_slice, next_scanned_in = jtu.tree_map(
             lambda v: v[idx + 1], (trace.inner, scanned_in)
         )
+
+        # The Update edit request here is used to force a visitation of
+        # generative function callees which could be affected by the changes
+        # above -- to account for new scores, and changes reflected in the weight.
         next_request = Update(ChoiceMap.empty())
         next_slice_trace, next_w, retdiff, _ = next_request.edit(
             key,
@@ -395,7 +399,9 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         carry_out = Diff.tree_primal(carry_retdiff)
         carry_out_ = Diff.tree_primal(retdiff[0])
         carried_out = jtu.tree_map(
-            lambda v, v_: jnp.where(idx < max_length, v_, v), carry_out, carry_out_
+            lambda v, v_: jnp.where(idx < max_length, v_, v),
+            carry_out,
+            carry_out_,
         )
 
         return (
