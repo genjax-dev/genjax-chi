@@ -86,7 +86,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
 
 
 @Pytree.dataclass(match_args=True)
-class Index(EditRequest):
+class IndexRequest(EditRequest):
     idx: IntArray
     request: EditRequest
 
@@ -410,7 +410,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             w + (next_w * (idx + 1 < max_length)),
             # We always set the carried out value to be an unknown change, conservatively.
             (Diff.unknown_change(old_carried_out), new_scanned_retdiff),
-            Index(idx, bwd_request),
+            IndexRequest(idx, bwd_request),
         )
 
     def edit_update(
@@ -524,7 +524,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                     constraint,
                     argdiffs,
                 )
-            case Index(idx, subrequest):
+            case IndexRequest(idx, subrequest):
                 return self.edit_index(
                     key,
                     trace,
