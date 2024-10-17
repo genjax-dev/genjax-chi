@@ -24,7 +24,6 @@ from genjax._src.checkify import optional_check
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapEditRequest,
     Constraint,
     EditRequest,
     EmptyConstraint,
@@ -382,13 +381,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     argdiffs,
                 )
 
-            case ChoiceMapEditRequest(requests_choice_map):
-                return self.edit_choice_map_edit_request(
-                    key,
-                    trace,
-                    requests_choice_map,
-                    argdiffs,
-                )
             case _:
                 raise NotSupportedEditRequest(edit_request)
 
