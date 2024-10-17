@@ -156,6 +156,10 @@ class EditRequest(Pytree):
 
 
 class PrimitiveEditRequest(EditRequest):
+    """
+    The type of PrimitiveEditRequests are those EditRequest types whose implementation requires input from the generative function (defers their implementation over to the generative function, requires the generative function to provide logic to respond to the request).
+    """
+
     def edit(
         self,
         key: PRNGKey,
