@@ -28,6 +28,7 @@ from genjax._src.core.generative.generative_function import Trace
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Callable,
     PRNGKey,
     TypeVar,
 )
@@ -59,3 +60,19 @@ class Regenerate(EditRequest):
     ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
         gen_fn = tr.get_gen_fn()
         return gen_fn.edit(key, tr, self, argdiffs)
+
+
+# NOTE: can be used in an unsafe fashion!
+@Pytree.dataclass(match_args=True)
+class DiffCoercion(EditRequest):
+    coercion_fn: Callable[[Argdiffs], Argdiffs]
+    request: EditRequest
+
+    def edit(
+        self,
+        key: PRNGKey,
+        tr: Trace[R],
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
+        new_argdiffs = self.coercion_fn(argdiffs)
+        return self.request.edit(key, tr, new_argdiffs)
