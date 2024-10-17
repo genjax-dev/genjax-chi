@@ -138,7 +138,7 @@ StaticDict: TypeAlias = dict[StaticAddressComponent | StaticAddress, EditRequest
 
 
 @Pytree.dataclass(match_args=True)
-class StaticRequest(EditRequest):
+class StaticRequest(PrimitiveEditRequest):
     addressed: StaticDict
 
 
