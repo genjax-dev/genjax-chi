@@ -794,6 +794,33 @@ class TestStaticEditRequest:
         assert w_ != 0.0
         assert w + w_ == 0.0
 
+    def test_static_edit_request_hierarchical(self):
+        @genjax.gen
+        def submodel():
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y2
+
+        @genjax.gen
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ ("y1", "y3")
+            y2 = submodel() @ "y2"
+            return y1 + y2
+
+        key = jax.random.key(0)
+        tr = simple_normal.simulate(key, ())
+        request = StaticRequest({
+            ("y1", "y3"): Regenerate(S.all()),
+            "y2": StaticRequest({"y2": Update(C.v(3.0))}),
+        })
+        key, sub_key = jax.random.split(key)
+        new_tr, w, _, bwd_request = request.edit(key, tr, ())
+        assert new_tr.get_choices()["y2", "y2"] == 3.0
+        assert w != 0.0
+        old_tr, w_, _, _ = bwd_request.edit(sub_key, new_tr, ())
+        assert old_tr.get_choices()["y2", "y2"] == tr.get_choices()["y2", "y2"]
+        assert w_ != 0.0
+        assert w + w_ == 0.0
+
 
 class TestHandleKwargs:
     def test_handle_kwargs(self):
