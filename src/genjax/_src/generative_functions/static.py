@@ -24,9 +24,9 @@ from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
     ChoiceMapConstraint,
-    ChoiceMapEditRequest,
     Constraint,
     EditRequest,
+    EmptyRequest,
     GenerativeFunction,
     NotSupportedEditRequest,
     Projection,
@@ -120,6 +120,25 @@ class StaticTrace(Generic[R], Trace[R]):
         addresses = self.addresses.get_visited()
         idx = addresses.index(addr)
         return self.subtraces[idx]
+
+
+####################################
+# Static (trie-like) edit request  #
+####################################
+
+
+@Pytree.dataclass(match_args=True)
+class StaticEditRequest(EditRequest):
+    addressed: dict[StaticAddress, EditRequest]
+
+    def edit(
+        self,
+        key: PRNGKey,
+        tr: Trace[R],
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
+        gen_fn = tr.get_gen_fn()
+        return gen_fn.edit(key, tr, self, argdiffs)
 
 
 ##############################
@@ -544,10 +563,10 @@ def choice_map_change_transform(source_fn):
 
 
 @dataclass
-class ChoiceMapEditRequestHandler(StaticHandler):
+class StaticEditRequestHandler(StaticHandler):
     key: PRNGKey
     previous_trace: StaticTrace[Any]
-    requests_choice_map: ChoiceMap
+    addressed: dict[StaticAddress, EditRequest]
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
@@ -573,8 +592,8 @@ class ChoiceMapEditRequestHandler(StaticHandler):
         self.address_visitor.visit(addr)
 
     def get_subrequest(self, addr: StaticAddress) -> EditRequest:
-        submap = self.requests_choice_map(addr)
-        return ChoiceMapEditRequest(submap)
+        subrequest = self.addressed.get(addr, EmptyRequest())
+        return subrequest
 
     def get_subtrace(
         self,
@@ -609,16 +628,18 @@ class ChoiceMapEditRequestHandler(StaticHandler):
         return retval_diff
 
 
-def choice_map_edit_request_transform(source_fn):
+def static_edit_request_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
         key: PRNGKey,
         previous_trace: StaticTrace[R],
-        requests_choice_map: ChoiceMap,
+        addressed: dict[StaticAddress, EditRequest],
         diffs: tuple[Any, ...],
     ):
-        stateful_handler = ChoiceMapEditRequestHandler(
-            key, previous_trace, requests_choice_map
+        stateful_handler = StaticEditRequestHandler(
+            key,
+            previous_trace,
+            addressed,
         )
         diff_primals = Diff.tree_primal(diffs)
         diff_tangents = Diff.tree_tangent(diffs)
@@ -956,11 +977,11 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             bwd_request,
         )
 
-    def edit_choice_map_edit_request(
+    def edit_static_edit_request(
         self,
         key: PRNGKey,
         trace: StaticTrace[R],
-        requests_choice_map: ChoiceMap,
+        addressed: dict[StaticAddress, EditRequest],
         argdiffs: Argdiffs,
     ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
         syntax_sugar_handled = push_trace_overload_stack(
@@ -979,8 +1000,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_requests,
             ),
-        ) = choice_map_edit_request_transform(syntax_sugar_handled)(
-            key, trace, requests_choice_map, argdiffs
+        ) = static_edit_request_transform(syntax_sugar_handled)(
+            key, trace, addressed, argdiffs
         )
 
         def make_bwd_request(
@@ -989,10 +1010,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         ):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_const_unwrap(addresses)
-            chm = ChoiceMap.from_mapping(zip(addresses, subrequests))
-            return ChoiceMapEditRequest(
-                chm,
-            )
+            bwd_addressed = dict(zip(addresses, subrequests))
+            return StaticEditRequest(bwd_addressed)
 
         bwd_request = make_bwd_request(address_visitor, bwd_requests)
         return (
@@ -1043,10 +1062,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         ):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_const_unwrap(addresses)
-            chm = ChoiceMap.from_mapping(zip(addresses, subrequests))
-            return ChoiceMapEditRequest(
-                chm,
-            )
+            bwd_addressed = dict(zip(addresses, subrequests))
+            return StaticEditRequest(bwd_addressed)
 
         bwd_request = make_bwd_request(address_visitor, bwd_requests)
         return (
@@ -1080,11 +1097,11 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     argdiffs,
                 )
 
-            case ChoiceMapEditRequest(requests_choice_map):
-                return self.edit_choice_map_edit_request(
+            case StaticEditRequest(addressed):
+                return self.edit_static_edit_request(
                     key,
                     trace,
-                    requests_choice_map,
+                    addressed,
                     argdiffs,
                 )
             case Regenerate(selection):

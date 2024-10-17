@@ -46,7 +46,6 @@ from .generative_function import (
     Update,
 )
 from .requests import (
-    ChoiceMapEditRequest,
     EmptyRequest,
     Regenerate,
 )
@@ -59,7 +58,6 @@ __all__ = [
     "ChoiceMap",
     "ChoiceMapBuilder",
     "ChoiceMapConstraint",
-    "ChoiceMapEditRequest",
     "Constraint",
     "EditRequest",
     "EmptyConstraint",
