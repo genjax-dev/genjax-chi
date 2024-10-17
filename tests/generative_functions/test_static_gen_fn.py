@@ -765,7 +765,6 @@ class TestStaticEditRequest:
         })
         key, sub_key = jax.random.split(key)
         new_tr, w, _, bwd_request = request.edit(key, tr, ())
-        print(bwd_request)
         assert new_tr.get_choices()["y2"] == 3.0
         assert w != 0.0
         old_tr, w_, _, _ = bwd_request.edit(sub_key, new_tr, ())
