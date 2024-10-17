@@ -59,6 +59,7 @@ from genjax._src.core.typing import (
     FloatArray,
     Generic,
     PRNGKey,
+    TypeAlias,
 )
 
 _WRAPPER_ASSIGNMENTS = (
@@ -85,7 +86,9 @@ class AddressVisitor(Pytree):
         return self.visited
 
 
-def collapse_address(addr):
+def collapse_address(
+    addr: StaticAddressComponent | StaticAddress,
+) -> StaticAddressComponent | StaticAddress:
     return addr[0] if isinstance(addr, tuple) and len(addr) == 1 else addr
 
 
@@ -130,10 +133,12 @@ class StaticTrace(Generic[R], Trace[R]):
 # Static (trie-like) edit request  #
 ####################################
 
+StaticDict: TypeAlias = dict[StaticAddressComponent | StaticAddress, EditRequest]
+
 
 @Pytree.dataclass(match_args=True)
 class StaticRequest(EditRequest):
-    addressed: dict[StaticAddressComponent | StaticAddress, EditRequest]
+    addressed: StaticDict
 
     def edit(
         self,
@@ -570,7 +575,7 @@ def update_transform(source_fn):
 class StaticEditRequestHandler(StaticHandler):
     key: PRNGKey
     previous_trace: StaticTrace[Any]
-    addressed: dict[StaticAddressComponent | StaticAddress, EditRequest]
+    addressed: StaticDict
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
@@ -983,7 +988,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: StaticTrace[R],
-        addressed: dict[StaticAddressComponent | StaticAddress, EditRequest],
+        addressed: StaticDict,
         argdiffs: Argdiffs,
     ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
         syntax_sugar_handled = push_trace_overload_stack(
