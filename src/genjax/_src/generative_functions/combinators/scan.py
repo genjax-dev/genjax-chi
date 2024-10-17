@@ -85,6 +85,21 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
         return self.score
 
 
+@Pytree.dataclass(match_args=True)
+class Index(EditRequest):
+    idx: IntArray
+    request: EditRequest
+
+    def edit(
+        self,
+        key: PRNGKey,
+        tr: Trace[Any],
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[Any], Weight, Retdiff[Any], "EditRequest"]:
+        gen_fn = tr.get_gen_fn()
+        return gen_fn.edit(key, tr, self, argdiffs)
+
+
 ###################
 # Scan combinator #
 ###################
@@ -318,7 +333,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         idx: IntArray,
         request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[tuple[Carry, Y]], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
         # For now, we don't allow changes to the arguments for this type of edit.
         assert Diff.static_check_no_change(argdiffs)
 
@@ -357,9 +372,14 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             old_scanned_out,
         )
         new_scanned_retdiff = Diff.unknown_change(new_scanned_out)
+        max_length = self._static_scan_length(scanned_in, self.length)
 
+        # Mutate the trace in-place.
+        # Underneath JIT, should compile to an in-place update.
         def mutator(v, idx, setter):
-            return v.at[idx].set(setter)
+            return v.at[idx].set(
+                jnp.where(idx < max_length, setter, v[idx]),
+            )
 
         new_inner_trace = jtu.tree_map(
             lambda v, v_: mutator(v, idx, v_), trace.inner, new_slice_trace
@@ -367,18 +387,29 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         new_inner_trace = jtu.tree_map(
             lambda v, v_: mutator(v, idx + 1, v_), new_inner_trace, next_slice_trace
         )
+        scores = jax.vmap(lambda tr: tr.get_score())(new_inner_trace)
+
+        # We don't actually know if the index which was updated was the last one.
+        # Therefore, we need to provide a where selection
+        # between the carry from index, and the next slice --
+        carry_out = Diff.tree_primal(carry_retdiff)
+        carry_out_ = Diff.tree_primal(retdiff[0])
+        carried_out = jtu.tree_map(
+            lambda v, v_: jnp.where(idx < max_length, v_, v), carry_out, carry_out_
+        )
 
         return (
             ScanTrace[Carry, Y].build(
                 self,
                 new_inner_trace,
-                Diff.primal(argdiffs),
+                Diff.tree_primal(argdiffs),
                 (carried_out, new_scanned_out),
                 jnp.sum(scores),
                 self._static_scan_length(scanned_in, self.length),
             ),
-            w + next_w,
-            (Diff.no_change(old_carried_out), new_scanned_retdiff),
+            w + (next_w * (idx + 1 < max_length)),
+            # We always set the carried out value to be an unknown change, conservatively.
+            (Diff.unknown_change(old_carried_out), new_scanned_retdiff),
             Index(idx, bwd_request),
         )
 
@@ -484,6 +515,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+        assert isinstance(trace, ScanTrace)
         match edit_request:
             case Update(constraint):
                 return self.edit_update(
@@ -497,7 +529,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                     key,
                     trace,
                     idx,
-                    request,
+                    subrequest,
                     argdiffs,
                 )
             case _:
