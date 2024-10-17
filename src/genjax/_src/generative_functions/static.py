@@ -86,7 +86,9 @@ class AddressVisitor(Pytree):
         return self.visited
 
 
-def collapse_address(addr: StaticAddressComponent | StaticAddress):
+def collapse_address(
+    addr: StaticAddressComponent | StaticAddress,
+) -> StaticAddressComponent | StaticAddress:
     return addr[0] if isinstance(addr, tuple) and len(addr) == 1 else addr
 
 
