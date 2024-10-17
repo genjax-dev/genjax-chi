@@ -13,13 +13,13 @@
 # limitations under the License.
 
 from genjax._src.core.generative.requests import (
-    DiffCoercion,
+    DiffDimap,
     EmptyRequest,
     Regenerate,
 )
 
 __all__ = [
-    "DiffCoercion",
+    "DiffDimap",
     "EmptyRequest",
     "Regenerate",
 ]

@@ -57,7 +57,7 @@ class Regenerate(PrimitiveEditRequest):
 
 # NOTE: can be used in an unsafe fashion!
 @Pytree.dataclass(match_args=True)
-class DiffCoercion(EditRequest):
+class DiffDimap(EditRequest):
     request: EditRequest
     argdiff_fn: Callable[[Argdiffs], Argdiffs] = Pytree.static(default=lambda v: v)
     retdiff_fn: Callable[[Retdiff[Any]], Retdiff[Any]] = Pytree.static(
