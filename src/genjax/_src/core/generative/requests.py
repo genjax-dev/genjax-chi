@@ -21,6 +21,7 @@ from genjax._src.core.generative.choice_map import (
 from genjax._src.core.generative.core import (
     Argdiffs,
     EditRequest,
+    PrimitiveEditRequest,
     Retdiff,
     Weight,
 )
@@ -48,14 +49,5 @@ class EmptyRequest(EditRequest):
 
 
 @Pytree.dataclass(match_args=True)
-class Regenerate(EditRequest):
+class Regenerate(PrimitiveEditRequest):
     selection: Selection
-
-    def edit(
-        self,
-        key: PRNGKey,
-        tr: Trace[R],
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
-        gen_fn = tr.get_gen_fn()
-        return gen_fn.edit(key, tr, self, argdiffs)
