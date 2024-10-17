@@ -85,6 +85,10 @@ class AddressVisitor(Pytree):
         return self.visited
 
 
+def collapse_address(addr):
+    return addr[0] if isinstance(addr, tuple) and len(addr) == 1 else addr
+
+
 #########
 # Trace #
 #########
@@ -594,7 +598,7 @@ class StaticEditRequestHandler(StaticHandler):
     def get_subrequest(
         self, addr: StaticAddressComponent | StaticAddress
     ) -> EditRequest:
-        addr = addr[0] if isinstance(addr, tuple) and len(addr) == 1 else addr
+        addr = collapse_address(addr)
         return self.addressed.get(addr, EmptyRequest())
 
     def get_subtrace(
@@ -1008,14 +1012,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         ):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_const_unwrap(addresses)
-            addresses = list(
-                map(
-                    lambda addr: addr[0]
-                    if isinstance(addr, tuple) and len(addr) == 1
-                    else addr,
-                    addresses,
-                )
-            )
+            addresses = map(collapse_address, addresses)
             bwd_addressed = dict(zip(addresses, subrequests))
             return StaticEditRequest(bwd_addressed)
 
@@ -1068,6 +1065,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         ):
             addresses = visitor.get_visited()
             addresses = Pytree.tree_const_unwrap(addresses)
+            addresses = map(collapse_address, addresses)
             bwd_addressed = dict(zip(addresses, subrequests))
             return StaticEditRequest(bwd_addressed)
 
