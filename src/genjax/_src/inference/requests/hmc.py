@@ -1,3 +1,17 @@
+# Copyright 2024 MIT Probabilistic Computing Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import jax.numpy as jnp
 import jax.random as jrand
 import jax.tree_util as jtu
@@ -29,7 +43,9 @@ from genjax._src.core.typing import (
 tfd = tfp.distributions
 
 
-def grad_tree_unzip(tree):
+# Pytree manipulation utilities -- these handle unzipping Pytrees into
+# differentiable and non-diff pieces, and then also zipping them back up.
+def grad_tree_unzip(tree: ChoiceMap) -> tuple[ChoiceMap, ChoiceMap]:
     grad_tree = jtu.tree_map(
         lambda v: v if static_check_supports_grad(v) else None, tree
     )
@@ -39,11 +55,20 @@ def grad_tree_unzip(tree):
     return grad_tree, nongrad_tree
 
 
-def grad_tree_zip(grad_tree, nongrad_tree):
+def grad_tree_zip(
+    grad_tree: ChoiceMap,
+    nongrad_tree: ChoiceMap,
+) -> ChoiceMap:
     return jtu.tree_map(lambda v1, v2: v1 if v1 else v2, grad_tree, nongrad_tree)
 
 
-def selection_gradient(selection, trace, argdiffs):
+# Compute the gradient of a selection of random choices
+# in a trace -- uses `GenerativeFunction.assess`.
+def selection_gradient(
+    selection: Selection,
+    trace: Trace[Any],
+    argdiffs: Argdiffs,
+) -> tuple[ChoiceMap, ChoiceMap]:
     chm = trace.get_choices()
     filtered = chm.filter(selection)
     complement = chm.filter(~selection)
@@ -62,6 +87,7 @@ def selection_gradient(selection, trace, argdiffs):
     return grad_tree, grad(differentiable_assess)(grad_tree)
 
 
+# Utilities for momenta sampling and score evaluation.
 def normal_sample(key, shape) -> FloatArray:
     return tfp.Normal(jnp.zeros(shape), 1.0).sample(key)
 
@@ -93,6 +119,11 @@ def sample_momenta(key, choice_gradients):
     )
     momenta_score = assess_momenta(momenta_tree)
     return momenta_tree, momenta_score
+
+
+#######
+# HMC #
+#######
 
 
 @Pytree.dataclass(match_args=True)
