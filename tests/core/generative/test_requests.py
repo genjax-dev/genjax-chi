@@ -85,7 +85,9 @@ class TestDiffCoercion:
         key, sub_key = jax.random.split(key)
         tr = simple_normal.simulate(sub_key, ())
 
-        def should_raise_diff_assert(v):
+        # Test that DiffCoercion.edit is being
+        # properly used compositionally.
+        def assert_no_change(v):
             assert Diff.static_check_no_change(v)
             return v
 
@@ -93,9 +95,25 @@ class TestDiffCoercion:
             "y1": Regenerate(Selection.all()),
             "y2": DiffCoercion(
                 EmptyRequest(),
-                should_raise_diff_assert,
+                argdiff_fn=assert_no_change,
             ),
         })
 
         with pytest.raises(Exception):
             request.edit(key, tr, ())
+
+        # Test equivalent between requests which use
+        # DiffCoercion in trivial ways.
+        unwrapped_request = StaticRequest({
+            "y1": Regenerate(Selection.all()),
+        })
+        wrapped_request = StaticRequest({
+            "y1": DiffCoercion(
+                Regenerate(Selection.all()),
+                argdiff_fn=assert_no_change,
+            ),
+            "y2": DiffCoercion(EmptyRequest()),
+        })
+        _, w, _, _ = unwrapped_request.edit(key, tr, ())
+        _, w_, _, _ = wrapped_request.edit(key, tr, ())
+        assert w == w_
