@@ -311,7 +311,78 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         )
         return jnp.sum(ws)
 
-    def edit_generic(
+    def edit_index(
+        self,
+        key: PRNGKey,
+        trace: ScanTrace[Carry, Y],
+        idx: IntArray,
+        request: EditRequest,
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[tuple[Carry, Y]], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+        # For now, we don't allow changes to the arguments for this type of edit.
+        assert Diff.static_check_no_change(argdiffs)
+
+        (_, scanned_argdiff) = argdiffs
+        scanned_in = Diff.tree_primal(scanned_argdiff)
+        (old_carried_out, old_scanned_out) = trace.get_retval()
+        trace_slice: Trace[tuple[Carry, Y]] = jtu.tree_map(
+            lambda v: v[idx], trace.inner
+        )
+        new_slice_trace, w, retdiff, bwd_request = request.edit(
+            key, trace_slice, Diff.no_change(trace_slice.get_args())
+        )
+        (carry_retdiff, scanned_retdiff) = retdiff
+        next_slice, next_scanned_in = jtu.tree_map(
+            lambda v: v[idx + 1], (trace.inner, scanned_in)
+        )
+        next_request = Update(ChoiceMap.empty())
+        next_slice_trace, next_w, retdiff, _ = next_request.edit(
+            key,
+            next_slice,
+            (carry_retdiff, Diff.no_change(next_scanned_in)),
+        )
+
+        # The carry value better not have changed, otherwise
+        # the assumptions of this edit are not satisfied.
+        #
+        # Here, we could allow the carry from the slice to flow out via the scanned out
+        # value in the next slice, but we just disallow that for now for simplicity.
+        assert Diff.static_check_no_change(retdiff)
+
+        idx_array = jnp.arange(trace.scan_length)
+        slice_scanned_out = Diff.tree_primal(scanned_retdiff)
+        new_scanned_out: Y = jtu.tree_map(
+            lambda v1, v2: jnp.where(idx_array == idx, v1, v2),
+            slice_scanned_out,
+            old_scanned_out,
+        )
+        new_scanned_retdiff = Diff.unknown_change(new_scanned_out)
+
+        def mutator(v, idx, setter):
+            return v.at[idx].set(setter)
+
+        new_inner_trace = jtu.tree_map(
+            lambda v, v_: mutator(v, idx, v_), trace.inner, new_slice_trace
+        )
+        new_inner_trace = jtu.tree_map(
+            lambda v, v_: mutator(v, idx + 1, v_), new_inner_trace, next_slice_trace
+        )
+
+        return (
+            ScanTrace[Carry, Y].build(
+                self,
+                new_inner_trace,
+                Diff.primal(argdiffs),
+                (carried_out, new_scanned_out),
+                jnp.sum(scores),
+                self._static_scan_length(scanned_in, self.length),
+            ),
+            w + next_w,
+            (Diff.no_change(old_carried_out), new_scanned_retdiff),
+            Index(idx, bwd_request),
+        )
+
+    def edit_update(
         self,
         key: PRNGKey,
         trace: ScanTrace[Carry, Y],
@@ -413,14 +484,24 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
-        assert isinstance(edit_request, Update)
-        assert isinstance(trace, ScanTrace)
-        return self.edit_generic(
-            key,
-            trace,
-            edit_request.constraint,
-            argdiffs,
-        )
+        match edit_request:
+            case Update(constraint):
+                return self.edit_update(
+                    key,
+                    trace,
+                    constraint,
+                    argdiffs,
+                )
+            case Index(idx, subrequest):
+                return self.edit_index(
+                    key,
+                    trace,
+                    idx,
+                    request,
+                    argdiffs,
+                )
+            case _:
+                raise NotImplementedError
 
     def assess(
         self,
