@@ -112,7 +112,10 @@ class TestDiffCoercion:
                 Regenerate(Selection.all()),
                 argdiff_fn=assert_no_change,
             ),
-            "y2": DiffCoercion(EmptyRequest()),
+            "y2": DiffCoercion(
+                EmptyRequest(),
+                retdiff_fn=assert_no_change,
+            ),
         })
         _, w, _, _ = unwrapped_request.edit(key, tr, ())
         _, w_, _, _ = wrapped_request.edit(key, tr, ())
