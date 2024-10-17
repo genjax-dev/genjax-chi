@@ -13,9 +13,14 @@
 # limitations under the License.
 
 import jax
+import jax.numpy as jnp
+import jax.random as jrand
+import pytest
 
 import genjax
+from genjax import ChoiceMap, Selection
 from genjax import SelectionBuilder as S
+from genjax.inference.requests import HMC
 
 
 class TestRegenerate:
@@ -68,3 +73,23 @@ class TestRegenerate:
         assert (fwd_w + bwd_w) == 0.0
         old_old_v = old_tr.get_choices()["y2"]
         assert old_old_v == old_v
+
+
+class TestHMC:
+    def test_simple_normal_hmc(self):
+        @genjax.gen
+        def model():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = genjax.normal(x, 0.01) @ "y"
+            return y
+
+        key = jrand.key(0)
+        key, sub_key = jrand.split(key)
+        tr, _ = model.importance(sub_key, ChoiceMap.kw(y=3.0), ())
+        request = HMC(Selection.at["x"], jnp.array(1e-2))
+        editor = jax.jit(request.edit)
+        new_tr = tr
+        for _ in range(20):
+            key, sub_key = jrand.split(key)
+            new_tr, *_ = editor(sub_key, new_tr, ())
+        assert new_tr.get_choices()["x"] == pytest.approx(3.0, 5e-3)

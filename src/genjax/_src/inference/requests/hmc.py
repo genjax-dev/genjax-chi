@@ -59,7 +59,9 @@ def grad_tree_zip(
     grad_tree: ChoiceMap,
     nongrad_tree: ChoiceMap,
 ) -> ChoiceMap:
-    return jtu.tree_map(lambda v1, v2: v1 if v1 else v2, grad_tree, nongrad_tree)
+    return jtu.tree_map(
+        lambda v1, v2: v1 if v1 is not None else v2, grad_tree, nongrad_tree
+    )
 
 
 # Compute the gradient of a selection of random choices
@@ -84,16 +86,22 @@ def selection_gradient(
         )
         return weight
 
-    return grad_tree, grad(differentiable_assess)(grad_tree)
+    return grad_tree_zip(grad_tree, nongrad_tree), jtu.tree_map(
+        lambda v1, v2: v1
+        if v1 is not None
+        else jnp.zeros_like(jnp.array(v2, copy=False)),
+        grad(differentiable_assess)(grad_tree),
+        nongrad_tree,
+    )
 
 
 # Utilities for momenta sampling and score evaluation.
-def normal_sample(key, shape) -> FloatArray:
-    return tfp.Normal(jnp.zeros(shape), 1.0).sample(key)
+def normal_sample(key: PRNGKey, shape) -> FloatArray:
+    return tfd.Normal(jnp.zeros(shape), 1.0).sample(seed=key)
 
 
 def normal_score(v) -> Score:
-    score = tfp.Normal(0.0, 1.0).logprob(v)
+    score = tfd.Normal(0.0, 1.0).log_prob(v)
     if score.shape:
         return jnp.sum(score)
     else:
@@ -142,16 +150,14 @@ class HMC(EditRequest):
         assert Diff.static_check_no_change(argdiffs)
 
         original_model_score = tr.get_score()
-        choice_values, choice_gradients = selection_gradient(
-            self.selection, tr, argdiffs
-        )
+        values, gradients = selection_gradient(self.selection, tr, argdiffs)
         key, sub_key = jrand.split(key)
-        momenta, original_momenta_score = sample_momenta(sub_key, choice_gradients)
+        momenta, original_momenta_score = sample_momenta(sub_key, gradients)
 
         def kernel(
             carry: tuple[Trace[Any], ChoiceMap, ChoiceMap, ChoiceMap],
             scanned_in: IntArray,
-        ) -> tuple[tuple[Trace[Any], ChoiceMap, ChoiceMap, ChoiceMap], None]:
+        ) -> tuple[tuple[Trace[Any], ChoiceMap, ChoiceMap, ChoiceMap], Retdiff[Any]]:
             trace, values, gradient, momenta = carry
             int_seed = scanned_in
             momenta = jtu.tree_map(
@@ -160,14 +166,18 @@ class HMC(EditRequest):
             values = jtu.tree_map(lambda v, m: v + self.eps * m, values, momenta)
             new_key = jrand.fold_in(key, int_seed)
             new_trace, _, retdiff, _ = Update(values).edit(new_key, trace, argdiffs)
-            values, gradient = selection_gradient(self.selection, new_trace, argdiffs)
+            values, gradients = selection_gradient(self.selection, new_trace, argdiffs)
             momenta = jtu.tree_map(
-                lambda v, g: v + (self.eps / 2) * g, momenta, gradient
+                lambda v, g: v + (self.eps / 2) * g, momenta, gradients
             )
             return (new_trace, values, gradient, momenta), retdiff
 
+        int_seeds = jnp.arange(self.L) + 1
         (final_trace, _, _, final_momenta), retdiffs = scan(
-            kernel, (tr, choice_values, choice_gradients, momenta), None, length=self.L
+            kernel,
+            (tr, values, gradients, momenta),
+            int_seeds,
+            length=self.L,
         )
 
         final_model_score = final_trace.get_score()
