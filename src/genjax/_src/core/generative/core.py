@@ -155,5 +155,16 @@ class EditRequest(Pytree):
         pass
 
 
+class PrimitiveEditRequest(EditRequest):
+    def edit(
+        self,
+        key: PRNGKey,
+        tr: "genjax.Trace[R]",
+        argdiffs: Argdiffs,
+    ) -> "tuple[genjax.Trace[R], Weight, Retdiff[R], EditRequest]":
+        gen_fn = tr.get_gen_fn()
+        return gen_fn.edit(key, tr, self, argdiffs)
+
+
 class NotSupportedEditRequest(Exception):
     pass

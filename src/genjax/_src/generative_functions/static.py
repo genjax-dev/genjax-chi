@@ -29,6 +29,7 @@ from genjax._src.core.generative import (
     EmptyRequest,
     GenerativeFunction,
     NotSupportedEditRequest,
+    PrimitiveEditRequest,
     Projection,
     Regenerate,
     Retdiff,
@@ -132,17 +133,8 @@ class StaticTrace(Generic[R], Trace[R]):
 
 
 @Pytree.dataclass(match_args=True)
-class StaticRequest(EditRequest):
+class StaticRequest(PrimitiveEditRequest):
     addressed: dict[StaticAddressComponent | StaticAddress, EditRequest]
-
-    def edit(
-        self,
-        key: PRNGKey,
-        tr: Trace[R],
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
-        gen_fn = tr.get_gen_fn()
-        return gen_fn.edit(key, tr, self, argdiffs)
 
 
 ##############################
