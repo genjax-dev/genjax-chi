@@ -18,8 +18,9 @@ import jax.random as jrand
 import pytest
 
 import genjax
-from genjax import ChoiceMap, Diff, Selection
+from genjax import ChoiceMap, Diff, DiffAnnotate, EmptyRequest, Regenerate, Selection
 from genjax import SelectionBuilder as S
+from genjax._src.generative_functions.static import StaticRequest
 from genjax.inference.requests import HMC
 
 
@@ -115,3 +116,46 @@ class TestHMC:
             key, sub_key = jrand.split(key)
             new_tr, *_ = editor(sub_key, new_tr, Diff.no_change((0.0, None)))
         assert new_tr.get_choices()[..., "x"] == pytest.approx(3.0, 8e-3)
+
+
+class TestDiffCoercion:
+    def test_diff_coercion(self):
+        @genjax.gen
+        def simple_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(y1, 1.0) @ "y2"
+            return y1 + y2
+
+        key = jax.random.key(314159)
+        key, sub_key = jax.random.split(key)
+        tr = simple_normal.simulate(sub_key, ())
+
+        # Test that DiffCoercion.edit is being
+        # properly used compositionally.
+        def assert_no_change(v):
+            assert Diff.static_check_no_change(v)
+            return v
+
+        request = StaticRequest({
+            "y1": Regenerate(Selection.all()),
+            "y2": DiffAnnotate(
+                EmptyRequest(),
+                argdiff_fn=assert_no_change,
+            ),
+        })
+
+        with pytest.raises(Exception):
+            request.edit(key, tr, ())
+
+        # Test equivalent between requests which use
+        # DiffCoercion in trivial ways.
+        unwrapped_request = StaticRequest({
+            "y1": Regenerate(Selection.all()),
+        })
+        wrapped_request = StaticRequest({
+            "y1": Regenerate(Selection.all()).contramap(assert_no_change),
+            "y2": EmptyRequest().map(assert_no_change),
+        })
+        _, w, _, _ = unwrapped_request.edit(key, tr, ())
+        _, w_, _, _ = wrapped_request.edit(key, tr, ())
+        assert w == w_
