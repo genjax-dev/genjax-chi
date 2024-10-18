@@ -16,7 +16,7 @@ import jax
 import pytest
 
 import genjax
-from genjax import Diff, DiffDimap, EmptyRequest, Regenerate, Selection
+from genjax import Diff, DiffAnnotate, EmptyRequest, Regenerate, Selection
 from genjax import SelectionBuilder as S
 from genjax._src.generative_functions.static import StaticRequest
 
@@ -93,7 +93,7 @@ class TestDiffCoercion:
 
         request = StaticRequest({
             "y1": Regenerate(Selection.all()),
-            "y2": DiffDimap(
+            "y2": DiffAnnotate(
                 EmptyRequest(),
                 argdiff_fn=assert_no_change,
             ),
@@ -108,11 +108,11 @@ class TestDiffCoercion:
             "y1": Regenerate(Selection.all()),
         })
         wrapped_request = StaticRequest({
-            "y1": DiffDimap(
+            "y1": DiffAnnotate(
                 Regenerate(Selection.all()),
                 argdiff_fn=assert_no_change,
             ),
-            "y2": DiffDimap(
+            "y2": DiffAnnotate(
                 EmptyRequest(),
                 retdiff_fn=assert_no_change,
             ),

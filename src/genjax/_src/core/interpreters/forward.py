@@ -21,7 +21,7 @@ import jax.tree_util as jtu
 from jax import tree_util
 from jax import util as jax_util
 from jax.extend import linear_util as lu
-from jax.interpreters import ad, batching, mlir
+from jax.interpreters import batching, mlir
 from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.interpreters.staging import WrappedFunWithAux, stage
@@ -66,17 +66,6 @@ class FlatPrimitive(jc.Primitive):
             return pe.abstract_eval_fun(self.impl, *flat_avals, **params)
 
         self.def_abstract_eval(_abstract)
-
-        def _jvp(primals, tangents, **params):
-            primals_out, tangents_out = ad.jvp(
-                lu.wrap_init(self.impl, params)
-            ).call_wrapped(primals, tangents)
-            tangents_out = jax_util.safe_map(
-                ad.recast_to_float0, primals_out, tangents_out
-            )
-            return primals_out, tangents_out
-
-        ad.primitive_jvps[self] = _jvp
 
         def _batch(args, dims, **params):
             batched, out_dims = batch_fun(lu.wrap_init(self.impl, params), dims)
