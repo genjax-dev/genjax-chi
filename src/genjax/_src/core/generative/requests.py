@@ -58,6 +58,15 @@ class Regenerate(PrimitiveEditRequest):
 # NOTE: can be used in an unsafe fashion!
 @Pytree.dataclass(match_args=True)
 class DiffAnnotate(EditRequest):
+    """
+    The `DiffAnnotate` request can be used to introspect on the values of type `Diff` (primal and change tangent) values flowing
+    through an edit program.
+
+    Users can provide an `argdiff_fn` and a `retdiff_fn` to manipulate changes. Note that, this introspection is inherently unsafe, users should expect:
+
+        * If you convert `Argdiffs` in such a way that you _assert_ that a value hasn't changed (when it actually has), the edit computation will be incorrect. Similar for the `Retdiff`.
+    """
+
     request: EditRequest
     argdiff_fn: Callable[[Argdiffs], Argdiffs] = Pytree.static(default=lambda v: v)
     retdiff_fn: Callable[[Retdiff[Any]], Retdiff[Any]] = Pytree.static(
