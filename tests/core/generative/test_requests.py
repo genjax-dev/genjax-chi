@@ -108,14 +108,8 @@ class TestDiffCoercion:
             "y1": Regenerate(Selection.all()),
         })
         wrapped_request = StaticRequest({
-            "y1": DiffAnnotate(
-                Regenerate(Selection.all()),
-                argdiff_fn=assert_no_change,
-            ),
-            "y2": DiffAnnotate(
-                EmptyRequest(),
-                retdiff_fn=assert_no_change,
-            ),
+            "y1": Regenerate(Selection.all()).contramap(assert_no_change),
+            "y2": EmptyRequest().map(assert_no_change),
         })
         _, w, _, _ = unwrapped_request.edit(key, tr, ())
         _, w_, _, _ = wrapped_request.edit(key, tr, ())
