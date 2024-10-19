@@ -15,6 +15,7 @@
 import jax
 import jax.numpy as jnp
 import jax.random as jrand
+import jax.tree_util as jtu
 import pytest
 
 import genjax
@@ -115,6 +116,27 @@ class TestRegenerate:
         ) + genjax.normal.logpdf(new_y2, new_y1, 1.0)
         assert fwd_w != 0.0
         assert fwd_w == pytest.approx(new_target_density - old_target_density, 1e-6)
+
+    def test_linked_normal_convergence(self):
+        @genjax.gen
+        def linked_normal():
+            y1 = genjax.normal(0.0, 3.0) @ "y1"
+            _ = genjax.normal(y1, 0.01) @ "y2"
+
+        key = jax.random.key(314159)
+        key, sub_key = jax.random.split(key)
+        tr, _ = linked_normal.importance(sub_key, C.kw(y2=3.0), ())
+        request = Regenerate(S["y1"])
+
+        # Run Metropolis-Hastings for 100 steps.
+        for _ in range(100):
+            key, sub_key = jax.random.split(key)
+            new_tr, w, _, _ = request.edit(sub_key, tr, ())
+            key, sub_key = jax.random.split(key)
+            check = jnp.log(genjax.uniform.sample(sub_key, 0.0, 1.0)) < w
+            tr = jtu.tree_map(lambda v1, v2: jnp.where(check, v1, v2), new_tr, tr)
+
+        assert tr.get_choices()["y1"] == pytest.approx(3.0, 1e-3)
 
 
 class TestHMC:
