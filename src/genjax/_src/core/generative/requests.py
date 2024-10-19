@@ -31,12 +31,14 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
+    Generic,
     PRNGKey,
     TypeVar,
 )
 
 # Type variables
 R = TypeVar("R")
+ER = TypeVar("ER", bound=EditRequest)
 
 
 @Pytree.dataclass(match_args=True)
@@ -57,7 +59,7 @@ class Regenerate(PrimitiveEditRequest):
 
 # NOTE: can be used in an unsafe fashion!
 @Pytree.dataclass(match_args=True)
-class DiffAnnotate(EditRequest):
+class DiffAnnotate(Generic[ER], EditRequest):
     """
     The `DiffAnnotate` request can be used to introspect on the values of type `Diff` (primal and change tangent) values flowing
     through an edit program.
@@ -67,7 +69,7 @@ class DiffAnnotate(EditRequest):
         * If you convert `Argdiffs` in such a way that you _assert_ that a value hasn't changed (when it actually has), the edit computation will be incorrect. Similar for the `Retdiff`.
     """
 
-    request: EditRequest
+    request: ER
     argdiff_fn: Callable[[Argdiffs], Argdiffs] = Pytree.static(default=lambda v: v)
     retdiff_fn: Callable[[Retdiff[Any]], Retdiff[Any]] = Pytree.static(
         default=lambda v: v

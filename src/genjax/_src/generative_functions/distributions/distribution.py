@@ -27,7 +27,6 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     EmptyConstraint,
-    EmptyRequest,
     GenerativeFunction,
     Mask,
     NotSupportedEditRequest,
@@ -322,12 +321,26 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 Update(ChoiceMap.choice(old_v)),
             )
         elif FlagOp.concrete_false(check):
-            return (
-                trace,
-                jnp.array(0.0),
-                Diff.no_change(trace.get_retval()),
-                EmptyRequest(),
-            )
+            if Diff.static_check_no_change(argdiffs):
+                return (
+                    trace,
+                    jnp.array(0.0),
+                    Diff.no_change(trace.get_retval()),
+                    Update(ChoiceMap.empty()),
+                )
+            else:
+                chm = trace.get_choices()
+                primals = Diff.tree_primal(argdiffs)
+                new_score, _ = self.assess(chm, primals)
+                new_trace = DistributionTrace(self, primals, chm.get_value(), new_score)
+                return (
+                    new_trace,
+                    new_score - trace.get_score(),
+                    Diff.no_change(trace.get_retval()),
+                    Update(
+                        ChoiceMap.empty(),
+                    ),
+                )
         else:
             raise NotImplementedError
 

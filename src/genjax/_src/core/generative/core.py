@@ -30,6 +30,7 @@ from genjax._src.core.typing import (
     IntArray,
     Is,
     PRNGKey,
+    Self,
     TypeVar,
 )
 
@@ -161,7 +162,7 @@ class EditRequest(Pytree):
         *,
         pre: Callable[[Argdiffs], Argdiffs] = lambda v: v,
         post: Callable[[Retdiff[R]], Retdiff[R]] = lambda v: v,
-    ) -> "EditRequest":
+    ) -> "genjax.DiffAnnotate[Self]":
         from genjax import DiffAnnotate
 
         return DiffAnnotate(self, argdiff_fn=pre, retdiff_fn=post)
@@ -169,13 +170,13 @@ class EditRequest(Pytree):
     def map(
         self,
         post: Callable[[Retdiff[R]], Retdiff[R]],
-    ) -> "EditRequest":
+    ) -> "genjax.DiffAnnotate[Self]":
         return self.dimap(post=post)
 
     def contramap(
         self,
         pre: Callable[[Argdiffs], Argdiffs],
-    ) -> "EditRequest":
+    ) -> "genjax.DiffAnnotate[Self]":
         return self.dimap(pre=pre)
 
 
