@@ -130,6 +130,28 @@ class TestHMC:
         tr, _ = model.importance(sub_key, ChoiceMap.kw(y=3.0), ())
         request = HMC(Selection.at["x"], jnp.array(1e-2))
         editor = jax.jit(request.edit)
+
+        # First, try moving x and test for correctness.
+        old_x = tr.get_choices()["x"]
+        old_y = tr.get_choices()["y"]
+        old_target_density = genjax.normal.logpdf(
+            old_x, 0.0, 1.0
+        ) + genjax.normal.logpdf(old_y, old_x, 0.01)
+        new_tr, fwd_w, _, _ = editor(key, tr, ())
+        new_x = new_tr.get_choices()["x"]
+        new_y = new_tr.get_choices()["y"]
+        new_target_density = genjax.normal.logpdf(
+            new_x, 0.0, 1.0
+        ) + genjax.normal.logpdf(new_y, new_x, 0.01)
+        assert fwd_w != 0.0
+        # The change in the target scores corresponds to the non-momenta terms in the HMC alpha computation.
+        assert (new_tr.get_score() - tr.get_score()) == pytest.approx(
+            new_target_density - old_target_density, 1e-6
+        )
+        # The weight factors in the target score change and the momenta, so removing the change in the target scores should leave us with a non-zero contribution from the momenta.
+        assert fwd_w - (new_tr.get_score() - tr.get_score()) != 0.0
+
+        # Check for gradient convergence.
         new_tr = tr
         for _ in range(20):
             key, sub_key = jrand.split(key)
