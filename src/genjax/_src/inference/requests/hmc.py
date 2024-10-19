@@ -137,6 +137,18 @@ def sample_momenta(key, choice_gradients):
 
 @Pytree.dataclass(match_args=True)
 class HMC(EditRequest):
+    """
+    Apply a Hamiltonian Monte Carlo (HMC) update that proposes new values for the selected addresses,
+    returning the new trace, and a weight which is equal to the alpha accept-reject ratio computation for HMC.
+
+    Hamilton's equations are numerically integrated using leapfrog integration with step size `eps` for `L` steps.
+    See equations (5.18)-(5.20) of Neal (2011).
+
+    # References
+    Neal, Radford M. (2011), "MCMC Using Hamiltonian Dynamics", Handbook of Markov Chain Monte Carlo,
+    pp. 113-162. URL: http://www.mcmchandbook.net/HandbookChapter5.pdf
+    """
+
     selection: Selection
     eps: FloatArray
     L: int = Pytree.static(default=10)
