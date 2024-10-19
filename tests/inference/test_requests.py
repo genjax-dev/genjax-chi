@@ -18,7 +18,16 @@ import jax.random as jrand
 import pytest
 
 import genjax
-from genjax import ChoiceMap, Diff, DiffAnnotate, EmptyRequest, Regenerate, Selection
+from genjax import (
+    ChoiceMap,
+    Diff,
+    DiffAnnotate,
+    EmptyRequest,
+    Regenerate,
+    Selection,
+    Update,
+)
+from genjax import ChoiceMap as C
 from genjax import SelectionBuilder as S
 from genjax._src.generative_functions.static import StaticRequest
 from genjax.inference.requests import HMC, SafeHMC
@@ -141,11 +150,14 @@ class TestHMC:
         assert new_tr.get_choices()["x", "x"] != tr.get_choices()["x", "x"]
         assert w != 0.0
 
-        # Compositional request with HMC.
+        # Compositional request _including_ HMC.
         request = StaticRequest(
             {
                 "x": SafeHMC(Selection.at["x"], jnp.array(1e-2)),
-                "y": Regenerate(Selection.at["x"]),
+                "y": StaticRequest({
+                    "x": Regenerate(Selection.all()),
+                    "y": Update(C.choice(3.0)),
+                }),
             },
         )
         editor = jax.jit(request.edit)
