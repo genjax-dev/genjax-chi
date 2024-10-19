@@ -177,9 +177,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             new_trace,
             new_score - trace.get_score(),
             Diff.no_change(trace.get_retval()),
-            Update(
-                ChoiceMap.empty(),
-            ),
+            Update(ChoiceMap.empty()),
         )
 
     def edit_constraint(

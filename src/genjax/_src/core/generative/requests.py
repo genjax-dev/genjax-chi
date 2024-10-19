@@ -16,6 +16,7 @@
 import jax.numpy as jnp
 
 from genjax._src.core.generative.choice_map import (
+    ChoiceMap,
     Selection,
 )
 from genjax._src.core.generative.core import (
@@ -25,7 +26,7 @@ from genjax._src.core.generative.core import (
     Retdiff,
     Weight,
 )
-from genjax._src.core.generative.generative_function import Trace
+from genjax._src.core.generative.generative_function import Trace, Update
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -49,7 +50,11 @@ class EmptyRequest(EditRequest):
         tr: Trace[R],
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
-        return tr, jnp.array(0.0), Diff.no_change(tr.get_retval()), EmptyRequest()
+        if Diff.static_check_no_change(argdiffs):
+            return tr, jnp.array(0.0), Diff.no_change(tr.get_retval()), EmptyRequest()
+        else:
+            request = Update(ChoiceMap.empty())
+            return request.edit(key, tr, argdiffs)
 
 
 @Pytree.dataclass(match_args=True)

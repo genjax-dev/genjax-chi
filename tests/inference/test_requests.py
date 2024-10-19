@@ -116,6 +116,24 @@ class TestRegenerate:
         assert fwd_w != 0.0
         assert fwd_w == pytest.approx(new_target_density - old_target_density, 1e-6)
 
+    def test_scan_regenerate(self):
+        @genjax.gen
+        def scanned_normal():
+            @genjax.gen
+            def kernel(carry, _):
+                z = genjax.normal(0.0, 1.0) @ "z"
+                return z, None
+
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            _ = genjax.normal(y1, 1.0) @ "y2"
+            return kernel.scan(n=10)(y1, None) @ "kernel"
+
+        key = jax.random.key(314159)
+        key, sub_key = jax.random.split(key)
+        tr = scanned_normal.simulate(sub_key, ())
+        request = genjax.Regenerate(S["y1"])
+        new_tr, fwd_w, _, _ = request.edit(key, tr, ())
+
 
 class TestHMC:
     def test_simple_normal_hmc(self):

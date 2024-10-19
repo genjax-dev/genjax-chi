@@ -1028,7 +1028,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             bwd_request,
         )
 
-    def edit_select_apply(
+    def edit_regenerate(
         self,
         key: PRNGKey,
         trace: StaticTrace[R],
@@ -1106,7 +1106,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     argdiffs,
                 )
             case Regenerate(selection):
-                return self.edit_select_apply(
+                return self.edit_regenerate(
                     key,
                     trace,
                     selection,
