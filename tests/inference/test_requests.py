@@ -21,7 +21,7 @@ import genjax
 from genjax import ChoiceMap, Diff, DiffAnnotate, EmptyRequest, Regenerate, Selection
 from genjax import SelectionBuilder as S
 from genjax._src.generative_functions.static import StaticRequest
-from genjax.inference.requests import HMC
+from genjax.inference.requests import HMC, SafeHMC
 
 
 class TestRegenerate:
@@ -116,6 +116,52 @@ class TestHMC:
             key, sub_key = jrand.split(key)
             new_tr, *_ = editor(sub_key, new_tr, Diff.no_change((0.0, None)))
         assert new_tr.get_choices()[..., "x"] == pytest.approx(3.0, 8e-3)
+
+    def test_safe_hmc(self):
+        @genjax.gen
+        def submodel():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = genjax.normal(x, 0.01) @ "y"
+            return y
+
+        @genjax.gen
+        def model():
+            _ = submodel() @ "x"
+            _ = submodel() @ "y"
+
+        key = jrand.key(0)
+        key, sub_key = jrand.split(key)
+        tr, _ = model.importance(sub_key, ChoiceMap.kw(y=3.0), ())
+        request = StaticRequest(
+            {"x": SafeHMC(Selection.at["x"], jnp.array(1e-2))},
+        )
+        editor = jax.jit(request.edit)
+        key, sub_key = jrand.split(key)
+        new_tr, w, *_ = editor(sub_key, tr, ())
+        assert new_tr.get_choices()["x", "x"] != tr.get_choices()["x", "x"]
+        assert w != 0.0
+
+        # Compositional request with HMC.
+        request = StaticRequest(
+            {
+                "x": SafeHMC(Selection.at["x"], jnp.array(1e-2)),
+                "y": Regenerate(Selection.at["x"]),
+            },
+        )
+        editor = jax.jit(request.edit)
+        key, sub_key = jrand.split(key)
+        new_tr, w, *_ = editor(sub_key, tr, ())
+        assert new_tr.get_choices()["x", "x"] != tr.get_choices()["x", "x"]
+        assert new_tr.get_choices()["y", "x"] != tr.get_choices()["y", "x"]
+        assert w != 0.0
+
+        request = StaticRequest(
+            {"x": SafeHMC(Selection.at["y"], jnp.array(1e-2))},
+        )
+        editor = jax.jit(request.edit)
+        key, sub_key = jrand.split(key)
+        with pytest.raises(Exception):
+            new_tr, w, *_ = editor(sub_key, tr, ())
 
 
 class TestDiffCoercion:

@@ -30,6 +30,7 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
+from genjax._src.core.generative.requests import DiffAnnotate
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -196,3 +197,15 @@ class HMC(EditRequest):
             retdiff,
             HMC(self.selection, self.eps, self.L),
         )
+
+
+def SafeHMC(
+    selection: Selection,
+    eps: FloatArray,
+    L: int = 10,
+) -> DiffAnnotate[HMC]:
+    def retdiff_assertion(retdiff: Retdiff[Any]):
+        assert Diff.static_check_no_change(retdiff)
+        return retdiff
+
+    return HMC(selection, eps, L).map(retdiff_assertion)
