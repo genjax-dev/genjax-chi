@@ -49,6 +49,7 @@ from .generative_function import (
 from .requests import (
     EmptyRequest,
     Regenerate,
+    Wiggle,
 )
 
 __all__ = [
@@ -83,4 +84,5 @@ __all__ = [
     "Trace",
     "Update",
     "Weight",
+    "Wiggle",
 ]

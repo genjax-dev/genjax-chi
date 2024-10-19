@@ -14,10 +14,9 @@
 
 
 import jax.numpy as jnp
+import jax.random as jrand
 
-from genjax._src.core.generative.choice_map import (
-    Selection,
-)
+from genjax._src.core.generative.choice_map import ChoiceMap, Selection
 from genjax._src.core.generative.core import (
     Argdiffs,
     EditRequest,
@@ -25,7 +24,11 @@ from genjax._src.core.generative.core import (
     Retdiff,
     Weight,
 )
-from genjax._src.core.generative.generative_function import Trace
+from genjax._src.core.generative.generative_function import (
+    GenerativeFunction,
+    Trace,
+    Update,
+)
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -49,12 +52,48 @@ class EmptyRequest(EditRequest):
         tr: Trace[R],
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
-        return tr, jnp.array(0.0), Diff.no_change(tr.get_retval()), EmptyRequest()
+        if Diff.static_check_no_change(argdiffs):
+            return tr, jnp.array(0.0), Diff.no_change(tr.get_retval()), EmptyRequest()
+        else:
+            request = Update(ChoiceMap.empty())
+            return request.edit(key, tr, argdiffs)
 
 
 @Pytree.dataclass(match_args=True)
 class Regenerate(PrimitiveEditRequest):
     selection: Selection
+
+
+@Pytree.dataclass(match_args=True)
+class Wiggle(EditRequest):
+    proposal: GenerativeFunction[Any]
+    argument_mapping: Callable[[ChoiceMap], Any]
+
+    def edit(
+        self,
+        key: PRNGKey,
+        tr: Trace[Any],
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[Any], Weight, Retdiff[Any], "EditRequest"]:
+        chm = tr.get_choices()
+        fwd_proposal_args = self.argument_mapping(chm)
+        key, sub_key = jrand.split(key)
+        proposed_change, fwd_proposal_score, _ = self.proposal.propose(
+            sub_key, fwd_proposal_args
+        )
+        request = Update(proposed_change)
+        new_tr, w, retdiff, bwd_request = request.edit(key, tr, argdiffs)
+        assert isinstance(bwd_request, Update)
+        bwd_chm = bwd_request.constraint
+        bwd_proposal_args = self.argument_mapping(bwd_chm)
+        bwd_proposal_score, _ = self.proposal.assess(bwd_chm, bwd_proposal_args)
+        final_weight = w + bwd_proposal_score - fwd_proposal_score
+        return (
+            new_tr,
+            final_weight,
+            retdiff,
+            Wiggle(self.proposal, self.argument_mapping),
+        )
 
 
 # NOTE: can be used in an unsafe fashion!

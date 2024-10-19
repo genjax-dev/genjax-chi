@@ -27,6 +27,7 @@ from genjax import (
     Regenerate,
     Selection,
     Update,
+    Wiggle,
 )
 from genjax import ChoiceMap as C
 from genjax import SelectionBuilder as S
@@ -135,8 +136,67 @@ class TestRegenerate:
             key, sub_key = jax.random.split(key)
             check = jnp.log(genjax.uniform.sample(sub_key, 0.0, 1.0)) < w
             tr = jtu.tree_map(lambda v1, v2: jnp.where(check, v1, v2), new_tr, tr)
+            print(tr.get_choices()["y1"])
 
         assert tr.get_choices()["y1"] == pytest.approx(3.0, 1e-3)
+
+
+class TestWiggle:
+    def test_simple_normal_correctness(self):
+        @genjax.gen
+        def simple_normal():
+            _ = genjax.normal(0.0, 1.0) @ "y1"
+
+        key = jax.random.key(314159)
+        key, sub_key = jax.random.split(key)
+        tr = simple_normal.simulate(sub_key, ())
+        old_v = tr.get_choices()["y1"]
+
+        #####
+        # Suppose the proposal is the prior, and its symmetric.
+        #####
+
+        request = StaticRequest({
+            "y1": Wiggle(
+                genjax.normal,
+                lambda chm: (0.0, 1.0),
+            )
+        })
+        new_tr, w, _, _ = request.edit(sub_key, tr, ())
+        new_v = new_tr.get_choices()["y1"]
+        assert old_v != new_v
+        assert w == 0.0
+
+    def test_linked_normal_wiggle_convergence(self):
+        @genjax.gen
+        def linked_normal():
+            y1 = genjax.normal(0.0, 3.0) @ "y1"
+            _ = genjax.normal(y1, 0.001) @ "y2"
+
+        key = jax.random.key(314159)
+        key, sub_key = jax.random.split(key)
+        tr, _ = linked_normal.importance(sub_key, C.kw(y2=3.0), ())
+
+        #######
+        # Do some data-driven behavior
+        #######
+
+        request = StaticRequest({
+            "y1": Wiggle(
+                genjax.normal,
+                lambda chm: (chm.get_value(), 0.3),
+            )
+        })
+
+        # Run Metropolis-Hastings for 100 steps.
+        for _ in range(100):
+            key, sub_key = jax.random.split(key)
+            new_tr, w, _, _ = request.edit(sub_key, tr, ())
+            key, sub_key = jax.random.split(key)
+            check = jnp.log(genjax.uniform.sample(sub_key, 0.0, 1.0)) < w
+            tr = jtu.tree_map(lambda v1, v2: jnp.where(check, v1, v2), new_tr, tr)
+
+        assert tr.get_choices()["y1"] == pytest.approx(3.0, 5e-3)
 
 
 class TestHMC:

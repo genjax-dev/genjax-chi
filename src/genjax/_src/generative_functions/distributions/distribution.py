@@ -182,7 +182,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             ),
         )
 
-    def edit_constraint(
+    def edit_update_with_constraint(
         self,
         key: PRNGKey,
         trace: Trace[R],
@@ -191,22 +191,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     ) -> tuple[Trace[R], Weight, Retdiff[R], Update]:
         primals = Diff.tree_primal(argdiffs)
         match constraint:
-            case EmptyConstraint():
-                old_sample = trace.get_choices()
-                old_retval = trace.get_retval()
-                new_score, _ = self.assess(old_sample, primals)
-                new_trace = DistributionTrace(
-                    self, primals, old_sample.get_value(), new_score
-                )
-                return (
-                    new_trace,
-                    new_score - trace.get_score(),
-                    Diff.no_change(old_retval),
-                    Update(
-                        ChoiceMap.empty(),
-                    ),
-                )
-
             case ChoiceMapConstraint(chm):
                 check = chm.has_value()
                 v = chm.get_value()
@@ -217,14 +201,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     new_tr = DistributionTrace(self, primals, v, fwd)
                     discard = trace.get_choices()
                     retval_diff = Diff.unknown_change(v)
-                    return (
-                        new_tr,
-                        w,
-                        retval_diff,
-                        Update(
-                            discard,
-                        ),
-                    )
+                    return (new_tr, w, retval_diff, Update(discard))
                 elif FlagOp.concrete_false(check):
                     value_chm = trace.get_choices()
                     v = value_chm.get_value()
@@ -233,14 +210,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     w = fwd - bwd
                     new_tr = DistributionTrace(self, primals, v, fwd)
                     retval_diff = Diff.no_change(v)
-                    return (
-                        new_tr,
-                        w,
-                        retval_diff,
-                        Update(
-                            ChoiceMap.empty(),
-                        ),
-                    )
+                    return (new_tr, w, retval_diff, Update(ChoiceMap.empty()))
 
                 elif isinstance(chm, Filtered):
                     # Whether or not the choice map has a value is dynamic...
@@ -344,17 +314,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         else:
             raise NotImplementedError
 
-    def edit_choice_map_edit_request(
-        self,
-        key: PRNGKey,
-        trace: Trace[R],
-        requests_choice_map: ChoiceMap,
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
-        request = requests_choice_map.get_value()
-        return request.edit(key, trace, argdiffs)
-
-    def edit_choice_map_change(
+    def edit_update(
         self,
         key: PRNGKey,
         trace: Trace[R],
@@ -366,7 +326,9 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 return self.edit_empty(trace, argdiffs)
 
             case ChoiceMapConstraint():
-                return self.edit_constraint(key, trace, constraint, argdiffs)
+                return self.edit_update_with_constraint(
+                    key, trace, constraint, argdiffs
+                )
 
             case _:
                 raise Exception(f"Not implement fwd problem: {constraint}.")
@@ -380,7 +342,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         match edit_request:
             case Update(chm):
-                return self.edit_choice_map_change(
+                return self.edit_update(
                     key,
                     trace,
                     ChoiceMapConstraint(chm),

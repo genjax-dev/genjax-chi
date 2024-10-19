@@ -442,9 +442,9 @@ def generate_transform(source_fn):
     return wrapper
 
 
-##########################
-# Choice map change edit #
-##########################
+###############
+# Update edit #
+###############
 
 
 @dataclass
@@ -499,10 +499,10 @@ class UpdateHandler(StaticHandler):
         subtrace = self.get_subtrace(addr)
         constraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
-        (tr, w, retval_diff, bwd_request) = gen_fn.edit(
+        request = Update(constraint)
+        (tr, w, retval_diff, bwd_request) = request.edit(
             sub_key,
             subtrace,
-            Update(constraint),
             argdiffs,
         )
         assert isinstance(bwd_request, Update) and isinstance(
