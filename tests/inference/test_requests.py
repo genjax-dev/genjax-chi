@@ -45,11 +45,14 @@ class TestRegenerate:
         key, sub_key = jax.random.split(key)
         tr = simple_normal.simulate(sub_key, ())
 
-        # First, try y1
+        # First, try y1 and test for correctness.
         old_v = tr.get_choices()["y1"]
         request = genjax.Regenerate(S["y1"])
         new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
+        old_density = genjax.normal.logpdf(old_v, 0.0, 1.0)
+        new_density = genjax.normal.logpdf(new_tr.get_choices()["y1"], 0.0, 1.0)
         assert fwd_w != 0.0
+        assert fwd_w == new_density - old_density
         new_v = new_tr.get_choices()["y1"]
         assert old_v != new_v
         old_tr, bwd_w, _, bwd_request = bwd_request.edit(sub_key, new_tr, ())
@@ -62,7 +65,10 @@ class TestRegenerate:
         old_v = tr.get_choices()["y2"]
         request = genjax.Regenerate(S["y2"])
         new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
+        old_density = genjax.normal.logpdf(old_v, 0.0, 1.0)
+        new_density = genjax.normal.logpdf(new_tr.get_choices()["y2"], 0.0, 1.0)
         assert fwd_w != 0.0
+        assert fwd_w == new_density - old_density
         new_v = new_tr.get_choices()["y2"]
         assert old_v != new_v
         old_tr, bwd_w, _, bwd_request = bwd_request.edit(key, new_tr, ())
@@ -83,6 +89,32 @@ class TestRegenerate:
         assert (fwd_w + bwd_w) == 0.0
         old_old_v = old_tr.get_choices()["y2"]
         assert old_old_v == old_v
+
+    def test_linked_normal_regenerate(self):
+        @genjax.gen
+        def linked_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            _ = genjax.normal(y1, 1.0) @ "y2"
+
+        key = jax.random.key(314159)
+        key, sub_key = jax.random.split(key)
+        tr = linked_normal.simulate(sub_key, ())
+
+        # First, try y1 and test for correctness.
+        old_y1 = tr.get_choices()["y1"]
+        old_y2 = tr.get_choices()["y2"]
+        old_target_density = genjax.normal.logpdf(
+            old_y1, 0.0, 1.0
+        ) + genjax.normal.logpdf(old_y2, old_y1, 1.0)
+        request = genjax.Regenerate(S["y1"])
+        new_tr, fwd_w, _, _ = request.edit(key, tr, ())
+        new_y1 = new_tr.get_choices()["y1"]
+        new_y2 = new_tr.get_choices()["y2"]
+        new_target_density = genjax.normal.logpdf(
+            new_y1, 0.0, 1.0
+        ) + genjax.normal.logpdf(new_y2, new_y1, 1.0)
+        assert fwd_w != 0.0
+        assert fwd_w == pytest.approx(new_target_density - old_target_density, 1e-6)
 
 
 class TestHMC:
