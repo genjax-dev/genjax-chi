@@ -29,6 +29,8 @@ from genjax._src.core.generative.generative_function import Trace
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Any,
+    Callable,
     PRNGKey,
     TypeVar,
 )
@@ -51,3 +53,33 @@ class EmptyRequest(EditRequest):
 @Pytree.dataclass(match_args=True)
 class Regenerate(PrimitiveEditRequest):
     selection: Selection
+
+
+# NOTE: can be used in an unsafe fashion!
+@Pytree.dataclass(match_args=True)
+class DiffAnnotate(EditRequest):
+    """
+    The `DiffAnnotate` request can be used to introspect on the values of type `Diff` (primal and change tangent) values flowing
+    through an edit program.
+
+    Users can provide an `argdiff_fn` and a `retdiff_fn` to manipulate changes. Note that, this introspection is inherently unsafe, users should expect:
+
+        * If you convert `Argdiffs` in such a way that you _assert_ that a value hasn't changed (when it actually has), the edit computation will be incorrect. Similar for the `Retdiff`.
+    """
+
+    request: EditRequest
+    argdiff_fn: Callable[[Argdiffs], Argdiffs] = Pytree.static(default=lambda v: v)
+    retdiff_fn: Callable[[Retdiff[Any]], Retdiff[Any]] = Pytree.static(
+        default=lambda v: v
+    )
+
+    def edit(
+        self,
+        key: PRNGKey,
+        tr: Trace[R],
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
+        new_argdiffs = self.argdiff_fn(argdiffs)
+        tr, w, retdiff, bwd_request = self.request.edit(key, tr, new_argdiffs)
+        new_retdiff = self.retdiff_fn(retdiff)
+        return tr, w, new_retdiff, bwd_request

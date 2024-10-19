@@ -24,6 +24,7 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Annotated,
     Any,
+    Callable,
     FloatArray,
     Generic,
     IntArray,
@@ -153,6 +154,29 @@ class EditRequest(Pytree):
         argdiffs: Argdiffs,
     ) -> "tuple[genjax.Trace[R], Weight, Retdiff[R], EditRequest]":
         pass
+
+    def dimap(
+        self,
+        /,
+        *,
+        pre: Callable[[Argdiffs], Argdiffs] = lambda v: v,
+        post: Callable[[Retdiff[R]], Retdiff[R]] = lambda v: v,
+    ) -> "EditRequest":
+        from genjax import DiffAnnotate
+
+        return DiffAnnotate(self, argdiff_fn=pre, retdiff_fn=post)
+
+    def map(
+        self,
+        post: Callable[[Retdiff[R]], Retdiff[R]],
+    ) -> "EditRequest":
+        return self.dimap(post=post)
+
+    def contramap(
+        self,
+        pre: Callable[[Argdiffs], Argdiffs],
+    ) -> "EditRequest":
+        return self.dimap(pre=pre)
 
 
 class PrimitiveEditRequest(EditRequest):
