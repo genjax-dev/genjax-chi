@@ -78,27 +78,35 @@ class Enum(EditRequest):
         fwd_grid_trace = jtu.tree_map(lambda v: v[idx], fwd_grid_traces)
         avg_fwd_weight = logsumexp(ws) - jnp.log(grid_size)
 
-        # Run Wiggle using the smoother.
+        # Run Wiggle using the smoother in the forward direction.
         request = Wiggle(
             self.smoother,
-            lambda chm: (fwd_grid_trace.get_choices(),),
+            lambda _: (fwd_grid_trace.get_choices(),),
         )
-        final_tr, target_ratio, retdiff, _ = request.edit(key, tr, argdiffs)
+        final_tr, fwd_ratio, retdiff, _ = request.edit(key, tr, argdiffs)
 
         # Compute the backward weight (L).
         bwd_grid = self.gridder(chm)
         key, sub_key = jrand.split(key)
         sub_keys = jrand.split(sub_key, grid_size)
-        _, ws = vmap(grid_update, in_axes=[0, None, 0])(
+        bwd_grid_traces, ws = vmap(grid_update, in_axes=[0, None, 0])(
             sub_keys,
             final_tr,
             bwd_grid,
         )
         key, sub_key = jrand.split(key)
         avg_bwd_weight = logsumexp(ws) - jnp.log(grid_size)
+        bwd_grid_trace = jtu.tree_map(lambda v: v[idx], bwd_grid_traces)
+
+        # Run Wiggle using the smoother in the backward direction.
+        bwd_request = Wiggle(
+            self.smoother,
+            lambda _: (bwd_grid_trace.get_choices(),),
+        )
+        _, bwd_ratio, _, _ = bwd_request.edit(key, tr, argdiffs)
         return (
             final_tr,
-            target_ratio + avg_bwd_weight - avg_fwd_weight,
+            (bwd_ratio - fwd_ratio) + (avg_bwd_weight - avg_fwd_weight),
             retdiff,
             Enum(self.smoother, self.gridder),
         )
