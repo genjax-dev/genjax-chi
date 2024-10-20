@@ -67,7 +67,7 @@ class Regenerate(PrimitiveEditRequest):
 @Pytree.dataclass(match_args=True)
 class Wiggle(EditRequest):
     proposal: GenerativeFunction[Any]
-    argument_mapping: Callable[[ChoiceMap], Any]
+    argument_mapping: Callable[[ChoiceMap], Any] = Pytree.static()
 
     def edit(
         self,
