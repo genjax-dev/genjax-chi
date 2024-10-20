@@ -103,7 +103,7 @@ class Wiggle(EditRequest):
             new_tr,
             final_weight,
             retdiff,
-            Wiggle(self.proposal, self.argument_mapping),
+            bwd_request,  # TODO: this is not right.
         )
 
 

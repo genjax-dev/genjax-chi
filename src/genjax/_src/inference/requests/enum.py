@@ -87,22 +87,26 @@ class Enum(EditRequest):
             fwd_grid,
         )
         key, sub_key = jrand.split(key)
-        idx = categorical.sample(sub_key, ws)
-        fwd_grid_trace = jtu.tree_map(lambda v: v[idx], fwd_grid_traces)
+        fwd_idx = categorical.sample(sub_key, ws)
+        fwd_grid_trace = jtu.tree_map(lambda v: v[fwd_idx], fwd_grid_traces)
         avg_fwd_weight = logsumexp(ws) - jnp.log(grid_size)
 
         # Run Wiggle using the smoother in the forward direction.
         request = Wiggle(
             self.smoother,
-            lambda _: (fwd_grid_trace.get_choices(),),
+            lambda chm: (chm,),
         )
-        final_tr, fwd_ratio, retdiff, _ = request.edit(key, tr, argdiffs)
+        final_tr, fwd_ratio, retdiff, bwd_request = request.edit(
+            key, fwd_grid_trace, argdiffs
+        )
+        assert isinstance(bwd_request, Update)
+        discard = bwd_request.constraint
 
         #####
         # Compute the score of the backward proposal (L).
         #####
 
-        bwd_grid = self.gridder(chm)
+        bwd_grid = self.gridder(final_tr.get_choices())
         key, sub_key = jrand.split(key)
         sub_keys = jrand.split(sub_key, grid_size)
         bwd_grid_traces, ws = vmap(grid_update, in_axes=[0, None, 0])(
@@ -112,14 +116,12 @@ class Enum(EditRequest):
         )
         key, sub_key = jrand.split(key)
         avg_bwd_weight = logsumexp(ws) - jnp.log(grid_size)
-        bwd_grid_trace = jtu.tree_map(lambda v: v[idx], bwd_grid_traces)
+        bwd_idx = categorical.sample(sub_key, ws)
+        bwd_grid_trace = jtu.tree_map(lambda v: v[bwd_idx], bwd_grid_traces)
+        bwd_chm = bwd_grid_trace.get_choices()
+        bwd_score, _ = self.smoother.assess(discard, bwd_chm)
+        bwd_ratio = bwd_score - final_tr.get_score()
 
-        # Run Wiggle using the smoother in the backward direction.
-        bwd_request = Wiggle(
-            self.smoother,
-            lambda _: (bwd_grid_trace.get_choices(),),
-        )
-        _, bwd_ratio, _, _ = bwd_request.edit(key, tr, argdiffs)
         return (
             final_tr,
             (bwd_ratio - fwd_ratio) + (avg_bwd_weight - avg_fwd_weight),
