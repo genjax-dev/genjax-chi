@@ -98,7 +98,7 @@ class Enum(EditRequest):
         final_tr, fwd_ratio, retdiff, _ = request.edit(key, tr, argdiffs)
 
         #####
-        # Compute the backward proposal and score (L).
+        # Compute the score of the backward proposal (L).
         #####
 
         bwd_grid = self.gridder(chm)
