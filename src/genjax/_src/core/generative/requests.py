@@ -66,6 +66,17 @@ class Regenerate(PrimitiveEditRequest):
 
 @Pytree.dataclass(match_args=True)
 class Wiggle(EditRequest):
+    """
+    The `Wiggle` edit request is a compositional request which utilizes
+    a proposal generative function to propose a change to a trace.
+
+    Specifying a wiggle requires that a user provide a `proposal` generative function, and an `argument_mapping`, which is a callable that accepts the `ChoiceMap` from the previous trace and produces arguments to the invocation of the generative function.
+
+    `Wiggle` can be used for quick custom regeneration moves (e.g. a Gaussian at an address, can I propose a random walk around the previous value using another Gaussian?) as well as larger structured proposals.
+
+    It is isomorphic to the logic of Metropolis-Hastings with a custom proposal (which defines the MCMC kernel of the Metropolis-Hastings algorithm) _without the accept-reject step_. The ratio is returned as the SMCP3 weight of the move.
+    """
+
     proposal: GenerativeFunction[Any]
     argument_mapping: Callable[[ChoiceMap], Any] = Pytree.static()
 
