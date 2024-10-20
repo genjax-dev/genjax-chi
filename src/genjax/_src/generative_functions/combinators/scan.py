@@ -89,6 +89,14 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
 
 @Pytree.dataclass(match_args=True)
 class IndexRequest(PrimitiveEditRequest):
+    """
+    An `IndexRequest` is a primitive edit request which denotes a request to update a trace
+    at a particular index of a vector combinator.
+
+    The subrequest can be any type of `EditRequest`, the subrequest is responsible for enforcing or raising
+    its own conditions for compositional usage.
+    """
+
     idx: IntArray
     request: EditRequest
 
