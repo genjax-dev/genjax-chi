@@ -15,6 +15,7 @@
 import jax
 import jax.numpy as jnp
 import jax.random as jrand
+import jax.tree_util as jtu
 import pytest
 
 import genjax
@@ -140,6 +141,27 @@ class TestRegenerate:
         new_target_density = genjax.normal.logpdf(new_y1, 0.0, 1.0)
         assert fwd_w == new_target_density - old_target_density
 
+    def test_linked_normal_convergence(self):
+        @genjax.gen
+        def linked_normal():
+            y1 = genjax.normal(0.0, 3.0) @ "y1"
+            _ = genjax.normal(y1, 0.01) @ "y2"
+
+        key = jax.random.key(314159)
+        key, sub_key = jax.random.split(key)
+        tr, _ = linked_normal.importance(sub_key, C.kw(y2=3.0), ())
+        request = Regenerate(S["y1"])
+
+        # Run Metropolis-Hastings for 100 steps.
+        for _ in range(100):
+            key, sub_key = jax.random.split(key)
+            new_tr, w, _, _ = request.edit(sub_key, tr, ())
+            key, sub_key = jax.random.split(key)
+            check = jnp.log(genjax.uniform.sample(sub_key, 0.0, 1.0)) < w
+            tr = jtu.tree_map(lambda v1, v2: jnp.where(check, v1, v2), new_tr, tr)
+
+        assert tr.get_choices()["y1"] == pytest.approx(3.0, 1e-3)
+
 
 class TestHMC:
     def test_simple_normal_hmc(self):
@@ -203,6 +225,128 @@ class TestHMC:
             key, sub_key = jrand.split(key)
             new_tr, *_ = editor(sub_key, new_tr, Diff.no_change((0.0, None)))
         assert new_tr.get_choices()[..., "x"] == pytest.approx(3.0, 8e-3)
+
+    @pytest.mark.skip(reason="needs more work")
+    def test_hmm_hmc(self):
+        @genjax.gen
+        def simulate_motion_step(carry, scanned_in):
+            (pos, pos_noise, obs_noise, dt) = carry
+            new_latent_position = genjax.mv_normal_diag(pos, pos_noise) @ "pos"
+            _ = genjax.mv_normal_diag(new_latent_position, obs_noise) @ "obs_pos"
+            return (
+                new_latent_position,
+                pos_noise,
+                obs_noise,
+                dt,
+            ), new_latent_position
+
+        @genjax.gen
+        def simple_hmm(position_noise, observation_noise, dt):
+            initial_y_pos = genjax.normal(0.5, 0.01) @ "init_pos"
+            initial_position = jnp.array([0.0, initial_y_pos])
+            _ = (
+                genjax.mv_normal_diag(initial_position, observation_noise)
+                @ "init_obs_pos"
+            )
+            _, tracks = (
+                simulate_motion_step.scan(n=10)(
+                    (
+                        initial_position,
+                        position_noise,
+                        observation_noise,
+                        dt,
+                    ),
+                    None,
+                )
+                @ "tracks"
+            )
+            return jnp.vstack([initial_position, tracks])
+
+        # Simulate ground truth from the model.
+        key = jrand.key(0)
+        key, sub_key = jax.random.split(key)
+        ground_truth = simple_hmm.simulate(
+            sub_key,
+            (jnp.array([1e-1, 1e-1]), jnp.array([1e-1, 1e-1]), 0.1),
+        )
+
+        # Create an initial importance sample.
+        obs = ChoiceMap.empty()
+        obs = obs.at["tracks", :, "obs_pos"].set(
+            ground_truth.get_choices()["tracks", ..., "obs_pos"]
+        )
+        obs = obs.at["init_obs_pos"].set(ground_truth.get_choices()["init_obs_pos"])
+        key, sub_key = jax.random.split(key)
+        init_tr, _ = simple_hmm.importance(
+            sub_key,
+            obs,
+            (jnp.array([1e-1, 1e-1]), jnp.array([1e-1, 1e-1]), 0.1),
+        )
+
+        def _rejuvenation(eps):
+            def _inner(carry, _):
+                (key, tr) = carry
+                key, sub_key = jax.random.split(key)
+                request = HMC(Selection.at["init_pos"], eps)
+                new_tr, w, _, _ = request.edit(
+                    sub_key, tr, Diff.no_change(tr.get_args())
+                )
+                key, sub_key = jax.random.split(key)
+                check = jnp.log(genjax.uniform.sample(sub_key, 0.0, 1.0)) < w
+                tr = jtu.tree_map(
+                    lambda v1, v2: jnp.where(check, v1, v2),
+                    new_tr,
+                    tr,
+                )
+                request = HMC(Selection.at["tracks", ..., "pos"], eps)
+                key, sub_key = jax.random.split(key)
+                new_tr, w, _, _ = request.edit(
+                    sub_key, tr, Diff.no_change(tr.get_args())
+                )
+                key, sub_key = jax.random.split(key)
+                check = jnp.log(genjax.uniform.sample(sub_key, 0.0, 1.0)) < w
+                tr = jtu.tree_map(
+                    lambda v1, v2: jnp.where(check, v1, v2),
+                    new_tr,
+                    tr,
+                )
+                return (key, tr), None
+
+            return _inner
+
+        def rejuvenation(length: int):
+            def inner(key, tr, eps):
+                (_, new_tr), _ = jax.lax.scan(
+                    _rejuvenation(eps),
+                    (key, tr),
+                    length=length,
+                )
+                return new_tr
+
+            return inner
+
+        # Run MH with HMC.
+        key, sub_key = jrand.split(key)
+        rejuvenator = jax.jit(rejuvenation(3000))
+        new_tr = rejuvenator(sub_key, init_tr, jnp.array(1e-4))
+        assert init_tr.get_choices()["tracks", 0, "pos"] != pytest.approx(
+            ground_truth.get_choices()["tracks", 0, "pos"], 1e-5
+        )
+        assert init_tr.get_choices()["tracks", -1, "pos"] != pytest.approx(
+            ground_truth.get_choices()["tracks", -1, "pos"], 1e-5
+        )
+        assert new_tr.get_choices()["init_pos"] != pytest.approx(
+            init_tr.get_choices()["init_pos"], 1e-5
+        )
+        assert new_tr.get_choices()["tracks", 0, "pos"] != pytest.approx(
+            init_tr.get_choices()["tracks", 0, "pos"], 1e-5
+        )
+        assert new_tr.get_choices()["tracks", 0, "pos"] == pytest.approx(
+            ground_truth.get_choices()["tracks", 0, "pos"], 5e-2
+        )
+        assert new_tr.get_choices()["tracks", -1, "pos"] == pytest.approx(
+            ground_truth.get_choices()["tracks", -1, "pos"], 5e-2
+        )
 
     def test_safe_hmc(self):
         @genjax.gen
