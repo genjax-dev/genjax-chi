@@ -45,6 +45,15 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 
 @Pytree.dataclass(match_args=True)
 class Enum(EditRequest):
+    """
+    The `Enum` edit request is a compositional request which utilizes
+    a grid and a "smoothing" proposal to propose a change to a trace.
+
+    Specifying an enumeration requires that a user provide a `smoother` generative function, and an `gridder`, which is a callable that accepts the `ChoiceMap` from the previous trace and produces a vectorized `ChoiceMap`, indicating a set of grid points (as choice maps) to evaluate an `Update` on the provided trace. The weights from these `Update` edits are then used to select a single grid point, which is provided to the `smoother`.
+
+    The job of the `smoother` is to provide a distribution _around the single grid point_ which will be used to generate the final proposal.
+    """
+
     smoother: GenerativeFunction[Any]
     gridder: Callable[[ChoiceMap], ChoiceMap] = Pytree.static()
 
@@ -65,7 +74,10 @@ class Enum(EditRequest):
             new_tr, w, *_ = request.edit(key, tr, argdiffs)
             return new_tr, w
 
+        #####
         # Compute the forward proposal and score (K).
+        #####
+
         key, sub_key = jrand.split(key)
         sub_keys = jrand.split(sub_key, grid_size)
         fwd_grid_traces, ws = vmap(grid_update, in_axes=[0, None, 0])(
@@ -85,7 +97,10 @@ class Enum(EditRequest):
         )
         final_tr, fwd_ratio, retdiff, _ = request.edit(key, tr, argdiffs)
 
-        # Compute the backward weight (L).
+        #####
+        # Compute the backward proposal and score (L).
+        #####
+
         bwd_grid = self.gridder(chm)
         key, sub_key = jrand.split(key)
         sub_keys = jrand.split(sub_key, grid_size)
