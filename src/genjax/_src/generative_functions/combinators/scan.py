@@ -1052,7 +1052,7 @@ class Checkerboard(EditRequest):
     edit_request: EditRequest
     even: bool = Pytree.static(default=True)
 
-    def edit(
+    def edit(  # pyright: ignore
         self,
         key: PRNGKey,
         tr: ScanTrace[Carry, Y],
@@ -1076,6 +1076,7 @@ class Checkerboard(EditRequest):
         parallel_trace, ws, retdiffs, bwd_requests = jax.vmap(parallel_edit)(
             sub_keys, checkerboard_indices
         )
+        assert isinstance(parallel_trace, ScanTrace)
 
         def indexer(v):
             # v is a Pytree leaf, it has shape (N / 2, N)
