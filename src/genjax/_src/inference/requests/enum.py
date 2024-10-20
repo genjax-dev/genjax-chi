@@ -66,7 +66,8 @@ class Enum(EditRequest):
         chm = tr.get_choices()
         fwd_grid = self.gridder(chm)
 
-        # Should be a unique size.
+        # Should be a unique size -- selected from the lengths of the
+        # leading axes of the vectorized choice map.
         (grid_size,) = set(jtu.tree_leaves(jtu.tree_map(lambda v: len(v), fwd_grid)))
 
         def grid_update(key, tr, chm):
