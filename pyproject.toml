@@ -48,7 +48,7 @@ penzai = "^0.1.1"
 # remove this constraint when that issue is closed.
 numpy = ">=1.22,<2.0.0"
 msgpack = { version = "^1.0.8", optional = true }
-genstudio = { version = "2024.09.007", source = "gcp", optional = true }
+genstudio = { version = "2024.10.001", source = "gcp", optional = true }
 
 [tool.poetry.group.dev]
 optional = true
