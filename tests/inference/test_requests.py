@@ -25,9 +25,9 @@ from genjax import (
     DiffAnnotate,
     EmptyRequest,
     Regenerate,
+    Rejuvenate,
     Selection,
     Update,
-    Wiggle,
 )
 from genjax import ChoiceMap as C
 from genjax import SelectionBuilder as S
@@ -141,7 +141,7 @@ class TestRegenerate:
         assert tr.get_choices()["y1"] == pytest.approx(3.0, 1e-3)
 
 
-class TestWiggle:
+class TestRejuvenate:
     def test_simple_normal_correctness(self):
         @genjax.gen
         def simple_normal():
@@ -157,7 +157,7 @@ class TestWiggle:
         #####
 
         request = StaticRequest({
-            "y1": Wiggle(
+            "y1": Rejuvenate(
                 genjax.normal,
                 lambda chm: (0.0, 1.0),
             )
@@ -167,7 +167,7 @@ class TestWiggle:
         assert old_v != new_v
         assert w == 0.0
 
-    def test_linked_normal_wiggle_convergence(self):
+    def test_linked_normal_rejuvenate_convergence(self):
         @genjax.gen
         def linked_normal():
             y1 = genjax.normal(0.0, 3.0) @ "y1"
@@ -182,7 +182,7 @@ class TestWiggle:
         #######
 
         request = StaticRequest({
-            "y1": Wiggle(
+            "y1": Rejuvenate(
                 genjax.normal,
                 lambda chm: (chm.get_value(), 0.3),
             )

@@ -49,7 +49,7 @@ from .generative_function import (
 from .requests import (
     EmptyRequest,
     Regenerate,
-    Wiggle,
+    Rejuvenate,
 )
 
 __all__ = [
@@ -75,6 +75,7 @@ __all__ = [
     "Projection",
     "R",
     "Regenerate",
+    "Rejuvenate",
     "Retdiff",
     "Score",
     "Selection",
@@ -84,5 +85,4 @@ __all__ = [
     "Trace",
     "Update",
     "Weight",
-    "Wiggle",
 ]
