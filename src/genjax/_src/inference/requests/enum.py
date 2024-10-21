@@ -44,7 +44,7 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 
 
 @Pytree.dataclass(match_args=True)
-class Enum(EditRequest):
+class GridRejuv(EditRequest):
     """
     The `Enum` edit request is a compositional request which utilizes
     a grid and a "smoothing" proposal to propose a change to a trace.
@@ -126,5 +126,5 @@ class Enum(EditRequest):
             final_tr,
             (bwd_ratio - fwd_ratio) + (avg_bwd_weight - avg_fwd_weight),
             retdiff,
-            Enum(self.smoother, self.gridder),
+            GridRejuv(self.smoother, self.gridder),
         )
