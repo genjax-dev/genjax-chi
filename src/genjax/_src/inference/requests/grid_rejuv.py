@@ -31,7 +31,7 @@ from genjax._src.core.generative.generative_function import (
     Trace,
     Update,
 )
-from genjax._src.core.generative.requests import Wiggle
+from genjax._src.core.generative.requests import Rejuvenate
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -91,8 +91,8 @@ class GridRejuvenate(EditRequest):
         fwd_grid_trace = jtu.tree_map(lambda v: v[fwd_idx], fwd_grid_traces)
         avg_fwd_weight = logsumexp(ws) - jnp.log(grid_size)
 
-        # Run Wiggle using the smoother in the forward direction.
-        request = Wiggle(
+        # Run Rejuvenate using the smoother in the forward direction.
+        request = Rejuvenate(
             self.smoother,
             lambda chm: (chm,),
         )
