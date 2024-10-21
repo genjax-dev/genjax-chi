@@ -176,10 +176,6 @@ class TestRejuvenate:
         key, sub_key = jax.random.split(key)
         tr, _ = linked_normal.importance(sub_key, C.kw(y2=3.0), ())
 
-        #######
-        # Do some data-driven behavior
-        #######
-
         request = StaticRequest({
             "y1": Rejuvenate(
                 genjax.normal,
