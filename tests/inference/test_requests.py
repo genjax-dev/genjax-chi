@@ -136,7 +136,6 @@ class TestRegenerate:
             key, sub_key = jax.random.split(key)
             check = jnp.log(genjax.uniform.sample(sub_key, 0.0, 1.0)) < w
             tr = jtu.tree_map(lambda v1, v2: jnp.where(check, v1, v2), new_tr, tr)
-            print(tr.get_choices()["y1"])
 
         assert tr.get_choices()["y1"] == pytest.approx(3.0, 1e-3)
 
