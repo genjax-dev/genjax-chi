@@ -22,7 +22,9 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
+    PrimitiveEditRequest,
     Projection,
+    Regenerate,
     Retdiff,
     Score,
     Selection,
@@ -83,6 +85,25 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
 
     def get_score(self):
         return self.score
+
+
+@Pytree.dataclass(match_args=True)
+class IndexRequest(PrimitiveEditRequest):
+    """
+    An `IndexRequest` is a primitive edit request which denotes a request to update a trace
+    at a particular index of a vector combinator.
+
+    The subrequest can be any type of `EditRequest`, the subrequest is responsible for enforcing or raising
+    its own conditions for compositional usage.
+    """
+
+    idx: IntArray
+    request: EditRequest
+
+
+@Pytree.dataclass(match_args=True)
+class VectorRequest(PrimitiveEditRequest):
+    request: EditRequest
 
 
 ###################
@@ -311,7 +332,192 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         )
         return jnp.sum(ws)
 
-    def edit_generic(
+    def edit_index(
+        self,
+        key: PRNGKey,
+        trace: ScanTrace[Carry, Y],
+        idx: IntArray,
+        request: EditRequest,
+        argdiffs: Argdiffs,
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+        # For now, we don't allow changes to the arguments for this type of edit.
+        assert Diff.static_check_no_change(argdiffs)
+
+        (_, scanned_argdiff) = argdiffs
+        scanned_in = Diff.tree_primal(scanned_argdiff)
+        (old_carried_out, old_scanned_out) = trace.get_retval()
+        trace_slice: Trace[tuple[Carry, Y]] = jtu.tree_map(
+            lambda v: v[idx], trace.inner
+        )
+        new_slice_trace, w, retdiff, bwd_request = request.edit(
+            key, trace_slice, Diff.no_change(trace_slice.get_args())
+        )
+        (carry_retdiff, scanned_retdiff) = retdiff
+        next_slice, next_scanned_in = jtu.tree_map(
+            lambda v: v[idx + 1], (trace.inner, scanned_in)
+        )
+
+        # The Update edit request here is used to force a visitation of
+        # generative function callees which could be affected by the changes
+        # above -- to account for new scores, and changes reflected in the weight.
+        next_request = Update(ChoiceMap.empty())
+        next_slice_trace, next_w, retdiff, _ = next_request.edit(
+            key,
+            next_slice,
+            (carry_retdiff, Diff.no_change(next_scanned_in)),
+        )
+
+        # The carry value better not have changed, otherwise
+        # the assumptions of this edit are not satisfied.
+        #
+        # Here, we could allow the carry from the slice to flow out via the scanned out
+        # value in the next slice, but we just disallow that for now for simplicity.
+        assert Diff.static_check_no_change(retdiff)
+
+        idx_array = jnp.arange(trace.scan_length)
+        slice_scanned_out = Diff.tree_primal(scanned_retdiff)
+        new_scanned_out: Y = jtu.tree_map(
+            lambda v1, v2: jnp.where(idx_array == idx, v1, v2),
+            slice_scanned_out,
+            old_scanned_out,
+        )
+        new_scanned_retdiff = Diff.unknown_change(new_scanned_out)
+        max_length = self._static_scan_length(scanned_in, self.length)
+
+        # Mutate the trace in-place.
+        # Underneath JIT, should compile to an in-place update.
+        def mutator(v, idx, setter):
+            return v.at[idx].set(
+                jnp.where(idx < max_length, setter, v[idx]),
+            )
+
+        new_inner_trace = jtu.tree_map(
+            lambda v, v_: mutator(v, idx, v_), trace.inner, new_slice_trace
+        )
+        new_inner_trace = jtu.tree_map(
+            lambda v, v_: mutator(v, idx + 1, v_), new_inner_trace, next_slice_trace
+        )
+        scores = jax.vmap(lambda tr: tr.get_score())(new_inner_trace)
+
+        # We don't actually know if the index which was updated was the last one.
+        # Therefore, we need to provide a where selection
+        # between the carry from index, and the next slice --
+        carry_out = Diff.tree_primal(carry_retdiff)
+        carry_out_ = Diff.tree_primal(retdiff[0])
+        carried_out = jtu.tree_map(
+            lambda v, v_: jnp.where(idx < max_length, v_, v),
+            carry_out,
+            carry_out_,
+        )
+
+        return (
+            ScanTrace[Carry, Y].build(
+                self,
+                new_inner_trace,
+                Diff.tree_primal(argdiffs),
+                (carried_out, new_scanned_out),
+                jnp.sum(scores),
+                self._static_scan_length(scanned_in, self.length),
+            ),
+            w + (next_w * (idx + 1 < max_length)),
+            # We always set the carried out value to be an unknown change, conservatively.
+            (Diff.unknown_change(old_carried_out), new_scanned_retdiff),
+            IndexRequest(idx, bwd_request),
+        )
+
+    def edit_regenerate(
+        self,
+        key: PRNGKey,
+        trace: ScanTrace[Carry, Y],
+        selection: Selection,
+        argdiffs: Argdiffs,
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+        diffs = Diff.unknown_change(Diff.tree_primal(argdiffs))
+        carry_diff: Carry = diffs[0]
+        scanned_in_diff: Any = diffs[1:]
+
+        def _inner_edit(
+            key: PRNGKey,
+            subtrace: Trace[tuple[Carry, Y]],
+            subselection: Selection,
+            carry: Carry,
+            scanned_in: Any,
+        ) -> tuple[
+            tuple[Carry, Score],
+            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Weight, EditRequest],
+        ]:
+            request = Regenerate(subselection)
+            (
+                new_subtrace,
+                w,
+                kernel_retdiff,
+                bwd_request,
+            ) = request.edit(
+                key,
+                subtrace,
+                (carry, scanned_in),
+            )
+            (carry_retdiff, scanned_out_retdiff) = Diff.unknown_change(kernel_retdiff)
+            score = new_subtrace.get_score()
+            return (carry_retdiff, score), (
+                new_subtrace,
+                scanned_out_retdiff,
+                w,
+                bwd_request,
+            )
+
+        def _edit(
+            carry: tuple[PRNGKey, IntArray, Carry],
+            scanned_over: tuple[Trace[tuple[Carry, Y]], Any],
+        ) -> tuple[
+            tuple[PRNGKey, IntArray, Carry],
+            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Score, Weight, EditRequest],
+        ]:
+            key, idx, carried_value = carry
+            subtrace, scanned_in = scanned_over
+            key = jax.random.fold_in(key, idx)
+            subselection = selection(idx)
+            (
+                (carried_out, score),
+                (new_subtrace, scanned_out, w, inner_bwd_request),
+            ) = _inner_edit(key, subtrace, subselection, carried_value, scanned_in)
+
+            return (key, idx + 1, carried_out), (
+                new_subtrace,
+                scanned_out,
+                score,
+                w,
+                inner_bwd_request,
+            )
+
+        (
+            (_, _, carried_out_diff),
+            (new_subtraces, scanned_out_diff, scores, ws, bwd_constraints),
+        ) = jax.lax.scan(
+            _edit,
+            (key, jnp.asarray(0), carry_diff),
+            (trace.inner, *scanned_in_diff),
+            length=self.length,
+        )
+        carried_out, scanned_out = Diff.tree_primal((
+            carried_out_diff,
+            scanned_out_diff,
+        ))
+        return (
+            ScanTrace.build(
+                self,
+                new_subtraces,
+                Diff.tree_primal(argdiffs),
+                (carried_out, scanned_out),
+                jnp.sum(scores),
+                trace.scan_length,
+            ),
+            jnp.sum(ws),
+            (carried_out_diff, scanned_out_diff),
+            VectorRequest(bwd_constraints),
+        )
+
+    def edit_update(
         self,
         key: PRNGKey,
         trace: ScanTrace[Carry, Y],
@@ -413,14 +619,32 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
-        assert isinstance(edit_request, Update)
         assert isinstance(trace, ScanTrace)
-        return self.edit_generic(
-            key,
-            trace,
-            edit_request.constraint,
-            argdiffs,
-        )
+        match edit_request:
+            case Regenerate(selection):
+                return self.edit_regenerate(
+                    key,
+                    trace,
+                    selection,
+                    argdiffs,
+                )
+            case Update(constraint):
+                return self.edit_update(
+                    key,
+                    trace,
+                    constraint,
+                    argdiffs,
+                )
+            case IndexRequest(idx, subrequest):
+                return self.edit_index(
+                    key,
+                    trace,
+                    idx,
+                    subrequest,
+                    argdiffs,
+                )
+            case _:
+                raise NotImplementedError
 
     def assess(
         self,

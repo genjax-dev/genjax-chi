@@ -16,7 +16,10 @@
 import jax.numpy as jnp
 import jax.random as jrand
 
-from genjax._src.core.generative.choice_map import ChoiceMap, Selection
+from genjax._src.core.generative.choice_map import (
+    ChoiceMap,
+    Selection,
+)
 from genjax._src.core.generative.core import (
     Argdiffs,
     EditRequest,
