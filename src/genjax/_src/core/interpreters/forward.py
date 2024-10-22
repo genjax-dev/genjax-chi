@@ -26,7 +26,7 @@ from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.interpreters.staging import WrappedFunWithAux, stage
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import Any, Callable, Value
+from genjax._src.core.typing import Any, Callable
 
 #########################
 # Custom JAX primitives #
@@ -129,9 +129,9 @@ VarOrLiteral = jc.Var | jc.Literal
 class Environment(Pytree):
     """Keeps track of variables and their values during propagation."""
 
-    env: dict[int, Value] = Pytree.field(default_factory=dict)
+    env: dict[int, Any] = Pytree.field(default_factory=dict)
 
-    def read(self, var: VarOrLiteral) -> Value:
+    def read(self, var: VarOrLiteral) -> Any:
         if isinstance(var, jc.Literal):
             return var.val
         else:
@@ -142,13 +142,13 @@ class Environment(Pytree):
                 )
             return v
 
-    def get(self, var: VarOrLiteral) -> Value:
+    def get(self, var: VarOrLiteral) -> Any:
         if isinstance(var, jc.Literal):
             return var.val
         else:
             return self.env.get(var.count)
 
-    def write(self, var: VarOrLiteral, cell: Value) -> Value:
+    def write(self, var: VarOrLiteral, cell: Any) -> Any:
         if isinstance(var, jc.Literal):
             return cell
         cur_cell = self.get(var)
@@ -157,7 +157,7 @@ class Environment(Pytree):
         self.env[var.count] = cell
         return self.env[var.count]
 
-    def __getitem__(self, var: VarOrLiteral) -> Value:
+    def __getitem__(self, var: VarOrLiteral) -> Any:
         return self.read(var)
 
     def __setitem__(self, key, val):

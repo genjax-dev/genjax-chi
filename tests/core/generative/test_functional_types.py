@@ -46,25 +46,25 @@ class TestMask:
         assert result == default
 
     def test_mask_maybe(self):
-        mask = Mask.maybe(42, True)
+        mask = Mask.build(42, True)
         assert isinstance(mask, Mask)
         assert mask.flag is True
         assert mask.value == 42
 
-        nested_mask = Mask.maybe(Mask(42, True), False)
+        nested_mask = Mask.build(Mask(42, True), False)
         assert isinstance(nested_mask, Mask)
         assert nested_mask.flag is False
         assert nested_mask.value == 42
 
     def test_mask_maybe_none(self):
-        result = Mask.maybe_none(42, True)
+        result = Mask.maybe_mask(42, True)
         assert result == 42
 
-        result = Mask.maybe_none(42, False)
+        result = Mask.maybe_mask(42, False)
         assert result is None
 
         mask = Mask(42, True)
-        result = Mask.maybe_none(mask, True)
+        result = Mask.maybe_mask(mask, True)
         assert isinstance(result, Mask)
         assert result.flag is True
         assert result.value == 42

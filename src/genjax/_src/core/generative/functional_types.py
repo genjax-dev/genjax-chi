@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import overload
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -41,11 +40,13 @@ R = TypeVar("R")
 
 @Pytree.dataclass(match_args=True)
 class Mask(Generic[R], Pytree):
-    """The `Mask` datatype wraps a value in a Boolean flag which denotes whether the data is valid or invalid to use in inference computations.
+    """The `Mask` datatype wraps a value in a BoolArray flag which denotes whether the data is valid or invalid to use in inference computations.
 
     Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as `ChoiceMap` leaves, and participate in generative and inference computations (like scores, and importance weights or density ratios). Invalid data **should** be considered unusable, and should be handled with care.
 
     Masks are also used internally by generative function combinators which include uncertainty over structure.
+
+    Note that the flag needs to be broadcast-compatible with the value, or with ALL the value's leaves if the value is a pytree. For more information on broadcasting semantics, refer to the NumPy documentation on broadcasting: [NumPy Broadcasting](https://numpy.org/doc/stable/user/basics.broadcasting.html).
 
     ## Encountering `Mask` in your computation
 
@@ -63,16 +64,27 @@ class Mask(Generic[R], Pytree):
     value: R
     flag: Flag | Diff[Flag]
 
-    @overload
-    @staticmethod
-    def maybe(v: "Mask[R]", f: Flag) -> "Mask[R]": ...
-
-    @overload
-    @staticmethod
-    def maybe(v: R, f: Flag | Diff[Flag]) -> "Mask[R]": ...
+    ################
+    # Constructors #
+    ################
 
     @staticmethod
-    def maybe(v: "R | Mask[R]", f: Flag | Diff[Flag]) -> "Mask[R]":
+    def build(v: "R | Mask[R]", f: Flag | Diff[Flag]) -> "Mask[R]":
+        """
+        Create a Mask instance, potentially from an existing Mask or a raw value.
+
+        This method allows for the creation of a new Mask or the modification of an existing one. If the input is already a Mask, it combines the new flag with the existing one using a logical AND operation.
+
+        Args:
+            v: The value to be masked. Can be a raw value or an existing Mask.
+            f: The flag to be applied to the value.
+
+        Returns:
+            A new Mask instance with the given value and flag.
+
+        Note:
+            If `v` is already a Mask, the new flag is combined with the existing one using a logical AND, ensuring that the resulting Mask is only valid if both input flags are valid.
+        """
         match v:
             case Mask(value, g):
                 assert not isinstance(f, Diff) and not isinstance(g, Diff)
@@ -81,29 +93,23 @@ class Mask(Generic[R], Pytree):
                 return Mask[R](v, f)
 
     @staticmethod
-    def maybe_none(v: "R | Mask[R]", f: Flag) -> "R | Mask[R] | None":
+    def maybe_mask(v: "R | Mask[R]", f: Flag) -> "R | Mask[R] | None":
         if v is None or FlagOp.concrete_false(f):
             return None
         elif FlagOp.concrete_true(f):
             return v
         else:
-            return Mask.maybe(v, f)
+            return Mask.build(v, f)
 
-    ######################
-    # Masking interfaces #
-    ######################
-
-    def unsafe_unmask(self) -> R:
-        """
-        Unsafe version of unmask -- should only be used internally, or carefully.
-        """
-        return self.value
+    #############
+    # Accessors #
+    #############
 
     def unmask(self, default: R | None = None) -> R:
         """
         Unmask the `Mask`, returning the value within.
 
-        This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` wraps valid data at runtime.
+        This operation is inherently unsafe with respect to inference semantics if no default value is provided. It is only valid if the `Mask` wraps valid data at runtime, or if a default value is supplied.
 
         Args:
             default: An optional default value to return if the mask is invalid.
@@ -120,17 +126,30 @@ class Mask(Generic[R], Pytree):
                 )
 
             optional_check(_check)
-            return self.unsafe_unmask()
+            return self.value
         else:
 
             def inner(true_v: ArrayLike, false_v: ArrayLike) -> Array:
                 return jnp.where(self.primal_flag(), true_v, false_v)
 
+            import jax
+
+            jax.lax.broadcast_shapes
             return jtu.tree_map(inner, self.value, default)
 
     def primal_flag(self) -> Flag:
+        """
+        Returns the primal flag of the mask.
+
+        This method retrieves the primal (non-`Diff`-wrapped) flag value. If the flag
+        is a Diff type (which contains both primal and tangent components), it returns
+        the primal component. Otherwise, it returns the flag as is.
+
+        Returns:
+            The primal flag value.
+        """
         match self.flag:
             case Diff(primal, _):
                 return primal
-            case _:
-                return self.flag
+            case flag:
+                return flag

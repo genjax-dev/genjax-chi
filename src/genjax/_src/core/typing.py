@@ -52,8 +52,6 @@ InAxes = int | None | Sequence[Any]
 
 Flag = bool | BoolArray
 
-Value = Any
-
 #################################
 # Trace-time-checked primitives #
 #################################
@@ -103,6 +101,7 @@ def static_check_shape_dtype_equivalence(vs: list[Array]) -> bool:
 __all__ = [
     "Annotated",
     "Any",
+    "Any",
     "Array",
     "ArrayLike",
     "BoolArray",
@@ -126,7 +125,6 @@ __all__ = [
     "Sequence",
     "TypeAlias",
     "TypeVar",
-    "Value",
     "static_check_is_array",
     "static_check_is_concrete",
     "static_check_shape_dtype_equivalence",

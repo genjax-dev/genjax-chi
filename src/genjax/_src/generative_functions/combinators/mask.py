@@ -221,7 +221,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         return (
             MaskTrace(self, premasked_trace, post_check),
             final_weight,
-            Mask.maybe(retdiff, check_diff),
+            Mask.build(retdiff, check_diff),
             Update(
                 inner_chm.mask(post_check),
             ),
