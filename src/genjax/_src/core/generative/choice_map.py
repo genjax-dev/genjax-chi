@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from operator import or_
 from typing import TYPE_CHECKING
 
-import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import treescope.repr_lib as trl
@@ -31,7 +30,6 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Array,
-    ArrayLike,
     Callable,
     EllipsisType,
     Final,
@@ -1134,9 +1132,7 @@ class ChoiceMap(Pytree):
         return ChoiceMap.d(kwargs)
 
     @staticmethod
-    def switch(
-        idx: ArrayLike | jax.ShapeDtypeStruct, chms: Iterable["ChoiceMap"]
-    ) -> "ChoiceMap":
+    def switch(idx: int | IntArray, chms: Iterable["ChoiceMap"]) -> "ChoiceMap":
         """
         Creates a ChoiceMap that switches between multiple ChoiceMaps based on an index.
 
@@ -1158,17 +1154,12 @@ class ChoiceMap(Pytree):
             chm2 = ChoiceMap.d({"x": 3, "y": 4})
             chm3 = ChoiceMap.d({"x": 5, "y": 6})
 
-            switched = ChoiceMap.switch(1, [chm1, chm2, chm3])
+            switched = ChoiceMap.switch(jnp.array(1), [chm1, chm2, chm3])
             assert switched["x"].unmask() == 3
             assert switched["y"].unmask() == 4
             ```
         """
-        acc = ChoiceMap.empty()
-        for _idx, _chm in enumerate(chms):
-            assert isinstance(_chm, ChoiceMap)
-            masked = _chm.mask(jnp.all(_idx == idx))
-            acc ^= masked
-        return acc
+        return Switch.build(idx, chms)
 
     ######################
     # Combinator methods #
@@ -1648,6 +1639,31 @@ class Static(ChoiceMap):
 
 
 @Pytree.dataclass(match_args=True)
+class Switch(ChoiceMap):
+    idx: IntArray
+    chms: list[ChoiceMap]
+
+    @staticmethod
+    def build(
+        idx: int | IntArray,
+        chm_iter: Iterable[ChoiceMap],
+    ) -> ChoiceMap:
+        # TODO if we have a SINGLE model, no switch, just return?
+        if isinstance(idx, int):
+            return list(chm_iter)[idx]
+        else:
+            chms = [_chm.mask(_idx == idx) for _idx, _chm in enumerate(chm_iter)]
+            return Switch(idx, chms)
+
+    def get_value(self) -> Any:
+        vs = [chm.get_value() for chm in self.chms]
+        return Mask.xor_n(*[Mask.build(v) for v in vs if v is not None])
+
+    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
+        return Switch(self.idx, [chm.get_submap(addr) for chm in self.chms])
+
+
+@Pytree.dataclass(match_args=True)
 class Xor(ChoiceMap):
     """Represents a disjoint union of two choice maps.
 
@@ -1856,6 +1872,9 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
             case Or(c1, c2):
                 return loop(c1, selection) | loop(c2, selection)
 
+            case Switch(idx, chms):
+                return Switch.build(idx, [loop(chm, selection) for chm in chms])
+
             case _:
                 return chm.filter(selection)
 
@@ -1882,12 +1901,20 @@ def _shape_selection(chm: ChoiceMap) -> Selection:
                 else:
                     return LeafSel()
 
+            # TODO I never want to fail due to a mask here.
             case Filtered(c, c_selection):
-                print(c_selection & selection)
                 return loop(c, c_selection & selection)
 
             case Xor(c1, c2) | Or(c1, c2):
                 return loop(c1, selection) | loop(c2, selection)
+
+            case Switch(_, chms):
+                head, tail = chms[0], chms[1:]
+                acc = loop(head, selection)
+                for chm in tail:
+                    acc |= loop(chm, selection)
+
+                return acc
 
             case _:
                 return selection

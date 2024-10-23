@@ -68,6 +68,8 @@ class Mask(Generic[R], Pytree):
     # Constructors #
     ################
 
+    # TODO check that these are broadcast-compatible when they come in!!!
+
     @staticmethod
     def build(v: "R | Mask[R]", f: Flag | Diff[Flag] = True) -> "Mask[R]":
         """
@@ -117,7 +119,7 @@ class Mask(Generic[R], Pytree):
     def flatten(self) -> "R | Mask[R] | None":
         # TODO generate a docstring.
         flag = self.primal_flag()
-        if FlagOp.concrete_false(flag):
+        if FlagOp.concrete_false(flag) or self.value is None:
             return None
         elif FlagOp.concrete_true(flag):
             return self.value
