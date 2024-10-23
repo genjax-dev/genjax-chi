@@ -16,8 +16,6 @@
 # ---
 
 # %%
-import time
-
 import genstudio.plot as Plot
 import jax
 import jax.numpy as jnp
@@ -83,12 +81,11 @@ keys = jax.random.split(key, len(more_thetas))
 
 noisy_samples = jax.vmap(more_noisy_jax_model, in_axes=(0, 0))(keys, more_thetas)
 
-(
-    Plot.dot(
-        {"x": more_thetas, "y": noisy_samples}, fill=Plot.constantly("samples"), r=2
-    )
-    + plot_options
+noisy_sample_plot = Plot.dot(
+    {"x": more_thetas, "y": noisy_samples}, fill=Plot.constantly("samples"), r=2
 )
+
+noisy_sample_plot + plot_options
 
 
 # %% [markdown]
@@ -102,9 +99,8 @@ noisy_samples = jax.vmap(more_noisy_jax_model, in_axes=(0, 0))(keys, more_thetas
 # %% [markdown]
 # We can code this and plot the result for comparison.
 
+
 # %%
-
-
 def expected_val(theta):
     return (theta - theta**2) / 2
 
@@ -255,7 +251,6 @@ for n in number_of_samples:
 # As we just discussed, most of the time we will not be able to compute the average value and then compute the gradient using JAX. One thing we may want to try is to use JAX on the probabilistic program to get a gradient estimate, and hope that by using more and more samples this will converge to the correct gradient that we could use in optimization. Let's try it in JAX.
 
 # %%
-
 theta_tan = 0.3
 
 exact_slope = grad_exact(theta_tan)
@@ -294,7 +289,6 @@ slope_estimates = [exact_slope + i / 20 for i in range(-4, 4)]
 
 
 # %%
-
 grad = jax.jit(jax.grad(jax_model, argnums=1))
 
 arg = 0.2
@@ -327,9 +321,8 @@ for _ in range(EPOCHS):
 #
 # For now, let's just get a sense of what the gradient estimates computed by JAX look like.
 
+
 # %%
-
-
 def plot_tangents(gradients, title):
     tangents_plots = Plot.new(Plot.aspectRatio(0.5))
 
@@ -372,7 +365,7 @@ def flip_exact_loss(theta):
     return jax.lax.cond(
         b,
         lambda _: 0.0,
-        lambda _: -theta / 2.0,
+        lambda _: theta / 2.0,
         theta,
     )
 
@@ -401,7 +394,7 @@ def compute_adev_vals(key, initial_val):
         key, subkey = jax.random.split(key)
         grad_val = adev_grad(subkey, Dual(current_val, 1.0)).tangent
         adev_gradients.append((current_val, grad_val))
-        current_val = current_val - 0.01 * grad_val
+        current_val = current_val + 0.01 * grad_val
         adev_vals.append(expected_val(current_val))
     return adev_vals, adev_gradients
 
@@ -425,50 +418,64 @@ def select_evenly_spaced(items, num_samples=5):
 
 DEFAULT_INITIAL_VALUE = 0.2
 STEP = 0.01
-THROTTLE_MS = 100  # Minimum time between renders in milliseconds
-
-last_value = DEFAULT_INITIAL_VALUE
-last_render_time = 0
-pending_render = None
-
-
-def throttled_render(initial_val):
-    global pending_render, last_render_time
-    current_time = time.time() * 1000  # Convert to milliseconds
-
-    if current_time - last_render_time >= THROTTLE_MS:
-        render_combined_plot(initial_val)
-        last_render_time = current_time
-        pending_render = None
-    else:
-        pending_render = initial_val
-
-
-def ensure_final_render():
-    global pending_render
-    if pending_render is not None:
-        render_combined_plot(pending_render)
-        pending_render = None
-
 
 combined_plot = Plot.new()
 
 
 def render_combined_plot(initial_val):
-    global last_value, key
-    last_value = initial_val
+    global key
     key, subkey1, subkey2 = jax.random.split(key, num=3)
     jax_vals, jax_gradients = compute_jax_vals(subkey1, initial_val)
     adev_vals, adev_gradients = compute_adev_vals(subkey2, initial_val)
+
+    def plot_tangents(gradients, title):
+        tangents_plots = Plot.new(Plot.aspectRatio(0.5))
+
+        line_data = []
+        for i, (theta, slope) in enumerate(gradients):
+            y_intercept = expected_val(theta) - slope * theta
+            line_data.append([0, y_intercept, i])
+            line_data.append([1, slope + y_intercept, i])
+
+        tangents_plots += Plot.line(
+            line_data,
+            z="2",
+            stroke=Plot.constantly("Tangent"),
+            opacity=Plot.js("(data) => data[2] === $state.frame ? 1 : 0.5"),
+            strokeWidth=Plot.js("(data) => data[2] === $state.frame ? 3 : 1"),
+            filter=Plot.js(f"""(data) => {{
+                const index = data[2];
+                if (index === $state.frame) return true;
+                if (index < $state.frame) {{
+                    const step = Math.floor({EPOCHS} / 10);
+                    return (index % step === 0);
+                }}
+                return false;
+            }}"""),
+        )
+
+        return (
+            expected_value_plot
+            + Plot.domain([0, 1], [0, 0.4])
+            + tangents_plots
+            + Plot.title(title)
+            + Plot.color_map({
+                "samples": "rgba(0, 128, 128, 0.5)",
+                "Expected value": "blue",
+                "Tangent": "rgba(255, 165, 0, 1)",
+            })
+        )
 
     optimization_plot = (
         Plot.line(
             {"x": list(range(EPOCHS)), "y": jax_vals},
             stroke=Plot.constantly("Gradient ascent with JAX"),
+            filter=Plot.js("(_, i) => i <= $state.frame"),
         )
         + Plot.line(
             {"x": list(range(EPOCHS)), "y": adev_vals},
             stroke=Plot.constantly("Gradient ascent with ADEV"),
+            filter=Plot.js("(_, i) => i <= $state.frame"),
         )
         + {
             "x": {"label": "Iteration"},
@@ -479,19 +486,27 @@ def render_combined_plot(initial_val):
         + Plot.color_legend()
     )
 
-    jax_tangents_plot = plot_tangents(
-        select_evenly_spaced(jax_gradients, 5), "JAX Gradient Estimates"
+    jax_tangents_plot = noisy_sample_plot + plot_tangents(
+        jax_gradients, "JAX Gradient Estimates"
     )
-    adev_tangents_plot = plot_tangents(
-        select_evenly_spaced(adev_gradients, 5), "ADEV Gradient Estimates"
+    adev_tangents_plot = noisy_sample_plot + plot_tangents(
+        adev_gradients, "ADEV Gradient Estimates"
     )
+    # TODO
+    # - also show the yellow-to-red circles representing theta moving during the iterations
+
+    frame_slider = Plot.Slider(key="frame", init=0, range=[0, EPOCHS], step=10, fps=30)
+
     initial_val_slider = Plot.html([
         "div",
         {"class": "flex items-center space-x-4 mb-4"},
         [
             "label",
             "Initial Value:",
-            ["span.font-bold.px-1", f"{last_value:.2f}"],  # Format to 2 decimal places
+            [
+                "span.font-bold.px-1",
+                f"{initial_val:.2f}",
+            ],  # Format to 2 decimal places
             [
                 "input",
                 {
@@ -500,9 +515,7 @@ def render_combined_plot(initial_val):
                     "max": 1,
                     "step": STEP,
                     "defaultValue": DEFAULT_INITIAL_VALUE,
-                    "onChange": lambda e: throttled_render(float(e["value"])),
-                    "onMouseUp": lambda e: ensure_final_render(),
-                    "onTouchEnd": lambda e: ensure_final_render(),
+                    "onChange": lambda e: render_combined_plot(float(e["value"])),
                     "class": "w-64 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer ml-2",
                 },
             ],
@@ -510,15 +523,18 @@ def render_combined_plot(initial_val):
         [
             "button",
             {
-                "onClick": lambda e: render_combined_plot(last_value),
+                "onClick": lambda e: render_combined_plot(initial_val),
                 "class": "px-3 py-1 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 ease-in-out",
             },
             "Refresh",
         ],
     ])
 
+    combined_plot.update_state(["frame", "reset", 0])
     combined_plot.reset(
-        initial_val_slider | optimization_plot & jax_tangents_plot & adev_tangents_plot
+        initial_val_slider
+        | optimization_plot & jax_tangents_plot & adev_tangents_plot
+        | frame_slider
     )
 
 
