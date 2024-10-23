@@ -129,6 +129,7 @@ reportUnknownLambdaType = "none"
 reportUnknownMemberType = "none"
 reportUnknownParameterType = "none"
 reportUnknownVariableType = "none"
+reportUnusedExpression = "none"
 
 [tool.ruff]
 exclude = [
