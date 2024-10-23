@@ -13,6 +13,8 @@
 # limitations under the License.
 
 
+import functools
+
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from jax.experimental import checkify
@@ -180,20 +182,32 @@ class Mask(Generic[R], Pytree):
         def pair_flag_to_idx(first: Flag, second: Flag):
             return first + 2 * FlagOp.and_(FlagOp.not_(first), second) - 1
 
-        idx = pair_flag_to_idx(self.primal_flag(), other.primal_flag())
+        self_flag = self.primal_flag()
+        other_flag = other.primal_flag()
+        idx = pair_flag_to_idx(self_flag, other_flag)
 
         chosen = tree_choose(idx, [self.value, other.value])
-        return Mask.build(chosen, FlagOp.or_(self.primal_flag(), other.primal_flag()))
+        return Mask.build(chosen, FlagOp.or_(self_flag, other_flag))
 
     def __xor__(self, other: "Mask[R]") -> "Mask[R]":
         def pair_flag_to_idx(first: Flag, second: Flag):
             return first + 2 * second - 1
 
-        idx = pair_flag_to_idx(self.primal_flag(), other.primal_flag())
+        self_flag = self.primal_flag()
+        other_flag = other.primal_flag()
+        idx = pair_flag_to_idx(self_flag, other_flag)
 
         # TODO fix, this seems busted for selecting the masks??
         chosen = tree_choose(idx, [self.value, other.value])
-        return Mask.build(chosen, FlagOp.xor_(self.primal_flag(), other.primal_flag()))
+        return Mask.build(chosen, FlagOp.xor_(self_flag, other_flag))
+
+    @staticmethod
+    def or_n(mask: "Mask[R]", *masks: "Mask[R]") -> "Mask[R]":
+        return functools.reduce(lambda a, b: a | b, masks, mask)
+
+    @staticmethod
+    def xor_n(mask: "Mask[R]", *masks: "Mask[R]") -> "Mask[R]":
+        return functools.reduce(lambda a, b: a ^ b, masks, mask)
 
     # @staticmethod
     # def _or_many(*masks: "Mask[R]") -> "Mask[R]":
