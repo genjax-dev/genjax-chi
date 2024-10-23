@@ -64,5 +64,5 @@ class TestMask:
         assert result is None
 
         mask = Mask(42, True)
-        assert Mask.maybe_mask(mask, True) == Mask(42, True)
+        assert Mask.maybe_mask(mask, True) == 42
         assert Mask.maybe_mask(mask, False) is None

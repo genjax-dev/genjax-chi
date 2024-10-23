@@ -602,9 +602,9 @@ class TestChoiceMap:
         assert xor_chm["x"] == 1
         assert xor_chm["y"] == 2
 
-        xor_x = (chm1 ^ chm1)["x"]
-        assert isinstance(xor_x, Mask)
-        assert xor_x.primal_flag() is False
+        #
+        with pytest.raises(ChoiceMapNoValueAtAddress, match="x"):
+            (chm1 ^ chm1)["x"]
 
         # Optimization: XorChm.build should return EmptyChm for empty inputs
         assert (ChoiceMap.empty() ^ ChoiceMap.empty()).static_is_empty()

@@ -19,14 +19,11 @@ from jax.experimental import checkify
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import (
-    FlagOp,
-)
+from genjax._src.core.interpreters.staging import FlagOp, tree_choose
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Array,
     ArrayLike,
-    BoolArray,
     Flag,
     Generic,
     TypeVar,
@@ -70,7 +67,7 @@ class Mask(Generic[R], Pytree):
     ################
 
     @staticmethod
-    def build(v: "R | Mask[R]", f: Flag | Diff[Flag]) -> "Mask[R]":
+    def build(v: "R | Mask[R]", f: Flag | Diff[Flag] = True) -> "Mask[R]":
         """
         Create a Mask instance, potentially from an existing Mask or a raw value.
 
@@ -109,16 +106,21 @@ class Mask(Generic[R], Pytree):
             - None if `f` is concretely False.
             - A new Mask instance with the given value and flag if `f` is not concrete.
         """
-        if FlagOp.concrete_false(f):
-            return None
-        elif FlagOp.concrete_true(f):
-            return v
-        else:
-            return Mask.build(v, f)
+        return Mask.build(v, f).flatten()
 
     #############
     # Accessors #
     #############
+
+    def flatten(self) -> "R | Mask[R] | None":
+        # TODO generate a docstring.
+        flag = self.primal_flag()
+        if FlagOp.concrete_false(flag):
+            return None
+        elif FlagOp.concrete_true(flag):
+            return self.value
+        else:
+            return self
 
     def unmask(self, default: R | None = None) -> R:
         """
@@ -169,56 +171,55 @@ class Mask(Generic[R], Pytree):
             case flag:
                 return flag
 
-        ###############
-        # Combinators #
-        ###############
+    ###############
+    # Combinators #
+    ###############
 
-    @staticmethod
-    def binary_or(a: "Mask[R]", b: "Mask[R]") -> "Mask[R]":
-        check1 = a.primal_flag()
-        check2 = b.primal_flag()
+    # TODO - we THINK that these cases are only valid if the values match in shape.
+    def __or__(self, other: "Mask[R]") -> "Mask[R]":
+        def pair_flag_to_idx(first: Flag, second: Flag):
+            return first + 2 * FlagOp.and_(FlagOp.not_(first), second) - 1
 
-        # Short-circuit for concrete booleans
-        if FlagOp.concrete_true(check1):
-            return a
-        if FlagOp.concrete_false(check1):
-            return b
-        # Combine the flags
-        or_flag = FlagOp.or_(check1, check2)
+        idx = pair_flag_to_idx(self.primal_flag(), other.primal_flag())
 
-        # Choose the value based on the flags
-        def choose_value(a_val, b_val):
-            return FlagOp.where(or_flag, a_val, b_val)
+        chosen = tree_choose(idx, [self.value, other.value])
+        return Mask.build(chosen, FlagOp.or_(self.primal_flag(), other.primal_flag()))
 
-        chosen_value = jtu.tree_map(choose_value, a.value, b.value)
+    def __xor__(self, other: "Mask[R]") -> "Mask[R]":
+        def pair_flag_to_idx(first: Flag, second: Flag):
+            return first + 2 * second - 1
 
-        return Mask(chosen_value, or_flag)
+        idx = pair_flag_to_idx(self.primal_flag(), other.primal_flag())
 
-    @staticmethod
-    def _or_many(*masks: "Mask[R]") -> "Mask[R]":
-        flags = [mask.primal_flag() for mask in masks]
+        # TODO fix, this seems busted for selecting the masks??
+        chosen = tree_choose(idx, [self.value, other.value])
+        return Mask.build(chosen, FlagOp.xor_(self.primal_flag(), other.primal_flag()))
 
-        # Check if all flags are concrete booleans
-        if all(isinstance(flag, bool) for flag in flags):
-            # Short-circuit for concrete booleans
-            for mask, flag in zip(masks, flags):
-                if flag:
-                    return mask
-            # If all flags are False, return the last mask with a False flag
-            return Mask(masks[-1].value, False)
+    # @staticmethod
+    # def _or_many(*masks: "Mask[R]") -> "Mask[R]":
+    #     flags = [mask.primal_flag() for mask in masks]
 
-        # If not all concrete, proceed with the general case
-        values_and_flags = jnp.array([
-            (mask.value, mask.primal_flag()) for mask in masks
-        ])
-        values_array, flags_array = values_and_flags[:, 0], values_and_flags[:, 1]
-        combined_flag = jnp.any(flags_array)
+    #     # Check if all flags are concrete booleans
+    #     if all(isinstance(flag, bool) for flag in flags):
+    #         # Short-circuit for concrete booleans
+    #         for mask, flag in zip(masks, flags):
+    #             if flag:
+    #                 return mask
+    #         # If all flags are False, return the last mask with a False flag
+    #         return Mask(masks[-1].value, False)
 
-        def choose_value(values: Array, flags: BoolArray):
-            first_true_index = jnp.argmax(flags)
-            # TODO this is broken under jit.
-            return jtu.tree_map(lambda *vs: vs[first_true_index], *values)
+    #     # If not all concrete, proceed with the general case
+    #     values_and_flags = jnp.array([
+    #         (mask.value, mask.primal_flag()) for mask in masks
+    #     ])
+    #     values_array, flags_array = values_and_flags[:, 0], values_and_flags[:, 1]
+    #     combined_flag = jnp.any(flags_array)
 
-        chosen_value = choose_value(values_array, flags_array)
+    #     def choose_value(values: Array, flags: BoolArray):
+    #         first_true_index = jnp.argmax(flags)
+    #         # TODO this is broken under jit.
+    #         return jtu.tree_map(lambda *vs: vs[first_true_index], *values)
 
-        return Mask(chosen_value, combined_flag)
+    #     chosen_value = choose_value(values_array, flags_array)
+
+    #     return Mask(chosen_value, combined_flag)

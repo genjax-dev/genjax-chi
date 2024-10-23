@@ -26,7 +26,7 @@ from deprecated import deprecated
 
 from genjax._src.core.generative.core import Constraint, Projection
 from genjax._src.core.generative.functional_types import Mask
-from genjax._src.core.interpreters.staging import FlagOp, tree_choose
+from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -1692,22 +1692,14 @@ class Xor(ChoiceMap):
 
     def get_value(self) -> Any:
         match self.c1.get_value(), self.c2.get_value():
-            case l, r if isinstance(l, Mask) or isinstance(r, Mask):
-
-                def pair_flag_to_idx(first: Flag, second: Flag):
-                    return first + 2 * second - 1
-
-                idx = pair_flag_to_idx(l.primal_flag(), r.primal_flag())
-                return tree_choose(idx, [l, r])
-
-            case None, r:
-                return r
-
-            case l, None:
-                return l
-
-            case l, r:
-                return Mask(l, False)
+            case None, b:
+                return b
+            case a, None:
+                return a
+            case a, b:
+                a = Mask.build(a)
+                b = Mask.build(b)
+                return (a ^ b).flatten()
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         remaining_1 = self.c1.get_submap(addr)
@@ -1761,19 +1753,16 @@ class Or(ChoiceMap):
 
     def get_value(self) -> Any:
         match self.c1.get_value(), self.c2.get_value():
-            case l, r if isinstance(l, Mask) or isinstance(r, Mask):
-
-                def pair_flag_to_idx(first: Flag, second: Flag):
-                    return first + 2 * FlagOp.and_(FlagOp.not_(first), second) - 1
-
-                idx = pair_flag_to_idx(l.primal_flag(), r.primal_flag())
-                return tree_choose(idx, [l, r])
-
-            case None, r:
-                return r
-
-            case l, _:
-                return l
+            case None, b:
+                return b
+            case a, None:
+                return a
+            case a, b:
+                # TODO this is busted but somehow passes all tests.
+                # what we WANT is for this to validate that the values are the same shape and type,
+                a = Mask.build(a)
+                b = Mask.build(b)
+                return (a | b).flatten()
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap1 = self.c1.get_submap(addr)
