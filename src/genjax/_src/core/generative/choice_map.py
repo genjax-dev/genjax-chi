@@ -26,7 +26,7 @@ from deprecated import deprecated
 
 from genjax._src.core.generative.core import Constraint, Projection
 from genjax._src.core.generative.functional_types import Mask
-from genjax._src.core.interpreters.staging import FlagOp, staged_err, tree_choose
+from genjax._src.core.interpreters.staging import FlagOp, tree_choose
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -1468,8 +1468,14 @@ class Choice(Generic[T], ChoiceMap):
     def build(v: T) -> ChoiceMap:
         if isinstance(v, Array) and v.shape == (0,):
             return ChoiceMap.empty()
-        elif isinstance(v, Mask) and FlagOp.concrete_false(v.primal_flag()):
-            return ChoiceMap.empty()
+        elif isinstance(v, Mask):
+            match v.primal_flag():
+                case False:
+                    return ChoiceMap.empty()
+                case True:
+                    return Choice(v.value)
+                case _:
+                    return Choice(v)
         else:
             return Choice(v)
 
@@ -1682,32 +1688,26 @@ class Xor(ChoiceMap):
                 case (Static(), Static()):
                     return Static.merge_with(lambda a, b: a ^ b, c1, c2)
                 case _:
-                    check1 = c1.has_value()
-                    check2 = c2.has_value()
-                    err_check = FlagOp.and_(check1, check2)
-                    staged_err(
-                        err_check,
-                        f"The disjoint union of two choice maps have a value collision:\nc1 = {c1}\nc2 = {c2}",
-                    )
                     return Xor(c1, c2)
 
     def get_value(self) -> Any:
-        check1 = self.c1.has_value()
-        check2 = self.c2.has_value()
-        v1 = self.c1.get_value()
-        v2 = self.c2.get_value()
+        match self.c1.get_value(), self.c2.get_value():
+            case l, r if isinstance(l, Mask) or isinstance(r, Mask):
 
-        def pair_flag_to_idx(first: Flag, second: Flag):
-            return first + 2 * second - 1
+                def pair_flag_to_idx(first: Flag, second: Flag):
+                    return first + 2 * second - 1
 
-        idx = pair_flag_to_idx(check1, check2)
+                idx = pair_flag_to_idx(l.primal_flag(), r.primal_flag())
+                return tree_choose(idx, [l, r])
 
-        if isinstance(idx, int):
-            # This branch means that both has_value() checks have returned concrete bools, so we can
-            # make the choice directly.
-            return [v1, v2][idx]
-        else:
-            return tree_choose(idx, [v1, v2])
+            case None, r:
+                return r
+
+            case l, None:
+                return l
+
+            case l, r:
+                return Mask(l, False)
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         remaining_1 = self.c1.get_submap(addr)
@@ -1756,26 +1756,24 @@ class Or(ChoiceMap):
             match (c1, c2):
                 case (Static(), Static()):
                     return Static.merge_with(or_, c1, c2)
-
                 case _:
                     return Or(c1, c2)
 
     def get_value(self) -> Any:
-        check1 = self.c1.has_value()
-        check2 = self.c2.has_value()
-        v1 = self.c1.get_value()
-        v2 = self.c2.get_value()
+        match self.c1.get_value(), self.c2.get_value():
+            case l, r if isinstance(l, Mask) or isinstance(r, Mask):
 
-        def pair_flag_to_idx(first: Flag, second: Flag):
-            return first + 2 * FlagOp.and_(FlagOp.not_(first), second) - 1
+                def pair_flag_to_idx(first: Flag, second: Flag):
+                    return first + 2 * FlagOp.and_(FlagOp.not_(first), second) - 1
 
-        idx = pair_flag_to_idx(check1, check2)
-        if isinstance(idx, int):
-            # This branch means that both has_value() checks have returned concrete bools, so we can
-            # make the choice directly.
-            return [v1, v2][idx]
-        else:
-            return tree_choose(idx, [v1, v2])
+                idx = pair_flag_to_idx(l.primal_flag(), r.primal_flag())
+                return tree_choose(idx, [l, r])
+
+            case None, r:
+                return r
+
+            case l, _:
+                return l
 
     def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
         submap1 = self.c1.get_submap(addr)

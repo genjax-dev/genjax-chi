@@ -368,16 +368,19 @@ class TestChoiceMap:
         empty_chm = ChoiceMap.empty()
         assert empty_chm.static_is_empty()
 
-    def test_value(self):
-        value_chm = ChoiceMap.choice(42.0)
-        assert value_chm.get_value() == 42.0
-        assert value_chm.has_value()
+    def test_choice(self):
+        choice = ChoiceMap.choice(42.0)
+        assert choice.get_value() == 42.0
+        assert choice.has_value()
 
         # NO sub-paths are inside a ValueChm.
-        assert () in value_chm
+        assert () in choice
 
-        # A value chm with a mask that is concrete False is empty.
+        # A choice with a mask that is concrete False is empty.
         assert ChoiceMap.choice(Mask(42.0, False)).static_is_empty()
+
+        # Masks with concrete `True` flags have their masks stripped off
+        assert ChoiceMap.choice(Mask(42.0, True)) == ChoiceMap.choice(42.0)
 
         # non-concrete values survive.
         masked_v = Mask(42.0, jnp.array(False))
@@ -599,11 +602,9 @@ class TestChoiceMap:
         assert xor_chm["x"] == 1
         assert xor_chm["y"] == 2
 
-        with pytest.raises(
-            Exception,
-            match="The disjoint union of two choice maps have a value collision",
-        ):
-            (chm1 ^ chm1)["x"]
+        xor_x = (chm1 ^ chm1)["x"]
+        assert isinstance(xor_x, Mask)
+        assert xor_x.primal_flag() is False
 
         # Optimization: XorChm.build should return EmptyChm for empty inputs
         assert (ChoiceMap.empty() ^ ChoiceMap.empty()).static_is_empty()

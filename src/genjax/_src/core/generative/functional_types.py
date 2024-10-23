@@ -181,13 +181,8 @@ class Mask(Generic[R], Pytree):
         # Short-circuit for concrete booleans
         if FlagOp.concrete_true(check1):
             return a
-        if FlagOp.concrete_true(check2):
+        if FlagOp.concrete_false(check1):
             return b
-        if FlagOp.concrete_false(check1) and FlagOp.concrete_false(check2):
-            return Mask(
-                b.value, False
-            )  # Both false, return either value with False flag
-
         # Combine the flags
         or_flag = FlagOp.or_(check1, check2)
 
