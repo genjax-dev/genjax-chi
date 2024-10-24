@@ -29,11 +29,6 @@ EPOCHS = 400
 sigma = 0.05
 
 
-# %% [markdown]
-# We are often interested in the average returned value of a probabilistic program. For instance, it could be that
-# a run of the program represents a run of a simulation of some form, and we would like to maximize the average reward across many simulations (or equivalently minimize a loss).
-
-
 # %%
 # Model
 def noisy_jax_model(key, theta):
@@ -50,9 +45,6 @@ def expected_val(theta):
     return (theta - theta**2) / 2
 
 
-# %% [markdown]
-# We can see that the simulation can have two "modes" that split further appart over time.
-
 # %%
 # Samples
 thetas = jnp.arange(0.0, 1.0, 0.0005)
@@ -65,7 +57,6 @@ plot_options = Plot.new(
     {"x": {"label": "θ"}, "y": {"label": "y"}},
     Plot.aspect_ratio(1),
     Plot.grid(),
-    Plot.clip(),
 )
 
 samples_plot = (
@@ -74,50 +65,6 @@ samples_plot = (
     + plot_options
 )
 samples_plot
-
-# %% [markdown]
-# We can also easily imagine a more noisy version of the same idea.
-
-# %%
-sigma = 0.25
-
-
-def more_noisy_jax_model(key, theta):
-    b = jax.random.bernoulli(key, theta)
-    return jax.lax.cond(
-        b,
-        lambda _: jax.random.normal(key) * sigma * theta**2 / 3,
-        lambda _: (jax.random.normal(key) * sigma + theta) / 2,
-        None,
-    )
-
-
-more_thetas = jnp.arange(0.0, 1.0, 0.0005)
-keys = jax.random.split(key, len(more_thetas))
-
-noisy_sample_plot = Plot.dot(
-    {
-        "x": more_thetas,
-        "y": jax.vmap(more_noisy_jax_model, in_axes=(0, 0))(keys, more_thetas),
-    },
-    fill=Plot.constantly("samples"),
-    r=2,
-)
-
-noisy_sample_plot + plot_options
-
-
-# %% [markdown]
-# As we can see better on the noisy version, the samples divide into two groups. One tends to go up as theta increases while the other stays relatively stable around 0 with a higher variance. For simplicity of the analysis, in the rest of this notebook we will stick to the simpler first example.
-
-# %% [markdown]
-#
-# In that simple case, we can compute the exact average value of the random process as a function of $\theta$. We have probability $\theta$ to return $0$ and probablity $1-\theta$ to return $\frac{\theta}{2}$. So overall the expected value is
-# $$\theta*0 + (1-\theta)*\frac{\theta}{2} = \frac{\theta-\theta^2}{2}$$
-
-# %% [markdown]
-# We can code this and plot the result for comparison.
-
 
 # %%
 # Adding exact expectation
@@ -137,14 +84,32 @@ expected_value_plot = (
 
 samples_plot + expected_value_plot
 
-# %% [markdown]
-# We can see that the curve in yellow is a perfectly reasonable differentiable function. We can use JAX to compute its derivative (more generally its gradient) at various points.
-
 # %%
+# JAX computed exact gradients
 grad_exact = jax.jit(jax.grad(expected_val))
 theta_tangent_points = [0.1, 0.3, 0.45]
 
+# Optimization on ideal curve
+arg = 0.2
+vals = []
+arg_list = []
+for _ in range(EPOCHS):
+    grad_val = grad_exact(arg)
+    arg_list.append(arg)
+    vals.append(expected_val(arg))
+    arg = arg + 0.01 * grad_val
+    if arg < 0:
+        arg = 0
+        break
+    elif arg > 1:
+        arg = 1
 
+(
+    Plot.line({"x": list(range(EPOCHS)), "y": vals})
+    + {"x": {"label": "Iteration"}, "y": {"label": "y"}}
+)
+
+# %%
 color1 = "rgba(255,165,0,0.5)"
 color2 = "#FB575D"
 
@@ -171,87 +136,6 @@ def tangent_line_plot(theta_tan):
     + Plot.domain([0, 1], [0, 0.4])
     + Plot.title("Expectation curve and its Tangent Lines")
 )
-
-# %% [markdown]
-# A popular technique from optimization is to use iterative methods such as (stochastic) gradient ascent.
-# Starting from any location, say 0.2, we can use JAX to find the maximum of the function.
-
-# %%
-arg = 0.2
-vals = []
-arg_list = []
-for _ in range(EPOCHS):
-    grad_val = grad_exact(arg)
-    arg_list.append(arg)
-    vals.append(expected_val(arg))
-    arg = arg + 0.01 * grad_val
-    if arg < 0:
-        arg = 0
-        break
-    elif arg > 1:
-        arg = 1
-
-# %% [markdown]
-# We can plot the evolution of the value of the function over the iterations of the algorithms.
-
-# %%
-(
-    Plot.line({"x": list(range(EPOCHS)), "y": vals})
-    + {"x": {"label": "Iteration"}, "y": {"label": "y"}}
-)
-
-# %% [markdown]
-# We can also directly visualize the points on the curve.
-
-# %%
-(
-    expected_value_plot
-    + Plot.dot(
-        {"x": arg_list, "y": vals},
-        fill=Plot.js(
-            f"""(_, i) => d3.interpolateHsl('{color1}', '{color2}')(i/{len(arg_list)})"""
-        ),
-    )
-    + Plot.subtitle("Gradient descent: yellow at start and red at the end")
-    + Plot.aspect_ratio(0.25)
-    + {"width": 600}
-)
-
-# %% [markdown]
-# We have this in this example that we can compute the average value exactly. But will not be the case in general. One popular technique to approximate an average value is to use Monte Carlo Integration: we sample a bunch from the program and take the average value.
-#
-# As we use more and more samples we will converge to the correct result by the Central limit theorem.
-
-# %%
-number_of_samples = sorted([1, 3, 5, 10, 20, 50, 100, 200, 500, 1000] * 7)
-means = []
-for n in number_of_samples:
-    key, subkey = jax.random.split(key)
-    keys = jax.random.split(key, n)
-    samples = jax.vmap(noisy_jax_model, in_axes=(0, None))(keys, 0.3)
-    mean = jnp.mean(samples)
-    means.append(mean)
-
-(
-    Plot.dot(
-        {"x": number_of_samples, "y": means},
-        fill=Plot.js(
-            f"""(_, i) => d3.interpolateHsl('{color1}', '{color2}')(i/{len(number_of_samples)})"""
-        ),
-    )
-    + Plot.ruleY(
-        [expected_val(0.3)],
-        opacity=0.2,
-        strokeWidth=2,
-        stroke=Plot.constantly("True value"),
-    )
-    + Plot.color_map({"Mean estimate": color1, "True value": "green"})
-    + Plot.color_legend()
-    + {"x": {"label": "Number of samples", "type": "log"}, "y": {"label": "y"}}
-)
-
-# %% [markdown]
-# As we just discussed, most of the time we will not be able to compute the average value and then compute the gradient using JAX. One thing we may want to try is to use JAX on the probabilistic program to get a gradient estimate, and hope that by using more and more samples this will converge to the correct gradient that we could use in optimization. Let's try it in JAX.
 
 # %%
 theta_tan = 0.3
@@ -296,34 +180,24 @@ jax_grad = jax.jit(jax.grad(noisy_jax_model, argnums=1))
 
 arg = 0.2
 vals = []
+grads = []
 for _ in range(EPOCHS):
     key, subkey = jax.random.split(key)
     grad_val = jax_grad(subkey, arg)
     arg = arg + 0.01 * grad_val
     vals.append(expected_val(arg))
+    grads.append(grad_val)
 
-# %% [markdown]
-# JAX seems happy to compute something and we can use the iterative technique from before, but let's see if we managed to minimize the function.
-
-# %%
 (
     Plot.line(
         {"x": list(range(EPOCHS)), "y": vals},
         stroke=Plot.constantly("Attempting gradient ascent with JAX"),
     )
+    + Plot.title("Maximization of the expected value of a probabilistic function")
     + {"x": {"label": "Iteration"}, "y": {"label": "y"}}
     + Plot.domainX([0, EPOCHS])
-    + Plot.title("Maximization of the expected value of a probabilistic function")
     + Plot.color_legend()
 )
-
-# %% [markdown]
-# Woops! We seemed to start ok but then for some reason the curve goes back down and we end up minimizing the function instead of maximizing it!
-#
-# The reason is that we failed to account from the change of contribution of the coin flip from  `bernoulli` in the differentiation process, and we will come back to this in more details in follow up notebooks.
-#
-# For now, let's just get a sense of what the gradient estimates computed by JAX look like.
-
 
 # %%
 theta_tangents = jnp.linspace(0, 1, 20)
@@ -359,15 +233,6 @@ for theta in theta_tangents:
     gradients.append((theta, jax_grad(subkey, theta)))
 
 plot_tangents(gradients, "Expectation curve and JAX-computed tangent estimates")
-
-
-# %% [markdown]
-# Ouch. They do not look even remotely close to valid gradient estimates.
-
-# %% [markdown]
-# ADEV is a new algorithm that computes correct gradient estimates of expectations of probabilistic programs. It  accounts for the change to the expectation coming from a change to the randomness present in the expectation.
-#
-# GenJAX implements ADEV. Slightly rewriting the example from above using GenJAX, we can see how different the behaviour of the optimization process with the corrected gradient estimates is.
 
 
 # %%
@@ -590,50 +455,3 @@ def render_combined_plot(initial_val):
 render_combined_plot(INITIAL_VAL)
 
 combined_plot
-
-# %% [markdown]
-# In the above example, by using `jvp_estimate` we used a forward-mode version of ADEV. GenJAX also supports a reverse-mode version which is also fully compatible with JAX and can be jitted.
-
-
-# %%
-@expectation
-def flip_exact_loss(theta):
-    b = flip_enum(theta)
-    return jax.lax.cond(
-        b,
-        lambda _: 0.0,
-        lambda _: -theta / 2.0,
-        theta,
-    )
-
-
-adev_grad = jax.jit(flip_exact_loss.jvp_estimate)
-
-arg = 0.2
-adev_vals = []
-for _ in range(EPOCHS):
-    key, subkey = jax.random.split(key)
-    grad_val = adev_grad(subkey, Dual(arg, 1.0)).tangent
-    arg = arg - 0.01 * grad_val
-    adev_vals.append(expected_val(arg))
-
-rev_adev_grad = jax.jit(flip_exact_loss.grad_estimate)
-
-arg = 0.2
-rev_adev_vals = []
-for _ in range(EPOCHS):
-    key, subkey = jax.random.split(key)
-    (grad_val,) = rev_adev_grad(subkey, (arg,))
-    arg = arg - 0.01 * grad_val
-    rev_adev_vals.append(expected_val(arg))
-
-(
-    Plot.line(
-        {"x": list(range(EPOCHS)), "y": rev_adev_vals},
-        stroke=Plot.constantly("Reverse mode ADEV"),
-    )
-    + {"x": {"label": "Iteration"}, "y": {"label": "y"}}
-    + Plot.domainX([0, EPOCHS])
-    + Plot.title("Maximization of the expected value of a probabilistic function")
-    + Plot.color_legend()
-)
