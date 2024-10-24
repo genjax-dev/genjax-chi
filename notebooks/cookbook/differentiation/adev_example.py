@@ -296,7 +296,7 @@ def select_evenly_spaced(items, num_samples=5):
 
 INITIAL_VAL = 0.2
 SLIDER_STEP = 0.01
-ANIMATION_STEP = 8
+ANIMATION_STEP = 4
 
 button_classes = "px-3 py-1 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition duration-150 ease-in-out"
 
