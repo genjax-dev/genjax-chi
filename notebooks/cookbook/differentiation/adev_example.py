@@ -134,7 +134,7 @@ expected_value_plot = (
         stroke=Plot.constantly("Expected value"),
         curve="natural",
     )
-    + Plot.color_map({"Expected value": "blue"})
+    + Plot.color_map({"Expected value": "black"})
     + plot_options,
 )
 

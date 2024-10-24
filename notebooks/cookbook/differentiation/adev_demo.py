@@ -48,11 +48,17 @@ def expected_val(theta):
 # %%
 # Samples
 thetas = jnp.arange(0.0, 1.0, 0.0005)
-keys = jax.random.split(key, len(thetas))
 
-noisy_samples = jax.vmap(noisy_jax_model, in_axes=(0, 0, None))(
-    keys, thetas, default_sigma
-)
+
+def make_samples(thetas, sigma):
+    global key
+    key, subkey = jax.random.split(key)
+    return jax.vmap(noisy_jax_model, in_axes=(0, 0, None))(
+        jax.random.split(subkey, len(thetas)), thetas, sigma
+    )
+
+
+noisy_samples = make_samples(thetas, default_sigma)
 
 plot_options = Plot.new(
     Plot.color_legend(),
@@ -61,11 +67,17 @@ plot_options = Plot.new(
     Plot.grid(),
 )
 
-samples_plot = (
-    Plot.dot({"x": thetas, "y": noisy_samples}, fill=Plot.constantly("Samples"), r=2)
-    + Plot.color_map({"Samples": "rgba(0, 128, 128, 0.5)"})
-    + plot_options
-)
+
+def make_samples_plot(thetas, samples):
+    return (
+        Plot.dot({"x": thetas, "y": samples}, fill=Plot.constantly("Samples"), r=2)
+        + Plot.color_map({"Samples": "rgba(0, 128, 128, 0.5)"})
+        + plot_options
+    )
+
+
+samples_plot = make_samples_plot(thetas, noisy_samples)
+
 samples_plot
 
 # %%
@@ -80,7 +92,7 @@ expected_value_plot = (
         stroke=Plot.constantly("Expected value"),
         curve="natural",
     )
-    + Plot.color_map({"Expected value": "blue"})
+    + Plot.color_map({"Expected value": "black"})
     + plot_options,
 )
 
@@ -252,30 +264,28 @@ def flip_approx_loss(theta, sigma):
 adev_grad = jax.jit(flip_approx_loss.jvp_estimate)
 
 
-def compute_jax_vals(key, initial_val, sigma):
-    current_val = initial_val
-    jax_vals = []
-    jax_gradients = []
+def compute_jax_vals(key, initial_theta, sigma):
+    current_theta = initial_theta
+    out = []
     for _ in range(EPOCHS):
         key, subkey = jax.random.split(key)
-        grad_val = jax_grad(subkey, current_val, sigma)
-        jax_gradients.append((current_val, grad_val))
-        current_val = current_val + 0.01 * grad_val
-        jax_vals.append(expected_val(current_val))
-    return jax_vals, jax_gradients
+        gradient = jax_grad(subkey, current_theta, sigma)
+        out.append((current_theta, expected_val(current_theta), gradient))
+        current_theta = current_theta + 0.01 * gradient
+    return out
 
 
-def compute_adev_vals(key, initial_val, sigma):
-    current_val = initial_val
-    adev_vals = []
-    adev_gradients = []
+def compute_adev_vals(key, initial_theta, sigma):
+    current_theta = initial_theta
+    out = []
     for _ in range(EPOCHS):
         key, subkey = jax.random.split(key)
-        grad_val = adev_grad(subkey, (Dual(current_val, 1.0), Dual(sigma, 0.0))).tangent
-        adev_gradients.append((current_val, grad_val))
-        current_val = current_val + 0.01 * grad_val
-        adev_vals.append(expected_val(current_val))
-    return adev_vals, adev_gradients
+        gradient = adev_grad(
+            subkey, (Dual(current_theta, 1.0), Dual(sigma, 0.0))
+        ).tangent
+        out.append((current_theta, expected_val(current_theta), gradient))
+        current_theta = current_theta + 0.01 * gradient
+    return out
 
 
 # %%
@@ -304,56 +314,69 @@ button_classes = "px-3 py-1 bg-blue-500 text-white text-sm font-medium rounded-m
 combined_plot = Plot.new()
 
 
-def make_comparison_plot(jax_gradients, adev_gradients):
-    return (
-        Plot.line(
-            jax_gradients,
-            {"x": Plot.js("(_, i) => i"), "y": "1"},
-            stroke=Plot.constantly("Gradients from JAX"),
-            filter=Plot.js("(data, i) => !$state.frame || i <= $state.frame"),
-        )
-        + Plot.line(
-            adev_gradients,
-            {"x": Plot.js("(_, i) => i"), "y": "1"},
-            stroke=Plot.constantly("Gradients from ADEV"),
-            filter=Plot.js("(data, i) => !$state.frame || i <= $state.frame"),
-        )
-        + {"x": {"label": "Iteration"}, "y": {"label": "y"}}
-        + Plot.domainX([0, EPOCHS])
-        + Plot.title("Comparison of computed gradients JAX vs ADEV")
-        + Plot.color_legend()
-    )
-
-
-def render_combined_plot(initial_val, sigma):
+def render_combined_plot(current_val, sigma):
     global key
     key, subkey1, subkey2 = jax.random.split(key, num=3)
-    jax_vals, jax_gradients = compute_jax_vals(subkey1, initial_val, sigma)
-    adev_vals, adev_gradients = compute_adev_vals(subkey2, initial_val, sigma)
+    jax_vals = compute_jax_vals(subkey1, current_val, sigma)
+    adev_vals = compute_adev_vals(subkey2, current_val, sigma)
 
-    def plot_tangents(gradients, title):
-        tangents_plots = Plot.new(Plot.aspectRatio(0.5))
-
-        thetas = [theta for (theta, _) in gradients]
-
-        orange_to_red_plot = Plot.dot(
-            {"x": thetas, "y": [expected_val(theta) for theta in thetas]},
-            fill=Plot.js(
-                f"""(_, i) => d3.interpolateHsl('{color1}', '{color2}')(i/{len(thetas)})"""
-            ),
-            filter=Plot.js("(data, i) => i <= $state.frame"),
+    def recompute(widget, val, sigma):
+        widget.update_state(
+            ["jax_gradients", "reset", compute_jax_vals(subkey1, val, sigma)],
+            ["adev_gradients", "reset", compute_adev_vals(subkey2, val, sigma)],
+            ["frame", "reset", 0],
+            ["current_val", "reset", val],
+            ["sigma", "reset", sigma],
+            ["samples", "reset", make_samples(thetas, sigma)],
         )
 
-        line_data = []
-        for i, (theta, slope) in enumerate(gradients):
-            y_intercept = expected_val(theta) - slope * theta
-            line_data.append([0, y_intercept, i])
-            line_data.append([1, slope + y_intercept, i])
+    def set_val(widget, new_val):
+        nonlocal current_val
+        current_val = new_val
+        recompute(widget, current_val, sigma)
+
+    def set_sigma(widget, new_sigma):
+        nonlocal sigma
+        sigma = new_sigma
+        recompute(widget, current_val, sigma)
+
+    def refresh(widget):
+        global key
+        nonlocal subkey1, subkey2
+        key, subkey1, subkey2 = jax.random.split(key, num=3)
+        recompute(widget, current_val, sigma)
+
+    refs = (
+        Plot.initial_state("jax_gradients", jax_vals)
+        | Plot.initial_state("adev_gradients", adev_vals)
+        | Plot.initial_state("current_val", current_val)
+        | Plot.initial_state("sigma", sigma)
+        | Plot.initial_state("samples", make_samples(thetas, sigma))
+    )
+
+    samples_plot = make_samples_plot(thetas, Plot.js("$state.samples"))
+
+    def plot_tangents(gradients_id, title):
+        tangents_plots = Plot.new(Plot.aspectRatio(0.5))
+
+        orange_to_red_plot = Plot.dot(
+            Plot.js(f"$state.{gradients_id}"),
+            x="0",
+            y="1",
+            fill=Plot.js(
+                f"""(_, i) => d3.interpolateHsl('{color1}', '{color2}')(i/{EPOCHS})"""
+            ),
+            filter=(Plot.js("(d, i) => i <= $state.frame")),
+        )
 
         tangents_plots += orange_to_red_plot
 
         tangents_plots += Plot.line(
-            line_data,
+            Plot.js(f"""$state.{gradients_id}.flatMap(([theta, expected_val, slope], i) => {{
+                        const y_intercept = expected_val - slope * theta
+                        return [[0, y_intercept, i], [1, slope + y_intercept, i]]
+                    }})
+                    """),
             z="2",
             stroke=Plot.constantly("Tangent"),
             opacity=Plot.js("(data) => data[2] === $state.frame ? 1 : 0.5"),
@@ -381,16 +404,39 @@ def render_combined_plot(initial_val, sigma):
             }),
         )
 
-    optimization_plot = Plot.new(
+    comparison_plot = (
         Plot.line(
-            {"x": list(range(EPOCHS)), "y": jax_vals},
-            stroke=Plot.constantly("Gradient ascent with JAX"),
-            filter=Plot.js("(_, i) => i <= $state.frame"),
+            Plot.js("$state.jax_gradients.slice(0, $state.frame+1)"),
+            x=Plot.index(),
+            y="2",
+            stroke=Plot.constantly("Gradients from JAX"),
         )
         + Plot.line(
-            {"x": list(range(EPOCHS)), "y": adev_vals},
+            Plot.js("$state.adev_gradients.slice(0, $state.frame+1)"),
+            x=Plot.index(),
+            y="2",
+            stroke=Plot.constantly("Gradients from ADEV"),
+        )
+        + {"x": {"label": "Iteration"}, "y": {"label": "y"}}
+        + Plot.domainX([0, EPOCHS])
+        + Plot.title("Comparison of computed gradients JAX vs ADEV")
+        + Plot.color_legend()
+    )
+
+    optimization_plot = Plot.new(
+        Plot.line(
+            Plot.js("$state.jax_gradients"),
+            x=Plot.index(),
+            y="1",
+            stroke=Plot.constantly("Gradient ascent with JAX"),
+            filter=Plot.js("(d, i) => i <= $state.frame"),
+        )
+        + Plot.line(
+            Plot.js("$state.adev_gradients"),
+            x=Plot.index(),
+            y="1",
             stroke=Plot.constantly("Gradient ascent with ADEV"),
-            filter=Plot.js("(_, i) => i <= $state.frame"),
+            filter=Plot.js("(d, i) => i <= $state.frame"),
         )
         + {
             "x": {"label": "Iteration"},
@@ -402,10 +448,10 @@ def render_combined_plot(initial_val, sigma):
     )
 
     jax_tangents_plot = samples_plot + plot_tangents(
-        jax_gradients, "JAX Gradient Estimates"
+        "jax_gradients", "JAX Gradient Estimates"
     )
     adev_tangents_plot = samples_plot + plot_tangents(
-        adev_gradients, "ADEV Gradient Estimates"
+        "adev_gradients", "ADEV Gradient Estimates"
     )
 
     frame_slider = Plot.Slider(
@@ -420,7 +466,7 @@ def render_combined_plot(initial_val, sigma):
             "Initial Value:",
             [
                 "span.font-bold.px-1",
-                f"{initial_val:.2f}",
+                Plot.js("$state.current_val"),
             ],  # Format to 2 decimal places
             [
                 "input",
@@ -430,9 +476,27 @@ def render_combined_plot(initial_val, sigma):
                     "max": 1,
                     "step": SLIDER_STEP,
                     "defaultValue": INITIAL_VAL,
-                    "onChange": lambda e: render_combined_plot(
-                        float(e["value"]), sigma
-                    ),
+                    "onChange": lambda e: set_val(e["widget"], float(e["value"])),
+                    "class": "w-64 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer ml-2",
+                },
+            ],
+        ],
+        [
+            "label",
+            "Sigma:",
+            [
+                "span.font-bold.px-1",
+                Plot.js("$state.sigma"),
+            ],  # Format to 2 decimal places
+            [
+                "input",
+                {
+                    "type": "range",
+                    "min": 0,
+                    "max": 0.2,
+                    "step": 0.01,
+                    "defaultValue": sigma,
+                    "onChange": lambda e: set_sigma(e["widget"], float(e["value"])),
                     "class": "w-64 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer ml-2",
                 },
             ],
@@ -440,7 +504,7 @@ def render_combined_plot(initial_val, sigma):
         [
             "button",
             {
-                "onClick": lambda e: render_combined_plot(initial_val, sigma),
+                "onClick": lambda e: refresh(e["widget"]),
                 "class": button_classes,
             },
             "Refresh",
@@ -449,10 +513,11 @@ def render_combined_plot(initial_val, sigma):
 
     combined_plot.update_state(["frame", "reset", 0])
     combined_plot.reset(
-        initial_val_slider
+        refs
+        | initial_val_slider
         | optimization_plot & jax_tangents_plot & adev_tangents_plot
         | frame_slider
-        | make_comparison_plot(jax_gradients, adev_gradients)
+        | comparison_plot
     )
 
 
