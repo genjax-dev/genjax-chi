@@ -26,12 +26,12 @@ from genjax._src.adev.primitives import flip_enum, normal_reparam
 
 key = jax.random.key(314159)
 EPOCHS = 400
-sigma = 0.05
+default_sigma = 0.05
 
 
 # %%
 # Model
-def noisy_jax_model(key, theta):
+def noisy_jax_model(key, theta, sigma):
     b = jax.random.bernoulli(key, theta)
     return jax.lax.cond(
         b,
@@ -50,7 +50,9 @@ def expected_val(theta):
 thetas = jnp.arange(0.0, 1.0, 0.0005)
 keys = jax.random.split(key, len(thetas))
 
-noisy_samples = jax.vmap(noisy_jax_model, in_axes=(0, 0))(keys, thetas)
+noisy_samples = jax.vmap(noisy_jax_model, in_axes=(0, 0, None))(
+    keys, thetas, default_sigma
+)
 
 plot_options = Plot.new(
     Plot.color_legend(),
@@ -183,7 +185,7 @@ vals = []
 grads = []
 for _ in range(EPOCHS):
     key, subkey = jax.random.split(key)
-    grad_val = jax_grad(subkey, arg)
+    grad_val = jax_grad(subkey, arg, default_sigma)
     arg = arg + 0.01 * grad_val
     vals.append(expected_val(arg))
     grads.append(grad_val)
@@ -230,14 +232,14 @@ def plot_tangents(gradients, title):
 gradients = []
 for theta in theta_tangents:
     key, subkey = jax.random.split(key)
-    gradients.append((theta, jax_grad(subkey, theta)))
+    gradients.append((theta, jax_grad(subkey, theta, default_sigma)))
 
 plot_tangents(gradients, "Expectation curve and JAX-computed tangent estimates")
 
 
 # %%
 @expectation
-def flip_approx_loss(theta):
+def flip_approx_loss(theta, sigma):
     b = flip_enum(theta)
     return jax.lax.cond(
         b,
@@ -250,26 +252,26 @@ def flip_approx_loss(theta):
 adev_grad = jax.jit(flip_approx_loss.jvp_estimate)
 
 
-def compute_jax_vals(key, initial_val):
+def compute_jax_vals(key, initial_val, sigma):
     current_val = initial_val
     jax_vals = []
     jax_gradients = []
     for _ in range(EPOCHS):
         key, subkey = jax.random.split(key)
-        grad_val = jax_grad(subkey, current_val)
+        grad_val = jax_grad(subkey, current_val, sigma)
         jax_gradients.append((current_val, grad_val))
         current_val = current_val + 0.01 * grad_val
         jax_vals.append(expected_val(current_val))
     return jax_vals, jax_gradients
 
 
-def compute_adev_vals(key, initial_val):
+def compute_adev_vals(key, initial_val, sigma):
     current_val = initial_val
     adev_vals = []
     adev_gradients = []
     for _ in range(EPOCHS):
         key, subkey = jax.random.split(key)
-        grad_val = adev_grad(subkey, Dual(current_val, 1.0)).tangent
+        grad_val = adev_grad(subkey, (Dual(current_val, 1.0), Dual(sigma, 0.0))).tangent
         adev_gradients.append((current_val, grad_val))
         current_val = current_val + 0.01 * grad_val
         adev_vals.append(expected_val(current_val))
@@ -323,11 +325,11 @@ def make_comparison_plot(jax_gradients, adev_gradients):
     )
 
 
-def render_combined_plot(initial_val):
+def render_combined_plot(initial_val, sigma):
     global key
     key, subkey1, subkey2 = jax.random.split(key, num=3)
-    jax_vals, jax_gradients = compute_jax_vals(subkey1, initial_val)
-    adev_vals, adev_gradients = compute_adev_vals(subkey2, initial_val)
+    jax_vals, jax_gradients = compute_jax_vals(subkey1, initial_val, sigma)
+    adev_vals, adev_gradients = compute_adev_vals(subkey2, initial_val, sigma)
 
     def plot_tangents(gradients, title):
         tangents_plots = Plot.new(Plot.aspectRatio(0.5))
@@ -428,7 +430,9 @@ def render_combined_plot(initial_val):
                     "max": 1,
                     "step": SLIDER_STEP,
                     "defaultValue": INITIAL_VAL,
-                    "onChange": lambda e: render_combined_plot(float(e["value"])),
+                    "onChange": lambda e: render_combined_plot(
+                        float(e["value"]), sigma
+                    ),
                     "class": "w-64 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer ml-2",
                 },
             ],
@@ -436,7 +440,7 @@ def render_combined_plot(initial_val):
         [
             "button",
             {
-                "onClick": lambda e: render_combined_plot(initial_val),
+                "onClick": lambda e: render_combined_plot(initial_val, sigma),
                 "class": button_classes,
             },
             "Refresh",
@@ -452,6 +456,6 @@ def render_combined_plot(initial_val):
     )
 
 
-render_combined_plot(INITIAL_VAL)
+render_combined_plot(INITIAL_VAL, default_sigma)
 
 combined_plot
