@@ -73,6 +73,7 @@ def make_samples_plot(thetas, samples):
         Plot.dot({"x": thetas, "y": samples}, fill=Plot.constantly("Samples"), r=2)
         + Plot.color_map({"Samples": "rgba(0, 128, 128, 0.5)"})
         + plot_options
+        + Plot.clip()
     )
 
 
@@ -317,18 +318,19 @@ combined_plot = Plot.new()
 def render_combined_plot(current_val, sigma):
     global key
     key, subkey1, subkey2 = jax.random.split(key, num=3)
-    jax_vals = compute_jax_vals(subkey1, current_val, sigma)
-    adev_vals = compute_adev_vals(subkey2, current_val, sigma)
+
+    def current_state(val, sigma):
+        return {
+            "jax_gradients": compute_jax_vals(subkey1, val, sigma),
+            "adev_gradients": compute_adev_vals(subkey2, val, sigma),
+            "frame": 0,
+            "current_val": val,
+            "sigma": sigma,
+            "samples": make_samples(thetas, sigma),
+        }
 
     def recompute(widget, val, sigma):
-        widget.update_state(
-            ["jax_gradients", "reset", compute_jax_vals(subkey1, val, sigma)],
-            ["adev_gradients", "reset", compute_adev_vals(subkey2, val, sigma)],
-            ["frame", "reset", 0],
-            ["current_val", "reset", val],
-            ["sigma", "reset", sigma],
-            ["samples", "reset", make_samples(thetas, sigma)],
-        )
+        widget.update_state(current_state(val, sigma))
 
     def set_val(widget, new_val):
         nonlocal current_val
@@ -345,14 +347,6 @@ def render_combined_plot(current_val, sigma):
         nonlocal subkey1, subkey2
         key, subkey1, subkey2 = jax.random.split(key, num=3)
         recompute(widget, current_val, sigma)
-
-    refs = (
-        Plot.initial_state("jax_gradients", jax_vals)
-        | Plot.initial_state("adev_gradients", adev_vals)
-        | Plot.initial_state("current_val", current_val)
-        | Plot.initial_state("sigma", sigma)
-        | Plot.initial_state("samples", make_samples(thetas, sigma))
-    )
 
     samples_plot = make_samples_plot(thetas, Plot.js("$state.samples"))
 
@@ -513,11 +507,11 @@ def render_combined_plot(current_val, sigma):
 
     combined_plot.update_state(["frame", "reset", 0])
     combined_plot.reset(
-        refs
+        Plot.initial_state(current_state(current_val, sigma))
         | initial_val_slider
-        | optimization_plot & jax_tangents_plot & adev_tangents_plot
+        | jax_tangents_plot & adev_tangents_plot
+        | optimization_plot & comparison_plot
         | frame_slider
-        | comparison_plot
     )
 
 
