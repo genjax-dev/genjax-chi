@@ -183,7 +183,6 @@ slope_estimates = [slope + i / 20 for i in range(-4, 4)]
     + exact_tangent_plot
     + Plot.title("Expectation curve and Tangent Estimates at θ=0.3")
     + Plot.color_map({
-        "Expected value": "blue",
         "Tangent estimate": color1,
         "Exact tangent at θ=0.3": color2,
     })
@@ -321,8 +320,8 @@ def render_combined_plot(current_val, sigma):
 
     def current_state(val, sigma):
         return {
-            "jax_gradients": compute_jax_vals(subkey1, val, sigma),
-            "adev_gradients": compute_adev_vals(subkey2, val, sigma),
+            "JAX_gradients": compute_jax_vals(subkey1, val, sigma),
+            "ADEV_gradients": compute_adev_vals(subkey2, val, sigma),
             "frame": 0,
             "current_val": val,
             "sigma": sigma,
@@ -350,15 +349,16 @@ def render_combined_plot(current_val, sigma):
 
     samples_plot = make_samples_plot(thetas, Plot.js("$state.samples"))
 
-    def plot_tangents(gradients_id, title):
+    def plot_tangents(gradients_id):
         tangents_plots = Plot.new(Plot.aspectRatio(0.5))
+        color = "blue" if gradients_id == "ADEV" else "orange"
 
         orange_to_red_plot = Plot.dot(
-            Plot.js(f"$state.{gradients_id}"),
+            Plot.js(f"$state.{gradients_id}_gradients"),
             x="0",
             y="1",
             fill=Plot.js(
-                f"""(_, i) => d3.interpolateHsl('{color1}', '{color2}')(i/{EPOCHS})"""
+                f"""(_, i) => d3.interpolateHsl('transparent', '{color}')(i/{EPOCHS})"""
             ),
             filter=(Plot.js("(d, i) => i <= $state.frame")),
         )
@@ -366,13 +366,13 @@ def render_combined_plot(current_val, sigma):
         tangents_plots += orange_to_red_plot
 
         tangents_plots += Plot.line(
-            Plot.js(f"""$state.{gradients_id}.flatMap(([theta, expected_val, slope], i) => {{
+            Plot.js(f"""$state.{gradients_id}_gradients.flatMap(([theta, expected_val, slope], i) => {{
                         const y_intercept = expected_val - slope * theta
                         return [[0, y_intercept, i], [1, slope + y_intercept, i]]
                     }})
                     """),
             z="2",
-            stroke=Plot.constantly("Tangent"),
+            stroke=Plot.constantly(f"{gradients_id} Tangent"),
             opacity=Plot.js("(data) => data[2] === $state.frame ? 1 : 0.5"),
             strokeWidth=Plot.js("(data) => data[2] === $state.frame ? 3 : 1"),
             filter=Plot.js(f"""(data) => {{
@@ -390,23 +390,19 @@ def render_combined_plot(current_val, sigma):
             expected_value_plot,
             Plot.domain([0, 1], [0, 0.4]),
             tangents_plots,
-            Plot.title(title),
-            Plot.color_map({
-                "Samples": "rgba(0, 128, 128, 0.5)",
-                "Expected value": "blue",
-                "Tangent": "rgba(255, 165, 0, 1)",
-            }),
+            Plot.title(f"{gradients_id} Gradient Estimates"),
+            Plot.color_map({"JAX Tangent": "orange", "ADEV Tangent": "blue"}),
         )
 
     comparison_plot = (
         Plot.line(
-            Plot.js("$state.jax_gradients.slice(0, $state.frame+1)"),
+            Plot.js("$state.JAX_gradients.slice(0, $state.frame+1)"),
             x=Plot.index(),
             y="2",
             stroke=Plot.constantly("Gradients from JAX"),
         )
         + Plot.line(
-            Plot.js("$state.adev_gradients.slice(0, $state.frame+1)"),
+            Plot.js("$state.ADEV_gradients.slice(0, $state.frame+1)"),
             x=Plot.index(),
             y="2",
             stroke=Plot.constantly("Gradients from ADEV"),
@@ -419,14 +415,14 @@ def render_combined_plot(current_val, sigma):
 
     optimization_plot = Plot.new(
         Plot.line(
-            Plot.js("$state.jax_gradients"),
+            Plot.js("$state.JAX_gradients"),
             x=Plot.index(),
             y="1",
             stroke=Plot.constantly("Gradient ascent with JAX"),
             filter=Plot.js("(d, i) => i <= $state.frame"),
         )
         + Plot.line(
-            Plot.js("$state.adev_gradients"),
+            Plot.js("$state.ADEV_gradients"),
             x=Plot.index(),
             y="1",
             stroke=Plot.constantly("Gradient ascent with ADEV"),
@@ -441,12 +437,8 @@ def render_combined_plot(current_val, sigma):
         + Plot.color_legend()
     )
 
-    jax_tangents_plot = samples_plot + plot_tangents(
-        "jax_gradients", "JAX Gradient Estimates"
-    )
-    adev_tangents_plot = samples_plot + plot_tangents(
-        "adev_gradients", "ADEV Gradient Estimates"
-    )
+    jax_tangents_plot = samples_plot + plot_tangents("JAX")
+    adev_tangents_plot = samples_plot + plot_tangents("ADEV")
 
     frame_slider = Plot.Slider(
         key="frame", init=0, range=[0, EPOCHS], step=ANIMATION_STEP, fps=30
