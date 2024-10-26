@@ -1,5 +1,9 @@
 # Changelog
 
+This PR:
+  - removes the ellipsis syntax from get_subselection and get_submap (TODO finish passing tests)
+  -
+
 ## [v0.2.0]
 
 This release introduces a large set of new functionality (GenSP: https://github.com/probcomp/GenSP.jl)  into GenJAX, with a focus on inference infrastructure.

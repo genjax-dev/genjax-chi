@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import treescope.repr_lib as trl
-from beartype.typing import cast
 from deprecated import deprecated
 
 from genjax._src.core.generative.core import Constraint, Projection
@@ -317,7 +316,7 @@ class Selection(Projection["ChoiceMap"], Pytree):
 
     def __call__(
         self,
-        addr: ExtendedAddressComponent | ExtendedAddress,
+        addr: AddressComponent | Address,
     ) -> "Selection":
         addr = addr if isinstance(addr, tuple) else (addr,)
         subselection = self
@@ -327,14 +326,14 @@ class Selection(Projection["ChoiceMap"], Pytree):
 
     def __getitem__(
         self,
-        addr: ExtendedAddressComponent | ExtendedAddress,
+        addr: AddressComponent | Address,
     ) -> Flag:
         subselection = self(addr)
         return subselection.check()
 
     def __contains__(
         self,
-        addr: ExtendedAddressComponent | ExtendedAddress,
+        addr: AddressComponent | Address,
     ) -> Flag:
         return self[addr]
 
@@ -343,7 +342,7 @@ class Selection(Projection["ChoiceMap"], Pytree):
         pass
 
     @abstractmethod
-    def get_subselection(self, addr: ExtendedAddressComponent) -> "Selection":
+    def get_subselection(self, addr: AddressComponent) -> "Selection":
         pass
 
 
@@ -370,7 +369,7 @@ class AllSel(Selection):
     def check(self) -> Flag:
         return True
 
-    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
+    def get_subselection(self, addr: AddressComponent) -> Selection:
         return self
 
 
@@ -393,7 +392,7 @@ class NoneSel(Selection):
     def check(self) -> Flag:
         return False
 
-    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
+    def get_subselection(self, addr: AddressComponent) -> Selection:
         return self
 
 
@@ -416,7 +415,7 @@ class LeafSel(Selection):
     def check(self) -> Flag:
         return True
 
-    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
+    def get_subselection(self, addr: AddressComponent) -> Selection:
         return Selection.none()
 
 
@@ -454,7 +453,7 @@ class MaskSel(Selection):
     def check(self) -> Flag:
         return self.flag
 
-    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
+    def get_subselection(self, addr: AddressComponent) -> Selection:
         return self
 
 
@@ -499,7 +498,7 @@ class ComplementSel(Selection):
     def check(self) -> Flag:
         return FlagOp.not_(self.s.check())
 
-    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
+    def get_subselection(self, addr: AddressComponent) -> Selection:
         remaining = self.s(addr)
         return ~remaining
 
@@ -542,8 +541,8 @@ class StaticSel(Selection):
     def check(self) -> Flag:
         return False
 
-    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
-        if isinstance(self.addr, EllipsisType) or isinstance(addr, EllipsisType):
+    def get_subselection(self, addr: AddressComponent) -> Selection:
+        if isinstance(self.addr, EllipsisType):
             return self.s
 
         elif isinstance(addr, StaticAddressComponent):
@@ -599,7 +598,7 @@ class AndSel(Selection):
     def check(self) -> Flag:
         return FlagOp.and_(self.s1.check(), self.s2.check())
 
-    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
+    def get_subselection(self, addr: AddressComponent) -> Selection:
         remaining1 = self.s1(addr)
         remaining2 = self.s2(addr)
         return remaining1 & remaining2
@@ -653,7 +652,7 @@ class OrSel(Selection):
     def check(self) -> Flag:
         return FlagOp.or_(self.s1.check(), self.s2.check())
 
-    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
+    def get_subselection(self, addr: AddressComponent) -> Selection:
         remaining1 = self.s1(addr)
         remaining2 = self.s2(addr)
         return remaining1 | remaining2
@@ -693,7 +692,7 @@ class ChmSel(Selection):
     def check(self) -> Flag:
         return self.c.has_value()
 
-    def get_subselection(self, addr: ExtendedAddressComponent) -> Selection:
+    def get_subselection(self, addr: AddressComponent) -> Selection:
         submap = self.c.get_submap(addr)
         return submap.get_selection()
 
@@ -711,11 +710,10 @@ class ChoiceMapNoValueAtAddress(Exception):
     where no value exists.
 
     Attributes:
-        subaddr (ExtendedAddressComponent | ExtendedAddress): The address or sub-address
-            where the value was not found.
+        subaddr: The address or sub-address where the value was not found.
     """
 
-    subaddr: ExtendedAddressComponent | ExtendedAddress
+    subaddr: AddressComponent | Address
 
 
 def _drop_prefix(
@@ -733,8 +731,8 @@ def _drop_prefix(
 
 
 def _validate_addr(
-    addr: ExtendedAddressComponent | ExtendedAddress, allow_partial_slice: bool = False
-) -> ExtendedAddress:
+    addr: AddressComponent | Address, allow_partial_slice: bool = False
+) -> Address:
     """
     Validates the structure of an address tuple.
 
@@ -804,10 +802,6 @@ class _ChoiceMapBuilder:
 
     def set(self, v) -> "ChoiceMap":
         addrs = _validate_addr(tuple(self.addrs), allow_partial_slice=False)
-
-        # this is safe, as we know we didn't pass any ellipses in.
-        addrs = cast(Address, addrs)
-
         chm = ChoiceMap.entry(v, *addrs)
         if self.choice_map is None:
             return chm
@@ -935,7 +929,7 @@ class ChoiceMap(Pytree):
     @abstractmethod
     def get_submap(
         self,
-        addr: ExtendedAddressComponent,
+        addr: AddressComponent,
     ) -> "ChoiceMap":
         pass
 
@@ -1332,7 +1326,7 @@ class ChoiceMap(Pytree):
 
     def __call__(
         self,
-        addr: ExtendedAddressComponent | ExtendedAddress,
+        addr: AddressComponent | Address,
     ) -> "ChoiceMap":
         addr = _validate_addr(addr, allow_partial_slice=True)
 
@@ -1343,7 +1337,7 @@ class ChoiceMap(Pytree):
 
     def __getitem__(
         self,
-        addr: ExtendedAddressComponent | ExtendedAddress,
+        addr: AddressComponent | Address,
     ):
         submap = self(addr)
         v = submap.get_value()
@@ -1354,7 +1348,7 @@ class ChoiceMap(Pytree):
 
     def __contains__(
         self,
-        addr: ExtendedAddressComponent | ExtendedAddress,
+        addr: AddressComponent | Address,
     ) -> Flag:
         submap = self(addr)
         return submap.has_value()
@@ -1473,7 +1467,7 @@ class Choice(Generic[T], ChoiceMap):
     def get_value(self) -> T:
         return self.v
 
-    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
+    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
         return ChoiceMap.empty()
 
 
@@ -1522,11 +1516,8 @@ class Indexed(ChoiceMap):
     def get_value(self) -> Any:
         return None
 
-    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        if isinstance(addr, EllipsisType):
-            return self.c
-
-        elif isinstance(addr, StaticAddressComponent):
+    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+        if isinstance(addr, StaticAddressComponent):
             return ChoiceMap.empty()
 
         else:
@@ -1614,15 +1605,12 @@ class Static(ChoiceMap):
     def get_value(self) -> Any:
         return None
 
-    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
-        def check(k: ExtendedAddressComponent) -> Flag:
-            return True if addr is Ellipsis else k == addr
-
-        acc = ChoiceMap.empty()
-        for k, v in self.mapping.items():
-            v = Static(v) if isinstance(v, dict) else v
-            acc ^= v.mask(check(k))
-        return acc
+    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+        if isinstance(addr, StaticAddressComponent):
+            v = self.mapping.get(addr, {})
+            return Static(v) if isinstance(v, dict) else v
+        else:
+            return ChoiceMap.empty()
 
     def static_is_empty(self) -> bool:
         return len(self.mapping) == 0
@@ -1657,9 +1645,9 @@ class Switch(ChoiceMap):
 
     def get_value(self) -> Any:
         vs = [chm.get_value() for chm in self.chms]
-        return Mask.xor_n(*[Mask.build(v) for v in vs if v is not None])
+        return Mask.or_n(*[Mask.build(v) for v in vs if v is not None])
 
-    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
+    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
         return Switch(self.idx, [chm.get_submap(addr) for chm in self.chms])
 
 
@@ -1717,7 +1705,7 @@ class Xor(ChoiceMap):
                 b = Mask.build(b)
                 return (a ^ b).flatten()
 
-    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
+    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
         remaining_1 = self.c1.get_submap(addr)
         remaining_2 = self.c2.get_submap(addr)
         return remaining_1 ^ remaining_2
@@ -1780,7 +1768,7 @@ class Or(ChoiceMap):
                 b = Mask.build(b)
                 return (a | b).flatten()
 
-    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
+    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
         submap1 = self.c1.get_submap(addr)
         submap2 = self.c2.get_submap(addr)
         return submap1 | submap2
@@ -1832,7 +1820,7 @@ class Filtered(ChoiceMap):
         sel_check = self.selection[()]
         return Mask.maybe_mask(v, sel_check)
 
-    def get_submap(self, addr: ExtendedAddressComponent) -> ChoiceMap:
+    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
         submap = self.c.get_submap(addr)
         subselection = self.selection(addr)
         return submap.filter(subselection)
@@ -1893,7 +1881,7 @@ def _shape_selection(chm: ChoiceMap) -> Selection:
                 return acc
 
             case Indexed(c, addr):
-                return loop(c, selection(...)).extend(...)
+                return loop(c, selection(_full_slice)).extend(...)
 
             case Choice(v):
                 if isinstance(v, Mask) and FlagOp.concrete_false(v.primal_flag()):

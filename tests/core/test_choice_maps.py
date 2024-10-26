@@ -76,9 +76,6 @@ class TestSelections:
         # only exact matches are allowed
         assert not leaf_sel["x", "y", "z"]
 
-        # wildcards work
-        assert leaf_sel[..., "y"]
-
     def test_selection_complement(self):
         sel = S["x"] | S["y"]
         comp_sel = ~sel
@@ -231,20 +228,6 @@ class TestSelections:
         # check works like __contains__
         assert not nested_sel("a")("b").check()
         assert nested_sel("a")("b")("c").check()
-
-    def test_selection_ellipsis(self):
-        # Create a selection with nested structure
-        sel = S["a", "b", "c"] | S["x", "y", "z"]
-
-        # Test that ... gives a free pass to one level of matching
-        assert sel["a", ..., ...]
-        assert sel["x", ..., ...]
-        assert sel["a", ..., "c"]
-        assert sel["x", ..., "z"]
-        assert not sel["a", ..., "z"]
-
-        assert not sel[...]
-        assert not sel["a", "z", ...]
 
     def test_static_sel(self):
         xy_sel = Selection.at["x", "y"]
@@ -470,10 +453,6 @@ class TestChoiceMap:
         extended = chm.extend("a", "b")
         assert extended["a", "b"] == 1
 
-        # ... is a wildcard
-        assert extended[..., "b"] == 1
-        assert extended["a", ...] == 1
-
         assert extended.get_value() is None
         assert extended.get_submap("a").get_submap("b").get_value() == 1
         assert ChoiceMap.empty().extend("a", "b").static_is_empty()
@@ -690,11 +669,11 @@ class TestChoiceMap:
         filtered_chm = chm.filter(sel)
 
         # Assert that only 'x' values are present in the filtered ChoiceMap
-        assert jnp.all(filtered_chm[..., "x"] == jnp.array([1.0, 2.0, 3.0]))
+        assert jnp.all(filtered_chm[:, "x"] == jnp.array([1.0, 2.0, 3.0]))
 
         # Assert that 'y' values are not present in the filtered ChoiceMap
         with pytest.raises(ChoiceMapNoValueAtAddress):
-            filtered_chm[..., "y"]
+            filtered_chm[:, "y"]
 
         # Assert that the structure of the filtered ChoiceMap is preserved
         assert filtered_chm[0, "x"] == 1.0
@@ -720,14 +699,14 @@ class TestChoiceMap:
         key, subkey = jax.random.split(key)
         new_tr, _, _, _ = tr.update(subkey, only_xs)
         new_choices = new_tr.get_choices()
-        assert jnp.array_equal(new_choices[..., "x"], xs)
-        assert not jnp.array_equal(new_choices[..., "y"], ys)
+        assert jnp.array_equal(new_choices[:, "x"], xs)
+        assert not jnp.array_equal(new_choices[:, "y"], ys)
 
         key, subkey = jax.random.split(key)
         new_tr_2, _, _, _ = tr.update(subkey, only_ys)
         new_choices_2 = new_tr_2.get_choices()
-        assert not jnp.array_equal(new_choices_2[..., "x"], xs)
-        assert jnp.array_equal(new_choices_2[..., "y"], ys)
+        assert not jnp.array_equal(new_choices_2[:, "x"], xs)
+        assert jnp.array_equal(new_choices_2[:, "y"], ys)
 
     def test_choicemap_with_static_idx(self):
         chm = C[0].set({"x": 1.0, "y": 2.0})

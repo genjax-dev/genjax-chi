@@ -255,7 +255,7 @@ class TestHMC:
         for _ in range(20):
             key, sub_key = jrand.split(key)
             new_tr, *_ = editor(sub_key, new_tr, Diff.no_change((0.0, None)))
-        assert new_tr.get_choices()[..., "x"] == pytest.approx(3.0, 8e-3)
+        assert new_tr.get_choices()[:, "x"] == pytest.approx(3.0, 8e-3)
 
     @pytest.mark.skip(reason="needs more work")
     def test_hmm_hmc(self):
@@ -304,7 +304,7 @@ class TestHMC:
         # Create an initial importance sample.
         obs = ChoiceMap.empty()
         obs = obs.at["tracks", :, "obs_pos"].set(
-            ground_truth.get_choices()["tracks", ..., "obs_pos"]
+            ground_truth.get_choices()["tracks", :, "obs_pos"]
         )
         obs = obs.at["init_obs_pos"].set(ground_truth.get_choices()["init_obs_pos"])
         key, sub_key = jax.random.split(key)

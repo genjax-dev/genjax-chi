@@ -279,7 +279,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
         scores, retvals = jax.vmap(self.gen_fn.assess, in_axes=(0, self.in_axes))(
-            sample(...), args
+            sample(slice(None, None, None)), args
         )
         return jnp.sum(scores), retvals
 

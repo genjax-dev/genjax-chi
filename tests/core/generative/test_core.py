@@ -75,9 +75,9 @@ class TestCombinators:
         chm = tr.get_choices()
         varr, qarr = tr.get_retval()
 
-        # The ellipsis syntax groups everything under a sub-key:
-        assert jnp.array_equal(chm[..., "v"], varr)
-        assert jnp.array_equal(chm[..., "q"], qarr)
+        # The : syntax groups everything under a sub-key:
+        assert jnp.array_equal(chm[:, "v"], varr)
+        assert jnp.array_equal(chm[:, "q"], qarr)
 
     def test_repeat(self):
         key = jax.random.key(314159)
@@ -96,13 +96,13 @@ class TestCombinators:
         varr = vmap_tr.get_retval()
 
         # Check that we get 3 repeated values:
-        assert jnp.array_equal(repeat_tr.get_choices()[..., "x"], repeatarr)
+        assert jnp.array_equal(repeat_tr.get_choices()[:, "x"], repeatarr)
 
         # check that the return value matches the traced values (in this case)
         assert jnp.array_equal(repeat_tr.get_retval(), repeatarr)
 
         # vmap does as well, but they are different due to internal seed splitting:
-        assert jnp.array_equal(vmap_tr.get_choices()[..., "x"], varr)
+        assert jnp.array_equal(vmap_tr.get_choices()[:, "x"], varr)
 
     def test_or_else(self):
         key = jax.random.key(314159)
