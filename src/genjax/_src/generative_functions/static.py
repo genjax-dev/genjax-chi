@@ -105,7 +105,6 @@ class StaticTrace(Generic[R], Trace[R]):
     retval: R
     addresses: AddressVisitor
     subtraces: list[Trace[Any]]
-    score: Score
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
@@ -122,7 +121,9 @@ class StaticTrace(Generic[R], Trace[R]):
         return ChoiceMap.from_mapping(zip(addresses, sub_chms))
 
     def get_score(self) -> Score:
-        return self.score
+        return jnp.sum(
+            jnp.array([tr.get_score() for tr in self.subtraces], copy=False),
+        )
 
     def get_subtrace(self, addr: StaticAddress):
         addresses = self.addresses.get_visited()
@@ -254,7 +255,6 @@ class StaticHandler(StatefulHandler):
 @dataclass
 class SimulateHandler(StaticHandler):
     key: PRNGKey
-    score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
     key_counter: int = Pytree.static(default=1)
@@ -271,7 +271,6 @@ class SimulateHandler(StaticHandler):
         return (
             self.address_visitor,
             self.address_traces,
-            self.score,
         )
 
     def handle_trace(
@@ -283,9 +282,7 @@ class SimulateHandler(StaticHandler):
         self.visit(addr)
         sub_key = self.fresh_key_and_increment()
         tr = gen_fn.simulate(sub_key, args)
-        score = tr.get_score()
         self.address_traces.append(tr)
-        self.score += score
         v = tr.get_retval()
         return v
 
@@ -298,14 +295,12 @@ def simulate_transform(source_fn):
         (
             address_visitor,
             address_traces,
-            score,
         ) = stateful_handler.yield_state()
         return (
             args,
             retval,
             address_visitor,
             address_traces,
-            score,
         )
 
     return wrapper
@@ -319,7 +314,7 @@ def simulate_transform(source_fn):
 @dataclass
 class AssessHandler(StaticHandler):
     choice_map_sample: ChoiceMap
-    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def yield_state(self):
@@ -361,7 +356,6 @@ class GenerateHandler(StaticHandler):
     key: PRNGKey
     choice_map: ChoiceMap
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
     key_counter: int = Pytree.static(default=1)
@@ -377,13 +371,11 @@ class GenerateHandler(StaticHandler):
     def yield_state(
         self,
     ) -> tuple[
-        Score,
         Weight,
         AddressVisitor,
         list[Trace[Any]],
     ]:
         return (
-            self.score,
             self.weight,
             self.address_visitor,
             self.address_traces,
@@ -405,7 +397,6 @@ class GenerateHandler(StaticHandler):
         subconstraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
         (tr, w) = gen_fn.generate(sub_key, subconstraint, args)
-        self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
 
@@ -422,7 +413,6 @@ def generate_transform(source_fn):
         stateful_handler = GenerateHandler(key, choice_map)
         retval = forward(source_fn)(stateful_handler, *args)
         (
-            score,
             weight,
             address_visitor,
             address_traces,
@@ -435,7 +425,6 @@ def generate_transform(source_fn):
                 retval,
                 address_visitor,
                 address_traces,
-                score,
             ),
         )
 
@@ -453,7 +442,6 @@ class UpdateHandler(StaticHandler):
     previous_trace: StaticTrace[Any]
     constraint: ChoiceMap
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
     bwd_constraints: list[ChoiceMap] = Pytree.field(default_factory=list)
@@ -466,7 +454,6 @@ class UpdateHandler(StaticHandler):
 
     def yield_state(self):
         return (
-            self.score,
             self.weight,
             self.address_visitor,
             self.address_traces,
@@ -509,7 +496,6 @@ class UpdateHandler(StaticHandler):
             bwd_request.constraint, ChoiceMap
         )
         self.bwd_constraints.append(bwd_request.constraint)
-        self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
 
@@ -532,7 +518,6 @@ def update_transform(source_fn):
         )
         retval_primals = Diff.tree_primal(retval_diffs)
         (
-            score,
             weight,
             address_visitor,
             address_traces,
@@ -548,7 +533,6 @@ def update_transform(source_fn):
                     retval_primals,
                     address_visitor,
                     address_traces,
-                    score,
                 ),
                 # Backward update problem.
                 bwd_requests,
@@ -569,7 +553,6 @@ class StaticEditRequestHandler(StaticHandler):
     previous_trace: StaticTrace[Any]
     addressed: StaticDict
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
     bwd_requests: list[EditRequest] = Pytree.field(default_factory=list)
@@ -582,7 +565,6 @@ class StaticEditRequestHandler(StaticHandler):
 
     def yield_state(self):
         return (
-            self.score,
             self.weight,
             self.address_visitor,
             self.address_traces,
@@ -624,7 +606,6 @@ class StaticEditRequestHandler(StaticHandler):
             argdiffs,
         )
         self.bwd_requests.append(bwd_request)
-        self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
 
@@ -651,7 +632,6 @@ def static_edit_request_transform(source_fn):
         )
         retval_primals = Diff.tree_primal(retval_diffs)
         (
-            score,
             weight,
             address_visitor,
             address_traces,
@@ -667,7 +647,6 @@ def static_edit_request_transform(source_fn):
                     retval_primals,
                     address_visitor,
                     address_traces,
-                    score,
                 ),
                 # Backward update problem.
                 bwd_requests,
@@ -689,7 +668,6 @@ class RegenerateRequestHandler(StaticHandler):
     selection: Selection
     edit_request: EditRequest
     address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    score: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
     address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
     bwd_requests: list[EditRequest] = Pytree.field(default_factory=list)
@@ -702,7 +680,6 @@ class RegenerateRequestHandler(StaticHandler):
 
     def yield_state(self):
         return (
-            self.score,
             self.weight,
             self.address_visitor,
             self.address_traces,
@@ -738,7 +715,6 @@ class RegenerateRequestHandler(StaticHandler):
         subrequest = Regenerate(subselection)
         tr, w, retval_diff, bwd_request = subrequest.edit(sub_key, subtrace, argdiffs)
         self.bwd_requests.append(bwd_request)
-        self.score += tr.get_score()
         self.weight += w
         self.address_traces.append(tr)
 
@@ -767,7 +743,6 @@ def regenerate_transform(source_fn):
         )
         retval_primals = Diff.tree_primal(retval_diffs)
         (
-            score,
             weight,
             address_visitor,
             address_traces,
@@ -783,7 +758,6 @@ def regenerate_transform(source_fn):
                     retval_primals,
                     address_visitor,
                     address_traces,
-                    score,
                 ),
                 # Backward update problem.
                 bwd_requests,
@@ -871,7 +845,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (args, retval, address_visitor, address_traces, score) = simulate_transform(
+        (args, retval, address_visitor, address_traces) = simulate_transform(
             syntax_sugar_handled
         )(key, args)
         return StaticTrace(
@@ -880,7 +854,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             retval,
             address_visitor,
             address_traces,
-            score,
         )
 
     def generate(
@@ -903,7 +876,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 retval,
                 address_visitor,
                 address_traces,
-                score,
             ),
         ) = generate_transform(syntax_sugar_handled)(key, constraint.choice_map, args)
         return StaticTrace(
@@ -912,7 +884,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             retval,
             address_visitor,
             address_traces,
-            score,
         ), weight
 
     def project(
@@ -949,7 +920,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     retval_primals,
                     address_visitor,
                     address_traces,
-                    score,
                 ),
                 bwd_requests,
             ),
@@ -969,7 +939,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 retval_primals,
                 address_visitor,
                 address_traces,
-                score,
             ),
             weight,
             retval_diffs,
@@ -995,7 +964,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     retval_primals,
                     address_visitor,
                     address_traces,
-                    score,
                 ),
                 bwd_requests,
             ),
@@ -1021,7 +989,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 retval_primals,
                 address_visitor,
                 address_traces,
-                score,
             ),
             weight,
             retval_diffs,
@@ -1048,7 +1015,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     retval_primals,
                     address_visitor,
                     address_traces,
-                    score,
                 ),
                 bwd_requests,
             ),
@@ -1074,7 +1040,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 retval_primals,
                 address_visitor,
                 address_traces,
-                score,
             ),
             weight,
             retval_diffs,
