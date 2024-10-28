@@ -40,7 +40,7 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ChoiceMapConstraint, Filtered
+from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import FlagOp, to_shape_fn
 from genjax._src.core.pytree import Closure, Pytree
@@ -210,7 +210,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     retval_diff = Diff.no_change(v)
                     return (new_tr, w, retval_diff, Update(ChoiceMap.empty()))
 
-                elif isinstance(chm, Filtered):
+                elif isinstance(v, Mask):
                     # Whether or not the choice map has a value is dynamic...
                     # We must handled with a cond.
                     def _true_branch(key, new_value: R, _):

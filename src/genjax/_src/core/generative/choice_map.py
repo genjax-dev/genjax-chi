@@ -1159,13 +1159,12 @@ class ChoiceMap(Pytree):
     # Combinator methods #
     ######################
 
-    def filter(self, selection: Selection, /, *, eager: bool = False) -> "ChoiceMap":
+    def filter(self, selection: Selection) -> "ChoiceMap":
         """
         Filter the choice map on the `Selection`. The resulting choice map only contains the addresses that return True when presented to the selection.
 
         Args:
             selection: The Selection to filter the choice map with.
-            eager: If True, immediately simplify the filtered choice map. Default is False.
 
         Returns:
             A new ChoiceMap containing only the addresses selected by the given Selection.
@@ -1191,14 +1190,9 @@ class ChoiceMap(Pytree):
             selection = S["x"]
             filtered = chm.filter(selection)
             assert "y" not in filtered
-
-            # Using eager filtering
-            eager_filtered = chm.filter(selection, eager=True)
-            assert "y" not in eager_filtered
             ```
         """
-        ret = Filtered.build(self, selection)
-        return ret if not eager else _pushdown_filters(ret)
+        return Filtered.build(self, selection)
 
     def mask(self, flag: Flag) -> "ChoiceMap":
         """
@@ -1377,19 +1371,9 @@ class ChoiceMap(Pytree):
         """
         return _ChoiceMapBuilder(self, [])
 
+    # TODO deprecate
     def simplify(self) -> "ChoiceMap":
-        """
-        Simplifies the choice map by pushing down filters and merging overlapping choicemaps.
-
-        This method applies various simplification strategies to the choice map, such as pushing down filters to lower levels of the hierarchy and merging overlapping choices where possible. The result is a more compact and efficient representation of the same choices.
-
-        Returns:
-            A simplified version of the current choice map.
-
-        Note:
-            The simplification process does not change the semantic meaning of the choice map, only its internal representation.
-        """
-        return _pushdown_filters(self)
+        return self
 
     def invalid_subset(
         self,
@@ -1424,7 +1408,7 @@ class ChoiceMap(Pytree):
         """
         shape_chm = gen_fn.get_zero_trace(*args).get_choices()
         shape_sel = _shape_selection(shape_chm)
-        extras = self.filter(~shape_sel, eager=True)
+        extras = self.filter(~shape_sel)
         if not extras.static_is_empty():
             return extras
 
@@ -1787,33 +1771,7 @@ class Or(ChoiceMap):
         return submap1 | submap2
 
 
-@Pytree.dataclass(match_args=True)
-class Filtered(ChoiceMap):
-    """Represents a filtered choice map based on a selection.
-
-    This class wraps another choice map and applies a selection to filter its contents.
-    It allows for selective access to the underlying choice map based on the provided selection.
-
-    Attributes:
-        c: The underlying choice map.
-        selection: The selection used to filter the choice map.
-
-    Examples:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        from genjax import SelectionBuilder as S
-
-        base_chm = ChoiceMap.value(10).extend("x")
-        filtered_x = base_chm.filter(S["x"])
-        assert filtered_x["x"] == 10
-
-        filtered_y = base_chm.filter(S["y"])
-        assert filtered_y("x").static_is_empty()
-        ```
-    """
-
-    c: ChoiceMap
-    selection: Selection
-
+class Filtered:
     @staticmethod
     def build(chm: ChoiceMap, selection: Selection) -> ChoiceMap:
         match (chm, selection):
@@ -1823,39 +1781,21 @@ class Filtered(ChoiceMap):
                 return chm
             case (_, NoneSel()):
                 return ChoiceMap.empty()
-            case (Filtered(), _):
-                return Filtered(chm.c, chm.selection & selection)
-            case _:
-                return Filtered(chm, selection)
 
-    def get_value(self) -> Any:
-        v = self.c.get_value()
-        sel_check = self.selection[()]
-        return Mask.maybe_mask(v, sel_check)
-
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
-        submap = self.c.get_submap(addr)
-        subselection = self.selection(addr)
-        return submap.filter(subselection)
-
-
-def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
-    def loop(inner: ChoiceMap, selection: Selection) -> ChoiceMap:
-        match inner:
-            case Static(mapping):
+            case (Static(mapping), _):
                 return Static.build({
-                    addr: loop(inner.get_submap(addr), selection(addr))
+                    addr: Filtered.build(chm.get_submap(addr), selection(addr))
                     for addr in mapping.keys()
                 })
 
-            case Indexed(c, addr):
+            case (Indexed(c, addr), _):
                 addr = _full_slice if addr is None else addr
 
-                return loop(c, selection(addr)).extend(addr)
+                return Filtered.build(c, selection(addr)).extend(addr)
 
-            case Choice(v):
+            case (Choice(v), _):
                 if v is None:
-                    return inner
+                    return chm
                 else:
                     sel_check = selection.check()
                     masked = Mask.maybe_mask(v, sel_check)
@@ -1864,22 +1804,19 @@ def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
                     else:
                         return ChoiceMap.choice(masked)
 
-            case Filtered(c, c_selection):
-                return loop(c, c_selection & selection)
+            case (Xor(c1, c2), _):
+                return Filtered.build(c1, selection) ^ Filtered.build(c2, selection)
 
-            case Xor(c1, c2):
-                return loop(c1, selection) ^ loop(c2, selection)
+            case (Or(c1, c2), _):
+                return Filtered.build(c1, selection) | Filtered.build(c2, selection)
 
-            case Or(c1, c2):
-                return loop(c1, selection) | loop(c2, selection)
-
-            case Switch(idx, chms):
-                return Switch.build(idx, [loop(chm, selection) for chm in chms])
+            case (Switch(idx, chms), _):
+                return Switch.build(
+                    idx, [Filtered.build(chm, selection) for chm in chms]
+                )
 
             case _:
-                return chm.filter(selection)
-
-    return loop(chm, Selection.all())
+                raise ValueError(f"Unsupported choice map type: {type(chm)}")
 
 
 def _shape_selection(chm: ChoiceMap) -> Selection:
@@ -1901,9 +1838,6 @@ def _shape_selection(chm: ChoiceMap) -> Selection:
                     return Selection.none()
                 else:
                     return LeafSel()
-
-            case Filtered(c, c_selection):
-                return loop(c, c_selection & selection)
 
             case Xor(c1, c2) | Or(c1, c2):
                 return loop(c1, selection) | loop(c2, selection)
