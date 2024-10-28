@@ -1833,11 +1833,8 @@ def _shape_selection(chm: ChoiceMap) -> Selection:
             case Indexed(c, addr):
                 return loop(c, selection(_full_slice)).extend(...)
 
-            case Choice(v):
-                if isinstance(v, Mask) and FlagOp.concrete_false(v.primal_flag()):
-                    return Selection.none()
-                else:
-                    return LeafSel()
+            case Choice():
+                return LeafSel()
 
             case Xor(c1, c2) | Or(c1, c2):
                 return loop(c1, selection) | loop(c2, selection)

@@ -167,10 +167,7 @@ class TestMaskCombinator:
             key,
             init_particle,
             C.n(),
-            (
-                genjax.Diff.no_change((0.0,)),
-                genjax.Diff.no_change(mask_steps),
-            ),
+            Diff.no_change(((0.0,), mask_steps)),
         )
         assert step_weight == jnp.array(0.0)
         assert step_particle.get_retval() == ((jnp.array(0.0),), None)
