@@ -85,7 +85,7 @@ def prepare(session, *with_strs):
 
 @session(python=["3.10", "3.11"])
 def tests(session):
-    # prepare(session)
+    prepare(session)
     session.run(
         "poetry",
         "run",

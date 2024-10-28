@@ -117,7 +117,19 @@ class Mask(Generic[R], Pytree):
     #############
 
     def flatten(self) -> "R | Mask[R] | None":
-        # TODO generate a docstring.
+        """
+        Flatten a Mask instance into its underlying value or None.
+
+        "Flattening" occurs when the flag value is a concrete Boolean (True/False). In these cases, the Mask is simplified to either its raw value or None. If the flag is not concrete (i.e., a symbolic/traced value), the Mask remains intact.
+
+        This method evaluates the mask's flag and returns:
+        - None if the flag is concretely False or the value is None
+        - The raw value if the flag is concretely True
+        - The Mask instance itself if the flag is not concrete
+
+        Returns:
+            The flattened result based on the mask's flag state.
+        """
         flag = self.primal_flag()
         if FlagOp.concrete_false(flag) or self.value is None:
             return None
@@ -179,63 +191,78 @@ class Mask(Generic[R], Pytree):
     # Combinators #
     ###############
 
-    # TODO - we THINK that these cases are only valid if the values match in shape.
+    def _pair_flag_to_idx(self, first: Flag, second: Flag):
+        """Converts a pair of flags into an index for selecting between two values.
+
+        This function implements a truth table for selecting between two values based on their flags:
+
+        first | second | output | meaning
+        ------+--------+--------+------------------
+            0   |   0    |   -1   | neither valid
+            1   |   0    |    0   | first valid only
+            0   |   1    |    1   | second valid only
+            1   |   1    |    0   | both valid, select first
+
+        The output index is used to select between the corresponding values:
+        -1 -> invalid case
+            0 -> select first value
+            1 -> select second value
+
+        Args:
+            first: The flag for the first value
+            second: The flag for the second value
+
+        Returns:
+            An index (-1, 0, or 1) indicating which value to select
+        """
+        return first + 2 * FlagOp.and_(FlagOp.not_(first), second) - 1
+
     def __or__(self, other: "Mask[R]") -> "Mask[R]":
-        def pair_flag_to_idx(first: Flag, second: Flag):
-            return first + 2 * FlagOp.and_(FlagOp.not_(first), second) - 1
-
-        self_flag = self.primal_flag()
-        other_flag = other.primal_flag()
-        idx = pair_flag_to_idx(self_flag, other_flag)
-
-        chosen = tree_choose(idx, [self.value, other.value])
-        return Mask.build(chosen, FlagOp.or_(self_flag, other_flag))
+        match self.primal_flag(), other.primal_flag():
+            case True, _:
+                return self
+            case False, _:
+                return other
+            case self_flag, other_flag:
+                idx = self._pair_flag_to_idx(self_flag, other_flag)
+                return tree_choose(idx, [self, other])
 
     def __xor__(self, other: "Mask[R]") -> "Mask[R]":
-        def pair_flag_to_idx(first: Flag, second: Flag):
-            return first + 2 * second - 1
+        match self.primal_flag(), other.primal_flag():
+            case (False, False) | (True, True):
+                return Mask.build(self, False)
+            case True, False:
+                return other
+            case False, True:
+                return self
+            case self_flag, other_flag:
+                idx = self._pair_flag_to_idx(self_flag, other_flag)
 
-        self_flag = self.primal_flag()
-        other_flag = other.primal_flag()
-        idx = pair_flag_to_idx(self_flag, other_flag)
-
-        # TODO fix, this seems busted for selecting the masks??
-        chosen = tree_choose(idx, [self.value, other.value])
-        return Mask.build(chosen, FlagOp.xor_(self_flag, other_flag))
+                chosen = tree_choose(idx, [self.value, other.value])
+                return Mask.build(chosen, FlagOp.xor_(self_flag, other_flag))
 
     @staticmethod
     def or_n(mask: "Mask[R]", *masks: "Mask[R]") -> "Mask[R]":
+        """Performs an n-ary OR operation on a sequence of Mask objects.
+
+        Args:
+            mask: The first mask to combine
+            *masks: Variable number of additional masks to combine with OR
+
+        Returns:
+            A new Mask combining all inputs with OR operations
+        """
         return functools.reduce(lambda a, b: a | b, masks, mask)
 
     @staticmethod
     def xor_n(mask: "Mask[R]", *masks: "Mask[R]") -> "Mask[R]":
+        """Performs an n-ary XOR operation on a sequence of Mask objects.
+
+        Args:
+            mask: The first mask to combine
+            *masks: Variable number of additional masks to combine with XOR
+
+        Returns:
+            A new Mask combining all inputs with XOR operations
+        """
         return functools.reduce(lambda a, b: a ^ b, masks, mask)
-
-    # @staticmethod
-    # def _or_many(*masks: "Mask[R]") -> "Mask[R]":
-    #     flags = [mask.primal_flag() for mask in masks]
-
-    #     # Check if all flags are concrete booleans
-    #     if all(isinstance(flag, bool) for flag in flags):
-    #         # Short-circuit for concrete booleans
-    #         for mask, flag in zip(masks, flags):
-    #             if flag:
-    #                 return mask
-    #         # If all flags are False, return the last mask with a False flag
-    #         return Mask(masks[-1].value, False)
-
-    #     # If not all concrete, proceed with the general case
-    #     values_and_flags = jnp.array([
-    #         (mask.value, mask.primal_flag()) for mask in masks
-    #     ])
-    #     values_array, flags_array = values_and_flags[:, 0], values_and_flags[:, 1]
-    #     combined_flag = jnp.any(flags_array)
-
-    #     def choose_value(values: Array, flags: BoolArray):
-    #         first_true_index = jnp.argmax(flags)
-    #         # TODO this is broken under jit.
-    #         return jtu.tree_map(lambda *vs: vs[first_true_index], *values)
-
-    #     chosen_value = choose_value(values_array, flags_array)
-
-    #     return Mask(chosen_value, combined_flag)
