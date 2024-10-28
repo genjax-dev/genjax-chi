@@ -18,7 +18,7 @@ import jax._src.core
 import jax._src.dtypes as jax_dtypes
 import jax.numpy as jnp
 from jax._src.ad_util import Zero
-from jax.interpreters.ad import instantiate_zeros, recast_to_float0, zeros_like_jaxval
+from jax.interpreters.ad import instantiate_zeros, zeros_like_jaxval
 from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.adev.core import (

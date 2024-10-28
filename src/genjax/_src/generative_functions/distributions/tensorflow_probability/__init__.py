@@ -82,6 +82,11 @@ flip = tfp_distribution(lambda p: tfd.Bernoulli(probs=p))
 A `tfp_distribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions, but is constructed using a probability value and not a logit.
 """
 
+exponential = tfp_distribution(tfd.Exponential)
+"""
+A `tfp_distribution` generative function which wraps the [`tfd.Exponential`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Exponential) distribution from TensorFlow Probability distributions, but is constructed using a probability value and not a logit.
+"""
+
 chi = tfp_distribution(tfd.Chi)
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Chi`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Chi) distribution from TensorFlow Probability distributions.

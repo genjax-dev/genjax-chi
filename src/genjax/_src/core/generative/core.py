@@ -24,11 +24,13 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Annotated,
     Any,
+    Callable,
     FloatArray,
     Generic,
     IntArray,
     Is,
     PRNGKey,
+    Self,
     TypeVar,
 )
 
@@ -153,6 +155,47 @@ class EditRequest(Pytree):
         argdiffs: Argdiffs,
     ) -> "tuple[genjax.Trace[R], Weight, Retdiff[R], EditRequest]":
         pass
+
+    def dimap(
+        self,
+        /,
+        *,
+        pre: Callable[[Argdiffs], Argdiffs] = lambda v: v,
+        post: Callable[[Retdiff[R]], Retdiff[R]] = lambda v: v,
+    ) -> "genjax.DiffAnnotate[Self]":
+        from genjax import DiffAnnotate
+
+        return DiffAnnotate(self, argdiff_fn=pre, retdiff_fn=post)
+
+    def map(
+        self,
+        post: Callable[[Retdiff[R]], Retdiff[R]],
+    ) -> "genjax.DiffAnnotate[Self]":
+        return self.dimap(post=post)
+
+    def contramap(
+        self,
+        pre: Callable[[Argdiffs], Argdiffs],
+    ) -> "genjax.DiffAnnotate[Self]":
+        return self.dimap(pre=pre)
+
+
+class PrimitiveEditRequest(EditRequest):
+    """
+    The type of PrimitiveEditRequests are those EditRequest types whose
+    implementation requires input from the generative function
+    (defers their implementation over to the generative function, and requires
+    the generative function to provide logic to respond to the request).
+    """
+
+    def edit(
+        self,
+        key: PRNGKey,
+        tr: "genjax.Trace[R]",
+        argdiffs: Argdiffs,
+    ) -> "tuple[genjax.Trace[R], Weight, Retdiff[R], EditRequest]":
+        gen_fn = tr.get_gen_fn()
+        return gen_fn.edit(key, tr, self, argdiffs)
 
 
 class NotSupportedEditRequest(Exception):

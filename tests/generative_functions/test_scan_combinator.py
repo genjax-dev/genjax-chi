@@ -18,7 +18,8 @@ import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import Diff
+from genjax import Diff, IndexRequest, Regenerate, StaticRequest
+from genjax import Selection as S
 from genjax._src.core.typing import ArrayLike
 from genjax.typing import FloatArray
 
@@ -454,3 +455,77 @@ class TestScanWithParameters:
 
         # the inner scan has scanned over the y's
         assert chm[..., "y"].shape == (10, 5)
+
+
+class TestScanRegenerate:
+    @pytest.fixture
+    def key(self):
+        return jax.random.key(314159)
+
+    def test_scan_regenerate(self, key):
+        @genjax.gen
+        def scanned_normal():
+            @genjax.gen
+            def kernel(carry, _):
+                z = genjax.normal(0.0, 1.0) @ "z"
+                return z, None
+
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            _ = genjax.normal(0.0, 1.0) @ "y2"
+            return kernel.scan(n=10)(y1, None) @ "kernel"
+
+        key, sub_key = jax.random.split(key)
+        tr = scanned_normal.simulate(sub_key, ())
+        # First, try y1 and test for correctness.
+        old_y1 = tr.get_choices()["y1"]
+        old_target_density = genjax.normal.logpdf(old_y1, 0.0, 1.0)
+        request = genjax.Regenerate(S.at["y1"])
+        new_tr, fwd_w, _, _ = request.edit(key, tr, ())
+        new_y1 = new_tr.get_choices()["y1"]
+        new_target_density = genjax.normal.logpdf(new_y1, 0.0, 1.0)
+        assert fwd_w == new_target_density - old_target_density
+
+
+class TestScanIndexRequest:
+    @pytest.fixture
+    def key(self):
+        return jax.random.key(314159)
+
+    def test_scan_regenerate(self):
+        @genjax.gen
+        def scanned_normal():
+            @genjax.gen
+            def kernel(carry, _):
+                z = genjax.normal(0.0, 1.0) @ "z"
+                return z, None
+
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            _ = genjax.normal(0.0, 1.0) @ "y2"
+            return kernel.scan(n=10)(y1, None) @ "kernel"
+
+        key = jax.random.key(314159)
+        key, sub_key = jax.random.split(key)
+        tr = scanned_normal.simulate(sub_key, ())
+        # Try all indices and test for correctness.
+        for idx in range(10):
+            old_z = tr.get_choices()["kernel", idx, "z"]
+            old_target_density = genjax.normal.logpdf(old_z, 0.0, 1.0)
+            request = StaticRequest({
+                "kernel": IndexRequest(jnp.array(idx), Regenerate(S.at["z"])),
+            })
+            new_tr, fwd_w, _, _ = request.edit(key, tr, ())
+            new_z = new_tr.get_choices()["kernel", idx, "z"]
+            new_target_density = genjax.normal.logpdf(new_z, 0.0, 1.0)
+            assert fwd_w == new_target_density - old_target_density
+
+        with pytest.raises(AssertionError):
+            idx = 11
+            old_z = tr.get_choices()["kernel", idx, "z"]
+            old_target_density = genjax.normal.logpdf(old_z, 0.0, 1.0)
+            request = StaticRequest({
+                "kernel": IndexRequest(jnp.array(idx), Regenerate(S.at["z"])),
+            })
+            new_tr, fwd_w, _, _ = request.edit(key, tr, ())
+            new_z = new_tr.get_choices()["kernel", idx, "z"]
+            new_target_density = genjax.normal.logpdf(new_z, 0.0, 1.0)
+            assert fwd_w == new_target_density - old_target_density
