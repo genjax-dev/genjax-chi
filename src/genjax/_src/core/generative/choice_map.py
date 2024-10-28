@@ -923,6 +923,42 @@ class ChoiceMap(Pytree):
     #######################
 
     @abstractmethod
+    def filter(self, selection: Selection) -> "ChoiceMap":
+        """
+        Filter the choice map on the `Selection`. The resulting choice map only contains the addresses that return True when presented to the selection.
+
+        Args:
+            selection: The Selection to filter the choice map with.
+
+        Returns:
+            A new ChoiceMap containing only the addresses selected by the given Selection.
+
+        Examples:
+            ```python exec="yes" html="true" source="material-block" session="choicemap"
+            import jax
+            import genjax
+            from genjax import bernoulli
+            from genjax import SelectionBuilder as S
+
+
+            @genjax.gen
+            def model():
+                x = bernoulli(0.3) @ "x"
+                y = bernoulli(0.3) @ "y"
+                return x
+
+
+            key = jax.random.key(314159)
+            tr = model.simulate(key, ())
+            chm = tr.get_sample()
+            selection = S["x"]
+            filtered = chm.filter(selection)
+            assert "y" not in filtered
+            ```
+        """
+        pass
+
+    @abstractmethod
     def get_value(self) -> Any:
         pass
 
@@ -1158,41 +1194,6 @@ class ChoiceMap(Pytree):
     ######################
     # Combinator methods #
     ######################
-
-    def filter(self, selection: Selection) -> "ChoiceMap":
-        """
-        Filter the choice map on the `Selection`. The resulting choice map only contains the addresses that return True when presented to the selection.
-
-        Args:
-            selection: The Selection to filter the choice map with.
-
-        Returns:
-            A new ChoiceMap containing only the addresses selected by the given Selection.
-
-        Examples:
-            ```python exec="yes" html="true" source="material-block" session="choicemap"
-            import jax
-            import genjax
-            from genjax import bernoulli
-            from genjax import SelectionBuilder as S
-
-
-            @genjax.gen
-            def model():
-                x = bernoulli(0.3) @ "x"
-                y = bernoulli(0.3) @ "y"
-                return x
-
-
-            key = jax.random.key(314159)
-            tr = model.simulate(key, ())
-            chm = tr.get_sample()
-            selection = S["x"]
-            filtered = chm.filter(selection)
-            assert "y" not in filtered
-            ```
-        """
-        return Filtered.build(self, selection)
 
     def mask(self, flag: Flag) -> "ChoiceMap":
         """
@@ -1448,6 +1449,17 @@ class Choice(Generic[T], ChoiceMap):
         else:
             return Choice(v)
 
+    def filter(self, selection: Selection) -> ChoiceMap:
+        if self.v is None:
+            return self
+        else:
+            sel_check = selection.check()
+            masked = Mask.maybe_mask(self.v, sel_check)
+            if masked is None:
+                return ChoiceMap.empty()
+            else:
+                return ChoiceMap.choice(masked)
+
     def get_value(self) -> T:
         return self.v
 
@@ -1496,6 +1508,10 @@ class Indexed(ChoiceMap):
 
         else:
             return Indexed(chm, addr)
+
+    def filter(self, selection: Selection) -> ChoiceMap:
+        addr = _full_slice if self.addr is None else self.addr
+        return self.c.filter(selection(addr)).extend(addr)
 
     def get_value(self) -> Any:
         return None
@@ -1586,6 +1602,12 @@ class Static(ChoiceMap):
                 merged_dict[key] = c2.get_submap(key)
         return Static.build(merged_dict)
 
+    def filter(self, selection: Selection) -> ChoiceMap:
+        return Static.build({
+            addr: self.get_submap(addr).filter(selection(addr))
+            for addr in self.mapping.keys()
+        })
+
     def get_value(self) -> Any:
         return None
 
@@ -1642,6 +1664,9 @@ class Switch(ChoiceMap):
             chms = [_chm.mask(_idx == idx) for _idx, _chm in enumerate(chm_iter)]
             return Switch(idx, chms)
 
+    def filter(self, selection: Selection) -> ChoiceMap:
+        return Switch.build(self.idx, [chm.filter(selection) for chm in self.chms])
+
     def get_value(self) -> Any:
         vs = [chm.get_value() for chm in self.chms]
         return Mask.or_n(*[Mask.build(v) for v in vs if v is not None])
@@ -1692,6 +1717,9 @@ class Xor(ChoiceMap):
                     return Static.merge_with(lambda a, b: a ^ b, c1, c2)
                 case _:
                     return Xor(c1, c2)
+
+    def filter(self, selection: Selection) -> ChoiceMap:
+        return self.c1.filter(selection) ^ self.c2.filter(selection)
 
     def get_value(self) -> Any:
         match self.c1.get_value(), self.c2.get_value():
@@ -1754,6 +1782,9 @@ class Or(ChoiceMap):
                 case _:
                     return Or(c1, c2)
 
+    def filter(self, selection: Selection) -> ChoiceMap:
+        return self.c1.filter(selection) | self.c2.filter(selection)
+
     def get_value(self) -> Any:
         match self.c1.get_value(), self.c2.get_value():
             case None, b:
@@ -1769,54 +1800,6 @@ class Or(ChoiceMap):
         submap1 = self.c1.get_submap(addr)
         submap2 = self.c2.get_submap(addr)
         return submap1 | submap2
-
-
-class Filtered:
-    @staticmethod
-    def build(chm: ChoiceMap, selection: Selection) -> ChoiceMap:
-        match (chm, selection):
-            case (l, _) if l.static_is_empty():
-                return l
-            case (chm, AllSel()):
-                return chm
-            case (_, NoneSel()):
-                return ChoiceMap.empty()
-
-            case (Static(mapping), _):
-                return Static.build({
-                    addr: Filtered.build(chm.get_submap(addr), selection(addr))
-                    for addr in mapping.keys()
-                })
-
-            case (Indexed(c, addr), _):
-                addr = _full_slice if addr is None else addr
-
-                return Filtered.build(c, selection(addr)).extend(addr)
-
-            case (Choice(v), _):
-                if v is None:
-                    return chm
-                else:
-                    sel_check = selection.check()
-                    masked = Mask.maybe_mask(v, sel_check)
-                    if masked is None:
-                        return ChoiceMap.empty()
-                    else:
-                        return ChoiceMap.choice(masked)
-
-            case (Xor(c1, c2), _):
-                return Filtered.build(c1, selection) ^ Filtered.build(c2, selection)
-
-            case (Or(c1, c2), _):
-                return Filtered.build(c1, selection) | Filtered.build(c2, selection)
-
-            case (Switch(idx, chms), _):
-                return Switch.build(
-                    idx, [Filtered.build(chm, selection) for chm in chms]
-                )
-
-            case _:
-                raise ValueError(f"Unsupported choice map type: {type(chm)}")
 
 
 def _shape_selection(chm: ChoiceMap) -> Selection:
