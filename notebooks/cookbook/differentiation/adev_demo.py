@@ -50,15 +50,14 @@ def expected_val(theta):
 thetas = jnp.arange(0.0, 1.0, 0.0005)
 
 
-def make_samples(thetas, sigma):
-    global key
-    key, subkey = jax.random.split(key)
-    return jax.vmap(noisy_jax_model, in_axes=(0, 0, None))(
+def make_samples(key, thetas, sigma):
+    new_key, subkey = jax.random.split(key)
+    return new_key, jax.vmap(noisy_jax_model, in_axes=(0, 0, None))(
         jax.random.split(subkey, len(thetas)), thetas, sigma
     )
 
 
-noisy_samples = make_samples(thetas, default_sigma)
+key, noisy_samples = make_samples(key, thetas, default_sigma)
 
 plot_options = Plot.new(
     Plot.color_legend(),
@@ -67,11 +66,13 @@ plot_options = Plot.new(
     Plot.grid(),
 )
 
+samples_color_map = Plot.color_map({"Samples": "rgba(0, 128, 128, 0.5)"})
+
 
 def make_samples_plot(thetas, samples):
     return (
         Plot.dot({"x": thetas, "y": samples}, fill=Plot.constantly("Samples"), r=2)
-        + Plot.color_map({"Samples": "rgba(0, 128, 128, 0.5)"})
+        + samples_color_map
         + plot_options
         + Plot.clip()
     )
@@ -317,6 +318,7 @@ combined_plot = Plot.new()
 def render_combined_plot(current_val, sigma):
     global key
     key, subkey1, subkey2 = jax.random.split(key, num=3)
+    key, samples = make_samples(key, thetas, sigma)
 
     def current_state(val, sigma):
         return {
@@ -325,7 +327,7 @@ def render_combined_plot(current_val, sigma):
             "frame": 0,
             "current_val": val,
             "sigma": sigma,
-            "samples": make_samples(thetas, sigma),
+            "samples": samples,
         }
 
     def recompute(widget, val, sigma):
@@ -502,7 +504,7 @@ def render_combined_plot(current_val, sigma):
         Plot.initial_state(current_state(current_val, sigma))
         | initial_val_slider
         | jax_tangents_plot & adev_tangents_plot
-        | optimization_plot & comparison_plot
+        | comparison_plot & optimization_plot
         | frame_slider
     )
 
