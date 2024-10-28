@@ -75,11 +75,13 @@ plot_options = Plot.new(
     Plot.clip(),
 )
 
+samples_color_map = Plot.color_map({"Samples": "rgba(0, 128, 128, 0.5)"})
+
 
 def make_samples_plot(thetas, samples):
     return (
         Plot.dot({"x": thetas, "y": samples}, fill=Plot.constantly("Samples"), r=2)
-        + Plot.color_map({"Samples": "rgba(0, 128, 128, 0.5)"})
+        + samples_color_map
         + plot_options
         + Plot.clip()
     )
@@ -108,15 +110,18 @@ def more_noisy_jax_model(key, theta, sigma):
 more_thetas = jnp.arange(0.0, 1.0, 0.0005)
 key, *keys = jax.random.split(key, len(more_thetas) + 1)
 
-noisy_sample_plot = Plot.dot(
-    {
-        "x": more_thetas,
-        "y": jax.vmap(more_noisy_jax_model, in_axes=(0, 0, None))(
-            jnp.array(keys), more_thetas, default_sigma
-        ),
-    },
-    fill=Plot.constantly("samples"),
-    r=2,
+noisy_sample_plot = (
+    Plot.dot(
+        {
+            "x": more_thetas,
+            "y": jax.vmap(more_noisy_jax_model, in_axes=(0, 0, None))(
+                jnp.array(keys), more_thetas, default_sigma
+            ),
+        },
+        fill=Plot.constantly("Samples"),
+        r=2,
+    )
+    + samples_color_map
 )
 
 noisy_sample_plot + plot_options
@@ -641,7 +646,7 @@ def render_combined_plot(current_val, sigma):
         Plot.initial_state(current_state(current_val, sigma))
         | initial_val_slider
         | jax_tangents_plot & adev_tangents_plot
-        | optimization_plot & comparison_plot
+        | comparison_plot & optimization_plot
         | frame_slider
     )
 

@@ -66,11 +66,13 @@ plot_options = Plot.new(
     Plot.grid(),
 )
 
+samples_color_map = Plot.color_map({"Samples": "rgba(0, 128, 128, 0.5)"})
+
 
 def make_samples_plot(thetas, samples):
     return (
         Plot.dot({"x": thetas, "y": samples}, fill=Plot.constantly("Samples"), r=2)
-        + Plot.color_map({"Samples": "rgba(0, 128, 128, 0.5)"})
+        + samples_color_map
         + plot_options
         + Plot.clip()
     )
@@ -502,7 +504,7 @@ def render_combined_plot(current_val, sigma):
         Plot.initial_state(current_state(current_val, sigma))
         | initial_val_slider
         | jax_tangents_plot & adev_tangents_plot
-        | optimization_plot & comparison_plot
+        | comparison_plot & optimization_plot
         | frame_slider
     )
 
