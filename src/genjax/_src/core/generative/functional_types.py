@@ -68,8 +68,7 @@ class Mask(Generic[R], Pytree):
     # Constructors #
     ################
 
-    # TODO check that these are broadcast-compatible when they come in!!!
-
+    # TODO check that these are broadcast-compatible when they come in.
     @staticmethod
     def build(v: "R | Mask[R]", f: Flag | Diff[Flag] = True) -> "Mask[R]":
         """
@@ -191,6 +190,23 @@ class Mask(Generic[R], Pytree):
     # Combinators #
     ###############
 
+    def _validate_mask_shapes(self, other: "Mask[R]"):
+        # Check that values have same shape
+        # Check tree structure matches
+        if jtu.tree_structure(self.value) != jtu.tree_structure(other.value):
+            raise ValueError("Cannot combine masks with different tree structures!")
+
+        # Check array shapes match exactly (no broadcasting)
+        def check_leaf_shapes(x, y):
+            if isinstance(x, jnp.ndarray) and isinstance(y, jnp.ndarray):
+                if x.shape != y.shape:
+                    raise ValueError(
+                        f"Cannot combine masks with different array shapes: {x.shape} vs {y.shape}"
+                    )
+            return None
+
+        jtu.tree_map(check_leaf_shapes, self.value, other.value)
+
     def _pair_flag_to_idx(self, first: Flag, second: Flag):
         """Converts a pair of flags into an index for selecting between two values.
 
@@ -201,12 +217,11 @@ class Mask(Generic[R], Pytree):
             0   |   0    |   -1   | neither valid
             1   |   0    |    0   | first valid only
             0   |   1    |    1   | second valid only
-            1   |   1    |    0   | both valid, select first
+            1   |   1    |    0   | both valid for OR, invalid for XOR
 
         The output index is used to select between the corresponding values:
-        -1 -> invalid case
-            0 -> select first value
-            1 -> select second value
+           0 -> select first value
+           1 -> select second value
 
         Args:
             first: The flag for the first value
@@ -218,6 +233,8 @@ class Mask(Generic[R], Pytree):
         return first + 2 * FlagOp.and_(FlagOp.not_(first), second) - 1
 
     def __or__(self, other: "Mask[R]") -> "Mask[R]":
+        self._validate_mask_shapes(other)
+
         match self.primal_flag(), other.primal_flag():
             case True, _:
                 return self
@@ -228,6 +245,8 @@ class Mask(Generic[R], Pytree):
                 return tree_choose(idx, [self, other])
 
     def __xor__(self, other: "Mask[R]") -> "Mask[R]":
+        self._validate_mask_shapes(other)
+
         match self.primal_flag(), other.primal_flag():
             case (False, False) | (True, True):
                 return Mask.build(self, False)

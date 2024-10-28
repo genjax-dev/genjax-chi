@@ -102,7 +102,6 @@ def static_check_shape_dtype_equivalence(vs: list[Array]) -> bool:
 __all__ = [
     "Annotated",
     "Any",
-    "Any",
     "Array",
     "ArrayLike",
     "BoolArray",

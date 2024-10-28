@@ -1628,6 +1628,22 @@ class Static(ChoiceMap):
 
 @Pytree.dataclass(match_args=True)
 class Switch(ChoiceMap):
+    """Represents a choice map that selects between multiple choice maps based on an index.
+
+    This class implements a switch statement over choice maps, where an index determines which
+    choice map is active. When used with a concrete integer index, it directly returns the
+    selected choice map. When used with a traced/symbolic index (IntArray), it returns a
+    Switch instance that masks each choice map based on the index value.
+
+    The get_submap method returns a new Switch instance with the submap operation applied to each
+    choice map. The get_value method uses Mask.or_n to combine all non-None values from the choice
+    maps. By design, only one branch will be masked as true, ensuring a single valid value.
+
+    Attributes:
+        idx: An integer or IntArray that determines which choice map is active.
+        chms: A list of choice maps to select from.
+    """
+
     idx: IntArray
     chms: list[ChoiceMap]
 
@@ -1636,7 +1652,6 @@ class Switch(ChoiceMap):
         idx: int | IntArray,
         chm_iter: Iterable[ChoiceMap],
     ) -> ChoiceMap:
-        # TODO if we have a SINGLE model, no switch, just return?
         if isinstance(idx, int):
             return list(chm_iter)[idx]
         else:
@@ -1762,8 +1777,6 @@ class Or(ChoiceMap):
             case a, None:
                 return a
             case a, b:
-                # TODO this is busted but somehow passes all tests.
-                # what we WANT is for this to validate that the values are the same shape and type,
                 a = Mask.build(a)
                 b = Mask.build(b)
                 return (a | b).flatten()
@@ -1889,7 +1902,6 @@ def _shape_selection(chm: ChoiceMap) -> Selection:
                 else:
                     return LeafSel()
 
-            # TODO I never want to fail due to a mask here.
             case Filtered(c, c_selection):
                 return loop(c, c_selection & selection)
 
