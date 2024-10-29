@@ -62,7 +62,7 @@ class VmapTrace(Generic[R], Trace[R]):
     def build(
         gen_fn: "VmapCombinator[R]", tr: Trace[R], args: tuple[Any, ...], length: int
     ) -> "VmapTrace[R]":
-        score = jnp.sum(tr.get_score())
+        score = jnp.sum(jax.vmap(lambda tr: tr.get_score())(tr))
         chm = tr.get_choices().extend(slice(None, None, None))
 
         return VmapTrace(gen_fn, tr, args, score, chm, length)

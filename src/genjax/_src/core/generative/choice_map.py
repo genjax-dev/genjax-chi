@@ -1669,7 +1669,9 @@ class Switch(ChoiceMap):
 
     def get_value(self) -> Any:
         vs = [chm.get_value() for chm in self.chms]
-        return Mask.or_n(*[Mask.build(v) for v in vs if v is not None])
+        entries = [Mask.build(v) for v in vs if v is not None]
+
+        return Mask.or_n(*entries) if entries else None
 
     def get_submap(self, addr: AddressComponent) -> ChoiceMap:
         return Switch(self.idx, [chm.get_submap(addr) for chm in self.chms])
