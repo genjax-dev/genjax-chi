@@ -76,6 +76,10 @@ class TestSelections:
         # only exact matches are allowed
         assert not leaf_sel["x", "y", "z"]
 
+        # wildcards are not allowed
+        with pytest.raises(TypeError):
+            leaf_sel[..., "y"]  # pyright: ignore
+
     def test_selection_complement(self):
         sel = S["x"] | S["y"]
         comp_sel = ~sel
@@ -228,6 +232,13 @@ class TestSelections:
         # check works like __contains__
         assert not nested_sel("a")("b").check()
         assert nested_sel("a")("b")("c").check()
+
+    def test_ellipsis_not_allowed(self):
+        # Create a selection with nested structure
+        sel = S["a", "b", "c"] | S["x", "y", "z"]
+
+        with pytest.raises(TypeError):
+            sel["a", ..., ...]  # pyright: ignore
 
     def test_static_sel(self):
         xy_sel = Selection.at["x", "y"]
@@ -456,6 +467,54 @@ class TestChoiceMap:
         assert extended.get_value() is None
         assert extended.get_submap("a").get_submap("b").get_value() == 1
         assert ChoiceMap.empty().extend("a", "b").static_is_empty()
+
+    def test_switch_chm(self):
+        # Test with concrete int index
+        chm1 = ChoiceMap.kw(x=1, y=2)
+        chm2 = ChoiceMap.kw(a=3, b=4)
+        chm3 = ChoiceMap.kw(p=5, q=6)
+
+        switched = ChoiceMap.switch(1, [chm1, chm2, chm3])
+        assert switched == chm2
+
+        # Test with array index
+        idx = jnp.array(1)
+        switched_array = ChoiceMap.switch(idx, [chm1, chm2, chm3])
+
+        # Can get values from any component, masked to the correct idx
+        assert switched_array["x"] == Mask(1, jnp.array(False))
+        assert switched_array["a"] == Mask(3, jnp.array(True))
+        assert switched_array["p"] == Mask(5, jnp.array(False))
+
+        # any statically missing address still raises:
+        with pytest.raises(ChoiceMapNoValueAtAddress):
+            switched_array["z"]
+
+    def test_or_xor_access(self):
+        # Create two choice maps with disjoint addresses
+        left = ChoiceMap.kw(x=1, y=2)
+        right = ChoiceMap.kw(z=3, w=4)
+
+        # Test Or
+        or_chm = left | right
+        assert or_chm["x"] == 1  # Only in left
+        assert or_chm["y"] == 2  # Only in left
+        assert or_chm["z"] == 3  # Only in right
+        assert or_chm["w"] == 4  # Only in right
+
+        # Test Xor
+        xor_chm = left ^ right
+        assert xor_chm["x"] == 1  # Only in left
+        assert xor_chm["y"] == 2  # Only in left
+        assert xor_chm["z"] == 3  # Only in right
+        assert xor_chm["w"] == 4  # Only in right
+
+        # Test that non-existent addresses still raise
+        with pytest.raises(ChoiceMapNoValueAtAddress):
+            or_chm["does_not_exist"]
+
+        with pytest.raises(ChoiceMapNoValueAtAddress):
+            xor_chm["does_not_exist"]
 
     def test_nested_static_choicemap(self):
         # Create a nested static ChoiceMap

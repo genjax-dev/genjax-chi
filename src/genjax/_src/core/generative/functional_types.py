@@ -198,16 +198,17 @@ class Mask(Generic[R], Pytree):
 
         # Check array shapes match exactly (no broadcasting)
         def check_leaf_shapes(x, y):
-            if isinstance(x, jnp.ndarray) and isinstance(y, jnp.ndarray):
-                if x.shape != y.shape:
-                    raise ValueError(
-                        f"Cannot combine masks with different array shapes: {x.shape} vs {y.shape}"
-                    )
+            x_shape = jnp.shape(x)
+            y_shape = jnp.shape(y)
+            if x_shape != y_shape:
+                raise ValueError(
+                    f"Cannot combine masks with different array shapes: {x_shape} vs {y_shape}"
+                )
             return None
 
         jtu.tree_map(check_leaf_shapes, self.value, other.value)
 
-    def _pair_flag_to_idx(self, first: Flag, second: Flag):
+    def _or_idx(self, first: Flag, second: Flag):
         """Converts a pair of flags into an index for selecting between two values.
 
         This function implements a truth table for selecting between two values based on their flags:
@@ -241,7 +242,7 @@ class Mask(Generic[R], Pytree):
             case False, _:
                 return other
             case self_flag, other_flag:
-                idx = self._pair_flag_to_idx(self_flag, other_flag)
+                idx = self._or_idx(self_flag, other_flag)
                 return tree_choose(idx, [self, other])
 
     def __xor__(self, other: "Mask[R]") -> "Mask[R]":
@@ -251,12 +252,15 @@ class Mask(Generic[R], Pytree):
             case (False, False) | (True, True):
                 return Mask.build(self, False)
             case True, False:
-                return other
-            case False, True:
                 return self
+            case False, True:
+                return other
             case self_flag, other_flag:
-                idx = self._pair_flag_to_idx(self_flag, other_flag)
+                idx = self._or_idx(self_flag, other_flag)
 
+                # note that `idx` above will choose the correct side for the FF, FT and TF cases,
+                # but will equal 0 for TT flags. We use `FlagOp.xor_` to override this flag to equal
+                # False, since neither side in the TT case will provide a `False` flag for us.
                 chosen = tree_choose(idx, [self.value, other.value])
                 return Mask.build(chosen, FlagOp.xor_(self_flag, other_flag))
 
