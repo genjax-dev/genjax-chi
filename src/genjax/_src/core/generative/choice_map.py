@@ -1542,7 +1542,7 @@ class Indexed(ChoiceMap):
                 # If `check` contains a match (we know it will be a single match, since we constrain addr to be scalar), then `idx` is the index of the match in `self.addr`.
                 # Else, idx == 0 (selecting "junk data" of the right shape at the leaf) and check_array[idx] == False (masking the junk data).
                 idx = jnp.argwhere(check, size=1, fill_value=0)[0, 0]
-                return jtu.tree_map(lambda v: v[idx], self.c.mask(check))
+                return jtu.tree_map(lambda v: Mask.build(v[idx], check[idx]), self.c)
 
             else:
                 return self.c.mask(self.addr == addr)
