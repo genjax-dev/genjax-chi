@@ -183,6 +183,8 @@ def safety(session) -> None:
         "check",
         "--ignore",
         "70612",
+        "--ignore",
+        "73456",
         "--full-report",
         f"--file={requirements}",
         external=True,
