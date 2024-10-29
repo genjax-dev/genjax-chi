@@ -51,6 +51,8 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     inner: Trace[R]
     check: ScalarFlag
 
+    # TODO: move the choices, retval and score computation into `MaskTrace.build`, so that the
+    # vectorization will happen inside the user's vmap vs us having to apply it after the fact.
     def get_args(self) -> tuple[Any, ...]:
         return (self.check, *self.inner.get_args())
 
