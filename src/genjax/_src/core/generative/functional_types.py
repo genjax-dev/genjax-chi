@@ -100,16 +100,35 @@ class Mask(Generic[R], Pytree):
 
     @staticmethod
     def _broadcast_flag(value: R, flag: Flag | Diff[Flag]) -> Flag | Diff[Flag]:
+        """Broadcast a flag to match the shape of a value.
+
+        This helper method handles broadcasting flags to match the shape of values in a Mask.
+        For boolean flags, returns the flag unchanged. For array flags, broadcasts the flag
+        to match the shape of each leaf in the value pytree.
+
+        Args:
+            value: The value to match the flag shape to
+            flag: The flag to broadcast, either a Flag or Diff[Flag]
+
+        Returns:
+            The broadcast flag, preserving the input type (Flag or Diff[Flag])
+        """
+
         def inner(value: R, flag: Flag):
             if isinstance(flag, bool):
                 return flag
             else:
-                # Broadcast the flag to match the shape of value
-                def broadcast_leaf(leaf, flag):
-                    return jnp.broadcast_to(flag, jnp.asarray(leaf).shape)
+                # Get all leaf shapes
+                leaf_shapes = [jnp.shape(leaf) for leaf in jtu.tree_leaves(value)]
 
-                # Broadcast flag to match each leaf in the value pytree
-                return jtu.tree_map(lambda x: broadcast_leaf(x, flag), value)
+                # Check all shapes match the first shape
+                first_shape = leaf_shapes[0]
+                for shape in leaf_shapes[1:]:
+                    if shape != first_shape:
+                        raise ValueError(
+                            f"All leaves in value must have same shape. Found shapes {leaf_shapes}"
+                        )
+                return jnp.broadcast_to(flag, first_shape)
 
         if isinstance(flag, Diff):
             return Diff(inner(value, flag.get_primal()), flag.get_tangent())
@@ -128,7 +147,7 @@ class Mask(Generic[R], Pytree):
             f: The flag to be applied to the value.
 
         Returns:
-            A new Mask instance with the given value and flag.
+            A new Mask instance with the given value and flag. The flag of the returned Mask is broadcasted to match the shape of the value.
 
         Note:
             If `v` is already a Mask, the new flag is combined with the existing one using a logical AND, ensuring that the resulting Mask is only valid if both input flags are valid.
