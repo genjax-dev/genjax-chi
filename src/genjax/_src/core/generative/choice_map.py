@@ -1660,7 +1660,7 @@ class Switch(ChoiceMap):
 
     def get_value(self) -> Any:
         vs = [chm.get_value() for chm in self.chms]
-        entries = [Mask(v) for v in vs if v is not None]
+        entries = [Mask.build(v) for v in vs if v is not None]
 
         return Mask.or_n(*entries) if entries else None
 
@@ -1718,8 +1718,8 @@ class Xor(ChoiceMap):
             case a, None:
                 return a
             case a, b:
-                a = Mask(a)
-                b = Mask(b)
+                a = Mask.build(a)
+                b = Mask.build(b)
                 return (a ^ b).flatten()
 
     def get_submap(self, addr: AddressComponent) -> ChoiceMap:
@@ -1779,8 +1779,8 @@ class Or(ChoiceMap):
             case a, None:
                 return a
             case a, b:
-                a = Mask(a)
-                b = Mask(b)
+                a = Mask.build(a)
+                b = Mask.build(b)
                 return (a | b).flatten()
 
     def get_submap(self, addr: AddressComponent) -> ChoiceMap:

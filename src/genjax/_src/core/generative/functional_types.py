@@ -14,6 +14,7 @@
 
 
 import functools
+from typing import overload
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -32,6 +33,7 @@ from genjax._src.core.typing import (
 )
 
 R = TypeVar("R")
+
 
 #########################
 # Masking and sum types #
@@ -68,8 +70,54 @@ class Mask(Generic[R], Pytree):
     # Constructors #
     ################
 
-    # pyright: ignore
-    def __init__(self, v: "R | Mask[R]", f: Flag | Diff[Flag] = True) -> None:
+    def __init__(self, v: R, f: Flag | Diff[Flag] = True) -> None:
+        assert not isinstance(
+            v, Mask
+        ), f"Mask should not be instantiated with another Mask! found {v}"
+
+        f_primal = f.get_primal() if isinstance(f, Diff) else f
+        if not isinstance(f_primal, bool):
+            f_primal_shape = jnp.shape(f_primal)
+
+            def check_shapes(v_arr):
+                v_shape = jnp.shape(v_arr)
+                if v_shape != f_primal_shape:
+                    raise ValueError(
+                        f"Mask value and flag have incompatible shapes: {v_shape} vs {f_primal_shape}"
+                    )
+
+            jtu.tree_map(check_shapes, v)
+
+        self.value, self.flag = v, f  # pyright: ignore[reportAttributeAccessIssue]
+
+    @staticmethod
+    @overload
+    def _broadcast_flag(value: R, flag: Flag) -> Flag: ...
+
+    @staticmethod
+    @overload
+    def _broadcast_flag(value: R, flag: Diff[Flag]) -> Diff[Flag]: ...
+
+    @staticmethod
+    def _broadcast_flag(value: R, flag: Flag | Diff[Flag]) -> Flag | Diff[Flag]:
+        def inner(value: R, flag: Flag):
+            if isinstance(flag, bool):
+                return flag
+            else:
+                # Broadcast the flag to match the shape of value
+                def broadcast_leaf(leaf, flag):
+                    return jnp.broadcast_to(flag, jnp.asarray(leaf).shape)
+
+                # Broadcast flag to match each leaf in the value pytree
+                return jtu.tree_map(lambda x: broadcast_leaf(x, flag), value)
+
+        if isinstance(flag, Diff):
+            return Diff(inner(value, flag.get_primal()), flag.get_tangent())
+        else:
+            return inner(value, flag)
+
+    @staticmethod
+    def build(v: "R | Mask[R]", f: Flag | Diff[Flag] = True) -> "Mask[R]":
         """
         Create a Mask instance, potentially from an existing Mask or a raw value.
 
@@ -88,9 +136,11 @@ class Mask(Generic[R], Pytree):
         match v:
             case Mask(value, g):
                 assert not isinstance(f, Diff) and not isinstance(g, Diff)
-                self.value, self.flag = value, FlagOp.and_(f, g)  # pyright: ignore[reportAttributeAccessIssue]
+                f = Mask._broadcast_flag(value, f)
+                return Mask[R](value, FlagOp.and_(f, g))
             case _:
-                self.value, self.flag = v, f  # pyright: ignore[reportAttributeAccessIssue]
+                f = Mask._broadcast_flag(v, f)
+                return Mask[R](v, f)
 
     @staticmethod
     def maybe_mask(v: "R | Mask[R] | None", f: Flag) -> "R | Mask[R] | None":
@@ -111,7 +161,7 @@ class Mask(Generic[R], Pytree):
         if v is None:
             return None
         else:
-            return Mask(v, f).flatten()
+            return Mask.build(v, f).flatten()
 
     #############
     # Accessors #
@@ -252,7 +302,7 @@ class Mask(Generic[R], Pytree):
 
         match self.primal_flag(), other.primal_flag():
             case (False, False) | (True, True):
-                return Mask(self, False)
+                return Mask.build(self, False)
             case True, False:
                 return self
             case False, True:
@@ -264,7 +314,7 @@ class Mask(Generic[R], Pytree):
                 # but will equal 0 for TT flags. We use `FlagOp.xor_` to override this flag to equal
                 # False, since neither side in the TT case will provide a `False` flag for us.
                 chosen = tree_choose(idx, [self.value, other.value])
-                return Mask(chosen, FlagOp.xor_(self_flag, other_flag))
+                return Mask.build(chosen, FlagOp.xor_(self_flag, other_flag))
 
     @staticmethod
     def or_n(mask: "Mask[R]", *masks: "Mask[R]") -> "Mask[R]":

@@ -48,12 +48,12 @@ class TestMask:
         assert result == default
 
     def test_build(self):
-        mask = Mask(42, True)
+        mask = Mask.build(42, True)
         assert isinstance(mask, Mask)
         assert mask.flag is True
         assert mask.value == 42
 
-        nested_mask = Mask(Mask(42, True), False)
+        nested_mask = Mask.build(Mask.build(42, True), False)
         assert isinstance(nested_mask, Mask)
         assert nested_mask.flag is False
         assert nested_mask.value == 42

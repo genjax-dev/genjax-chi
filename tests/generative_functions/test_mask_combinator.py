@@ -161,19 +161,13 @@ class TestMaskCombinator:
         key = jax.random.key(0)
         mask_steps = jnp.arange(10) < 5
         model = masked_scan_combinator(step, n=len(mask_steps))
-        init_particle = model.simulate(key, ((0.0,), mask_steps))
+        init_particle = model.simulate(key, (0.0, mask_steps))
 
         step_particle, step_weight, _, _ = model.update(
-            key,
-            init_particle,
-            C.n(),
-            (
-                genjax.Diff.no_change((0.0,)),
-                genjax.Diff.no_change(mask_steps),
-            ),
+            key, init_particle, C.n(), Diff.no_change((0.0, mask_steps))
         )
         assert step_weight == jnp.array(0.0)
-        assert step_particle.get_retval() == ((jnp.array(0.0),), None)
+        assert step_particle.get_retval() == (jnp.array(0.0), None)
 
     def test_mask_scan_update_type_error(self, key):
         @genjax.gen
