@@ -117,7 +117,7 @@ class TestMaskCombinator:
         )
         vmap_tr = tr.get_subtrace(("init",))
         assert isinstance(vmap_tr, VmapTrace)
-        inner_scores = vmap_tr.inner.get_score()
+        inner_scores = jax.vmap(lambda tr: tr.get_score())(vmap_tr.inner)
         # score should be sum of sub-scores masked True
         assert tr.get_score() == inner_scores[0] + inner_scores[2]
 
