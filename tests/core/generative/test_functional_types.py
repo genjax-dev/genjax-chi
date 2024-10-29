@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import jax.numpy as jnp
+import jax.tree_util as jtu
 import pytest
 
 from genjax._src.checkify import do_checkify
@@ -45,26 +47,156 @@ class TestMask:
         result = invalid_mask.unmask(default=default)
         assert result == default
 
-    def test_mask_maybe(self):
-        mask = Mask.maybe(42, True)
+    def test_build(self):
+        mask = Mask.build(42, True)
         assert isinstance(mask, Mask)
         assert mask.flag is True
         assert mask.value == 42
 
-        nested_mask = Mask.maybe(Mask(42, True), False)
+        nested_mask = Mask.build(Mask(42, True), False)
         assert isinstance(nested_mask, Mask)
         assert nested_mask.flag is False
         assert nested_mask.value == 42
 
-    def test_mask_maybe_none(self):
-        result = Mask.maybe_none(42, True)
+    def test_maybe_mask(self):
+        result = Mask.maybe_mask(42, True)
         assert result == 42
 
-        result = Mask.maybe_none(42, False)
+        result = Mask.maybe_mask(42, False)
         assert result is None
 
         mask = Mask(42, True)
-        result = Mask.maybe_none(mask, True)
-        assert isinstance(result, Mask)
-        assert result.flag is True
+        assert Mask.maybe_mask(mask, True) == 42
+        assert Mask.maybe_mask(mask, False) is None
+
+    def test_mask_or_concrete_flags(self):
+        # True | True = True
+        mask1 = Mask(42, True)
+        mask2 = Mask(43, True)
+        result = mask1 | mask2
+        assert result.primal_flag() is True
         assert result.value == 42
+
+        # True | False = True (takes first value)
+        mask1 = Mask(42, True)
+        mask2 = Mask(43, False)
+        result = mask1 | mask2
+        assert result.primal_flag() is True
+        assert result.value == 42
+
+        # False | True = True (takes second value)
+        mask1 = Mask(42, False)
+        mask2 = Mask(43, True)
+        result = mask1 | mask2
+        assert result.primal_flag() is True
+        assert result.value == 43
+
+        # False | False = False
+        mask1 = Mask(42, False)
+        mask2 = Mask(43, False)
+        result = mask1 | mask2
+        assert result.primal_flag() is False
+
+        # Array flags result in array flag
+        mask1 = Mask(jnp.array([42, 42, 42, 42]), jnp.array([True, True, False, False]))
+        mask2 = Mask(jnp.array([43, 43, 43, 43]), jnp.array([False, True, False, True]))
+        result = mask1 | mask2
+        jtu.tree_map(
+            jnp.array_equal,
+            result,
+            Mask(jnp.array([42, 43, 43, 42]), jnp.array([True, True, False, True])),
+        )
+
+    def test_mask_xor_concrete_flags(self):
+        # True ^ True = False
+        mask1 = Mask(42, True)
+        mask2 = Mask(43, True)
+        result = mask1 ^ mask2
+        assert result.primal_flag() is False
+
+        # True ^ False = True (takes first value)
+        mask1 = Mask(42, True)
+        mask2 = Mask(43, False)
+        result = mask1 ^ mask2
+        assert result.primal_flag() is True
+        assert result.value == 42
+
+        # False ^ True = True (takes second value)
+        mask1 = Mask(42, False)
+        mask2 = Mask(43, True)
+        result = mask1 ^ mask2
+        assert result.primal_flag() is True
+        assert result.value == 43
+
+        # False ^ False = False
+        mask1 = Mask(42, False)
+        mask2 = Mask(43, False)
+        result = mask1 ^ mask2
+        assert result.primal_flag() is False
+
+        # Array flags result in array flag
+        mask1 = Mask(jnp.array([42, 42, 42, 42]), jnp.array([True, True, False, False]))
+        mask2 = Mask(jnp.array([43, 43, 43, 43]), jnp.array([False, True, False, True]))
+        result = mask1 ^ mask2
+        jtu.tree_map(
+            jnp.array_equal,
+            result,
+            Mask(jnp.array([42, 42, 43, 42]), jnp.array([True, False, False, True])),
+        )
+
+    def test_mask_combine_different_pytree_shapes(self):
+        mask1 = Mask({"a": 1, "b": 2}, True)
+        mask2 = Mask({"a": 1}, True)
+
+        with pytest.raises(
+            ValueError, match="Cannot combine masks with different tree structures"
+        ):
+            _ = mask1 | mask2
+
+        with pytest.raises(
+            ValueError, match="Cannot combine masks with different tree structures"
+        ):
+            _ = mask1 ^ mask2
+
+    def test_mask_combine_different_array_shapes(self):
+        # Array vs array with different shapes
+        mask1 = Mask(jnp.ones((2, 3)), True)
+        mask2 = Mask(jnp.ones((2, 2)), True)
+
+        with pytest.raises(
+            ValueError, match="Cannot combine masks with different array shapes"
+        ):
+            _ = mask1 | mask2
+
+        with pytest.raises(
+            ValueError, match="Cannot combine masks with different array shapes"
+        ):
+            _ = mask1 ^ mask2
+
+        # Scalar vs array
+        mask3 = Mask(jnp.asarray(1.0), True)
+        mask4 = Mask(jnp.ones((2, 2)), True)
+
+        with pytest.raises(
+            ValueError, match="Cannot combine masks with different array shapes"
+        ):
+            _ = mask3 | mask4
+
+        with pytest.raises(
+            ValueError, match="Cannot combine masks with different array shapes"
+        ):
+            _ = mask3 ^ mask4
+
+        # Different scalar shapes
+        mask5 = Mask(1.0, True)
+        mask6 = Mask(jnp.array(1.0), True)
+
+        assert mask5 | mask6 == mask6  # pyright: ignore
+
+        assert (mask5 ^ mask6).primal_flag() is False  # pyright: ignore
+
+        # Same scalar shapes should work
+        mask7 = Mask(1.0, True)
+        mask8 = Mask(2.0, False)
+        assert mask7 | mask8 == mask7
+        assert mask7 ^ mask8 == mask7

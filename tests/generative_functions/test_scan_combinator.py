@@ -336,7 +336,7 @@ class TestScanUpdate:
         tr = model.simulate(k1, (jnp.array(1.0),))
         u, w, _, _ = tr.update(k2, C["steps", 1, "b"].set(99.0))
         assert jnp.allclose(
-            u.get_choices()["steps", ..., "b"], jnp.array([2.0, 99.0, 7.0]), atol=0.1
+            u.get_choices()["steps", :, "b"], jnp.array([2.0, 99.0, 7.0]), atol=0.1
         )
         assert w < -100.0
 
@@ -385,17 +385,17 @@ class TestScanWithParameters:
         tr = walk_step.scan(n=5).simulate(key, args)
         _, expected = tr.get_retval()
         assert jnp.allclose(
-            tr.get_choices()[..., "x"],
+            tr.get_choices()[:, "x"],
             expected,
         )
 
         tr = walk_step.scan().simulate(key, args)
-        assert jnp.allclose(tr.get_choices()[..., "x"], expected)
+        assert jnp.allclose(tr.get_choices()[:, "x"], expected)
 
         # now with jit
         jitted = jax.jit(walk_step.scan().simulate)
         tr = jitted(key, args)
-        assert jnp.allclose(tr.get_choices()[..., "x"], expected)
+        assert jnp.allclose(tr.get_choices()[:, "x"], expected)
 
     def test_zero_length_scan(self, key):
         # GEN-333
@@ -454,7 +454,7 @@ class TestScanWithParameters:
         assert results.get_score().shape == (10,)
 
         # the inner scan has scanned over the y's
-        assert chm[..., "y"].shape == (10, 5)
+        assert chm[:, "y"].shape == (10, 5)
 
 
 class TestScanRegenerate:

@@ -201,7 +201,7 @@ class TestVmapCombinator:
         assert results.get_score().shape == (10,)
 
         # the inner vmap has vmap'd over the y's
-        assert chm[..., "y"].shape == (10, 5)
+        assert chm[:, "y"].shape == (10, 5)
 
     def test_zero_length_vmap(self):
         @genjax.gen

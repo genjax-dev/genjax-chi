@@ -40,7 +40,6 @@ from genjax._src.core.typing import (
     Callable,
     Generic,
     TypeVar,
-    Value,
 )
 
 R = TypeVar("R")
@@ -317,8 +316,8 @@ class IncrementalInterpreter(Pytree):
         self,
         _stateful_handler,
         _jaxpr: jc.Jaxpr,
-        consts: list[Value],
-        primals: list[Value],
+        consts: list[Any],
+        primals: list[Any],
         tangents: list[ChangeTangent],
     ):
         dual_env = Environment()

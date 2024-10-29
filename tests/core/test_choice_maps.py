@@ -76,8 +76,9 @@ class TestSelections:
         # only exact matches are allowed
         assert not leaf_sel["x", "y", "z"]
 
-        # wildcards work
-        assert leaf_sel[..., "y"]
+        # wildcards are not allowed
+        with pytest.raises(TypeError):
+            leaf_sel[..., "y"]  # pyright: ignore
 
     def test_selection_complement(self):
         sel = S["x"] | S["y"]
@@ -232,19 +233,12 @@ class TestSelections:
         assert not nested_sel("a")("b").check()
         assert nested_sel("a")("b")("c").check()
 
-    def test_selection_ellipsis(self):
+    def test_ellipsis_not_allowed(self):
         # Create a selection with nested structure
         sel = S["a", "b", "c"] | S["x", "y", "z"]
 
-        # Test that ... gives a free pass to one level of matching
-        assert sel["a", ..., ...]
-        assert sel["x", ..., ...]
-        assert sel["a", ..., "c"]
-        assert sel["x", ..., "z"]
-        assert not sel["a", ..., "z"]
-
-        assert not sel[...]
-        assert not sel["a", "z", ...]
+        with pytest.raises(TypeError):
+            sel["a", ..., ...]  # pyright: ignore
 
     def test_static_sel(self):
         xy_sel = Selection.at["x", "y"]
@@ -368,16 +362,19 @@ class TestChoiceMap:
         empty_chm = ChoiceMap.empty()
         assert empty_chm.static_is_empty()
 
-    def test_value(self):
-        value_chm = ChoiceMap.choice(42.0)
-        assert value_chm.get_value() == 42.0
-        assert value_chm.has_value()
+    def test_choice(self):
+        choice = ChoiceMap.choice(42.0)
+        assert choice.get_value() == 42.0
+        assert choice.has_value()
 
         # NO sub-paths are inside a ValueChm.
-        assert () in value_chm
+        assert () in choice
 
-        # A value chm with a mask that is concrete False is empty.
+        # A choice with a mask that is concrete False is empty.
         assert ChoiceMap.choice(Mask(42.0, False)).static_is_empty()
+
+        # Masks with concrete `True` flags have their masks stripped off
+        assert ChoiceMap.choice(Mask(42.0, True)) == ChoiceMap.choice(42.0)
 
         # non-concrete values survive.
         masked_v = Mask(42.0, jnp.array(False))
@@ -467,13 +464,57 @@ class TestChoiceMap:
         extended = chm.extend("a", "b")
         assert extended["a", "b"] == 1
 
-        # ... is a wildcard
-        assert extended[..., "b"] == 1
-        assert extended["a", ...] == 1
-
         assert extended.get_value() is None
         assert extended.get_submap("a").get_submap("b").get_value() == 1
         assert ChoiceMap.empty().extend("a", "b").static_is_empty()
+
+    def test_switch_chm(self):
+        # Test with concrete int index
+        chm1 = ChoiceMap.kw(x=1, y=2)
+        chm2 = ChoiceMap.kw(a=3, b=4)
+        chm3 = ChoiceMap.kw(p=5, q=6)
+
+        switched = ChoiceMap.switch(1, [chm1, chm2, chm3])
+        assert switched == chm2
+
+        # Test with array index
+        idx = jnp.array(1)
+        switched_array = ChoiceMap.switch(idx, [chm1, chm2, chm3])
+
+        # Can get values from any component, masked to the correct idx
+        assert switched_array["x"] == Mask(1, jnp.array(False))
+        assert switched_array["a"] == Mask(3, jnp.array(True))
+        assert switched_array["p"] == Mask(5, jnp.array(False))
+
+        # any statically missing address still raises:
+        with pytest.raises(ChoiceMapNoValueAtAddress):
+            switched_array["z"]
+
+    def test_or_xor_access(self):
+        # Create two choice maps with disjoint addresses
+        left = ChoiceMap.kw(x=1, y=2)
+        right = ChoiceMap.kw(z=3, w=4)
+
+        # Test Or
+        or_chm = left | right
+        assert or_chm["x"] == 1  # Only in left
+        assert or_chm["y"] == 2  # Only in left
+        assert or_chm["z"] == 3  # Only in right
+        assert or_chm["w"] == 4  # Only in right
+
+        # Test Xor
+        xor_chm = left ^ right
+        assert xor_chm["x"] == 1  # Only in left
+        assert xor_chm["y"] == 2  # Only in left
+        assert xor_chm["z"] == 3  # Only in right
+        assert xor_chm["w"] == 4  # Only in right
+
+        # Test that non-existent addresses still raise
+        with pytest.raises(ChoiceMapNoValueAtAddress):
+            or_chm["does_not_exist"]
+
+        with pytest.raises(ChoiceMapNoValueAtAddress):
+            xor_chm["does_not_exist"]
 
     def test_nested_static_choicemap(self):
         # Create a nested static ChoiceMap
@@ -599,10 +640,8 @@ class TestChoiceMap:
         assert xor_chm["x"] == 1
         assert xor_chm["y"] == 2
 
-        with pytest.raises(
-            Exception,
-            match="The disjoint union of two choice maps have a value collision",
-        ):
+        #
+        with pytest.raises(ChoiceMapNoValueAtAddress, match="x"):
             (chm1 ^ chm1)["x"]
 
         # Optimization: XorChm.build should return EmptyChm for empty inputs
@@ -689,11 +728,11 @@ class TestChoiceMap:
         filtered_chm = chm.filter(sel)
 
         # Assert that only 'x' values are present in the filtered ChoiceMap
-        assert jnp.all(filtered_chm[..., "x"] == jnp.array([1.0, 2.0, 3.0]))
+        assert jnp.all(filtered_chm[:, "x"] == jnp.array([1.0, 2.0, 3.0]))
 
         # Assert that 'y' values are not present in the filtered ChoiceMap
         with pytest.raises(ChoiceMapNoValueAtAddress):
-            filtered_chm[..., "y"]
+            filtered_chm[:, "y"]
 
         # Assert that the structure of the filtered ChoiceMap is preserved
         assert filtered_chm[0, "x"] == 1.0
@@ -719,14 +758,14 @@ class TestChoiceMap:
         key, subkey = jax.random.split(key)
         new_tr, _, _, _ = tr.update(subkey, only_xs)
         new_choices = new_tr.get_choices()
-        assert jnp.array_equal(new_choices[..., "x"], xs)
-        assert not jnp.array_equal(new_choices[..., "y"], ys)
+        assert jnp.array_equal(new_choices[:, "x"], xs)
+        assert not jnp.array_equal(new_choices[:, "y"], ys)
 
         key, subkey = jax.random.split(key)
         new_tr_2, _, _, _ = tr.update(subkey, only_ys)
         new_choices_2 = new_tr_2.get_choices()
-        assert not jnp.array_equal(new_choices_2[..., "x"], xs)
-        assert jnp.array_equal(new_choices_2[..., "y"], ys)
+        assert not jnp.array_equal(new_choices_2[:, "x"], xs)
+        assert jnp.array_equal(new_choices_2[:, "y"], ys)
 
     def test_choicemap_with_static_idx(self):
         chm = C[0].set({"x": 1.0, "y": 2.0})
