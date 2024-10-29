@@ -53,10 +53,45 @@ class TestMask:
         assert mask.flag is True
         assert mask.value == 42
 
-        nested_mask = Mask.build(Mask(42, True), False)
+        nested_mask = Mask.build(Mask.build(42, True), False)
         assert isinstance(nested_mask, Mask)
         assert nested_mask.flag is False
         assert nested_mask.value == 42
+
+    def test_build_flag_broadcasting(self):
+        # Boolean flags should be left unchanged
+        mask = Mask.build(42, True)
+        assert mask.flag is True
+
+        mask = Mask.build([1, 2, 3], False)
+        assert mask.flag is False
+
+        # Array flags should be broadcast to match value shape
+        value = jnp.array([1.0, 2.0, 3.0])
+        flag = jnp.array([True])
+        mask = Mask.build(value, flag)
+        assert jnp.array_equal(mask.primal_flag(), jnp.array([True, True, True]))
+
+        # Works with pytrees
+        value = {"a": jnp.ones((3, 2)), "b": jnp.ones((3, 2))}
+        flag = jnp.array([True, False])
+        expanded = jnp.array([[True, False], [True, False], [True, False]])
+        mask = Mask.build(value, flag)
+        assert jnp.array_equal(mask.primal_flag(), expanded)
+
+        # differing shapes in pytree leaves
+        with pytest.raises(
+            ValueError, match="All leaves in value must have same shape"
+        ):
+            value = {"a": jnp.ones((4, 8)), "b": jnp.ones((3, 2))}
+            flag = jnp.array([True, False])
+            mask = Mask.build(value, flag)
+
+        # Incompatible shapes should raise error
+        value = jnp.array([1.0, 2.0])
+        flag = jnp.array([True, False, True])
+        with pytest.raises(ValueError, match="Incompatible shapes for broadcasting"):
+            Mask.build(value, flag)
 
     def test_maybe_mask(self):
         result = Mask.maybe_mask(42, True)

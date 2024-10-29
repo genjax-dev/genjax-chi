@@ -14,6 +14,7 @@
 
 
 import functools
+from typing import overload
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -33,12 +34,13 @@ from genjax._src.core.typing import (
 
 R = TypeVar("R")
 
+
 #########################
 # Masking and sum types #
 #########################
 
 
-@Pytree.dataclass(match_args=True)
+@Pytree.dataclass(match_args=True, init=False)
 class Mask(Generic[R], Pytree):
     """The `Mask` datatype wraps a value in a BoolArray flag which denotes whether the data is valid or invalid to use in inference computations.
 
@@ -68,7 +70,71 @@ class Mask(Generic[R], Pytree):
     # Constructors #
     ################
 
-    # TODO check that these are broadcast-compatible when they come in.
+    def __init__(self, v: R, f: Flag | Diff[Flag] = True) -> None:
+        assert not isinstance(
+            v, Mask
+        ), f"Mask should not be instantiated with another Mask! found {v}"
+
+        f_primal = f.get_primal() if isinstance(f, Diff) else f
+        if not isinstance(f_primal, bool):
+            f_primal_shape = jnp.shape(f_primal)
+
+            def check_shapes(v_arr):
+                v_shape = jnp.shape(v_arr)
+                if v_shape != f_primal_shape:
+                    raise ValueError(
+                        f"Mask value and flag have incompatible shapes: {v_shape} vs {f_primal_shape}"
+                    )
+
+            jtu.tree_map(check_shapes, v)
+
+        self.value, self.flag = v, f  # pyright: ignore[reportAttributeAccessIssue]
+
+    @staticmethod
+    @overload
+    def _broadcast_flag(value: R, flag: Flag) -> Flag: ...
+
+    @staticmethod
+    @overload
+    def _broadcast_flag(value: R, flag: Diff[Flag]) -> Diff[Flag]: ...
+
+    @staticmethod
+    def _broadcast_flag(value: R, flag: Flag | Diff[Flag]) -> Flag | Diff[Flag]:
+        """Broadcast a flag to match the shape of a value.
+
+        This helper method handles broadcasting flags to match the shape of values in a Mask.
+        For boolean flags, returns the flag unchanged. For array flags, broadcasts the flag
+        to match the shape of each leaf in the value pytree.
+
+        Args:
+            value: The value to match the flag shape to
+            flag: The flag to broadcast, either a Flag or Diff[Flag]
+
+        Returns:
+            The broadcast flag, preserving the input type (Flag or Diff[Flag])
+        """
+
+        def inner(value: R, flag: Flag):
+            if isinstance(flag, bool):
+                return flag
+            else:
+                # Get all leaf shapes
+                leaf_shapes = [jnp.shape(leaf) for leaf in jtu.tree_leaves(value)]
+
+                # Check all shapes match the first shape
+                first_shape = leaf_shapes[0]
+                for shape in leaf_shapes[1:]:
+                    if shape != first_shape:
+                        raise ValueError(
+                            f"All leaves in value must have same shape. Found shapes {leaf_shapes}"
+                        )
+                return jnp.broadcast_to(flag, first_shape)
+
+        if isinstance(flag, Diff):
+            return Diff(inner(value, flag.get_primal()), flag.get_tangent())
+        else:
+            return inner(value, flag)
+
     @staticmethod
     def build(v: "R | Mask[R]", f: Flag | Diff[Flag] = True) -> "Mask[R]":
         """
@@ -81,7 +147,7 @@ class Mask(Generic[R], Pytree):
             f: The flag to be applied to the value.
 
         Returns:
-            A new Mask instance with the given value and flag.
+            A new Mask instance with the given value and flag. The flag of the returned Mask is broadcasted to match the shape of the value.
 
         Note:
             If `v` is already a Mask, the new flag is combined with the existing one using a logical AND, ensuring that the resulting Mask is only valid if both input flags are valid.
@@ -89,8 +155,10 @@ class Mask(Generic[R], Pytree):
         match v:
             case Mask(value, g):
                 assert not isinstance(f, Diff) and not isinstance(g, Diff)
+                f = Mask._broadcast_flag(value, f)
                 return Mask[R](value, FlagOp.and_(f, g))
             case _:
+                f = Mask._broadcast_flag(v, f)
                 return Mask[R](v, f)
 
     @staticmethod
@@ -109,7 +177,10 @@ class Mask(Generic[R], Pytree):
             - None if `f` is concretely False.
             - A new Mask instance with the given value and flag if `f` is not concrete.
         """
-        return Mask.build(v, f).flatten()
+        if v is None:
+            return None
+        else:
+            return Mask.build(v, f).flatten()
 
     #############
     # Accessors #
