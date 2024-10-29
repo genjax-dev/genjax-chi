@@ -13,6 +13,7 @@
 # limitations under the License.
 
 
+import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
@@ -57,11 +58,22 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
         return self.mask_combinator
 
     def get_choices(self) -> ChoiceMap:
-        inner_choice_map = self.inner.get_choices()
-        return inner_choice_map.mask(self.check)
+        def inner(chm, check):
+            if jnp.shape(check) == ():
+                return chm.mask(check)
+            else:
+                return jax.vmap(inner)(chm, check)
+
+        return inner(self.inner.get_choices(), self.check)
 
     def get_retval(self):
-        return Mask.build(self.inner.get_retval(), self.check)
+        def inner(ret, check):
+            if jnp.shape(check) == ():
+                return Mask.build(ret, check)
+            else:
+                return jax.vmap(inner)(ret, check)
+
+        return inner(self.inner.get_retval(), self.check)
 
     def get_score(self):
         inner_score = self.inner.get_score()
