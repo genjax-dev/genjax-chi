@@ -38,7 +38,7 @@ R = TypeVar("R")
 #########################
 
 
-@Pytree.dataclass(match_args=True)
+@Pytree.dataclass(match_args=True, init=False)
 class Mask(Generic[R], Pytree):
     """The `Mask` datatype wraps a value in a BoolArray flag which denotes whether the data is valid or invalid to use in inference computations.
 
@@ -68,9 +68,8 @@ class Mask(Generic[R], Pytree):
     # Constructors #
     ################
 
-    # TODO check that these are broadcast-compatible when they come in.
-    @staticmethod
-    def build(v: "R | Mask[R]", f: Flag | Diff[Flag] = True) -> "Mask[R]":
+    # pyright: ignore
+    def __init__(self, v: "R | Mask[R]", f: Flag | Diff[Flag] = True) -> None:
         """
         Create a Mask instance, potentially from an existing Mask or a raw value.
 
@@ -89,9 +88,9 @@ class Mask(Generic[R], Pytree):
         match v:
             case Mask(value, g):
                 assert not isinstance(f, Diff) and not isinstance(g, Diff)
-                return Mask[R](value, FlagOp.and_(f, g))
+                self.value, self.flag = value, FlagOp.and_(f, g)  # pyright: ignore[reportAttributeAccessIssue]
             case _:
-                return Mask[R](v, f)
+                self.value, self.flag = v, f  # pyright: ignore[reportAttributeAccessIssue]
 
     @staticmethod
     def maybe_mask(v: "R | Mask[R] | None", f: Flag) -> "R | Mask[R] | None":
@@ -109,7 +108,10 @@ class Mask(Generic[R], Pytree):
             - None if `f` is concretely False.
             - A new Mask instance with the given value and flag if `f` is not concrete.
         """
-        return Mask.build(v, f).flatten()
+        if v is None:
+            return None
+        else:
+            return Mask(v, f).flatten()
 
     #############
     # Accessors #
@@ -250,7 +252,7 @@ class Mask(Generic[R], Pytree):
 
         match self.primal_flag(), other.primal_flag():
             case (False, False) | (True, True):
-                return Mask.build(self, False)
+                return Mask(self, False)
             case True, False:
                 return self
             case False, True:
@@ -262,7 +264,7 @@ class Mask(Generic[R], Pytree):
                 # but will equal 0 for TT flags. We use `FlagOp.xor_` to override this flag to equal
                 # False, since neither side in the TT case will provide a `False` flag for us.
                 chosen = tree_choose(idx, [self.value, other.value])
-                return Mask.build(chosen, FlagOp.xor_(self_flag, other_flag))
+                return Mask(chosen, FlagOp.xor_(self_flag, other_flag))
 
     @staticmethod
     def or_n(mask: "Mask[R]", *masks: "Mask[R]") -> "Mask[R]":
