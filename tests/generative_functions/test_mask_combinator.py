@@ -190,6 +190,7 @@ class TestMaskCombinator:
         inside_tr = model_inside.simulate(key, ())
         outside_tr = model_outside.simulate(key, ())
 
+        assert outside_tr.get_score() == inside_tr.get_score()
         assert jtu.tree_map(
             jnp.array_equal, inside_tr.get_retval(), outside_tr.get_retval()
         )

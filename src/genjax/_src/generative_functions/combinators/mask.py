@@ -35,6 +35,7 @@ from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    Flag,
     Generic,
     PRNGKey,
     ScalarFlag,
@@ -52,7 +53,7 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     chm: ChoiceMap
     score: Score
     ret: Mask[R]
-    check: ScalarFlag
+    check: Flag
 
     @staticmethod
     def build(

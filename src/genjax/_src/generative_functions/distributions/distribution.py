@@ -192,8 +192,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             case ChoiceMapConstraint(chm):
                 match chm.get_value():
                     case Mask() as masked_value:
-                        # Whether or not the choice map has a value is dynamic...
-                        # We must handled with a cond.
+
                         def _true_branch(key, new_value: R, _):
                             fwd = self.estimate_logpdf(key, new_value, *primals)
                             bwd = trace.get_score()

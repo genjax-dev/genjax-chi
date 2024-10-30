@@ -989,11 +989,6 @@ class TestChoiceMap:
 
         assert jnp.array_equal(chm[0:4, "x"], vals[0:4])
 
-    def badboy(self):
-        indices = jnp.array([0, 1, 2])
-        chm = C[indices, :, :].set(jnp.ones((3, 2, 2)))
-        chm[1, :, :]
-
     def test_choicemap_slice_validation(self):
         # Creation with scalar and string keys
         chm = C[0, "x", 1].set(10)

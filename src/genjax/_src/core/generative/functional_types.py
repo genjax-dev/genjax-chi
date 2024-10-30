@@ -121,6 +121,9 @@ class Mask(Generic[R], Pytree):
                 # Get all leaf shapes
                 leaf_shapes = [jnp.shape(leaf) for leaf in jtu.tree_leaves(value)]
 
+                # this guards against a value of `None`, or a pytree with leaves all `None`. In this case we want to force validation of a scalar flag.
+                leaf_shapes = leaf_shapes if leaf_shapes else [()]
+
                 # Check all shapes match the first shape
                 first_shape = leaf_shapes[0]
                 for shape in leaf_shapes[1:]:
@@ -198,7 +201,7 @@ class Mask(Generic[R], Pytree):
             The flattened result based on the mask's flag state.
         """
         flag = self.primal_flag()
-        if FlagOp.concrete_false(flag) or self.value is None:
+        if FlagOp.concrete_false(flag):
             return None
         elif FlagOp.concrete_true(flag):
             return self.value
