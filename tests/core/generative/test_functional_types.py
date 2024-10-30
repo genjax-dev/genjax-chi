@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
+
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import pytest
@@ -58,7 +60,7 @@ class TestMask:
         assert nested_mask.flag is False
         assert nested_mask.value == 42
 
-    def test_build_flag_broadcasting(self):
+    def test_build_flag_validation(self):
         # Boolean flags should be left unchanged
         mask = Mask.build(42, True)
         assert mask.flag is True
@@ -66,18 +68,17 @@ class TestMask:
         mask = Mask.build([1, 2, 3], False)
         assert mask.flag is False
 
-        # Array flags should be broadcast to match value shape
+        # Array flags should only be allowed if they can be broadcast to match value shape
         value = jnp.array([1.0, 2.0, 3.0])
         flag = jnp.array([True])
         mask = Mask.build(value, flag)
-        assert jnp.array_equal(mask.primal_flag(), jnp.array([True, True, True]))
+        assert jnp.array_equal(mask.primal_flag(), jnp.array([True]))
 
         # Works with pytrees
         value = {"a": jnp.ones((3, 2)), "b": jnp.ones((3, 2))}
         flag = jnp.array([True, False])
-        expanded = jnp.array([[True, False], [True, False], [True, False]])
         mask = Mask.build(value, flag)
-        assert jnp.array_equal(mask.primal_flag(), expanded)
+        assert jnp.array_equal(mask.primal_flag(), flag)
 
         # differing shapes in pytree leaves
         with pytest.raises(
@@ -90,7 +91,12 @@ class TestMask:
         # Incompatible shapes should raise error
         value = jnp.array([1.0, 2.0])
         flag = jnp.array([True, False, True])
-        with pytest.raises(ValueError, match="Incompatible shapes for broadcasting"):
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "Flag [ True False  True] cannot be broadcast to shape (2,)"
+            ),
+        ):
             Mask.build(value, flag)
 
     def test_maybe_mask(self):

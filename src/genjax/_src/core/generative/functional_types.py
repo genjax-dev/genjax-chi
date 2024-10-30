@@ -14,7 +14,6 @@
 
 
 import functools
-from typing import overload
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -74,69 +73,46 @@ class Mask(Generic[R], Pytree):
         assert not isinstance(
             v, Mask
         ), f"Mask should not be instantiated with another Mask! found {v}"
-
-        f_primal = f.get_primal() if isinstance(f, Diff) else f
-        if not isinstance(f_primal, bool):
-            f_primal_shape = jnp.shape(f_primal)
-
-            def check_shapes(v_arr):
-                v_shape = jnp.shape(v_arr)
-                if v_shape != f_primal_shape:
-                    raise ValueError(
-                        f"Mask value and flag have incompatible shapes: {v_shape} vs {f_primal_shape}"
-                    )
-
-            jtu.tree_map(check_shapes, v)
-
+        Mask._validate(v, f)
         self.value, self.flag = v, f  # pyright: ignore[reportAttributeAccessIssue]
 
     @staticmethod
-    @overload
-    def _broadcast_flag(value: R, flag: Flag) -> Flag: ...
+    def _validate(value: R, flag: Flag | Diff[Flag]) -> None:
+        """
+        Validates that the flag can be broadcast to match the shape of the value.
 
-    @staticmethod
-    @overload
-    def _broadcast_flag(value: R, flag: Diff[Flag]) -> Diff[Flag]: ...
-
-    @staticmethod
-    def _broadcast_flag(value: R, flag: Flag | Diff[Flag]) -> Flag | Diff[Flag]:
-        """Broadcast a flag to match the shape of a value.
-
-        This helper method handles broadcasting flags to match the shape of values in a Mask.
-        For boolean flags, returns the flag unchanged. For array flags, broadcasts the flag
-        to match the shape of each leaf in the value pytree.
+        This method performs two key validations:
+        1. If the value is a pytree, ensures all leaves have the same shape
+        2. verifies that the flag can be broadcast to match the value shape
 
         Args:
-            value: The value to match the flag shape to
-            flag: The flag to broadcast, either a Flag or Diff[Flag]
+            value: The value to validate, can be a pytree
+            flag: The flag to validate
 
-        Returns:
-            The broadcast flag, preserving the input type (Flag or Diff[Flag])
+        Raises:
+            ValueError: If leaves have different shapes or flag cannot be broadcast to value shape
         """
+        # Get all leaf shapes
+        leaf_shapes = [jnp.shape(leaf) for leaf in jtu.tree_leaves(value)]
 
-        def inner(value: R, flag: Flag):
-            if isinstance(flag, bool):
-                return flag
-            else:
-                # Get all leaf shapes
-                leaf_shapes = [jnp.shape(leaf) for leaf in jtu.tree_leaves(value)]
+        # this guards against a value of `None`, or a pytree with leaves all `None`. In this case we want to force validation of a scalar flag.
+        leaf_shapes = leaf_shapes if leaf_shapes else [()]
 
-                # this guards against a value of `None`, or a pytree with leaves all `None`. In this case we want to force validation of a scalar flag.
-                leaf_shapes = leaf_shapes if leaf_shapes else [()]
+        # Check all shapes match the first shape
+        first_shape = leaf_shapes[0]
+        for shape in leaf_shapes[1:]:
+            if shape != first_shape:
+                raise ValueError(
+                    f"All leaves in value must have same shape. Found shapes {leaf_shapes}"
+                )
 
-                # Check all shapes match the first shape
-                first_shape = leaf_shapes[0]
-                for shape in leaf_shapes[1:]:
-                    if shape != first_shape:
-                        raise ValueError(
-                            f"All leaves in value must have same shape. Found shapes {leaf_shapes}"
-                        )
-                return jnp.broadcast_to(flag, first_shape)
-
-        if isinstance(flag, Diff):
-            return Diff(inner(value, flag.get_primal()), flag.get_tangent())
-        else:
-            return inner(value, flag)
+        flag = flag.get_primal() if isinstance(flag, Diff) else flag
+        try:
+            jnp.broadcast_to(flag, first_shape)
+        except ValueError as e:
+            raise ValueError(
+                f"Flag {flag} cannot be broadcast to shape {first_shape}"
+            ) from e
 
     @staticmethod
     def build(v: "R | Mask[R]", f: Flag | Diff[Flag] = True) -> "Mask[R]":
@@ -150,7 +126,7 @@ class Mask(Generic[R], Pytree):
             f: The flag to be applied to the value.
 
         Returns:
-            A new Mask instance with the given value and flag. The flag of the returned Mask is broadcasted to match the shape of the value.
+            A new Mask instance with the given value and flag.
 
         Note:
             If `v` is already a Mask, the new flag is combined with the existing one using a logical AND, ensuring that the resulting Mask is only valid if both input flags are valid.
@@ -158,10 +134,8 @@ class Mask(Generic[R], Pytree):
         match v:
             case Mask(value, g):
                 assert not isinstance(f, Diff) and not isinstance(g, Diff)
-                f = Mask._broadcast_flag(value, f)
                 return Mask[R](value, FlagOp.and_(f, g))
             case _:
-                f = Mask._broadcast_flag(v, f)
                 return Mask[R](v, f)
 
     @staticmethod

@@ -248,7 +248,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         score, retval = self.gen_fn.assess(sample, inner_args)
         return (
             check * score,
-            Mask.build(retval, check),
+            Mask(retval, check),
         )
 
 
