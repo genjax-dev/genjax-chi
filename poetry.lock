@@ -1093,13 +1093,13 @@ files = [
 
 [[package]]
 name = "genstudio"
-version = "2024.10.4"
+version = "2024.10.5"
 description = ""
 optional = true
 python-versions = ">=3.10,<3.13"
 files = [
-    {file = "genstudio-2024.10.4-py3-none-any.whl", hash = "sha256:bc35f3245982cc3548dfbb597ec63864f97df7e3ee542a7152908a61e717d6db"},
-    {file = "genstudio-2024.10.4.tar.gz", hash = "sha256:d7891c75e8cde5b2479a56b3c4783e0562607a2accf10297a51ec1869248cbee"},
+    {file = "genstudio-2024.10.5-py3-none-any.whl", hash = "sha256:54b326872f23bf43665ec7bd72e6ad6acbf3ea6f417bcf0769df2577e51fc86d"},
+    {file = "genstudio-2024.10.5.tar.gz", hash = "sha256:979432b6de20489c7e400da6b2ee4802f4962efbf81645a75244b361bc5c1a94"},
 ]
 
 [package.dependencies]
@@ -4861,4 +4861,4 @@ genstudio = ["genstudio"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "dda49a7e39483238a488a83d60fa1df94367d3a54f4d46477bbaa494ce557e9a"
+content-hash = "b76bf146f238cd40d2abe74b6225710e3ee852f4436b61404adba87240ce6aba"
