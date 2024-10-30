@@ -1093,13 +1093,13 @@ files = [
 
 [[package]]
 name = "genstudio"
-version = "2024.10.3"
+version = "2024.10.4"
 description = ""
 optional = true
 python-versions = ">=3.10,<3.13"
 files = [
-    {file = "genstudio-2024.10.3-py3-none-any.whl", hash = "sha256:52d8ad8555452a602d241eca6699b189c78d6452143e348fa4adcee6c697856b"},
-    {file = "genstudio-2024.10.3.tar.gz", hash = "sha256:49b52e286c7675af95489754839f6356d54c70b3c976cd286fcc2b485848b017"},
+    {file = "genstudio-2024.10.4-py3-none-any.whl", hash = "sha256:bc35f3245982cc3548dfbb597ec63864f97df7e3ee542a7152908a61e717d6db"},
+    {file = "genstudio-2024.10.4.tar.gz", hash = "sha256:d7891c75e8cde5b2479a56b3c4783e0562607a2accf10297a51ec1869248cbee"},
 ]
 
 [package.dependencies]
@@ -2603,8 +2603,8 @@ files = [
 [package.dependencies]
 numpy = [
     {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
-    {version = ">=1.23.3", markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
     {version = ">=1.21.2", markers = "python_version >= \"3.10\" and python_version < \"3.11\""},
+    {version = ">=1.23.3", markers = "python_version >= \"3.11\" and python_version < \"3.12\""},
 ]
 
 [package.extras]
@@ -3060,8 +3060,8 @@ files = [
 [package.dependencies]
 numpy = [
     {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
-    {version = ">=1.23.2", markers = "python_version == \"3.11\""},
     {version = ">=1.22.4", markers = "python_version < \"3.11\""},
+    {version = ">=1.23.2", markers = "python_version == \"3.11\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -4861,4 +4861,4 @@ genstudio = ["genstudio"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "2abd5e89fb8239375ba7d249f3b46ad5c8666f20fbdc1500aeaf9ff59bde03c7"
+content-hash = "dda49a7e39483238a488a83d60fa1df94367d3a54f4d46477bbaa494ce557e9a"

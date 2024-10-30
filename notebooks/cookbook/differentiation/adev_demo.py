@@ -307,9 +307,6 @@ def select_evenly_spaced(items, num_samples=5):
     return result
 
 
-SLIDER_STEP = 0.01
-ANIMATION_STEP = 4
-
 button_classes = (
     "px-3 py-1 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600"
 )
@@ -352,6 +349,10 @@ def input_checkbox(label, value, on_change):
 
 
 def render_plot(initial_val, initial_sigma):
+    SLIDER_STEP = 0.01
+    ANIMATION_STEP = 4
+    COMPARISON_HEIGHT = 200
+
     widget = Plot.new().display_as("widget")
 
     params = {"key": key, "val": initial_val, "sigma": initial_sigma, "frame": 0}
@@ -437,6 +438,7 @@ def render_plot(initial_val, initial_sigma):
         + Plot.domainX([0, EPOCHS])
         + Plot.title("Comparison of computed gradients JAX vs ADEV")
         + Plot.color_legend()
+        + {"height": COMPARISON_HEIGHT}
     )
 
     optimization_plot = Plot.new(
@@ -461,6 +463,7 @@ def render_plot(initial_val, initial_sigma):
         + Plot.domainX([0, EPOCHS])
         + Plot.title("Maximization of the expected value of a probabilistic function")
         + Plot.color_legend()
+        + {"height": COMPARISON_HEIGHT}
     )
 
     jax_tangents_plot = samples_plot + plot_tangents("JAX")
