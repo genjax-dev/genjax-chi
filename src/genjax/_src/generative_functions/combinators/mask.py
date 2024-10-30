@@ -61,7 +61,7 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
         return inner_choice_map.mask(self.check)
 
     def get_retval(self):
-        return Mask.build(self.inner.get_retval(), self.check)
+        return Mask(self.inner.get_retval(), self.check)
 
     def get_score(self):
         inner_score = self.inner.get_score()
@@ -236,7 +236,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         score, retval = self.gen_fn.assess(sample, inner_args)
         return (
             check * score,
-            Mask.build(retval, check),
+            Mask(retval, check),
         )
 
 

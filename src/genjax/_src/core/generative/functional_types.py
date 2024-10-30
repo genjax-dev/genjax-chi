@@ -126,7 +126,7 @@ class Mask(Generic[R], Pytree):
             f: The flag to be applied to the value.
 
         Returns:
-            A new Mask instance with the given value and flag. The flag of the returned Mask is broadcasted to match the shape of the value.
+            A new Mask instance with the given value and flag.
 
         Note:
             If `v` is already a Mask, the new flag is combined with the existing one using a logical AND, ensuring that the resulting Mask is only valid if both input flags are valid.
@@ -139,7 +139,7 @@ class Mask(Generic[R], Pytree):
                 return Mask[R](v, f)
 
     @staticmethod
-    def maybe_mask(v: "R | Mask[R] | None", f: Flag) -> "R | Mask[R] | None":
+    def maybe_mask(v: "R | Mask[R]", f: Flag) -> "R | Mask[R] | None":
         """
         Create a Mask instance or return the original value based on the flag.
 
@@ -154,10 +154,7 @@ class Mask(Generic[R], Pytree):
             - None if `f` is concretely False.
             - A new Mask instance with the given value and flag if `f` is not concrete.
         """
-        if v is None:
-            return None
-        else:
-            return Mask.build(v, f).flatten()
+        return Mask.build(v, f).flatten()
 
     #############
     # Accessors #
@@ -178,7 +175,7 @@ class Mask(Generic[R], Pytree):
             The flattened result based on the mask's flag state.
         """
         flag = self.primal_flag()
-        if FlagOp.concrete_false(flag) or self.value is None:
+        if FlagOp.concrete_false(flag):
             return None
         elif FlagOp.concrete_true(flag):
             return self.value

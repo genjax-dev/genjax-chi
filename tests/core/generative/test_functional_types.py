@@ -60,7 +60,7 @@ class TestMask:
         assert nested_mask.flag is False
         assert nested_mask.value == 42
 
-    def test_build_flag_broadcasting(self):
+    def test_build_flag_validation(self):
         # Boolean flags should be left unchanged
         mask = Mask.build(42, True)
         assert mask.flag is True
@@ -109,6 +109,10 @@ class TestMask:
         mask = Mask(42, True)
         assert Mask.maybe_mask(mask, True) == 42
         assert Mask.maybe_mask(mask, False) is None
+
+        assert Mask.maybe_mask(None, jnp.asarray(True)) == Mask(
+            None, jnp.asarray(True)
+        ), "None survives maybe_mask"
 
     def test_mask_or_concrete_flags(self):
         # True | True = True
