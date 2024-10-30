@@ -470,7 +470,12 @@ def render_plot(initial_val, initial_sigma):
     adev_tangents_plot = samples_plot + plot_tangents("ADEV")
 
     frame_slider = Plot.Slider(
-        key="frame", init=0, range=[0, EPOCHS], step=ANIMATION_STEP, fps=30
+        key="frame",
+        init=0,
+        range=[0, EPOCHS],
+        step=ANIMATION_STEP,
+        fps=30,
+        label="Iteration:",
     )
 
     controls = Plot.html([
@@ -519,24 +524,16 @@ y(\theta) = \mathbb{E}_{x\sim P(\theta)}[x] = \int_{\mathbb{R}}\left[\theta^2\fr
         ],
     ])
 
-    jax_code = Plot.html([
-        "pre.whitespace-pre-wrap",
-        """
-def noisy_jax_model(key, theta, sigma):
+    jax_code = """def noisy_jax_model(key, theta, sigma):
     b = jax.random.bernoulli(key, theta)
     return jax.lax.cond(
         b,
         lambda theta: jax.random.normal(key) * sigma * theta,
         lambda theta: jax.random.normal(key) * sigma + theta / 2,
         theta,
-    )
-                            """,
-    ])
+    )"""
 
-    adev_code = Plot.html([
-        "pre.whitespace-pre-wrap",
-        """
-@expectation
+    adev_code = """@expectation
 def flip_approx_loss(theta, sigma):
     b = flip_enum(theta)
     return jax.lax.cond(
@@ -544,24 +541,29 @@ def flip_approx_loss(theta, sigma):
         lambda theta: normal_reparam(0.0, sigma) * theta,
         lambda theta: normal_reparam(theta / 2, sigma),
         theta,
-    )
-                             """,
-    ])
+    )"""
+
+    GRID = "div.grid.grid-cols-2.gap-4"
+    PRE = "pre.whitespace-pre-wrap.text-2xs.p-3.rounded-md.bg-gray-100.flex-1"
 
     def reset_plot():
         widget.reset(
             Plot.initial_state(current_state(params) | {"show_expected_value": True})
             | controls
-            | jax_tangents_plot & adev_tangents_plot
-            | jax_code & adev_code
-            | comparison_plot & optimization_plot
+            | [
+                GRID,
+                jax_tangents_plot,
+                adev_tangents_plot,
+                [PRE, jax_code],
+                [PRE, adev_code],
+                comparison_plot,
+                optimization_plot,
+            ]
             | frame_slider
         )
 
     reset_plot()
     return widget
 
-
-#
 
 render_plot(0.2, 0.05)
