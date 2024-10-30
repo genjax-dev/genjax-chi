@@ -47,6 +47,11 @@ R = TypeVar("R")
 
 @Pytree.dataclass
 class MaskTrace(Generic[R], Trace[Mask[R]]):
+    """A trace type for the `MaskCombinator` generative function.
+
+    Users should use `MaskTrace.build` for constructing instances of `MaskTrace`,
+    """
+
     mask_combinator: "MaskCombinator[R]"
     inner: Trace[R]
     args: tuple[Any, ...]
@@ -59,6 +64,24 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     def build(
         scan_gen_fn: "MaskCombinator[R]", inner: Trace[R], check: ScalarFlag
     ) -> "MaskTrace[R]":
+        """Construct a new `MaskTrace` instance.
+
+        This static method builds a `MaskTrace` by combining an inner trace with a check flag.
+        The check flag determines whether the inner trace's choices and return value are masked.
+
+        Args:
+            scan_gen_fn: The MaskCombinator generative function
+            inner: The inner trace to be masked
+            check: A scalar boolean flag indicating whether to mask the inner trace
+
+        Returns:
+            A new MaskTrace instance with choices, return value and score masked with the check flag
+        """
+        # NOTE: constructing these values in `build`, where `check` is guaranteed scalar, allows us
+        # to construct simple, non-vectorized `MaskTrace` instances. Returning these from `jax.vmap`
+        # will allow JAX to construct a vectorized `MaskTrace` for us.
+        #
+        # If we instead deferred these computations to the methods (get_choices() etc), these methods would have to combine vectorized `self.inner.get_choices()` with a vectorized `self.check`. This is tricky and error-prone.
         args = (check, *inner.get_args())
         chm = inner.get_choices().mask(check)
         ret = Mask.build(inner.get_retval(), check)

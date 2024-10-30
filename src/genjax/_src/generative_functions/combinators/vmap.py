@@ -63,8 +63,8 @@ class VmapTrace(Generic[R], Trace[R]):
         gen_fn: "VmapCombinator[R]", tr: Trace[R], args: tuple[Any, ...], length: int
     ) -> "VmapTrace[R]":
         score = jnp.sum(jax.vmap(lambda tr: tr.get_score())(tr))
-        chm = tr.get_choices().extend(slice(None, None, None))
-
+        # TODO make a note here about why we are jax.vmapping; we are library authors!! we should not depend on the user convenience here of get_choices() on a vectorized choicemap.
+        chm = jax.vmap(lambda tr: tr.get_choices())(tr).extend(slice(None, None, None))
         return VmapTrace(gen_fn, tr, args, score, chm, length)
 
     def get_args(self) -> tuple[Any, ...]:
