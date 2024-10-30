@@ -162,7 +162,7 @@ class Mask(Generic[R], Pytree):
                 return Mask[R](v, f)
 
     @staticmethod
-    def maybe_mask(v: "R | Mask[R] | None", f: Flag) -> "R | Mask[R] | None":
+    def maybe_mask(v: "R | Mask[R]", f: Flag) -> "R | Mask[R] | None":
         """
         Create a Mask instance or return the original value based on the flag.
 
@@ -177,10 +177,7 @@ class Mask(Generic[R], Pytree):
             - None if `f` is concretely False.
             - A new Mask instance with the given value and flag if `f` is not concrete.
         """
-        if v is None:
-            return None
-        else:
-            return Mask.build(v, f).flatten()
+        return Mask.build(v, f).flatten()
 
     #############
     # Accessors #

@@ -956,7 +956,6 @@ class ChoiceMap(Pytree):
             assert "y" not in filtered
             ```
         """
-        pass
 
     @abstractmethod
     def get_value(self) -> Any:
@@ -1372,8 +1371,12 @@ class ChoiceMap(Pytree):
         """
         return _ChoiceMapBuilder(self, [])
 
-    # TODO deprecate
+    @deprecated(
+        reason="Acts as identity; filters are now automatically pushed down.",
+        version="0.8.0",
+    )
     def simplify(self) -> "ChoiceMap":
+        """Previously pushed down filters, now acts as identity."""
         return self
 
     def invalid_subset(
@@ -1450,15 +1453,12 @@ class Choice(Generic[T], ChoiceMap):
             return Choice(v)
 
     def filter(self, selection: Selection) -> ChoiceMap:
-        if self.v is None:
-            return self
+        sel_check = selection.check()
+        masked = Mask.maybe_mask(self.v, sel_check)
+        if masked is None:
+            return ChoiceMap.empty()
         else:
-            sel_check = selection.check()
-            masked = Mask.maybe_mask(self.v, sel_check)
-            if masked is None:
-                return ChoiceMap.empty()
-            else:
-                return ChoiceMap.choice(masked)
+            return ChoiceMap.choice(masked)
 
     def get_value(self) -> T:
         return self.v
