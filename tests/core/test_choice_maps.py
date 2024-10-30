@@ -1023,7 +1023,7 @@ class TestChoiceMap:
         # Lookup with single partial slice
         partial_result = chm[0, "w", 0, 1:3, :]
         assert jnp.array_equal(partial_result.unmask(), jnp.ones((1, 2)))
-        assert jnp.array_equal(partial_result.primal_flag(), jnp.array([[True, True]]))
+        assert jnp.array_equal(partial_result.primal_flag(), jnp.array(True))
 
         # Lookup with full slices
         full_result = jax.vmap(lambda i: chm[0, "w", i, :, :])(indices)
