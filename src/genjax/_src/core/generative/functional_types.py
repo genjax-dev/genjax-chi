@@ -28,6 +28,7 @@ from genjax._src.core.typing import (
     ArrayLike,
     Flag,
     Generic,
+    ScalarFlag,
     TypeVar,
 )
 
@@ -41,7 +42,7 @@ R = TypeVar("R")
 
 @Pytree.dataclass(match_args=True, init=False)
 class Mask(Generic[R], Pytree):
-    """The `Mask` datatype wraps a value in a BoolArray flag which denotes whether the data is valid or invalid to use in inference computations.
+    """The `Mask` datatype wraps a value in a Boolean flag which denotes whether the data is valid or invalid to use in inference computations.
 
     Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as `ChoiceMap` leaves, and participate in generative and inference computations (like scores, and importance weights or density ratios). Invalid data **should** be considered unusable, and should be handled with care.
 
@@ -115,7 +116,7 @@ class Mask(Generic[R], Pytree):
             ) from e
 
     @staticmethod
-    def build(v: "R | Mask[R]", f: Flag | Diff[Flag] = True) -> "Mask[R]":
+    def build(v: "R | Mask[R]", f: ScalarFlag | Diff[ScalarFlag] = True) -> "Mask[R]":
         """
         Create a Mask instance, potentially from an existing Mask or a raw value.
 
@@ -139,7 +140,7 @@ class Mask(Generic[R], Pytree):
                 return Mask[R](v, f)
 
     @staticmethod
-    def maybe_mask(v: "R | Mask[R]", f: Flag) -> "R | Mask[R] | None":
+    def maybe_mask(v: "R | Mask[R]", f: ScalarFlag) -> "R | Mask[R] | None":
         """
         Create a Mask instance or return the original value based on the flag.
 
@@ -253,7 +254,7 @@ class Mask(Generic[R], Pytree):
 
         jtu.tree_map(check_leaf_shapes, self.value, other.value)
 
-    def _or_idx(self, first: Flag, second: Flag):
+    def _or_idx(self, first: ScalarFlag, second: ScalarFlag):
         """Converts a pair of flags into an index for selecting between two values.
 
         This function implements a truth table for selecting between two values based on their flags:
