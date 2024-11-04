@@ -13,8 +13,11 @@
 # limitations under the License.
 
 from genjax._src.inference.requests.hmc import HMC, SafeHMC
+from genjax._src.inference.requests.mala import MALA, SafeMALA
 
 __all__ = [
     "HMC",
+    "MALA",
     "SafeHMC",
+    "SafeMALA",
 ]
