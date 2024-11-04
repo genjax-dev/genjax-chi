@@ -44,12 +44,12 @@ from .generative_function import (
     GenerativeFunctionClosure,
     IgnoreKwargs,
     Trace,
-    Update,
 )
 from .requests import (
     EmptyRequest,
     Regenerate,
     Rejuvenate,
+    Update,
 )
 
 __all__ = [

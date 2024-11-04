@@ -30,7 +30,6 @@ from genjax._src.core.generative.core import (
 from genjax._src.core.generative.generative_function import (
     GenerativeFunction,
     Trace,
-    Update,
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
@@ -60,6 +59,11 @@ class EmptyRequest(EditRequest):
         else:
             request = Update(ChoiceMap.empty())
             return request.edit(key, tr, argdiffs)
+
+
+@Pytree.dataclass(match_args=True)
+class Update(PrimitiveEditRequest):
+    constraint: ChoiceMap
 
 
 @Pytree.dataclass(match_args=True)

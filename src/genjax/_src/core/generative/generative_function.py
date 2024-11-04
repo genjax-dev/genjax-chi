@@ -15,13 +15,16 @@
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from genjax._src.core.generative.choice_map import ChoiceMap, ChoiceMapConstraint
+from genjax._src.core.generative.choice_map import (
+    ChoiceMap,
+    ChoiceMapConstraint,
+    Selection,
+)
 from genjax._src.core.generative.core import (
     Argdiffs,
     Arguments,
     Constraint,
     EditRequest,
-    PrimitiveEditRequest,
     Projection,
     Retdiff,
     Score,
@@ -158,21 +161,42 @@ class Trace(Generic[R], Pytree):
             Diff.no_change(self.get_args()) if argdiffs is None else argdiffs,
         )  # pyright: ignore[reportReturnType]
 
+    def regenerate(
+        self,
+        key: PRNGKey,
+        selection: Selection,
+        argdiffs: tuple[Any, ...] | None = None,
+    ) -> tuple["Trace[R]", Weight, Retdiff[R]]:
+        """
+        This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
+        """
+        from genjax import Regenerate
+
+        request = Regenerate(selection)
+        trace, weight, retdiff, _ = request.edit(
+            key,
+            self,
+            Diff.no_change(self.get_args()) if argdiffs is None else argdiffs,
+        )
+        return trace, weight, retdiff
+
     def update(
         self,
         key: PRNGKey,
         constraint: ChoiceMap,
         argdiffs: tuple[Any, ...] | None = None,
-    ) -> tuple[Self, Weight, Retdiff[R], Constraint]:
+    ) -> tuple["Trace[R]", Weight, Retdiff[R], EditRequest]:
         """
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
         """
-        return self.get_gen_fn().update(
+        from genjax import Update
+
+        request = Update(constraint)
+        return request.edit(
             key,
             self,
-            constraint,
             Diff.no_change(self.get_args()) if argdiffs is None else argdiffs,
-        )  # pyright: ignore[reportReturnType]
+        )
 
     def project(
         self,
@@ -580,9 +604,9 @@ class GenerativeFunction(Generic[R], Pytree):
         constraint: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], Constraint]:
-        request = Update(
-            constraint,
-        )
+        from genjax import Update
+
+        request = Update(constraint)
         tr, w, rd, bwd = request.edit(
             key,
             trace,
@@ -590,6 +614,23 @@ class GenerativeFunction(Generic[R], Pytree):
         )
         assert isinstance(bwd, Update), type(bwd)
         return tr, w, rd, ChoiceMapConstraint(bwd.constraint)
+
+    def regenerate(
+        self,
+        key: PRNGKey,
+        trace: Trace[R],
+        selection: Selection,
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[R], Weight, Retdiff[R]]:
+        from genjax import Regenerate
+
+        request = Regenerate(selection)
+        tr, w, rd, _ = request.edit(
+            key,
+            trace,
+            argdiffs,
+        )
+        return tr, w, rd
 
     def importance(
         self,
@@ -1606,8 +1647,3 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
             )
         else:
             return self.gen_fn.assess(sample, full_args)
-
-
-@Pytree.dataclass(match_args=True)
-class Update(PrimitiveEditRequest):
-    constraint: ChoiceMap
