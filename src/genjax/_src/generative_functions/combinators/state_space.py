@@ -26,9 +26,7 @@ from genjax._src.core.generative import (
     Projection,
     Retdiff,
     Score,
-    Selection,
     Trace,
-    Update,
     Weight,
 )
 from genjax._src.core.pytree import Pytree
@@ -108,7 +106,7 @@ class AddressFunction(Pytree):
     addresses: list[ExtendedAddressComponent]
 
     def __call__(self, sample: ChoiceMap) -> tuple[Any, ...]:
-        return tuple([sample[addr] for addr in self.addresses])
+        return tuple([sample[addr] for addr in self.addresses])  # pyright: ignore
 
 
 @Pytree.dataclass
@@ -217,10 +215,15 @@ class StateSpaceCombinator(
     def edit(
         self,
         key: PRNGKey,
-        trace: Trace[Y],
+        trace: Trace[tuple[tuple[Any, ...], Y]],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[Y], Weight, Retdiff[tuple[tuple[Any, ...], Y]], EditRequest]:
+    ) -> tuple[
+        Trace[tuple[tuple[Any, ...], Y]],
+        Weight,
+        Retdiff[tuple[tuple[Any, ...], Y]],
+        EditRequest,
+    ]:
         raise NotImplementedError
 
     def assess(
