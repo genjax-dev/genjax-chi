@@ -49,6 +49,15 @@ class TestRegenerate:
 
         # First, try y1 and test for correctness.
         old_v = tr.get_choices()["y1"]
+
+        # Test regenerate convenience syntax.
+        new_tr, fwd_w, _ = tr.regenerate(key, S["y1"])
+        old_density = genjax.normal.logpdf(old_v, 0.0, 1.0)
+        new_density = genjax.normal.logpdf(new_tr.get_choices()["y1"], 0.0, 1.0)
+        assert fwd_w != 0.0
+        assert fwd_w == new_density - old_density
+
+        # Now do the request version.
         request = genjax.Regenerate(S["y1"])
         new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
         old_density = genjax.normal.logpdf(old_v, 0.0, 1.0)
