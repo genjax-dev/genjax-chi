@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import re
 
+import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import pytest
@@ -60,7 +62,37 @@ class TestMask:
         assert nested_mask.flag is False
         assert nested_mask.value == 42
 
-    def test_build_flag_validation(self):
+        with pytest.raises(
+            ValueError,
+            match=re.escape("(1,) must be a prefix of all leaf shapes. Found ()"),
+        ):
+            jax.vmap(Mask.build)(
+                jnp.arange(2), jnp.array([[True], [False]], dtype=bool)
+            )
+
+        # build a vectorized mask
+        v_mask = jax.vmap(Mask.build)(jnp.arange(10), jnp.ones(10, dtype=bool))
+
+        # nesting it with a scalar is fine
+        nested = Mask.build(v_mask, False)
+        assert jnp.array_equal(nested.value, jnp.arange(10))
+        assert jnp.array_equal(nested.primal_flag(), jnp.zeros(10, dtype=bool))
+
+        # building with a concrete vs non-concrete scalar is fine
+        assert jtu.tree_map(
+            jnp.array_equal, nested, Mask.build(v_mask, jnp.array(False))
+        )
+
+        # non-scalar flags have to match dimension
+        with pytest.raises(
+            AssertionError,
+            match=re.escape(
+                "Can't build a Mask with non-matching Flag shapes (2,) and (10,)"
+            ),
+        ):
+            Mask.build(v_mask, jnp.array([False, True]))
+
+    def test_scalar_flag_validation(self):
         # Boolean flags should be left unchanged
         mask = Mask.build(42, True)
         assert mask.flag is True
@@ -68,36 +100,30 @@ class TestMask:
         mask = Mask.build([1, 2, 3], False)
         assert mask.flag is False
 
-        # Array flags should only be allowed if they can be broadcast to match value shape
+        # Array flags should only be allowed if they line up with a vectorized value
         value = jnp.array([1.0, 2.0, 3.0])
-        flag = jnp.array([True])
-        mask = Mask.build(value, flag)
-        assert jnp.array_equal(mask.primal_flag(), jnp.array([True]))
 
-        # Works with pytrees
-        value = {"a": jnp.ones((3, 2)), "b": jnp.ones((3, 2))}
-        flag = jnp.array([True, False])
-        mask = Mask.build(value, flag)
-        assert jnp.array_equal(mask.primal_flag(), flag)
-
-        # differing shapes in pytree leaves
-        with pytest.raises(
-            ValueError, match="All leaves in value must have same shape"
-        ):
-            value = {"a": jnp.ones((4, 8)), "b": jnp.ones((3, 2))}
-            flag = jnp.array([True, False])
-            mask = Mask.build(value, flag)
-
-        # Incompatible shapes should raise error
-        value = jnp.array([1.0, 2.0])
-        flag = jnp.array([True, False, True])
         with pytest.raises(
             ValueError,
             match=re.escape(
-                "Flag [ True False  True] cannot be broadcast to shape (2,)"
+                "shape (1,) must be a prefix of all leaf shapes. Found (3,)"
             ),
         ):
-            Mask.build(value, flag)
+            Mask.build(value, jnp.array([True]))
+
+        mask = Mask.build(value, jnp.array(True))
+        assert jnp.array_equal(mask.primal_flag(), jnp.array(True))
+
+        # Works with pytrees
+        value = {"a": jnp.ones((3, 2)), "b": jnp.ones((3, 2))}
+        flag = jnp.array(False)
+        mask = Mask.build(value, flag)
+        assert jnp.array_equal(mask.primal_flag(), flag)
+
+        # differing shapes in pytree leaves are fine
+        value = {"a": jnp.ones((4, 8)), "b": jnp.ones((3, 2))}
+        flag = jnp.array(True)
+        mask = Mask.build(value, flag)
 
     def test_maybe_mask(self):
         result = Mask.maybe_mask(42, True)
@@ -245,3 +271,62 @@ class TestMask:
         mask8 = Mask(2.0, False)
         assert mask7 | mask8 == mask7
         assert mask7 ^ mask8 == mask7
+
+        # Vectorized masks with same shape should work
+        mask9 = Mask(jnp.array([1.0, 2.0]), jnp.array([True, False]))
+        mask10 = Mask(jnp.array([3.0, 4.0]), jnp.array([True, True]))
+
+        # vectorized or works correctly
+        assert jtu.tree_map(
+            jnp.array_equal,
+            mask9 | mask10,
+            Mask(jnp.array([1.0, 4.0]), jnp.array([True, True])),
+        )
+
+        # vectorized xor works correctly
+        assert jtu.tree_map(
+            jnp.array_equal,
+            mask9 ^ mask10,
+            Mask(jnp.array([1.0, 2.0]), jnp.array([False, True])),
+        )
+
+        # can't combine different shapes of value
+        mask11 = Mask(jnp.array([[3.0, 4.0], [3.0, 4.0]]), jnp.array([True, True]))
+
+        with pytest.raises(
+            ValueError, match="Cannot combine masks with different array shapes"
+        ):
+            _ = mask9 | mask11
+
+        with pytest.raises(
+            ValueError, match="Cannot combine masks with different array shapes"
+        ):
+            _ = mask9 ^ mask11
+
+        # can't combine vectorized with scalar flag
+        mask12 = Mask(jnp.array([3.0, 4.0]), jnp.array(True))
+        with pytest.raises(
+            ValueError, match="Cannot combine masks with different array shapes"
+        ):
+            _ = mask9 | mask12
+
+        with pytest.raises(
+            ValueError, match="Cannot combine masks with different array shapes"
+        ):
+            _ = mask9 ^ mask12
+
+    def test_mask_not(self):
+        # scalar not works correctly
+        mask13 = Mask(1.0, True)
+        assert ~mask13 == Mask(1.0, False)
+
+        mask14 = Mask(2.0, False)
+        assert ~mask14 == Mask(2.0, True)
+
+        # vectorized not works correctly
+        mask15 = Mask(jnp.array([1.0, 2.0]), jnp.array([True, False]))
+        assert jtu.tree_map(
+            jnp.array_equal,
+            ~mask15,
+            Mask(jnp.array([1.0, 2.0]), jnp.array([False, True])),
+        )
