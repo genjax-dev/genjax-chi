@@ -271,3 +271,62 @@ class TestMask:
         mask8 = Mask(2.0, False)
         assert mask7 | mask8 == mask7
         assert mask7 ^ mask8 == mask7
+
+        # Vectorized masks with same shape should work
+        mask9 = Mask(jnp.array([1.0, 2.0]), jnp.array([True, False]))
+        mask10 = Mask(jnp.array([3.0, 4.0]), jnp.array([True, True]))
+
+        # vectorized or works correctly
+        assert jtu.tree_map(
+            jnp.array_equal,
+            mask9 | mask10,
+            Mask(jnp.array([1.0, 4.0]), jnp.array([True, True])),
+        )
+
+        # vectorized xor works correctly
+        assert jtu.tree_map(
+            jnp.array_equal,
+            mask9 ^ mask10,
+            Mask(jnp.array([1.0, 2.0]), jnp.array([False, True])),
+        )
+
+        # can't combine different shapes of value
+        mask11 = Mask(jnp.array([[3.0, 4.0], [3.0, 4.0]]), jnp.array([True, True]))
+
+        with pytest.raises(
+            ValueError, match="Cannot combine masks with different array shapes"
+        ):
+            _ = mask9 | mask11
+
+        with pytest.raises(
+            ValueError, match="Cannot combine masks with different array shapes"
+        ):
+            _ = mask9 ^ mask11
+
+        # can't combine vectorized with scalar flag
+        mask12 = Mask(jnp.array([3.0, 4.0]), jnp.array(True))
+        with pytest.raises(
+            ValueError, match="Cannot combine masks with different array shapes"
+        ):
+            _ = mask9 | mask12
+
+        with pytest.raises(
+            ValueError, match="Cannot combine masks with different array shapes"
+        ):
+            _ = mask9 ^ mask12
+
+    def test_mask_not(self):
+        # scalar not works correctly
+        mask13 = Mask(1.0, True)
+        assert ~mask13 == Mask(1.0, False)
+
+        mask14 = Mask(2.0, False)
+        assert ~mask14 == Mask(2.0, True)
+
+        # vectorized not works correctly
+        mask15 = Mask(jnp.array([1.0, 2.0]), jnp.array([True, False]))
+        assert jtu.tree_map(
+            jnp.array_equal,
+            ~mask15,
+            Mask(jnp.array([1.0, 2.0]), jnp.array([False, True])),
+        )

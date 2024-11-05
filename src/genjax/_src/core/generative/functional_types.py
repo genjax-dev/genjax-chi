@@ -319,6 +319,10 @@ class Mask(Generic[R], Pytree):
                 chosen = tree_choose(idx, [self.value, other.value])
                 return Mask(chosen, FlagOp.xor_(self_flag, other_flag))
 
+    def __invert__(self) -> "Mask[R]":
+        not_flag = jtu.tree_map(FlagOp.not_, self.flag)
+        return Mask(self.value, not_flag)
+
     @staticmethod
     def or_n(mask: "Mask[R]", *masks: "Mask[R]") -> "Mask[R]":
         """Performs an n-ary OR operation on a sequence of Mask objects.

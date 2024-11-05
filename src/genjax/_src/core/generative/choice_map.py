@@ -29,7 +29,6 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Array,
-    ArrayLike,
     Callable,
     EllipsisType,
     Final,
@@ -1530,19 +1529,7 @@ class Indexed(ChoiceMap):
 
             if self.addr is None:
                 # None means that this instance was created with `:`, so no masking is required and we assume that the user will provide an in-bounds `int | ScalarInt`` address. If they don't they will run up against JAX's clamping behavior.
-                def inner(v: Mask[Any] | ArrayLike):
-                    if isinstance(v, Mask):
-                        pass
-                    elif isinstance(v, Array):
-                        return v[addr]
-                    else:
-                        raise ValueError(f"Unsupported type: {type(v)}")
-
-                return jtu.tree_map(
-                    inner,
-                    self.c,
-                    # is_leaf=lambda x: isinstance(x, Mask),
-                )
+                return jtu.tree_map(lambda v: v[addr], self.c)
 
             elif isinstance(self.addr, Array) and self.addr.shape:
                 # We can't allow slices, as self.addr might look like, e.g. `[2,5,6]`, and we don't have any way to combine this "sparse array selector" with an incoming slice.
