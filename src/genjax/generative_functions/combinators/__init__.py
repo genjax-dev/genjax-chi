@@ -19,6 +19,7 @@ from genjax._src.generative_functions.combinators.dimap import (
     map,
 )
 from genjax._src.generative_functions.combinators.markov import (
+    AddressFunction,
     MarkovCombinator,
     markov,
 )
@@ -56,6 +57,7 @@ from genjax._src.generative_functions.combinators.vmap import (
 )
 
 __all__ = [
+    "AddressFunction",
     "DimapCombinator",
     "IndexRequest",
     "MarkovCombinator",

@@ -66,7 +66,6 @@ class MarkovTrace(Generic[Y], Trace[tuple[tuple[Any, ...], Y]]):
         chm = jax.vmap(lambda subtrace: subtrace.get_choices())(
             inner,
         )
-        chm = chm.vec()
 
         return MarkovTrace(
             state_space_gen_fn,
@@ -102,6 +101,7 @@ class MarkovTrace(Generic[Y], Trace[tuple[tuple[Any, ...], Y]]):
 ###################
 
 
+@Pytree.dataclass
 class AddressFunction(Pytree):
     addresses: list[ExtendedAddressComponent]
 
@@ -117,7 +117,7 @@ class MarkovCombinator(
     kernel_gen_fn: GenerativeFunction[Y]
     projection: AddressFunction
 
-    # Only required for `None` carry inputs
+    # Only required for `None` scanned inputs
     length: int | None = Pytree.static()
 
     def __abstract_call__(self, *args) -> tuple[Any, Y]:
@@ -156,7 +156,10 @@ class MarkovCombinator(
             key: PRNGKey,
             carry: tuple[Any, ...],
             scanned_in: Any,
-        ) -> tuple[tuple[tuple[Any, ...], Score], tuple[Trace[Y], Y]]:
+        ) -> tuple[
+            tuple[tuple[Any, ...], Score],
+            tuple[Trace[Y], Y],
+        ]:
             tr = self.kernel_gen_fn.simulate(key, (carry, scanned_in))
             scanned_out = tr.get_retval()
             projected_carry = self.projection(tr.get_choices())
@@ -164,7 +167,8 @@ class MarkovCombinator(
             return (projected_carry, score), (tr, scanned_out)
 
         def _inner(
-            carry: tuple[PRNGKey, IntArray, tuple[Any, ...]], scanned_over: Any
+            carry: tuple[PRNGKey, IntArray, tuple[Any, ...]],
+            scanned_over: Any,
         ) -> tuple[
             tuple[PRNGKey, IntArray, tuple[Any, ...]],
             tuple[Trace[Y], Y, Score],
@@ -233,34 +237,35 @@ class MarkovCombinator(
     ) -> tuple[Score, Any]:
         (carry, scanned_in) = args
 
-        def compute_retvals(idx, sample_slice):
-            subsample = sample_slice(idx)
-            return self.projection(subsample)
+        def compute_retvals(sample_slice):
+            return self.projection(sample_slice)
 
         retvals = jax.vmap(compute_retvals)(
-            jnp.arange(self._static_scan_length(args, None)),
             sample,
         )
 
+        def _inflate(v):
+            arr = jnp.array(v, copy=False)
+            return jnp.expand_dims(arr, axis=0) if not arr.shape else arr
+
         carried_args = jtu.tree_map(
-            lambda v1, v2: jnp.concatenate([v1, v2[0:-1]]),
+            lambda v1, v2: jnp.concat([_inflate(v1), v2[0:-1]]),
             carry,
             retvals,
         )
 
         def _assess(
             idx: IntArray,
-            sample: ChoiceMap,
+            subsample: ChoiceMap,
             carry: tuple[Any, ...],
             scanned_in: Y,
         ):
-            subsample = sample(idx)
             score, retval = self.kernel_gen_fn.assess(subsample, (carry, scanned_in))
             scanned_out = retval
             return score, scanned_out
 
         scores, scanned_out = jax.vmap(_assess)(
-            jnp.arange(self._static_scan_length(args, None)),
+            jnp.arange(self._static_scan_length(scanned_in, self.length)),
             sample,
             carried_args,
             scanned_in,
@@ -278,9 +283,8 @@ class MarkovCombinator(
 
 
 def markov(
+    n: int,
     addr_fn: AddressFunction,
-    *,
-    n: int | None = None,
 ) -> Callable[
     [GenerativeFunction[Y]],
     GenerativeFunction[tuple[tuple[Any, ...], Y]],
