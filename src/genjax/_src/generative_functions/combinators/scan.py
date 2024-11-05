@@ -770,7 +770,7 @@ def scan(
     return decorator
 
 
-def prepend_initial_acc(args: tuple[Carry, Any], ret: tuple[Carry, Carry]) -> Carry:
+def prepend_initial_acc(args: tuple[Carry, ...], ret: tuple[Carry, Carry]) -> Carry:
     """Prepends the initial accumulator value to the array of accumulated
     values.
 
