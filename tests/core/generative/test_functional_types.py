@@ -15,6 +15,7 @@
 
 import re
 
+import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import pytest
@@ -61,6 +62,36 @@ class TestMask:
         assert nested_mask.flag is False
         assert nested_mask.value == 42
 
+        with pytest.raises(
+            ValueError,
+            match=re.escape("(1,) must be a prefix of all leaf shapes. Found ()"),
+        ):
+            jax.vmap(Mask.build)(
+                jnp.arange(2), jnp.array([[True], [False]], dtype=bool)
+            )
+
+        # build a vectorized mask
+        v_mask = jax.vmap(Mask.build)(jnp.arange(10), jnp.ones(10, dtype=bool))
+
+        # nesting it with a scalar is fine
+        nested = Mask.build(v_mask, False)
+        assert jnp.array_equal(nested.value, jnp.arange(10))
+        assert jnp.array_equal(nested.primal_flag(), jnp.zeros(10, dtype=bool))
+
+        # building with a concrete vs non-concrete scalar is fine
+        assert jtu.tree_map(
+            jnp.array_equal, nested, Mask.build(v_mask, jnp.array(False))
+        )
+
+        # non-scalar flags have to match dimension
+        with pytest.raises(
+            AssertionError,
+            match=re.escape(
+                "Can't build a Mask with non-matching Flag shapes (2,) and (10,)"
+            ),
+        ):
+            Mask.build(v_mask, jnp.array([False, True]))
+
     def test_scalar_flag_validation(self):
         # Boolean flags should be left unchanged
         mask = Mask.build(42, True)
@@ -69,7 +100,7 @@ class TestMask:
         mask = Mask.build([1, 2, 3], False)
         assert mask.flag is False
 
-        # Array flags should only be allowed if they can be broadcast to match value shape
+        # Array flags should only be allowed if they line up with a vectorized value
         value = jnp.array([1.0, 2.0, 3.0])
 
         with pytest.raises(
