@@ -18,6 +18,10 @@ from genjax._src.generative_functions.combinators.dimap import (
     dimap,
     map,
 )
+from genjax._src.generative_functions.combinators.markov import (
+    MarkovCombinator,
+    markov,
+)
 from genjax._src.generative_functions.combinators.mask import (
     MaskCombinator,
     mask,
@@ -42,10 +46,6 @@ from genjax._src.generative_functions.combinators.scan import (
     reduce,
     scan,
 )
-from genjax._src.generative_functions.combinators.state_space import (
-    StateSpaceCombinator,
-    state_space,
-)
 from genjax._src.generative_functions.combinators.switch import (
     SwitchCombinator,
     switch,
@@ -58,10 +58,10 @@ from genjax._src.generative_functions.combinators.vmap import (
 __all__ = [
     "DimapCombinator",
     "IndexRequest",
+    "MarkovCombinator",
     "MaskCombinator",
     "RepeatCombinator",
     "ScanCombinator",
-    "StateSpaceCombinator",
     "SwitchCombinator",
     "VectorRequest",
     "VmapCombinator",
@@ -71,13 +71,13 @@ __all__ = [
     "iterate",
     "iterate_final",
     "map",
+    "markov",
     "mask",
     "mix",
     "or_else",
     "reduce",
     "repeat",
     "scan",
-    "state_space",
     "switch",
     "vmap",
 ]

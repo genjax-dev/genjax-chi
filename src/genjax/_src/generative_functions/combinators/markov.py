@@ -45,8 +45,8 @@ Y = TypeVar("Y")
 
 
 @Pytree.dataclass
-class StateSpaceTrace(Generic[Y], Trace[tuple[tuple[Any, ...], Y]]):
-    scan_gen_fn: "StateSpaceCombinator[Y]"
+class MarkovTrace(Generic[Y], Trace[tuple[tuple[Any, ...], Y]]):
+    scan_gen_fn: "MarkovCombinator[Y]"
     inner: Trace[Y]
     args: tuple[Any, ...]
     retval: tuple[tuple[Any, ...], Y]
@@ -56,19 +56,19 @@ class StateSpaceTrace(Generic[Y], Trace[tuple[tuple[Any, ...], Y]]):
 
     @staticmethod
     def build(
-        state_space_gen_fn: "StateSpaceCombinator[Y]",
+        state_space_gen_fn: "MarkovCombinator[Y]",
         inner: Trace[Y],
         args: tuple[Any, ...],
         retval: tuple[tuple[Any, ...], Y],
         score: FloatArray,
         scan_length: int,
-    ) -> "StateSpaceTrace[Y]":
+    ) -> "MarkovTrace[Y]":
         chm = jax.vmap(lambda subtrace: subtrace.get_choices())(
             inner,
         )
         chm = chm.vec()
 
-        return StateSpaceTrace(
+        return MarkovTrace(
             state_space_gen_fn,
             inner,
             args,
@@ -110,7 +110,7 @@ class AddressFunction(Pytree):
 
 
 @Pytree.dataclass
-class StateSpaceCombinator(
+class MarkovCombinator(
     Generic[Y],
     GenerativeFunction[tuple[tuple[Any, ...], Y]],
 ):
@@ -149,7 +149,7 @@ class StateSpaceCombinator(
         self,
         key: PRNGKey,
         args: tuple[Any, ...],
-    ) -> StateSpaceTrace[Y]:
+    ) -> MarkovTrace[Y]:
         carry, scanned_in = args
 
         def _inner_simulate(
@@ -187,7 +187,7 @@ class StateSpaceCombinator(
             length=self.length,
         )
 
-        return StateSpaceTrace.build(
+        return MarkovTrace.build(
             self,
             tr,
             args,
@@ -201,7 +201,7 @@ class StateSpaceCombinator(
         key: PRNGKey,
         constraint: Constraint,
         args: tuple[Any, ...],
-    ) -> tuple[StateSpaceTrace[Y], Weight]:
+    ) -> tuple[MarkovTrace[Y], Weight]:
         raise NotImplementedError
 
     def project(
@@ -277,7 +277,7 @@ class StateSpaceCombinator(
 ##############
 
 
-def state_space(
+def markov(
     addr_fn: AddressFunction,
     *,
     n: int | None = None,
@@ -286,6 +286,6 @@ def state_space(
     GenerativeFunction[tuple[tuple[Any, ...], Y]],
 ]:
     def decorator(f: GenerativeFunction[Y]):
-        return StateSpaceCombinator[Y](f, addr_fn, length=n)
+        return MarkovCombinator[Y](f, addr_fn, length=n)
 
     return decorator
