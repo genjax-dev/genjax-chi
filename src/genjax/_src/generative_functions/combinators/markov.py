@@ -33,7 +33,6 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
-    FloatArray,
     Generic,
     IntArray,
     PRNGKey,
@@ -46,7 +45,7 @@ Y = TypeVar("Y")
 
 @Pytree.dataclass
 class MarkovTrace(Generic[Y], Trace[tuple[tuple[Any, ...], Y]]):
-    scan_gen_fn: "MarkovCombinator[Y]"
+    gen_fn: "MarkovCombinator[Y]"
     inner: Trace[Y]
     args: tuple[Any, ...]
     retval: tuple[tuple[Any, ...], Y]
@@ -60,7 +59,7 @@ class MarkovTrace(Generic[Y], Trace[tuple[tuple[Any, ...], Y]]):
         inner: Trace[Y],
         args: tuple[Any, ...],
         retval: tuple[tuple[Any, ...], Y],
-        score: FloatArray,
+        score: Score,
         scan_length: int,
     ) -> "MarkovTrace[Y]":
         chm = jax.vmap(lambda subtrace: subtrace.get_choices())(
@@ -90,7 +89,7 @@ class MarkovTrace(Generic[Y], Trace[tuple[tuple[Any, ...], Y]]):
         return self.get_choices()
 
     def get_gen_fn(self):
-        return self.scan_gen_fn
+        return self.gen_fn
 
     def get_score(self):
         return self.score
@@ -200,36 +199,6 @@ class MarkovCombinator(
             self._static_scan_length(scanned_in, self.length),
         )
 
-    def generate(
-        self,
-        key: PRNGKey,
-        constraint: Constraint,
-        args: tuple[Any, ...],
-    ) -> tuple[MarkovTrace[Y], Weight]:
-        raise NotImplementedError
-
-    def project(
-        self,
-        key: PRNGKey,
-        trace: Trace[tuple[tuple[Any, ...], Y]],
-        projection: Projection[Any],
-    ) -> Weight:
-        raise NotImplementedError
-
-    def edit(
-        self,
-        key: PRNGKey,
-        trace: Trace[tuple[tuple[Any, ...], Y]],
-        edit_request: EditRequest,
-        argdiffs: Argdiffs,
-    ) -> tuple[
-        Trace[tuple[tuple[Any, ...], Y]],
-        Weight,
-        Retdiff[tuple[tuple[Any, ...], Y]],
-        EditRequest,
-    ]:
-        raise NotImplementedError
-
     def assess(
         self,
         sample: ChoiceMap,
@@ -275,6 +244,40 @@ class MarkovCombinator(
             jnp.sum(scores),
             (jtu.tree_map(lambda v: v[-1], retvals), scanned_out),
         )
+
+    ##########################################################
+    # Currently, this one just supports simulate and assess. #
+    ##########################################################
+
+    def generate(
+        self,
+        key: PRNGKey,
+        constraint: Constraint,
+        args: tuple[Any, ...],
+    ) -> tuple[MarkovTrace[Y], Weight]:
+        raise NotImplementedError
+
+    def project(
+        self,
+        key: PRNGKey,
+        trace: Trace[tuple[tuple[Any, ...], Y]],
+        projection: Projection[Any],
+    ) -> Weight:
+        raise NotImplementedError
+
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: Trace[tuple[tuple[Any, ...], Y]],
+        edit_request: EditRequest,
+        argdiffs: Argdiffs,
+    ) -> tuple[
+        Trace[tuple[tuple[Any, ...], Y]],
+        Weight,
+        Retdiff[tuple[tuple[Any, ...], Y]],
+        EditRequest,
+    ]:
+        raise NotImplementedError
 
 
 ##############
