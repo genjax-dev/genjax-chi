@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import re
 
 import jax.numpy as jnp
@@ -60,7 +61,7 @@ class TestMask:
         assert nested_mask.flag is False
         assert nested_mask.value == 42
 
-    def test_build_flag_validation(self):
+    def test_scalar_flag_validation(self):
         # Boolean flags should be left unchanged
         mask = Mask.build(42, True)
         assert mask.flag is True
@@ -70,34 +71,28 @@ class TestMask:
 
         # Array flags should only be allowed if they can be broadcast to match value shape
         value = jnp.array([1.0, 2.0, 3.0])
-        flag = jnp.array([True])
-        mask = Mask.build(value, flag)
-        assert jnp.array_equal(mask.primal_flag(), jnp.array([True]))
 
-        # Works with pytrees
-        value = {"a": jnp.ones((3, 2)), "b": jnp.ones((3, 2))}
-        flag = jnp.array([True, False])
-        mask = Mask.build(value, flag)
-        assert jnp.array_equal(mask.primal_flag(), flag)
-
-        # differing shapes in pytree leaves
-        with pytest.raises(
-            ValueError, match="All leaves in value must have same shape"
-        ):
-            value = {"a": jnp.ones((4, 8)), "b": jnp.ones((3, 2))}
-            flag = jnp.array([True, False])
-            mask = Mask.build(value, flag)
-
-        # Incompatible shapes should raise error
-        value = jnp.array([1.0, 2.0])
-        flag = jnp.array([True, False, True])
         with pytest.raises(
             ValueError,
             match=re.escape(
-                "Flag [ True False  True] cannot be broadcast to shape (2,)"
+                "shape (1,) must be a prefix of all leaf shapes. Found (3,)"
             ),
         ):
-            Mask.build(value, flag)
+            Mask.build(value, jnp.array([True]))
+
+        mask = Mask.build(value, jnp.array(True))
+        assert jnp.array_equal(mask.primal_flag(), jnp.array(True))
+
+        # Works with pytrees
+        value = {"a": jnp.ones((3, 2)), "b": jnp.ones((3, 2))}
+        flag = jnp.array(False)
+        mask = Mask.build(value, flag)
+        assert jnp.array_equal(mask.primal_flag(), flag)
+
+        # differing shapes in pytree leaves are fine
+        value = {"a": jnp.ones((4, 8)), "b": jnp.ones((3, 2))}
+        flag = jnp.array(True)
+        mask = Mask.build(value, flag)
 
     def test_maybe_mask(self):
         result = Mask.maybe_mask(42, True)

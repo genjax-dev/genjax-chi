@@ -63,6 +63,20 @@ class FlagOp:
     """
 
     @staticmethod
+    def is_scalar(f: Flag) -> bool:
+        """Check if a flag is scalar.
+
+        A flag is considered scalar if it is either a Python bool or a JAX array with empty shape ().
+
+        Args:
+            f: The flag to check. Can be a Python bool or JAX array.
+
+        Returns:
+            bool: True if the flag is scalar, False otherwise.
+        """
+        return isinstance(f, bool) or f.shape == ()
+
+    @staticmethod
     def and_(f: Flag, g: Flag) -> Flag:
         # True and X => X. False and X => False.
         if f is True:

@@ -28,7 +28,6 @@ from genjax._src.core.typing import (
     ArrayLike,
     Flag,
     Generic,
-    ScalarFlag,
     TypeVar,
 )
 
@@ -74,49 +73,50 @@ class Mask(Generic[R], Pytree):
         assert not isinstance(
             v, Mask
         ), f"Mask should not be instantiated with another Mask! found {v}"
-        Mask._validate(v, f)
+        Mask._validate_init(v, f)
+
         self.value, self.flag = v, f  # pyright: ignore[reportAttributeAccessIssue]
 
     @staticmethod
-    def _validate(value: R, flag: Flag | Diff[Flag]) -> None:
-        """
-        Validates that the flag can be broadcast to match the shape of the value.
+    def _validate_init(value: R, flag: Flag | Diff[Flag]) -> None:
+        flag = flag.get_primal() if isinstance(flag, Diff) else flag
+        f_shape = jnp.shape(flag)
+        if f_shape == ():
+            return None
 
-        This method performs two key validations:
-        1. If the value is a pytree, ensures all leaves have the same shape
-        2. verifies that the flag can be broadcast to match the value shape
-
-        Args:
-            value: The value to validate, can be a pytree
-            flag: The flag to validate
-
-        Raises:
-            ValueError: If leaves have different shapes or flag cannot be broadcast to value shape
-        """
         # Get all leaf shapes
         leaf_shapes = [jnp.shape(leaf) for leaf in jtu.tree_leaves(value)]
-
-        # this guards against a value of `None`, or a pytree with leaves all `None`. In this case we want to force validation of a scalar flag.
-        leaf_shapes = leaf_shapes if leaf_shapes else [()]
-
-        # Check all shapes match the first shape
-        first_shape = leaf_shapes[0]
-        for shape in leaf_shapes[1:]:
-            if shape != first_shape:
+        for shape in leaf_shapes:
+            if shape[: len(f_shape)] != f_shape:
                 raise ValueError(
-                    f"All leaves in value must have same shape. Found shapes {leaf_shapes}"
+                    f"Vectorized flag {flag}'s shape {f_shape} must be a prefix of all leaf shapes. Found {shape}."
                 )
 
-        flag = flag.get_primal() if isinstance(flag, Diff) else flag
-        try:
-            jnp.broadcast_to(flag, first_shape)
-        except ValueError as e:
-            raise ValueError(
-                f"Flag {flag} cannot be broadcast to shape {first_shape}"
-            ) from e
+    @staticmethod
+    def _validate_leaf_shapes(this: R, other: R):
+        # Check array shapes match exactly (no broadcasting)
+        def check_leaf_shapes(x, y):
+            x_shape = jnp.shape(x)
+            y_shape = jnp.shape(y)
+            if x_shape != y_shape:
+                raise ValueError(
+                    f"Cannot combine masks with different array shapes: {x_shape} vs {y_shape}"
+                )
+            return None
+
+        jtu.tree_map(check_leaf_shapes, this, other)
+
+    def _validate_mask_shapes(self, other: "Mask[R]") -> None:
+        # Check that values have same shape
+        # Check tree structure matches
+        if jtu.tree_structure(self.value) != jtu.tree_structure(other.value):
+            raise ValueError("Cannot combine masks with different tree structures!")
+
+        Mask._validate_leaf_shapes(self.value, other.value)
+        return None
 
     @staticmethod
-    def build(v: "R | Mask[R]", f: ScalarFlag | Diff[ScalarFlag] = True) -> "Mask[R]":
+    def build(v: "R | Mask[R]", f: Flag | Diff[Flag] = True) -> "Mask[R]":
         """
         Create a Mask instance, potentially from an existing Mask or a raw value.
 
@@ -135,12 +135,15 @@ class Mask(Generic[R], Pytree):
         match v:
             case Mask(value, g):
                 assert not isinstance(f, Diff) and not isinstance(g, Diff)
+                assert (
+                    FlagOp.is_scalar(f) or (jnp.shape(f) == jnp.shape(g))
+                ), f"Can't build a Mask with non-matching Flag shapes {jnp.shape(f)} and {jnp.shape(g)}"
                 return Mask[R](value, FlagOp.and_(f, g))
             case _:
                 return Mask[R](v, f)
 
     @staticmethod
-    def maybe_mask(v: "R | Mask[R]", f: ScalarFlag) -> "R | Mask[R] | None":
+    def maybe_mask(v: "R | Mask[R]", f: Flag) -> "R | Mask[R] | None":
         """
         Create a Mask instance or return the original value based on the flag.
 
@@ -236,26 +239,8 @@ class Mask(Generic[R], Pytree):
     # Combinators #
     ###############
 
-    def _validate_mask_shapes(self, other: "Mask[R]"):
-        # Check that values have same shape
-        # Check tree structure matches
-        if jtu.tree_structure(self.value) != jtu.tree_structure(other.value):
-            raise ValueError("Cannot combine masks with different tree structures!")
-
-        # Check array shapes match exactly (no broadcasting)
-        def check_leaf_shapes(x, y):
-            x_shape = jnp.shape(x)
-            y_shape = jnp.shape(y)
-            if x_shape != y_shape:
-                raise ValueError(
-                    f"Cannot combine masks with different array shapes: {x_shape} vs {y_shape}"
-                )
-            return None
-
-        jtu.tree_map(check_leaf_shapes, self.value, other.value)
-
-    def _or_idx(self, first: ScalarFlag, second: ScalarFlag):
-        """Converts a pair of flags into an index for selecting between two values.
+    def _or_idx(self, first: Flag, second: Flag):
+        """Converts a pair of flag arrays into an Array of indices for selecting between two values.
 
         This function implements a truth table for selecting between two values based on their flags:
 
@@ -275,8 +260,9 @@ class Mask(Generic[R], Pytree):
             second: The flag for the second value
 
         Returns:
-            An index (-1, 0, or 1) indicating which value to select
+            An Array of indices (-1, 0, or 1) indicating which value to select from each side.
         """
+        Mask._validate_leaf_shapes(first, second)
         return first + 2 * FlagOp.and_(FlagOp.not_(first), second) - 1
 
     def __or__(self, other: "Mask[R]") -> "Mask[R]":
@@ -308,7 +294,7 @@ class Mask(Generic[R], Pytree):
                 # but will equal 0 for TT flags. We use `FlagOp.xor_` to override this flag to equal
                 # False, since neither side in the TT case will provide a `False` flag for us.
                 chosen = tree_choose(idx, [self.value, other.value])
-                return Mask.build(chosen, FlagOp.xor_(self_flag, other_flag))
+                return Mask(chosen, FlagOp.xor_(self_flag, other_flag))
 
     @staticmethod
     def or_n(mask: "Mask[R]", *masks: "Mask[R]") -> "Mask[R]":
