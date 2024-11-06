@@ -15,7 +15,6 @@
 import jax.numpy as jnp
 import jax.random as jrand
 import jax.tree_util as jtu
-from jax import grad
 from jax.lax import scan
 from tensorflow_probability.substrates import jax as tfp
 
@@ -38,62 +37,12 @@ from genjax._src.core.typing import (
     FloatArray,
     IntArray,
     PRNGKey,
-    static_check_supports_grad,
+)
+from genjax._src.inference.requests.gradient_utils import (
+    selection_gradient,
 )
 
 tfd = tfp.distributions
-
-
-# Pytree manipulation utilities -- these handle unzipping Pytrees into
-# differentiable and non-diff pieces, and then also zipping them back up.
-def grad_tree_unzip(tree: ChoiceMap) -> tuple[ChoiceMap, ChoiceMap]:
-    grad_tree = jtu.tree_map(
-        lambda v: v if static_check_supports_grad(v) else None, tree
-    )
-    nongrad_tree = jtu.tree_map(
-        lambda v: v if not static_check_supports_grad(v) else None, tree
-    )
-    return grad_tree, nongrad_tree
-
-
-def grad_tree_zip(
-    grad_tree: ChoiceMap,
-    nongrad_tree: ChoiceMap,
-) -> ChoiceMap:
-    return jtu.tree_map(
-        lambda v1, v2: v1 if v1 is not None else v2, grad_tree, nongrad_tree
-    )
-
-
-# Compute the gradient of a selection of random choices
-# in a trace -- uses `GenerativeFunction.assess`.
-def selection_gradient(
-    selection: Selection,
-    trace: Trace[Any],
-    argdiffs: Argdiffs,
-) -> tuple[ChoiceMap, ChoiceMap]:
-    chm = trace.get_choices()
-    filtered = chm.filter(selection)
-    complement = chm.filter(~selection)
-    grad_tree, nongrad_tree = grad_tree_unzip(filtered)
-    gen_fn = trace.get_gen_fn()
-
-    def differentiable_assess(grad_tree):
-        zipped = grad_tree_zip(grad_tree, nongrad_tree)
-        full_choices = zipped.merge(complement)
-        weight, _ = gen_fn.assess(
-            full_choices,
-            Diff.tree_primal(argdiffs),
-        )
-        return weight
-
-    return grad_tree_zip(grad_tree, nongrad_tree), jtu.tree_map(
-        lambda v1, v2: v1
-        if v1 is not None
-        else jnp.zeros_like(jnp.array(v2, copy=False)),
-        grad(differentiable_assess)(grad_tree),
-        nongrad_tree,
-    )
 
 
 # Utilities for momenta sampling and score evaluation.

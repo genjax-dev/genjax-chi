@@ -13,8 +13,11 @@
 # limitations under the License.
 
 from genjax._src.inference.requests.hmc import HMC, SafeHMC
+from genjax._src.inference.requests.map import MAP, SafeMAP
 
 __all__ = [
     "HMC",
+    "MAP",
     "SafeHMC",
+    "SafeMAP",
 ]
