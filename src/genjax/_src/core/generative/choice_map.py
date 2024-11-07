@@ -1661,6 +1661,7 @@ class Switch(ChoiceMap):
         if isinstance(idx, int):
             return list(chm_iter)[idx]
         else:
+            # _idx is a scalar, vectorized_chm.mask([True, True, True])
             chms = [_chm.mask(_idx == idx) for _idx, _chm in enumerate(chm_iter)]
             return Switch(idx, chms)
 
