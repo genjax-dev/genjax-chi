@@ -1523,9 +1523,9 @@ class Indexed(ChoiceMap):
         else:
             if not isinstance(addr, slice):
                 # If we allowed non-scalar addresses, the `get_submap` call would not reduce the leaf by a dimension, and further get_submap calls would target the same dimension.
-                assert not jnp.asarray(
-                    addr, copy=False
-                ).shape, "Only scalar dynamic addresses are supported by get_submap."
+                assert not jnp.asarray(addr, copy=False).shape, (
+                    "Only scalar dynamic addresses are supported by get_submap."
+                )
 
             if self.addr is None:
                 # None means that this instance was created with `:`, so no masking is required and we assume that the user will provide an in-bounds `int | ScalarInt`` address. If they don't they will run up against JAX's clamping behavior.
@@ -1533,9 +1533,9 @@ class Indexed(ChoiceMap):
 
             elif isinstance(self.addr, Array) and self.addr.shape:
                 # We can't allow slices, as self.addr might look like, e.g. `[2,5,6]`, and we don't have any way to combine this "sparse array selector" with an incoming slice.
-                assert not isinstance(
-                    addr, slice
-                ), f"Slices are not allowed against array-shaped dynamic addresses. Tried to apply {addr} to {self.addr}."
+                assert not isinstance(addr, slice), (
+                    f"Slices are not allowed against array-shaped dynamic addresses. Tried to apply {addr} to {self.addr}."
+                )
 
                 check = self.addr == addr
 

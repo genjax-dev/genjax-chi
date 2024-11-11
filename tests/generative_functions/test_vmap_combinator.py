@@ -213,6 +213,6 @@ class TestVmapCombinator:
             jax.random.key(20), (2.0, jnp.arange(0, dtype=float))
         )
 
-        assert (
-            trace.get_choices().static_is_empty()
-        ), "zero-length vmap produces empty choicemaps."
+        assert trace.get_choices().static_is_empty(), (
+            "zero-length vmap produces empty choicemaps."
+        )

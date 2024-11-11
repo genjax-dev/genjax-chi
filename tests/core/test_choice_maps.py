@@ -816,9 +816,9 @@ class TestChoiceMap:
 
         # Invalid nested ChoiceMap - missing inner 'b'
         invalid_nested_chm1 = ChoiceMap.kw(x=1.0, y=ChoiceMap.kw(a=0.5))
-        assert (
-            invalid_nested_chm1.invalid_subset(outer_model, ()) is None
-        ), "missing address is fine"
+        assert invalid_nested_chm1.invalid_subset(outer_model, ()) is None, (
+            "missing address is fine"
+        )
 
         # Invalid nested ChoiceMap - extra address in inner model
         invalid_nested_chm2 = ChoiceMap.kw(x=1.0, y=ChoiceMap.kw(a=0.5, b=1, c=2.0))

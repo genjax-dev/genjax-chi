@@ -265,9 +265,9 @@ class Const(Generic[R], Pytree):
     val: R = Pytree.static()
 
     def __call__(self, *args):
-        assert isinstance(
-            self.val, Callable
-        ), f"Wrapped `val` {self.val} is not Callable."
+        assert isinstance(self.val, Callable), (
+            f"Wrapped `val` {self.val} is not Callable."
+        )
         return self.val(*args)
 
     def unwrap(self):

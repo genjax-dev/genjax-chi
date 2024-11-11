@@ -68,9 +68,9 @@ class Mask(Generic[R], Pytree):
     ################
 
     def __init__(self, v: R, f: Flag | Diff[Flag] = True) -> None:
-        assert not isinstance(
-            v, Mask
-        ), f"Mask should not be instantiated with another Mask! found {v}"
+        assert not isinstance(v, Mask), (
+            f"Mask should not be instantiated with another Mask! found {v}"
+        )
         Mask._validate_init(v, f)
 
         self.value, self.flag = v, f  # pyright: ignore[reportAttributeAccessIssue]
@@ -161,9 +161,9 @@ class Mask(Generic[R], Pytree):
         match v:
             case Mask(value, g):
                 assert not isinstance(f, Diff) and not isinstance(g, Diff)
-                assert (
-                    FlagOp.is_scalar(f) or (jnp.shape(f) == jnp.shape(g))
-                ), f"Can't build a Mask with non-matching Flag shapes {jnp.shape(f)} and {jnp.shape(g)}"
+                assert FlagOp.is_scalar(f) or (jnp.shape(f) == jnp.shape(g)), (
+                    f"Can't build a Mask with non-matching Flag shapes {jnp.shape(f)} and {jnp.shape(g)}"
+                )
                 return Mask[R](value, FlagOp.and_(f, g))
             case _:
                 return Mask[R](v, f)
