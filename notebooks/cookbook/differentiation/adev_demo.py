@@ -352,27 +352,37 @@ def render_plot(initial_val, initial_sigma):
     SLIDER_STEP = 0.01
     ANIMATION_STEP = 4
     COMPARISON_HEIGHT = 200
+    currentKey = key
 
-    widget = Plot.new().display_as("widget")
-
-    params = {"key": key, "val": initial_val, "sigma": initial_sigma, "frame": 0}
-
-    def current_state(params):
-        jax_key, adev_key, samples_key = jax.random.split(params["key"], num=3)
+    def computeState(val, sigma):
+        jax_key, adev_key, samples_key = jax.random.split(currentKey, num=3)
         return {
-            "JAX_gradients": compute_jax_vals(jax_key, params["val"], params["sigma"]),
-            "ADEV_gradients": compute_adev_vals(
-                adev_key, params["val"], params["sigma"]
-            ),
+            "JAX_gradients": compute_jax_vals(jax_key, val, sigma),
+            "ADEV_gradients": compute_adev_vals(adev_key, val, sigma),
+            "samples": make_samples(samples_key, thetas, sigma),
+            "val": val,
+            "sigma": sigma,
             "frame": 0,
-            "val": params["val"],
-            "sigma": params["sigma"],
-            "samples": make_samples(samples_key, thetas, params["sigma"]),
         }
 
-    def set_param(name, value):
-        params[name] = value
-        widget.update_state(current_state(params))
+    initialState = Plot.initialState(
+        computeState(initial_val, initial_sigma) | {"show_expected_value": True},
+        sync={"sigma", "val"},
+    )
+
+    def refresh(widget):
+        nonlocal currentKey
+        currentKey = jax.random.split(currentKey)[0]
+        widget.state.update(computeState(widget.state.val, widget.state.sigma))
+
+    onChange = Plot.onChange({
+        "val": lambda widget, e: widget.state.update(
+            computeState(float(e["value"]), widget.state.sigma)
+        ),
+        "sigma": lambda widget, e: widget.state.update(
+            computeState(widget.state.val, float(e["value"]))
+        ),
+    })
 
     samples_plot = make_samples_plot(thetas, js("$state.samples"))
 
@@ -475,7 +485,7 @@ def render_plot(initial_val, initial_sigma):
         range=[0, EPOCHS],
         step=ANIMATION_STEP,
         fps=30,
-        label="Iteration:",
+        label="Iteration:"
     )
 
     controls = Plot.html([
@@ -488,7 +498,7 @@ def render_plot(initial_val, initial_sigma):
                 min=0,
                 max=1,
                 step=SLIDER_STEP,
-                on_change=lambda e: set_param("val", float(e["value"])),
+                on_change=js("(e) => $state.val = parseFloat(e.target.value)"),
                 default=initial_val,
             ),
             input_slider(
@@ -497,7 +507,7 @@ def render_plot(initial_val, initial_sigma):
                 min=0,
                 max=0.2,
                 step=0.01,
-                on_change=lambda e: set_param("sigma", float(e["value"])),
+                on_change=js("(e) => $state.sigma = parseFloat(e.target.value)"),
                 default=initial_sigma,
             ),
         ],
@@ -514,9 +524,7 @@ y(\theta) = \mathbb{E}_{x\sim P(\theta)}[x] = \int_{\mathbb{R}}\left[\theta^2\fr
             [
                 "button.w-32",
                 {
-                    "onClick": lambda e: set_param(
-                        "key", jax.random.split(params["key"])[0]
-                    ),
+                    "onClick": lambda widget, e: refresh(widget),
                     "class": button_classes,
                 },
                 "Refresh",
@@ -546,24 +554,21 @@ def flip_approx_loss(theta, sigma):
     GRID = "div.grid.grid-cols-2.gap-4"
     PRE = "pre.whitespace-pre-wrap.text-2xs.p-3.rounded-md.bg-gray-100.flex-1"
 
-    def reset_plot():
-        widget.reset(
-            Plot.initial_state(current_state(params) | {"show_expected_value": True})
-            | controls
-            | [
-                GRID,
-                jax_tangents_plot,
-                adev_tangents_plot,
-                [PRE, jax_code],
-                [PRE, adev_code],
-                comparison_plot,
-                optimization_plot,
-            ]
-            | frame_slider
-        )
-
-    reset_plot()
-    return widget
+    return (
+        initialState
+        | onChange
+        | controls
+        | [
+            GRID,
+            jax_tangents_plot,
+            adev_tangents_plot,
+            [PRE, jax_code],
+            [PRE, adev_code],
+            comparison_plot,
+            optimization_plot,
+        ]
+        | frame_slider
+    )
 
 
 render_plot(0.2, 0.05)
