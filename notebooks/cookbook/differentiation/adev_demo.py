@@ -485,7 +485,7 @@ def render_plot(initial_val, initial_sigma):
         range=[0, EPOCHS],
         step=ANIMATION_STEP,
         fps=30,
-        label="Iteration:"
+        label="Iteration:",
     )
 
     controls = Plot.html([
