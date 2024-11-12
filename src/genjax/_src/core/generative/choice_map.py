@@ -1529,7 +1529,9 @@ class Indexed(ChoiceMap):
 
             if self.addr is None:
                 # None means that this instance was created with `:`, so no masking is required and we assume that the user will provide an in-bounds `int | ScalarInt`` address. If they don't they will run up against JAX's clamping behavior.
-                return jtu.tree_map(lambda v: v[addr], self.c)
+                return jtu.tree_map(
+                    lambda v: v[addr], self.c, is_leaf=lambda x: isinstance(x, Mask)
+                )
 
             elif isinstance(self.addr, Array) and self.addr.shape:
                 # We can't allow slices, as self.addr might look like, e.g. `[2,5,6]`, and we don't have any way to combine this "sparse array selector" with an incoming slice.
@@ -1542,7 +1544,12 @@ class Indexed(ChoiceMap):
                 # If `check` contains a match (we know it will be a single match, since we constrain addr to be scalar), then `idx` is the index of the match in `self.addr`.
                 # Else, idx == 0 (selecting "junk data" of the right shape at the leaf) and check_array[idx] == False (masking the junk data).
                 idx = jnp.argwhere(check, size=1, fill_value=0)[0, 0]
-                return jtu.tree_map(lambda v: Mask.build(v[idx], check[idx]), self.c)
+
+                return jtu.tree_map(
+                    lambda v: Mask.build(v[idx], check[idx]),
+                    self.c,
+                    is_leaf=lambda x: isinstance(x, Mask),
+                )
 
             else:
                 return self.c.mask(self.addr == addr)
@@ -1661,7 +1668,6 @@ class Switch(ChoiceMap):
         if isinstance(idx, int):
             return list(chm_iter)[idx]
         else:
-            # _idx is a scalar, vectorized_chm.mask([True, True, True])
             chms = [_chm.mask(_idx == idx) for _idx, _chm in enumerate(chm_iter)]
             return Switch(idx, chms)
 
