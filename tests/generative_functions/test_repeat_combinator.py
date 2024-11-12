@@ -17,6 +17,7 @@ import jax.numpy as jnp
 
 from genjax import ChoiceMapBuilder as C
 from genjax import gen, normal
+from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 
 
 class TestRepeatCombinator:
@@ -42,3 +43,17 @@ class TestRepeatCombinator:
         assert jnp.array_equal(
             square.vmap()(jnp.repeat(2, 10))(key), repeat_retval
         ), "Repeat 10 times matches vmap with 10 equal inputs"
+
+    def test_nested_lookup(self):
+        @gen
+        def model():
+            x = normal(0.0, 1.0) @ "x"
+            return x
+
+        key = jax.random.key(0)
+        big_model = model.repeat(n=10).repeat(n=10)
+
+        chm = C[jnp.array(0), :, "x"].set(jnp.ones(10))
+
+        tr, _ = big_model.generate(key, ChoiceMapConstraint(chm), ())
+        assert jnp.array_equal(tr.get_choices()[0, :, "x"], jnp.ones(10))

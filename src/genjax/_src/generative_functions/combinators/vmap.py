@@ -198,7 +198,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
         def _inner(key, idx, args):
             # Here we have to vmap across indices and perform individual lookups because the user might only constrain a subset of all indices. This forces recomputation.
-            submap = constraint.choice_map(idx)
+            submap = constraint.choice_map.get_submap(idx)
             tr, w = self.gen_fn.generate(
                 key,
                 ChoiceMapConstraint(submap),
