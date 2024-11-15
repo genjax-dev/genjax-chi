@@ -923,6 +923,41 @@ class ChoiceMap(Pytree):
     #######################
 
     @abstractmethod
+    def filter(self, selection: Selection) -> "ChoiceMap":
+        """
+        Filter the choice map on the `Selection`. The resulting choice map only contains the addresses that return True when presented to the selection.
+
+        Args:
+            selection: The Selection to filter the choice map with.
+
+        Returns:
+            A new ChoiceMap containing only the addresses selected by the given Selection.
+
+        Examples:
+            ```python exec="yes" html="true" source="material-block" session="choicemap"
+            import jax
+            import genjax
+            from genjax import bernoulli
+            from genjax import SelectionBuilder as S
+
+
+            @genjax.gen
+            def model():
+                x = bernoulli(0.3) @ "x"
+                y = bernoulli(0.3) @ "y"
+                return x
+
+
+            key = jax.random.key(314159)
+            tr = model.simulate(key, ())
+            chm = tr.get_sample()
+            selection = S["x"]
+            filtered = chm.filter(selection)
+            assert "y" not in filtered
+            ```
+        """
+
+    @abstractmethod
     def get_value(self) -> Any:
         pass
 
@@ -1159,47 +1194,6 @@ class ChoiceMap(Pytree):
     # Combinator methods #
     ######################
 
-    def filter(self, selection: Selection, /, *, eager: bool = False) -> "ChoiceMap":
-        """
-        Filter the choice map on the `Selection`. The resulting choice map only contains the addresses that return True when presented to the selection.
-
-        Args:
-            selection: The Selection to filter the choice map with.
-            eager: If True, immediately simplify the filtered choice map. Default is False.
-
-        Returns:
-            A new ChoiceMap containing only the addresses selected by the given Selection.
-
-        Examples:
-            ```python exec="yes" html="true" source="material-block" session="choicemap"
-            import jax
-            import genjax
-            from genjax import bernoulli
-            from genjax import SelectionBuilder as S
-
-
-            @genjax.gen
-            def model():
-                x = bernoulli(0.3) @ "x"
-                y = bernoulli(0.3) @ "y"
-                return x
-
-
-            key = jax.random.key(314159)
-            tr = model.simulate(key, ())
-            chm = tr.get_sample()
-            selection = S["x"]
-            filtered = chm.filter(selection)
-            assert "y" not in filtered
-
-            # Using eager filtering
-            eager_filtered = chm.filter(selection, eager=True)
-            assert "y" not in eager_filtered
-            ```
-        """
-        ret = Filtered.build(self, selection)
-        return ret if not eager else _pushdown_filters(ret)
-
     def mask(self, flag: Flag) -> "ChoiceMap":
         """
         Returns a new ChoiceMap with values masked by a boolean flag.
@@ -1377,19 +1371,13 @@ class ChoiceMap(Pytree):
         """
         return _ChoiceMapBuilder(self, [])
 
+    @deprecated(
+        reason="Acts as identity; filters are now automatically pushed down.",
+        version="0.8.0",
+    )
     def simplify(self) -> "ChoiceMap":
-        """
-        Simplifies the choice map by pushing down filters and merging overlapping choicemaps.
-
-        This method applies various simplification strategies to the choice map, such as pushing down filters to lower levels of the hierarchy and merging overlapping choices where possible. The result is a more compact and efficient representation of the same choices.
-
-        Returns:
-            A simplified version of the current choice map.
-
-        Note:
-            The simplification process does not change the semantic meaning of the choice map, only its internal representation.
-        """
-        return _pushdown_filters(self)
+        """Previously pushed down filters, now acts as identity."""
+        return self
 
     def invalid_subset(
         self,
@@ -1424,7 +1412,7 @@ class ChoiceMap(Pytree):
         """
         shape_chm = gen_fn.get_zero_trace(*args).get_choices()
         shape_sel = _shape_selection(shape_chm)
-        extras = self.filter(~shape_sel, eager=True)
+        extras = self.filter(~shape_sel)
         if not extras.static_is_empty():
             return extras
 
@@ -1463,6 +1451,14 @@ class Choice(Generic[T], ChoiceMap):
                     return Choice(v)
         else:
             return Choice(v)
+
+    def filter(self, selection: Selection) -> ChoiceMap:
+        sel_check = selection.check()
+        masked = Mask.maybe_mask(self.v, sel_check)
+        if masked is None:
+            return ChoiceMap.empty()
+        else:
+            return ChoiceMap.choice(masked)
 
     def get_value(self) -> T:
         return self.v
@@ -1513,6 +1509,10 @@ class Indexed(ChoiceMap):
         else:
             return Indexed(chm, addr)
 
+    def filter(self, selection: Selection) -> ChoiceMap:
+        addr = _full_slice if self.addr is None else self.addr
+        return self.c.filter(selection(addr)).extend(addr)
+
     def get_value(self) -> Any:
         return None
 
@@ -1529,7 +1529,9 @@ class Indexed(ChoiceMap):
 
             if self.addr is None:
                 # None means that this instance was created with `:`, so no masking is required and we assume that the user will provide an in-bounds `int | ScalarInt`` address. If they don't they will run up against JAX's clamping behavior.
-                return jtu.tree_map(lambda v: v[addr], self.c)
+                return jtu.tree_map(
+                    lambda v: v[addr], self.c, is_leaf=lambda x: isinstance(x, Mask)
+                )
 
             elif isinstance(self.addr, Array) and self.addr.shape:
                 # We can't allow slices, as self.addr might look like, e.g. `[2,5,6]`, and we don't have any way to combine this "sparse array selector" with an incoming slice.
@@ -1542,7 +1544,12 @@ class Indexed(ChoiceMap):
                 # If `check` contains a match (we know it will be a single match, since we constrain addr to be scalar), then `idx` is the index of the match in `self.addr`.
                 # Else, idx == 0 (selecting "junk data" of the right shape at the leaf) and check_array[idx] == False (masking the junk data).
                 idx = jnp.argwhere(check, size=1, fill_value=0)[0, 0]
-                return jtu.tree_map(lambda v: v[idx], self.c.mask(check))
+
+                return jtu.tree_map(
+                    lambda v: Mask.build(v[idx], check[idx]),
+                    self.c,
+                    is_leaf=lambda x: isinstance(x, Mask),
+                )
 
             else:
                 return self.c.mask(self.addr == addr)
@@ -1602,6 +1609,12 @@ class Static(ChoiceMap):
                 merged_dict[key] = c2.get_submap(key)
         return Static.build(merged_dict)
 
+    def filter(self, selection: Selection) -> ChoiceMap:
+        return Static.build({
+            addr: self.get_submap(addr).filter(selection(addr))
+            for addr in self.mapping.keys()
+        })
+
     def get_value(self) -> Any:
         return None
 
@@ -1658,6 +1671,9 @@ class Switch(ChoiceMap):
             chms = [_chm.mask(_idx == idx) for _idx, _chm in enumerate(chm_iter)]
             return Switch(idx, chms)
 
+    def filter(self, selection: Selection) -> ChoiceMap:
+        return Switch.build(self.idx, [chm.filter(selection) for chm in self.chms])
+
     def get_value(self) -> Any:
         vs = [chm.get_value() for chm in self.chms]
         entries = [Mask.build(v) for v in vs if v is not None]
@@ -1710,6 +1726,9 @@ class Xor(ChoiceMap):
                     return Static.merge_with(lambda a, b: a ^ b, c1, c2)
                 case _:
                     return Xor(c1, c2)
+
+    def filter(self, selection: Selection) -> ChoiceMap:
+        return self.c1.filter(selection) ^ self.c2.filter(selection)
 
     def get_value(self) -> Any:
         match self.c1.get_value(), self.c2.get_value():
@@ -1772,6 +1791,9 @@ class Or(ChoiceMap):
                 case _:
                     return Or(c1, c2)
 
+    def filter(self, selection: Selection) -> ChoiceMap:
+        return self.c1.filter(selection) | self.c2.filter(selection)
+
     def get_value(self) -> Any:
         match self.c1.get_value(), self.c2.get_value():
             case None, b:
@@ -1789,101 +1811,6 @@ class Or(ChoiceMap):
         return submap1 | submap2
 
 
-@Pytree.dataclass(match_args=True)
-class Filtered(ChoiceMap):
-    """Represents a filtered choice map based on a selection.
-
-    This class wraps another choice map and applies a selection to filter its contents.
-    It allows for selective access to the underlying choice map based on the provided selection.
-
-    Attributes:
-        c: The underlying choice map.
-        selection: The selection used to filter the choice map.
-
-    Examples:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        from genjax import SelectionBuilder as S
-
-        base_chm = ChoiceMap.value(10).extend("x")
-        filtered_x = base_chm.filter(S["x"])
-        assert filtered_x["x"] == 10
-
-        filtered_y = base_chm.filter(S["y"])
-        assert filtered_y("x").static_is_empty()
-        ```
-    """
-
-    c: ChoiceMap
-    selection: Selection
-
-    @staticmethod
-    def build(chm: ChoiceMap, selection: Selection) -> ChoiceMap:
-        match (chm, selection):
-            case (l, _) if l.static_is_empty():
-                return l
-            case (chm, AllSel()):
-                return chm
-            case (_, NoneSel()):
-                return ChoiceMap.empty()
-            case (Filtered(), _):
-                return Filtered(chm.c, chm.selection & selection)
-            case _:
-                return Filtered(chm, selection)
-
-    def get_value(self) -> Any:
-        v = self.c.get_value()
-        sel_check = self.selection[()]
-        return Mask.maybe_mask(v, sel_check)
-
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
-        submap = self.c.get_submap(addr)
-        subselection = self.selection(addr)
-        return submap.filter(subselection)
-
-
-def _pushdown_filters(chm: ChoiceMap) -> ChoiceMap:
-    def loop(inner: ChoiceMap, selection: Selection) -> ChoiceMap:
-        match inner:
-            case Static(mapping):
-                return Static.build({
-                    addr: loop(inner.get_submap(addr), selection(addr))
-                    for addr in mapping.keys()
-                })
-
-            case Indexed(c, addr):
-                addr = _full_slice if addr is None else addr
-
-                return loop(c, selection(addr)).extend(addr)
-
-            case Choice(v):
-                if v is None:
-                    return inner
-                else:
-                    sel_check = selection.check()
-                    masked = Mask.maybe_mask(v, sel_check)
-                    if masked is None:
-                        return ChoiceMap.empty()
-                    else:
-                        return ChoiceMap.choice(masked)
-
-            case Filtered(c, c_selection):
-                return loop(c, c_selection & selection)
-
-            case Xor(c1, c2):
-                return loop(c1, selection) ^ loop(c2, selection)
-
-            case Or(c1, c2):
-                return loop(c1, selection) | loop(c2, selection)
-
-            case Switch(idx, chms):
-                return Switch.build(idx, [loop(chm, selection) for chm in chms])
-
-            case _:
-                return chm.filter(selection)
-
-    return loop(chm, Selection.all())
-
-
 def _shape_selection(chm: ChoiceMap) -> Selection:
     def loop(inner: ChoiceMap, selection: Selection) -> Selection:
         match inner:
@@ -1898,14 +1825,8 @@ def _shape_selection(chm: ChoiceMap) -> Selection:
             case Indexed(c, addr):
                 return loop(c, selection(_full_slice)).extend(...)
 
-            case Choice(v):
-                if isinstance(v, Mask) and FlagOp.concrete_false(v.primal_flag()):
-                    return Selection.none()
-                else:
-                    return LeafSel()
-
-            case Filtered(c, c_selection):
-                return loop(c, c_selection & selection)
+            case Choice():
+                return LeafSel()
 
             case Xor(c1, c2) | Or(c1, c2):
                 return loop(c1, selection) | loop(c2, selection)

@@ -4,6 +4,13 @@ import genjax
 from genjax.typing import FloatArray
 
 
+class TestPytree:
+    def test_unwrap(self):
+        c = genjax.Pytree.const(5)
+        assert c.unwrap() == 5
+        assert genjax.Const.unwrap(10) == 10
+
+
 class TestPythonic:
     def test_pythonic(self):
         @genjax.Pytree.dataclass

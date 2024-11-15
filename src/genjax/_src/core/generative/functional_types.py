@@ -190,6 +190,24 @@ class Mask(Generic[R], Pytree):
     # Accessors #
     #############
 
+    def __getitem__(self, path) -> "Mask[R]":
+        path = path if isinstance(path, tuple) else (path,)
+
+        f = self.primal_flag()
+        if isinstance(f, Array) and f.shape:
+            # A non-scalar flag must have been produced via vectorization. Because a scalar flag can
+            # wrap a non-scalar value, only use the vectorized components of the path to index into the flag...
+            f = f[path[: len(f.shape)]]
+
+        # but the use full path to index into the value.
+        v_idx = jtu.tree_map(lambda v: v[path], self.value)
+
+        # Reconstruct Diff if needed
+        if isinstance(self.flag, Diff):
+            f = Diff(f, self.flag.tangent)
+
+        return Mask.build(v_idx, f)
+
     def flatten(self) -> "R | Mask[R] | None":
         """
         Flatten a Mask instance into its underlying value or None.

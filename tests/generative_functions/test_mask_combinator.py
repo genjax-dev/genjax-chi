@@ -14,6 +14,7 @@
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 import pytest
 
 import genjax
@@ -181,19 +182,26 @@ class TestMaskCombinator:
         def model_outside():
             return genjax.normal(0.0, 1.0).mask().vmap()(outside_mask) @ "init"
 
-        # Adding this intentionally-failing test to record a strange case where
-        # it makes a difference whether a constant `jnp.array` of flags is created
-        # inside or outside of a generative function. When inside, the array is
-        # recast by JAX into a numpy array, since it appears in the literal pool of
-        # a compiled function, but not when outside, where it escapes such treatment.
-        with pytest.raises(TypeError, match=r"f.*violates type hint"):
-            model_inside.simulate(key, ())
+        # These tests guard against regression to a strange case where it makes a difference whether
+        # a constant `jnp.array` of flags is created inside or outside of a generative function.
+        # When inside, the array is recast by JAX into a numpy array, since it appears in the
+        # literal pool of a compiled function, but not when outside, where it escapes such
+        # treatment.
+        inside_tr = model_inside.simulate(key, ())
+        outside_tr = model_outside.simulate(key, ())
 
-        tr = model_outside.simulate(key, ())
-        retval = tr.get_retval()
+        assert outside_tr.get_score() == inside_tr.get_score()
+        assert jtu.tree_map(
+            jnp.array_equal, inside_tr.get_retval(), outside_tr.get_retval()
+        )
+        assert jtu.tree_map(
+            jnp.array_equal, inside_tr.get_choices(), outside_tr.get_choices()
+        )
+
+        retval = outside_tr.get_retval()
         retval_masks = retval.flag
         retval_value = retval.unmask()
-        assert tr.get_score() == jnp.sum(
+        assert outside_tr.get_score() == jnp.sum(
             retval_masks
             * jax.vmap(lambda v: genjax.normal.logpdf(v, 0.0, 1.0))(retval_value)
         )

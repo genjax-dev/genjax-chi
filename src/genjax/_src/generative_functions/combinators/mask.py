@@ -35,6 +35,7 @@ from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    Flag,
     Generic,
     PRNGKey,
     ScalarFlag,
@@ -46,28 +47,62 @@ R = TypeVar("R")
 
 @Pytree.dataclass
 class MaskTrace(Generic[R], Trace[Mask[R]]):
+    """A trace type for the `MaskCombinator` generative function.
+
+    Users should use `MaskTrace.build` for constructing instances of `MaskTrace`,
+    """
+
     mask_combinator: "MaskCombinator[R]"
     inner: Trace[R]
-    check: ScalarFlag
+    args: tuple[Any, ...]
+    chm: ChoiceMap
+    score: Score
+    ret: Mask[R]
+    check: Flag
+
+    @staticmethod
+    def build(
+        scan_gen_fn: "MaskCombinator[R]", inner: Trace[R], check: ScalarFlag
+    ) -> "MaskTrace[R]":
+        """Construct a new `MaskTrace` instance.
+
+        This static method builds a `MaskTrace` by combining an inner trace with a check flag.
+        The check flag determines whether the inner trace's choices and return value are masked.
+
+        Args:
+            scan_gen_fn: The MaskCombinator generative function
+            inner: The inner trace to be masked
+            check: A scalar boolean flag indicating whether to mask the inner trace
+
+        Returns:
+            A new MaskTrace instance with choices, return value and score masked with the check flag
+        """
+        # NOTE: constructing these values in `build`, where `check` is guaranteed scalar, allows us
+        # to construct simple, non-vectorized `MaskTrace` instances. Returning these from `jax.vmap`
+        # will allow JAX to construct a vectorized `MaskTrace` for us.
+        #
+        # If we instead deferred these computations to the methods (get_choices() etc), these methods would have to combine vectorized `self.inner.get_choices()` with a vectorized `self.check`. This is tricky and error-prone.
+        args = (check, *inner.get_args())
+        chm = inner.get_choices().mask(check)
+        ret = Mask.build(inner.get_retval(), check)
+        score = check * inner.get_score()
+
+        return MaskTrace(scan_gen_fn, inner, args, chm, score, ret, check)
 
     def get_args(self) -> tuple[Any, ...]:
-        return (self.check, *self.inner.get_args())
+        return self.args
 
     def get_gen_fn(self):
         return self.mask_combinator
 
     def get_choices(self) -> ChoiceMap:
-        inner_choice_map = self.inner.get_choices()
-        return inner_choice_map.mask(self.check)
+        return self.chm
 
     def get_retval(self):
-        return Mask(self.inner.get_retval(), self.check)
+        return self.ret
 
     def get_score(self):
-        inner_score = self.inner.get_score()
-        return jnp.asarray(
-            FlagOp.where(self.check, inner_score, jnp.zeros(shape=inner_score.shape))
-        )
+        return self.score
 
 
 @Pytree.dataclass
@@ -118,7 +153,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
         tr = self.gen_fn.simulate(key, inner_args)
-        return MaskTrace(self, tr, check)
+        return MaskTrace.build(self, tr, check)
 
     def generate(
         self,
@@ -129,7 +164,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         check, inner_args = args[0], args[1:]
 
         tr, w = self.gen_fn.generate(key, constraint, inner_args)
-        return MaskTrace(self, tr, check), w * check
+        return MaskTrace.build(self, tr, check), w * check
 
     def project(
         self,
@@ -219,7 +254,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         inner_chm = bwd_request.constraint
 
         return (
-            MaskTrace(self, premasked_trace, post_check),
+            MaskTrace.build(self, premasked_trace, post_check),
             final_weight,
             Mask.build(retdiff, check_diff),
             Update(
