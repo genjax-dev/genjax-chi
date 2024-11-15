@@ -158,7 +158,8 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         def find_axis_size(axis: int | None, x: Any) -> int | None:
             """Find the size of the axis specified by `axis` for the argument `x`."""
             if axis is not None:
-                return x.shape[axis]
+                leaf = jax.tree_util.tree_leaves(x)[0]
+                return leaf.shape[axis]
 
         # tree_map uses in_axes as a template. To have passed vmap validation, Any non-None entry
         # must bottom out in an array-shaped leaf, and all such leafs must have the same size for

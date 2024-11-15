@@ -18,6 +18,7 @@ import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
+from genjax._src.core.typing import IntArray
 
 
 class TestVmapCombinator:
@@ -216,3 +217,31 @@ class TestVmapCombinator:
         assert (
             trace.get_choices().static_is_empty()
         ), "zero-length vmap produces empty choicemaps."
+
+
+@genjax.Pytree.dataclass
+class MyClass(genjax.PythonicPytree):
+    x: IntArray
+
+
+class TestVmapPytree:
+    def test_vmap_pytree(self):
+        batched_val = jax.vmap(lambda x: MyClass(x))(jnp.arange(5))
+
+        def regular_function(mc: MyClass):
+            return mc.x + 5
+
+        assert jnp.array_equal(
+            jax.vmap(regular_function)(batched_val), jnp.arange(5) + 5
+        )
+
+        @genjax.gen
+        def generative_function(mc: MyClass):
+            return mc.x + 5
+
+        key = jax.random.PRNGKey(0)
+
+        # check that we can vmap over a vectorized pytree.
+        assert jnp.array_equal(
+            generative_function.vmap(in_axes=0)(batched_val)(key), jnp.arange(5) + 5
+        )
