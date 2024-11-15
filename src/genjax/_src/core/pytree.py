@@ -280,6 +280,8 @@ class Const(Generic[R], Pytree):
 
         Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
+            from genjax import Pytree, Const
+
             c = Pytree.const(5)
             val = c.unwrap()  # Returns 5
 
