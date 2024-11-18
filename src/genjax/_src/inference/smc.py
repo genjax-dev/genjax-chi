@@ -15,6 +15,7 @@
 
 In this module, we provide a set of ingredients for implementing SMC algorithms, including pseudomarginal / recursive auxiliary variants, and variants expressible using SMCP3 ([Lew & Matheos, et al, 2024](https://proceedings.mlr.press/v206/lew23a/lew23a.pdf)) moves.
 """
+
 import jaxtyping as jtyping
 
 from abc import abstractmethod
