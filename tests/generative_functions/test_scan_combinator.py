@@ -406,9 +406,9 @@ class TestScanWithParameters:
 
         trace = step.scan(n=0).simulate(key, (2.0, jnp.arange(0, dtype=float)))
 
-        assert (
-            trace.get_choices().static_is_empty()
-        ), "zero-length scan produces empty choicemaps."
+        assert trace.get_choices().static_is_empty(), (
+            "zero-length scan produces empty choicemaps."
+        )
 
         key, subkey = jax.random.split(key)
         step.scan().importance(

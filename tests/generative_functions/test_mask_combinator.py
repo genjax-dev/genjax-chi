@@ -14,6 +14,7 @@
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 import pytest
 
 import genjax
@@ -161,19 +162,13 @@ class TestMaskCombinator:
         key = jax.random.key(0)
         mask_steps = jnp.arange(10) < 5
         model = masked_scan_combinator(step, n=len(mask_steps))
-        init_particle = model.simulate(key, ((0.0,), mask_steps))
+        init_particle = model.simulate(key, (0.0, mask_steps))
 
         step_particle, step_weight, _, _ = model.update(
-            key,
-            init_particle,
-            C.n(),
-            (
-                genjax.Diff.no_change((0.0,)),
-                genjax.Diff.no_change(mask_steps),
-            ),
+            key, init_particle, C.n(), Diff.no_change((0.0, mask_steps))
         )
         assert step_weight == jnp.array(0.0)
-        assert step_particle.get_retval() == ((jnp.array(0.0),), None)
+        assert step_particle.get_retval() == (jnp.array(0.0), None)
 
     def test_mask_scan_update_type_error(self, key):
         @genjax.gen
@@ -187,19 +182,26 @@ class TestMaskCombinator:
         def model_outside():
             return genjax.normal(0.0, 1.0).mask().vmap()(outside_mask) @ "init"
 
-        # Adding this intentionally-failing test to record a strange case where
-        # it makes a difference whether a constant `jnp.array` of flags is created
-        # inside or outside of a generative function. When inside, the array is
-        # recast by JAX into a numpy array, since it appears in the literal pool of
-        # a compiled function, but not when outside, where it escapes such treatment.
-        with pytest.raises(TypeError, match=r"f.*violates type hint"):
-            model_inside.simulate(key, ())
+        # These tests guard against regression to a strange case where it makes a difference whether
+        # a constant `jnp.array` of flags is created inside or outside of a generative function.
+        # When inside, the array is recast by JAX into a numpy array, since it appears in the
+        # literal pool of a compiled function, but not when outside, where it escapes such
+        # treatment.
+        inside_tr = model_inside.simulate(key, ())
+        outside_tr = model_outside.simulate(key, ())
 
-        tr = model_outside.simulate(key, ())
-        retval = tr.get_retval()
+        assert outside_tr.get_score() == inside_tr.get_score()
+        assert jtu.tree_map(
+            jnp.array_equal, inside_tr.get_retval(), outside_tr.get_retval()
+        )
+        assert jtu.tree_map(
+            jnp.array_equal, inside_tr.get_choices(), outside_tr.get_choices()
+        )
+
+        retval = outside_tr.get_retval()
         retval_masks = retval.flag
         retval_value = retval.unmask()
-        assert tr.get_score() == jnp.sum(
+        assert outside_tr.get_score() == jnp.sum(
             retval_masks
             * jax.vmap(lambda v: genjax.normal.logpdf(v, 0.0, 1.0))(retval_value)
         )

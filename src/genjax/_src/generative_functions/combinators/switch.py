@@ -53,7 +53,7 @@ class SwitchTrace(Generic[R], Trace[R]):
     retval: R
     score: FloatArray
 
-    def get_idx(self) -> IntArray:
+    def get_idx(self) -> int | IntArray:
         """
         Get the index used to select the branch in this SwitchTrace.
 
