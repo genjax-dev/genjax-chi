@@ -1101,13 +1101,13 @@ class ChoiceMap(Pytree):
             ```
 
         Note:
-            If multiple pairs have the same address, the resulting ChoiceMap will error on lookup, as duplicate addresses are not allowed due to the `^` call internally.
+            If multiple pairs have the same address, later pairs will overwrite earlier ones.
         """
         acc = ChoiceMap.empty()
 
         for addr, v in pairs:
             addr = addr if isinstance(addr, tuple) else (addr,)
-            acc ^= ChoiceMap.entry(v, *addr)
+            acc |= ChoiceMap.entry(v, *addr)
 
         return acc
 
@@ -1271,9 +1271,9 @@ class ChoiceMap(Pytree):
             ```
 
         Note:
-            This method is equivalent to using the ^ operator between two ChoiceMaps.
+            This method is equivalent to using the | operator between two ChoiceMaps.
         """
-        return self ^ other
+        return self | other
 
     def get_selection(self) -> Selection:
         """
@@ -1305,9 +1305,12 @@ class ChoiceMap(Pytree):
     ###########
     # Dunders #
     ###########
-
+    @deprecated(
+        reason="TODO",
+        version="0.8.0",
+    )
     def __xor__(self, other: "ChoiceMap") -> "ChoiceMap":
-        return Xor.build(self, other)
+        return self | other
 
     def __or__(self, other: "ChoiceMap") -> "ChoiceMap":
         return Or.build(self, other)
@@ -1685,69 +1688,6 @@ class Switch(ChoiceMap):
 
 
 @Pytree.dataclass(match_args=True)
-class Xor(ChoiceMap):
-    """Represents a disjoint union of two choice maps.
-
-    This class combines two choice maps in a way that ensures their domains are disjoint.
-    It's used to merge two choice maps while preventing overlapping addresses.
-
-    Attributes:
-        c1: The first choice map.
-        c2: The second choice map.
-
-    Examples:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        chm1 = ChoiceMap.value(5).extend("x")
-        chm2 = ChoiceMap.value(10).extend("y")
-        xor_chm = chm1 ^ chm2
-        assert xor_chm.get_submap("x").get_value() == 5
-        assert xor_chm.get_submap("y").get_value() == 10
-        ```
-
-    Raises:
-        Exception: If there's a value collision between the two choice maps.
-    """
-
-    c1: ChoiceMap
-    c2: ChoiceMap
-
-    @staticmethod
-    def build(
-        c1: ChoiceMap,
-        c2: ChoiceMap,
-    ) -> ChoiceMap:
-        if c2.static_is_empty():
-            return c1
-        elif c1.static_is_empty():
-            return c2
-        else:
-            match (c1, c2):
-                case (Static(), Static()):
-                    return Static.merge_with(lambda a, b: a ^ b, c1, c2)
-                case _:
-                    return Xor(c1, c2)
-
-    def filter(self, selection: Selection) -> ChoiceMap:
-        return self.c1.filter(selection) ^ self.c2.filter(selection)
-
-    def get_value(self) -> Any:
-        match self.c1.get_value(), self.c2.get_value():
-            case None, b:
-                return b
-            case a, None:
-                return a
-            case a, b:
-                a = Mask.build(a)
-                b = Mask.build(b)
-                return (a ^ b).flatten()
-
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
-        remaining_1 = self.c1.get_submap(addr)
-        remaining_2 = self.c2.get_submap(addr)
-        return remaining_1 ^ remaining_2
-
-
-@Pytree.dataclass(match_args=True)
 class Or(ChoiceMap):
     """Represents a choice map that combines two choice maps using an OR operation.
 
@@ -1828,7 +1768,7 @@ def _shape_selection(chm: ChoiceMap) -> Selection:
             case Choice():
                 return LeafSel()
 
-            case Xor(c1, c2) | Or(c1, c2):
+            case Or(c1, c2):
                 return loop(c1, selection) | loop(c2, selection)
 
             case Switch(_, chms):

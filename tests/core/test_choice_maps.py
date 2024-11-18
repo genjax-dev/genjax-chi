@@ -254,7 +254,7 @@ class TestSelections:
 
     def test_chm_sel(self):
         # Create a ChoiceMap
-        chm = C["x", "y"].set(3.0) ^ C["z"].set(5.0)
+        chm = C["x", "y"].set(3.0) | C["z"].set(5.0)
 
         # Create a ChmSel from the ChoiceMap
         chm_sel = chm.get_selection()
@@ -490,7 +490,7 @@ class TestChoiceMap:
         with pytest.raises(ChoiceMapNoValueAtAddress):
             switched_array["z"]
 
-    def test_or_xor_access(self):
+    def test_or_access(self):
         # Create two choice maps with disjoint addresses
         left = ChoiceMap.kw(x=1, y=2)
         right = ChoiceMap.kw(z=3, w=4)
@@ -502,19 +502,9 @@ class TestChoiceMap:
         assert or_chm["z"] == 3  # Only in right
         assert or_chm["w"] == 4  # Only in right
 
-        # Test Xor
-        xor_chm = left ^ right
-        assert xor_chm["x"] == 1  # Only in left
-        assert xor_chm["y"] == 2  # Only in left
-        assert xor_chm["z"] == 3  # Only in right
-        assert xor_chm["w"] == 4  # Only in right
-
         # Test that non-existent addresses still raise
         with pytest.raises(ChoiceMapNoValueAtAddress):
             or_chm["does_not_exist"]
-
-        with pytest.raises(ChoiceMapNoValueAtAddress):
-            xor_chm["does_not_exist"]
 
     def test_nested_static_choicemap(self):
         # Create a nested static ChoiceMap
@@ -575,10 +565,6 @@ class TestChoiceMap:
         xyz = ChoiceMap.d({"x": 1, "y": 2, "z": 3})
         or_chm = xyz.filter(S["x"]) | xyz.filter(S["y"].mask(jnp.array(True)))
 
-        xor_chm = xyz.filter(S["x"]) ^ xyz.filter(S["y"].mask(jnp.array(True)))
-
-        assert or_chm.simplify() == xor_chm.simplify(), "filters pushed down"
-
         assert or_chm["x"] == 1
         assert or_chm["y"] == maskv
         with pytest.raises(ChoiceMapNoValueAtAddress, match="z"):
@@ -620,8 +606,8 @@ class TestChoiceMap:
         assert merged["x"] == 1
         assert merged["y"] == 2
 
-        # merged is equivalent to xor
-        assert merged == chm1 ^ chm2
+        # merged is equivalent to or
+        assert merged == chm1 | chm2
 
     def test_get_selection(self):
         chm = ChoiceMap.kw(x=1, y=2)
@@ -633,23 +619,6 @@ class TestChoiceMap:
     def test_static_is_empty(self):
         assert ChoiceMap.empty().static_is_empty()
         assert not ChoiceMap.kw(x=1).static_is_empty()
-
-    def test_xor(self):
-        chm1 = ChoiceMap.kw(x=1)
-        chm2 = ChoiceMap.kw(y=2)
-        xor_chm = chm1 ^ chm2
-        assert xor_chm["x"] == 1
-        assert xor_chm["y"] == 2
-
-        #
-        with pytest.raises(ChoiceMapNoValueAtAddress, match="x"):
-            (chm1 ^ chm1)["x"]
-
-        # Optimization: XorChm.build should return EmptyChm for empty inputs
-        assert (ChoiceMap.empty() ^ ChoiceMap.empty()).static_is_empty()
-
-        assert (chm1 ^ ChoiceMap.empty()) == chm1
-        assert (ChoiceMap.empty() ^ chm1) == chm1
 
     def test_or(self):
         chm1 = ChoiceMap.kw(x=1)
