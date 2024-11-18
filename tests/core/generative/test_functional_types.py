@@ -330,3 +330,26 @@ class TestMask:
             ~mask15,
             Mask(jnp.array([1.0, 2.0]), jnp.array([False, True])),
         )
+
+    def test_mask_indexing(self):
+        # Test indexing with scalar flag
+        scalar_flag_mask = Mask(jnp.array([[1, 2], [3, 4]]), True)
+        assert scalar_flag_mask[0, 1].value == 2
+        assert scalar_flag_mask[0, 1].primal_flag() is True
+
+        # Test indexing with vectorized flag
+        vectorized_mask = Mask(jnp.array([[1, 2], [3, 4]]), jnp.array([True, False]))
+
+        # When indexing with more elements than vectorized dimensions,
+        # only first parts of path are applied to flag
+        indexed = vectorized_mask[0, 1]
+        assert indexed.value == 2
+        assert jnp.array_equal(
+            indexed.primal_flag(), jnp.array(True)
+        )  # Flag only used first index [0]
+
+        indexed2 = vectorized_mask[1, 0]
+        assert indexed2.value == 3
+        assert jnp.array_equal(
+            indexed2.primal_flag(), jnp.array(False)
+        )  # Flag only used first index [1]

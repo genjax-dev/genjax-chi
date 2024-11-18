@@ -562,6 +562,7 @@ class TestChoiceMap:
         chm = Static.build({"v": ChoiceMap.choice(1.0), "K": ChoiceMap.empty()})
         assert len(chm.mapping) == 1, "make sure empty chm doesn't make it through"
 
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_simplify(self):
         chm = ChoiceMap.choice(jnp.asarray([2.3, 4.4, 3.3]))
         extended = chm.extend(slice(None, None, None))
@@ -816,9 +817,9 @@ class TestChoiceMap:
 
         # Invalid nested ChoiceMap - missing inner 'b'
         invalid_nested_chm1 = ChoiceMap.kw(x=1.0, y=ChoiceMap.kw(a=0.5))
-        assert (
-            invalid_nested_chm1.invalid_subset(outer_model, ()) is None
-        ), "missing address is fine"
+        assert invalid_nested_chm1.invalid_subset(outer_model, ()) is None, (
+            "missing address is fine"
+        )
 
         # Invalid nested ChoiceMap - extra address in inner model
         invalid_nested_chm2 = ChoiceMap.kw(x=1.0, y=ChoiceMap.kw(a=0.5, b=1, c=2.0))
@@ -987,6 +988,10 @@ class TestChoiceMap:
         assert jnp.array_equal(chm[0:4, "x"], vals[0:4])
 
         assert jnp.array_equal(chm[0:4, "x"], vals[0:4])
+
+    def test_nested_masking(self):
+        chm = C[jnp.array(0), "w", jnp.array(1), :, :].set(jnp.ones((3, 2, 2)))
+        assert jnp.array_equal(chm[0, "w", 1, :, :].unmask(), jnp.ones((3, 2, 2)))
 
     def test_choicemap_slice_validation(self):
         # Creation with scalar and string keys
