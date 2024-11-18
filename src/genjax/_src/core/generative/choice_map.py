@@ -1728,6 +1728,12 @@ class Or(ChoiceMap):
             match (c1, c2):
                 case (Static(), Static()):
                     return Static.merge_with(or_, c1, c2)
+
+                case (Choice(a), Choice(b)):
+                    a = Mask.build(a)
+                    b = Mask.build(b)
+                    return Choice.build((a | b).flatten())
+
                 case _:
                     return Or(c1, c2)
 
@@ -1740,10 +1746,8 @@ class Or(ChoiceMap):
                 return b
             case a, None:
                 return a
-            case a, b:
-                a = Mask.build(a)
-                b = Mask.build(b)
-                return (a | b).flatten()
+            case _:
+                raise ValueError("Unreachable")
 
     def get_submap(self, addr: AddressComponent) -> ChoiceMap:
         submap1 = self.c1.get_submap(addr)
@@ -1780,7 +1784,7 @@ def _shape_selection(chm: ChoiceMap) -> Selection:
                 return acc
 
             case _:
-                return selection
+                raise ValueError(f"Unknown ChoiceMap type: {type(inner)}")
 
     return loop(chm, Selection.all())
 
