@@ -19,11 +19,20 @@ import numpy as np
 from scipy.linalg import circulant
 from tensorflow_probability.substrates import jax as tfp
 
+from genjax._src.core.generative.core import Score
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
+from genjax._src.core.typing import (
+    Array,
+    FloatArray,
+    IntArray,
+    PRNGKey,
+    TypeVar,
+)
 from genjax._src.generative_functions.distributions.distribution import Distribution
 
 tfd = tfp.distributions
+
+R = TypeVar("R")
 
 #####
 # Discrete HMM configuration
@@ -50,17 +59,8 @@ class DiscreteHMMConfiguration(Pytree):
     sigma_trans: FloatArray = Pytree.static()
     sigma_obs: FloatArray = Pytree.static()
 
-    def flatten(self):
-        return (), (
-            self.linear_grid_dim,
-            self.adjacency_distance_trans,
-            self.adjacency_distance_obs,
-            self.sigma_trans,
-            self.sigma_obs,
-        )
-
-    @classmethod
-    def copy(cls, config, transition_tensor, observation_tensor):
+    @staticmethod
+    def copy(config, transition_tensor, observation_tensor):
         return DiscreteHMMConfiguration(
             config.linear_grid_dim,
             config.adjacency_distance_trans,
@@ -199,7 +199,7 @@ def forward_filtering_backward_sampling(
 
 def latent_marginals(config: DiscreteHMMConfiguration, observation_sequence):
     init = int(config.linear_grid_dim / 2)
-    initial_distribution = tfd.Categorical(logits=config.transition_tensor[init, :])
+    initial_distribution = tfd.Categorical(logits=config.transition_tensor()[init, :])
     transition_distribution = tfd.Categorical(logits=config.transition_tensor)
     observation_distribution = tfd.Categorical(logits=config.observation_tensor)
     hmm = tfd.HiddenMarkovModel(
@@ -240,30 +240,24 @@ def latent_sequence_posterior(
 
 
 @Pytree.dataclass
-class _DiscreteHMMLatentSequencePosterior(Distribution):
-    def random_weighted(self, key, config, observation_sequence, **kwargs):
-        key, sub_key = jax.random.split(key)
+class _DiscreteHMMLatentSequencePosterior(Distribution[Array]):
+    def random_weighted(self, key, *args, **kwargs) -> tuple[Score, Array]:
+        config, observation_sequence = args
+        key, k1, k2 = jax.random.split(key, 3)
         _, (v, _) = forward_filtering_backward_sampling(
-            sub_key, config, observation_sequence
+            k1, config, observation_sequence
         )
-        key, (w, _) = self.estimate_logpdf(
-            key, v, config, observation_sequence, **kwargs
-        )
-        return key, (w, v)
 
-    def estimate_logpdf(self, key, v, config, observation_sequence, **kwargs):
+        w = self.estimate_logpdf(k2, v, config, observation_sequence, **kwargs)
+        return (w, v)
+
+    def estimate_logpdf(self, key, v, *args, **kwargs) -> Array:
+        config, observation_sequence = args
         prob, _ = latent_sequence_posterior(config, v, observation_sequence)
-        return key, (prob, v)
+        return prob
 
     def data_logpdf(self, config, observation_sequence):
         return log_data_marginal(config, observation_sequence)
-
-    def get_forward_filters(self, key, config, observation_sequence):
-        key, sub_key = jax.random.split(key)
-        _, (_, ffs) = forward_filtering_backward_sampling(
-            sub_key, config, observation_sequence
-        )
-        return key, ffs
 
 
 ##############

@@ -12,15 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax  # noqa: I001
+import jax
 import pytest
 
-from genjax.adev import expectation
-from genjax.adev import flip_enum
-from genjax.adev import add_cost
-from genjax.adev import baseline
-from genjax.adev import flip_reinforce
-from genjax.adev import Dual
+from genjax.adev import Dual, add_cost, baseline, expectation, flip_enum, flip_reinforce
 
 
 class TestADEVFlipCond:
@@ -35,7 +30,7 @@ class TestADEVFlipCond:
                 p,
             )
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         for p in [0.1, 0.3, 0.5, 0.7, 0.9]:
             p_dual = jax.jit(flip_exact_loss.jvp_estimate)(key, Dual(p, 1.0))
             assert p_dual.tangent == pytest.approx(p - 0.5, rel=0.0001)
@@ -51,7 +46,7 @@ class TestADEVFlipCond:
                 p,
             )
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         for p in [0.1, 0.3, 0.5, 0.7, 0.9]:
             (p_grad,) = jax.jit(flip_exact_loss.grad_estimate)(key, (p,))
             assert p_grad == pytest.approx(p - 0.5, rel=0.0001)
@@ -67,7 +62,7 @@ class TestADEVFlipCond:
                 p,
             )
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         _ = jax.jit(flip_exact_loss.jvp_estimate)(key, Dual(0.1, 1.0))
 
     def test_add_cost(self):
@@ -76,7 +71,7 @@ class TestADEVFlipCond:
             add_cost(p**2)
             return 0.0
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         _ = jax.jit(flip_exact_loss.jvp_estimate)(key, Dual(0.1, 1.0))
 
 
@@ -94,7 +89,7 @@ class TestBaselineFlip:
             v = jax.lax.cond(b, lambda: -1.0, lambda: 1.0)
             return v + 10.0
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         p_dual_no_baseline = jax.jit(flip_reinforce_loss_no_baseline.jvp_estimate)(
             key, Dual(0.1, 1.0)
         )

@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
 import jax.numpy as jnp
 import pytest
-from genjax import ChoiceMapBuilder as C
 from jax.scipy.special import logsumexp
+
+import genjax
+from genjax import ChoiceMapBuilder as C
+from genjax._src.core.typing import Any
 
 
 def logpdf(v):
@@ -31,11 +33,11 @@ class TestSMC:
             _ = genjax.flip(0.5) @ "x"
             _ = genjax.flip(0.7) @ "y"
 
-        def flip_flip_exact_log_marginal_density(target: genjax.Target):
+        def flip_flip_exact_log_marginal_density(target: genjax.Target[Any]):
             y = target.constraint.get_submap("y")
             return genjax.flip.assess(y, (0.7,))[0]
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         inference_problem = genjax.Target(flip_flip_trivial, (), C["y"].set(True))
 
         # Single sample IS.
@@ -59,7 +61,7 @@ class TestSMC:
             p = jax.lax.cond(v1, lambda: 0.9, lambda: 0.3)
             _ = genjax.flip(p) @ "y"
 
-        def flip_flip_exact_log_marginal_density(target: genjax.Target):
+        def flip_flip_exact_log_marginal_density(target: genjax.Target[Any]):
             y = target["y"]
             x_prior = jnp.array([
                 logpdf(genjax.flip)(True, 0.5),
@@ -72,7 +74,7 @@ class TestSMC:
             y_marginal = logsumexp(x_prior + y_likelihood)
             return y_marginal
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         inference_problem = genjax.Target(flip_flip, (), C["y"].set(True))
 
         # K-sample IS.

@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
 import pytest
+
+import genjax
 from genjax import ChoiceMapBuilder as C
 
 
@@ -31,7 +32,7 @@ class TestVI:
             (v,) = target.args
             _ = genjax.vi.normal_reparam(v, 0.1) @ "mu"
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         elbo_grad = genjax.vi.ELBO(
             guide, lambda v: genjax.Target(model, (v,), C["v"].set(3.0))
         )

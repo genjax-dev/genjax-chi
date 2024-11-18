@@ -1,0 +1,5 @@
+---
+title: "Library Author"
+---
+
+This section shows some ways one can contribute to extend the core system.

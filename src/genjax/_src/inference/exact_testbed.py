@@ -19,7 +19,7 @@ import jax.numpy as jnp
 
 from genjax._src.core.generative import SelectionBuilder
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import FloatArray, Int, IntArray, PRNGKey
+from genjax._src.core.typing import FloatArray, IntArray, PRNGKey
 from genjax._src.generative_functions.combinators.scan import (
     scan,
 )
@@ -41,24 +41,9 @@ class DiscreteHMMInferenceProblem(Pytree):
     latent_sequence: IntArray
     observation_sequence: IntArray
 
-    def get_initial_state(self):
-        return self.initial_state
-
-    def get_latents(self):
-        return self.latent_sequence
-
-    def get_observations(self):
-        return self.observation_sequence
-
-    def get_log_posterior(self):
-        return self.log_posterior
-
-    def get_log_data_marginal(self):
-        return self.log_data_marginal
-
 
 def build_test_against_exact_inference(
-    max_length: Int,
+    max_length: int,
     state_space_size: IntArray,
     transition_distance_truncation: IntArray,
     observation_distance_truncation: IntArray,
@@ -80,7 +65,7 @@ def build_test_against_exact_inference(
         observation = config.observation_tensor()
         z = categorical(transition[state, :]) @ "z"
         _ = categorical(observation[z, :]) @ "x"
-        return z
+        return z, None
 
     def inference_test_generator(key: PRNGKey):
         key, sub_key = jax.random.split(key)
@@ -104,8 +89,3 @@ def build_test_against_exact_inference(
         )
 
     return inference_test_generator
-
-
-default_problem_generator = build_test_against_exact_inference(
-    10, *jnp.array((10, 1, 1, 0.3, 0.3))
-)

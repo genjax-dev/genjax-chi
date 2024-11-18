@@ -12,12 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.inference.exact_testbed import (
-    build_test_against_exact_inference,
-    default_problem_generator,
-)
+from genjax._src.inference.requests.hmc import HMC, SafeHMC
 
 __all__ = [
-    "build_test_against_exact_inference",
-    "default_problem_generator",
+    "HMC",
+    "SafeHMC",
 ]
