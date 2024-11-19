@@ -1729,7 +1729,7 @@ class Or(ChoiceMap):
                 case (Choice(a), Choice(b)):
                     a = Mask.build(a)
                     b = Mask.build(b)
-                    return Choice.build((a | b).flatten())
+                    return Choice.build(a | b)
 
                 case _:
                     return Or(c1, c2)
