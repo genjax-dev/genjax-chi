@@ -254,7 +254,7 @@ class TestSelections:
 
     def test_chm_sel(self):
         # Create a ChoiceMap
-        chm = C["x", "y"].set(3.0) ^ C["z"].set(5.0)
+        chm = C["x", "y"].set(3.0) | C["z"].set(5.0)
 
         # Create a ChmSel from the ChoiceMap
         chm_sel = chm.get_selection()
@@ -380,6 +380,9 @@ class TestChoiceMap:
         masked_v = Mask(42.0, jnp.array(False))
         assert ChoiceMap.choice(masked_v).get_value() == masked_v
 
+        empty_array = jnp.ones((0,))
+        assert ChoiceMap.choice(empty_array).static_is_empty()
+
     def test_kv(self):
         chm = ChoiceMap.kw(x=1, y=2)
         assert chm["x"] == 1
@@ -490,6 +493,7 @@ class TestChoiceMap:
         with pytest.raises(ChoiceMapNoValueAtAddress):
             switched_array["z"]
 
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_or_xor_access(self):
         # Create two choice maps with disjoint addresses
         left = ChoiceMap.kw(x=1, y=2)
@@ -620,8 +624,8 @@ class TestChoiceMap:
         assert merged["x"] == 1
         assert merged["y"] == 2
 
-        # merged is equivalent to xor
-        assert merged == chm1 ^ chm2
+        # merged is equivalent to or
+        assert merged == chm1 | chm2
 
     def test_get_selection(self):
         chm = ChoiceMap.kw(x=1, y=2)
@@ -634,16 +638,13 @@ class TestChoiceMap:
         assert ChoiceMap.empty().static_is_empty()
         assert not ChoiceMap.kw(x=1).static_is_empty()
 
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_xor(self):
         chm1 = ChoiceMap.kw(x=1)
         chm2 = ChoiceMap.kw(y=2)
         xor_chm = chm1 ^ chm2
         assert xor_chm["x"] == 1
         assert xor_chm["y"] == 2
-
-        #
-        with pytest.raises(ChoiceMapNoValueAtAddress, match="x"):
-            (chm1 ^ chm1)["x"]
 
         # Optimization: XorChm.build should return EmptyChm for empty inputs
         assert (ChoiceMap.empty() ^ ChoiceMap.empty()).static_is_empty()
@@ -667,6 +668,9 @@ class TestChoiceMap:
         x_masked = ChoiceMap.choice(2.0).mask(jnp.asarray(True))
         y_masked = ChoiceMap.choice(3.0).mask(jnp.asarray(True))
         assert (x_masked | y_masked).get_value().unmask() == 2.0
+
+        with pytest.raises(Exception, match="Choice and non-Choice in Or"):
+            _ = C["x"].set(1.0) | C["x", "y"].set(2.0)
 
     def test_and(self):
         chm1 = ChoiceMap.kw(x=1, y=2, z=3)
