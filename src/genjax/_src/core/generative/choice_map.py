@@ -1306,7 +1306,7 @@ class ChoiceMap(Pytree):
     # Dunders #
     ###########
     @deprecated(
-        reason="TODO",
+        reason="^ is deprecated, please use | or _.merge(...) instead.",
         version="0.8.0",
     )
     def __xor__(self, other: "ChoiceMap") -> "ChoiceMap":
@@ -1731,6 +1731,9 @@ class Or(ChoiceMap):
                     b = Mask.build(b)
                     return Choice.build(a | b)
 
+                case (Choice(), _) | (_, Choice()):
+                    raise Exception(f"Choice and non-Choice in Or: {c1}, {c2}")
+
                 case _:
                     return Or(c1, c2)
 
@@ -1738,13 +1741,7 @@ class Or(ChoiceMap):
         return self.c1.filter(selection) | self.c2.filter(selection)
 
     def get_value(self) -> Any:
-        match self.c1.get_value(), self.c2.get_value():
-            case None, b:
-                return b
-            case a, None:
-                return a
-            case _:
-                raise ValueError("Unreachable")
+        return None
 
     def get_submap(self, addr: AddressComponent) -> ChoiceMap:
         submap1 = self.c1.get_submap(addr)

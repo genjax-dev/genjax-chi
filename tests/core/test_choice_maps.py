@@ -666,6 +666,9 @@ class TestChoiceMap:
         y_masked = ChoiceMap.choice(3.0).mask(jnp.asarray(True))
         assert (x_masked | y_masked).get_value().unmask() == 2.0
 
+        with pytest.raises(Exception, match="Choice and non-Choice in Or"):
+            _ = C["x"].set(1.0) | C["x", "y"].set(2.0)
+
     def test_and(self):
         chm1 = ChoiceMap.kw(x=1, y=2, z=3)
         chm2 = ChoiceMap.kw(y=20, z=30, w=40)
