@@ -1457,11 +1457,8 @@ class Choice(Generic[T], ChoiceMap):
 
     def filter(self, selection: Selection) -> ChoiceMap:
         sel_check = selection.check()
-        masked = Mask.maybe_mask(self.v, sel_check)
-        if masked is None:
-            return ChoiceMap.empty()
-        else:
-            return ChoiceMap.choice(masked)
+        masked = Mask.build(self.v, sel_check)
+        return Choice.build(masked)
 
     def get_value(self) -> T:
         return self.v
