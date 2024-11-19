@@ -248,7 +248,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             )
             assert isinstance(bwd_request, Update)
             inner_chm = bwd_request.constraint
-            return (new_subtrace, w, retdiff, inner_chm.extend(idx))
+            return (new_subtrace, w, retdiff, inner_chm)
 
         new_subtraces, w, retdiff, bwd_constraints = jax.vmap(
             _edit, in_axes=(0, 0, 0, self.in_axes)
@@ -259,7 +259,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             map_tr,
             w,
             retdiff,
-            Update(bwd_constraints),
+            Update(bwd_constraints.extend(slice(None, None, None))),
         )
 
     def edit(
