@@ -380,6 +380,9 @@ class TestChoiceMap:
         masked_v = Mask(42.0, jnp.array(False))
         assert ChoiceMap.choice(masked_v).get_value() == masked_v
 
+        empty_array = jnp.ones((0,))
+        assert ChoiceMap.choice(empty_array).static_is_empty()
+
     def test_kv(self):
         chm = ChoiceMap.kw(x=1, y=2)
         assert chm["x"] == 1
