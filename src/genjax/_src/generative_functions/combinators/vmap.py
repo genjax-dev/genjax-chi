@@ -67,9 +67,7 @@ class VmapTrace(Generic[R], Trace[R]):
         if length == 0:
             chm = ChoiceMap.empty()
         else:
-            chm = jax.vmap(lambda tr: tr.get_choices())(tr).extend(
-                slice(None, None, None)
-            )
+            chm = jax.vmap(lambda tr: tr.get_choices())(tr)
         return VmapTrace(gen_fn, tr, args, score, chm, length)
 
     def get_args(self) -> tuple[Any, ...]:
@@ -259,7 +257,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             map_tr,
             w,
             retdiff,
-            Update(bwd_constraints.extend(slice(None, None, None))),
+            Update(bwd_constraints),
         )
 
     def edit(

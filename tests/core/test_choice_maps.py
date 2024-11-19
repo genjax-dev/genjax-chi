@@ -595,14 +595,12 @@ class TestChoiceMap:
 
         assert C["x"].set(None).simplify() == C["x"].set(None), "None is not filtered"
 
-    def test_extend_dynamic(self):
+    def test_lookup_dynamic(self):
         chm = ChoiceMap.choice(jnp.asarray([2.3, 4.4, 3.3]))
-        extended = chm.extend(slice(None, None, None))
-        assert extended.get_value() is None
-        assert extended.get_submap("x").static_is_empty()
-        assert extended[0] == 2.3
-        assert extended[1] == 4.4
-        assert extended[2] == 3.3
+        assert chm.get_submap("x").static_is_empty()
+        assert chm[0] == 2.3
+        assert chm[1] == 4.4
+        assert chm[2] == 3.3
 
         assert ChoiceMap.empty().extend(slice(None, None, None)).static_is_empty()
 
@@ -726,8 +724,8 @@ class TestChoiceMap:
         # Create a ChoiceMap with values at 'x' and 'y' addresses
         chm = C[:].set({"x": xs, "y": ys})
 
-        # Create a Selection with a wildcard for 'x'
-        sel = S[..., "x"]
+        # Create a Selection for 'x'
+        sel = S["x"]
 
         # Filter the ChoiceMap using the Selection
         filtered_chm = chm.filter(sel)
@@ -757,8 +755,8 @@ class TestChoiceMap:
         xs = jnp.ones(4)
         ys = 5 * jnp.ones(4)
         constraint = C[:].set({"x": xs, "y": ys})
-        only_xs = constraint.filter(S[..., "x"])
-        only_ys = constraint.filter(S[..., "y"])
+        only_xs = constraint.filter(S["x"])
+        only_ys = constraint.filter(S["y"])
 
         key, subkey = jax.random.split(key)
         new_tr, _, _, _ = tr.update(subkey, only_xs)
@@ -863,12 +861,10 @@ class TestChoiceMap:
         inner_chm = ChoiceMap.kw(a=jnp.array([0.5, 1.5, 2.5]), b=jnp.array([1, 0, 1]))
         invalid_vmap_chm1 = ChoiceMap.kw(
             x=1.0,
-            # missing the index nesting
+            # missing the index nesting is fine, we don't care anymore
             y=inner_chm,
         )
-        assert invalid_vmap_chm1.invalid_subset(outer_model, ()) == C["y"].set(
-            inner_chm
-        )
+        assert invalid_vmap_chm1.invalid_subset(outer_model, ()) is None
 
         # Invalid nested ChoiceMap - extra address in vmapped inner model
 
@@ -946,9 +942,9 @@ class TestChoiceMap:
         valid_chm = C[:, "x"].set(jnp.array([0.5, 1.2, 0.8, 0.9]))
         assert valid_chm.invalid_subset(outer_model, (1.0,)) is None
 
-        # forgot the index layer
+        # index layer isn't required, forgetting it is fine
         invalid_chm2 = C["x"].set(jnp.array([0.5, 1.2, 0.8, 0.9]))
-        assert invalid_chm2.invalid_subset(outer_model, (1.0,)) == invalid_chm2
+        assert invalid_chm2.invalid_subset(outer_model, (1.0,)) is None
 
         xs = jnp.array([0.5, 1.2, 0.8, 0.9])
         zs = jnp.array([0.5, 1.2, 0.8, 0.9])
