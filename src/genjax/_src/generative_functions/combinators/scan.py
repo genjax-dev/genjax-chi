@@ -1053,3 +1053,32 @@ def iterate_final(
         )
 
     return decorator
+
+
+def mask_iterate_final(
+    *, n: int
+) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
+    """_summary_
+
+    Args:
+        n (int): _description_
+
+    Returns:
+        Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]: _description_
+    """
+
+    def decorator(f: GenerativeFunction[Y]) -> GenerativeFunction[Y]:
+        # strip off the JAX-supplied `None` on the way in, no accumulation on the way out.
+        def pre_post(_, ret: Y):
+            return ret, None
+
+        def post_post(_, ret: tuple[Y, None]):
+            return ret[0]
+
+        return (
+            f.dimap(pre=lambda *args: args[:-1], post=pre_post)
+            .scan(n=n)
+            .dimap(pre=lambda *args: (*args, None), post=post_post)
+        )
+
+    return decorator

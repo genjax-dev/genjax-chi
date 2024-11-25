@@ -53,6 +53,7 @@ square_many_better = genjax.vmap()(square)
 ::: genjax.reduce
 ::: genjax.iterate
 ::: genjax.iterate_final
+::: genjax.mask_iterate_final
 
 ## Control Flow Combinators
 

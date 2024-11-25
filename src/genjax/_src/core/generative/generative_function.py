@@ -1085,6 +1085,61 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.mask(self)
 
+    def mask_iterate_final(
+        self,
+        /,
+        *,
+        n: int,
+    ) -> "GenerativeFunction[R]":
+        """
+        Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a` where
+
+        - `a` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
+        - the original function is invoked `n` times with each input coming from the previous invocation's output, so that the new function returns $f^n(a)$
+
+        All traced values are nested under an index.
+
+        The semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation:
+
+        ```python
+        def iterate_final(f, n, init):
+            ret = init
+            for _ in range(n):
+                ret = f(ret)
+            return ret
+        ```
+
+        `init` may be an arbitrary pytree value, and so multiple arrays can be iterated over at once and produce multiple output arrays.
+
+        The iterated value `a` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `a` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
+
+        Args:
+            n: the number of iterations to run.
+
+        Examples:
+            iterative addition:
+            ```python exec="yes" html="true" source="material-block" session="scan"
+            import jax
+            import genjax
+
+
+            @genjax.iterate_final(n=100)
+            @genjax.gen
+            def inc(x):
+                return x + 1
+
+
+            init = 0.0
+            key = jax.random.key(314159)
+
+            tr = jax.jit(inc.simulate)(key, (init,))
+            print(tr.render_html())
+            ```
+        """
+        import genjax
+
+        return genjax.mask_iterate_final(n=n)(self)
+
     def or_else(self, gen_fn: "GenerativeFunction[R]", /) -> "GenerativeFunction[R]":
         """
         Returns a [`GenerativeFunction`][genjax.GenerativeFunction] that accepts

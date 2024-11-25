@@ -39,6 +39,7 @@ from genjax._src.generative_functions.combinators.scan import (
     accumulate,
     iterate,
     iterate_final,
+    mask_iterate_final,
     reduce,
     scan,
 )
@@ -67,6 +68,7 @@ __all__ = [
     "iterate_final",
     "map",
     "mask",
+    "mask_iterate_final",
     "mix",
     "or_else",
     "reduce",
