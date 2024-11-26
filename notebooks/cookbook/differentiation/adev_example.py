@@ -1,3 +1,4 @@
+# pyright: reportUnusedExpression=false
 # ---
 # title: Differentiating probabilistic programs
 # subtitle: How to take drastic differentiating measures by differentiating measures
