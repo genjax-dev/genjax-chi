@@ -170,6 +170,14 @@ class TestMaskCombinator:
         assert step_weight == jnp.array(0.0)
         assert step_particle.get_retval() == (jnp.array(0.0), None)
 
+        # Testing inference working when we extend the model by unmasking a value.
+        argdiffs_ = (Diff.no_change(0.0), Diff.unknown_change(jnp.arange(10) < 6))
+        step_particle, step_weight, _, _ = model.update(
+            key, init_particle, C.n(), argdiffs_
+        )
+        assert step_weight != jnp.array(0.0)
+        assert step_particle.get_score() == step_weight + init_particle.get_score()
+
     def test_mask_scan_update_type_error(self, key):
         @genjax.gen
         def model_inside():
