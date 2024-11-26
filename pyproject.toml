@@ -48,7 +48,7 @@ treescope = "^0.1.5"
 # Numpy <2.0.0 is due to tfp issues: https://github.com/tensorflow/probability/issues/1814
 # remove this constraint when that issue is closed.
 numpy = ">=1.22,<2.0.0"
-genstudio = { version = "2024.09.003", source = "gcp", optional = true }
+genstudio = { version = "2024.11.010", source = "gcp", optional = true }
 
 [tool.poetry.group.dev]
 optional = true

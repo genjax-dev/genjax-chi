@@ -1048,19 +1048,20 @@ files = [
 
 [[package]]
 name = "genstudio"
-version = "2024.9.3"
+version = "2024.11.10"
 description = ""
 optional = true
 python-versions = ">=3.10,<3.13"
 files = [
-    {file = "genstudio-2024.9.3-py3-none-any.whl", hash = "sha256:4718af14d89d81c1f7e9486e61569761e5b85d9b5a9996a42ef36a77596f5b92"},
-    {file = "genstudio-2024.9.3.tar.gz", hash = "sha256:86db98000bab42a1c5edb4f4fadcd6250fff3fbab44f10f2af5bb01e4447bbff"},
+    {file = "genstudio-2024.11.10-py3-none-any.whl", hash = "sha256:4c05e10a5a0dad486258cdbb13ebbe50488f5be5610b6292b23eb677a0847b27"},
+    {file = "genstudio-2024.11.10.tar.gz", hash = "sha256:756013f204296906e154e2abeacee061dd98b9ce5eeb986f0502e08e1c97b14c"},
 ]
 
 [package.dependencies]
 anywidget = ">=0.9.10,<0.10.0"
 html2image = ">=2.0.4.3,<3.0.0.0"
 orjson = ">=3.10.6,<4.0.0"
+pillow = ">=10.4.0,<11.0.0"
 traitlets = ">=5.14.3,<6.0.0"
 
 [package.source]
@@ -4741,4 +4742,4 @@ genstudio = ["genstudio"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "d2abe8ab67a11a83d9d58edf8c8d32eabcde0c26b448a26b72c61c1405f9d929"
+content-hash = "52335e05b2b9fff4c2f45a38228ce2faeaa7cea7984deab1ca994100ba2c7f48"
