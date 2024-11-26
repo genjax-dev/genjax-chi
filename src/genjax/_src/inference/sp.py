@@ -26,9 +26,11 @@ from genjax._src.core.generative.core import Score
 from genjax._src.core.generative.generative_function import Trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Annotated,
     Any,
     Callable,
     Generic,
+    Is,
     PRNGKey,
     TypeVar,
 )
@@ -39,6 +41,12 @@ R = TypeVar("R")
 ####################
 # Posterior target #
 ####################
+
+
+def validate_non_marginal(x):
+    if isinstance(x, Marginal):
+        raise TypeError("Target does not support Marginal generative functions.")
+    return True
 
 
 @Pytree.dataclass
@@ -68,7 +76,7 @@ class Target(Generic[R], Pytree):
         ```
     """
 
-    p: GenerativeFunction[R]
+    p: Annotated[GenerativeFunction[R], Is[validate_non_marginal]]
     args: tuple[Any, ...]
     constraint: ChoiceMap
 
