@@ -43,11 +43,13 @@ website:
           contents:
             - cookbook/expressivity/conditionals.ipynb
             - cookbook/expressivity/iterating_computation.ipynb
-            - cookbook/expressivity/dynamic_computation.ipynb
+            - cookbook/expressivity/masking.ipynb
             - cookbook/expressivity/mixture.ipynb
             - cookbook/expressivity/custom_distribution.ipynb
             - cookbook/expressivity/stochastic_probabilities.ipynb
-            - cookbook/expressivity/ravi_stack.ipynb
+            - cookbook/expressivity/stochastic_probabilities_math.ipynb
+            # TODO: re-enable once we can support marginals as targets
+            # - cookbook/expressivity/ravi_stack.ipynb
         - section: "Inference"
           href: inference.qmd
           contents:

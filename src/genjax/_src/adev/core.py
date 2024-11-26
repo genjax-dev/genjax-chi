@@ -61,8 +61,8 @@ class ADEVPrimitive(Pytree):
     """
 
     @abstractmethod
-    def sample(self, key, *args):
-        raise NotImplementedError
+    def sample(self, key, *args) -> Any:
+        pass
 
     @abstractmethod
     def jvp_estimate(
@@ -73,7 +73,7 @@ class ADEVPrimitive(Pytree):
     ) -> "Dual":
         pass
 
-    def get_batched_prim(self, dims: tuple[Any, ...]):
+    def get_batched_prim(self, dims: tuple[Any, ...]) -> "ADEVPrimitive":
         """
         To use ADEV primitives inside of `vmap`, they must provide a custom batched primitive version of themselves.
 
@@ -92,7 +92,7 @@ class TailCallADEVPrimitive(ADEVPrimitive):
         key: PRNGKey,
         dual_tree: DualTree,  # Pytree with Dual leaves.
     ) -> "Dual":
-        raise NotImplementedError
+        pass
 
     def jvp_estimate(
         self,
@@ -142,7 +142,7 @@ class TailCallBatchedADEVPrimitive(TailCallADEVPrimitive):
 sample_p = InitialStylePrimitive("sample")
 
 
-def sample_primitive(adev_prim: ADEVPrimitive, *args, key=jax.random.PRNGKey(0)):
+def sample_primitive(adev_prim: ADEVPrimitive, *args, key=jax.random.key(0)):
     def _adev_prim_call(adev_prim, *args):
         # When used for abstract tracing, value of the key doesn't matter.
         # However, we support overloading the key for other transformations,
@@ -245,11 +245,11 @@ class Dual(Pytree):
         return tuple(primals), tuple(tangents)
 
     @staticmethod
-    def static_check_is_dual(v):
+    def static_check_is_dual(v) -> bool:
         return isinstance(v, Dual)
 
     @staticmethod
-    def static_check_dual_tree(v):
+    def static_check_dual_tree(v) -> bool:
         return all(
             map(
                 lambda v: isinstance(v, Dual),
@@ -305,7 +305,7 @@ class ADInterpreter(Pytree):
         def eval_jaxpr_iterate_dual(key, eqns, dual_env, invars, flat_duals):
             jax_util.safe_map(dual_env.write, invars, flat_duals)
 
-            for eqn_idx, eqn in list(enumerate(eqns)):
+            for eqn_idx, eqn in enumerate(eqns):
                 with src_util.user_context(eqn.source_info.traceback):
                     in_vals = jax_util.safe_map(dual_env.read, eqn.invars)
                     subfuns, params = eqn.primitive.get_bind_params(eqn.params)

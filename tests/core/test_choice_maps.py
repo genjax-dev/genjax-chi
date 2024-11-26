@@ -15,6 +15,7 @@
 
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 import pytest
 
 import genjax
@@ -67,6 +68,18 @@ class TestSelections:
         # none can't be extended
         assert Selection.none().extend("a", "b") == Selection.none()
 
+    def test_selection_leaf(self):
+        leaf_sel = Selection.leaf().extend("x", "y")
+        assert not leaf_sel["x"]
+        assert leaf_sel["x", "y"]
+
+        # only exact matches are allowed
+        assert not leaf_sel["x", "y", "z"]
+
+        # wildcards are not allowed
+        with pytest.raises(TypeError):
+            leaf_sel[..., "y"]  # pyright: ignore
+
     def test_selection_complement(self):
         sel = S["x"] | S["y"]
         comp_sel = ~sel
@@ -105,6 +118,10 @@ class TestSelections:
         assert (none_sel & sel1) == none_sel
         assert (sel1 & none_sel) == none_sel
 
+        # idempotence
+        assert sel1 & sel1 == sel1
+        assert sel2 & sel2 == sel2
+
     def test_selection_or(self):
         sel1 = S["x"]
         sel2 = S["y"]
@@ -123,6 +140,10 @@ class TestSelections:
         none_sel = Selection.none()
         assert (none_sel | sel1) == sel1
         assert (sel1 | none_sel) == sel1
+
+        # idempotence
+        assert sel1 | sel1 == sel1
+        assert sel2 | sel2 == sel2
 
     def test_selection_mask(self):
         sel = S["x"] | S["y"]
@@ -212,19 +233,12 @@ class TestSelections:
         assert not nested_sel("a")("b").check()
         assert nested_sel("a")("b")("c").check()
 
-    def test_selection_ellipsis(self):
+    def test_ellipsis_not_allowed(self):
         # Create a selection with nested structure
         sel = S["a", "b", "c"] | S["x", "y", "z"]
 
-        # Test that ... gives a free pass to one level of matching
-        assert sel["a", ..., ...]
-        assert sel["x", ..., ...]
-        assert sel["a", ..., "c"]
-        assert sel["x", ..., "z"]
-        assert not sel["a", ..., "z"]
-
-        assert not sel[...]
-        assert not sel["a", "z", ...]
+        with pytest.raises(TypeError):
+            sel["a", ..., ...]  # pyright: ignore
 
     def test_static_sel(self):
         xy_sel = Selection.at["x", "y"]
@@ -240,7 +254,7 @@ class TestSelections:
 
     def test_chm_sel(self):
         # Create a ChoiceMap
-        chm = C["x", "y"].set(3.0) ^ C["z"].set(5.0)
+        chm = C["x", "y"].set(3.0) | C["z"].set(5.0)
 
         # Create a ChmSel from the ChoiceMap
         chm_sel = chm.get_selection()
@@ -276,6 +290,25 @@ class TestChoiceMapBuilder:
         assert chm["x", "y"] == 2
         assert ("x", "y") in chm
         assert "y" not in chm
+
+    def test_update(self):
+        chm = C["x", "y"].set(2)
+
+        # update at a spot populated by a choicemap
+        updated = chm.at["x"].update(lambda m: C["z"].set(m))
+        assert updated["x", "z", "y"] == 2
+
+        # update that hits a spot
+        updated_choice = chm.at["x", "y"].update(jnp.square)
+        assert updated_choice["x", "y"] == 4
+
+        # update that hits an empty spot:
+        updated_empty = chm.at["q"].update(lambda m: C["z"].set(m))
+        assert updated_empty(("q", "z")).static_is_empty()
+
+        # filling the spot is fine:
+        updated_empty_2 = chm.at["q"].update(lambda m: C["z"].set(2))
+        assert updated_empty_2["q", "z"] == 2
 
     def test_empty(self):
         assert C.n() == ChoiceMap.empty()
@@ -329,13 +362,26 @@ class TestChoiceMap:
         empty_chm = ChoiceMap.empty()
         assert empty_chm.static_is_empty()
 
-    def test_value(self):
-        value_chm = ChoiceMap.choice(42.0)
-        assert value_chm.get_value() == 42.0
-        assert value_chm.has_value()
+    def test_choice(self):
+        choice = ChoiceMap.choice(42.0)
+        assert choice.get_value() == 42.0
+        assert choice.has_value()
 
         # NO sub-paths are inside a ValueChm.
-        assert () in value_chm
+        assert () in choice
+
+        # A choice with a mask that is concrete False is empty.
+        assert ChoiceMap.choice(Mask(42.0, False)).static_is_empty()
+
+        # Masks with concrete `True` flags have their masks stripped off
+        assert ChoiceMap.choice(Mask(42.0, True)) == ChoiceMap.choice(42.0)
+
+        # non-concrete values survive.
+        masked_v = Mask(42.0, jnp.array(False))
+        assert ChoiceMap.choice(masked_v).get_value() == masked_v
+
+        empty_array = jnp.ones((0,))
+        assert ChoiceMap.choice(empty_array).static_is_empty()
 
     def test_kv(self):
         chm = ChoiceMap.kw(x=1, y=2)
@@ -421,13 +467,58 @@ class TestChoiceMap:
         extended = chm.extend("a", "b")
         assert extended["a", "b"] == 1
 
-        # ... is a wildcard
-        assert extended[..., "b"] == 1
-        assert extended["a", ...] == 1
-
         assert extended.get_value() is None
         assert extended.get_submap("a").get_submap("b").get_value() == 1
         assert ChoiceMap.empty().extend("a", "b").static_is_empty()
+
+    def test_switch_chm(self):
+        # Test with concrete int index
+        chm1 = ChoiceMap.kw(x=1, y=2)
+        chm2 = ChoiceMap.kw(a=3, b=4)
+        chm3 = ChoiceMap.kw(p=5, q=6)
+
+        switched = ChoiceMap.switch(1, [chm1, chm2, chm3])
+        assert switched == chm2
+
+        # Test with array index
+        idx = jnp.array(1)
+        switched_array = ChoiceMap.switch(idx, [chm1, chm2, chm3])
+
+        # Can get values from any component, masked to the correct idx
+        assert switched_array["x"] == Mask(1, jnp.array(False))
+        assert switched_array["a"] == Mask(3, jnp.array(True))
+        assert switched_array["p"] == Mask(5, jnp.array(False))
+
+        # any statically missing address still raises:
+        with pytest.raises(ChoiceMapNoValueAtAddress):
+            switched_array["z"]
+
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
+    def test_or_xor_access(self):
+        # Create two choice maps with disjoint addresses
+        left = ChoiceMap.kw(x=1, y=2)
+        right = ChoiceMap.kw(z=3, w=4)
+
+        # Test Or
+        or_chm = left | right
+        assert or_chm["x"] == 1  # Only in left
+        assert or_chm["y"] == 2  # Only in left
+        assert or_chm["z"] == 3  # Only in right
+        assert or_chm["w"] == 4  # Only in right
+
+        # Test Xor
+        xor_chm = left ^ right
+        assert xor_chm["x"] == 1  # Only in left
+        assert xor_chm["y"] == 2  # Only in left
+        assert xor_chm["z"] == 3  # Only in right
+        assert xor_chm["w"] == 4  # Only in right
+
+        # Test that non-existent addresses still raise
+        with pytest.raises(ChoiceMapNoValueAtAddress):
+            or_chm["does_not_exist"]
+
+        with pytest.raises(ChoiceMapNoValueAtAddress):
+            xor_chm["does_not_exist"]
 
     def test_nested_static_choicemap(self):
         # Create a nested static ChoiceMap
@@ -475,13 +566,14 @@ class TestChoiceMap:
         chm = Static.build({"v": ChoiceMap.choice(1.0), "K": ChoiceMap.empty()})
         assert len(chm.mapping) == 1, "make sure empty chm doesn't make it through"
 
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_simplify(self):
         chm = ChoiceMap.choice(jnp.asarray([2.3, 4.4, 3.3]))
-        extended = chm.extend(jnp.array([0, 1, 2]))
+        extended = chm.extend(slice(None, None, None))
         assert extended.simplify() == extended, "no-op with no filters"
 
         filtered = C["x", "y"].set(2.0).mask(jnp.array(True))
-        maskv = Mask(jnp.array(True), 2.0)
+        maskv = Mask(2.0, jnp.array(True))
         assert filtered.simplify() == C["x", "y"].set(maskv), "simplify removes filters"
 
         xyz = ChoiceMap.d({"x": 1, "y": 2, "z": 3})
@@ -503,16 +595,25 @@ class TestChoiceMap:
 
         assert C["x"].set(None).simplify() == C["x"].set(None), "None is not filtered"
 
-    def test_extend_dynamic(self):
+    def test_lookup_dynamic(self):
         chm = ChoiceMap.choice(jnp.asarray([2.3, 4.4, 3.3]))
-        extended = chm.extend(jnp.array([0, 1, 2]))
-        assert extended.get_value() is None
-        assert extended.get_submap("x").static_is_empty()
-        assert extended[0].unmask() == 2.3
-        assert extended[1].unmask() == 4.4
-        assert extended[2].unmask() == 3.3
+        assert chm.get_submap("x").static_is_empty()
+        assert chm[0] == 2.3
+        assert chm[1] == 4.4
+        assert chm[2] == 3.3
 
-        assert ChoiceMap.empty().extend(jnp.array([0, 1, 2])).static_is_empty()
+        assert ChoiceMap.empty().extend(slice(None, None, None)).static_is_empty()
+
+    def test_access_dynamic(self):
+        # out of order input arrays
+        chm = C[jnp.array([4, 8, 2]), "x"].set(jnp.array([4.0, 8.0, 2.0]))
+        assert chm[2, "x"] == genjax.Mask(2.0, True)
+        assert chm[4, "x"] == genjax.Mask(4.0, True)
+        assert chm[8, "x"] == genjax.Mask(8.0, True)
+
+        # indices that don't exist are flagged False.
+        assert jnp.array_equal(chm[0, "x"].primal_flag(), jnp.asarray(False))
+        assert jnp.array_equal(chm[11, "x"].primal_flag(), jnp.asarray(False))
 
     def test_merge(self):
         chm1 = ChoiceMap.kw(x=1)
@@ -521,8 +622,8 @@ class TestChoiceMap:
         assert merged["x"] == 1
         assert merged["y"] == 2
 
-        # merged is equivalent to xor
-        assert merged == chm1 ^ chm2
+        # merged is equivalent to or
+        assert merged == chm1 | chm2
 
     def test_get_selection(self):
         chm = ChoiceMap.kw(x=1, y=2)
@@ -535,18 +636,13 @@ class TestChoiceMap:
         assert ChoiceMap.empty().static_is_empty()
         assert not ChoiceMap.kw(x=1).static_is_empty()
 
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_xor(self):
         chm1 = ChoiceMap.kw(x=1)
         chm2 = ChoiceMap.kw(y=2)
         xor_chm = chm1 ^ chm2
         assert xor_chm["x"] == 1
         assert xor_chm["y"] == 2
-
-        with pytest.raises(
-            Exception,
-            match="The disjoint union of two choice maps have a value collision",
-        ):
-            (chm1 ^ chm1)["x"]
 
         # Optimization: XorChm.build should return EmptyChm for empty inputs
         assert (ChoiceMap.empty() ^ ChoiceMap.empty()).static_is_empty()
@@ -571,6 +667,40 @@ class TestChoiceMap:
         y_masked = ChoiceMap.choice(3.0).mask(jnp.asarray(True))
         assert (x_masked | y_masked).get_value().unmask() == 2.0
 
+        with pytest.raises(Exception, match="Choice and non-Choice in Or"):
+            _ = C["x"].set(1.0) | C["x", "y"].set(2.0)
+
+    def test_and(self):
+        chm1 = ChoiceMap.kw(x=1, y=2, z=3)
+        chm2 = ChoiceMap.kw(y=20, z=30, w=40)
+
+        and_chm = chm1 & chm2
+
+        # Check that only common keys are present
+        assert "x" not in and_chm
+        assert "y" in and_chm
+        assert "z" in and_chm
+        assert "w" not in and_chm
+
+        # Check that values come from the right-hand side (chm2)
+        assert and_chm["y"] == 20
+        assert and_chm["z"] == 30
+
+        # Test with empty ChoiceMap
+        empty_chm = ChoiceMap.empty()
+        assert (chm1 & empty_chm).static_is_empty()
+        assert (empty_chm & chm1).static_is_empty()
+
+        # Test with nested ChoiceMaps
+        nested_chm1 = ChoiceMap.kw(a={"b": 1, "c": 2}, d=3)
+        nested_chm2 = ChoiceMap.kw(a={"b": 10, "d": 20}, d=30)
+        nested_and_chm = nested_chm1 & nested_chm2
+
+        assert nested_and_chm["a", "b"] == 10
+        assert "c" not in nested_and_chm("a")
+        assert "d" not in nested_and_chm("a")
+        assert nested_and_chm["d"] == 30
+
     def test_call(self):
         chm = ChoiceMap.kw(x={"y": 1})
         assert chm("x")("y") == ChoiceMap.choice(1)
@@ -592,25 +722,25 @@ class TestChoiceMap:
         xs = jnp.array([1.0, 2.0, 3.0])
         ys = jnp.array([4.0, 5.0, 6.0])
         # Create a ChoiceMap with values at 'x' and 'y' addresses
-        chm = C[jnp.arange(3)].set({"x": xs, "y": ys})
+        chm = C[:].set({"x": xs, "y": ys})
 
-        # Create a Selection with a wildcard for 'x'
-        sel = S[..., "x"]
+        # Create a Selection for 'x'
+        sel = S["x"]
 
         # Filter the ChoiceMap using the Selection
         filtered_chm = chm.filter(sel)
 
         # Assert that only 'x' values are present in the filtered ChoiceMap
-        assert jnp.all(filtered_chm[..., "x"] == jnp.array([1.0, 2.0, 3.0]))
+        assert jnp.all(filtered_chm[:, "x"] == jnp.array([1.0, 2.0, 3.0]))
 
         # Assert that 'y' values are not present in the filtered ChoiceMap
         with pytest.raises(ChoiceMapNoValueAtAddress):
-            filtered_chm[..., "y"]
+            filtered_chm[:, "y"]
 
         # Assert that the structure of the filtered ChoiceMap is preserved
-        assert filtered_chm[0, "x"].unmask() == 1.0
-        assert filtered_chm[1, "x"].unmask() == 2.0
-        assert filtered_chm[2, "x"].unmask() == 3.0
+        assert filtered_chm[0, "x"] == 1.0
+        assert filtered_chm[1, "x"] == 2.0
+        assert filtered_chm[2, "x"] == 3.0
 
     def test_filtered_chm_update(self):
         @genjax.gen
@@ -619,26 +749,26 @@ class TestChoiceMap:
             y = genjax.normal(10.0, 1.0) @ "y"
             return x, y
 
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
         tr = f.repeat(n=4).simulate(key, ())
 
         xs = jnp.ones(4)
         ys = 5 * jnp.ones(4)
-        constraint = C[jnp.arange(4)].set({"x": xs, "y": ys})
-        only_xs = constraint.filter(S[..., "x"])
-        only_ys = constraint.filter(S[..., "y"])
+        constraint = C[:].set({"x": xs, "y": ys})
+        only_xs = constraint.filter(S["x"])
+        only_ys = constraint.filter(S["y"])
 
         key, subkey = jax.random.split(key)
         new_tr, _, _, _ = tr.update(subkey, only_xs)
         new_choices = new_tr.get_choices()
-        assert jnp.array_equal(new_choices[..., "x"], xs)
-        assert not jnp.array_equal(new_choices[..., "y"], ys)
+        assert jnp.array_equal(new_choices[:, "x"], xs)
+        assert not jnp.array_equal(new_choices[:, "y"], ys)
 
         key, subkey = jax.random.split(key)
         new_tr_2, _, _, _ = tr.update(subkey, only_ys)
         new_choices_2 = new_tr_2.get_choices()
-        assert not jnp.array_equal(new_choices_2[..., "x"], xs)
-        assert jnp.array_equal(new_choices_2[..., "y"], ys)
+        assert not jnp.array_equal(new_choices_2[:, "x"], xs)
+        assert jnp.array_equal(new_choices_2[:, "y"], ys)
 
     def test_choicemap_with_static_idx(self):
         chm = C[0].set({"x": 1.0, "y": 2.0})
@@ -650,3 +780,271 @@ class TestChoiceMap:
     def test_chm_roundtrip(self):
         chm = ChoiceMap.choice(3.0)
         assert chm == chm.__class__.from_attributes(**chm.attributes_dict())
+
+    def test_choicemap_validation(self):
+        @genjax.gen
+        def model(x):
+            y = genjax.normal(x, 1.0) @ "y"
+            z = genjax.bernoulli(0.5) @ "z"
+            return y + z
+
+        # Valid ChoiceMap
+        valid_chm = ChoiceMap.kw(y=1.0, z=1)
+        assert valid_chm.invalid_subset(model, (0.0,)) is None
+
+        # Invalid ChoiceMap - missing 'z'
+        invalid_chm1 = ChoiceMap.kw(x=1.0)
+        assert invalid_chm1.invalid_subset(model, (0.0,)) == invalid_chm1
+
+        # Invalid ChoiceMap - extra address
+        invalid_chm2 = ChoiceMap.kw(y=1.0, z=1, extra=0.5)
+        assert invalid_chm2.invalid_subset(model, (0.0,)) == ChoiceMap.kw(extra=0.5)
+
+    def test_choicemap_nested_validation(self):
+        @genjax.gen
+        def inner_model():
+            a = genjax.normal(0.0, 1.0) @ "a"
+            b = genjax.bernoulli(0.5) @ "b"
+            return a + b
+
+        @genjax.gen
+        def outer_model():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = inner_model() @ "y"
+            return x + y
+
+        # Valid nested ChoiceMap
+        valid_nested_chm = ChoiceMap.kw(x=1.0, y=ChoiceMap.kw(a=0.5, b=1))
+        assert valid_nested_chm.invalid_subset(outer_model, ()) is None
+
+        # Invalid nested ChoiceMap - missing inner 'b'
+        invalid_nested_chm1 = ChoiceMap.kw(x=1.0, y=ChoiceMap.kw(a=0.5))
+        assert invalid_nested_chm1.invalid_subset(outer_model, ()) is None, (
+            "missing address is fine"
+        )
+
+        # Invalid nested ChoiceMap - extra address in inner model
+        invalid_nested_chm2 = ChoiceMap.kw(x=1.0, y=ChoiceMap.kw(a=0.5, b=1, c=2.0))
+        assert invalid_nested_chm2.invalid_subset(outer_model, ()) == ChoiceMap.kw(
+            y=ChoiceMap.kw(c=2.0)
+        )
+
+        # Invalid nested ChoiceMap - extra address in outer model
+        invalid_nested_chm3 = ChoiceMap.kw(x=1.0, y=ChoiceMap.kw(a=0.5, b=1), z=3.0)
+        assert invalid_nested_chm3.invalid_subset(outer_model, ()) == ChoiceMap.kw(
+            z=3.0
+        )
+
+    def test_choicemap_nested_vmap(self):
+        @genjax.gen
+        def inner_model(x):
+            a = genjax.normal(x, 1.0) @ "a"
+            b = genjax.bernoulli(0.5) @ "b"
+            return a + b
+
+        @genjax.gen
+        def outer_model():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = inner_model.vmap(in_axes=(0,))(jnp.array([1.0, 2.0, 3.0])) @ "y"
+            return x + jnp.sum(y)
+
+        # Valid nested ChoiceMap with vmap
+        valid_vmap_chm = ChoiceMap.kw(
+            x=1.0,
+            y=C[:].set(
+                ChoiceMap.kw(a=jnp.array([0.5, 1.5, 2.5]), b=jnp.array([1, 0, 1]))
+            ),
+        )
+        assert valid_vmap_chm.invalid_subset(outer_model, ()) is None
+
+        # Invalid nested ChoiceMap - wrong shape for vmapped inner model
+        inner_chm = ChoiceMap.kw(a=jnp.array([0.5, 1.5, 2.5]), b=jnp.array([1, 0, 1]))
+        invalid_vmap_chm1 = ChoiceMap.kw(
+            x=1.0,
+            # missing the index nesting is fine, we don't care anymore
+            y=inner_chm,
+        )
+        assert invalid_vmap_chm1.invalid_subset(outer_model, ()) is None
+
+        # Invalid nested ChoiceMap - extra address in vmapped inner model
+
+        invalid_vmap_chm2 = ChoiceMap.kw(
+            x=1.0,
+            y=C[:].set(
+                ChoiceMap.kw(
+                    a=jnp.array([0.5, 1.5, 2.5]),
+                    b=jnp.array([1, 0, 1]),
+                    c=jnp.array([0.1, 0.2, 0.3]),  # Extra address
+                )
+            ),
+        )
+        expected_result = C["y", :, "c"].set(jnp.array([0.1, 0.2, 0.3]))
+        actual_result = invalid_vmap_chm2.invalid_subset(outer_model, ())
+        assert jtu.tree_structure(actual_result) == jtu.tree_structure(expected_result)
+        assert jtu.tree_all(
+            jtu.tree_map(
+                lambda x, y: jnp.allclose(x, y), actual_result, expected_result
+            )
+        )
+
+    def test_choicemap_switch(self):
+        @genjax.gen
+        def model1():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            return x
+
+        @genjax.gen
+        def model2():
+            y = genjax.uniform(0.0, 1.0) @ "y"
+            return y
+
+        @genjax.gen
+        def model3():
+            z = genjax.normal(0.0, 1.0) @ "z"
+            return z
+
+        switch_model = genjax.switch(model1, model2, model3)
+
+        @genjax.gen
+        def outer_model():
+            choice = genjax.categorical([0.3, 0.3, 0.4]) @ "choice"
+            return switch_model(choice, (), (), ()) @ "out"
+
+        # Valid ChoiceMap for model1
+        valid_chm1 = ChoiceMap.kw(choice=0, out={"x": 0.5})
+        assert valid_chm1.invalid_subset(outer_model, ()) is None
+
+        # Valid ChoiceMap for model2
+        valid_chm2 = ChoiceMap.kw(choice=1, out={"y": 0.7})
+        assert valid_chm2.invalid_subset(outer_model, ()) is None
+
+        # Valid ChoiceMap for model3
+        valid_chm3 = ChoiceMap.kw(choice=2, out={"z": 1.2})
+        assert valid_chm3.invalid_subset(outer_model, ()) is None
+
+        # Valid ChoiceMap with entries for all models
+        valid_chm_all = ChoiceMap.kw(choice=0, out={"x": 0.5, "y": 0.7, "z": 1.2})
+        assert valid_chm_all.invalid_subset(outer_model, ()) is None
+
+        # Invalid ChoiceMap - extra address
+        invalid_chm2 = ChoiceMap.kw(choice=1, out={"q": 0.5})
+        assert invalid_chm2.invalid_subset(outer_model, ()) == C["out", "q"].set(0.5)
+        pass
+
+    def test_choicemap_scan(self):
+        @genjax.gen
+        def inner_model(mean):
+            return genjax.normal(mean, 1.0) @ "x"
+
+        outer_model = inner_model.iterate(n=4)
+
+        # Test valid ChoiceMap
+        valid_chm = C[:, "x"].set(jnp.array([0.5, 1.2, 0.8, 0.9]))
+        assert valid_chm.invalid_subset(outer_model, (1.0,)) is None
+
+        # index layer isn't required, forgetting it is fine
+        invalid_chm2 = C["x"].set(jnp.array([0.5, 1.2, 0.8, 0.9]))
+        assert invalid_chm2.invalid_subset(outer_model, (1.0,)) is None
+
+        xs = jnp.array([0.5, 1.2, 0.8, 0.9])
+        zs = jnp.array([0.5, 1.2, 0.8, 0.9])
+        invalid_chm3 = C[:].set({"x": xs, "z": zs})
+        invalid_subset = invalid_chm3.invalid_subset(outer_model, (1.0,))
+        expected_invalid = C[:, "z"].set(zs)
+        assert jtu.tree_structure(invalid_subset) == jtu.tree_structure(
+            expected_invalid
+        )
+        assert jtu.tree_all(
+            jtu.tree_map(
+                lambda x, y: jnp.allclose(x, y), invalid_subset, expected_invalid
+            )
+        )
+
+    def test_choicemap_slice(self):
+        # partial slices are not allowed when setting:
+        with pytest.raises(ValueError):
+            C[:3, "x"].set(jnp.array([1, 2]))
+
+        with pytest.raises(ValueError):
+            C[0:3, "x"].set(jnp.array([1, 2]))
+
+        with pytest.raises(ValueError):
+            C[0:3:1, "x"].set(jnp.array([1, 2]))
+
+        # set with a full slice
+        vals = jnp.arange(10)
+        chm = C[:, "x"].set(vals)
+
+        # Full lookup:
+        assert jnp.array_equal(chm[:, "x"], jnp.arange(10))
+
+        # single int index:
+        assert chm[1, "x"] == vals[1]
+
+        # single array index:
+        assert chm[jnp.array(5), "x"] == vals[5]
+
+        # one non-full slices is allowed:
+        assert jnp.array_equal(chm[0:4, "x"], vals[0:4])
+
+        assert jnp.array_equal(chm[0:4, "x"], vals[0:4])
+
+    def test_nested_masking(self):
+        chm = C[jnp.array(0), "w", jnp.array(1), :, :].set(jnp.ones((3, 2, 2)))
+        assert jnp.array_equal(chm[0, "w", 1, :, :].unmask(), jnp.ones((3, 2, 2)))
+
+    def test_choicemap_slice_validation(self):
+        # Creation with scalar and string keys
+        chm = C[0, "x", 1].set(10)
+        assert chm[0, "x", 1] == 10
+
+        # Creation with IntArray (shape == ())
+        idx = jnp.array(2, dtype=jnp.int32)
+        chm = C[idx, "y"].set(20)
+        assert chm[2, "y"] == genjax.Mask(20, True)
+
+        # Creation with optional single array of indices
+        indices = jnp.array([0, 1, 2])
+        values = jnp.array([5, 10, 15])
+        chm = C["z", indices].set(values)
+
+        # querying array-shaped indices with a slice is not allowed:
+        with pytest.raises(
+            AssertionError,
+            match="Slices are not allowed against array-shaped dynamic addresses.",
+        ):
+            chm["z", :]
+
+        # Creation with full slices after array
+        chm = C[0, "w", indices, :, :].set(jnp.ones((3, 2, 2)))
+        assert jnp.array_equal(chm[0, "w", 1, :, :].unmask(), jnp.ones((2, 2)))
+
+        # Lookup with scalar and string keys
+        assert chm[0, "w", 1, 0, 0] == genjax.Mask(1, True)
+
+        # Lookup with IntArray (shape == ())
+        assert chm[0, "w", idx, 0, 0] == genjax.Mask(1, True)
+
+        # Lookup with single partial slice
+        partial_result = chm[0, "w", 0, 1:3, :]
+        assert jnp.array_equal(partial_result.unmask(), jnp.ones((1, 2)))
+        assert jnp.array_equal(partial_result.primal_flag(), jnp.array(True))
+
+        # Lookup with full slices
+        full_result = jax.vmap(lambda i: chm[0, "w", i, :, :])(indices)
+        assert full_result.unmask().shape == (3, 2, 2)
+
+        # Ensure dynamic components are deferred to leaf
+        complex_chm = C[0, "a", indices, :, "b"].set(jnp.ones((3, 2)))
+        assert jnp.array_equal(complex_chm[0, "a", 1, :, "b"].unmask(), jnp.ones(2))
+
+        # Verify that partial slices are not allowed in creation
+        with pytest.raises(ValueError):
+            C[0, "x", 1:3].set(jnp.array([1, 2]))
+
+        # Verify that multiple arrays are not allowed in creation
+        with pytest.raises(ValueError):
+            C[indices, indices].set(jnp.ones((3, 3)))
+
+        # Verify that partial slices are allowed in lookup
+        assert complex_chm[0, "a", 0, 1:3, "b"] == genjax.Mask(jnp.array([1.0]), True)
