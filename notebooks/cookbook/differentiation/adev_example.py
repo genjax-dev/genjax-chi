@@ -642,7 +642,7 @@ def render_combined_plot(current_val, sigma):
         ],
     ])
 
-    combined_plot.update_state(["frame", "reset", 0])
+    combined_plot.state.update(["frame", "reset", 0])
     combined_plot.reset(
         Plot.initial_state(current_state(current_val, sigma))
         | initial_val_slider

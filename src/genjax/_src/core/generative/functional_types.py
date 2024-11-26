@@ -28,10 +28,12 @@ from genjax._src.core.typing import (
     ArrayLike,
     Flag,
     Generic,
+    IntArray,
     TypeVar,
 )
 
 R = TypeVar("R")
+DynamicAddressComponent = int | IntArray | slice
 
 
 #########################
@@ -366,3 +368,51 @@ class Mask(Generic[R], Pytree):
             A new Mask combining all inputs with XOR operations
         """
         return functools.reduce(lambda a, b: a ^ b, masks, mask)
+
+
+@Pytree.dataclass(match_args=True)
+class Indexed(Generic[R], Pytree):
+    wrapped: R
+    addr: int | IntArray
+
+    @staticmethod
+    def build(chm: R, addr: DynamicAddressComponent) -> "R | Indexed[R] | None":
+        if isinstance(addr, slice):
+            if addr == slice(None, None, None):
+                return chm
+            else:
+                raise ValueError(f"Partial slices not supported: {addr}")
+
+        elif isinstance(addr, Array) and addr.shape == (0,):
+            return None
+
+        else:
+            return Indexed(chm, addr)
+
+    def __getitem__(self, addr: DynamicAddressComponent) -> "R | Mask[R]":
+        if not isinstance(addr, slice):
+            # If we allowed non-scalar addresses, the `get_submap` call would not reduce the leaf by a dimension, and further get_submap calls would target the same dimension.
+            assert not jnp.asarray(addr, copy=False).shape, (
+                "Only scalar dynamic addresses are supported by get_submap."
+            )
+
+        if isinstance(self.addr, Array) and self.addr.shape:
+            # We can't allow slices, as self.addr might look like, e.g. `[2,5,6]`, and we don't have any way to combine this "sparse array selector" with an incoming slice.
+            assert not isinstance(addr, slice), (
+                f"Slices are not allowed against array-shaped dynamic addresses. Tried to apply {addr} to {self.addr}."
+            )
+
+            check = self.addr == addr
+
+            # If `check` contains a match (we know it will be a single match, since we constrain addr to be scalar), then `idx` is the index of the match in `self.addr`.
+            # Else, idx == 0 (selecting "junk data" of the right shape at the leaf) and check_array[idx] == False (masking the junk data).
+            idx = jnp.argwhere(check, size=1, fill_value=0)[0, 0]
+
+            return jtu.tree_map(
+                lambda v: Mask.build(v[idx], check[idx]),
+                self.wrapped,
+                is_leaf=lambda x: isinstance(x, Mask),
+            )
+
+        else:
+            return Mask.build(self.wrapped, self.addr == addr)
