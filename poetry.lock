@@ -4861,4 +4861,8 @@ genstudio = ["genstudio"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
+<<<<<<< HEAD
 content-hash = "ab002003ed60331d85f91582de45c91ea2a994699be48a1a072a2ca69c71c1a0"
+=======
+content-hash = "52335e05b2b9fff4c2f45a38228ce2faeaa7cea7984deab1ca994100ba2c7f48"
+>>>>>>> main

@@ -738,16 +738,6 @@ def flip_exact_loss(theta):
         theta,
     )
 
-adev_grad = jax.jit(flip_exact_loss.jvp_estimate)
-
-arg = 0.2
-adev_vals = []
-for _ in range(EPOCHS):
-    key, subkey = jax.random.split(key)
-    grad_val = adev_grad(subkey, Dual(arg, 1.0)).tangent
-    arg = arg - 0.01 * grad_val
-    adev_vals.append(expected_val(arg))
-
 rev_adev_grad = jax.jit(flip_exact_loss.grad_estimate)
 
 arg = 0.2

@@ -1,4 +1,18 @@
 # ---
+# jupyter:
+#   jupytext:
+#     cell_metadata_filter: -all
+#     formats: ipynb,py:percent
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.16.4
+# ---
+
+# %%
+# pyright: reportUnusedExpression=false
+# ---
 # title: Differentiating probabilistic programs
 # subtitle: How to take drastic differentiating measures by differentiating measures
 # jupyter:
@@ -485,7 +499,7 @@ def render_plot(initial_val, initial_sigma):
         range=[0, EPOCHS],
         step=ANIMATION_STEP,
         fps=30,
-        label="Iteration:"
+        label="Iteration:",
     )
 
     controls = Plot.html([

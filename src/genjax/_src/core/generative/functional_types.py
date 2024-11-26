@@ -68,9 +68,9 @@ class Mask(Generic[R], Pytree):
     ################
 
     def __init__(self, v: R, f: Flag | Diff[Flag] = True) -> None:
-        assert not isinstance(
-            v, Mask
-        ), f"Mask should not be instantiated with another Mask! found {v}"
+        assert not isinstance(v, Mask), (
+            f"Mask should not be instantiated with another Mask! found {v}"
+        )
         Mask._validate_init(v, f)
 
         self.value, self.flag = v, f  # pyright: ignore[reportAttributeAccessIssue]
@@ -161,9 +161,9 @@ class Mask(Generic[R], Pytree):
         match v:
             case Mask(value, g):
                 assert not isinstance(f, Diff) and not isinstance(g, Diff)
-                assert (
-                    FlagOp.is_scalar(f) or (jnp.shape(f) == jnp.shape(g))
-                ), f"Can't build a Mask with non-matching Flag shapes {jnp.shape(f)} and {jnp.shape(g)}"
+                assert FlagOp.is_scalar(f) or (jnp.shape(f) == jnp.shape(g)), (
+                    f"Can't build a Mask with non-matching Flag shapes {jnp.shape(f)} and {jnp.shape(g)}"
+                )
                 return Mask[R](value, FlagOp.and_(f, g))
             case _:
                 return Mask[R](v, f)
@@ -189,6 +189,24 @@ class Mask(Generic[R], Pytree):
     #############
     # Accessors #
     #############
+
+    def __getitem__(self, path) -> "Mask[R]":
+        path = path if isinstance(path, tuple) else (path,)
+
+        f = self.primal_flag()
+        if isinstance(f, Array) and f.shape:
+            # A non-scalar flag must have been produced via vectorization. Because a scalar flag can
+            # wrap a non-scalar value, only use the vectorized components of the path to index into the flag...
+            f = f[path[: len(f.shape)]]
+
+        # but the use full path to index into the value.
+        v_idx = jtu.tree_map(lambda v: v[path], self.value)
+
+        # Reconstruct Diff if needed
+        if isinstance(self.flag, Diff):
+            f = Diff(f, self.flag.tangent)
+
+        return Mask.build(v_idx, f)
 
     def flatten(self) -> "R | Mask[R] | None":
         """

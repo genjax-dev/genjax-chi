@@ -4,6 +4,13 @@ import genjax
 from genjax.typing import FloatArray
 
 
+class TestPytree:
+    def test_unwrap(self):
+        c = genjax.Pytree.const(5)
+        assert c.unwrap() == 5
+        assert genjax.Const.unwrap(10) == 10
+
+
 class TestPythonic:
     def test_pythonic(self):
         @genjax.Pytree.dataclass
@@ -17,6 +24,7 @@ class TestPythonic:
         f = Foo(x, y)
 
         assert f[1] == Foo(x[1], y[1])
+        assert f[jnp.array(1, dtype=int)] == Foo(x[1], y[1])
 
         assert jnp.all(f[:2].x == x[:2])
         assert jnp.all(f[:2].y == y[:2])

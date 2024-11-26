@@ -40,7 +40,7 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ChoiceMapConstraint, Filtered
+from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import FlagOp, to_shape_fn
 from genjax._src.core.pytree import Closure, Pytree
@@ -190,68 +190,60 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         primals = Diff.tree_primal(argdiffs)
         match constraint:
             case ChoiceMapConstraint(chm):
-                check = chm.has_value()
-                v = chm.get_value()
-                if FlagOp.concrete_true(check):
-                    fwd = self.estimate_logpdf(key, v, *primals)
-                    bwd = trace.get_score()
-                    w = fwd - bwd
-                    new_tr = DistributionTrace(self, primals, v, fwd)
-                    discard = trace.get_choices()
-                    retval_diff = Diff.unknown_change(v)
-                    return (new_tr, w, retval_diff, Update(discard))
-                elif FlagOp.concrete_false(check):
-                    value_chm = trace.get_choices()
-                    v = value_chm.get_value()
-                    fwd = self.estimate_logpdf(key, v, *primals)
-                    bwd = trace.get_score()
-                    w = fwd - bwd
-                    new_tr = DistributionTrace(self, primals, v, fwd)
-                    retval_diff = Diff.no_change(v)
-                    return (new_tr, w, retval_diff, Update(ChoiceMap.empty()))
+                match chm.get_value():
+                    case Mask() as masked_value:
 
-                elif isinstance(chm, Filtered):
-                    # Whether or not the choice map has a value is dynamic...
-                    # We must handled with a cond.
-                    def _true_branch(key, new_value: R, _):
-                        fwd = self.estimate_logpdf(key, new_value, *primals)
+                        def _true_branch(key, new_value: R, _):
+                            fwd = self.estimate_logpdf(key, new_value, *primals)
+                            bwd = trace.get_score()
+                            w = fwd - bwd
+                            return (new_value, w, fwd)
+
+                        def _false_branch(key, _, old_value: R):
+                            fwd = self.estimate_logpdf(key, old_value, *primals)
+                            bwd = trace.get_score()
+                            w = fwd - bwd
+                            return (old_value, w, fwd)
+
+                        flag = masked_value.primal_flag()
+                        new_value: R = masked_value.value
+                        old_choices = trace.get_choices()
+                        old_value: R = old_choices.get_value()
+
+                        new_value, w, score = FlagOp.cond(
+                            flag,
+                            _true_branch,
+                            _false_branch,
+                            key,
+                            new_value,
+                            old_value,
+                        )
+                        return (
+                            DistributionTrace(self, primals, new_value, score),
+                            w,
+                            Diff.unknown_change(new_value),
+                            Update(
+                                old_choices.mask(flag),
+                            ),
+                        )
+                    case None:
+                        value_chm = trace.get_choices()
+                        v = value_chm.get_value()
+                        fwd = self.estimate_logpdf(key, v, *primals)
                         bwd = trace.get_score()
                         w = fwd - bwd
-                        return (new_value, w, fwd)
+                        new_tr = DistributionTrace(self, primals, v, fwd)
+                        retval_diff = Diff.no_change(v)
+                        return (new_tr, w, retval_diff, Update(ChoiceMap.empty()))
 
-                    def _false_branch(key, _, old_value: R):
-                        fwd = self.estimate_logpdf(key, old_value, *primals)
+                    case v:
+                        fwd = self.estimate_logpdf(key, v, *primals)
                         bwd = trace.get_score()
                         w = fwd - bwd
-                        return (old_value, w, fwd)
-
-                    masked_value: Mask[R] = v
-                    flag = masked_value.primal_flag()
-                    new_value: R = masked_value.value
-                    old_choices = trace.get_choices()
-                    old_value: R = old_choices.get_value()
-
-                    new_value, w, score = FlagOp.cond(
-                        flag,
-                        _true_branch,
-                        _false_branch,
-                        key,
-                        new_value,
-                        old_value,
-                    )
-                    return (
-                        DistributionTrace(self, primals, new_value, score),
-                        w,
-                        Diff.unknown_change(new_value),
-                        Update(
-                            old_choices.mask(flag),
-                        ),
-                    )
-                else:
-                    raise Exception(
-                        f"Only `choice_map.Filtered` is currently supported for dynamic flags. Found {type(constraint)}."
-                    )
-
+                        new_tr = DistributionTrace(self, primals, v, fwd)
+                        discard = trace.get_choices()
+                        retval_diff = Diff.unknown_change(v)
+                        return (new_tr, w, retval_diff, Update(discard))
             case _:
                 raise Exception(f"Unhandled constraint in edit: {type(constraint)}.")
 
