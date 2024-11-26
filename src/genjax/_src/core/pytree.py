@@ -334,7 +334,7 @@ class Closure(Generic[R], Pytree):
         return self.fn(*self.dyn_args, *args, **kwargs)
 
 
-def nth(x: Pytree, idx: int | slice):
+def nth(x: Pytree, idx: int | slice | jnp.ndarray):
     """Returns a Pytree in which `[idx]` has been applied to every leaf."""
     return jtu.tree_map(lambda v: v[idx], x)
 
