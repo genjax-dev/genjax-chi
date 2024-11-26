@@ -1495,7 +1495,7 @@ class Indexed(ChoiceMap):
     """
 
     c: ChoiceMap
-    addr: int | IntArray | None
+    addr: int | IntArray
 
     @staticmethod
     def build(chm: ChoiceMap, addr: DynamicAddressComponent) -> ChoiceMap:
