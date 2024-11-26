@@ -49,7 +49,7 @@ Generator = btyping.Generator
 Literal = btyping.Literal
 
 # JAX Type alias.
-InAxes = int | None | Sequence[Any]
+InAxes = int | Sequence[Any] | None
 
 Flag = bool | BoolArray
 
