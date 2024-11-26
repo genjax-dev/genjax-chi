@@ -100,7 +100,7 @@ def collapse_address(
 
 @Pytree.dataclass
 class StaticTrace(Generic[R], Trace[R]):
-    gen_fn: GenerativeFunction[R]
+    gen_fn: "StaticGenerativeFunction[R]"
     args: tuple[Any, ...]
     retval: R
     addresses: AddressVisitor
@@ -815,6 +815,14 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     The source program of the generative function. This is a JAX-compatible Python program.
     """
 
+    def __get__(self, instance, _klass) -> "StaticGenerativeFunction[R]":
+        """
+        This method allows the @genjax.gen decorator to transform instance methods, turning them into `StaticGenerativeFunction[R]` calls.
+
+        NOTE: if you assign an already-created `StaticGenerativeFunction` to a variable inside of a class, it will always receive the instance as its first method.
+        """
+        return self.partial_apply(instance) if instance else self
+
     # To get the type of return value, just invoke
     # the source (with abstract tracer arguments).
     def __abstract_call__(self, *args) -> Any:
@@ -1095,6 +1103,23 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     def inline(self, *args):
         return self.source(*args)
 
+    @property
+    def partial_args(self) -> tuple[Any, ...]:
+        """
+        Returns the partially applied arguments of the generative function.
+
+        This method retrieves the dynamically applied arguments that were used to create
+        this StaticGenerativeFunction instance through partial application.
+
+        Returns:
+            tuple[Any, ...]: A tuple containing the partially applied arguments.
+
+        Note:
+            This method is particularly useful when working with partially applied
+            generative functions, allowing access to the pre-filled arguments.
+        """
+        return self.source.dyn_args
+
     def partial_apply(self, *args) -> "StaticGenerativeFunction[R]":
         """
         Returns a new [`StaticGenerativeFunction`][] with the given arguments partially applied.
@@ -1119,7 +1144,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             # Now `partially_applied_model` is equivalent to a model that only takes 'y' as an argument
             ```
         """
-        return gen(Pytree.partial(*args)(self.inline))
+        all_args = self.source.dyn_args + args
+        return gen(Closure[R](all_args, self.source.fn))
 
 
 #############
@@ -1131,8 +1157,8 @@ def gen(f: Closure[R] | Callable[..., R]) -> StaticGenerativeFunction[R]:
     if isinstance(f, Closure):
         return StaticGenerativeFunction[R](f)
     else:
-        closure = Pytree.partial()(f)
-        return StaticGenerativeFunction[R](closure)
+        closure = Closure[R]((), f)
+        return gen(closure)
 
 
 ###########

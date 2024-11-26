@@ -454,13 +454,13 @@ class ExactDensityFromCallables(Generic[R], ExactDensity[R]):
 
 
 def exact_density(
-    sample: Callable[..., R],
-    logpdf: Callable[..., Score],
+    sample: Closure[R] | Callable[..., R],
+    logpdf: Closure[Score] | Callable[..., Score],
 ):
     if not isinstance(sample, Closure):
-        sample = Pytree.partial()(sample)
+        sample = Closure[R]((), sample)
 
     if not isinstance(logpdf, Closure):
-        logpdf = Pytree.partial()(logpdf)
+        logpdf = Closure[Score]((), logpdf)
 
     return ExactDensityFromCallables[R](sample, logpdf)

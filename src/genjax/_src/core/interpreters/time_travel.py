@@ -82,7 +82,7 @@ def rec(
     debug_tag: str | None = None,
 ):
     if not isinstance(callable, Closure):
-        callable = Pytree.partial()(callable)
+        callable = Closure[R]((), callable)
 
     def inner(*args):
         return RecordPoint(callable, debug_tag)(*args)

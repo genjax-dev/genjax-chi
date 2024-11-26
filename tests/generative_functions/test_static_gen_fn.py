@@ -540,15 +540,8 @@ class TestStaticGenFnUpdate:
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
-    def test_update_weight_correctness(self):
-        @genjax.gen
-        def simple_linked_normal():
-            y1 = genjax.normal(0.0, 1.0) @ "y1"
-            y2 = genjax.normal(y1, 1.0) @ "y2"
-            y3 = genjax.normal(y1 + y2, 1.0) @ "y3"
-            return y1 + y2 + y3
-
-        key = jax.random.key(314159)
+    def update_weight_correctness_general_assertions(self, simple_linked_normal):
+        key = jax.random.PRNGKey(314159)
         key, sub_key = jax.random.split(key)
         tr = jax.jit(simple_linked_normal.simulate)(sub_key, ())
         jitted = jax.jit(simple_linked_normal.update)
@@ -592,6 +585,70 @@ class TestStaticGenFnUpdate:
             - genjax.normal.assess(C.v(old_y3), (new_y1 + old_y2, 1.0))[0]
         )
         assert w == pytest.approx(correct_w, 0.0001)
+
+    def test_update_weight_correctness(self):
+        @genjax.gen
+        def simple_linked_normal():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(y1, 1.0) @ "y2"
+            y3 = genjax.normal(y1 + y2, 1.0) @ "y3"
+            return y1 + y2 + y3
+
+        # easy case
+        self.update_weight_correctness_general_assertions(simple_linked_normal)
+
+        @genjax.gen
+        def curried_linked_normal(v1, v2, v3):
+            y1 = genjax.normal(0.0, v1) @ "y1"
+            y2 = genjax.normal(y1, v2) @ "y2"
+            y3 = genjax.normal(y1 + y2, v3) @ "y3"
+            return y1 + y2 + y3
+
+        # curry
+        self.update_weight_correctness_general_assertions(
+            curried_linked_normal.partial_apply(1.0, 1.0, 1.0)
+        )
+
+        # double-curry
+        self.update_weight_correctness_general_assertions(
+            curried_linked_normal.partial_apply(1.0).partial_apply(1.0, 1.0)
+        )
+
+        @Pytree.dataclass
+        class Model(Pytree):
+            v1: Array
+            v2: Array
+
+            @genjax.gen
+            def run(self, v3):
+                y1 = genjax.normal(0.0, self.v1) @ "y1"
+                y2 = genjax.normal(y1, self.v2) @ "y2"
+                y3 = genjax.normal(y1 + y2, v3) @ "y3"
+                return y1 + y2 + y3
+
+        # model method
+        m = Model(jnp.asarray(1.0), jnp.asarray(1.0))
+        self.update_weight_correctness_general_assertions(m.run.partial_apply(1.0))
+
+        @genjax.gen
+        def m_linked(m: Model, v2, v3):
+            y1 = genjax.normal(0.0, m.v1) @ "y1"
+            y2 = genjax.normal(y1, v2) @ "y2"
+            y3 = genjax.normal(y1 + y2, v3) @ "y3"
+            return y1 + y2 + y3
+
+        self.update_weight_correctness_general_assertions(
+            m_linked.partial_apply(m).partial_apply(1.0, 1.0)
+        )
+
+        @genjax.gen
+        def m_created_internally(scale: Array):
+            m_internal = Model(scale, scale)
+            return m_internal.run.inline(scale)
+
+        self.update_weight_correctness_general_assertions(
+            m_created_internally.partial_apply(jnp.asarray(1.0))
+        )
 
     def test_update_pytree_argument(self):
         @Pytree.dataclass
@@ -975,3 +1032,52 @@ class TestStaticGenFnInline:
             == genjax.normal.assess(choice.get_submap("y1"), (0.0, 1.0))[0]
             + genjax.normal.assess(choice.get_submap("y2"), (0.0, 1.0))[0]
         )
+
+    def test_gen_method(self):
+        @Pytree.dataclass
+        class Model(Pytree):
+            foo: Array
+            bar: Array
+
+            @genjax.gen
+            def run(self, x):
+                y = genjax.normal(self.foo, self.bar) @ "y"
+                z = genjax.normal(x, 1.0) @ "z"
+                return y + z
+
+        key = jax.random.PRNGKey(0)
+        # outside(1.0)(key)
+
+        m = Model(jnp.asarray(4.0), jnp.asarray(6.0))
+        tr = m.run.simulate(key, (1.0,))
+        chm = tr.get_choices()
+
+        assert tr.get_args() == (1.0,), (
+            "The curried `self` arg is not present in get_args()"
+        )
+
+        assert tr.gen_fn.partial_args[0] == m, (
+            "`self` is retrievable using `partial_args"
+        )
+
+        assert "y" in chm
+        assert "z" in chm
+        assert "q" not in chm
+
+    def test_partial_apply(self):
+        @genjax.gen
+        def model(x, y, z):
+            return genjax.normal(x, y + z) @ "x"
+
+        double_curry = model.partial_apply(1.0).partial_apply(1.0)
+        key = jax.random.PRNGKey(0)
+
+        tr = double_curry.simulate(key, (2.0,))
+        assert tr.get_args() == (2.0,), (
+            "both curried args are not present alongside the final arg"
+        )
+
+        assert tr.gen_fn.partial_args == (
+            1.0,
+            1.0,
+        ), "They are present as `partial_args`"
