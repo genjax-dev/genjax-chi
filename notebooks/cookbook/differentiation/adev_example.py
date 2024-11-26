@@ -496,7 +496,6 @@ def input_checkbox(label, value, on_change):
     ]
 
 
-
 def render_plot(initial_val, initial_sigma):
     SLIDER_STEP = 0.01
     ANIMATION_STEP = 4
@@ -634,7 +633,7 @@ def render_plot(initial_val, initial_sigma):
         range=[0, EPOCHS],
         step=ANIMATION_STEP,
         fps=30,
-        label="Iteration:"
+        label="Iteration:",
     )
 
     controls = Plot.html([
@@ -723,7 +722,6 @@ def flip_approx_loss(theta, sigma):
 render_plot(0.2, 0.05)
 
 
-
 # %% [markdown]
 # In the above example, by using `jvp_estimate` we used a forward-mode version of ADEV. GenJAX also supports a reverse-mode version which is also fully compatible with JAX and can be jitted.
 
@@ -738,6 +736,7 @@ def flip_exact_loss(theta):
         lambda _: -theta / 2.0,
         theta,
     )
+
 
 rev_adev_grad = jax.jit(flip_exact_loss.grad_estimate)
 
