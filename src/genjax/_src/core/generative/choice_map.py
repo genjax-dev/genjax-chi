@@ -23,7 +23,7 @@ import treescope.repr_lib as trl
 from deprecated import deprecated
 
 from genjax._src.core.generative.core import Constraint, Projection
-from genjax._src.core.generative.functional_types import DynamicAddressComponent, Mask
+from genjax._src.core.generative.functional_types import Mask
 from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -47,6 +47,7 @@ if TYPE_CHECKING:
 #################
 
 StaticAddressComponent = str
+DynamicAddressComponent = int | IntArray | slice
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
 Address = tuple[AddressComponent, ...]
 StaticAddress = tuple[StaticAddressComponent, ...]
