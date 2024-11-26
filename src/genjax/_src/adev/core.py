@@ -245,11 +245,11 @@ class Dual(Pytree):
         return tuple(primals), tuple(tangents)
 
     @staticmethod
-    def static_check_is_dual(v):
+    def static_check_is_dual(v) -> bool:
         return isinstance(v, Dual)
 
     @staticmethod
-    def static_check_dual_tree(v):
+    def static_check_dual_tree(v) -> bool:
         return all(
             map(
                 lambda v: isinstance(v, Dual),

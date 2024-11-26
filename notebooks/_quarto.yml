@@ -48,7 +48,8 @@ website:
             - cookbook/expressivity/custom_distribution.ipynb
             - cookbook/expressivity/stochastic_probabilities.ipynb
             - cookbook/expressivity/stochastic_probabilities_math.ipynb
-            - cookbook/expressivity/ravi_stack.ipynb
+            # TODO: re-enable once we can support marginals as targets
+            # - cookbook/expressivity/ravi_stack.ipynb
         - section: "Inference"
           href: inference.qmd
           contents:

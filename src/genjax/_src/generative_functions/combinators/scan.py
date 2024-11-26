@@ -71,9 +71,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
         if scan_length == 0:
             chm = ChoiceMap.empty()
         else:
-            chm = jax.vmap(lambda tr: tr.get_choices())(inner).extend(
-                slice(None, None, None)
-            )
+            chm = jax.vmap(lambda tr: tr.get_choices())(inner)
         return ScanTrace(scan_gen_fn, inner, args, retval, score, chm, scan_length)
 
     def get_args(self) -> tuple[Any, ...]:
@@ -580,7 +578,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 (new_subtrace, scanned_out, w, inner_bwd_request),
             ) = _inner_edit(key, subtrace, subconstraint, carried_value, scanned_in)
             assert isinstance(inner_bwd_request, Update)
-            bwd_chm = inner_bwd_request.constraint.extend(idx)
+            bwd_chm = inner_bwd_request.constraint
 
             return (key, idx + 1, carried_out), (
                 new_subtrace,

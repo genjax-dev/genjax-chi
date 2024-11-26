@@ -245,11 +245,9 @@ class TestHMC:
         key = jrand.key(0)
         key, sub_key = jrand.split(key)
         model = kernel.scan(n=10)
-        vchm = jax.vmap(lambda idx: ChoiceMap.empty().at[idx, "y"].set(3.0))(
-            jnp.arange(10)
-        )
+        vchm = ChoiceMap.empty().at["y"].set(3.0 * jnp.ones(10))
         tr, _ = model.importance(sub_key, vchm, (0.0, None))
-        request = HMC(Selection.at[..., "x"], jnp.array(1e-2))
+        request = HMC(Selection.at["x"], jnp.array(1e-2))
         editor = jax.jit(request.edit)
         new_tr = tr
         for _ in range(20):
