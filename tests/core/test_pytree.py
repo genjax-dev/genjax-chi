@@ -24,6 +24,7 @@ class TestPythonic:
         f = Foo(x, y)
 
         assert f[1] == Foo(x[1], y[1])
+        assert f[jnp.array(1, dtype=int)] == Foo(x[1], y[1])
 
         assert jnp.all(f[:2].x == x[:2])
         assert jnp.all(f[:2].y == y[:2])
