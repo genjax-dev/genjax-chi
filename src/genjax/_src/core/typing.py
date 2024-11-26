@@ -47,6 +47,7 @@ Iterable = btyping.Iterable
 Final = btyping.Final
 Generator = btyping.Generator
 Literal = btyping.Literal
+Protocol = btyping.Protocol
 
 # JAX Type alias.
 InAxes = int | Sequence[Any] | None

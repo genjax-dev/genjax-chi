@@ -29,11 +29,16 @@ from genjax._src.core.typing import (
     Flag,
     Generic,
     IntArray,
+    Protocol,
     TypeVar,
 )
 
 R = TypeVar("R")
 DynamicAddressComponent = int | IntArray | slice
+
+
+class Indexable(Protocol):
+    def __getitem__(self, addr: DynamicAddressComponent) -> "Indexable": ...
 
 
 #########################
@@ -416,3 +421,21 @@ class Indexed(Generic[R], Pytree):
 
         else:
             return Mask.build(self.wrapped, self.addr == addr)
+
+
+@Pytree.dataclass(match_args=True)
+class Or:
+    c1: Indexable
+    c2: Indexable
+
+    @staticmethod
+    def build(
+        c1: Indexable,
+        c2: Indexable,
+    ) -> Indexable:
+        return Or(c1, c2)
+
+    def __getitem__(self, addr: DynamicAddressComponent):
+        submap1 = self.c1[addr]
+        submap2 = self.c2[addr]
+        return Or.build(submap1, submap2)
