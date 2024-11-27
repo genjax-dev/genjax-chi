@@ -21,9 +21,10 @@
 import genstudio.plot as Plot
 import jax
 import jax.numpy as jnp
+from genstudio.plot import js
+
 from genjax._src.adev.core import Dual, expectation
 from genjax._src.adev.primitives import flip_enum, normal_reparam
-from genstudio.plot import js
 
 key = jax.random.key(314159)
 EPOCHS = 400
