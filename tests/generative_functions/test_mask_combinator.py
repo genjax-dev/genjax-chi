@@ -141,7 +141,7 @@ class TestMaskCombinator:
             def scan_step_pre(state, flag):
                 return flag, state
 
-            def scan_step_post(_unused_args, masked_retval):
+            def scan_step_post(_unused_args, _xformed, masked_retval):
                 return masked_retval.value, None
 
             # scan_step: (a, bool) -> a

@@ -24,8 +24,9 @@ class TestDimapCombinator:
         def pre_process(x, y):
             return (x + 1, y * 2, y * 3)
 
-        def post_process(args, retval):
-            assert len(args) == 2, "post_process has to receive pre-transformed args."
+        def post_process(_args, _xformed, retval):
+            assert len(_args) == 2, "post_process receives pre-transformed args..."
+            assert len(_xformed) == 3, "...and post-transformed args."
             return retval + 2
 
         def invert_post(x):

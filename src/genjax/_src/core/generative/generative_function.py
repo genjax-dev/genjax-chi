@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     import genjax
 
 _C = TypeVar("_C", bound=Callable[..., Any])
+ArgTuple = TypeVar("ArgTuple", bound=tuple[Any, ...])
 
 # Generative Function type variables
 R = TypeVar("R")
@@ -1228,8 +1229,8 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         /,
         *,
-        pre: Callable[..., tuple[Any, ...]],
-        post: Callable[[tuple[Any, ...], R], S],
+        pre: Callable[..., ArgTuple],
+        post: Callable[[tuple[Any, ...], ArgTuple, R], S],
         info: str | None = None,
     ) -> "GenerativeFunction[S]":
         """
@@ -1256,7 +1257,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return (x + 1, y * 2)
 
 
-            def post_process(args, retval):
+            def post_process(args, xformed, retval):
                 return retval**2
 
 
@@ -1322,7 +1323,7 @@ class GenerativeFunction(Generic[R], Pytree):
         return genjax.map(f=f, info=info)(self)
 
     def contramap(
-        self, f: Callable[..., tuple[Any, ...]], *, info: str | None = None
+        self, f: Callable[..., ArgTuple], *, info: str | None = None
     ) -> "GenerativeFunction[R]":
         """
         Specialized version of [`genjax.GenerativeFunction.dimap`][] where only the pre-processing function is applied.
