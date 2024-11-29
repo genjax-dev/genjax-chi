@@ -14,7 +14,6 @@
 
 import jax
 import pytest
-from jax import numpy as jnp
 
 import genjax
 
@@ -42,7 +41,7 @@ class TestOrElse:
 
         @genjax.gen
         def f():
-            flip = jnp.bool_(genjax.flip(p) @ "flip")
+            flip = genjax.flip(p) @ "flip"
             return (
                 genjax.normal(0.0, 1.0).or_else(genjax.normal(2.0, 1.0))(flip, (), ())
                 @ "value"
