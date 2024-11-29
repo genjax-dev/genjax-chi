@@ -1051,3 +1051,49 @@ def iterate_final(
         )
 
     return decorator
+
+
+# Masked Combinators
+
+
+def masked_iterate_final(step, **scan_kwargs):
+    """
+    a -> a
+
+    to
+
+    (a, [mask]) -> a
+    """
+
+    def pre(state, flag):
+        return flag, state
+
+    def post(_unused_args, masked_retval):
+        return masked_retval.value, None
+
+    # scan_step: (a, bool) -> a
+    scan_step = step.mask().dimap(pre=pre, post=post)
+    return scan_step.scan(**scan_kwargs).map(lambda ret: ret[0])
+
+
+def masked_iterate(step, **scan_kwargs):
+    """
+    a -> a
+
+    to
+
+    (a, [mask]) -> [a]
+    """
+
+    def pre(state, flag):
+        return flag, state
+
+    def post(_unused_args, masked_retval):
+        v = masked_retval.value
+        return v, v
+
+    # scan_step: (a, bool) -> a
+    scan_step = step.mask().dimap(pre=pre, post=post)
+    return scan_step.scan(**scan_kwargs).dimap(
+        pre=lambda *args: args, post=prepend_initial_acc
+    )
