@@ -1058,11 +1058,36 @@ def iterate_final(
 
 def masked_iterate_final(step, **scan_kwargs):
     """
-    a -> a
+    Transforms a generative function that takes a single argument of type `a` and returns a value of type `a`, into a function that takes a tuple of arguments `(a, [mask])` and returns a value of type `a`.
 
-    to
+    The original function is modified to accept an additional argument `mask`, which is a boolean value indicating whether the operation should be masked or not. The function returns the result of the original operation if `mask` is `True`, and the original input if `mask` is `False`.
 
-    (a, [mask]) -> a
+    All traced values from the kernel generative function are traced (with an added axis due to the scan) but only those indices from [mask] with a flag of True will accounted for in inference, notably for score computations.
+
+    Example:
+        ```python
+
+        import jax
+        import genjax
+
+        # Create a kernel generative function
+        @genjax.gen
+            def step(x):
+                _ = (
+                    genjax.normal.mask().vmap(in_axes=(0, None, None))(masks, x, 1.0)
+                    @ "rats"
+                )
+                return x
+
+        # Create a model using masked_iterate_final
+        model = genjax.masked_iterate_final(step, n=len(mask_steps))
+
+        # Simualte from the model
+        key = jax.random.key(0)
+        mask_steps = jnp.arange(10) < 5
+        tr = model.simulate(key, (0.0, mask_steps))
+        print(tr.render_html())
+        ```
     """
 
     def pre(state, flag):
@@ -1078,11 +1103,36 @@ def masked_iterate_final(step, **scan_kwargs):
 
 def masked_iterate(step, **scan_kwargs):
     """
-    a -> a
+    Transforms a generative function that takes a single argument of type `a` and returns a value of type `a`, into a function that takes a tuple of arguments `(a, [mask])` and returns a list of values of type `a`.
 
-    to
+    The original function is modified to accept an additional argument `mask`, which is a boolean value indicating whether the operation should be masked or not. The function returns a Masked list of results of the original operation with the input [mask] as mask.
 
-    (a, [mask]) -> [a]
+    All traced values from the kernel generative function are traced (with an added axis due to the scan) but only those indices from [mask] with a flag of True will accounted for in inference, notably for score computations.
+
+    Example:
+        ```python
+
+        import jax
+        import genjax
+
+        # Create a kernel generative function
+        @genjax.gen
+            def step(x):
+                _ = (
+                    genjax.normal.mask().vmap(in_axes=(0, None, None))(masks, x, 1.0)
+                    @ "rats"
+                )
+                return x
+
+        # Create a model using masked_iterate
+        model = genjax.masked_iterate(step, n=len(mask_steps))
+
+        # Simualte from the model
+        key = jax.random.key(0)
+        mask_steps = jnp.arange(10) < 5
+        tr = model.simulate(key, (0.0, mask_steps))
+        print(tr.render_html())
+        ```
     """
 
     def pre(state, flag):
