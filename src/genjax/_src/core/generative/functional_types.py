@@ -424,7 +424,7 @@ class Indexed(Generic[R], Pytree):
 
 
 @Pytree.dataclass(match_args=True)
-class Or:
+class Or(Pytree):
     c1: Indexable
     c2: Indexable
 
