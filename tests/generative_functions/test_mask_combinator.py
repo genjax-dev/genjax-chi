@@ -136,7 +136,7 @@ class TestMaskCombinator:
         assert w == 0.0
         assert w == tr.get_score()
 
-    def test_mask_scan_update(self, key):
+    def test_masked_iterate_final_update(self, key):
         masks = jnp.array([True, True])
 
         @genjax.gen
@@ -150,14 +150,16 @@ class TestMaskCombinator:
         # Create some initial traces:
         key = jax.random.key(0)
         mask_steps = jnp.arange(10) < 5
-        model = genjax.masked_iterate_final(step, n=len(mask_steps))
+        model = genjax.masked_iterate_final(step)
         init_particle = model.simulate(key, (0.0, mask_steps))
+
+        assert jnp.array_equal(init_particle.get_retval(), jnp.array(0.0))
 
         step_particle, step_weight, _, _ = model.update(
             key, init_particle, C.n(), Diff.no_change((0.0, mask_steps))
         )
-        assert step_weight == jnp.array(0.0)
-        assert step_particle.get_retval() == jnp.array(0.0)
+        assert jnp.array_equal(step_weight, jnp.array(0.0))
+        assert jnp.array_equal(step_particle.get_retval(), jnp.array(0.0))
 
         # Testing inference working when we extend the model by unmasking a value.
         argdiffs_ = (Diff.no_change(0.0), Diff.unknown_change(jnp.arange(10) < 6))
@@ -166,6 +168,26 @@ class TestMaskCombinator:
         )
         assert step_weight != jnp.array(0.0)
         assert step_particle.get_score() == step_weight + init_particle.get_score()
+
+    def test_masked_iterate(self, key):
+        masks = jnp.array([True, True])
+
+        @genjax.gen
+        def step(x):
+            _ = (
+                genjax.normal.mask().vmap(in_axes=(0, None, None))(masks, x, 1.0)
+                @ "rats"
+            )
+            return x
+
+        # Create some initial traces:
+        key = jax.random.key(0)
+        mask_steps = jnp.arange(10) < 5
+        model = genjax.masked_iterate(step)
+        init_particle = model.simulate(key, (0.0, mask_steps))
+        assert jnp.array_equal(init_particle.get_retval(), jnp.zeros(11)), (
+            "0.0 is threaded through 10 times in addition to the initial value"
+        )
 
     def test_mask_scan_update_type_error(self, key):
         @genjax.gen
