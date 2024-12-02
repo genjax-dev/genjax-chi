@@ -150,7 +150,7 @@ class TestMaskCombinator:
         # Create some initial traces:
         key = jax.random.key(0)
         mask_steps = jnp.arange(10) < 5
-        model = genjax.masked_iterate_final(step)
+        model = step.masked_iterate_final()
         init_particle = model.simulate(key, (0.0, mask_steps))
 
         assert jnp.array_equal(init_particle.get_retval(), jnp.array(0.0))
@@ -183,7 +183,7 @@ class TestMaskCombinator:
         # Create some initial traces:
         key = jax.random.key(0)
         mask_steps = jnp.arange(10) < 5
-        model = genjax.masked_iterate(step)
+        model = step.masked_iterate()
         init_particle = model.simulate(key, (0.0, mask_steps))
         assert jnp.array_equal(init_particle.get_retval(), jnp.zeros(11)), (
             "0.0 is threaded through 10 times in addition to the initial value"

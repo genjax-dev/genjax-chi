@@ -33,11 +33,13 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.generative.choice_map import ChoiceMapConstraint
+from genjax._src.core.generative.functional_types import Mask
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
+    Flag,
     FloatArray,
     Generic,
     IntArray,
@@ -1056,7 +1058,7 @@ def iterate_final(
 # Masked Combinators
 
 
-def masked_iterate_final(step, **scan_kwargs):
+def masked_iterate_final() -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
     """
     Transforms a generative function that takes a single argument of type `a` and returns a value of type `a`, into a function that takes a tuple of arguments `(a, [mask])` and returns a value of type `a`.
 
@@ -1065,24 +1067,27 @@ def masked_iterate_final(step, **scan_kwargs):
     All traced values from the kernel generative function are traced (with an added axis due to the scan) but only those indices from [mask] with a flag of True will accounted for in inference, notably for score computations.
 
     Example:
-        ```python
-
+        ```python exec="yes" html="true" source="material-block" session="scan"
         import jax
         import genjax
 
+        masks = jnp.array([True, False, True])
+
+
         # Create a kernel generative function
         @genjax.gen
-            def step(x):
-                _ = (
-                    genjax.normal.mask().vmap(in_axes=(0, None, None))(masks, x, 1.0)
-                    @ "rats"
-                )
-                return x
+        def step(x):
+            _ = (
+                genjax.normal.mask().vmap(in_axes=(0, None, None))(masks, x, 1.0)
+                @ "rats"
+            )
+            return x
+
 
         # Create a model using masked_iterate_final
-        model = genjax.masked_iterate_final(step, n=len(mask_steps))
+        model = genjax.masked_iterate_final()(step)
 
-        # Simualte from the model
+        # Simulate from the model
         key = jax.random.key(0)
         mask_steps = jnp.arange(10) < 5
         tr = model.simulate(key, (0.0, mask_steps))
@@ -1090,18 +1095,21 @@ def masked_iterate_final(step, **scan_kwargs):
         ```
     """
 
-    def pre(state, flag):
-        return flag, state
+    def decorator(step: GenerativeFunction[Y]) -> GenerativeFunction[Y]:
+        def pre(state, flag: Flag):
+            return flag, state
 
-    def post(_unused_args, masked_retval):
-        return masked_retval.value, None
+        def post(_unused_args, masked_retval: Mask[Y]):
+            return masked_retval.value, None
 
-    # scan_step: (a, bool) -> a
-    scan_step = step.mask().dimap(pre=pre, post=post)
-    return scan_step.scan(**scan_kwargs).map(lambda ret: ret[0])
+        # scan_step: (a, bool) -> a
+        scan_step = step.mask().dimap(pre=pre, post=post)
+        return scan_step.scan().map(lambda ret: ret[0])
+
+    return decorator
 
 
-def masked_iterate(step, **scan_kwargs):
+def masked_iterate() -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
     """
     Transforms a generative function that takes a single argument of type `a` and returns a value of type `a`, into a function that takes a tuple of arguments `(a, [mask])` and returns a list of values of type `a`.
 
@@ -1110,24 +1118,27 @@ def masked_iterate(step, **scan_kwargs):
     All traced values from the kernel generative function are traced (with an added axis due to the scan) but only those indices from [mask] with a flag of True will accounted for in inference, notably for score computations.
 
     Example:
-        ```python
-
+        ```python exec="yes" html="true" source="material-block" session="scan"
         import jax
         import genjax
 
+        masks = jnp.array([True, False, True])
+
+
         # Create a kernel generative function
         @genjax.gen
-            def step(x):
-                _ = (
-                    genjax.normal.mask().vmap(in_axes=(0, None, None))(masks, x, 1.0)
-                    @ "rats"
-                )
-                return x
+        def step(x):
+            _ = (
+                genjax.normal.mask().vmap(in_axes=(0, None, None))(masks, x, 1.0)
+                @ "rats"
+            )
+            return x
+
 
         # Create a model using masked_iterate
-        model = genjax.masked_iterate(step, n=len(mask_steps))
+        model = genjax.masked_iterate()(step)
 
-        # Simualte from the model
+        # Simulate from the model
         key = jax.random.key(0)
         mask_steps = jnp.arange(10) < 5
         tr = model.simulate(key, (0.0, mask_steps))
@@ -1135,15 +1146,16 @@ def masked_iterate(step, **scan_kwargs):
         ```
     """
 
-    def pre(state, flag):
-        return flag, state
+    def decorator(step: GenerativeFunction[Y]) -> GenerativeFunction[Y]:
+        def pre(state, flag: Flag):
+            return flag, state
 
-    def post(_unused_args, masked_retval):
-        v = masked_retval.value
-        return v, v
+        def post(_unused_args, masked_retval: Mask[Y]):
+            v = masked_retval.value
+            return v, v
 
-    # scan_step: (a, bool) -> a
-    scan_step = step.mask().dimap(pre=pre, post=post)
-    return scan_step.scan(**scan_kwargs).dimap(
-        pre=lambda *args: args, post=prepend_initial_acc
-    )
+        # scan_step: (a, bool) -> a
+        scan_step = step.mask().dimap(pre=pre, post=post)
+        return scan_step.scan().dimap(pre=lambda *args: args, post=prepend_initial_acc)
+
+    return decorator
