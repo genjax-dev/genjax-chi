@@ -21,12 +21,12 @@ import jax.tree_util as jtu
 from jax import tree_util
 from jax import util as jax_util
 from jax.extend import linear_util as lu
-from jax.interpreters import ad, batching, mlir
+from jax.interpreters import batching, mlir
 from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.interpreters.staging import WrappedFunWithAux, stage
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import Any, Callable, Value
+from genjax._src.core.typing import Any, Callable
 
 #########################
 # Custom JAX primitives #
@@ -66,17 +66,6 @@ class FlatPrimitive(jc.Primitive):
             return pe.abstract_eval_fun(self.impl, *flat_avals, **params)
 
         self.def_abstract_eval(_abstract)
-
-        def _jvp(primals, tangents, **params):
-            primals_out, tangents_out = ad.jvp(
-                lu.wrap_init(self.impl, params)
-            ).call_wrapped(primals, tangents)
-            tangents_out = jax_util.safe_map(
-                ad.recast_to_float0, primals_out, tangents_out
-            )
-            return primals_out, tangents_out
-
-        ad.primitive_jvps[self] = _jvp
 
         def _batch(args, dims, **params):
             batched, out_dims = batch_fun(lu.wrap_init(self.impl, params), dims)
@@ -140,9 +129,9 @@ VarOrLiteral = jc.Var | jc.Literal
 class Environment(Pytree):
     """Keeps track of variables and their values during propagation."""
 
-    env: dict[int, Value] = Pytree.field(default_factory=dict)
+    env: dict[int, Any] = Pytree.field(default_factory=dict)
 
-    def read(self, var: VarOrLiteral) -> Value:
+    def read(self, var: VarOrLiteral) -> Any:
         if isinstance(var, jc.Literal):
             return var.val
         else:
@@ -153,13 +142,13 @@ class Environment(Pytree):
                 )
             return v
 
-    def get(self, var: VarOrLiteral) -> Value:
+    def get(self, var: VarOrLiteral) -> Any:
         if isinstance(var, jc.Literal):
             return var.val
         else:
             return self.env.get(var.count)
 
-    def write(self, var: VarOrLiteral, cell: Value) -> Value:
+    def write(self, var: VarOrLiteral, cell: Any) -> Any:
         if isinstance(var, jc.Literal):
             return cell
         cur_cell = self.get(var)
@@ -168,7 +157,7 @@ class Environment(Pytree):
         self.env[var.count] = cell
         return self.env[var.count]
 
-    def __getitem__(self, var: VarOrLiteral) -> Value:
+    def __getitem__(self, var: VarOrLiteral) -> Any:
         return self.read(var)
 
     def __setitem__(self, key, val):

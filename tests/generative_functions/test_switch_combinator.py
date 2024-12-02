@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
+
 import jax
 import pytest
 from jax import numpy as jnp
@@ -279,3 +281,43 @@ class TestSwitchCombinator:
 
         with pytest.raises(ValueError, match="Incompatible shapes for broadcasting"):
             switch_model(0, (10,), (10,))(k)
+
+    def test_switch_distinct_addresses(self):
+        @genjax.gen
+        def x_z():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            _ = genjax.normal(x, jnp.ones(3)) @ "z"
+            return x
+
+        @genjax.gen
+        def x_y():
+            x = genjax.normal(0.0, 2.0) @ "x"
+            _ = genjax.normal(x, jnp.ones(20)) @ "y"
+            return x
+
+        model = x_z.switch(x_y)
+        k = jax.random.key(0)
+        tr = model.simulate(k, (jnp.array(0), (), ()))
+
+        # both xs match, so it's fine to combine across models
+        assert tr.get_choices()["x"].unmask().shape == ()
+
+        # y and z only show up on one side of the `switch` so any shape is fine
+        assert tr.get_choices()["y"].unmask().shape == (20,)
+        assert tr.get_choices()["z"].unmask().shape == (3,)
+
+        @genjax.gen
+        def arr_x():
+            _ = genjax.normal(0.0, jnp.array([2.0, 2.0])) @ "x"
+            _ = genjax.normal(0.0, jnp.ones(20)) @ "y"
+            return jnp.array(1.0)
+
+        mismatched_tr = x_z.switch(arr_x).simulate(k, (jnp.array(0), (), ()))
+
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "Cannot combine masks with different array shapes: () vs (2,)"
+            ),
+        ):
+            mismatched_tr.get_choices()["x"]

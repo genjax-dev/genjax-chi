@@ -21,6 +21,7 @@ from genjax._src.core.generative.core import (
     Arguments,
     Constraint,
     EditRequest,
+    PrimitiveEditRequest,
     Projection,
     Retdiff,
     Score,
@@ -44,7 +45,6 @@ if TYPE_CHECKING:
     import genjax
 
 _C = TypeVar("_C", bound=Callable[..., Any])
-ArgTuple = TypeVar("ArgTuple", bound=tuple[Any, ...])
 
 # Generative Function type variables
 R = TypeVar("R")
@@ -1046,6 +1046,86 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.iterate_final(n=n)(self)
 
+    def masked_iterate(self) -> "GenerativeFunction[R]":
+        """
+        Transforms a generative function that takes a single argument of type `a` and returns a value of type `a`, into a function that takes a tuple of arguments `(a, [mask])` and returns a list of values of type `a`.
+
+        The original function is modified to accept an additional argument `mask`, which is a boolean value indicating whether the operation should be masked or not. The function returns a Masked list of results of the original operation with the input [mask] as mask.
+
+        All traced values from the kernel generative function are traced (with an added axis due to the scan) but only those indices from [mask] with a flag of True will accounted for in inference, notably for score computations.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="scan"
+            import jax
+            import genjax
+
+            masks = jnp.array([True, False, True])
+
+
+            # Create a kernel generative function
+            @genjax.gen
+            def step(x):
+                _ = (
+                    genjax.normal.mask().vmap(in_axes=(0, None, None))(masks, x, 1.0)
+                    @ "rats"
+                )
+                return x
+
+
+            # Create a model using masked_iterate
+            model = step.masked_iterate()
+
+            # Simulate from the model
+            key = jax.random.key(0)
+            mask_steps = jnp.arange(10) < 5
+            tr = model.simulate(key, (0.0, mask_steps))
+            print(tr.render_html())
+            ```
+        """
+        import genjax
+
+        return genjax.masked_iterate()(self)
+
+    def masked_iterate_final(self) -> "GenerativeFunction[R]":
+        """
+        Transforms a generative function that takes a single argument of type `a` and returns a value of type `a`, into a function that takes a tuple of arguments `(a, [mask])` and returns a value of type `a`.
+
+        The original function is modified to accept an additional argument `mask`, which is a boolean value indicating whether the operation should be masked or not. The function returns the result of the original operation if `mask` is `True`, and the original input if `mask` is `False`.
+
+        All traced values from the kernel generative function are traced (with an added axis due to the scan) but only those indices from [mask] with a flag of True will accounted for in inference, notably for score computations.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="scan"
+            import jax
+            import genjax
+
+            masks = jnp.array([True, False, True])
+
+
+            # Create a kernel generative function
+            @genjax.gen
+            def step(x):
+                _ = (
+                    genjax.normal.mask().vmap(in_axes=(0, None, None))(masks, x, 1.0)
+                    @ "rats"
+                )
+                return x
+
+
+            # Create a model using masked_iterate_final
+            model = step.masked_iterate_final()
+
+            # Simulate from the model
+            key = jax.random.key(0)
+            mask_steps = jnp.arange(10) < 5
+            tr = model.simulate(key, (0.0, mask_steps))
+            print(tr.render_html())
+            ```
+        """
+        import genjax
+
+        return genjax.masked_iterate_final()(self)
+
     def mask(self, /) -> "GenerativeFunction[genjax.Mask[R]]":
         """
         Enables dynamic masking of generative functions. Returns a new [`genjax.GenerativeFunction`][] like `self`, but which accepts an additional boolean first argument.
@@ -1228,8 +1308,8 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         /,
         *,
-        pre: Callable[..., ArgTuple],
-        post: Callable[[ArgTuple, R], S],
+        pre: Callable[..., tuple[Any, ...]],
+        post: Callable[[tuple[Any, ...], R], S],
         info: str | None = None,
     ) -> "GenerativeFunction[S]":
         """
@@ -1322,7 +1402,7 @@ class GenerativeFunction(Generic[R], Pytree):
         return genjax.map(f=f, info=info)(self)
 
     def contramap(
-        self, f: Callable[..., ArgTuple], *, info: str | None = None
+        self, f: Callable[..., tuple[Any, ...]], *, info: str | None = None
     ) -> "GenerativeFunction[R]":
         """
         Specialized version of [`genjax.GenerativeFunction.dimap`][] where only the pre-processing function is applied.
@@ -1608,14 +1688,5 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
 
 @Pytree.dataclass(match_args=True)
-class Update(EditRequest):
+class Update(PrimitiveEditRequest):
     constraint: ChoiceMap
-
-    def edit(
-        self,
-        key: PRNGKey,
-        tr: Trace[R],
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
-        gen_fn = tr.get_gen_fn()
-        return gen_fn.edit(key, tr, self, argdiffs)
