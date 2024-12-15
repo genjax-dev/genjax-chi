@@ -932,6 +932,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 bwd_requests,
             ),
         ) = update_transform(syntax_sugar_handled)(key, trace, constraint, argdiffs)
+        if not Diff.static_check_tree_diff(retval_diffs):
+            retval_diffs = Diff.no_change(retval_diffs)
 
         def make_bwd_request(visitor, subconstraints):
             addresses = visitor.get_visited()
