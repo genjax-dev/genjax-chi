@@ -315,47 +315,47 @@ class IncrementalInterpreter(Pytree):
     def _eval_jaxpr_forward(
         self,
         _stateful_handler,
-        _jaxpr: jc.Jaxpr,
+        jaxpr: jc.Jaxpr,
         consts: list[Any],
         primals: list[Any],
         tangents: list[ChangeTangent],
     ):
         dual_env = Environment()
-        jax_util.safe_map(dual_env.write, _jaxpr.constvars, Diff.no_change(consts))
+        jax_util.safe_map(dual_env.write, jaxpr.constvars, Diff.no_change(consts))
         jax_util.safe_map(
-            dual_env.write, _jaxpr.invars, Diff.tree_diff(primals, tangents)
+            dual_env.write, jaxpr.invars, Diff.tree_diff(primals, tangents)
         )
-        for _eqn in _jaxpr.eqns:
+        for _eqn in jaxpr.eqns:
             induals = jax_util.safe_map(dual_env.read, _eqn.invars)
             # TODO: why isn't this handled automatically by the environment,
             # especially the line above with _jaxpr.constvars?
             induals = [
                 Diff(v, NoChange) if not isinstance(v, Diff) else v for v in induals
             ]
-            subfuns, _params = _eqn.primitive.get_bind_params(_eqn.params)
+            subfuns, params = _eqn.primitive.get_bind_params(_eqn.params)
             args = subfuns + induals
             if _stateful_handler and _stateful_handler.handles(_eqn.primitive):
-                outduals = _stateful_handler.dispatch(_eqn.primitive, *args, **_params)
+                outduals = _stateful_handler.dispatch(_eqn.primitive, *args, **params)
             else:
-                outduals = default_propagation_rule(_eqn.primitive, *args, **_params)
+                outduals = default_propagation_rule(_eqn.primitive, *args, **params)
             if not _eqn.primitive.multiple_results:
                 outduals = [outduals]
             jax_util.safe_map(dual_env.write, _eqn.outvars, outduals)
 
-        return jax_util.safe_map(dual_env.read, _jaxpr.outvars)
+        return jax_util.safe_map(dual_env.read, jaxpr.outvars)
 
     def run_interpreter(self, _stateful_handler, fn, primals, tangents, **kwargs):
         def _inner(*args):
             return fn(*args, **kwargs)
 
-        _closed_jaxpr, (flat_primals, _, out_tree) = stage(_inner)(*primals)
+        closed_jaxpr, (flat_primals, _, out_tree) = stage(_inner)(*primals)
         flat_tangents = jtu.tree_leaves(
             tangents, is_leaf=lambda v: isinstance(v, ChangeTangent)
         )
-        _jaxpr, consts = _closed_jaxpr.jaxpr, _closed_jaxpr.literals
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         flat_out = self._eval_jaxpr_forward(
             _stateful_handler,
-            _jaxpr,
+            jaxpr,
             consts,
             flat_primals,
             flat_tangents,

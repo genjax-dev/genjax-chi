@@ -102,13 +102,13 @@ def initial_style_bind(prim, **params):
 
         def wrapped(*args, **kwargs):
             """Runs a function and binds it to a call primitive."""
-            _jaxpr, (flat_args, in_tree, out_tree) = stage(f)(*args, **kwargs)
+            jaxpr, (flat_args, in_tree, out_tree) = stage(f)(*args, **kwargs)
             outs = prim.bind(
-                *it.chain(_jaxpr.literals, flat_args),
-                _jaxpr=_jaxpr.jaxpr,
+                *it.chain(jaxpr.literals, flat_args),
+                _jaxpr=jaxpr.jaxpr,
                 in_tree=in_tree,
                 out_tree=out_tree,
-                num_consts=len(_jaxpr.literals),
+                num_consts=len(jaxpr.literals),
                 **params,
             )
             return tree_util.tree_unflatten(out_tree(), outs)
@@ -221,11 +221,11 @@ class ForwardInterpreter(Pytree):
         def _inner(*args):
             return fn(*args, **kwargs)
 
-        _closed_jaxpr, (flat_args, _, out_tree) = stage(_inner)(*args)
-        _jaxpr, consts = _closed_jaxpr.jaxpr, _closed_jaxpr.literals
+        closed_jaxpr, (flat_args, _, out_tree) = stage(_inner)(*args)
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         flat_out = self._eval_jaxpr_forward(
             stateful_handler,
-            _jaxpr,
+            jaxpr,
             consts,
             flat_args,
         )

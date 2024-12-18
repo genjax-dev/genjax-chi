@@ -252,11 +252,11 @@ class TimeTravelingDebugger(Pytree):
         frame = self.sequence[self.ptr]
         f, cont = frame.f, frame.cont
         local_retval = f(*args)
-        _, _debugger = _record(cont)(*args)
+        _, debugger = _record(cont)(*args)
         new_frame = FrameRecording(f, args, local_retval, cont)
         return TimeTravelingDebugger(
-            _debugger.final_retval,
-            [*self.sequence[: self.ptr], new_frame, *_debugger.sequence],
+            debugger.final_retval,
+            [*self.sequence[: self.ptr], new_frame, *debugger.sequence],
             self.jump_points,
             self.ptr,
         )

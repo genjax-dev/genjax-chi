@@ -440,7 +440,7 @@ class TestStaticGenFnUpdate:
         assert isinstance(discard, ChoiceMapConstraint)
 
         updated_choice = updated.get_sample()
-        _y1 = updated_choice["y1"]
+        y1 = updated_choice["y1"]
         _y2 = updated_choice["y2"]
         (_, score1) = genjax.normal.importance(
             key, updated_choice.get_submap("y1"), (0.0, 1.0)
@@ -458,10 +458,10 @@ class TestStaticGenFnUpdate:
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
         updated_choice = updated.get_sample()
-        _y1 = updated_choice.get_submap("y1")
-        _y2 = updated_choice.get_submap("y2")
-        (_, score1) = genjax.normal.importance(key, _y1, (0.0, 1.0))
-        (_, score2) = genjax.normal.importance(key, _y2, (0.0, 1.0))
+        y1 = updated_choice.get_submap("y1")
+        y2 = updated_choice.get_submap("y2")
+        (_, score1) = genjax.normal.importance(key, y1, (0.0, 1.0))
+        (_, score2) = genjax.normal.importance(key, y2, (0.0, 1.0))
         test_score = score1 + score2
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
