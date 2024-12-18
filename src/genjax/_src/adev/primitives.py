@@ -19,10 +19,10 @@ import jax._src.dtypes as jax_dtypes
 import jax.numpy as jnp
 from jax._src.ad_util import Zero
 from jax._src.core import (
-    AbstractValue,
     get_aval,
     raise_to_shaped,
 )
+from jax.interpreters.ad import zeros_like_aval
 from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.adev.core import (
@@ -34,7 +34,6 @@ from genjax._src.adev.core import (
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
-    Array,
     Callable,
     PRNGKey,
 )
@@ -42,12 +41,6 @@ from genjax._src.core.typing import (
 tfd = tfp.distributions
 
 # These methods are pulled from jax.interpreters.ad:
-
-aval_zeros_likers: dict[type, Callable[[Any], Array]] = {}
-
-
-def zeros_like_aval(aval: AbstractValue) -> Array:
-    return aval_zeros_likers[type(aval)](aval)
 
 
 def instantiate_zeros(tangent):
