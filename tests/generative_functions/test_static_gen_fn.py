@@ -112,6 +112,20 @@ class TestMisc:
         assert tr.get_score() == score
         assert score == w, "no weight change w/ same chm"
 
+    def test_static_retval(self):
+        """
+        Test that it's possible return a literal from a generative function. and successfully call update on such a function.
+        """
+
+        @genjax.gen
+        def f():
+            return 1
+
+        k = jax.random.key(0)
+        tr = f.simulate(k, ())
+        tr.update(k, C.n(), ())
+        assert tr.get_retval() == 1
+
     def test_get_zero_trace(self):
         @genjax.gen
         def model(x):
