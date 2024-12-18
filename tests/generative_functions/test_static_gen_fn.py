@@ -84,6 +84,34 @@ class TestStaticGenFnMetadata:
 
 
 class TestMisc:
+    def test_assess_vmap_masked(self):
+        """
+        Test case provided by George Matheos in GEN-903.
+        """
+        gf = genjax.flip.vmap(in_axes=(0,))
+
+        @jax.jit
+        def get_choicemap(idx):
+            return genjax.ChoiceMap.switch(
+                idx=idx,
+                chms=[
+                    C.set(jnp.array([0, 0, 1], dtype=bool)),
+                    C.set(jnp.array([1, 1, 1], dtype=bool)),
+                ],
+            )
+
+        chm = get_choicemap(1)
+
+        flipprobs = jnp.array([0.2, 0.4, 0.6])
+        tr, w = gf.importance(jax.random.key(0), chm, (flipprobs,))
+        # ^ This line runs.
+        # However, when I try to call assess in the exact
+        # same configuration, I get an error.
+        score, r = gf.assess(chm, (flipprobs,))
+        assert jnp.array_equal(tr.get_retval(), r)
+        assert tr.get_score() == score
+        assert score == w, "no weight change w/ same chm"
+
     def test_get_zero_trace(self):
         @genjax.gen
         def model(x):
