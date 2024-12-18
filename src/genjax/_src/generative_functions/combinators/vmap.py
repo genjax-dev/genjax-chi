@@ -282,8 +282,13 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
-        scores, retvals = jax.vmap(self.gen_fn.assess, in_axes=(0, self.in_axes))(
-            sample(slice(None, None, None)), args
+        dim_length = self._static_broadcast_dim_length(self.in_axes, args)
+
+        def _inner(idx, args):
+            return self.gen_fn.assess(sample(idx), args)
+
+        scores, retvals = jax.vmap(_inner, in_axes=(0, self.in_axes))(
+            jnp.arange(dim_length), args
         )
         return jnp.sum(scores), retvals
 
