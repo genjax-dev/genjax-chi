@@ -48,6 +48,7 @@ def tfp_distribution(
     """
 
     def sampler(key, *args, **kwargs):
+        print("sampler", key, args, kwargs)
         d = dist(*args, **kwargs)
         return d.sample(seed=key)
 

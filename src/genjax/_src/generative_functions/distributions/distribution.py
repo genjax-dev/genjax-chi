@@ -373,12 +373,13 @@ class ExactDensity(Generic[R], Distribution[R]):
     def logpdf(self, v: R, *args) -> Score:
         pass
 
-    def __abstract_call__(self, *args):
-        return to_shape_fn(self.sample, jnp.zeros)(_fake_key, *args)
+    def __abstract_call__(self, *args, **kwargs):
+        return to_shape_fn(self.sample, jnp.zeros)(_fake_key, *args, **kwargs)
 
     def handle_kwargs(self) -> GenerativeFunction[R]:
         @Pytree.partial(self)
         def sample_with_kwargs(self: "ExactDensity[R]", key, args, kwargs):
+            print("happening", args, kwargs, self)
             return self.sample(key, *args, **kwargs)
 
         @Pytree.partial(self)
@@ -398,6 +399,7 @@ class ExactDensity(Generic[R], Distribution[R]):
         """
         Given arguments to the distribution, sample from the distribution, and return the exact log density of the sample, and the sample.
         """
+        print("dingle my dongle", args, self)
         v = self.sample(key, *args)
         w = self.estimate_logpdf(key, v, *args)
         return (w, v)
@@ -446,11 +448,12 @@ class ExactDensityFromCallables(Generic[R], ExactDensity[R]):
     sampler: Closure[R]
     logpdf_evaluator: Closure[Score]
 
-    def sample(self, key, *args) -> R:
-        return self.sampler(key, *args)
+    def sample(self, key, *args, **kwargs) -> R:
+        print("sample time!!!", key, args, kwargs, self.sampler)
+        return self.sampler(key, *args, **kwargs)
 
-    def logpdf(self, v, *args) -> Score:
-        return self.logpdf_evaluator(v, *args)
+    def logpdf(self, v, *args, **kwargs) -> Score:
+        return self.logpdf_evaluator(v, *args, **kwargs)
 
 
 def exact_density(
