@@ -19,8 +19,8 @@ import jax.numpy as jnp
 import pytest
 
 import genjax
+from genjax import ChoiceMap, Diff, Pytree, Regenerate, StaticRequest, Update
 from genjax import ChoiceMapBuilder as C
-from genjax import Diff, Pytree, Regenerate, StaticRequest, Update
 from genjax import Selection as S
 from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.typing import Array
@@ -84,6 +84,22 @@ class TestStaticGenFnMetadata:
 
 
 class TestMisc:
+    def test_switch_chm_and_static(self):
+        @genjax.gen
+        def model():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = genjax.normal(0.0, 1.0) @ "y"
+            return x, y
+
+        switch_chm = ChoiceMap.switch(jnp.int_(1), [C["x"].set(2.3), C["x"].set(3.4)])
+        key = jax.random.key(0)
+
+        switch_and_y = switch_chm.merge(C["y"].set(4.5))
+
+        tr, _ = model.importance(key, switch_and_y, ())
+
+        assert tr.get_retval() == (3.4, 4.5)
+
     def test_assess_vmap_masked(self):
         """
         Test case provided by George Matheos in GEN-903.
