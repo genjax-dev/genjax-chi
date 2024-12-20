@@ -356,6 +356,39 @@ class TestChoiceMapBuilder:
         # notice that dict values are converted into chms
         assert chm["root", "b", "nested", "d", "deep"] == 3
 
+    def test_switch(self):
+        chm1 = C["x"].set(1)
+        chm2 = C["y"].set(2)
+        chm3 = C["z"].set(3)
+
+        # Test with integer index
+        switched = C["root"].switch(1, [chm1, chm2, chm3])
+        assert switched("root") == chm2
+
+        # Test with array index
+        idx = jnp.array(2)
+        switched_array = C["root"].switch(idx, [chm1, chm2, chm3])
+
+        # Can get values from any component, masked to the correct idx
+        assert switched_array["root", "x"] == Mask(1, jnp.array(False))
+        assert switched_array["root", "y"] == Mask(2, jnp.array(False))
+        assert switched_array["root", "z"] == Mask(3, jnp.array(True))
+
+        # Test nested switch
+        nested = C["outer"].switch(
+            0,
+            [
+                C["inner"].switch(1, [chm1, chm2, chm3]),
+                C["inner"].switch(2, [chm1, chm2, chm3]),
+            ],
+        )
+
+        assert nested("outer")("inner") == chm2
+
+        # Test with empty choice maps
+        empty_switch = C["root"].switch(0, [C.n(), C.n()])
+        assert empty_switch.static_is_empty()
+
 
 class TestChoiceMap:
     def test_empty(self):
