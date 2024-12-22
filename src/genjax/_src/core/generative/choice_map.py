@@ -873,6 +873,12 @@ class _ChoiceMapBuilder:
         """
         return self.set(ChoiceMap.kw(**kwargs))
 
+    def switch(self, idx: int | IntArray, chms: Iterable["ChoiceMap"]) -> "ChoiceMap":
+        """
+        Nests a call to `ChoiceMap.switch` under the current address held by the builder.
+        """
+        return self.set(ChoiceMap.switch(idx, chms))
+
 
 class ChoiceMap(Pytree):
     """The type `ChoiceMap` denotes a map-like value which can be sampled from
