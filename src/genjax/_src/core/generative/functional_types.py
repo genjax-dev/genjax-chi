@@ -420,26 +420,27 @@ def _validate_addr(
     return addr
 
 
-class Sparse(Pytree):
+class SparseNode(Pytree):
     @abstractmethod
-    def get(self, addr: DynamicAddressComponent) -> "Sparse | Array | Mask[Array]": ...
+    def get(self, addr: DynamicAddressComponent) -> "Sparse": ...
 
-    def __getitem__(
-        self, addr: DynamicAddressComponent | DynamicAddress
-    ) -> "Sparse | Array | Mask[Array]":
+    def __getitem__(self, addr: DynamicAddressComponent | DynamicAddress) -> "Sparse":
         addr = _validate_addr(addr, allow_partial_slice=True)
 
         submap = self
         for comp in addr:
-            if isinstance(submap, Sparse):
+            if isinstance(submap, SparseNode):
                 submap = submap.get(comp)
             else:
                 submap = submap[comp]
         return submap
 
 
+Sparse = SparseNode | Array | Mask[Array]
+
+
 @Pytree.dataclass(match_args=True)
-class Indexed(Generic[R], Sparse):
+class Indexed(Generic[R], SparseNode):
     wrapped: R
     addr: int | IntArray
 
@@ -457,7 +458,7 @@ class Indexed(Generic[R], Sparse):
         else:
             return Indexed(chm, addr)
 
-    def get(self, addr: DynamicAddressComponent) -> "Sparse | Array | Mask[Array]":
+    def get(self, addr: DynamicAddressComponent) -> "SparseNode | Array | Mask[Array]":
         if not isinstance(addr, slice):
             # If we allowed non-scalar addresses, the `get_submap` call would not reduce the leaf by a dimension, and further get_submap calls would target the same dimension.
             assert not jnp.asarray(addr, copy=False).shape, (
@@ -487,18 +488,15 @@ class Indexed(Generic[R], Sparse):
 
 
 @Pytree.dataclass(match_args=True)
-class Or(Sparse):
-    c1: Sparse | Array | Mask[Array]
-    c2: Sparse | Array | Mask[Array]
+class Or(SparseNode):
+    c1: Sparse
+    c2: Sparse
 
     @staticmethod
-    def build(
-        c1: Sparse | Array | Mask[Array],
-        c2: Sparse | Array | Mask[Array],
-    ) -> "Sparse | Array | Mask[Array]":
+    def build(c1: Sparse, c2: Sparse) -> Sparse:
         return Or(c1, c2)
 
-    def get(self, addr: DynamicAddressComponent) -> "Sparse | Array | Mask[Array]":
+    def get(self, addr: DynamicAddressComponent) -> Sparse:
         submap1 = self.c1[addr]
         submap2 = self.c2[addr]
         return Or.build(submap1, submap2)
