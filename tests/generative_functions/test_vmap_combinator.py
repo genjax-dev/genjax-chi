@@ -178,7 +178,7 @@ class TestVmapCombinator:
         # in_axes doesn't match args
         with pytest.raises(
             TypeError,
-            match="Found incompatible dtypes, <class 'numpy.float32'> and <class 'numpy.int32'>",
+            match=r"Found incompatible dtypes, <class 'numpy.float32'> and <class 'numpy.int32'>",
         ):
             jax.jit(foo.vmap(in_axes=(None, 0)).simulate)(key, (10.0, jnp.arange(3)))
 
