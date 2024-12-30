@@ -873,6 +873,12 @@ class _ChoiceMapBuilder:
         """
         return self.set(ChoiceMap.kw(**kwargs))
 
+    def switch(self, idx: int | IntArray, chms: Iterable["ChoiceMap"]) -> "ChoiceMap":
+        """
+        Nests a call to `ChoiceMap.switch` under the current address held by the builder.
+        """
+        return self.set(ChoiceMap.switch(idx, chms))
+
 
 class ChoiceMap(Pytree):
     """The type `ChoiceMap` denotes a map-like value which can be sampled from
@@ -1737,6 +1743,17 @@ class Or(ChoiceMap):
                     a = Mask.build(a)
                     b = Mask.build(b)
                     return Choice.build(a | b)
+
+                case (Switch(), Switch()):
+                    raise Exception(
+                        f"We can't currently handle two switches in an Or: {c1}, {c2}"
+                    )
+
+                case (Switch(idx, chms), _):
+                    return Switch.build(idx, [c1 | c2 for c1 in chms])
+
+                case (_, Switch(idx, chms)):
+                    return Switch.build(idx, [c1 | c2 for c2 in chms])
 
                 case (Choice(), _) | (_, Choice()):
                     raise Exception(f"Choice and non-Choice in Or: {c1}, {c2}")

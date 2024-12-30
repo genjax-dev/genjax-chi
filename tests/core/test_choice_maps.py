@@ -22,7 +22,11 @@ import genjax
 from genjax import ChoiceMap, Selection
 from genjax import ChoiceMapBuilder as C
 from genjax import SelectionBuilder as S
-from genjax._src.core.generative.choice_map import ChoiceMapNoValueAtAddress, Static
+from genjax._src.core.generative.choice_map import (
+    ChoiceMapNoValueAtAddress,
+    Static,
+    Switch,
+)
 from genjax._src.core.generative.functional_types import Mask
 
 
@@ -356,6 +360,39 @@ class TestChoiceMapBuilder:
         # notice that dict values are converted into chms
         assert chm["root", "b", "nested", "d", "deep"] == 3
 
+    def test_switch(self):
+        chm1 = C["x"].set(1)
+        chm2 = C["y"].set(2)
+        chm3 = C["z"].set(3)
+
+        # Test with integer index
+        switched = C["root"].switch(1, [chm1, chm2, chm3])
+        assert switched("root") == chm2
+
+        # Test with array index
+        idx = jnp.array(2)
+        switched_array = C["root"].switch(idx, [chm1, chm2, chm3])
+
+        # Can get values from any component, masked to the correct idx
+        assert switched_array["root", "x"] == Mask(1, jnp.array(False))
+        assert switched_array["root", "y"] == Mask(2, jnp.array(False))
+        assert switched_array["root", "z"] == Mask(3, jnp.array(True))
+
+        # Test nested switch
+        nested = C["outer"].switch(
+            0,
+            [
+                C["inner"].switch(1, [chm1, chm2, chm3]),
+                C["inner"].switch(2, [chm1, chm2, chm3]),
+            ],
+        )
+
+        assert nested("outer")("inner") == chm2
+
+        # Test with empty choice maps
+        empty_switch = C["root"].switch(0, [C.n(), C.n()])
+        assert empty_switch.static_is_empty()
+
 
 class TestChoiceMap:
     def test_empty(self):
@@ -492,6 +529,47 @@ class TestChoiceMap:
         # any statically missing address still raises:
         with pytest.raises(ChoiceMapNoValueAtAddress):
             switched_array["z"]
+
+    def test_or_with_switch(self):
+        # Create a switch and a static choice map
+        chm1 = ChoiceMap.kw(x=1, y=2)
+        chm2 = ChoiceMap.kw(x=3, y=4)
+        switch_chm = ChoiceMap.switch(jnp.array(1), [chm1, chm2])
+        static_chm = ChoiceMap.kw(z=5)
+
+        # Test Or with switch on left
+        or_chm = switch_chm | static_chm
+
+        # Should be a Switch with the static Or'd into each branch
+        assert isinstance(or_chm, Switch)
+        assert len(or_chm.chms) == 2
+
+        # First branch should have original values masked false
+        assert or_chm.chms[0]["x"] == Mask(1, jnp.array(False))
+        assert or_chm.chms[0]["y"] == Mask(2, jnp.array(False))
+        assert or_chm.chms[0]["z"] == Mask(5, jnp.array(False))
+
+        # Second branch should have original values masked true
+        assert or_chm.chms[1]["x"] == Mask(3, jnp.array(True))
+        assert or_chm.chms[1]["y"] == Mask(4, jnp.array(True))
+        assert or_chm.chms[1]["z"] == Mask(5, jnp.array(True))
+
+        # Test Or with switch on right
+        or_chm_2 = static_chm | switch_chm
+
+        # Should be a Switch with the static Or'd into each branch
+        assert isinstance(or_chm_2, Switch)
+        assert len(or_chm_2.chms) == 2
+
+        # First branch should have original values masked false
+        assert or_chm_2.chms[0]["x"] == Mask(1, jnp.array(False))
+        assert or_chm_2.chms[0]["y"] == Mask(2, jnp.array(False))
+        assert or_chm_2.chms[0]["z"] == Mask(5, jnp.array(False))
+
+        # Second branch should have original values masked true
+        assert or_chm_2.chms[1]["x"] == Mask(3, jnp.array(True))
+        assert or_chm_2.chms[1]["y"] == Mask(4, jnp.array(True))
+        assert or_chm_2.chms[1]["z"] == Mask(5, jnp.array(True))
 
     @pytest.mark.filterwarnings("ignore::DeprecationWarning")
     def test_or_xor_access(self):

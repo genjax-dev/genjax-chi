@@ -19,8 +19,8 @@ import jax.numpy as jnp
 import pytest
 
 import genjax
+from genjax import ChoiceMap, Diff, Pytree, Regenerate, StaticRequest, Update
 from genjax import ChoiceMapBuilder as C
-from genjax import Diff, Pytree, Regenerate, StaticRequest, Update
 from genjax import Selection as S
 from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.typing import Array
@@ -84,6 +84,64 @@ class TestStaticGenFnMetadata:
 
 
 class TestMisc:
+    def test_switch_chm_and_static(self):
+        @genjax.gen
+        def model():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = genjax.normal(0.0, 1.0) @ "y"
+            return x, y
+
+        switch_chm = ChoiceMap.switch(jnp.int_(1), [C["x"].set(2.3), C["x"].set(3.4)])
+        key = jax.random.key(0)
+
+        switch_and_y = switch_chm.merge(C["y"].set(4.5))
+
+        tr, _ = model.importance(key, switch_and_y, ())
+
+        assert tr.get_retval() == (3.4, 4.5)
+
+    def test_assess_vmap_masked(self):
+        """
+        Test case provided by George Matheos in GEN-903.
+        """
+        gf = genjax.flip.vmap(in_axes=(0,))
+
+        @jax.jit
+        def get_choicemap(idx):
+            return genjax.ChoiceMap.switch(
+                idx=idx,
+                chms=[
+                    C.set(jnp.array([0, 0, 1], dtype=bool)),
+                    C.set(jnp.array([1, 1, 1], dtype=bool)),
+                ],
+            )
+
+        chm = get_choicemap(1)
+
+        flipprobs = jnp.array([0.2, 0.4, 0.6])
+        tr, w = gf.importance(jax.random.key(0), chm, (flipprobs,))
+        # ^ This line runs.
+        # However, when I try to call assess in the exact
+        # same configuration, I get an error.
+        score, r = gf.assess(chm, (flipprobs,))
+        assert jnp.array_equal(tr.get_retval(), r)
+        assert tr.get_score() == score
+        assert score == w, "no weight change w/ same chm"
+
+    def test_static_retval(self):
+        """
+        Test that it's possible return a literal from a generative function. and successfully call update on such a function.
+        """
+
+        @genjax.gen
+        def f():
+            return 1
+
+        k = jax.random.key(0)
+        tr = f.simulate(k, ())
+        tr.update(k, C.n(), ())
+        assert tr.get_retval() == 1
+
     def test_get_zero_trace(self):
         @genjax.gen
         def model(x):
@@ -440,7 +498,7 @@ class TestStaticGenFnUpdate:
         assert isinstance(discard, ChoiceMapConstraint)
 
         updated_choice = updated.get_sample()
-        _y1 = updated_choice["y1"]
+        y1 = updated_choice["y1"]
         _y2 = updated_choice["y2"]
         (_, score1) = genjax.normal.importance(
             key, updated_choice.get_submap("y1"), (0.0, 1.0)
@@ -458,10 +516,10 @@ class TestStaticGenFnUpdate:
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
         updated_choice = updated.get_sample()
-        _y1 = updated_choice.get_submap("y1")
-        _y2 = updated_choice.get_submap("y2")
-        (_, score1) = genjax.normal.importance(key, _y1, (0.0, 1.0))
-        (_, score2) = genjax.normal.importance(key, _y2, (0.0, 1.0))
+        y1 = updated_choice.get_submap("y1")
+        y2 = updated_choice.get_submap("y2")
+        (_, score1) = genjax.normal.importance(key, y1, (0.0, 1.0))
+        (_, score2) = genjax.normal.importance(key, y2, (0.0, 1.0))
         test_score = score1 + score2
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
