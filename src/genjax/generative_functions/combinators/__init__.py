@@ -18,6 +18,11 @@ from genjax._src.generative_functions.combinators.dimap import (
     dimap,
     map,
 )
+from genjax._src.generative_functions.combinators.markov import (
+    AddressFunction,
+    MarkovCombinator,
+    markov,
+)
 from genjax._src.generative_functions.combinators.mask import (
     MaskCombinator,
     mask,
@@ -54,8 +59,10 @@ from genjax._src.generative_functions.combinators.vmap import (
 )
 
 __all__ = [
+    "AddressFunction",
     "DimapCombinator",
     "IndexRequest",
+    "MarkovCombinator",
     "MaskCombinator",
     "RepeatCombinator",
     "ScanCombinator",
@@ -68,6 +75,7 @@ __all__ = [
     "iterate",
     "iterate_final",
     "map",
+    "markov",
     "mask",
     "masked_iterate",
     "masked_iterate_final",
