@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from genjax._src.inference.requests.grid_rejuv import GridRejuvenate
 from genjax._src.inference.requests.hmc import HMC, SafeHMC
 
 __all__ = [
     "HMC",
+    "GridRejuvenate",
     "SafeHMC",
 ]
