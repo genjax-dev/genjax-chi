@@ -16,7 +16,7 @@ maintainers = [
     "Sam Ritchie <sam@mentat.org>",
 ]
 license = "Apache 2.0"
-readme = "README.md"
+readme = "README_pypi.md"
 homepage = "https://github.com/probcomp/genjax"
 repository = "https://github.com/probcomp/genjax"
 documentation = "https://genjax.gen.dev/"
