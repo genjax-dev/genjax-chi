@@ -1089,7 +1089,7 @@ class TestChoiceMap:
         # querying array-shaped indices with a slice is not allowed:
         with pytest.raises(
             AssertionError,
-            match="Slices are not allowed against array-shaped dynamic addresses.",
+            match=r"Slices are not allowed against array-shaped dynamic addresses.",
         ):
             chm["z", :]
 

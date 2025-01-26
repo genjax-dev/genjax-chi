@@ -1479,94 +1479,6 @@ class Choice(Generic[T], ChoiceMap):
 
 
 @Pytree.dataclass(match_args=True)
-class Indexed(ChoiceMap):
-    """Represents a choice map with dynamic indexing.
-
-    This class represents a choice map that uses dynamic (array-based) addressing.
-    It allows for indexing into the choice map using array-like address components.
-
-    Attributes:
-        c: The underlying choice map.
-        addr: The dynamic address component used for indexing.
-
-    Examples:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        import jax.numpy as jnp
-
-        base_chm = ChoiceMap.value(jnp.array([1, 2, 3]))
-        idx_chm = base_chm.extend(jnp.array([0, 1, 2]))
-
-        assert idx_chm.get_submap(1).get_value() == genjax.Mask(2, True)
-        ```
-    """
-
-    c: ChoiceMap
-    addr: int | IntArray
-
-    @staticmethod
-    def build(chm: ChoiceMap, addr: DynamicAddressComponent) -> ChoiceMap:
-        if chm.static_is_empty():
-            return chm
-
-        elif isinstance(addr, slice):
-            if addr == _full_slice:
-                return chm
-            else:
-                raise ValueError(f"Partial slices not supported: {addr}")
-
-        elif isinstance(addr, Array) and addr.shape == (0,):
-            return ChoiceMap.empty()
-
-        else:
-            return Indexed(chm, addr)
-
-    def filter(self, selection: Selection) -> ChoiceMap:
-        addr = _full_slice if self.addr is None else self.addr
-        return self.c.filter(selection(addr)).extend(addr)
-
-    def get_value(self) -> Any:
-        return None
-
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
-        if isinstance(addr, StaticAddressComponent):
-            return ChoiceMap.empty()
-
-        else:
-            if not isinstance(addr, slice):
-                # If we allowed non-scalar addresses, the `get_submap` call would not reduce the leaf by a dimension, and further get_submap calls would target the same dimension.
-                assert not jnp.asarray(addr, copy=False).shape, (
-                    "Only scalar dynamic addresses are supported by get_submap."
-                )
-
-            if self.addr is None:
-                # None means that this instance was created with `:`, so no masking is required and we assume that the user will provide an in-bounds `int | ScalarInt`` address. If they don't they will run up against JAX's clamping behavior.
-                return jtu.tree_map(
-                    lambda v: v[addr], self.c, is_leaf=lambda x: isinstance(x, Mask)
-                )
-
-            elif isinstance(self.addr, Array) and self.addr.shape:
-                # We can't allow slices, as self.addr might look like, e.g. `[2,5,6]`, and we don't have any way to combine this "sparse array selector" with an incoming slice.
-                assert not isinstance(addr, slice), (
-                    f"Slices are not allowed against array-shaped dynamic addresses. Tried to apply {addr} to {self.addr}."
-                )
-
-                check = self.addr == addr
-
-                # If `check` contains a match (we know it will be a single match, since we constrain addr to be scalar), then `idx` is the index of the match in `self.addr`.
-                # Else, idx == 0 (selecting "junk data" of the right shape at the leaf) and check_array[idx] == False (masking the junk data).
-                idx = jnp.argwhere(check, size=1, fill_value=0)[0, 0]
-
-                return jtu.tree_map(
-                    lambda v: Mask.build(v[idx], check[idx]),
-                    self.c,
-                    is_leaf=lambda x: isinstance(x, Mask),
-                )
-
-            else:
-                return self.c.mask(self.addr == addr)
-
-
-@Pytree.dataclass(match_args=True)
 class Static(ChoiceMap):
     """
     Represents a static choice map with a dictionary of address-choicemap pairs.
@@ -1695,6 +1607,97 @@ class Switch(ChoiceMap):
 
     def get_submap(self, addr: AddressComponent) -> ChoiceMap:
         return Switch(self.idx, [chm.get_submap(addr) for chm in self.chms])
+
+
+## DELETE THESE
+
+
+@Pytree.dataclass(match_args=True)
+class Indexed(ChoiceMap):
+    """Represents a choice map with dynamic indexing.
+
+    This class represents a choice map that uses dynamic (array-based) addressing.
+    It allows for indexing into the choice map using array-like address components.
+
+    Attributes:
+        c: The underlying choice map.
+        addr: The dynamic address component used for indexing.
+
+    Examples:
+        ```python exec="yes" html="true" source="material-block" session="choicemap"
+        import jax.numpy as jnp
+
+        base_chm = ChoiceMap.value(jnp.array([1, 2, 3]))
+        idx_chm = base_chm.extend(jnp.array([0, 1, 2]))
+
+        assert idx_chm.get_submap(1).get_value() == genjax.Mask(2, True)
+        ```
+    """
+
+    c: ChoiceMap
+    addr: int | IntArray
+
+    @staticmethod
+    def build(chm: ChoiceMap, addr: DynamicAddressComponent) -> ChoiceMap:
+        if chm.static_is_empty():
+            return chm
+
+        elif isinstance(addr, slice):
+            if addr == _full_slice:
+                return chm
+            else:
+                raise ValueError(f"Partial slices not supported: {addr}")
+
+        elif isinstance(addr, Array) and addr.shape == (0,):
+            return ChoiceMap.empty()
+
+        else:
+            return Indexed(chm, addr)
+
+    def filter(self, selection: Selection) -> ChoiceMap:
+        addr = _full_slice if self.addr is None else self.addr
+        return self.c.filter(selection(addr)).extend(addr)
+
+    def get_value(self) -> Any:
+        return None
+
+    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+        if isinstance(addr, StaticAddressComponent):
+            return ChoiceMap.empty()
+
+        else:
+            if not isinstance(addr, slice):
+                # If we allowed non-scalar addresses, the `get_submap` call would not reduce the leaf by a dimension, and further get_submap calls would target the same dimension.
+                assert not jnp.asarray(addr, copy=False).shape, (
+                    "Only scalar dynamic addresses are supported by get_submap."
+                )
+
+            if self.addr is None:
+                # None means that this instance was created with `:`, so no masking is required and we assume that the user will provide an in-bounds `int | ScalarInt`` address. If they don't they will run up against JAX's clamping behavior.
+                return jtu.tree_map(
+                    lambda v: v[addr], self.c, is_leaf=lambda x: isinstance(x, Mask)
+                )
+
+            elif isinstance(self.addr, Array) and self.addr.shape:
+                # We can't allow slices, as self.addr might look like, e.g. `[2,5,6]`, and we don't have any way to combine this "sparse array selector" with an incoming slice.
+                assert not isinstance(addr, slice), (
+                    f"Slices are not allowed against array-shaped dynamic addresses. Tried to apply {addr} to {self.addr}."
+                )
+
+                check = self.addr == addr
+
+                # If `check` contains a match (we know it will be a single match, since we constrain addr to be scalar), then `idx` is the index of the match in `self.addr`.
+                # Else, idx == 0 (selecting "junk data" of the right shape at the leaf) and check_array[idx] == False (masking the junk data).
+                idx = jnp.argwhere(check, size=1, fill_value=0)[0, 0]
+
+                return jtu.tree_map(
+                    lambda v: Mask.build(v[idx], check[idx]),
+                    self.c,
+                    is_leaf=lambda x: isinstance(x, Mask),
+                )
+
+            else:
+                return self.c.mask(self.addr == addr)
 
 
 @Pytree.dataclass(match_args=True)
