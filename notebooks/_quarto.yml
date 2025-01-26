@@ -14,7 +14,7 @@ website:
       type: overlay
   favicon: small_logo.png
   image: small_logo.png
-  repo-url: https://github.com/probcomp/genjax/
+  repo-url: https://github.com/chi-collective/genjax/
   repo-branch: main
   repo-subdir: notebooks
   repo-actions: [issue, source]

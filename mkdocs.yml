@@ -14,8 +14,8 @@
 
 site_name: GenJAX
 site_url: https://genjax.gen.dev/
-repo_url: https://github.com/probcomp/genjax
-repo_name: probcomp/genjax
+repo_url: https://github.com/chi-collective/genjax
+repo_name: chi-collective/genjax
 edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 

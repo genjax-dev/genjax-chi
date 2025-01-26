@@ -58,7 +58,7 @@ conda create --name genjax-py311 python=3.11 --channel=conda-forge
 conda activate genjax-py311
 pip install nox
 pip install nox-poetry
-git clone https://github.com/probcomp/genjax
+git clone https://github.com/chi-collective/genjax
 cd genjax
 poetry self add "poetry-dynamic-versioning[plugin]"
 poetry install
@@ -170,7 +170,7 @@ GenJAX.
 
 Published GenJAX artifacts live [on PyPI](https://pypi.org/project/genjax/) and
 are published automatically by GitHub with each new
-[release](https://github.com/probcomp/genjax/releases).
+[release](https://github.com/chi-collective/genjax/releases).
 
 ### Release checklist
 
@@ -182,7 +182,7 @@ Before cutting a new release:
 
 ### Releasing via GitHub
 
-- Visit https://github.com/probcomp/genjax/releases/new to create a new release.
+- Visit https://github.com/chi-collective/genjax/releases/new to create a new release.
 - From the "Choose a tag" dropdown, type the new version (using the format
   `v<MAJOR>.<MINOR>.<INCREMENTAL>`, like `v0.1.0`) and select "Create new tag
   on publish"

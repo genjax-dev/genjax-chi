@@ -17,8 +17,8 @@ maintainers = [
 ]
 license = "Apache 2.0"
 readme = "README_pypi.md"
-homepage = "https://github.com/probcomp/genjax"
-repository = "https://github.com/probcomp/genjax"
+homepage = "https://github.com/chi-collective/genjax"
+repository = "https://github.com/chi-collective/genjax"
 documentation = "https://genjax.gen.dev/"
 keywords = [
     "artificial-intelligence",
@@ -34,7 +34,7 @@ classifiers = [
 ]
 
 [tool.poetry.urls]
-Changelog = "https://github.com/probcomp/genjax/releases"
+Changelog = "https://github.com/chi-collective/genjax/releases"
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
