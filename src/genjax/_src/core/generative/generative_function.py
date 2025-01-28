@@ -158,6 +158,21 @@ class Trace(Generic[R], Pytree):
             self,
             Diff.no_change(self.get_args()) if argdiffs is None else argdiffs,
         )  # pyright: ignore[reportReturnType]
+    
+    def editf(
+        self,
+        key: PRNGKey,
+        request: EditRequest,
+        argdiffs: tuple[Any, ...] | None = None,
+    ) -> "tuple[Tracediff[R], Weight, Retdiff[R], EditRequest]":
+        """
+        This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
+        """
+        return request.editf(
+            key,
+            self,
+            Diff.no_change(self.get_args()) if argdiffs is None else argdiffs,
+        )  # pyright: ignore[reportReturnType]
 
     def update(
         self,

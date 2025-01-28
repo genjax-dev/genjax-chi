@@ -642,7 +642,7 @@ def updatef_transform(source_fn):
         constraint: ChoiceMap,
         diffs: tuple[Any, ...],
     ):
-        stateful_handler = UpdateHandler(key, previous_trace, constraint)
+        stateful_handler = UpdatefHandler(key, previous_trace, constraint)
         diff_primals = Diff.tree_primal(diffs)
         diff_tangents = Diff.tree_tangent(diffs)
         retval_diffs = incremental(source_fn)(
@@ -652,7 +652,7 @@ def updatef_transform(source_fn):
         (
             weight,
             address_visitor,
-            address_traces,
+            address_tracediffs,
             bwd_requests,
         ) = stateful_handler.yield_state()
         return (

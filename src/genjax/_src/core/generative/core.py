@@ -155,6 +155,14 @@ class EditRequest(Pytree):
         argdiffs: Argdiffs,
     ) -> "tuple[genjax.Trace[R], Weight, Retdiff[R], EditRequest]":
         pass
+    
+    def editf(
+        self,
+        key: PRNGKey,
+        tr: "genjax.Trace[R]",
+        argdiffs: Argdiffs,
+    ) -> "tuple[genjax.Tracediff[R], Weight, Retdiff[R], EditRequest]":
+        raise NotImplementedError
 
     def dimap(
         self,
@@ -196,6 +204,15 @@ class PrimitiveEditRequest(EditRequest):
     ) -> "tuple[genjax.Trace[R], Weight, Retdiff[R], EditRequest]":
         gen_fn = tr.get_gen_fn()
         return gen_fn.edit(key, tr, self, argdiffs)
+    
+    def editf(
+        self,
+        key: PRNGKey,
+        tr: "genjax.Trace[R]",
+        argdiffs: Argdiffs,
+    ) -> "tuple[genjax.Tracediff[R], Weight, Retdiff[R], EditRequest]":
+        gen_fn = tr.get_gen_fn()
+        return gen_fn.editf(key, tr, self, argdiffs)
 
 
 class NotSupportedEditRequest(Exception):

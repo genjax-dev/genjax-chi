@@ -32,6 +32,7 @@ from genjax._src.core.generative import (
     Selection,
     SelectionBuilder,
     Trace,
+    Tracediff,
     Update,
     Weight,
 )
@@ -56,6 +57,7 @@ __all__ = [
     "Selection",
     "SelectionBuilder",
     "Trace",
+    "Tracediff",
     "Update",
     "Weight",
 ]
