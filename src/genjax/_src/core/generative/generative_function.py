@@ -21,6 +21,7 @@ from genjax._src.core.generative.core import (
     Arguments,
     Constraint,
     EditRequest,
+    NotSupportedEditRequest,
     PrimitiveEditRequest,
     Projection,
     Retdiff,
@@ -193,6 +194,12 @@ class Trace(Generic[R], Pytree):
     @property
     def batch_shape(self):
         return len(self.get_score())
+
+
+class Tracediff(Generic[R], Pytree):
+    @abstractmethod
+    def merge(self, trace: Trace[R]) -> Trace[R]:
+        pass
 
 
 #######################
@@ -568,6 +575,15 @@ class GenerativeFunction(Generic[R], Pytree):
         Argument changes induce changes to the distribution over samples, internal K and L proposals, and (by virtue of changes to $P$) target distributions. The [`Argdiffs`][genjax.core.Argdiffs] type denotes the type of values attached with a _change type_, a piece of data which indicates how the value has changed from the arguments which created the trace. Generative functions can utilize change type information to inform efficient [`edit`][genjax.core.GenerativeFunction.edit] implementations.
         """
         pass
+
+    def editf(
+        self,
+        key: PRNGKey,
+        trace: Trace[R],
+        edit_request: EditRequest,
+        argdiffs: Argdiffs,
+    ) -> tuple[Tracediff[R], Weight, Retdiff[R], EditRequest]:
+        raise NotSupportedEditRequest(edit_request)
 
     ######################
     # Derived interfaces #

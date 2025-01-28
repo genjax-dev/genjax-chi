@@ -38,6 +38,7 @@ from genjax._src.core.generative import (
     StaticAddress,
     StaticAddressComponent,
     Trace,
+    Tracediff,
     Update,
     Weight,
 )
@@ -129,6 +130,26 @@ class StaticTrace(Generic[R], Trace[R]):
         addresses = self.addresses.get_visited()
         idx = addresses.index(addr)
         return self.subtraces[idx]
+
+
+@Pytree.dataclass
+class StaticTracediff(Generic[R], Tracediff[R]):
+    new_args: tuple[Any, ...]
+    new_retval: R
+    addresses: AddressVisitor
+    subdiffs: list[Tracediff[Any]]
+
+    def merge(self, trace: StaticTrace[R]) -> StaticTrace[R]:
+        return StaticTrace(
+            trace.gen_fn,
+            self.new_args,
+            self.new_retval,
+            self.addresses,
+            [
+                subdiff.merge(subtrace)
+                for subdiff, subtrace in zip(self.subdiffs, trace.subtraces)
+            ],
+        )
 
 
 ####################################
@@ -533,6 +554,117 @@ def update_transform(source_fn):
                     retval_primals,
                     address_visitor,
                     address_traces,
+                ),
+                # Backward update problem.
+                bwd_requests,
+            ),
+        )
+
+    return wrapper
+
+
+################
+# Update editf #
+################
+
+
+@dataclass
+class UpdatefHandler(StaticHandler):
+    key: PRNGKey
+    previous_trace: StaticTrace[Any]
+    constraint: ChoiceMap
+    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    address_tracediffs: list[Trace[Any]] = Pytree.field(default_factory=list)
+    bwd_constraints: list[ChoiceMap] = Pytree.field(default_factory=list)
+    key_counter: int = Pytree.static(default=1)
+
+    def fresh_key_and_increment(self):
+        new_key = jax.random.fold_in(self.key, self.key_counter)
+        self.key_counter += 1
+        return new_key
+
+    def yield_state(self):
+        return (
+            self.weight,
+            self.address_visitor,
+            self.address_tracediffs,
+            self.bwd_constraints,
+        )
+
+    def visit(self, addr):
+        self.address_visitor.visit(addr)
+
+    def get_subconstraint(self, addr: StaticAddress) -> ChoiceMap:
+        return self.constraint(addr)
+
+    def get_subtrace(
+        self,
+        addr: StaticAddress,
+    ):
+        return self.previous_trace.get_subtrace(addr)
+
+    def handle_retval(self, v):
+        return jtu.tree_leaves(v, is_leaf=lambda v: isinstance(v, Diff))
+
+    def handle_trace(
+        self,
+        addr: StaticAddress,
+        gen_fn: GenerativeFunction[Any],
+        args: tuple[Any, ...],
+    ):
+        argdiffs: Argdiffs = args
+        self.visit(addr)
+        subtrace = self.get_subtrace(addr)
+        constraint = self.get_subconstraint(addr)
+        sub_key = self.fresh_key_and_increment()
+        request = Update(constraint)
+        (tr_diff, w, retval_diff, bwd_request) = request.editf(
+            sub_key,
+            subtrace,
+            argdiffs,
+        )
+        assert isinstance(bwd_request, Update) and isinstance(
+            bwd_request.constraint, ChoiceMap
+        )
+        self.bwd_constraints.append(bwd_request.constraint)
+        self.weight += w
+        self.address_tracediffs.append(tr_diff)
+
+        return retval_diff
+
+
+def updatef_transform(source_fn):
+    @functools.wraps(source_fn)
+    def wrapper(
+        key: PRNGKey,
+        previous_trace: StaticTrace[R],
+        constraint: ChoiceMap,
+        diffs: tuple[Any, ...],
+    ):
+        stateful_handler = UpdateHandler(key, previous_trace, constraint)
+        diff_primals = Diff.tree_primal(diffs)
+        diff_tangents = Diff.tree_tangent(diffs)
+        retval_diffs = incremental(source_fn)(
+            stateful_handler, diff_primals, diff_tangents
+        )
+        retval_primals = Diff.tree_primal(retval_diffs)
+        (
+            weight,
+            address_visitor,
+            address_traces,
+            bwd_requests,
+        ) = stateful_handler.yield_state()
+        return (
+            (
+                retval_diffs,
+                weight,
+                # Trace.
+                (
+                    diff_primals,
+                    retval_primals,
+                    address_visitor,
+                    address_tracediffs,
                 ),
                 # Backward update problem.
                 bwd_requests,
@@ -1086,6 +1218,70 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     trace,
                     selection,
                     edit_request,
+                    argdiffs,
+                )
+            case _:
+                raise NotSupportedEditRequest(edit_request)
+
+    def editf_update(
+        self,
+        key: PRNGKey,
+        trace: StaticTrace[R],
+        constraint: ChoiceMap,
+        argdiffs: Argdiffs,
+    ) -> tuple[StaticTracediff[R], Weight, Retdiff[R], EditRequest]:
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
+        (
+            (
+                retval_diffs,
+                weight,
+                (
+                    arg_primals,
+                    retval_primals,
+                    address_visitor,
+                    address_tracediffs,
+                ),
+                bwd_requests,
+            ),
+        ) = updatef_transform(syntax_sugar_handled)(key, trace, constraint, argdiffs)
+        if not Diff.static_check_tree_diff(retval_diffs):
+            retval_diffs = Diff.no_change(retval_diffs)
+
+        def make_bwd_request(visitor, subconstraints):
+            addresses = visitor.get_visited()
+            addresses = Pytree.tree_const_unwrap(addresses)
+            chm = ChoiceMap.from_mapping(zip(addresses, subconstraints))
+            return Update(chm)
+
+        bwd_request = make_bwd_request(address_visitor, bwd_requests)
+        return (
+            StaticTracediff(
+                arg_primals,
+                retval_primals,
+                address_visitor,
+                address_tracediffs,
+            ),
+            weight,
+            retval_diffs,
+            bwd_request,
+        )
+
+    def editf(
+        self,
+        key: PRNGKey,
+        trace: Trace[R],
+        edit_request: EditRequest,
+        argdiffs: Argdiffs,
+    ) -> tuple[StaticTracediff[R], Weight, Retdiff[R], EditRequest]:
+        assert isinstance(trace, StaticTrace)
+        match edit_request:
+            case Update(constraint):
+                return self.editf_update(
+                    key,
+                    trace,
+                    constraint,
                     argdiffs,
                 )
             case _:

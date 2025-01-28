@@ -37,6 +37,7 @@ from genjax._src.core.generative import (
     Score,
     Selection,
     Trace,
+    Tracediff,
     Update,
     Weight,
 )
@@ -82,6 +83,27 @@ class DistributionTrace(
 
     def get_choices(self) -> ChoiceMap:
         return ChoiceMap.choice(self.value)
+
+
+@Pytree.dataclass
+class ChangedValue(Generic[R], Tracediff[R]):
+    new_value: R
+    new_score: Score
+
+    def merge(self, trace: DistributionTrace[R]) -> DistributionTrace[R]:
+        return DistributionTrace(
+            trace.gen_fn, trace.args, self.new_value, self.new_score
+        )
+
+
+@Pytree.dataclass
+class ChangedScore(Generic[R], Tracediff[R]):
+    new_score: Score
+
+    def merge(self, trace: DistributionTrace[R]) -> DistributionTrace[R]:
+        return DistributionTrace(
+            trace.gen_fn, trace.args, trace.get_retval(), self.new_score
+        )
 
 
 ################
@@ -163,6 +185,19 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             case _:
                 raise Exception("Unhandled type.")
         return tr, w
+
+    def project(
+        self,
+        key: PRNGKey,
+        trace: Trace[R],
+        projection: Projection[Any],
+    ) -> Weight:
+        assert isinstance(projection, Selection)
+        return jnp.where(
+            projection.check(),
+            trace.get_score(),
+            jnp.array(0.0),
+        )
 
     def edit_empty(
         self,
@@ -247,19 +282,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             case _:
                 raise Exception(f"Unhandled constraint in edit: {type(constraint)}.")
 
-    def project(
-        self,
-        key: PRNGKey,
-        trace: Trace[R],
-        projection: Projection[Any],
-    ) -> Weight:
-        assert isinstance(projection, Selection)
-        return jnp.where(
-            projection.check(),
-            trace.get_score(),
-            jnp.array(0.0),
-        )
-
     def edit_regenerate(
         self,
         key: PRNGKey,
@@ -343,6 +365,130 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     key,
                     trace,
                     selection,
+                    argdiffs,
+                )
+
+            case _:
+                raise NotSupportedEditRequest(edit_request)
+
+    def editf_empty(
+        self,
+        trace: DistributionTrace[R],
+        argdiffs: Argdiffs,
+    ) -> tuple[Tracediff[R], Weight, Retdiff[R], Update]:
+        sample = trace.get_choices()
+        primals = Diff.tree_primal(argdiffs)
+        new_score, _ = self.assess(sample, primals)
+        tracediff = ChangedScore(new_score)
+        return (
+            tracediff,
+            new_score - trace.get_score(),
+            Diff.no_change(trace.get_retval()),
+            Update(ChoiceMap.empty()),
+        )
+
+    def editf_update_with_constraint(
+        self,
+        key: PRNGKey,
+        trace: DistributionTrace[R],
+        constraint: Constraint,
+        argdiffs: Argdiffs,
+    ) -> tuple[Tracediff[R], Weight, Retdiff[R], Update]:
+        primals = Diff.tree_primal(argdiffs)
+        match constraint:
+            case ChoiceMapConstraint(chm):
+                match chm.get_value():
+                    case Mask() as masked_value:
+
+                        def _true_branch(key, new_value: R, _):
+                            fwd = self.estimate_logpdf(key, new_value, *primals)
+                            bwd = trace.get_score()
+                            w = fwd - bwd
+                            return (new_value, w, fwd)
+
+                        def _false_branch(key, _, old_value: R):
+                            fwd = self.estimate_logpdf(key, old_value, *primals)
+                            bwd = trace.get_score()
+                            w = fwd - bwd
+                            return (old_value, w, fwd)
+
+                        flag = masked_value.primal_flag()
+                        new_value: R = masked_value.value
+                        old_choices = trace.get_choices()
+                        old_value: R = old_choices.get_value()
+
+                        new_value, w, score = FlagOp.cond(
+                            flag,
+                            _true_branch,
+                            _false_branch,
+                            key,
+                            new_value,
+                            old_value,
+                        )
+                        return (
+                            ChangedValue(new_value, score),
+                            w,
+                            Diff.unknown_change(new_value),
+                            Update(
+                                old_choices.mask(flag),
+                            ),
+                        )
+                    case None:
+                        value_chm = trace.get_choices()
+                        v = value_chm.get_value()
+                        fwd = self.estimate_logpdf(key, v, *primals)
+                        bwd = trace.get_score()
+                        w = fwd - bwd
+                        retval_diff = Diff.no_change(v)
+                        return (
+                            ChangedScore(fwd),
+                            w,
+                            retval_diff,
+                            Update(ChoiceMap.empty()),
+                        )
+
+                    case v:
+                        fwd = self.estimate_logpdf(key, v, *primals)
+                        bwd = trace.get_score()
+                        w = fwd - bwd
+                        discard = trace.get_choices()
+                        retval_diff = Diff.unknown_change(v)
+                        return (ChangedValue(v, fwd), w, retval_diff, Update(discard))
+            case _:
+                raise Exception(f"Unhandled constraint in edit: {type(constraint)}.")
+
+    def editf_update(
+        self,
+        key: PRNGKey,
+        trace: DistributionTrace[R],
+        constraint: Constraint,
+        argdiffs: Argdiffs,
+    ) -> tuple[Tracediff[R], Weight, Retdiff[R], Update]:
+        match constraint:
+            case EmptyConstraint():
+                return self.editf_empty(trace, argdiffs)
+
+            case ChoiceMapConstraint():
+                return self.editf_update_with_constraint(
+                    key, trace, constraint, argdiffs
+                )
+
+            case _:
+                raise Exception(f"Not implement fwd problem: {constraint}.")
+
+    def editf(
+        self,
+        key: PRNGKey,
+        trace: DistributionTrace[R],
+        edit_request: EditRequest,
+        argdiffs: Argdiffs,
+    ) -> tuple[Tracediff[R], Weight, Retdiff[R], EditRequest]:
+        match edit_request:
+            case Update(chm):
+                return self.editf_update(
+                    key,
+                    trace,
+                    ChoiceMapConstraint(chm),
                     argdiffs,
                 )
 

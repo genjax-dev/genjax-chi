@@ -44,6 +44,7 @@ from .generative_function import (
     GenerativeFunctionClosure,
     IgnoreKwargs,
     Trace,
+    Tracediff,
     Update,
 )
 from .requests import (
@@ -83,6 +84,7 @@ __all__ = [
     "StaticAddress",
     "StaticAddressComponent",
     "Trace",
+    "Tracediff",
     "Update",
     "Weight",
 ]
