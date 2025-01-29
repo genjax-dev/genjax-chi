@@ -22,7 +22,7 @@
 
 </div>
 
-## 🔎 What is GenJAX?
+## 🔎 What is GenJAX UP TO THESE DAYS?
 
 Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://genjax.gen.dev/cookbook/active/intro.html#generative-functions).
 ddd
