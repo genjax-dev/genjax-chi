@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
+
 import jax
 import jax.numpy as jnp
 import pytest
@@ -178,7 +180,9 @@ class TestVmapCombinator:
         # in_axes doesn't match args
         with pytest.raises(
             TypeError,
-            match="Found incompatible dtypes, <class 'numpy.float32'> and <class 'numpy.int32'>",
+            match=re.escape(
+                "Found incompatible dtypes, <class 'numpy.float32'> and <class 'numpy.int32'>"
+            ),
         ):
             jax.jit(foo.vmap(in_axes=(None, 0)).simulate)(key, (10.0, jnp.arange(3)))
 

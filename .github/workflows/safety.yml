@@ -11,7 +11,7 @@ on:
 
 jobs:
   safety:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -30,8 +30,13 @@ jobs:
       - name: Setup Nox
         uses: daisylb/setup-nox@v2.1.0
 
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.8.5
+
       - name: Install poetry/nox-poetry
-        run: pip install poetry nox-poetry
+        run: pip install nox-poetry
 
       - name: Cache Nox environments
         uses: actions/cache@v4

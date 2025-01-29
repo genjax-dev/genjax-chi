@@ -83,7 +83,7 @@ def prepare(session, *with_strs):
     install_jaxlib(session)
 
 
-@session(python=["3.10", "3.11"])
+@session(python=python_version)
 def tests(session):
     prepare(session)
     session.run(
@@ -185,6 +185,12 @@ def safety(session) -> None:
         "70612",
         "--ignore",
         "73456",
+        # tornado, dev dependency
+        "--ignore",
+        "74439",
+        # jinja2, dev dependency
+        "--ignore",
+        "74735",
         "--full-report",
         f"--file={requirements}",
         external=True,

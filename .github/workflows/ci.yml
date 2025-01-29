@@ -18,7 +18,7 @@ jobs:
   test:
     strategy:
       matrix:
-        runner: [ubuntu-latest, ParallelHoss]
+        runner: [ubuntu-22.04, ParallelHoss]
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +40,8 @@ jobs:
 
       - name: Install and configure Poetry
         uses: snok/install-poetry@v1
+        with:
+          version: 1.8.5
 
       - name: Install nox-poetry
         run: pip install nox-poetry
