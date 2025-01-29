@@ -36,6 +36,7 @@ from genjax._src.core.generative import (
     Retdiff,
     Score,
     Selection,
+    SupportType,
     Trace,
     Update,
     Weight,
@@ -357,6 +358,21 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         raise NotImplementedError
 
 
+##############################################
+# Distributions annotated with their support #
+##############################################
+
+
+@Pytree.dataclass
+class Fin(SupportType):
+    N: int = Pytree.static()
+
+
+@Pytree.dataclass
+class Bottom(SupportType):
+    pass
+
+
 ################
 # ExactDensity #
 ################
@@ -445,6 +461,7 @@ class ExactDensity(Generic[R], Distribution[R]):
 class ExactDensityFromCallables(Generic[R], ExactDensity[R]):
     sampler: Closure[R]
     logpdf_evaluator: Closure[Score]
+    stype_fn: None | Callable[..., tuple[SupportType, R]] = Pytree.static(default=None)
 
     def sample(self, key, *args) -> R:
         return self.sampler(key, *args)
@@ -452,10 +469,17 @@ class ExactDensityFromCallables(Generic[R], ExactDensity[R]):
     def logpdf(self, v, *args) -> Score:
         return self.logpdf_evaluator(v, *args)
 
+    def support(self, *args) -> tuple[SupportType, R]:
+        if self.stype_fn:
+            return self.stype_fn(*args)
+        else:
+            raise NotImplementedError
+
 
 def exact_density(
     sample: Closure[R] | Callable[..., R],
     logpdf: Closure[Score] | Callable[..., Score],
+    stype_fn: None | Callable[..., tuple[SupportType, R]] = None,
 ):
     if not isinstance(sample, Closure):
         sample = Closure[R]((), sample)
@@ -463,4 +487,4 @@ def exact_density(
     if not isinstance(logpdf, Closure):
         logpdf = Closure[Score]((), logpdf)
 
-    return ExactDensityFromCallables[R](sample, logpdf)
+    return ExactDensityFromCallables[R](sample, logpdf, stype_fn)

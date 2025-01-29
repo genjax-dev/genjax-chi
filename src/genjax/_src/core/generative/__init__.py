@@ -43,6 +43,7 @@ from .generative_function import (
     GenerativeFunction,
     GenerativeFunctionClosure,
     IgnoreKwargs,
+    SupportType,
     Trace,
     Update,
 )
@@ -82,6 +83,7 @@ __all__ = [
     "SelectionBuilder",
     "StaticAddress",
     "StaticAddressComponent",
+    "SupportType",
     "Trace",
     "Update",
     "Weight",

@@ -195,6 +195,12 @@ class Trace(Generic[R], Pytree):
         return len(self.get_score())
 
 
+# Indicator type representing the type of the support
+# of a generative function.
+class SupportType(Pytree):
+    pass
+
+
 #######################
 # Generative function #
 #######################
@@ -654,6 +660,12 @@ class GenerativeFunction(Generic[R], Pytree):
         score = tr.get_score()
         retval = tr.get_retval()
         return sample, score, retval
+
+    def support(
+        self,
+        *args,
+    ) -> tuple[SupportType, R]:
+        raise NotImplementedError
 
     ######################################################
     # Convenience: postfix syntax for combinators / DSLs #

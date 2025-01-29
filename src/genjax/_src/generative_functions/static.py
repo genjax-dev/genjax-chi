@@ -37,6 +37,7 @@ from genjax._src.core.generative import (
     Selection,
     StaticAddress,
     StaticAddressComponent,
+    SupportType,
     Trace,
     Update,
     Weight,
@@ -156,6 +157,17 @@ class AddressReuse(Exception):
     """
 
 
+##################
+# Static support #
+##################
+
+
+@Pytree.dataclass(match_args=True)
+class StaticSupport(SupportType):
+    visitor: AddressVisitor
+    address_stypes: list[SupportType]
+
+
 ##############
 # Primitives #
 ##############
@@ -245,6 +257,55 @@ class StaticHandler(StatefulHandler):
             return self.handle_retval(v)
         else:
             raise Exception("Illegal primitive: {}".format(primitive))
+
+
+###########
+# Support #
+###########
+
+
+@dataclass
+class SupportHandler(StaticHandler):
+    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    address_stypes: list[SupportType] = Pytree.field(default_factory=list)
+
+    def visit(self, addr):
+        self.address_visitor.visit(addr)
+
+    def yield_state(self):
+        return (
+            self.address_visitor,
+            self.address_stypes,
+        )
+
+    def handle_trace(
+        self,
+        addr: StaticAddress,
+        gen_fn: GenerativeFunction[Any],
+        args: tuple[Any, ...],
+    ):
+        self.visit(addr)
+        stype, retval = gen_fn.support(*args)
+        self.address_stypes.append(stype)
+        return retval
+
+
+def support_transform(source_fn):
+    @functools.wraps(source_fn)
+    def wrapper(*args):
+        stateful_handler = SupportHandler()
+        retval = forward(source_fn)(stateful_handler, *args)
+        (
+            address_visitor,
+            address_stypes,
+        ) = stateful_handler.yield_state()
+        return (
+            retval,
+            address_visitor,
+            address_stypes,
+        )
+
+    return wrapper
 
 
 ############
@@ -844,6 +905,18 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             return self.source(*args, **kwargs)
 
         return StaticGenerativeFunction(kwarged_source)
+
+    def support(
+        self,
+        *args,
+    ) -> tuple[SupportType, R]:
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
+        (retval, address_visitor, address_stypes) = support_transform(
+            syntax_sugar_handled
+        )(*args)
+        return StaticSupport(address_visitor, address_stypes), retval
 
     def simulate(
         self,
