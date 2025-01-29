@@ -26,7 +26,6 @@ from genjax._src.core.generative import (
     ChoiceMap,
     Constraint,
     EditRequest,
-    EmptyConstraint,
     GenerativeFunction,
     Mask,
     NotSupportedEditRequest,
@@ -157,9 +156,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         match constraint:
             case ChoiceMapConstraint(chm):
                 tr, w = self.generate_choice_map(key, chm, args)
-            case EmptyConstraint():
-                tr = self.simulate(key, args)
-                w = jnp.array(0.0)
+
             case _:
                 raise Exception("Unhandled type.")
         return tr, w
@@ -312,9 +309,6 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], Update]:
         match constraint:
-            case EmptyConstraint():
-                return self.edit_empty(trace, argdiffs)
-
             case ChoiceMapConstraint():
                 return self.edit_update_with_constraint(
                     key, trace, constraint, argdiffs
