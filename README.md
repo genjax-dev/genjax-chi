@@ -40,31 +40,20 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 ## Quickstart
 
 > [!IMPORTANT]
-> GenJAX is currently private. To configure your machine to access the package,
-> - Run `\invite-genjax <google-account-email>` in any channel in the the probcomp Slack, or [file a ticket requesting access to the GenJAX-Users
-> group](https://github.com/chi-collective/genjax/issues/new?assignees=sritchie&projects=&template=access.md&title=%5BACCESS%5D)
-> - [install the Google Cloud command line tools](https://cloud.google.com/sdk/docs/install)
-> - follow the instructions on the [installation page](https://cloud.google.com/sdk/docs/install)
-> - run `gcloud auth application-default login` as described [in this guide](https://cloud.google.com/sdk/docs/initializing).
+> GenJAX's docs are currently private. To see them you'll need to request access to the
+> [GenJAX-Users Google group](https://groups.google.com/a/chi-fro.org/g/genjax-users/about). Make
+> sure you're signed in to a Google account, visit [the group's
+> page](https://groups.google.com/a/chi-fro.org/g/genjax-users/about), and click "Join group".
 
-To install GenJAX using `pip`:
+To install GenJAX, run
 
 ```bash
-pip install keyring keyrings.google-artifactregistry-auth
-pip install genjax --extra-index-url https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/
+pip install genjax
 ```
 
-If you're using Poetry:
-
-```bash
-poetry self update && poetry self add keyrings.google-artifactregistry-auth
-poetry source add --priority=explicit gcp https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/
-poetry add genjax --source gcp
-```
 Then install [JAX](https://github.com/google/jax) using [this
-guide](https://jax.readthedocs.io/en/latest/installation.html) to choose the
-command for the architecture you're targeting. To run GenJAX without GPU
-support:
+guide](https://jax.readthedocs.io/en/latest/installation.html) to choose the command for the
+architecture you're targeting. To run GenJAX without GPU support:
 
 ```sh
 pip install jax[cpu]~=0.4.24
