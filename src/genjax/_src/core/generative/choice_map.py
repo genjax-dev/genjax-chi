@@ -991,7 +991,7 @@ class ChoiceMap(Pytree):
 
             key = jax.random.key(314159)
             tr = model.simulate(key, ())
-            chm = tr.get_sample()
+            chm = tr.get_choices()
             selection = S["x"]
             filtered = chm.filter(selection)
             assert "y" not in filtered

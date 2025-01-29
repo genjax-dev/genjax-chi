@@ -145,7 +145,7 @@ class TestVmapCombinator:
         key = jax.random.key(314159)
         map_over = jnp.arange(0, 50, dtype=float)
         tr = jax.jit(model.simulate)(key, (map_over,))
-        sample = tr.get_sample()
+        sample = tr.get_choices()
         map_score = tr.get_score()
         assert model.assess(sample, (map_over,))[0] == map_score
 
