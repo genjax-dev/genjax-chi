@@ -26,6 +26,8 @@ jobs:
 
       - name: Install and configure Poetry
         uses: snok/install-poetry@v1
+        with:
+          version: 1.8.5
 
       - run: poetry self update && poetry self add keyrings.google-artifactregistry-auth
 

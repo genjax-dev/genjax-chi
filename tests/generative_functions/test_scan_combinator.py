@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
+
 import jax
 import jax.numpy as jnp
 import pytest
@@ -430,7 +432,8 @@ class TestScanWithParameters:
             "scale": jnp.array([1.0]),
         }
         with pytest.raises(
-            ValueError, match="scan got values with different leading axis sizes: 2, 1."
+            ValueError,
+            match=re.escape("scan got values with different leading axis sizes: 2, 1."),
         ):
             jax.jit(foo.scan().simulate)(key, (jnp.array([1.0]), d))
 

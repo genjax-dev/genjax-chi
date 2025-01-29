@@ -13,6 +13,8 @@
 # limitations under the License.
 
 
+import re
+
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -1089,7 +1091,9 @@ class TestChoiceMap:
         # querying array-shaped indices with a slice is not allowed:
         with pytest.raises(
             AssertionError,
-            match="Slices are not allowed against array-shaped dynamic addresses.",
+            match=re.escape(
+                "Slices are not allowed against array-shaped dynamic addresses."
+            ),
         ):
             chm["z", :]
 
