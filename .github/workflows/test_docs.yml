@@ -48,6 +48,9 @@ jobs:
 
       - name: Install and configure Poetry
         uses: snok/install-poetry@v1
+        with:
+          version: 1.8.5
+
 
       - name: Install nox-poetry
         run: pip install nox-poetry
