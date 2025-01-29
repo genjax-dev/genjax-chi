@@ -52,9 +52,6 @@ class Hyperparams(Pytree):
     W: int = Pytree.static()
 
 
-jnp.array
-
-
 @gen
 def xy_model(blob_idx: int, hypers: Hyperparams):
     sigma_x = inverse_gamma(hypers.a_x, hypers.b_x) @ "sigma_x"
