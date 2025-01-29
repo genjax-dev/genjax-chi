@@ -27,7 +27,6 @@ from genjax._src.core.typing import (
     Callable,
     FloatArray,
     Generic,
-    IntArray,
     Is,
     PRNGKey,
     Self,
@@ -96,28 +95,6 @@ class Constraint(Pytree):
     """
     Constraints represent a request to force a value to satisfy a predicate.
     """
-
-
-@Pytree.dataclass
-class EmptyConstraint(Constraint):
-    """
-    An `EmptyConstraint` encodes the lack of a constraint.
-
-    Formally, `EmptyConstraint(x)` represents the constraint `(x $\\mapsto$ (), ())`.
-    """
-
-
-@Pytree.dataclass(match_args=True)
-class MaskedConstraint(Constraint):
-    """
-    A `MaskedConstraint` encodes a possible constraint.
-
-    Formally, `MaskedConstraint(f: bool, c: Constraint)` represents the constraint `Option((x $\\mapsto$ x, x))`,
-    where the None case is represented by `EmptyConstraint`.
-    """
-
-    idx: IntArray
-    constraint: list[Constraint]
 
 
 ###############
