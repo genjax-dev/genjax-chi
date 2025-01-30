@@ -23,7 +23,12 @@ nav:
   - Home: index.md
   - Cookbook:
       - Just starting out:
+          - JAX basics: cookbook/active/jax_basics.ipynb
           - Introduction: cookbook/active/intro.ipynb
+          - The generative function interface: cookbook/active/generative_function_interface.ipynb
+          - Working with choice maps: cookbook/active/choice_maps.ipynb
+      - Inference:
+          - Importance sampling: cookbook/active/
   - Library reference:
       - Core: library/core.md
       - Generative functions: library/generative_functions.md
