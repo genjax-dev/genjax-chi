@@ -21,7 +21,9 @@ copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 
 nav:
   - Home: index.md
-  - Cookbook: cookbook/index.md
+  - Cookbook:
+      - Just starting out:
+          - Introduction: cookbook/active/intro.ipynb
   - Library reference:
       - Core: library/core.md
       - Generative functions: library/generative_functions.md
@@ -38,6 +40,9 @@ theme:
   name: material
   logo: assets/img/small_logo.png
   favicon: assets/img/gen-logo.png
+  font:
+      text: Roboto
+      code: Berkeley Mono
   icon:
     repo: fontawesome/brands/github
   features:
@@ -77,6 +82,10 @@ plugins:
   - search
   - offline
   - markdown-exec
+  - mkdocs-jupyter:
+        execute: true
+        ignore: ["cookbook/inactive/*.ipynb"]
+        highlight_extra_classes: "custom-css-classes"
   - typeset:
       enabled: true
   - git-revision-date-localized:

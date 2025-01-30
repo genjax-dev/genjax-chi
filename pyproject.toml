@@ -82,6 +82,7 @@ markdown-exec = { version = "^1.8.3", extras = ["ansi"] }
 mkdocs-material = { git = "git@github.com:probcomp/mkdocs-material-insiders.git" }
 mkdocstrings-python = { git = "git@github.com:probcomp/mkdocstrings-python.git" }
 black = "^24.4.2"
+mkdocs-jupyter = "^0.25.1"
 
 [tool.poetry.extras]
 genstudio = ["genstudio"]
