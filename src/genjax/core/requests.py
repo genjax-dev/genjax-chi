@@ -16,12 +16,10 @@ from genjax._src.core.generative.requests import (
     DiffAnnotate,
     EmptyRequest,
     Regenerate,
-    Rejuvenate,
 )
 
 __all__ = [
     "DiffAnnotate",
     "EmptyRequest",
     "Regenerate",
-    "Rejuvenate",
 ]

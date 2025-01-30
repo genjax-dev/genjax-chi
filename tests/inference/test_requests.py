@@ -25,14 +25,13 @@ from genjax import (
     DiffAnnotate,
     EmptyRequest,
     Regenerate,
-    Rejuvenate,
     Selection,
     Update,
 )
 from genjax import ChoiceMap as C
 from genjax import SelectionBuilder as S
 from genjax._src.generative_functions.static import StaticRequest
-from genjax.inference.requests import HMC, SafeHMC
+from genjax.inference.requests import HMC, Rejuvenate, SafeHMC
 
 
 class TestRegenerate:

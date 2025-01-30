@@ -47,7 +47,6 @@ from .generative_function import (
 from .requests import (
     EmptyRequest,
     Regenerate,
-    Rejuvenate,
 )
 
 __all__ = [
@@ -70,7 +69,6 @@ __all__ = [
     "Projection",
     "R",
     "Regenerate",
-    "Rejuvenate",
     "Retdiff",
     "Score",
     "Selection",
