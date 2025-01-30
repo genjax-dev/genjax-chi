@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build-deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Check out repository
@@ -40,19 +40,13 @@ jobs:
         with:
           python-version: 3.11.5
 
-      - id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
       - name: Setup Nox
         uses: daisylb/setup-nox@v2.1.0
 
       - name: Install and configure Poetry
         uses: snok/install-poetry@v1
+        with:
+          version: 1.8.5
 
       - name: Install nox-poetry
         run: pip install nox-poetry

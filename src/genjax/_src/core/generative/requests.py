@@ -14,7 +14,6 @@
 
 
 import jax.numpy as jnp
-import jax.random as jrand
 
 from genjax._src.core.generative.choice_map import (
     ChoiceMap,
@@ -28,7 +27,6 @@ from genjax._src.core.generative.core import (
     Weight,
 )
 from genjax._src.core.generative.generative_function import (
-    GenerativeFunction,
     Trace,
     Update,
 )
@@ -65,59 +63,6 @@ class EmptyRequest(EditRequest):
 @Pytree.dataclass(match_args=True)
 class Regenerate(PrimitiveEditRequest):
     selection: Selection
-
-
-@Pytree.dataclass(match_args=True)
-class Rejuvenate(EditRequest):
-    """
-    The `Rejuvenate` edit request is a compositional request which utilizes
-    a proposal generative function to propose a change to a trace.
-
-    Specifying a rejuvenation requires that a user provide a `proposal`
-    generative function, and an `argument_mapping`,
-    which is a callable that accepts the `ChoiceMap` from the previous trace
-    and produces arguments to the invocation of the generative function.
-
-    `Rejuvenate` can be used for quick custom regeneration moves (e.g. a Gaussian at an address,
-    can I propose a random walk around the previous value using another Gaussian?)
-    as well as larger structured proposals.
-
-    The logic of this move is equivalent to the logic of
-    Metropolis-Hastings with a custom proposal
-    (which defines the MCMC kernel of the Metropolis-Hastings algorithm)
-    _without the accept-reject step_. It uses the same proposal Q
-    (provided in `Rejuvenate.proposal`) for the K and L ingredients of
-    the SMCP3 move. The accept-reject ratio is returned as the SMCP3 weight of the move.
-    """
-
-    proposal: GenerativeFunction[Any]
-    argument_mapping: Callable[[ChoiceMap], Any] = Pytree.static()
-
-    def edit(
-        self,
-        key: PRNGKey,
-        tr: Trace[Any],
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[Any], Weight, Retdiff[Any], "EditRequest"]:
-        chm = tr.get_choices()
-        fwd_proposal_args = self.argument_mapping(chm)
-        key, sub_key = jrand.split(key)
-        proposed_change, fwd_proposal_score, _ = self.proposal.propose(
-            sub_key, fwd_proposal_args
-        )
-        request = Update(proposed_change)
-        new_tr, w, retdiff, bwd_request = request.edit(key, tr, argdiffs)
-        assert isinstance(bwd_request, Update)
-        bwd_chm = bwd_request.constraint
-        bwd_proposal_args = self.argument_mapping(bwd_chm)
-        bwd_proposal_score, _ = self.proposal.assess(bwd_chm, bwd_proposal_args)
-        final_weight = w + bwd_proposal_score - fwd_proposal_score
-        return (
-            new_tr,
-            final_weight,
-            retdiff,
-            Rejuvenate(self.proposal, self.argument_mapping),
-        )
 
 
 # NOTE: can be used in an unsafe fashion!

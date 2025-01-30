@@ -13,8 +13,10 @@
 # limitations under the License.
 
 from genjax._src.inference.requests.hmc import HMC, SafeHMC
+from genjax._src.inference.requests.rejuvenate import Rejuvenate
 
 __all__ = [
     "HMC",
+    "Rejuvenate",
     "SafeHMC",
 ]

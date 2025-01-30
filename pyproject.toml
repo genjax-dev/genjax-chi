@@ -17,8 +17,8 @@ maintainers = [
 ]
 license = "Apache 2.0"
 readme = "README_pypi.md"
-homepage = "https://github.com/probcomp/genjax"
-repository = "https://github.com/probcomp/genjax"
+homepage = "https://github.com/chi-collective/genjax"
+repository = "https://github.com/chi-collective/genjax"
 documentation = "https://genjax.gen.dev/"
 keywords = [
     "artificial-intelligence",
@@ -34,10 +34,10 @@ classifiers = [
 ]
 
 [tool.poetry.urls]
-Changelog = "https://github.com/probcomp/genjax/releases"
+Changelog = "https://github.com/chi-collective/genjax/releases"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.13"
+python = ">=3.11,<3.13"
 jax = "^0.4.24"
 tensorflow-probability = "^0.23.0"
 jaxtyping = "^0.2.24"
@@ -48,7 +48,7 @@ treescope = "^0.1.5"
 # Numpy <2.0.0 is due to tfp issues: https://github.com/tensorflow/probability/issues/1814
 # remove this constraint when that issue is closed.
 numpy = ">=1.22,<2.0.0"
-genstudio = { version = "2024.11.015", source = "gcp", optional = true }
+genstudio = ">=2025.1.5"
 
 [tool.poetry.group.dev]
 optional = true
@@ -86,11 +86,6 @@ black = "^24.4.2"
 [tool.poetry.extras]
 genstudio = ["genstudio"]
 all = ["genstudio"]
-
-[[tool.poetry.source]]
-name = "gcp"
-url = "https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/"
-priority = "explicit"
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
