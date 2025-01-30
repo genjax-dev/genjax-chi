@@ -220,6 +220,16 @@ def mkdocs(session: Session) -> None:
     session.run("poetry", "run", "mkdocs", "build", "--strict", external=True)
 
 
+@session(name="mkdocs-serve", python=python_version)
+def mkdocs_serve(session: Session) -> None:
+    """Serve the mkdocs-only portion of the docs."""
+    prepare(session, "docs")
+    build_dir = Path("site")
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+    session.run("poetry", "run", "mkdocs", "serve", external=True)
+
+
 @session(name="docs-build", python=python_version)
 def docs_build(session: Session) -> None:
     """Build the documentation."""

@@ -23,10 +23,14 @@ nav:
   - Home: index.md
   - Cookbook: cookbook/index.md
   - Library reference:
-      - Core: library/core.md
-      - Generative functions: library/generative_functions.md
-      - Combinators: library/combinators.md
-      - Inference: library/inference.md
+      - Core generative datatypes: library/core.md
+      - More on generative functions: library/generative_functions.md
+      - Monte Carlo inference: library/monte_carlo_inference.md
+      - Variational inference: library/variational_inference.md
+      - Probabilistic programming with stochastic probabilities: library/gensp.md
+      - Interaction with JAX:
+        - JAX compatibility: library/jax_compat.md
+        - Static typechecking: library/typechecking.md
     # - ADEV: library/adev.md
   - For developers:
       - Developing: developing.md
@@ -38,6 +42,8 @@ theme:
   name: material
   logo: assets/img/small_logo.png
   favicon: assets/img/gen-logo.png
+  font:
+      text: Roboto
   icon:
     repo: fontawesome/brands/github
   features:
@@ -65,10 +71,19 @@ theme:
     - search.suggest
     - toc.follow
   palette:
-    # Palette toggle for light mode
     - scheme: default
       accent: red
       primary: white
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    - scheme: slate
+      primary: black
+      accent: red
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
 
 watch:
   - src/genjax
