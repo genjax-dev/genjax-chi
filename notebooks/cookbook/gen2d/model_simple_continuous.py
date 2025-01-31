@@ -17,6 +17,7 @@ def sample_gamma_safe(key, alpha, beta):
 gamma = genjax.exact_density(sample_gamma_safe, _gamma.logpdf)
 
 MID_PIXEL_VAL = 255.0 / 2.0
+GAMMA_RATE_PARAMETER = 1.0
 
 
 @Pytree.dataclass
@@ -76,7 +77,7 @@ def rgb_model(blob_idx: int, hypers: Hyperparams):
 def blob_model(blob_idx: int, hypers: Hyperparams):
     xy_mean = xy_model.inline(blob_idx, hypers)
     rgb_mean = rgb_model.inline(blob_idx, hypers)
-    mixture_weight = gamma(hypers.alpha, 1.0) @ "mixture_weight"
+    mixture_weight = gamma(hypers.alpha, GAMMA_RATE_PARAMETER) @ "mixture_weight"
 
     return xy_mean, rgb_mean, mixture_weight
 
