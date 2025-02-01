@@ -1,9 +1,12 @@
+import jax
 import jax.numpy as jnp
-import scipy.stats as ss
+from tensorflow_probability.substrates import jax as tfps
 from utils import FloatFromDiscreteSet, unwrap
 
 import genjax
-from genjax import Const
+from genjax import Const, Pytree
+
+tfd = tfps.distributions
 
 
 def sum_exponential_over_range(minx, maxx, log_base):
@@ -184,10 +187,17 @@ index_space_discretized_laplace = IndexSpaceDiscretizedLaplace()
 
 def discretize_normal(mean, std_dev, ncat):
     # Create an array of discrete values centered around the mean
-    discrete_values = jnp.linspace(mean - 4 * std_dev, mean + 4 * std_dev, ncat)
+    lower_bound = mean - 4.0 * std_dev
+    upper_bound = mean + 4.0 * std_dev
+    step = (upper_bound - lower_bound) / (ncat - 1)
+
+    def body(carry, x):
+        return carry + step, carry + step
+
+    _, discrete_values = jax.lax.scan(body, lower_bound, jnp.arange(ncat))
 
     # Calculate the probability density function (PDF) for each discrete value
-    pdf_values = ss.norm.pdf(discrete_values, loc=mean, scale=std_dev)
+    pdf_values = tfd.Normal(loc=mean, scale=std_dev).prob(discrete_values)
 
     # Normalize the PDF to sum to 1 (to create a probability distribution)
     probabilities = pdf_values / jnp.sum(pdf_values)
@@ -202,32 +212,17 @@ def discretize_gamma(shape, scale, ncat):
 
     # Create an array of discrete values centered around the mean
     # Extend the range to capture the distribution
-    discrete_values = jnp.linspace(
-        max(0, mean - 4 * jnp.sqrt(variance)), mean + 4 * jnp.sqrt(variance), ncat
-    )
+    lower_bound = jnp.maximum(0, mean - 4 * jnp.sqrt(variance))
+    upper_bound = mean + 4 * jnp.sqrt(variance)
+    step = (upper_bound - lower_bound) / (ncat - 1)
+
+    def body(carry, x):
+        return carry + step, carry + step
+
+    _, discrete_values = jax.lax.scan(body, lower_bound, jnp.arange(ncat))
 
     # Calculate the probability density function (PDF) for each discrete value
-    pdf_values = ss.gamma.pdf(discrete_values, a=shape, scale=scale)
-
-    # Normalize the PDF to sum to 1 (to create a probability distribution)
-    probabilities = pdf_values / jnp.sum(pdf_values)
-
-    return discrete_values, probabilities
-
-
-def discretize_gamma(shape, scale, ncat):
-    # Calculate the mean and variance of the gamma distribution
-    mean = shape * scale
-    variance = shape * (scale**2)
-
-    # Create an array of discrete values centered around the mean
-    # Extend the range to capture the distribution
-    discrete_values = jnp.linspace(
-        max(0, mean - 4 * jnp.sqrt(variance)), mean + 4 * jnp.sqrt(variance), ncat
-    )
-
-    # Calculate the probability density function (PDF) for each discrete value
-    pdf_values = ss.gamma.pdf(discrete_values, a=shape, scale=scale)
+    pdf_values = tfd.Gamma(concentration=shape, rate=1 / scale).prob(discrete_values)
 
     # Normalize the PDF to sum to 1 (to create a probability distribution)
     probabilities = pdf_values / jnp.sum(pdf_values)
@@ -236,57 +231,44 @@ def discretize_gamma(shape, scale, ncat):
 
 
 def discretize_inverse_gamma(shape, scale, ncat):
-    # Check if the shape parameter is valid
-    if shape <= 1:
-        raise ValueError(
-            "Shape parameter must be greater than 1 for the mean to be defined."
-        )
+    mean = scale / (shape - 1)
+    variance = jax.lax.cond(
+        shape > 2,
+        lambda: (scale**2) / ((shape - 1.0) ** 2.0 * (shape - 2.0)),
+        lambda: 0.0,
+    )
+    lower_bound = jax.lax.cond(
+        shape > 2.0,
+        lambda: jnp.maximum(0.01, mean - 4.0 * jnp.sqrt(variance)),
+        lambda: 0.01,
+    )
+    upper_bound = jax.lax.cond(
+        shape > 2.0, lambda: mean + 4.0 * jnp.sqrt(variance), lambda: mean + 10.0
+    )
+    step = (upper_bound - lower_bound) / (ncat - 1)
 
-    elif shape > 2:
-        # Calculate the mean and variance of the inverse gamma distribution
-        mean = scale / (shape - 1)
-        variance = (scale**2) / ((shape - 1) ** 2 * (shape - 2))
+    def body(carry, x):
+        return carry + step, carry + step
 
-        # Create an array of discrete values centered around the mean
-        # Ensure that we only generate positive values
-        lower_bound = max(0, mean - 4 * jnp.sqrt(variance))
-        upper_bound = mean + 4 * jnp.sqrt(variance)
-
-        # Ensure lower_bound is positive
-        if lower_bound < 0:
-            lower_bound = 0.01  # Set a small positive value to avoid zero
-
-    else:
-        mean = scale / (shape - 1)
-        lower_bound = 0.01  # Avoid zero
-        upper_bound = mean + 10  # Extend the upper bound to capture the distribution
-
-    discrete_values = jnp.linspace(lower_bound, upper_bound, ncat)
+    _, discrete_values = jax.lax.scan(body, lower_bound, jnp.arange(ncat))
 
     # Calculate the probability density function (PDF) for each discrete value
-    pdf_values = ss.invgamma.pdf(discrete_values, a=shape, scale=scale)
+    pdf_values = tfd.InverseGamma(concentration=shape, scale=scale).prob(
+        discrete_values
+    )
 
     # Normalize the PDF to sum to 1 (to create a probability distribution)
     probabilities = pdf_values / jnp.sum(pdf_values)
-
-    # Check for NaN values in probabilities
-    if jnp.any(jnp.isnan(probabilities)):
-        raise ValueError(
-            "NaN values found in probabilities. Check the input parameters."
-        )
 
     return discrete_values, probabilities
 
 
 def sampled_based_discretized_inverse_gamma(shape, scale, ncat, sample_size=100000):
-    # Check if the shape parameter is valid
-    if shape <= 1:
-        raise ValueError(
-            "Shape parameter must be greater than 1 for the mean to be defined."
-        )
-
     # Sample from the inverse gamma distribution
-    samples = ss.invgamma.rvs(a=shape, scale=scale, size=sample_size)
+    key = jax.random.PRNGKey(0)
+    samples = tfd.InverseGamma(concentration=shape, scale=scale).sample(
+        sample_size, seed=key
+    )
 
     # Create a histogram of the samples
     counts, bin_edges = jnp.histogram(samples, bins=ncat, density=True)
@@ -300,4 +282,107 @@ def sampled_based_discretized_inverse_gamma(shape, scale, ncat, sample_size=1000
     return discrete_values, probabilities
 
 
-### TODO: turn these into GenJAX distributions using ExactDensity.
+@genjax.Pytree.dataclass
+class DiscretizedNormal(genjax.ExactDensity):
+    nbins: int = Pytree.static(default=64)
+    """
+    Discretized Normal distribution.
+    Args:
+    - `mean` (float): the mean of the distribution.
+    - `std_dev` (float): the standard deviation of the distribution.
+    - `nbins` (int): the number of categories for discretization.
+
+    Support:
+    - The discrete values in the support.
+
+    The probability of each discrete value is
+    proportional to the PDF of the Normal distribution.
+    """
+
+    def sample(self, key, mean, std_dev):
+        discrete_values, probabilities = discretize_normal(mean, std_dev, self.nbins)
+        idx = genjax.categorical(probabilities).simulate(key, ()).value
+        return discrete_values[idx]
+
+    def logpdf(self, x, mean, std_dev):
+        discrete_values, probabilities = discretize_normal(mean, std_dev, self.nbins)
+        return jnp.log(probabilities[discrete_values == x])
+
+    @property
+    def __doc__(self):
+        return DiscretizedNormal.__doc__
+
+
+discrete_normal = DiscretizedNormal()
+
+
+@genjax.Pytree.dataclass
+class DiscretizedGamma(genjax.ExactDensity):
+    nbins: int = Pytree.static(default=64)
+    """
+    Discretized Gamma distribution.
+    Args:
+    - `shape` (float): the shape parameter of the distribution.
+    - `scale` (float): the scale parameter of the distribution.
+    - `nbins` (int): the number of categories for discretization.
+
+    Support:
+    - The discrete values in the support.
+
+    The probability of each discrete value is
+    proportional to the PDF of the Gamma distribution.
+    """
+
+    def sample(self, key, shape, scale):
+        discrete_values, probabilities = discretize_gamma(shape, scale, self.nbins)
+        idx = genjax.categorical(probabilities).simulate(key, ()).value
+        return discrete_values[idx]
+
+    def logpdf(self, x, shape, scale):
+        discrete_values, probabilities = discretize_gamma(shape, scale, self.nbins)
+        return jnp.log(probabilities[discrete_values == x])
+
+    @property
+    def __doc__(self):
+        return DiscretizedGamma.__doc__
+
+
+discrete_gamma = DiscretizedGamma()
+
+
+@genjax.Pytree.dataclass
+class DiscretizedInverseGamma(genjax.ExactDensity):
+    nbins: int = Pytree.static(default=64)
+    """
+    Discretized Inverse Gamma distribution.
+    Args:
+    - `shape` (float): the shape parameter of the distribution.
+    - `scale` (float): the scale parameter of the distribution.
+    - `nbins` (int): the number of categories for discretization.
+
+    Support:
+    - The discrete values in the support.
+
+    The probability of each discrete value is
+    proportional to the PDF of the Inverse Gamma distribution.
+    """
+
+    def sample(self, key, shape, scale):
+        discrete_values, probabilities = discretize_inverse_gamma(
+            shape, scale, self.nbins
+        )
+        idx = genjax.categorical(probabilities).simulate(key, ()).value
+        return discrete_values[idx]
+
+    def logpdf(self, x, shape, scale):
+        discrete_values, probabilities = discretize_inverse_gamma(
+            shape, scale, self.nbins
+        )
+        return jnp.log(probabilities[discrete_values == x])
+
+    @property
+    def __doc__(self):
+        return DiscretizedInverseGamma.__doc__
+
+
+discrete_inverse_gamma = DiscretizedInverseGamma()

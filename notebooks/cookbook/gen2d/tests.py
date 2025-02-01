@@ -4,7 +4,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow_probability.substrates.jax as tfp
 
+import genjax
+from genjax import ChoiceMapBuilder as C
+
 key = jax.random.PRNGKey(0)
+
 
 ### Test for discretized Gaussian
 
@@ -16,14 +20,14 @@ discrete_values, probabilities = discrete_distributions.discretize_normal(
 )
 
 # Test the discretization by sampling 100,000 from a normal distribution and from the discretized version
-samples = tfp.distributions.Normal(mean, std_dev).sample(1000000, seed=key)
-disc_samples = np.random.choice(discrete_values, size=100000, p=probabilities)
+samples1 = tfp.distributions.Normal(mean, std_dev).sample(1000000, seed=key)
+disc_samples1 = np.random.choice(discrete_values, size=100000, p=probabilities)
 
 # Plot both on a graph
 plt.figure(figsize=(10, 6))
-plt.hist(samples, bins=1000, density=True, alpha=0.7, label="Normal Distribution")
+plt.hist(samples1, bins=1000, density=True, alpha=0.7, label="Normal Distribution")
 plt.hist(
-    disc_samples, bins=ncat, density=True, alpha=0.7, label="Discretized Distribution"
+    disc_samples1, bins=ncat, density=True, alpha=0.7, label="Discretized Distribution"
 )
 plt.title("Comparison of Normal and Discretized Distributions")
 plt.xlabel("Value")
@@ -41,17 +45,16 @@ discrete_values, probabilities = discrete_distributions.discretize_gamma(
 )
 
 # Test the discretization
-samples = tfp.distributions.Gamma(shape, scale).sample(1000000, seed=key)
-samples = np.random.gamma(shape=shape, scale=scale, size=100000)
-disc_samples = np.random.choice(discrete_values, size=100000, p=probabilities)
+samples2 = tfp.distributions.Gamma(shape, 1 / scale).sample(1000000, seed=key)
+disc_samples2 = np.random.choice(discrete_values, size=100000, p=probabilities)
 
 # Plot both on a graph
 plt.figure(figsize=(10, 6))
-plt.hist(samples, bins=1000, density=True, alpha=0.7, label="Normal Distribution")
+plt.hist(samples2, bins=1000, density=True, alpha=0.7, label="Gamma Distribution")
 plt.hist(
-    disc_samples, bins=ncat, density=True, alpha=0.7, label="Discretized Distribution"
+    disc_samples2, bins=ncat, density=True, alpha=0.7, label="Discretized Distribution"
 )
-plt.title("Comparison of Normal and Discretized Distributions")
+plt.title("Comparison of Gamma and Discretized Distributions")
 plt.xlabel("Value")
 plt.ylabel("Density")
 plt.legend()
@@ -67,18 +70,49 @@ discrete_values, probabilities = discrete_distributions.discretize_inverse_gamma
 )
 
 # Test the discretization
-samples = tfp.distributions.InverseGamma(shape, scale).sample(1000000, seed=key)
-disc_samples = jax.random.choice(
+samples3 = tfp.distributions.InverseGamma(shape, scale).sample(1000000, seed=key)
+disc_samples3 = jax.random.choice(
     key, discrete_values, shape=(1000000,), p=probabilities
 )
 
 # Plot both on a graph
 plt.figure(figsize=(10, 6))
-plt.hist(samples, bins=1000, density=True, alpha=0.7, label="Normal Distribution")
 plt.hist(
-    disc_samples, bins=ncat, density=True, alpha=0.7, label="Discretized Distribution"
+    samples3, bins=1000, density=True, alpha=0.7, label="Inverse Gamma Distribution"
 )
-plt.title("Comparison of Normal and Discretized Distributions")
+plt.hist(
+    disc_samples3, bins=ncat, density=True, alpha=0.7, label="Discretized Distribution"
+)
+plt.title("Comparison of Inverse-Gamma and Discretized Distributions")
+plt.xlabel("Value")
+plt.ylabel("Density")
+plt.legend()
+plt.show()
+
+## Test for sampled-based discretized Inverse-Gamma
+
+shape = 4  # Shape parameter (α)
+scale = 4  # Scale parameter (β)
+ncat = 64  # Number of discrete values
+discrete_values, probabilities = (
+    discrete_distributions.sampled_based_discretized_inverse_gamma(shape, scale, ncat)
+)
+
+# Test the discretization
+samples4 = tfp.distributions.InverseGamma(shape, scale).sample(1000000, seed=key)
+disc_samples4 = jax.random.choice(
+    key, discrete_values, shape=(1000000,), p=probabilities
+)
+
+# Plot both on a graph
+plt.figure(figsize=(10, 6))
+plt.hist(
+    samples4, bins=1000, density=True, alpha=0.7, label="Inverse Gamma Distribution"
+)
+plt.hist(
+    disc_samples4, bins=ncat, density=True, alpha=0.7, label="Discretized Distribution"
+)
+plt.title("Comparison of Inverse-Gamma and Sampled-Based Discretized Distributions")
 plt.xlabel("Value")
 plt.ylabel("Density")
 plt.legend()
@@ -110,3 +144,60 @@ plt.xlabel("Value")
 plt.ylabel("Density")
 plt.legend()
 plt.show()
+
+### Test for discretized gamma distribution in GenJAX
+
+
+@genjax.gen
+def model1():
+    x = discrete_distributions.discrete_gamma(3.0, 3.0) @ "x"
+    return x
+
+
+key = jax.random.PRNGKey(0)
+
+tr = model1.simulate(key, ())
+obs = C["x"].set(3.0)
+w, _ = model1.assess(obs, ())
+assert w == 0.0
+obs2 = C["x"].set(tr.get_retval())
+w, _ = model1.assess(obs2, ())
+assert w != 0.0
+
+### Test for discretized normal distribution in GenJAX
+
+
+@genjax.gen
+def model2():
+    x = discrete_distributions.discrete_normal(3.0, 3.0) @ "x"
+    return x
+
+
+key = jax.random.PRNGKey(0)
+
+tr = model2.simulate(key, ())
+obs = C["x"].set(3.0)
+w, _ = model2.assess(obs, ())
+assert w == 0.0
+obs2 = C["x"].set(tr.get_retval())
+w, _ = model2.assess(obs2, ())
+assert w != 0.0
+
+### Test for discretized inverse-gamma distribution in GenJAX
+
+
+@genjax.gen
+def model3():
+    x = discrete_distributions.discrete_inverse_gamma(3.0, 3.0) @ "x"
+    return x
+
+
+key = jax.random.PRNGKey(0)
+
+tr = model3.simulate(key, ())
+obs = C["x"].set(3.0)
+w, _ = model3.assess(obs, ())
+assert w == 0.0
+obs2 = C["x"].set(tr.get_retval())
+w, _ = model3.assess(obs2, ())
+assert w != 0.0
