@@ -98,7 +98,6 @@ def likelihood_model(pixel_idx: int, params: LikelihoodParams, hypers: Hyperpara
     xy = normal.vmap(in_axes=(0, 0))(xy_mean, hypers.sigma_xy) @ "xy"
     rgb = normal.vmap(in_axes=(0, 0))(rgb_mean, hypers.sigma_rgb) @ "rgb"
     return xy, rgb
-    return None
 
 
 @gen

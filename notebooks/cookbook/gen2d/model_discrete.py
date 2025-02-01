@@ -1,6 +1,11 @@
 import jax.numpy as jnp
+from discrete_distributions import (
+    discrete_gamma,
+    discrete_inverse_gamma,
+    discrete_normal,
+)
 
-from genjax import Pytree, categorical, gen, inverse_gamma, normal
+from genjax import Pytree, categorical, gen
 from genjax.typing import FloatArray
 
 MID_PIXEL_VAL = 255.0 / 2.0
@@ -44,21 +49,24 @@ class Hyperparams(Pytree):
 
 @gen
 def xy_model(blob_idx: int, hypers: Hyperparams):
-    sigma_x = inverse_gamma(hypers.a_x, hypers.b_x) @ "sigma_x"
-    sigma_y = inverse_gamma(hypers.a_y, hypers.b_y) @ "sigma_y"
+    sigma_x = discrete_inverse_gamma(hypers.a_x, hypers.b_x) @ "sigma_x"
+    sigma_y = discrete_inverse_gamma(hypers.a_y, hypers.b_y) @ "sigma_y"
 
-    x_mean = normal(hypers.mu_x, sigma_x) @ "x_mean"
-    y_mean = normal(hypers.mu_y, sigma_y) @ "y_mean"
+    x_mean = discrete_normal(hypers.mu_x, sigma_x) @ "x_mean"
+    y_mean = discrete_normal(hypers.mu_y, sigma_y) @ "y_mean"
     return jnp.array([x_mean, y_mean])
 
 
 @gen
 def rgb_model(blob_idx: int, hypers: Hyperparams):
     rgb_sigma = (
-        inverse_gamma.vmap(in_axes=(0, 0))(hypers.a_rgb, hypers.b_rgb) @ "sigma_rgb"
+        discrete_inverse_gamma.vmap(in_axes=(0, 0))(hypers.a_rgb, hypers.b_rgb)
+        @ "sigma_rgb"
     )
 
-    rgb_mean = normal.vmap(in_axes=(None, 0))(MID_PIXEL_VAL, rgb_sigma) @ "rgb_mean"
+    rgb_mean = (
+        discrete_normal.vmap(in_axes=(None, 0))(MID_PIXEL_VAL, rgb_sigma) @ "rgb_mean"
+    )
     return rgb_mean
 
 
@@ -66,7 +74,9 @@ def rgb_model(blob_idx: int, hypers: Hyperparams):
 def blob_model(blob_idx: int, hypers: Hyperparams):
     xy_mean = xy_model.inline(blob_idx, hypers)
     rgb_mean = rgb_model.inline(blob_idx, hypers)
-    mixture_weight = gamma(hypers.alpha, GAMMA_RATE_PARAMETER) @ "mixture_weight"
+    mixture_weight = (
+        discrete_gamma(hypers.alpha, GAMMA_RATE_PARAMETER) @ "mixture_weight"
+    )
 
     return xy_mean, rgb_mean, mixture_weight
 
@@ -84,10 +94,9 @@ def likelihood_model(pixel_idx: int, params: LikelihoodParams, hypers: Hyperpara
     xy_mean = params.xy_mean[blob_idx]
     rgb_mean = params.rgb_mean[blob_idx]
 
-    xy = normal.vmap(in_axes=(0, 0))(xy_mean, hypers.sigma_xy) @ "xy"
-    rgb = normal.vmap(in_axes=(0, 0))(rgb_mean, hypers.sigma_rgb) @ "rgb"
+    xy = discrete_normal.vmap(in_axes=(0, 0))(xy_mean, hypers.sigma_xy) @ "xy"
+    rgb = discrete_normal.vmap(in_axes=(0, 0))(rgb_mean, hypers.sigma_rgb) @ "rgb"
     return xy, rgb
-    return None
 
 
 @gen
