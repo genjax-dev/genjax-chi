@@ -60,7 +60,4 @@ jobs:
           restore-keys: ${{ runner.os }}-nox
 
       - name: Run Docs Build
-        run: nox -r -s docs-build
-
-      - name: Deploy to GH Pages
-        run: poetry run mkdocs gh-deploy --force
+        run: nox -r -s docs-build-deploy
