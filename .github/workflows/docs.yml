@@ -1,6 +1,9 @@
 name: Render and Publish Docs
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
@@ -61,13 +64,8 @@ jobs:
       - name: Run Docs Build
         run: nox -r -s docs-build
 
-      - name: Create website artifact
-        uses: actions/upload-artifact@v4
+      - name: Deploy to GH Pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          name: website
-          path: ./site
-  publish:
-    needs: build-deploy
-    uses: probcomp/gen-website-private/.github/workflows/publish_private_website.yml@main
-    with:
-      artifact: website
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site

@@ -15,6 +15,7 @@
 [![][jax_badge]](https://github.com/google/jax)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Public API: beartyped](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg?style=flat-square)](https://beartype.readthedocs.io)
+[![Discord Shield][discord]][discord-url]
 
 | **Documentation** |          **Build status**          |
 | :---------------: | :--------------------------------: |
@@ -38,12 +39,6 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 > GenJAX is part of a larger ecosystem of probabilistic programming tools based upon Gen. [Explore more...](https://www.gen.dev/)
 
 ## Quickstart
-
-> [!IMPORTANT]
-> GenJAX's docs are currently private. To see them you'll need to request access to the
-> [GenJAX-Users Google group](https://groups.google.com/a/chi-fro.org/g/genjax-users/about). Make
-> sure you're signed in to a Google account, visit [the group's
-> page](https://groups.google.com/a/chi-fro.org/g/genjax-users/about), and click "Join group".
 
 To install GenJAX, run
 
@@ -159,6 +154,8 @@ Created and maintained by the <a href="http://probcomp.csail.mit.edu/">MIT Proba
 [adev]: https://arxiv.org/abs/2212.06386
 [cookbook]: https://genjax.gen.dev/cookbook/
 [coverage_badge]: https://github.com/chi-collective/genjax/coverage.svg
+[discord-url]: https://discord.gg/hsRBqGEeQ4
+[discord]: https://img.shields.io/discord/731131562002743336?style=flat&colorA=000000&colorB=000000&label=&logo=discord
 [effect_handling_interp]: https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=ukjVJ2Ls_6Q3
 [equinox]: https://github.com/patrick-kidger/equinox
 [gen_jl]: https://github.com/probcomp/Gen.jl
