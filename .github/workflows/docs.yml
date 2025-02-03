@@ -13,8 +13,6 @@ env:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   build-deploy:
@@ -65,7 +63,4 @@ jobs:
         run: nox -r -s docs-build
 
       - name: Deploy to GH Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
+        run: poetry run mkdocs gh-deploy --force
