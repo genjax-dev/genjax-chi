@@ -154,8 +154,8 @@ Created and maintained by the <a href="http://probcomp.csail.mit.edu/">MIT Proba
 [adev]: https://arxiv.org/abs/2212.06386
 [cookbook]: https://genjax.gen.dev/cookbook/
 [coverage_badge]: https://github.com/chi-collective/genjax/coverage.svg
-[discord-url]: https://discord.gg/hsRBqGEeQ4
-[discord]: https://img.shields.io/discord/731131562002743336?style=flat&colorA=000000&colorB=000000&label=&logo=discord
+[discord-url]: https://discord.gg/UTJj3zmJYb
+[discord]: https://img.shields.io/discord/1331245195618029631?style=flat-square&colorA=000000&colorB=000000&label=&logo=discord
 [effect_handling_interp]: https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=ukjVJ2Ls_6Q3
 [equinox]: https://github.com/patrick-kidger/equinox
 [gen_jl]: https://github.com/probcomp/Gen.jl
