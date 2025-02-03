@@ -13,7 +13,7 @@ Here is a list of important resources for contributors:
 
 [apache 2.0 license]: https://opensource.org/licenses/Apache-2.0
 [source code]: https://github.com/chi-collective/genjax
-[documentation]: https://genjax.gen.dev
+[documentation]: https://chi-collective.github.io/genjax/
 [issue tracker]: https://github.com/chi-collective/genjax/issues
 
 ## How to report a bug

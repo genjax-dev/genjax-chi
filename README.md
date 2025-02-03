@@ -19,13 +19,13 @@
 
 | **Documentation** |          **Build status**          |
 | :---------------: | :--------------------------------: |
-| [![](https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square)](https://genjax.gen.dev/) [![](https://img.shields.io/badge/jupyter-%23FA0F00.svg?style=flat-square&logo=jupyter&logoColor=white)][cookbook] | [![][main_build_action_badge]][main_build_status_url] |
+| [![](https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square)](https://chi-collective.github.io/genjax/) [![](https://img.shields.io/badge/jupyter-%23FA0F00.svg?style=flat-square&logo=jupyter&logoColor=white)][cookbook] | [![][main_build_action_badge]][main_build_status_url] |
 
 </div>
 
 ## 🔎 What is GenJAX?
 
-Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://genjax.gen.dev/cookbook/active/intro.html#generative-functions).
+Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://chi-collective.github.io/genjax/cookbook/active/intro.html#generative-functions).
 
 GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax) - exposing the ability to programmatically construct and manipulate generative functions, as well as [JIT compile + auto-batch inference computations using generative functions onto GPU devices](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html).
 
@@ -152,7 +152,7 @@ Created and maintained by the <a href="http://probcomp.csail.mit.edu/">MIT Proba
 
 [actions]: https://github.com/chi-collective/genjax/actions
 [adev]: https://arxiv.org/abs/2212.06386
-[cookbook]: https://genjax.gen.dev/cookbook/
+[cookbook]: https://chi-collective.github.io/genjax/cookbook/
 [coverage_badge]: https://github.com/chi-collective/genjax/coverage.svg
 [discord-url]: https://discord.gg/UTJj3zmJYb
 [discord]: https://img.shields.io/discord/1331245195618029631?style=flat-square&colorA=000000&colorB=000000&label=&logo=discord

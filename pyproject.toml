@@ -19,7 +19,7 @@ license = "Apache 2.0"
 readme = "README_pypi.md"
 homepage = "https://github.com/chi-collective/genjax"
 repository = "https://github.com/chi-collective/genjax"
-documentation = "https://genjax.gen.dev/"
+documentation = "https://chi-collective.github.io/genjax/"
 keywords = [
     "artificial-intelligence",
     "probabilistic-programming",
