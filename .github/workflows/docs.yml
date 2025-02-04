@@ -29,11 +29,6 @@ jobs:
             ${{ secrets.INSIDER_SSH_KEY }}
             ${{ secrets.MKDOCSTRINGS_PYTHON_SSH_KEY }}
 
-      - name: Set up Quarto
-        uses: quarto-dev/quarto-actions/setup@v2
-        with:
-          version: 1.4.553
-
       - uses: actions/setup-python@v4
         with:
           python-version: 3.11.5
