@@ -71,12 +71,47 @@ _full_slice = slice(None, None, None)
 
 
 class _SelectionBuilder:
+    @property
+    def all(self) -> "Selection":
+        """
+        Returns a Selection that selects all addresses.
+
+        Returns:
+            A Selection that selects everything.
+        """
+        return Selection.all()
+
+    @property
+    def none(self) -> "Selection":
+        """
+        Returns a Selection that selects no addresses.
+
+        Returns:
+            A Selection that selects nothing.
+        """
+        return Selection.none()
+
+    @property
+    def leaf(self) -> "Selection":
+        """
+        Returns a Selection that selects only leaf addresses.
+
+        A leaf address is an address that doesn't have any sub-addresses.
+        This selection is useful when you want to target only the final elements in a nested structure.
+
+        Returns:
+            A Selection that selects only leaf addresses.
+        """
+        return Selection.leaf()
+
     def __getitem__(
         self, addr: ExtendedStaticAddressComponent | ExtendedStaticAddress
     ) -> "Selection":
         addr = addr if isinstance(addr, tuple) else (addr,)
-
-        return Selection.all().extend(*addr)
+        if addr == ():
+            return Selection.none()
+        else:
+            return Selection.all().extend(*addr)
 
 
 SelectionBuilder = _SelectionBuilder()
