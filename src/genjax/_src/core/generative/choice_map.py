@@ -109,7 +109,7 @@ class _SelectionBuilder:
     ) -> "Selection":
         addr = addr if isinstance(addr, tuple) else (addr,)
         if addr == ():
-            return Selection.none()
+            return Selection.leaf()
         else:
             return Selection.all().extend(*addr)
 

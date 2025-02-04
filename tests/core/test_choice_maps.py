@@ -96,7 +96,8 @@ class TestSelections:
         assert not leaf_sel["a", "b", "c"]
 
         # Test empty tuple selection
-        assert S[()] == Selection.none()
+        assert S[()] == Selection.leaf()
+        assert () in S[()]
 
     def test_selection_leaf(self):
         leaf_sel = Selection.leaf().extend("x", "y")
