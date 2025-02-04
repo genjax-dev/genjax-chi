@@ -70,13 +70,6 @@ def prepare(session, *with_strs):
     for s in with_strs:
         with_pairs += ["--with", s]
 
-    session.run(
-        "poetry",
-        "self",
-        "add",
-        "keyrings.google-artifactregistry-auth",
-        external=True,
-    )
     session.run_always(
         "poetry", "install", "--with", "dev", *with_pairs, "--all-extras", external=True
     )
@@ -153,21 +146,6 @@ def xdoctests(session) -> None:
 
     session.install("xdoctest[colors]")
     session.run("python", "-m", "xdoctest", *args)
-
-
-@session(python=python_version)
-def nbmake(session) -> None:
-    """Execute Jupyter notebooks as tests"""
-    prepare(session)
-    session.run(
-        "poetry",
-        "run",
-        "pytest",
-        "-n",
-        "auto",
-        "--nbmake",
-        "notebooks/active",
-    )
 
 
 @session(python=python_version)

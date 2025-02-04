@@ -599,7 +599,7 @@ class TestStaticGenFnUpdate:
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
     def update_weight_correctness_general_assertions(self, simple_linked_normal):
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         key, sub_key = jax.random.split(key)
         tr = jax.jit(simple_linked_normal.simulate)(sub_key, ())
         jitted = jax.jit(simple_linked_normal.update)
@@ -1103,7 +1103,7 @@ class TestStaticGenFnInline:
                 z = genjax.normal(x, 1.0) @ "z"
                 return y + z
 
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
         # outside(1.0)(key)
 
         m = Model(jnp.asarray(4.0), jnp.asarray(6.0))
@@ -1128,7 +1128,7 @@ class TestStaticGenFnInline:
             return genjax.normal(x, y + z) @ "x"
 
         double_curry = model.partial_apply(1.0).partial_apply(1.0)
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
 
         tr = double_curry.simulate(key, (2.0,))
         assert tr.get_args() == (2.0,), (

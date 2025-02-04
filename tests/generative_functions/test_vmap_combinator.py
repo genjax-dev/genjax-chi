@@ -243,7 +243,7 @@ class TestVmapPytree:
         def generative_function(mc: MyClass):
             return mc.x + 5
 
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
 
         # check that we can vmap over a vectorized pytree.
         assert jnp.array_equal(
