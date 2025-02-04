@@ -31,6 +31,7 @@ from genjax._src.core.generative.generative_function import (
     Update,
 )
 from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.interpreters.time_travel import tag
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -93,3 +94,18 @@ class DiffAnnotate(Generic[ER], EditRequest):
         tr, w, retdiff, bwd_request = self.request.edit(key, tr, new_argdiffs)
         new_retdiff = self.retdiff_fn(retdiff)
         return tr, w, new_retdiff, bwd_request
+
+
+@Pytree.dataclass(match_args=True)
+class Interactive(Generic[R], EditRequest):
+    name: str
+    fill_in: EditRequest = EmptyRequest()
+
+    def edit(
+        self,
+        key: PRNGKey,
+        tr: Trace[R],
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
+        (tr, request) = tag(tr, self.fill_in, name=self.name)
+        return request.edit(key, tr, argdiffs)

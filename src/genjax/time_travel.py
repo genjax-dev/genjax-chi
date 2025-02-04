@@ -16,10 +16,12 @@ from genjax._src.core.interpreters.time_travel import (
     rec,
     tag,
     time_machine,
+    time_travel,
 )
 
 __all__ = [
     "rec",
     "tag",
+    "time_travel",
     "time_machine",
 ]

@@ -46,6 +46,7 @@ from .generative_function import (
 )
 from .requests import (
     EmptyRequest,
+    Interactive,
     Regenerate,
 )
 
@@ -75,6 +76,7 @@ __all__ = [
     "SelectionBuilder",
     "StaticAddress",
     "StaticAddressComponent",
+    "Interactive",
     "Trace",
     "Update",
     "Weight",

@@ -15,6 +15,7 @@
 from genjax._src.core.generative.requests import (
     DiffAnnotate,
     EmptyRequest,
+    Interactive,
     Regenerate,
 )
 
@@ -22,4 +23,5 @@ __all__ = [
     "DiffAnnotate",
     "EmptyRequest",
     "Regenerate",
+    "Interactive",
 ]

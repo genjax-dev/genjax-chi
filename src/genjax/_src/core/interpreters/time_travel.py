@@ -57,17 +57,16 @@ class RecordPoint(Generic[R, S], Pytree):
         return self.callable(*args)
 
     def handle(self, cont: Callable[[R], tuple[S, Any]], *args):
-        @Pytree.partial()
-        def _cont(*args) -> S:
-            final_ret, _ = cont(self.callable(*args))
-            return final_ret
-
-        # Normal execution.
         ret = self.callable(*args)
-        final_ret = _cont(*args)
+        final_ret, _ = cont(ret)
         return final_ret, (
             self.debug_tag,
-            FrameRecording(self.callable, args, ret, _cont),
+            FrameRecording(
+                self.callable,
+                args,
+                ret,
+                lambda *args: cont(*args)[0],
+            ),
         )
 
     def __call__(self, *args):
@@ -90,8 +89,8 @@ def rec(
     return inner
 
 
-def tag(v, name=None):
-    return rec(lambda v: v, name)(v)
+def tag(*args, name=None):
+    return rec(lambda *args: args, name)(*args)
 
 
 ##########################
@@ -148,8 +147,7 @@ class TimeTravelCPSInterpreter(Pytree):
                         if rebind:
                             return _kont(cps_prim(*args))
 
-                        else:
-                            return cps_prim.handle(_kont, *args)
+                        return cps_prim.handle(_kont, *args)
 
                     else:
                         outs = eqn.primitive.bind(*args, **params)
@@ -248,18 +246,24 @@ class TimeTravelingDebugger(Pytree):
                 new_ptr,
             )
 
-    def remix(self, *args) -> "TimeTravelingDebugger":
+    def remix(self, new_arg, argnum: int) -> "TimeTravelingDebugger":
         frame = self.sequence[self.ptr]
         f, cont = frame.f, frame.cont
-        local_retval = f(*args)
-        _, debugger = _record(cont)(*args)
-        new_frame = FrameRecording(f, args, local_retval, cont)
+        new_args = tuple(
+            new_arg if idx == argnum else arg for (idx, arg) in enumerate(frame.args)
+        )
+        local_retval = f(*new_args)
+        _, debugger = _record(lambda *args: cont(*args)[0])(*new_args)
+        new_frame = FrameRecording(f, new_args, local_retval, cont)
         return TimeTravelingDebugger(
             debugger.final_retval,
             [*self.sequence[: self.ptr], new_frame, *debugger.sequence],
             self.jump_points,
             self.ptr,
         )
+
+    def finish(self):
+        return self.final_retval
 
     def __call__(self, *args):
         return self.remix(*args)
@@ -277,14 +281,23 @@ def _record(source: Callable[..., Any]):
                 jump_points[debug_tag] = len(sequence) - 1
             args, cont = frame.args, frame.cont
             retval, next = time_travel(cont)(*args)
-        return retval, TimeTravelingDebugger(retval, sequence, jump_points, 0)
+
+        return retval, TimeTravelingDebugger(
+            retval,
+            sequence,
+            jump_points,
+            0,
+        )
 
     return inner
 
 
 def time_machine(source: Callable[..., Any]):
     def instrumented(*args):
-        return tag(rec(source, "_enter")(*args), "exit")
+        return tag(
+            source(*tag(*args, name="_enter")),
+            name="_exit",
+        )
 
     def inner(*args) -> TimeTravelingDebugger:
         _, debugger = _record(instrumented)(*args)
