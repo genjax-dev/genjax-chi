@@ -17,7 +17,6 @@ import jax.numpy as jnp
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import EmptyConstraint
 from genjax.incremental import Diff, NoChange, UnknownChange
 
 
@@ -31,7 +30,7 @@ class TestDistributions:
         key = jax.random.key(314159)
 
         # No constraint.
-        (tr, w) = genjax.normal.importance(key, EmptyConstraint(), (0.0, 1.0))
+        (tr, w) = genjax.normal.importance(key, C.n(), (0.0, 1.0))
         assert w == 0.0
 
         # Constraint, no mask.

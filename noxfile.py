@@ -83,7 +83,7 @@ def prepare(session, *with_strs):
     install_jaxlib(session)
 
 
-@session(python=["3.10", "3.11"])
+@session(python=python_version)
 def tests(session):
     prepare(session)
     session.run(
@@ -185,6 +185,12 @@ def safety(session) -> None:
         "70612",
         "--ignore",
         "73456",
+        # tornado, dev dependency
+        "--ignore",
+        "74439",
+        # jinja2, dev dependency
+        "--ignore",
+        "74735",
         "--full-report",
         f"--file={requirements}",
         external=True,
@@ -236,6 +242,19 @@ def docs_serve(session: Session) -> None:
         "--directory",
         "site",
     )
+
+
+@session(name="docs-deploy", python=python_version)
+def docs_deploy(session: Session) -> None:
+    """Deploy the already-built documentation."""
+    session.run("poetry", "run", "mkdocs", "gh-deploy", "--force", external=True)
+
+
+@session(name="docs-build-deploy", python=python_version)
+def docs_build_deploy(session: Session) -> None:
+    """Build and deploy the documentation site to GH Pages"""
+    docs_build(session)
+    docs_deploy(session)
 
 
 @session(name="docs-build-serve", python=python_version)
