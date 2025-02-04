@@ -7,7 +7,7 @@ import tensorflow_probability.substrates.jax as tfp
 import genjax
 from genjax import ChoiceMapBuilder as C
 
-key = jax.random.PRNGKey(0)
+key = jax.random.key(0)
 
 
 ### Test for discretized Gaussian
@@ -154,8 +154,6 @@ def model1():
     return x
 
 
-key = jax.random.PRNGKey(0)
-
 tr = model1.simulate(key, ())
 obs = C["x"].set(3.0)
 w, _ = model1.assess(obs, ())
@@ -173,8 +171,6 @@ def model2():
     return x
 
 
-key = jax.random.PRNGKey(0)
-
 tr = model2.simulate(key, ())
 obs = C["x"].set(3.0)
 w, _ = model2.assess(obs, ())
@@ -191,8 +187,6 @@ def model3():
     x = discrete_distributions.discrete_inverse_gamma(3.0, 3.0) @ "x"
     return x
 
-
-key = jax.random.PRNGKey(0)
 
 tr = model3.simulate(key, ())
 obs = C["x"].set(3.0)
