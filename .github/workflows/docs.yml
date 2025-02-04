@@ -10,8 +10,6 @@ env:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   build-deploy:
@@ -59,15 +57,4 @@ jobs:
           restore-keys: ${{ runner.os }}-nox
 
       - name: Run Docs Build
-        run: nox -r -s docs-build
-
-      - name: Create website artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: website
-          path: ./site
-  publish:
-    needs: build-deploy
-    uses: probcomp/gen-website-private/.github/workflows/publish_private_website.yml@main
-    with:
-      artifact: website
+        run: nox -r -s docs-build-deploy

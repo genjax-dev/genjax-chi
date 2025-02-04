@@ -1,6 +1,6 @@
 # GenJAX
 
-[Full documentation available here](https://genjax.gen.dev/).
+[Full documentation available here](https://chi-collective.github.io/genjax/).
 
 ## Installation
 
