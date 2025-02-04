@@ -21,7 +21,7 @@ repos:
       - id: nbstripout
 
   - repo: https://github.com/python-poetry/poetry
-    rev: 1.8.5
+    rev: 2.0.1
     hooks:
       - id: poetry-check
       - id: poetry-install
@@ -29,7 +29,7 @@ repos:
         additional_dependencies: ['keyrings.google-artifactregistry-auth']
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+    rev: v0.9.4
     hooks:
       - id: ruff
         types_or: [ python, pyi, jupyter ]
@@ -44,6 +44,6 @@ repos:
       - id: vulture
 
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.391
+    rev: v1.1.393
     hooks:
     - id: pyright

@@ -244,6 +244,19 @@ def docs_serve(session: Session) -> None:
     )
 
 
+@session(name="docs-deploy", python=python_version)
+def docs_deploy(session: Session) -> None:
+    """Deploy the already-built documentation."""
+    session.run("poetry", "run", "mkdocs", "gh-deploy", "--force", external=True)
+
+
+@session(name="docs-build-deploy", python=python_version)
+def docs_build_deploy(session: Session) -> None:
+    """Build and deploy the documentation site to GH Pages"""
+    docs_build(session)
+    docs_deploy(session)
+
+
 @session(name="docs-build-serve", python=python_version)
 def docs_build_serve(session: Session) -> None:
     """Build and serve the documentation site."""

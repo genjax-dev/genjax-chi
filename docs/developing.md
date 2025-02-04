@@ -192,49 +192,11 @@ Before cutting a new release:
 
 This will build and publish the new version to Artifact Registry.
 
-### Manually publishing to Google Artifact Registry
-
-- Ask @sritchie to add you to the `probcomp-caliban` project on Google Cloud.
-- [Install the Google Cloud command line
-  tools](https://cloud.google.com/sdk/docs/install).
-- Follow the instructions on the [installation
-  page](https://cloud.google.com/sdk/docs/install)
-- run `gcloud init` as described [in this
-  guide](https://cloud.google.com/sdk/docs/initializing) and configure the tool
-  with the ID of your new Cloud project.
-- Make sure you've added the dynamic versioning plugin, then configure poetry to
-  deploy to the `probcomp-caliban` artifact registry:
-
-```shell
-poetry self add poetry-dynamic-versioning[plugin]
-poetry self add keyrings.google-artifactregistry-auth
-poetry config repositories.gcp https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/
-```
-
-- create a new version tag on the `main` branch of the form
-  `v<MAJOR>.<MINOR>.<INCREMENTAL>`, like `v0.1.0`, and push the tag to the
-  remote repository:
-
-```sh
-git tag v0.1.0
-git push --tags
-```
-
-- use Poetry to build and publish the artifact to Artifact Registry:
-
-```sh
-poetry publish --build --repository gcp
-```
-
-
 ### Manually publishing to PyPI
-
-> NOTE: please only do this once we've made the repository public and released a
-> version to PyPI.
 
 To publish a version manually, you'll need to be added to the GenJAX Maintainers
 list on PyPI, or ask a [current maintainer from the project
-page]((https://pypi.org/project/genjax/)) for help. Once that's settled:
+page](https://pypi.org/project/genjax/) for help. Once that's settled:
 
 - generate an API token on your [pypi account
   page](https://pypi.org/manage/account/token/), scoped to all projects or

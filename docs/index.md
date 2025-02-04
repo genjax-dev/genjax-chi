@@ -11,12 +11,12 @@
 
 ## 🔎 What is GenJAX?
 
-Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://genjax.gen.dev/cookbook/active/intro.html#generative-functions).
+Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://chi-collective.github.io/genjax/cookbook/active/intro.html#generative-functions).
 
 GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax) - exposing the ability to programmatically construct and manipulate generative functions, as well as [JIT compile + auto-batch inference computations using generative functions onto GPU devices](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html).
 
 <div align="center">
-<a href="https://genjax.gen.dev/cookbook/">Jump into the notebooks!</a>
+<a href="https://chi-collective.github.io/genjax/cookbook/">Jump into the notebooks!</a>
 <br>
 <br>
 </div>
@@ -25,35 +25,12 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 
 ## Quickstart
 
-
-GenJAX is currently private. To configure your machine to access the package,
-
-- Run `/invite-genjax <google-account-email>` in any channel in the the probcomp Slack, or [file a ticket requesting access to the GenJAX-Users
-group](https://github.com/chi-collective/genjax/issues/new?assignees=sritchie&projects=&template=access.md&title=%5BACCESS%5D)
-- [install the Google Cloud command line tools](https://cloud.google.com/sdk/docs/install)
-- follow the instructions on the [installation page](https://cloud.google.com/sdk/docs/install)
-- run `gcloud auth application-default login` as described [in this guide](https://cloud.google.com/sdk/docs/initializing).
-
-To install GenJAX using `pip`:
+To install GenJAX, run
 
 ```bash
-pip install keyring keyrings.google-artifactregistry-auth
-pip install genjax --extra-index-url https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/
+pip install genjax
 ```
 
-To install a specific version:
-
-```bash
-pip install "genjax==<the_version>" --extra-index-url https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/
-```
-
-If you're using Poetry:
-
-```bash
-poetry self update && poetry self add keyrings.google-artifactregistry-auth
-poetry source add --priority=explicit gcp https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/simple/
-poetry add genjax --source gcp
-```
 Then install [JAX](https://github.com/google/jax) using [this
 guide](https://jax.readthedocs.io/en/latest/installation.html) to choose the
 command for the architecture you're targeting. To run GenJAX without GPU
@@ -161,7 +138,7 @@ Created and maintained by the <a href="http://probcomp.csail.mit.edu/">MIT Proba
 
 [actions]: https://github.com/chi-collective/genjax/actions
 [adev]: https://arxiv.org/abs/2212.06386
-[cookbook]: https://genjax.gen.dev/cookbook/
+[cookbook]: https://chi-collective.github.io/genjax/cookbook/
 [coverage_badge]: https://github.com/chi-collective/genjax/coverage.svg
 [effect_handling_interp]: https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=ukjVJ2Ls_6Q3
 [equinox]: https://github.com/patrick-kidger/equinox

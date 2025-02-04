@@ -15,16 +15,17 @@
 [![][jax_badge]](https://github.com/google/jax)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Public API: beartyped](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg?style=flat-square)](https://beartype.readthedocs.io)
+[![Discord Shield][discord]][discord-url]
 
 | **Documentation** |          **Build status**          |
 | :---------------: | :--------------------------------: |
-| [![](https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square)](https://genjax.gen.dev/) [![](https://img.shields.io/badge/jupyter-%23FA0F00.svg?style=flat-square&logo=jupyter&logoColor=white)][cookbook] | [![][main_build_action_badge]][main_build_status_url] |
+| [![](https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square)](https://chi-collective.github.io/genjax/) [![](https://img.shields.io/badge/jupyter-%23FA0F00.svg?style=flat-square&logo=jupyter&logoColor=white)][cookbook] | [![][main_build_action_badge]][main_build_status_url] |
 
 </div>
 
 ## 🔎 What is GenJAX?
 
-Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://genjax.gen.dev/cookbook/active/intro.html#generative-functions).
+Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://chi-collective.github.io/genjax/cookbook/active/intro.html#generative-functions).
 
 GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax) - exposing the ability to programmatically construct and manipulate generative functions, as well as [JIT compile + auto-batch inference computations using generative functions onto GPU devices](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html).
 
@@ -38,12 +39,6 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 > GenJAX is part of a larger ecosystem of probabilistic programming tools based upon Gen. [Explore more...](https://www.gen.dev/)
 
 ## Quickstart
-
-> [!IMPORTANT]
-> GenJAX's docs are currently private. To see them you'll need to request access to the
-> [GenJAX-Users Google group](https://groups.google.com/a/chi-fro.org/g/genjax-users/about). Make
-> sure you're signed in to a Google account, visit [the group's
-> page](https://groups.google.com/a/chi-fro.org/g/genjax-users/about), and click "Join group".
 
 To install GenJAX, run
 
@@ -157,8 +152,10 @@ Created and maintained by the <a href="http://probcomp.csail.mit.edu/">MIT Proba
 
 [actions]: https://github.com/chi-collective/genjax/actions
 [adev]: https://arxiv.org/abs/2212.06386
-[cookbook]: https://genjax.gen.dev/cookbook/
+[cookbook]: https://chi-collective.github.io/genjax/cookbook/
 [coverage_badge]: https://github.com/chi-collective/genjax/coverage.svg
+[discord-url]: https://discord.gg/UTJj3zmJYb
+[discord]: https://img.shields.io/discord/1331245195618029631?style=flat-square&colorA=000000&colorB=000000&label=&logo=discord
 [effect_handling_interp]: https://colab.research.google.com/drive/1HGs59anVC2AOsmt7C4v8yD6v8gZSJGm6#scrollTo=ukjVJ2Ls_6Q3
 [equinox]: https://github.com/patrick-kidger/equinox
 [gen_jl]: https://github.com/probcomp/Gen.jl
