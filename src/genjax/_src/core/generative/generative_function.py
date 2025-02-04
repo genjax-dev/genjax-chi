@@ -15,6 +15,8 @@
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
+from deprecated import deprecated
+
 from genjax._src.core.generative.choice_map import ChoiceMap, ChoiceMapConstraint
 from genjax._src.core.generative.core import (
     Argdiffs,
@@ -133,6 +135,13 @@ class Trace(Generic[R], Pytree):
     def get_choices(self) -> "genjax.ChoiceMap":
         """Retrieves the random choices made in a trace in the form of a [`genjax.ChoiceMap`][]."""
         pass
+
+    @deprecated(
+        reason=".get_sample() is deprecated; use .get_choices() instead",
+        version="0.8.0",
+    )
+    def get_sample(self) -> "genjax.ChoiceMap":
+        return self.get_choices()
 
     @abstractmethod
     def get_gen_fn(self) -> "GenerativeFunction[R]":
