@@ -136,11 +136,8 @@ class Trace(Generic[R], Pytree):
         """Retrieves the random choices made in a trace in the form of a [`genjax.ChoiceMap`][]."""
         pass
 
-    @deprecated(
-        reason=".get_sample() is deprecated; use .get_choices() instead",
-        version="0.8.0",
-    )
-    def get_sample(self) -> "genjax.ChoiceMap":
+    @deprecated(reason="Use .get_choices() instead.", version="0.8.1")
+    def get_sample(self):
         return self.get_choices()
 
     @abstractmethod
