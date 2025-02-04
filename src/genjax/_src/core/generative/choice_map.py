@@ -1478,6 +1478,12 @@ class Choice(Generic[T], ChoiceMap):
             )
 
 
+class DocstringExample:
+    def __init__(self, docstring: str):
+        """Initialize with a docstring that will be set on the instance."""
+        self.__doc__ = docstring
+
+
 @Pytree.dataclass(match_args=True)
 class Indexed(ChoiceMap):
     """Represents a choice map with dynamic indexing.

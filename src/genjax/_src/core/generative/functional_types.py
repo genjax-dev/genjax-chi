@@ -67,13 +67,13 @@ class Mask(Generic[R], Pytree):
     # Constructors #
     ################
 
-    def __init__(self, v: R, f: Flag | Diff[Flag] = True) -> None:
-        assert not isinstance(v, Mask), (
-            f"Mask should not be instantiated with another Mask! found {v}"
+    def __init__(self, value: R, flag: Flag | Diff[Flag] = True) -> None:
+        assert not isinstance(value, Mask), (
+            f"Mask should not be instantiated with another Mask! found {value}"
         )
-        Mask._validate_init(v, f)
+        Mask._validate_init(value, flag)
 
-        self.value, self.flag = v, f  # pyright: ignore[reportAttributeAccessIssue]
+        self.value, self.flag = value, flag  # pyright: ignore[reportAttributeAccessIssue]
 
     @staticmethod
     def _validate_init(value: R, flag: Flag | Diff[Flag]) -> None:
