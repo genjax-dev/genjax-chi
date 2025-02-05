@@ -21,13 +21,42 @@ copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 
 nav:
   - Home: index.md
-  - Cookbook: cookbook/index.md
+  - Cookbook:
+      - Just starting out:
+          - JAX basics: cookbook/active/jax_basics.ipynb
+          - Introduction: cookbook/active/intro.ipynb
+          - The generative function interface: cookbook/active/generative_function_interface.ipynb
+          - Working with choice maps: cookbook/active/choice_maps.ipynb
+          - Debugging: cookbook/active/debugging.ipynb
+
+      - Still being tidied:
+          - Generative functions: cookbook/inactive/generative_fun.ipynb
+
+          - Expressivity:
+              - cookbook/inactive/expressivity/conditionals.ipynb
+              - cookbook/inactive/expressivity/iterating_computation.ipynb
+              - cookbook/inactive/expressivity/masking.ipynb
+              - cookbook/inactive/expressivity/mixture.ipynb
+              - cookbook/inactive/expressivity/custom_distribution.ipynb
+              - cookbook/inactive/expressivity/stochastic_probabilities.ipynb
+              - cookbook/inactive/expressivity/stochastic_probabilities_math.ipynb
+
+          - Inference:
+              - Importance sampling: cookbook/inactive/inference/importance_sampling.ipynb
+              - Custom proposal: cookbook/inactive/inference/custom_proposal.ipynb
+              - MCMC: cookbook/inactive/inference/mcmc.ipynb
+
+          - Differentiation:
+              - ADEV Example: cookbook/inactive/differentiation/adev_example.py
+
+          - Library developers:
+              - Dimap combinator: cookbook/inactive/library_author/dimap_combinator.ipynb
+
   - Library reference:
       - Core: library/core.md
       - Generative functions: library/generative_functions.md
       - Combinators: library/combinators.md
       - Inference: library/inference.md
-    # - ADEV: library/adev.md
   - For developers:
       - Developing: developing.md
       - Code of conduct: codeofconduct.md
@@ -38,6 +67,9 @@ theme:
   name: material
   logo: assets/img/small_logo.png
   favicon: assets/img/gen-logo.png
+  font:
+      text: Roboto
+      code: Berkeley Mono
   icon:
     repo: fontawesome/brands/github
   features:
@@ -77,6 +109,15 @@ plugins:
   - search
   - offline
   - markdown-exec
+  - mkdocs-jupyter:
+        execute: true
+        allow_errors: false
+        ignore:
+         # TODO: re-enable once we can support marginals as targets
+          - "cookbook/inactive/expressivity/ravi_stack.ipynb"
+          - "cookbook/inactive/differentiation/adev_demo.py"
+
+        highlight_extra_classes: "custom-css-classes"
   - typeset:
       enabled: true
   - git-revision-date-localized:

@@ -2362,6 +2362,25 @@ mkdocs = ">=1.0"
 pytz = "*"
 
 [[package]]
+name = "mkdocs-jupyter"
+version = "0.25.1"
+description = "Use Jupyter in mkdocs websites"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "mkdocs_jupyter-0.25.1-py3-none-any.whl", hash = "sha256:3f679a857609885d322880e72533ef5255561bbfdb13cfee2a1e92ef4d4ad8d8"},
+    {file = "mkdocs_jupyter-0.25.1.tar.gz", hash = "sha256:0e9272ff4947e0ec683c92423a4bfb42a26477c103ab1a6ab8277e2dcc8f7afe"},
+]
+
+[package.dependencies]
+ipykernel = ">6.0.0,<7.0.0"
+jupytext = ">1.13.8,<2"
+mkdocs = ">=1.4.0,<2"
+mkdocs-material = ">9.0.0"
+nbconvert = ">=7.2.9,<8"
+pygments = ">2.12.0"
+
+[[package]]
 name = "mkdocs-material"
 version = "9.5.21+insiders.4.53.8"
 description = "Documentation that simply works"
@@ -2624,24 +2643,6 @@ traitlets = ">=5.1"
 [package.extras]
 docs = ["myst-parser", "pydata-sphinx-theme", "sphinx", "sphinxcontrib-github-alt", "sphinxcontrib-spelling"]
 test = ["pep440", "pre-commit", "pytest", "testpath"]
-
-[[package]]
-name = "nbmake"
-version = "1.5.4"
-description = "Pytest plugin for testing notebooks"
-optional = false
-python-versions = "<4.0.0,>=3.8.0"
-files = [
-    {file = "nbmake-1.5.4-py3-none-any.whl", hash = "sha256:8e440a61a7d4ab303064aa86b8d2c088177c89960e2b4a0f91a768dc9f68382b"},
-    {file = "nbmake-1.5.4.tar.gz", hash = "sha256:56417fe80d50069671122955532df6e26369a23f68b9c6e2191ae9cfef19abb2"},
-]
-
-[package.dependencies]
-ipykernel = ">=5.4.0"
-nbclient = ">=0.6.6,<0.7.0"
-nbformat = ">=5.0.8,<6.0.0"
-Pygments = ">=2.7.3,<3.0.0"
-pytest = ">=6.1.0"
 
 [[package]]
 name = "nest-asyncio"
@@ -4683,4 +4684,4 @@ genstudio = ["genstudio"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "367156047b990a7fdb966021828e9314659b089a870c94e708b8850ccb34ef9a"
+content-hash = "07deffc00c24e7bef36f3906ce9264dd4d804c7a6efe3e47892642552c0cac56"

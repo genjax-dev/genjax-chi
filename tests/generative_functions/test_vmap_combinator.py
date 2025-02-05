@@ -145,7 +145,7 @@ class TestVmapCombinator:
         key = jax.random.key(314159)
         map_over = jnp.arange(0, 50, dtype=float)
         tr = jax.jit(model.simulate)(key, (map_over,))
-        sample = tr.get_sample()
+        sample = tr.get_choices()
         map_score = tr.get_score()
         assert model.assess(sample, (map_over,))[0] == map_score
 
@@ -243,7 +243,7 @@ class TestVmapPytree:
         def generative_function(mc: MyClass):
             return mc.x + 5
 
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
 
         # check that we can vmap over a vectorized pytree.
         assert jnp.array_equal(

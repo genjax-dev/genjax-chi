@@ -74,6 +74,31 @@ class TestSelections:
         # none can't be extended
         assert Selection.none().extend("a", "b") == Selection.none()
 
+    def test_selection_builder_properties(self):
+        # Test S.all
+        assert S.all == Selection.all()
+        assert S.all["x"]
+        assert S.all["y", "z"]
+        assert S.all[()]
+
+        # Test S.none
+        assert S.none == Selection.none()
+        assert not S.none["x"]
+        assert not S.none["y", "z"]
+        assert not S.none[()]
+
+        # Test S.leaf
+        leaf_sel = S.leaf
+        assert leaf_sel == Selection.leaf()
+        leaf_sel = leaf_sel.extend("a", "b")
+        assert leaf_sel["a", "b"]
+        assert not leaf_sel["a"]
+        assert not leaf_sel["a", "b", "c"]
+
+        # Test empty tuple selection
+        assert S[()] == Selection.leaf()
+        assert () in S[()]
+
     def test_selection_leaf(self):
         leaf_sel = Selection.leaf().extend("x", "y")
         assert not leaf_sel["x"]

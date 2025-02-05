@@ -25,6 +25,17 @@ from genjax._src.core.generative.functional_types import Mask
 
 
 class TestMask:
+    def test_mask_kwarg_constructor(self):
+        # Test basic kwarg construction
+        mask1 = Mask(value=42, flag=True)
+        assert mask1.value == 42
+        assert mask1.flag is True
+
+        # Test flag defaults to True when not specified
+        mask4 = Mask(value=42)
+        assert mask4.value == 42
+        assert mask4.flag is True
+
     def test_mask_unmask_without_default(self):
         valid_mask = Mask(42, True)
         assert valid_mask.unmask() == 42

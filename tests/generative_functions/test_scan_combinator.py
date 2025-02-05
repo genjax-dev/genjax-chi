@@ -55,9 +55,9 @@ class TestIterateSimpleNormal:
         key, sub_key = jax.random.split(key)
         for i in range(1, 5):
             tr, w = jax.jit(scanner.importance)(sub_key, C[i, "z"].set(0.5), (0.01,))
-            value = tr.get_sample()[i, "z"]
+            value = tr.get_choices()[i, "z"]
             assert value == 0.5
-            prev = tr.get_sample()[i - 1, "z"]
+            prev = tr.get_choices()[i - 1, "z"]
             assert w == genjax.normal.assess(C.v(value), (prev, 1.0))[0]
 
     def test_iterate_simple_normal_update(self, key):
@@ -76,7 +76,7 @@ class TestIterateSimpleNormal:
                 C[i, "z"].set(1.0),
                 Diff.no_change((0.01,)),
             )
-            assert new_tr.get_sample()[i, "z"] == 1.0
+            assert new_tr.get_choices()[i, "z"] == 1.0
 
 
 @genjax.gen

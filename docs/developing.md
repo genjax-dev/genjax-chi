@@ -10,7 +10,6 @@ This project uses:
 - [poetry](https://python-poetry.org/) for dependency management
 - [nox](https://nox.thea.codes/en/stable/) to automate testing/linting/building.
 - [mkdocs](https://www.mkdocs.org/) to generate static documentation.
-- [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial notebooks.
 
 ### Commit Hooks
 
@@ -122,10 +121,6 @@ version of `jax` and `jaxlib` resolve with the versions of packages in the
 
 ### Documentation environment setup
 
-If you want to deploy the documentation and Jupyter notebooks to static HTML,
-you'll need to install [quarto](https://quarto.org/docs/get-started/) on your
-machine.
-
 GenJAX builds documentation using an insiders-only version of
 [mkdocs-material](https://squidfunk.github.io/mkdocs-material/). GenJAX will
 attempt to fetch this repository during the documentation build step.
@@ -136,8 +131,7 @@ Run the following command to fully build the documentation:
 nox -r -s docs-build
 ```
 
-This command will use `mkdocs` to build the static site, and then use `quarto`
-to render the notebooks into the static site directory.
+This command will use `mkdocs` to build the static site.
 
 To view the generated site, run:
 
@@ -150,21 +144,6 @@ or to run both commands in sequence:
 ```bash
 nox -r -s docs-build-serve
 ```
-
-## Granting someone access to GenJAX's Artifact Registry
-
-- Visit the [artifact registry
-  page](https://console.cloud.google.com/artifacts?hl=en&project=probcomp-caliban)
-  and click the checkbox next to `probcomp` to bring up the "Permissions" tab on
-  the right side of the page
-- Click "Add Principal"
-- Under "New principals", type in the email addresses (associated with a Google
-  account) of the people you want to grant access
-- Under "Role", fill in "Artifact Registry Reader"
-- Click "Save"
-
-These users should now be able to follow the README.md instructions to install
-GenJAX.
 
 ## Releasing GenJAX
 

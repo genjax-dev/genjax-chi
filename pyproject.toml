@@ -3,7 +3,7 @@ name = "genjax"
 
 # Leave this at 0.0.0; this key can't be missing, but it's subbed out
 # dynamically by `poetry.dynamic-versioning`.
-version = "0.0.0"
+version = "0.8.2.dev17+1e1d09d7"
 
 description = "Probabilistic programming with Gen, built on top of JAX."
 authors = [
@@ -57,7 +57,6 @@ optional = true
 coverage = "^7.0.0"
 matplotlib = "^3.6.2"
 mypy = "^0.991"
-nbmake = "^1.4.6"
 pytest = "^7.2.0"
 pytest-benchmark = "^4.0.0"
 pytest-xdist = { version = "^3.2.0", extras = ["psutil"] }
@@ -82,6 +81,7 @@ markdown-exec = { version = "^1.8.3", extras = ["ansi"] }
 mkdocs-material = { git = "git@github.com:probcomp/mkdocs-material-insiders.git" }
 mkdocstrings-python = { git = "git@github.com:probcomp/mkdocstrings-python.git" }
 black = "^24.4.2"
+mkdocs-jupyter = "^0.25.1"
 
 [tool.poetry.extras]
 genstudio = ["genstudio"]
@@ -183,7 +183,7 @@ show_error_codes = true
 show_error_context = true
 
 [tool.poetry-dynamic-versioning]
-enable = true
+enable = false
 vcs = "git"
 style = "pep440"
 

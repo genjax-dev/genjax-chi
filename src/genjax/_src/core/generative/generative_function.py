@@ -15,6 +15,8 @@
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
+from deprecated import deprecated
+
 from genjax._src.core.generative.choice_map import ChoiceMap, ChoiceMapConstraint
 from genjax._src.core.generative.core import (
     Argdiffs,
@@ -86,7 +88,7 @@ class Trace(Generic[R], Pytree):
     def get_score(self) -> Score:
         """Return the [`Score`][genjax.core.Score] of the `Trace`.
 
-        The score must satisfy a particular mathematical specification: it's either an exact density evaluation of $P$ (the distribution over samples) for the sample returned by [`genjax.Trace.get_sample`][], or _a sample from an estimator_ (a density estimate) if the generative function contains _untraced randomness_.
+        The score must satisfy a particular mathematical specification: it's either an exact density evaluation of $P$ (the distribution over samples) for the sample returned by [`genjax.Trace.get_choices`][], or _a sample from an estimator_ (a density estimate) if the generative function contains _untraced randomness_.
 
         Let $s$ be the score, $t$ the sample, and $a$ the arguments: when the generative function contains no _untraced randomness_, the score (in logspace) is given by:
 
@@ -129,14 +131,14 @@ class Trace(Generic[R], Pytree):
 
         """
 
-    def get_sample(self) -> "genjax.ChoiceMap":
-        """alias for [`genjax.Trace.get_choices`][]."""
-        return self.get_choices()
-
     @abstractmethod
     def get_choices(self) -> "genjax.ChoiceMap":
-        """Version of [`genjax.Trace.get_sample`][] for traces where the sample is an instance of [`genjax.ChoiceMap`][]."""
+        """Retrieves the random choices made in a trace in the form of a [`genjax.ChoiceMap`][]."""
         pass
+
+    @deprecated(reason="Use .get_choices() instead.", version="0.8.1")
+    def get_sample(self):
+        return self.get_choices()
 
     @abstractmethod
     def get_gen_fn(self) -> "GenerativeFunction[R]":
@@ -243,7 +245,7 @@ class GenerativeFunction(Generic[R], Pytree):
             )
             logits = log_weights - logsumexp(log_weights)
             idx = categorical(logits)(key)
-            return jtu.tree_map(lambda v: v[idx], tr.get_sample())
+            return jtu.tree_map(lambda v: v[idx], tr.get_choices())
 
 
         sub_keys = jax.random.split(jax.random.key(0), 50)
@@ -353,7 +355,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         The [`Trace`][genjax.core.Trace] returned by `simulate` implements its own interface.
 
-        It is responsible for storing the arguments of the invocation ([`genjax.Trace.get_args`][]), the return value of the generative function ([`genjax.Trace.get_retval`][]), the identity of the generative function which produced the trace ([`genjax.Trace.get_gen_fn`][]), the sample of traced random choices produced during the invocation ([`genjax.Trace.get_sample`][]) and _the score_ of the sample ([`genjax.Trace.get_score`][]).
+        It is responsible for storing the arguments of the invocation ([`genjax.Trace.get_args`][]), the return value of the generative function ([`genjax.Trace.get_retval`][]), the identity of the generative function which produced the trace ([`genjax.Trace.get_gen_fn`][]), the sample of traced random choices produced during the invocation ([`genjax.Trace.get_choices`][]) and _the score_ of the sample ([`genjax.Trace.get_score`][]).
 
         Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
@@ -505,7 +507,7 @@ class GenerativeFunction(Generic[R], Pytree):
             Now, let's inspect the trace:
             ```python exec="yes" html="true" source="material-block" session="core"
             # Inspect the trace, the sampled values should not have changed!
-            sample = new_tr.get_sample()
+            sample = new_tr.get_choices()
             print(sample["v1"], sample["v2"])
             ```
 
@@ -560,7 +562,7 @@ class GenerativeFunction(Generic[R], Pytree):
             ),
             Diff.unknown_change((3.0,)),
         )
-        print((new_tr.get_sample()["v1"], w))
+        print((new_tr.get_choices()["v1"], w))
         ```
 
         **Additional notes on [`Argdiffs`][genjax.core.Argdiffs]**
@@ -610,7 +612,7 @@ class GenerativeFunction(Generic[R], Pytree):
             key = jax.random.key(0)
 
             tr, w = normal.importance(key, C.v(1.0), (0.0, 1.0))
-            print(tr.get_sample().render_html())
+            print(tr.get_choices().render_html())
             ```
 
             (**Internal proposal for partial constraints**) Specifying a _partial_ constraint on a [`StaticGenerativeFunction`][genjax.StaticGenerativeFunction]:
@@ -627,7 +629,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
 
             tr, w = model.importance(key, C.kw(f1=True, f2=True), ())
-            print(tr.get_sample().render_html())
+            print(tr.get_choices().render_html())
             ```
 
         Under the hood, creates an [`EditRequest`][genjax.core.EditRequest] which requests that the generative function respond with a move from the _empty_ trace (the only possible value for _empty_ target $\\delta_\\emptyset$) to the target induced by the generative function for constraint $C$ with arguments $a$.
@@ -650,7 +652,7 @@ class GenerativeFunction(Generic[R], Pytree):
         Samples a [`ChoiceMap`][genjax.core.ChoiceMap] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the `R` of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
         """
         tr = self.simulate(key, args)
-        sample = tr.get_sample()
+        sample = tr.get_choices()
         score = tr.get_score()
         retval = tr.get_retval()
         return sample, score, retval
