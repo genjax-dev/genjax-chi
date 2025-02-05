@@ -6,6 +6,8 @@ import genjax
 from genjax import ChoiceMapBuilder as C
 
 key = jax.random.key(0)
+
+
 # %% [markdown]
 #
 # This notebook shows how to do inference on a discrete Hidden Markov Model.
@@ -28,8 +30,8 @@ class HiddenMarkovModel:
 
         @genjax.gen
         def step(state, control):
-            x1 = genjax.categorical(self.lX[state]) @ 'x'
-            y1 = genjax.categorical(self.lY[x1]) @ 'y'
+            x1 = genjax.categorical(self.lX[state]) @ "x"
+            y1 = genjax.categorical(self.lY[x1]) @ "y"
             return x1, y1
 
         self.step = step
@@ -38,10 +40,11 @@ class HiddenMarkovModel:
     def stochastic_matrix(self, key, shape):
         """Return a matrix of non-negative values whose rows sum to 1."""
         a = jax.random.uniform(key=key, shape=shape)
-        return a/jnp.sum(a, axis=1, keepdims=True)
+        return a / jnp.sum(a, axis=1, keepdims=True)
 
     def run(self, key, x0, n):
         return self.model.simulate(key, (jnp.array(x0), jnp.arange(n, dtype=float)))
+
 
 # %%
 key, sub_key = jax.random.split(key)
@@ -55,28 +58,32 @@ print(f"observations: {goal_trace.get_choices()['y']}")
 # How can we infer the inner states from the observations?
 # We could try the brute force approach of importance sampling.
 # %%
-observations = C['y'].set(goal_trace.get_choices()['y'])
+observations = C["y"].set(goal_trace.get_choices()["y"])
 # %%
 key, sub_key = jax.random.split(key)
-imp_trace, score  = hmm.model.importance(sub_key, observations, (0, jnp.arange(5.)))
+imp_trace, score = hmm.model.importance(sub_key, observations, (0, jnp.arange(5.0)))
 
 # %%
-imp_trace.get_choices()['x']
+imp_trace.get_choices()["x"]
 # %%
-jnp.count_nonzero(imp_trace.get_choices()['x'] - goal_trace.get_choices()['x'])
+jnp.count_nonzero(imp_trace.get_choices()["x"] - goal_trace.get_choices()["x"])
 # Not so good. Try a bunch of samples:
 # %%
 key, sub_key = jax.random.split(key)
-imp_traces, ws = jax.vmap(hmm.model.importance, in_axes=(0, None, None))(jax.random.split(sub_key, 50000), observations, (0, jnp.arange(5.)))
+imp_traces, ws = jax.vmap(hmm.model.importance, in_axes=(0, None, None))(
+    jax.random.split(sub_key, 50000), observations, (0, jnp.arange(5.0))
+)
 
 # %%
 winners = jax.random.categorical(key=sub_key, logits=ws, shape=(5,))
-winner, imp_traces.get_choices()['x'][winners]
+winner, imp_traces.get_choices()["x"][winners]
 # %%
 # None of the winners is exactly right, but it does seem like the choicemap
 # has had some influence. We can take more winners, and form the "majority opinion:"
 more_winners = jax.random.categorical(key=sub_key, logits=ws, shape=(50,))
-counts = jax.vmap(lambda v: jnp.bincount(v, length=5))(imp_traces.get_choices()['x'][more_winners].T)
+counts = jax.vmap(lambda v: jnp.bincount(v, length=5))(
+    imp_traces.get_choices()["x"][more_winners].T
+)
 majority = jnp.argmax(counts, axis=1)
 majority
 # %%
