@@ -270,6 +270,26 @@ class Const(Generic[R], Pytree):
         )
         return self.val(*args)
 
+    def __array__(self, dtype=None) -> R:
+        """Convert the constant value to a JAX array.
+
+        This method allows Const instances to be used in JAX array operations by
+        converting the wrapped value to a JAX array with the specified dtype.
+        This enables seamless interoperability with jax.numpy functions.
+
+        Args:
+            dtype: Optional dtype to cast the array to. If None, returns the
+                  original value without casting.
+
+        Returns:
+            The wrapped value as a JAX array with the specified dtype, or the
+            original value if dtype is None.
+        """
+        if dtype is None:
+            return self.val
+        else:
+            return jtu.tree_map(lambda x: jnp.asarray(x, dtype=dtype), self.val)
+
     def unwrap(self: Any) -> R:
         """Unwrap a constant value from a `Const` instance.
 

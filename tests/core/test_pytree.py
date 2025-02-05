@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 
 import genjax
-from genjax.typing import FloatArray
+from genjax.typing import Any, FloatArray
 
 
 class TestPytree:
@@ -9,6 +9,10 @@ class TestPytree:
         c = genjax.Pytree.const(5)
         assert c.unwrap() == 5
         assert genjax.Const.unwrap(10) == 10
+
+    def test_array(self):
+        c: Any = genjax.Pytree.const(jnp.array([1.0, 2.0, 3.0]))
+        assert jnp.sum(c) == 6.0
 
 
 class TestPythonic:
