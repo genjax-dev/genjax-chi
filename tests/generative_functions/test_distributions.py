@@ -388,12 +388,6 @@ class TestDistributions:
                 @ "ii"
             )
             _ = (
-                genjax.plackett_luce(
-                    jnp.array([0.5, 0.5]),
-                )
-                @ "jj"
-            )
-            _ = (
                 genjax.poisson(
                     1.0,
                 )

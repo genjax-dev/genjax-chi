@@ -246,11 +246,6 @@ poisson = tfp_distribution(tfd.Poisson)
 A `tfp_distribution` generative function which wraps the [`tfd.Poisson`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Poisson) distribution from TensorFlow Probability distributions.
 """
 
-plackett_luce: ExactDensityFromCallables[Array] = tfp_distribution(tfd.PlackettLuce)
-"""
-A `tfp_distribution` generative function which wraps the [`tfd.PlackettLuce`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/PlackettLuce) distribution from TensorFlow Probability distributions.
-"""
-
 power_spherical = tfp_distribution(tfd.PowerSpherical)
 """
 A `tfp_distribution` generative function which wraps the [`tfd.PowerSpherical`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/PowerSpherical) distribution from TensorFlow Probability distributions.
