@@ -20,6 +20,7 @@ from genjax._src.inference.sp import (
     marginal,
 )
 from genjax.inference import (
+    requests,
     smc,
     vi,
 )
@@ -30,6 +31,7 @@ __all__ = [
     "SampleDistribution",
     "Target",
     "marginal",
+    "requests",
     "smc",
     "vi",
 ]

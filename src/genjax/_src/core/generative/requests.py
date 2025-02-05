@@ -22,19 +22,27 @@ from genjax._src.core.generative.choice_map import (
 from genjax._src.core.generative.core import (
     Argdiffs,
     EditRequest,
+    PrimitiveEditRequest,
     Retdiff,
     Weight,
 )
-from genjax._src.core.generative.generative_function import Trace
+from genjax._src.core.generative.generative_function import (
+    Trace,
+    Update,
+)
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
+    Any,
+    Callable,
+    Generic,
     PRNGKey,
     TypeVar,
 )
 
 # Type variables
 R = TypeVar("R")
+ER = TypeVar("ER", bound=EditRequest)
 
 
 @Pytree.dataclass(match_args=True)
@@ -45,26 +53,35 @@ class EmptyRequest(EditRequest):
         tr: Trace[R],
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
-        return tr, jnp.array(0.0), Diff.no_change(tr.get_retval()), EmptyRequest()
+        if Diff.static_check_no_change(argdiffs):
+            return tr, jnp.array(0.0), Diff.no_change(tr.get_retval()), EmptyRequest()
+        else:
+            request = Update(ChoiceMap.empty())
+            return request.edit(key, tr, argdiffs)
 
 
 @Pytree.dataclass(match_args=True)
-class Regenerate(EditRequest):
+class Regenerate(PrimitiveEditRequest):
     selection: Selection
 
-    def edit(
-        self,
-        key: PRNGKey,
-        tr: Trace[R],
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
-        gen_fn = tr.get_gen_fn()
-        return gen_fn.edit(key, tr, self, argdiffs)
 
-
+# NOTE: can be used in an unsafe fashion!
 @Pytree.dataclass(match_args=True)
-class ChoiceMapEditRequest(EditRequest):
-    request_choice_map: ChoiceMap
+class DiffAnnotate(Generic[ER], EditRequest):
+    """
+    The `DiffAnnotate` request can be used to introspect on the values of type `Diff` (primal and change tangent) values flowing
+    through an edit program.
+
+    Users can provide an `argdiff_fn` and a `retdiff_fn` to manipulate changes. Note that, this introspection is inherently unsafe, users should expect:
+
+        * If you convert `Argdiffs` in such a way that you _assert_ that a value hasn't changed (when it actually has), the edit computation will be incorrect. Similar for the `Retdiff`.
+    """
+
+    request: ER
+    argdiff_fn: Callable[[Argdiffs], Argdiffs] = Pytree.static(default=lambda v: v)
+    retdiff_fn: Callable[[Retdiff[Any]], Retdiff[Any]] = Pytree.static(
+        default=lambda v: v
+    )
 
     def edit(
         self,
@@ -72,5 +89,7 @@ class ChoiceMapEditRequest(EditRequest):
         tr: Trace[R],
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
-        gen_fn = tr.get_gen_fn()
-        return gen_fn.edit(key, tr, self, argdiffs)
+        new_argdiffs = self.argdiff_fn(argdiffs)
+        tr, w, retdiff, bwd_request = self.request.edit(key, tr, new_argdiffs)
+        new_retdiff = self.retdiff_fn(retdiff)
+        return tr, w, new_retdiff, bwd_request

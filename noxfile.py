@@ -70,20 +70,13 @@ def prepare(session, *with_strs):
     for s in with_strs:
         with_pairs += ["--with", s]
 
-    session.run(
-        "poetry",
-        "self",
-        "add",
-        "keyrings.google-artifactregistry-auth",
-        external=True,
-    )
     session.run_always(
         "poetry", "install", "--with", "dev", *with_pairs, "--all-extras", external=True
     )
     install_jaxlib(session)
 
 
-@session(python=["3.10", "3.11"])
+@session(python=python_version)
 def tests(session):
     prepare(session)
     session.run(
@@ -156,21 +149,6 @@ def xdoctests(session) -> None:
 
 
 @session(python=python_version)
-def nbmake(session) -> None:
-    """Execute Jupyter notebooks as tests"""
-    prepare(session)
-    session.run(
-        "poetry",
-        "run",
-        "pytest",
-        "-n",
-        "auto",
-        "--nbmake",
-        "notebooks/active",
-    )
-
-
-@session(python=python_version)
 def safety(session) -> None:
     """Scan dependencies for insecure packages."""
     install_package(session, "safety")
@@ -183,6 +161,14 @@ def safety(session) -> None:
         "check",
         "--ignore",
         "70612",
+        "--ignore",
+        "73456",
+        # tornado, dev dependency
+        "--ignore",
+        "74439",
+        # jinja2, dev dependency
+        "--ignore",
+        "74735",
         "--full-report",
         f"--file={requirements}",
         external=True,
@@ -202,23 +188,14 @@ def build(session):
     session.run("poetry", "build")
 
 
-@session(name="mkdocs", python=python_version)
-def mkdocs(session: Session) -> None:
-    """Run the mkdocs-only portion of the docs build."""
+@session(name="docs-build", python=python_version)
+def docs_build(session: Session) -> None:
+    """Build the documentation."""
     prepare(session, "docs")
     build_dir = Path("site")
     if build_dir.exists():
         shutil.rmtree(build_dir)
     session.run("poetry", "run", "mkdocs", "build", "--strict", external=True)
-
-
-@session(name="docs-build", python=python_version)
-def docs_build(session: Session) -> None:
-    """Build the documentation."""
-    mkdocs(session)
-    session.run(
-        "poetry", "run", "quarto", "render", "notebooks", "--execute", external=True
-    )
 
 
 @session(name="docs-serve", python=python_version)
@@ -236,22 +213,21 @@ def docs_serve(session: Session) -> None:
     )
 
 
+@session(name="docs-deploy", python=python_version)
+def docs_deploy(session: Session) -> None:
+    """Deploy the already-built documentation."""
+    session.run("poetry", "run", "mkdocs", "gh-deploy", "--force", external=True)
+
+
+@session(name="docs-build-deploy", python=python_version)
+def docs_build_deploy(session: Session) -> None:
+    """Build and deploy the documentation site to GH Pages"""
+    docs_build(session)
+    docs_deploy(session)
+
+
 @session(name="docs-build-serve", python=python_version)
 def docs_build_serve(session: Session) -> None:
     """Build and serve the documentation site."""
     docs_build(session)
     docs_serve(session)
-
-
-@session(name="notebooks-serve", python=python_version)
-def notebooks_serve(session: Session) -> None:
-    """Build the documentation."""
-    prepare(session)
-    session.run("quarto", "preview", "notebooks", external=True)
-
-
-@session(name="jupyter", python=python_version)
-def jupyter(session: Session) -> None:
-    """Build the documentation."""
-    prepare(session)
-    session.run("jupyter-lab", external=True)

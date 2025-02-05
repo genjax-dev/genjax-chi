@@ -13,6 +13,7 @@
 # limitations under the License.
 
 
+import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.core.typing import Array, Callable
@@ -77,9 +78,14 @@ bernoulli = tfp_distribution(lambda logits: tfd.Bernoulli(logits=logits))
 A `tfp_distribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions.
 """
 
-flip = tfp_distribution(lambda p: tfd.Bernoulli(probs=p))
+flip = tfp_distribution(lambda p: tfd.Bernoulli(probs=p, dtype=jnp.bool_))
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions, but is constructed using a probability value and not a logit.
+"""
+
+exponential = tfp_distribution(tfd.Exponential)
+"""
+A `tfp_distribution` generative function which wraps the [`tfd.Exponential`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Exponential) distribution from TensorFlow Probability distributions, but is constructed using a probability value and not a logit.
 """
 
 chi = tfp_distribution(tfd.Chi)
@@ -90,6 +96,11 @@ A `tfp_distribution` generative function which wraps the [`tfd.Chi`](https://www
 chi2 = tfp_distribution(tfd.Chi2)
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Chi2`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Chi2) distribution from TensorFlow Probability distributions.
+"""
+
+dirichlet = tfp_distribution(tfd.Dirichlet)
+"""
+A `tfp_distribution` generative function which wraps the [`tfd.Dirichlet`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Dirichlet) distribution from TensorFlow Probability distributions.
 """
 
 geometric = tfp_distribution(tfd.Geometric)

@@ -36,7 +36,6 @@ from genjax._src.core.typing import (
     BoolArray,
     FloatArray,
     Generic,
-    Int,
     PRNGKey,
     TypeVar,
 )
@@ -176,7 +175,7 @@ class SMCAlgorithm(Generic[R], Algorithm[R]):
             particle.get_score()
             - particle_collection.get_log_marginal_likelihood_estimate()
         )
-        chm = target.filter_to_unconstrained(particle.get_sample())
+        chm = target.filter_to_unconstrained(particle.get_choices())
         return log_density_estimate, chm
 
     def estimate_logpdf(
@@ -283,12 +282,12 @@ class Importance(Generic[R], SMCAlgorithm[R]):
 @Pytree.dataclass
 class ImportanceK(Generic[R], SMCAlgorithm[R]):
     """Given a `target: Target` and a proposal `q: SampleDistribution`, as well as the
-    number of particles `k_particles: Int`, initialize a particle collection using
+    number of particles `k_particles: int`, initialize a particle collection using
     importance sampling."""
 
     target: Target[R]
     q: SampleDistribution | None = Pytree.field(default=None)
-    k_particles: Int = Pytree.static(default=2)
+    k_particles: int = Pytree.static(default=2)
 
     def get_num_particles(self):
         return self.k_particles
@@ -378,7 +377,7 @@ class ChangeTarget(Generic[R], SMCAlgorithm[R]):
         # to a new set which is properly weighted for the new target.
         def _reweight(key, particle, weight) -> tuple[Trace[R], Any]:
             latents = self.prev.get_final_target().filter_to_unconstrained(
-                particle.get_sample()
+                particle.get_choices()
             )
             new_trace, new_weight = self.target.importance(key, latents)
             this_weight = new_weight - particle.get_score() + weight
@@ -407,7 +406,7 @@ class ChangeTarget(Generic[R], SMCAlgorithm[R]):
         # to a new set which is properly weighted for the new target.
         def _reweight(key, particle, weight) -> tuple[Trace[R], Any]:
             latents = self.prev.get_final_target().filter_to_unconstrained(
-                particle.get_sample()
+                particle.get_choices()
             )
             new_trace, new_score = self.target.importance(key, latents)
             this_weight = new_score - particle.get_score() + weight
@@ -443,7 +442,7 @@ class ChangeTarget(Generic[R], SMCAlgorithm[R]):
         # to a new set which is properly weighted for the new target.
         def _reweight(key, particle, weight):
             latents = self.prev.get_final_target().filter_to_unconstrained(
-                particle.get_sample()
+                particle.get_choices()
             )
             _, new_score = self.target.importance(key, latents)
             this_weight = new_score - particle.get_score() + weight

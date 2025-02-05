@@ -17,21 +17,20 @@ import jax.numpy as jnp
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import EmptyConstraint
 from genjax.incremental import Diff, NoChange, UnknownChange
 
 
 class TestDistributions:
     def test_simulate(self):
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         tr = genjax.normal(0.0, 1.0).simulate(key, ())
         assert tr.get_score() == genjax.normal(0.0, 1.0).assess(tr.get_choices(), ())[0]
 
     def test_importance(self):
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         # No constraint.
-        (tr, w) = genjax.normal.importance(key, EmptyConstraint(), (0.0, 1.0))
+        (tr, w) = genjax.normal.importance(key, C.n(), (0.0, 1.0))
         assert w == 0.0
 
         # Constraint, no mask.
@@ -60,7 +59,7 @@ class TestDistributions:
         assert w == 0.0
 
     def test_update(self):
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         key, sub_key = jax.random.split(key)
         tr = genjax.normal.simulate(sub_key, (0.0, 1.0))
 

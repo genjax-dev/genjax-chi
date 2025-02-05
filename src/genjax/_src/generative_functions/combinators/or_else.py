@@ -66,7 +66,7 @@ def or_else(
             return or_else_model(toss, (1.0,), (10.0,)) @ "tossed"
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         tr = jax.jit(model.simulate)(key, (True,))
 
