@@ -49,6 +49,10 @@ nav:
           - Differentiation:
               - ADEV Example: cookbook/inactive/differentiation/adev_example.py
 
+          - Speed:
+              - Update:
+                - Update: cookbook/inactive/update/2_update.ipynb
+
           - Library developers:
               - Dimap combinator: cookbook/inactive/library_author/dimap_combinator.ipynb
 
