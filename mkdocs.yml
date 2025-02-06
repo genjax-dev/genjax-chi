@@ -51,6 +51,7 @@ nav:
 
           - Speed:
               - Update:
+                - Importance: cookbook/inactive/update/1_importance.ipynb
                 - Update: cookbook/inactive/update/2_update.ipynb
 
           - Library developers:
