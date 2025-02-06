@@ -1015,13 +1015,13 @@ files = [
 
 [[package]]
 name = "genstudio"
-version = "2025.1.9"
+version = "2025.2.1"
 description = ""
 optional = false
-python-versions = "<3.13,>=3.11"
+python-versions = "<4.0,>=3.11"
 files = [
-    {file = "genstudio-2025.1.9-py3-none-any.whl", hash = "sha256:4c96b97e7ede81cc89869c9351394a35115dea33b1c9e0d9d46fdd842a00764a"},
-    {file = "genstudio-2025.1.9.tar.gz", hash = "sha256:d0b1e22905952e4dc9b3ed5c404e60147dbc03b5905ad8fbc2d891ca3da83597"},
+    {file = "genstudio-2025.2.1-py3-none-any.whl", hash = "sha256:c6b599f8affd6cbfe698ddecbb7e77497f25777822e507e603b72d0891cead79"},
+    {file = "genstudio-2025.2.1.tar.gz", hash = "sha256:ccfbc8d260180ad76e0c765564ac2405a81aec5c5b46815be67197044c8a8274"},
 ]
 
 [package.dependencies]
@@ -4683,5 +4683,5 @@ genstudio = ["genstudio"]
 
 [metadata]
 lock-version = "2.0"
-python-versions = ">=3.11,<3.13"
-content-hash = "07deffc00c24e7bef36f3906ce9264dd4d804c7a6efe3e47892642552c0cac56"
+python-versions = ">=3.11,<4.0"
+content-hash = "c213e23d9498f0a75a0ebc4977df0c46ba78d16a1094069a67b47ee6edef6533"
