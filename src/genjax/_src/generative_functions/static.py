@@ -71,22 +71,6 @@ _WRAPPER_ASSIGNMENTS = (
     "__annotations__",
 )
 
-
-# Usage in transforms: checks for duplicate addresses.
-@Pytree.dataclass
-class AddressVisitor(Pytree):
-    visited: list[StaticAddress] = Pytree.static(default_factory=list)
-
-    def visit(self, addr: StaticAddress):
-        if addr in self.visited:
-            raise AddressReuse(addr)
-        else:
-            self.visited.append(addr)
-
-    def get_visited(self):
-        return self.visited
-
-
 def collapse_address(
     addr: StaticAddressComponent | StaticAddress,
 ) -> StaticAddressComponent | StaticAddress:
@@ -104,8 +88,6 @@ class StaticTrace(Generic[R], Trace[R]):
     args: tuple[Any, ...]
     retval: R
     subtraces: dict[str, Trace[Any]]
-    #addresses: AddressVisitor
-    #subtraces: list[Trace[Any]]
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
@@ -313,7 +295,6 @@ def simulate_transform(source_fn):
 class AssessHandler(StaticHandler):
     choice_map_sample: ChoiceMap
     score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
 
     def yield_state(self):
         return (self.score,)
@@ -353,9 +334,7 @@ def assess_transform(source_fn):
 class GenerateHandler(StaticHandler):
     key: PRNGKey
     choice_map: ChoiceMap
-    #address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    #address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
     traces: dict[str, Trace[Any] | None] = Pytree.field(default_factory=dict)
     key_counter: int = Pytree.static(default=1)
 
@@ -439,9 +418,8 @@ class UpdateHandler(StaticHandler):
     key: PRNGKey
     previous_trace: StaticTrace[Any]
     constraint: ChoiceMap
-    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
+    traces: dict[str, Trace[Any]] = Pytree.field(default_factory=dict)
     bwd_constraints: list[ChoiceMap] = Pytree.field(default_factory=list)
     key_counter: int = Pytree.static(default=1)
 
@@ -453,13 +431,9 @@ class UpdateHandler(StaticHandler):
     def yield_state(self):
         return (
             self.weight,
-            self.address_visitor,
-            self.address_traces,
+            self.traces,
             self.bwd_constraints,
         )
-
-    def visit(self, addr):
-        self.address_visitor.visit(addr)
 
     def get_subconstraint(self, addr: StaticAddress) -> ChoiceMap:
         return self.constraint(addr)
@@ -480,7 +454,7 @@ class UpdateHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        self.visit(addr)
+        self.traces[addr[0]] = None # TODO(colin)
         subtrace = self.get_subtrace(addr)
         constraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
@@ -495,7 +469,7 @@ class UpdateHandler(StaticHandler):
         )
         self.bwd_constraints.append(bwd_request.constraint)
         self.weight += w
-        self.address_traces.append(tr)
+        self.traces[addr[0]] = tr
 
         return retval_diff
 
@@ -517,8 +491,7 @@ def update_transform(source_fn):
         retval_primals = Diff.tree_primal(retval_diffs)
         (
             weight,
-            address_visitor,
-            address_traces,
+            traces,
             bwd_requests,
         ) = stateful_handler.yield_state()
         return (
@@ -529,8 +502,7 @@ def update_transform(source_fn):
                 (
                     diff_primals,
                     retval_primals,
-                    address_visitor,
-                    address_traces,
+                    traces,
                 ),
                 # Backward update problem.
                 bwd_requests,
@@ -550,9 +522,8 @@ class StaticEditRequestHandler(StaticHandler):
     key: PRNGKey
     previous_trace: StaticTrace[Any]
     addressed: StaticDict
-    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
+    traces: dict[str, Trace[Any]] = Pytree.field(default_factory=dict)
     bwd_requests: list[EditRequest] = Pytree.field(default_factory=list)
     key_counter: int = Pytree.static(default=1)
 
@@ -564,13 +535,9 @@ class StaticEditRequestHandler(StaticHandler):
     def yield_state(self):
         return (
             self.weight,
-            self.address_visitor,
-            self.address_traces,
+            self.traces,
             self.bwd_requests,
         )
-
-    def visit(self, addr):
-        self.address_visitor.visit(addr)
 
     def get_subrequest(
         self, addr: StaticAddressComponent | StaticAddress
@@ -594,7 +561,7 @@ class StaticEditRequestHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        self.visit(addr)
+        self.traces[addr[0]] = None #TODO(colin)
         subtrace = self.get_subtrace(addr)
         subrequest = self.get_subrequest(addr)
         sub_key = self.fresh_key_and_increment()
@@ -605,7 +572,7 @@ class StaticEditRequestHandler(StaticHandler):
         )
         self.bwd_requests.append(bwd_request)
         self.weight += w
-        self.address_traces.append(tr)
+        self.traces[addr[0]] = tr
 
         return retval_diff
 
@@ -631,8 +598,7 @@ def static_edit_request_transform(source_fn):
         retval_primals = Diff.tree_primal(retval_diffs)
         (
             weight,
-            address_visitor,
-            address_traces,
+            traces,
             bwd_requests,
         ) = stateful_handler.yield_state()
         return (
@@ -643,8 +609,7 @@ def static_edit_request_transform(source_fn):
                 (
                     diff_primals,
                     retval_primals,
-                    address_visitor,
-                    address_traces,
+                    traces,
                 ),
                 # Backward update problem.
                 bwd_requests,
@@ -665,9 +630,8 @@ class RegenerateRequestHandler(StaticHandler):
     previous_trace: StaticTrace[Any]
     selection: Selection
     edit_request: EditRequest
-    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
+    traces: dict[str, Trace[Any]] = Pytree.field(default_factory=dict)
     bwd_requests: list[EditRequest] = Pytree.field(default_factory=list)
     key_counter: int = Pytree.static(default=1)
 
@@ -679,13 +643,9 @@ class RegenerateRequestHandler(StaticHandler):
     def yield_state(self):
         return (
             self.weight,
-            self.address_visitor,
-            self.address_traces,
+            self.traces,
             self.bwd_requests,
         )
-
-    def visit(self, addr):
-        self.address_visitor.visit(addr)
 
     def get_subselection(self, addr: StaticAddress) -> Selection:
         return self.selection(addr)
@@ -706,7 +666,7 @@ class RegenerateRequestHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        self.visit(addr)
+        self.traces[addr[0]] = None # TODO(colin)
         subtrace = self.get_subtrace(addr)
         subselection = self.get_subselection(addr)
         sub_key = self.fresh_key_and_increment()
@@ -714,7 +674,7 @@ class RegenerateRequestHandler(StaticHandler):
         tr, w, retval_diff, bwd_request = subrequest.edit(sub_key, subtrace, argdiffs)
         self.bwd_requests.append(bwd_request)
         self.weight += w
-        self.address_traces.append(tr)
+        self.traces[addr[0]] = tr
 
         return retval_diff
 
@@ -742,8 +702,7 @@ def regenerate_transform(source_fn):
         retval_primals = Diff.tree_primal(retval_diffs)
         (
             weight,
-            address_visitor,
-            address_traces,
+            traces,
             bwd_requests,
         ) = stateful_handler.yield_state()
         return (
@@ -754,8 +713,7 @@ def regenerate_transform(source_fn):
                 (
                     diff_primals,
                     retval_primals,
-                    address_visitor,
-                    address_traces,
+                    traces,
                 ),
                 # Backward update problem.
                 bwd_requests,
@@ -923,8 +881,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 (
                     arg_primals,
                     retval_primals,
-                    address_visitor,
-                    address_traces,
+                    traces,
                 ),
                 bwd_requests,
             ),
@@ -932,19 +889,18 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         if not Diff.static_check_tree_diff(retval_diffs):
             retval_diffs = Diff.no_change(retval_diffs)
 
-        def make_bwd_request(visitor, subconstraints):
-            addresses = visitor.get_visited()
-            addresses = Pytree.tree_const_unwrap(addresses)
+        def make_bwd_request(traces, subconstraints):
+            addresses = traces.keys()
             chm = ChoiceMap.from_mapping(zip(addresses, subconstraints))
             return Update(chm)
 
-        bwd_request = make_bwd_request(address_visitor, bwd_requests)
+        bwd_request = make_bwd_request(traces, bwd_requests)
         return (
             StaticTrace(
                 self,
                 arg_primals,
                 retval_primals,
-                {address[0]: trace for address, trace in zip(address_visitor.get_visited(), address_traces)}
+                traces,
             ),
             weight,
             retval_diffs,
@@ -968,8 +924,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 (
                     arg_primals,
                     retval_primals,
-                    address_visitor,
-                    address_traces,
+                    traces,
                 ),
                 bwd_requests,
             ),
@@ -978,22 +933,22 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         )
 
         def make_bwd_request(
-            visitor: AddressVisitor,
+            traces: dict[str, Trace[Any]],
             subrequests: list[EditRequest],
         ):
-            addresses = visitor.get_visited()
-            addresses = Pytree.tree_const_unwrap(addresses)
+            addresses = traces.keys()
             addresses = map(collapse_address, addresses)
+            # TODO(colin): use a dict comprehension!
             bwd_addressed = dict(zip(addresses, subrequests))
             return StaticRequest(bwd_addressed)
 
-        bwd_request = make_bwd_request(address_visitor, bwd_requests)
+        bwd_request = make_bwd_request(traces, bwd_requests)
         return (
             StaticTrace(
                 self,
                 arg_primals,
                 retval_primals,
-                {address[0]: trace for address, trace in zip(address_visitor.get_visited(), address_traces)}
+                traces,
             ),
             weight,
             retval_diffs,
@@ -1018,8 +973,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 (
                     arg_primals,
                     retval_primals,
-                    address_visitor,
-                    address_traces,
+                    traces,
                 ),
                 bwd_requests,
             ),
@@ -1028,22 +982,22 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         )
 
         def make_bwd_request(
-            visitor: AddressVisitor,
+            traces: dict[str, Trace[Any]],
             subrequests: list[EditRequest],
         ):
-            addresses = visitor.get_visited()
-            addresses = Pytree.tree_const_unwrap(addresses)
+            addresses = traces.keys()
             addresses = map(collapse_address, addresses)
+            # TODO(colin): use dict comprehension
             bwd_addressed = dict(zip(addresses, subrequests))
             return StaticRequest(bwd_addressed)
 
-        bwd_request = make_bwd_request(address_visitor, bwd_requests)
+        bwd_request = make_bwd_request(traces, bwd_requests)
         return (
             StaticTrace(
                 self,
                 arg_primals,
                 retval_primals,
-                {address[0]: trace for address, trace in zip(address_visitor.get_visited(), address_traces)}
+                traces,
             ),
             weight,
             retval_diffs,
