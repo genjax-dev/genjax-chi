@@ -258,8 +258,7 @@ class StaticHandler(StatefulHandler):
 @dataclass
 class SimulateHandler(StaticHandler):
     key: PRNGKey
-    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
+    traces: dict[str, Trace[Any]] = Pytree.field(default_factory=dict)
     key_counter: int = Pytree.static(default=1)
 
     def fresh_key_and_increment(self):
@@ -267,14 +266,12 @@ class SimulateHandler(StaticHandler):
         self.key_counter += 1
         return new_key
 
-    def visit(self, addr):
-        self.address_visitor.visit(addr)
+    # TODO(colin)
+    # def visit(self, addr):
+    #     self.address_visitor.visit(addr)
 
     def yield_state(self):
-        return (
-            self.address_visitor,
-            self.address_traces,
-        )
+        return self.traces
 
     def handle_trace(
         self,
@@ -282,10 +279,12 @@ class SimulateHandler(StaticHandler):
         gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
-        self.visit(addr)
+        if addr[0] in self.traces:
+            raise AddressReuse(addr)
+        self.traces[addr[0]] = None # TODO(colin): sentinel
         sub_key = self.fresh_key_and_increment()
         tr = gen_fn.simulate(sub_key, args)
-        self.address_traces.append(tr)
+        self.traces[addr[0]] = tr
         v = tr.get_retval()
         return v
 
@@ -295,15 +294,11 @@ def simulate_transform(source_fn):
     def wrapper(key, args):
         stateful_handler = SimulateHandler(key)
         retval = forward(source_fn)(stateful_handler, *args)
-        (
-            address_visitor,
-            address_traces,
-        ) = stateful_handler.yield_state()
+        traces = stateful_handler.yield_state()
         return (
             args,
             retval,
-            address_visitor,
-            address_traces,
+            traces
         )
 
     return wrapper
@@ -396,6 +391,7 @@ class GenerateHandler(StaticHandler):
         gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
+
         self.traces[addr[0]] = None  # TODO(colin): this was "visit."
         subconstraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
@@ -855,15 +851,15 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (args, retval, address_visitor, address_traces) = simulate_transform(
+        (args, retval, traces) = simulate_transform(
             syntax_sugar_handled
         )(key, args)
         return StaticTrace(
             self,
             args,
             retval,
-            {address[0]: trace for address, trace in zip(address_visitor.get_visited(), address_traces)}
-            #address_visitor,
+            traces,
+            #address_visitor, TODO(colin)
             #address_traces,
         )
 
