@@ -53,6 +53,7 @@ nav:
               - Update:
                 - Importance: cookbook/inactive/update/1_importance.ipynb
                 - Update: cookbook/inactive/update/2_update.ipynb
+                - Incremental: cookbook/inactive/update/3_speed_gains.ipynb
 
           - Library developers:
               - Dimap combinator: cookbook/inactive/library_author/dimap_combinator.ipynb
