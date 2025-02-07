@@ -1,20 +1,3 @@
-# ---
-# jupyter:
-#   jupytext:
-#     cell_metadata_filter: -all
-#     formats: ipynb,py:percent
-#     text_representation:
-#       extension: .py
-#       format_name: percent
-#       format_version: '1.3'
-#       jupytext_version: 1.16.4
-# ---
-
-# %%
-# pyright: reportUnusedExpression=false
-# ---
-# title: Differentiating probabilistic programs
-# subtitle: How to take drastic differentiating measures by differentiating measures
 # jupyter:
 #   jupytext:
 #     formats: ipynb,py:percent
@@ -29,6 +12,12 @@
 #     name: python3
 # ---
 
+# %%
+# pyright: reportUnusedExpression=false
+
+# %% [markdown]
+# ## Differentiating probabilistic programs
+# ### Differentiating probabilistic programs
 # %%
 # Import and constants
 import genstudio.plot as Plot

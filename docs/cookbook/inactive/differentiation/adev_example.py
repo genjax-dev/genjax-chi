@@ -1,6 +1,3 @@
-# ---
-# title: Differentiating probabilistic programs
-# subtitle: How to take drastic differentiating measures by differentiating measures
 # jupyter:
 #   jupytext:
 #     formats: ipynb,py:percent
@@ -14,6 +11,9 @@
 #     language: python
 #     name: python3
 # ---
+# %% [markdown]
+# ## Differentiating probabilistic programs
+# ### Differentiating probabilistic programs
 # %%
 # pyright: reportUnusedExpression=false
 # %%
