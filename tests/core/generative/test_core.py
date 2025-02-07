@@ -48,10 +48,10 @@ class TestProject:
         tr = f.simulate(jax.random.key(0), ())
         # evaluations
         x_score = tr.project(jax.random.key(1), S["x"])
-        assert x_score == tr.subtraces[0].get_score()
+        assert x_score == tr.get_subtrace(('x',)).get_score() # TODO(colin)
 
         y_score = tr.project(jax.random.key(1), S["y"])
-        assert y_score == tr.subtraces[1].get_score()
+        assert y_score == tr.get_subtrace(('y',)).get_score() # TODO(colin)
 
         assert tr.get_score() == x_score + y_score
 

@@ -103,8 +103,9 @@ class StaticTrace(Generic[R], Trace[R]):
     gen_fn: "StaticGenerativeFunction[R]"
     args: tuple[Any, ...]
     retval: R
-    addresses: AddressVisitor
-    subtraces: list[Trace[Any]]
+    subtraces: dict[str, Trace[Any]]
+    #addresses: AddressVisitor
+    #subtraces: list[Trace[Any]]
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
@@ -116,19 +117,21 @@ class StaticTrace(Generic[R], Trace[R]):
         return self.gen_fn
 
     def get_choices(self) -> ChoiceMap:
-        addresses = self.addresses.get_visited()
-        sub_chms = (tr.get_choices() for tr in self.subtraces)
-        return ChoiceMap.from_mapping(zip(addresses, sub_chms))
+        return ChoiceMap.from_mapping((address, subtrace.get_choices()) for address, subtrace in self.subtraces.items())
+        # addresses = self.addresses.get_visited()
+        # sub_chms = (tr.get_choices() for tr in self.subtraces)
+        # return ChoiceMap.from_mapping(zip(addresses, sub_chms))
 
     def get_score(self) -> Score:
         return jnp.sum(
-            jnp.array([tr.get_score() for tr in self.subtraces], copy=False),
+            jnp.array([tr.get_score() for tr in self.subtraces.values()], copy=False),
         )
 
     def get_subtrace(self, addr: StaticAddress):
-        addresses = self.addresses.get_visited()
-        idx = addresses.index(addr)
-        return self.subtraces[idx]
+        return self.subtraces[addr[0]]
+        # addresses = self.subtraces.keys()
+        # idx = addresses.index(addr)
+        # return self.subtraces[idx]
 
 
 ####################################
@@ -355,9 +358,10 @@ def assess_transform(source_fn):
 class GenerateHandler(StaticHandler):
     key: PRNGKey
     choice_map: ChoiceMap
-    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    #address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
     weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
+    #address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
+    traces: dict[str, Trace[Any] | None] = Pytree.field(default_factory=dict)
     key_counter: int = Pytree.static(default=1)
 
     def fresh_key_and_increment(self):
@@ -372,13 +376,12 @@ class GenerateHandler(StaticHandler):
         self,
     ) -> tuple[
         Weight,
-        AddressVisitor,
-        list[Trace[Any]],
+        dict[str, Trace[Any]]
     ]:
         return (
             self.weight,
-            self.address_visitor,
-            self.address_traces,
+            self.traces, # TODO(colin): we have type error because we need to mark the trace with a stub
+            # TODO(colin): idea: have an EmptyTrace object we can use as a placeholder
         )
 
     def get_subconstraint(
@@ -393,12 +396,13 @@ class GenerateHandler(StaticHandler):
         gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
-        self.visit(addr)
+        self.traces[addr[0]] = None  # TODO(colin): this was "visit."
         subconstraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
         (tr, w) = gen_fn.generate(sub_key, subconstraint, args)
         self.weight += w
-        self.address_traces.append(tr)
+        self.traces[addr[0]] = tr # TODO(colin): [0]
+        #self.address_traces.append(tr) #TODO(colin)
 
         return tr.get_retval()
 
@@ -414,8 +418,7 @@ def generate_transform(source_fn):
         retval = forward(source_fn)(stateful_handler, *args)
         (
             weight,
-            address_visitor,
-            address_traces,
+            traces
         ) = stateful_handler.yield_state()
         return (
             weight,
@@ -423,8 +426,7 @@ def generate_transform(source_fn):
             (
                 args,
                 retval,
-                address_visitor,
-                address_traces,
+                traces
             ),
         )
 
@@ -860,8 +862,9 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             self,
             args,
             retval,
-            address_visitor,
-            address_traces,
+            {address[0]: trace for address, trace in zip(address_visitor.get_visited(), address_traces)}
+            #address_visitor,
+            #address_traces,
         )
 
     def generate(
@@ -882,16 +885,14 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             (
                 args,
                 retval,
-                address_visitor,
-                address_traces,
+                traces,
             ),
         ) = generate_transform(syntax_sugar_handled)(key, constraint.choice_map, args)
         return StaticTrace(
             self,
             args,
             retval,
-            address_visitor,
-            address_traces,
+            traces
         ), weight
 
     def project(
@@ -903,9 +904,9 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         assert isinstance(trace, StaticTrace)
         assert isinstance(projection, Selection), type(projection)
         weight = jnp.array(0.0)
-        for addr in trace.addresses.get_visited():
+        for addr in trace.subtraces.keys():
             subprojection = projection(addr)
-            subtrace = trace.get_subtrace(addr)
+            subtrace = trace.get_subtrace((addr,))
             weight += subtrace.project(key, subprojection)
         return weight
 
@@ -947,8 +948,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 self,
                 arg_primals,
                 retval_primals,
-                address_visitor,
-                address_traces,
+                {address[0]: trace for address, trace in zip(address_visitor.get_visited(), address_traces)}
             ),
             weight,
             retval_diffs,
@@ -997,8 +997,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 self,
                 arg_primals,
                 retval_primals,
-                address_visitor,
-                address_traces,
+                {address[0]: trace for address, trace in zip(address_visitor.get_visited(), address_traces)}
             ),
             weight,
             retval_diffs,
@@ -1048,8 +1047,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 self,
                 arg_primals,
                 retval_primals,
-                address_visitor,
-                address_traces,
+                {address[0]: trace for address, trace in zip(address_visitor.get_visited(), address_traces)}
             ),
             weight,
             retval_diffs,
