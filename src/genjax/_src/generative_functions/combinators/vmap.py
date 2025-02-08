@@ -27,6 +27,7 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
+    IndexRequest,
     Projection,
     R,
     Retdiff,
@@ -43,6 +44,7 @@ from genjax._src.core.typing import (
     Callable,
     Generic,
     InAxes,
+    IntArray,
     PRNGKey,
 )
 
@@ -260,6 +262,41 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             Update(bwd_constraints),
         )
 
+    def edit_index(
+        self,
+        key: PRNGKey,
+        trace: VmapTrace[R],
+        idx: IntArray,
+        request: EditRequest,
+        argdiffs: Argdiffs,
+    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
+        # For now, we don't allow changes to the arguments for this type of edit.
+        assert Diff.static_check_no_change(argdiffs)
+        primals = Diff.tree_primal(argdiffs)
+        dim_length = trace.dim_length
+
+        new_subtrace, w, retdiff, bwd_request = self.gen_fn.edit(
+            key,
+            trace.inner,
+            request,
+            argdiffs,
+        )
+
+        def mutator(v, id, setter):
+            return v.at[idx].set(
+                jnp.where(id == idx, v[idx], setter),
+            )
+
+        new_subtraces = jtu.tree_map(
+            lambda v, v_: mutator(v, idx, v_), trace.inner, new_subtrace
+        )
+
+        map_tr = VmapTrace.build(self, new_subtraces, primals, dim_length)
+        # We always set the carried out value to be an unknown change, conservatively.
+        retdiff = Diff.unknown_change(argdiffs)
+
+        return (map_tr, w, retdiff, IndexRequest(idx, bwd_request))
+
     def edit(
         self,
         key: PRNGKey,
@@ -268,14 +305,26 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         argdiffs: Argdiffs,
     ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
         assert isinstance(trace, VmapTrace)
-        assert isinstance(edit_request, Update), type(edit_request)
-        constraint = edit_request.constraint
-        return self.edit_choice_map(
-            key,
-            trace,
-            constraint,
-            argdiffs,
-        )
+
+        match edit_request:
+            case Update(constraint):
+                constraint = edit_request.constraint
+                return self.edit_choice_map(
+                    key,
+                    trace,
+                    constraint,
+                    argdiffs,
+                )
+            case IndexRequest(idx, subrequest):
+                return self.edit_index(
+                    key,
+                    trace,
+                    idx,
+                    subrequest,
+                    argdiffs,
+                )
+            case _:
+                raise NotImplementedError
 
     def assess(
         self,
