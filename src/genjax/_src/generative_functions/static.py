@@ -78,30 +78,6 @@ _WRAPPER_ASSIGNMENTS = (
 
 
 @Pytree.dataclass
-class VoidTrace(Trace[None]):
-    """Under normal circumstances, you should not use or receive an object
-    of this type, which represents a Trace whose content is not yet known."""
-
-    def get_retval(self):
-        return None
-
-    def get_args(self):
-        return ()
-
-    def get_score(self) -> Score:
-        return jnp.zeros(())
-
-    def get_choices(self):
-        return ChoiceMap.empty()
-
-    def get_gen_fn(self):
-        return StaticGenerativeFunction(Closure((), lambda: None))
-
-
-VOID_TRACE = VoidTrace()
-
-
-@Pytree.dataclass
 class StaticTrace(Generic[R], Trace[R]):
     gen_fn: "StaticGenerativeFunction[R]"
     args: tuple[Any, ...]
@@ -143,6 +119,29 @@ class StaticTrace(Generic[R], Trace[R]):
 
         return self.subtraces[addr]
 
+
+@Pytree.dataclass
+class VoidTrace(Trace[None]):
+    """Under normal circumstances, you should not use or receive an object
+    of this type, which represents a Trace whose content is not yet known."""
+
+    def get_retval(self):
+        return None
+
+    def get_args(self):
+        return ()
+
+    def get_score(self) -> Score:
+        return jnp.zeros(())
+
+    def get_choices(self):
+        return ChoiceMap.empty()
+
+    def get_gen_fn(self):
+        return StaticGenerativeFunction(Closure((), lambda: None))
+
+
+VOID_TRACE = VoidTrace()
 
 ####################################
 # Static (trie-like) edit request  #
@@ -194,7 +193,7 @@ def _abstract_gen_fn_call(
 
 
 def trace(
-    addr: StaticAddress | StaticAddressComponent,
+    addr: StaticAddress,
     gen_fn: GenerativeFunction[R],
     args: tuple[Any, ...],
 ):
@@ -222,8 +221,6 @@ def trace(
 ###########################
 # Static language handler #
 ###########################
-
-TraceDict = dict[StaticAddress, Trace[Any]]
 
 
 # This explicitly makes assumptions about some common fields:
