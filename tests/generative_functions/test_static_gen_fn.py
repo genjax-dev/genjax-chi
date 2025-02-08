@@ -763,7 +763,7 @@ class TestStaticGenFnStaticAddressChecks:
         key = jax.random.key(314159)
         with pytest.raises(AddressReuse) as exc_info:
             _ = simple_normal_addr_dup.simulate(key, ())
-        assert exc_info.value.args[0] == ("y1",)
+        assert exc_info.value.args[0] == "y1"
 
     def test_simple_normal_addr_tracer(self):
         @genjax.gen

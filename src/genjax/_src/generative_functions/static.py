@@ -15,6 +15,7 @@
 import functools
 from abc import abstractmethod
 from dataclasses import dataclass
+import warnings
 
 import jax
 import jax.numpy as jnp
@@ -87,7 +88,7 @@ class StaticTrace(Generic[R], Trace[R]):
     gen_fn: "StaticGenerativeFunction[R]"
     args: tuple[Any, ...]
     retval: R
-    subtraces: dict[str, Trace[Any]]
+    subtraces: dict[StaticAddress, Trace[Any]]
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
@@ -100,6 +101,7 @@ class StaticTrace(Generic[R], Trace[R]):
 
     def get_choices(self) -> ChoiceMap:
         return ChoiceMap.from_mapping((address, subtrace.get_choices()) for address, subtrace in self.subtraces.items())
+        # TODO(colin)
         # addresses = self.addresses.get_visited()
         # sub_chms = (tr.get_choices() for tr in self.subtraces)
         # return ChoiceMap.from_mapping(zip(addresses, sub_chms))
@@ -110,11 +112,14 @@ class StaticTrace(Generic[R], Trace[R]):
         )
 
     def get_subtrace(self, addr: StaticAddress):
-        return self.subtraces[addr[0]]
-        # addresses = self.subtraces.keys()
-        # idx = addresses.index(addr)
-        # return self.subtraces[idx]
+        if isinstance(addr, tuple) \
+            and len(addr) == 1 \
+            and addr not in self.subtraces \
+            and addr[0] in self.subtraces:
+            warnings.warn("use of get_subtrace(('x',)) is deprecated: prefer get_subtrace('x')", DeprecationWarning)
+            return self.subtraces[addr[0]]
 
+        return self.subtraces[addr]
 
 ####################################
 # Static (trie-like) edit request  #
@@ -158,7 +163,7 @@ trace_p = InitialStylePrimitive("trace")
 # stage, any traced values stored in `gen_fn`
 # get lifted to by `get_shaped_aval`.
 def _abstract_gen_fn_call(
-    _: tuple[Const[StaticAddress], ...],
+    _: Const[StaticAddressComponent] | tuple[Const[StaticAddress], ...],
     gen_fn: GenerativeFunction[R],
     args: tuple[Any, ...],
 ):
@@ -166,7 +171,7 @@ def _abstract_gen_fn_call(
 
 
 def trace(
-    addr: StaticAddress,
+    addr: StaticAddress | StaticAddressComponent,
     gen_fn: GenerativeFunction[R],
     args: tuple[Any, ...],
 ):
@@ -240,7 +245,7 @@ class StaticHandler(StatefulHandler):
 @dataclass
 class SimulateHandler(StaticHandler):
     key: PRNGKey
-    traces: dict[str, Trace[Any]] = Pytree.field(default_factory=dict)
+    traces: dict[StaticAddress, Trace[Any]] = Pytree.field(default_factory=dict)
     key_counter: int = Pytree.static(default=1)
 
     def fresh_key_and_increment(self):
@@ -261,12 +266,12 @@ class SimulateHandler(StaticHandler):
         gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
-        if addr[0] in self.traces:
+        if addr in self.traces:
             raise AddressReuse(addr)
-        self.traces[addr[0]] = None # TODO(colin): sentinel
+        self.traces[addr] = None # TODO(colin): sentinel
         sub_key = self.fresh_key_and_increment()
         tr = gen_fn.simulate(sub_key, args)
-        self.traces[addr[0]] = tr
+        self.traces[addr] = tr
         v = tr.get_retval()
         return v
 
@@ -335,7 +340,7 @@ class GenerateHandler(StaticHandler):
     key: PRNGKey
     choice_map: ChoiceMap
     weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    traces: dict[str, Trace[Any] | None] = Pytree.field(default_factory=dict)
+    traces: dict[StaticAddress, Trace[Any] | None] = Pytree.field(default_factory=dict)
     key_counter: int = Pytree.static(default=1)
 
     def fresh_key_and_increment(self):
@@ -350,7 +355,7 @@ class GenerateHandler(StaticHandler):
         self,
     ) -> tuple[
         Weight,
-        dict[str, Trace[Any]]
+        dict[StaticAddress, Trace[Any]]
     ]:
         return (
             self.weight,
@@ -371,12 +376,12 @@ class GenerateHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
 
-        self.traces[addr[0]] = None  # TODO(colin): this was "visit."
+        self.traces[addr] = None  # TODO(colin): this was "visit."
         subconstraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
         (tr, w) = gen_fn.generate(sub_key, subconstraint, args)
         self.weight += w
-        self.traces[addr[0]] = tr # TODO(colin): [0]
+        self.traces[addr] = tr # TODO(colin): [0]
         #self.address_traces.append(tr) #TODO(colin)
 
         return tr.get_retval()
@@ -419,7 +424,7 @@ class UpdateHandler(StaticHandler):
     previous_trace: StaticTrace[Any]
     constraint: ChoiceMap
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    traces: dict[str, Trace[Any]] = Pytree.field(default_factory=dict)
+    traces: dict[StaticAddress, Trace[Any]] = Pytree.field(default_factory=dict)
     bwd_constraints: list[ChoiceMap] = Pytree.field(default_factory=list)
     key_counter: int = Pytree.static(default=1)
 
@@ -454,7 +459,7 @@ class UpdateHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        self.traces[addr[0]] = None # TODO(colin)
+        self.traces[addr] = None # TODO(colin)
         subtrace = self.get_subtrace(addr)
         constraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
@@ -469,7 +474,7 @@ class UpdateHandler(StaticHandler):
         )
         self.bwd_constraints.append(bwd_request.constraint)
         self.weight += w
-        self.traces[addr[0]] = tr
+        self.traces[addr] = tr
 
         return retval_diff
 
@@ -523,7 +528,7 @@ class StaticEditRequestHandler(StaticHandler):
     previous_trace: StaticTrace[Any]
     addressed: StaticDict
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    traces: dict[str, Trace[Any]] = Pytree.field(default_factory=dict)
+    traces: dict[StaticAddress, Trace[Any]] = Pytree.field(default_factory=dict)
     bwd_requests: list[EditRequest] = Pytree.field(default_factory=list)
     key_counter: int = Pytree.static(default=1)
 
@@ -561,7 +566,7 @@ class StaticEditRequestHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        self.traces[addr[0]] = None #TODO(colin)
+        self.traces[addr] = None #TODO(colin)
         subtrace = self.get_subtrace(addr)
         subrequest = self.get_subrequest(addr)
         sub_key = self.fresh_key_and_increment()
@@ -572,7 +577,7 @@ class StaticEditRequestHandler(StaticHandler):
         )
         self.bwd_requests.append(bwd_request)
         self.weight += w
-        self.traces[addr[0]] = tr
+        self.traces[addr] = tr
 
         return retval_diff
 
@@ -631,7 +636,7 @@ class RegenerateRequestHandler(StaticHandler):
     selection: Selection
     edit_request: EditRequest
     weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    traces: dict[str, Trace[Any]] = Pytree.field(default_factory=dict)
+    traces: dict[StaticAddress, Trace[Any]] = Pytree.field(default_factory=dict)
     bwd_requests: list[EditRequest] = Pytree.field(default_factory=list)
     key_counter: int = Pytree.static(default=1)
 
@@ -666,7 +671,7 @@ class RegenerateRequestHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        self.traces[addr[0]] = None # TODO(colin)
+        self.traces[addr] = None # TODO(colin)
         subtrace = self.get_subtrace(addr)
         subselection = self.get_subselection(addr)
         sub_key = self.fresh_key_and_increment()
@@ -674,7 +679,7 @@ class RegenerateRequestHandler(StaticHandler):
         tr, w, retval_diff, bwd_request = subrequest.edit(sub_key, subtrace, argdiffs)
         self.bwd_requests.append(bwd_request)
         self.weight += w
-        self.traces[addr[0]] = tr
+        self.traces[addr] = tr
 
         return retval_diff
 
@@ -736,7 +741,7 @@ def handler_trace_with_static(
     gen_fn: GenerativeFunction[Any],
     args: tuple[Any, ...],
 ):
-    return trace(addr if isinstance(addr, tuple) else (addr,), gen_fn, args)
+    return trace(addr, gen_fn, args)
 
 
 @Pytree.dataclass
@@ -860,7 +865,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         weight = jnp.array(0.0)
         for addr in trace.subtraces.keys():
             subprojection = projection(addr)
-            subtrace = trace.get_subtrace((addr,))
+            subtrace = trace.get_subtrace(addr)
             weight += subtrace.project(key, subprojection)
         return weight
 
@@ -933,7 +938,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         )
 
         def make_bwd_request(
-            traces: dict[str, Trace[Any]],
+            traces: dict[StaticAddress, Trace[Any]],
             subrequests: list[EditRequest],
         ):
             addresses = traces.keys()
@@ -982,7 +987,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         )
 
         def make_bwd_request(
-            traces: dict[str, Trace[Any]],
+            traces: dict[StaticAddress, Trace[Any]],
             subrequests: list[EditRequest],
         ):
             addresses = traces.keys()
