@@ -15,6 +15,7 @@
 
 import jax
 import jax.numpy as jnp
+import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
@@ -48,10 +49,14 @@ class TestProject:
         tr = f.simulate(jax.random.key(0), ())
         # evaluations
         x_score = tr.project(jax.random.key(1), S["x"])
-        assert x_score == tr.get_subtrace(('x',)).get_score() # TODO(colin)
+        with pytest.deprecated_call():
+            assert x_score == tr.get_subtrace(("x",)).get_score()
+        assert x_score == tr.get_subtrace("x").get_score()
 
         y_score = tr.project(jax.random.key(1), S["y"])
-        assert y_score == tr.get_subtrace(('y',)).get_score() # TODO(colin)
+        with pytest.deprecated_call():
+            assert y_score == tr.get_subtrace(("y",)).get_score()
+        assert y_score == tr.get_subtrace("y").get_score()
 
         assert tr.get_score() == x_score + y_score
 

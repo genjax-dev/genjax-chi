@@ -13,9 +13,9 @@
 # limitations under the License.
 
 import functools
+import warnings
 from abc import abstractmethod
 from dataclasses import dataclass
-import warnings
 
 import jax
 import jax.numpy as jnp
@@ -72,15 +72,33 @@ _WRAPPER_ASSIGNMENTS = (
     "__annotations__",
 )
 
-def collapse_address(
-    addr: StaticAddressComponent | StaticAddress,
-) -> StaticAddressComponent | StaticAddress:
-    return addr[0] if isinstance(addr, tuple) and len(addr) == 1 else addr
-
-
 #########
 # Trace #
 #########
+
+
+@Pytree.dataclass
+class VoidTrace(Trace[None]):
+    """Under normal circumstances, you should not use or receive an object
+    of this type, which represents a Trace whose content is not yet known."""
+
+    def get_retval(self):
+        return None
+
+    def get_args(self):
+        return ()
+
+    def get_score(self) -> Score:
+        return jnp.zeros(())
+
+    def get_choices(self):
+        return ChoiceMap.empty()
+
+    def get_gen_fn(self):
+        return StaticGenerativeFunction(Closure((), lambda: None))
+
+
+VOID_TRACE = VoidTrace()
 
 
 @Pytree.dataclass
@@ -88,7 +106,7 @@ class StaticTrace(Generic[R], Trace[R]):
     gen_fn: "StaticGenerativeFunction[R]"
     args: tuple[Any, ...]
     retval: R
-    subtraces: dict[StaticAddress, Trace[Any]]
+    subtraces: dict[StaticAddress, Trace[R]]
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
@@ -100,11 +118,10 @@ class StaticTrace(Generic[R], Trace[R]):
         return self.gen_fn
 
     def get_choices(self) -> ChoiceMap:
-        return ChoiceMap.from_mapping((address, subtrace.get_choices()) for address, subtrace in self.subtraces.items())
-        # TODO(colin)
-        # addresses = self.addresses.get_visited()
-        # sub_chms = (tr.get_choices() for tr in self.subtraces)
-        # return ChoiceMap.from_mapping(zip(addresses, sub_chms))
+        return ChoiceMap.d({
+            address: subtrace.get_choices()
+            for address, subtrace in self.subtraces.items()
+        })
 
     def get_score(self) -> Score:
         return jnp.sum(
@@ -112,14 +129,20 @@ class StaticTrace(Generic[R], Trace[R]):
         )
 
     def get_subtrace(self, addr: StaticAddress):
-        if isinstance(addr, tuple) \
-            and len(addr) == 1 \
-            and addr not in self.subtraces \
-            and addr[0] in self.subtraces:
-            warnings.warn("use of get_subtrace(('x',)) is deprecated: prefer get_subtrace('x')", DeprecationWarning)
+        if (
+            isinstance(addr, tuple)
+            and len(addr) == 1
+            and addr not in self.subtraces
+            and addr[0] in self.subtraces
+        ):
+            warnings.warn(
+                "use of get_subtrace(('x',)) is deprecated: prefer get_subtrace('x')",
+                DeprecationWarning,
+            )
             return self.subtraces[addr[0]]
 
         return self.subtraces[addr]
+
 
 ####################################
 # Static (trie-like) edit request  #
@@ -200,6 +223,8 @@ def trace(
 # Static language handler #
 ###########################
 
+TraceDict = dict[StaticAddress, Trace[Any]]
+
 
 # This explicitly makes assumptions about some common fields:
 # e.g. it assumes if you are using `StaticHandler.get_submap`
@@ -253,10 +278,6 @@ class SimulateHandler(StaticHandler):
         self.key_counter += 1
         return new_key
 
-    # TODO(colin)
-    # def visit(self, addr):
-    #     self.address_visitor.visit(addr)
-
     def yield_state(self):
         return self.traces
 
@@ -268,7 +289,7 @@ class SimulateHandler(StaticHandler):
     ):
         if addr in self.traces:
             raise AddressReuse(addr)
-        self.traces[addr] = None # TODO(colin): sentinel
+        self.traces[addr] = VOID_TRACE
         sub_key = self.fresh_key_and_increment()
         tr = gen_fn.simulate(sub_key, args)
         self.traces[addr] = tr
@@ -282,11 +303,7 @@ def simulate_transform(source_fn):
         stateful_handler = SimulateHandler(key)
         retval = forward(source_fn)(stateful_handler, *args)
         traces = stateful_handler.yield_state()
-        return (
-            args,
-            retval,
-            traces
-        )
+        return (args, retval, traces)
 
     return wrapper
 
@@ -340,7 +357,7 @@ class GenerateHandler(StaticHandler):
     key: PRNGKey
     choice_map: ChoiceMap
     weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    traces: dict[StaticAddress, Trace[Any] | None] = Pytree.field(default_factory=dict)
+    traces: dict[StaticAddress, Trace[Any]] = Pytree.field(default_factory=dict)
     key_counter: int = Pytree.static(default=1)
 
     def fresh_key_and_increment(self):
@@ -348,19 +365,12 @@ class GenerateHandler(StaticHandler):
         self.key_counter += 1
         return new_key
 
-    def visit(self, addr: StaticAddress):
-        self.address_visitor.visit(addr)
-
     def yield_state(
         self,
-    ) -> tuple[
-        Weight,
-        dict[StaticAddress, Trace[Any]]
-    ]:
+    ) -> tuple[Weight, dict[StaticAddress, Trace[Any]]]:
         return (
             self.weight,
-            self.traces, # TODO(colin): we have type error because we need to mark the trace with a stub
-            # TODO(colin): idea: have an EmptyTrace object we can use as a placeholder
+            self.traces,
         )
 
     def get_subconstraint(
@@ -375,14 +385,12 @@ class GenerateHandler(StaticHandler):
         gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
-
-        self.traces[addr] = None  # TODO(colin): this was "visit."
+        self.traces[addr] = VOID_TRACE
         subconstraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
         (tr, w) = gen_fn.generate(sub_key, subconstraint, args)
         self.weight += w
-        self.traces[addr] = tr # TODO(colin): [0]
-        #self.address_traces.append(tr) #TODO(colin)
+        self.traces[addr] = tr
 
         return tr.get_retval()
 
@@ -396,18 +404,11 @@ def generate_transform(source_fn):
     ):
         stateful_handler = GenerateHandler(key, choice_map)
         retval = forward(source_fn)(stateful_handler, *args)
-        (
-            weight,
-            traces
-        ) = stateful_handler.yield_state()
+        (weight, traces) = stateful_handler.yield_state()
         return (
             weight,
             # Trace.
-            (
-                args,
-                retval,
-                traces
-            ),
+            (args, retval, traces),
         )
 
     return wrapper
@@ -459,7 +460,7 @@ class UpdateHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        self.traces[addr] = None # TODO(colin)
+        self.traces[addr] = VOID_TRACE
         subtrace = self.get_subtrace(addr)
         constraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
@@ -547,7 +548,6 @@ class StaticEditRequestHandler(StaticHandler):
     def get_subrequest(
         self, addr: StaticAddressComponent | StaticAddress
     ) -> EditRequest:
-        addr = collapse_address(addr)
         return self.addressed.get(addr, EmptyRequest())
 
     def get_subtrace(
@@ -566,7 +566,7 @@ class StaticEditRequestHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        self.traces[addr] = None #TODO(colin)
+        self.traces[addr] = VOID_TRACE
         subtrace = self.get_subtrace(addr)
         subrequest = self.get_subrequest(addr)
         sub_key = self.fresh_key_and_increment()
@@ -587,7 +587,7 @@ def static_edit_request_transform(source_fn):
     def wrapper(
         key: PRNGKey,
         previous_trace: StaticTrace[R],
-        addressed: dict[StaticAddressComponent | StaticAddress, EditRequest],
+        addressed: dict[StaticAddress, EditRequest],
         diffs: tuple[Any, ...],
     ):
         stateful_handler = StaticEditRequestHandler(
@@ -671,7 +671,7 @@ class RegenerateRequestHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        self.traces[addr] = None # TODO(colin)
+        self.traces[addr] = VOID_TRACE
         subtrace = self.get_subtrace(addr)
         subselection = self.get_subselection(addr)
         sub_key = self.fresh_key_and_increment()
@@ -814,17 +814,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (args, retval, traces) = simulate_transform(
-            syntax_sugar_handled
-        )(key, args)
-        return StaticTrace(
-            self,
-            args,
-            retval,
-            traces,
-            #address_visitor, TODO(colin)
-            #address_traces,
-        )
+        (args, retval, traces) = simulate_transform(syntax_sugar_handled)(key, args)
+        return StaticTrace(self, args, retval, traces)
 
     def generate(
         self,
@@ -847,12 +838,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 traces,
             ),
         ) = generate_transform(syntax_sugar_handled)(key, constraint.choice_map, args)
-        return StaticTrace(
-            self,
-            args,
-            retval,
-            traces
-        ), weight
+        return StaticTrace(self, args, retval, traces), weight
 
     def project(
         self,
@@ -938,14 +924,10 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         )
 
         def make_bwd_request(
-            traces: dict[StaticAddress, Trace[Any]],
+            traces: dict[StaticAddress, Trace[R]],
             subrequests: list[EditRequest],
         ):
-            addresses = traces.keys()
-            addresses = map(collapse_address, addresses)
-            # TODO(colin): use a dict comprehension!
-            bwd_addressed = dict(zip(addresses, subrequests))
-            return StaticRequest(bwd_addressed)
+            return StaticRequest(dict(zip(traces.keys(), subrequests)))
 
         bwd_request = make_bwd_request(traces, bwd_requests)
         return (
@@ -987,14 +969,10 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         )
 
         def make_bwd_request(
-            traces: dict[StaticAddress, Trace[Any]],
+            traces: dict[StaticAddress, Trace[R]],
             subrequests: list[EditRequest],
         ):
-            addresses = traces.keys()
-            addresses = map(collapse_address, addresses)
-            # TODO(colin): use dict comprehension
-            bwd_addressed = dict(zip(addresses, subrequests))
-            return StaticRequest(bwd_addressed)
+            return StaticRequest(dict(zip(traces.keys(), subrequests)))
 
         bwd_request = make_bwd_request(traces, bwd_requests)
         return (
