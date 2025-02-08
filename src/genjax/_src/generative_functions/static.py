@@ -382,6 +382,8 @@ class GenerateHandler(StaticHandler):
         gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
+        if addr in self.traces:
+            raise AddressReuse(addr)
         self.traces[addr] = VOID_TRACE
         subconstraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
@@ -457,6 +459,8 @@ class UpdateHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
+        if addr in self.traces:
+            raise AddressReuse(addr)
         self.traces[addr] = VOID_TRACE
         subtrace = self.get_subtrace(addr)
         constraint = self.get_subconstraint(addr)
@@ -563,6 +567,8 @@ class StaticEditRequestHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
+        if addr in self.traces:
+            raise AddressReuse(addr)
         self.traces[addr] = VOID_TRACE
         subtrace = self.get_subtrace(addr)
         subrequest = self.get_subrequest(addr)
@@ -668,6 +674,8 @@ class RegenerateRequestHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
+        if addr in self.traces:
+            raise AddressReuse(addr)
         self.traces[addr] = VOID_TRACE
         subtrace = self.get_subtrace(addr)
         subselection = self.get_subselection(addr)
