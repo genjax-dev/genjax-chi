@@ -42,6 +42,7 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
+    FloatArray,
     Generic,
     InAxes,
     IntArray,
@@ -54,7 +55,7 @@ class VmapTrace(Generic[R], Trace[R]):
     gen_fn: "VmapCombinator[R]"
     inner: Trace[R]
     args: tuple[Any, ...]
-    score: Score
+    score: FloatArray
     chm: ChoiceMap
 
     # TODO is this really helpful? what if someone has inflated the dimension out from around us? How do we re-use this?
@@ -275,23 +276,40 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         primals = Diff.tree_primal(argdiffs)
         dim_length = trace.dim_length
 
-        new_subtrace, w, retdiff, bwd_request = self.gen_fn.edit(
+        trace_slice = jtu.tree_map(lambda v: v[idx], trace.inner)
+        jax.debug.print("Better looking printing: {v}", v=trace.inner.get_choices())
+        # jax.debug.print("Better looking printing: {v}", v=trace_slice.get_choices())
+        jax.debug.print(
+            "Better looking printing: {v}",
+            v=jax.tree.map(lambda x: x.shape, trace_slice),
+        )
+        new_trace_slice, w, retdiff, bwd_request = self.gen_fn.edit(
             key,
-            trace.inner,
+            trace_slice,
             request,
             argdiffs,
         )
-
-        def mutator(v, id, setter):
-            return v.at[idx].set(
-                jnp.where(id == idx, v[idx], setter),
-            )
-
-        new_subtraces = jtu.tree_map(
-            lambda v, v_: mutator(v, idx, v_), trace.inner, new_subtrace
+        # jax.debug.print("Better looking printing: {v}", v=new_trace_slice.get_choices())
+        jax.debug.print(
+            "Better looking printing: {v}",
+            v=jax.tree.map(lambda x: x.shape, new_trace_slice),
         )
 
-        map_tr = VmapTrace.build(self, new_subtraces, primals, dim_length)
+        def mutator(v, idx, setter):
+            jax.debug.print("mutator setter printing: {v}", v=setter.shape)
+            jax.debug.print("mutator v printing: {v}", v=v.shape)
+            return v.at[idx].set(setter)
+
+        jax.debug.print(
+            "Better looking printing: {v}",
+            v=jtu.tree_map(lambda v: v[idx], tree=trace.inner).get_choices(),
+        )
+
+        new_inner_trace = jtu.tree_map(
+            lambda v, v_: mutator(v, idx, v_), trace.inner, new_trace_slice
+        )
+
+        map_tr = VmapTrace.build(self, new_inner_trace, primals, dim_length)
         # We always set the carried out value to be an unknown change, conservatively.
         retdiff = Diff.unknown_change(argdiffs)
 
