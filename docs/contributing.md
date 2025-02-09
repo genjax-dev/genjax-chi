@@ -17,9 +17,9 @@ Here is a list of important resources for contributors:
 - [Code of Conduct]
 
 [apache 2.0 license]: https://opensource.org/licenses/Apache-2.0
-[source code]: https://github.com/chi-collective/genjax
-[documentation]: https://chi-collective.github.io/genjax
-[issue tracker]: https://github.com/chi-collective/genjax/issues
+[source code]: https://github.com/chisym/genjax
+[documentation]: https://chisym.github.io/genjax
+[issue tracker]: https://github.com/chisym/genjax/issues
 
 ## How to report a bug
 
@@ -105,4 +105,4 @@ Feel free to submit early, though—we can always iterate on this.
 It is recommended to open an issue before starting work on anything.
 This will allow a chance to talk it over with the owners and validate your approach.
 
-[pull request]: https://github.com/chi-collective/genjax/pulls
+[pull request]: https://github.com/chisym/genjax/pulls
