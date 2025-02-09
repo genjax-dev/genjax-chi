@@ -11,7 +11,7 @@
 <div align="center">
 
 [![PyPI](https://img.shields.io/pypi/v/genjax)](https://pypi.org/project/GenJAX/)
-[![codecov](https://codecov.io/gh/chisym/genjax/graph/badge.svg?token=I9TAV92KN7)](https://codecov.io/gh/chisym/genjax)
+[![codecov](https://codecov.io/gh/chisym/genjax/graph/badge.svg?token=OlfTXjcrEW)](https://codecov.io/gh/chisym/genjax)
 [![][jax_badge]](https://github.com/google/jax)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Public API: beartyped](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg?style=flat-square)](https://beartype.readthedocs.io)
