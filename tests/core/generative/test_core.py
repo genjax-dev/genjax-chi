@@ -36,6 +36,21 @@ class TestTupleAddr:
         x_score, _ = genjax.normal.assess(C.v(chm["x", "x0"]), (0.0, 1.0))
         assert x_score == tr.project(jax.random.key(1), Selection.at["x", "x0"])
 
+    @pytest.mark.skip(reason="this check is not yet implemented")
+    def test_tupled_address_conflict(self):
+        @genjax.gen
+        def submodel():
+            return genjax.normal(0.0, 1.0) @ "y"
+
+        @genjax.gen
+        def model():
+            _ = genjax.normal(0.0, 1.0) @ ("x", "y")
+            return submodel() @ "x"
+
+        with pytest.raises(Exception):
+            tr = model.simulate(jax.random.key(0), ())
+            tr.get_choices()
+
 
 class TestProject:
     def test_project(self):

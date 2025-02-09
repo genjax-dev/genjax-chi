@@ -58,7 +58,6 @@ from genjax._src.core.pytree import Closure, Const, Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
-    FloatArray,
     Generic,
     PRNGKey,
     TypeAlias,
@@ -226,8 +225,15 @@ def trace(
 # This explicitly makes assumptions about some common fields:
 # e.g. it assumes if you are using `StaticHandler.get_submap`
 # in your code, that your derived instance has a `constraints` field.
-@dataclass
 class StaticHandler(StatefulHandler):
+    def __init__(self):
+        self.traces: dict[StaticAddress, Trace[Any]] = {}
+
+    def visit(self, addr):
+        if addr in self.traces:
+            raise AddressReuse(addr)
+        self.traces[addr] = VOID_TRACE
+
     @abstractmethod
     def handle_trace(
         self,
@@ -264,11 +270,11 @@ class StaticHandler(StatefulHandler):
 ############
 
 
-@dataclass
 class SimulateHandler(StaticHandler):
-    key: PRNGKey
-    traces: dict[StaticAddress, Trace[Any]] = Pytree.field(default_factory=dict)
-    key_counter: int = Pytree.static(default=1)
+    def __init__(self, key: PRNGKey):
+        super().__init__()
+        self.key = key
+        self.key_counter = 1
 
     def fresh_key_and_increment(self):
         new_key = jax.random.fold_in(self.key, self.key_counter)
@@ -284,9 +290,7 @@ class SimulateHandler(StaticHandler):
         gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
-        if addr in self.traces:
-            raise AddressReuse(addr)
-        self.traces[addr] = VOID_TRACE
+        self.visit(addr)
         sub_key = self.fresh_key_and_increment()
         tr = gen_fn.simulate(sub_key, args)
         self.traces[addr] = tr
@@ -312,8 +316,10 @@ def simulate_transform(source_fn):
 
 @dataclass
 class AssessHandler(StaticHandler):
-    choice_map_sample: ChoiceMap
-    score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
+    def __init__(self, choice_map_sample: ChoiceMap):
+        super().__init__()
+        self.choice_map_sample = choice_map_sample
+        self.score = jnp.zeros(())
 
     def yield_state(self):
         return (self.score,)
@@ -351,11 +357,12 @@ def assess_transform(source_fn):
 
 @dataclass
 class GenerateHandler(StaticHandler):
-    key: PRNGKey
-    choice_map: ChoiceMap
-    weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    traces: dict[StaticAddress, Trace[Any]] = Pytree.field(default_factory=dict)
-    key_counter: int = Pytree.static(default=1)
+    def __init__(self, key: PRNGKey, choice_map: ChoiceMap):
+        super().__init__()
+        self.key = key
+        self.choice_map = choice_map
+        self.weight: Weight = jnp.zeros(())
+        self.key_counter = 1
 
     def fresh_key_and_increment(self):
         new_key = jax.random.fold_in(self.key, self.key_counter)
@@ -382,9 +389,7 @@ class GenerateHandler(StaticHandler):
         gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
-        if addr in self.traces:
-            raise AddressReuse(addr)
-        self.traces[addr] = VOID_TRACE
+        self.visit(addr)
         subconstraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
         (tr, w) = gen_fn.generate(sub_key, subconstraint, args)
@@ -418,15 +423,17 @@ def generate_transform(source_fn):
 ###############
 
 
-@dataclass
 class UpdateHandler(StaticHandler):
-    key: PRNGKey
-    previous_trace: StaticTrace[Any]
-    constraint: ChoiceMap
-    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    traces: dict[StaticAddress, Trace[Any]] = Pytree.field(default_factory=dict)
-    bwd_constraints: list[ChoiceMap] = Pytree.field(default_factory=list)
-    key_counter: int = Pytree.static(default=1)
+    def __init__(
+        self, key: PRNGKey, previous_trace: StaticTrace[Any], constraint: ChoiceMap
+    ):
+        super().__init__()
+        self.key = key
+        self.previous_trace = previous_trace
+        self.constraint = constraint
+        self.weight = jnp.zeros(())
+        self.bwd_constraints: list[ChoiceMap] = []
+        self.key_counter = 1
 
     def fresh_key_and_increment(self):
         new_key = jax.random.fold_in(self.key, self.key_counter)
@@ -459,9 +466,7 @@ class UpdateHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        if addr in self.traces:
-            raise AddressReuse(addr)
-        self.traces[addr] = VOID_TRACE
+        self.visit(addr)
         subtrace = self.get_subtrace(addr)
         constraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
@@ -524,15 +529,17 @@ def update_transform(source_fn):
 ###################################
 
 
-@dataclass
 class StaticEditRequestHandler(StaticHandler):
-    key: PRNGKey
-    previous_trace: StaticTrace[Any]
-    addressed: StaticDict
-    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    traces: dict[StaticAddress, Trace[Any]] = Pytree.field(default_factory=dict)
-    bwd_requests: list[EditRequest] = Pytree.field(default_factory=list)
-    key_counter: int = Pytree.static(default=1)
+    def __init__(
+        self, key: PRNGKey, previous_trace: StaticTrace[Any], addressed: StaticDict
+    ):
+        super().__init__()
+        self.key = key
+        self.previous_trace = previous_trace
+        self.addressed = addressed
+        self.weight = jnp.zeros(())
+        self.bwd_requests: list[EditRequest] = []
+        self.key_counter = 1
 
     def fresh_key_and_increment(self):
         new_key = jax.random.fold_in(self.key, self.key_counter)
@@ -567,9 +574,7 @@ class StaticEditRequestHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        if addr in self.traces:
-            raise AddressReuse(addr)
-        self.traces[addr] = VOID_TRACE
+        self.visit(addr)
         subtrace = self.get_subtrace(addr)
         subrequest = self.get_subrequest(addr)
         sub_key = self.fresh_key_and_increment()
@@ -632,16 +637,22 @@ def static_edit_request_transform(source_fn):
 #####################
 
 
-@dataclass
 class RegenerateRequestHandler(StaticHandler):
-    key: PRNGKey
-    previous_trace: StaticTrace[Any]
-    selection: Selection
-    edit_request: EditRequest
-    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    traces: dict[StaticAddress, Trace[Any]] = Pytree.field(default_factory=dict)
-    bwd_requests: list[EditRequest] = Pytree.field(default_factory=list)
-    key_counter: int = Pytree.static(default=1)
+    def __init__(
+        self,
+        key: PRNGKey,
+        previous_trace: StaticTrace[Any],
+        selection: Selection,
+        edit_request: EditRequest,
+    ):
+        super().__init__()
+        self.key = key
+        self.previous_trace = previous_trace
+        self.selection = selection
+        self.edit_request = edit_request
+        self.weight = jnp.zeros(())
+        self.bwd_requests: list[EditRequest] = []
+        self.key_counter = 1
 
     def fresh_key_and_increment(self):
         new_key = jax.random.fold_in(self.key, self.key_counter)
@@ -674,9 +685,7 @@ class RegenerateRequestHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        if addr in self.traces:
-            raise AddressReuse(addr)
-        self.traces[addr] = VOID_TRACE
+        self.visit(addr)
         subtrace = self.get_subtrace(addr)
         subselection = self.get_subselection(addr)
         sub_key = self.fresh_key_and_increment()
