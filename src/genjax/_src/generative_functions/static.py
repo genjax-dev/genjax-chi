@@ -229,10 +229,10 @@ class StaticHandler(StatefulHandler):
     def __init__(self):
         self.traces: dict[StaticAddress, Trace[Any]] = {}
 
-    def visit(self, addr):
+    def record(self, addr, trace):
         if addr in self.traces:
             raise AddressReuse(addr)
-        self.traces[addr] = VOID_TRACE
+        self.traces[addr] = trace
 
     @abstractmethod
     def handle_trace(
@@ -290,10 +290,9 @@ class SimulateHandler(StaticHandler):
         gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
-        self.visit(addr)
         sub_key = self.fresh_key_and_increment()
         tr = gen_fn.simulate(sub_key, args)
-        self.traces[addr] = tr
+        self.record(addr, tr)
         v = tr.get_retval()
         return v
 
@@ -389,12 +388,11 @@ class GenerateHandler(StaticHandler):
         gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
-        self.visit(addr)
         subconstraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
         (tr, w) = gen_fn.generate(sub_key, subconstraint, args)
         self.weight += w
-        self.traces[addr] = tr
+        self.record(addr, tr)
 
         return tr.get_retval()
 
@@ -466,7 +464,6 @@ class UpdateHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        self.visit(addr)
         subtrace = self.get_subtrace(addr)
         constraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
@@ -481,7 +478,7 @@ class UpdateHandler(StaticHandler):
         )
         self.bwd_constraints.append(bwd_request.constraint)
         self.weight += w
-        self.traces[addr] = tr
+        self.record(addr, tr)
 
         return retval_diff
 
@@ -574,7 +571,6 @@ class StaticEditRequestHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        self.visit(addr)
         subtrace = self.get_subtrace(addr)
         subrequest = self.get_subrequest(addr)
         sub_key = self.fresh_key_and_increment()
@@ -585,8 +581,7 @@ class StaticEditRequestHandler(StaticHandler):
         )
         self.bwd_requests.append(bwd_request)
         self.weight += w
-        self.traces[addr] = tr
-
+        self.record(addr, tr)
         return retval_diff
 
 
@@ -685,7 +680,6 @@ class RegenerateRequestHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        self.visit(addr)
         subtrace = self.get_subtrace(addr)
         subselection = self.get_subselection(addr)
         sub_key = self.fresh_key_and_increment()
@@ -693,7 +687,7 @@ class RegenerateRequestHandler(StaticHandler):
         tr, w, retval_diff, bwd_request = subrequest.edit(sub_key, subtrace, argdiffs)
         self.bwd_requests.append(bwd_request)
         self.weight += w
-        self.traces[addr] = tr
+        self.record(addr, tr)
 
         return retval_diff
 
