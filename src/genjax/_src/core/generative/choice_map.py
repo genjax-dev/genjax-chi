@@ -22,7 +22,7 @@ import jax.tree_util as jtu
 import treescope.repr_lib as trl
 from deprecated import deprecated
 
-from genjax._src.core.generative.core import Constraint, Projection
+from genjax._src.core.generative.core import Constraint
 from genjax._src.core.generative.functional_types import Mask
 from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
@@ -118,7 +118,7 @@ SelectionBuilder = _SelectionBuilder()
 """Deprecated! please use `Selection.at`."""
 
 
-class Selection(Projection["ChoiceMap"], Pytree):
+class Selection(Pytree):
     """
     A class representing a selection of addresses in a ChoiceMap.
 

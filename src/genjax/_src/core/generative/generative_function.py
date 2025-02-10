@@ -17,14 +17,17 @@ from typing import TYPE_CHECKING
 
 from deprecated import deprecated
 
-from genjax._src.core.generative.choice_map import ChoiceMap, ChoiceMapConstraint
+from genjax._src.core.generative.choice_map import (
+    ChoiceMap,
+    ChoiceMapConstraint,
+    Selection,
+)
 from genjax._src.core.generative.core import (
     Argdiffs,
     Arguments,
     Constraint,
     EditRequest,
     PrimitiveEditRequest,
-    Projection,
     Retdiff,
     Score,
     Weight,
@@ -179,13 +182,13 @@ class Trace(Generic[R], Pytree):
     def project(
         self,
         key: PRNGKey,
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
         gen_fn = self.get_gen_fn()
         return gen_fn.project(
             key,
             self,
-            projection,
+            selection,
         )
 
     ###################
@@ -455,7 +458,7 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
         pass
 
@@ -1547,9 +1550,9 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[Any],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
-        return self.wrapped.project(key, trace, projection)
+        return self.wrapped.project(key, trace, selection)
 
     def edit(
         self,
@@ -1650,9 +1653,9 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[Any],
-        projection: Projection[Any],
+        selection: Selection,
     ):
-        return self.gen_fn.project(key, trace, projection)
+        return self.gen_fn.project(key, trace, selection)
 
     def edit(
         self,

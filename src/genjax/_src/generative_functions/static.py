@@ -31,7 +31,6 @@ from genjax._src.core.generative import (
     GenerativeFunction,
     NotSupportedEditRequest,
     PrimitiveEditRequest,
-    Projection,
     Regenerate,
     Retdiff,
     Score,
@@ -852,13 +851,13 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[Any],
-        projection: Projection[ChoiceMap],
+        selection: Selection,
     ) -> Weight:
         assert isinstance(trace, StaticTrace)
-        assert isinstance(projection, Selection), type(projection)
+
         weight = jnp.array(0.0)
         for addr in trace.subtraces.keys():
-            subprojection = projection(addr)
+            subprojection = selection(addr)
             subtrace = trace.get_subtrace(addr)
             weight += subtrace.project(key, subprojection)
         return weight

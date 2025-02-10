@@ -18,14 +18,13 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    Projection,
     Retdiff,
     Score,
     Trace,
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ChoiceMap
+from genjax._src.core.generative.choice_map import ChoiceMap, Selection
 from genjax._src.core.interpreters.incremental import Diff, incremental
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -137,10 +136,10 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         self,
         key: PRNGKey,
         trace: Trace[S],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
         assert isinstance(trace, DimapTrace)
-        return trace.inner.project(key, projection)
+        return trace.inner.project(key, selection)
 
     def edit_change_target(
         self,

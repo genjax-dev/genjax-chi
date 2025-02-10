@@ -27,7 +27,6 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    Projection,
     R,
     Retdiff,
     Score,
@@ -216,16 +215,15 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
         assert isinstance(trace, VmapTrace)
-        assert isinstance(projection, Selection)
 
         dim_length = trace.dim_length
         sub_keys = jax.random.split(key, dim_length)
 
         def _project(key, subtrace):
-            return subtrace.project(key, projection)
+            return subtrace.project(key, selection)
 
         weights = jax.vmap(_project)(sub_keys, trace.inner)
         return jnp.sum(weights)

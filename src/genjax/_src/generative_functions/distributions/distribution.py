@@ -29,7 +29,6 @@ from genjax._src.core.generative import (
     GenerativeFunction,
     Mask,
     NotSupportedEditRequest,
-    Projection,
     R,
     Regenerate,
     Retdiff,
@@ -248,11 +247,10 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
-        assert isinstance(projection, Selection)
         return jnp.where(
-            projection.check(),
+            selection.check(),
             trace.get_score(),
             jnp.array(0.0),
         )

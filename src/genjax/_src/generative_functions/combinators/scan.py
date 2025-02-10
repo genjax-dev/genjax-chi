@@ -23,7 +23,6 @@ from genjax._src.core.generative import (
     EditRequest,
     GenerativeFunction,
     PrimitiveEditRequest,
-    Projection,
     Regenerate,
     Retdiff,
     Score,
@@ -309,9 +308,8 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         self,
         key: PRNGKey,
         trace: Trace[tuple[Carry, Y]],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
-        assert isinstance(projection, Selection)
         assert isinstance(trace, ScanTrace)
 
         def _project(
@@ -322,7 +320,7 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             key = jax.random.fold_in(key, idx)
             w = subtrace.project(
                 key,
-                projection,
+                selection,
             )
 
             return (key, idx + 1), w

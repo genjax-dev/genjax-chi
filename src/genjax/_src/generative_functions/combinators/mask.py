@@ -23,13 +23,13 @@ from genjax._src.core.generative import (
     EditRequest,
     GenerativeFunction,
     Mask,
-    Projection,
     Retdiff,
     Score,
     Trace,
     Update,
     Weight,
 )
+from genjax._src.core.generative.choice_map import Selection
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
@@ -170,7 +170,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         self,
         key: PRNGKey,
         trace: Trace[Mask[R]],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
         raise NotImplementedError
 

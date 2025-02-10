@@ -19,13 +19,13 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    Projection,
     Retdiff,
     Score,
     Trace,
     Update,
     Weight,
 )
+from genjax._src.core.generative.choice_map import Selection
 from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
 from genjax._src.core.interpreters.staging import multi_switch, tree_choose
 from genjax._src.core.pytree import Pytree
@@ -206,13 +206,13 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
         assert isinstance(trace, SwitchTrace)
         idx = trace.get_idx()
 
         fs = list(f.project for f in self.branches)
-        f_args = list((key, tr, projection) for tr in trace.subtraces)
+        f_args = list((key, tr, selection) for tr in trace.subtraces)
 
         return tree_choose(idx, multi_switch(idx, fs, f_args))
 
