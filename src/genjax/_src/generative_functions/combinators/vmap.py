@@ -35,7 +35,7 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ChoiceMapConstraint
+from genjax._src.core.generative.choice_map import ChoiceMapConstraint, Selection
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -218,7 +218,19 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         projection: Projection[Any],
     ) -> Weight:
-        raise NotImplementedError
+        assert isinstance(trace, VmapTrace)
+        assert isinstance(projection, Selection)
+
+        dim_length = trace.dim_length
+        idx_array = jnp.arange(dim_length)
+        sub_keys = jax.random.split(key, dim_length)
+
+        def _project(key, idx, subtrace):
+            subprojection = projection(idx)
+            return subtrace.project(key, subprojection)
+
+        weights = jax.vmap(_project)(sub_keys, idx_array, trace.inner)
+        return jnp.sum(weights)
 
     def edit_choice_map(
         self,

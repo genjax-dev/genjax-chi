@@ -20,6 +20,7 @@ import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
+from genjax import Selection
 from genjax._src.core.typing import IntArray
 
 
@@ -36,6 +37,24 @@ class TestVmapCombinator:
         tr = jax.jit(model.simulate)(key, (map_over,))
         map_score = tr.get_score()
         assert map_score == jnp.sum(tr.inner.get_score())
+
+    def test_vmap_simple_normal_project(self):
+        @genjax.gen
+        def model(x):
+            z = genjax.normal(x, 1.0) @ "z"
+            return z
+
+        vmapped = model.vmap(in_axes=(0,))
+
+        key = jax.random.key(314159)
+        means = jnp.arange(0, 10, dtype=float)
+
+        tr = jax.jit(vmapped.simulate)(key, (means,))
+
+        vmapped_score = tr.get_score()
+
+        assert tr.project(key, Selection.all()) == vmapped_score
+        assert tr.project(key, Selection.none()) == 0.0
 
     def test_vmap_combinator_vector_choice_map_importance(self):
         @genjax.vmap(in_axes=(0,))
