@@ -320,11 +320,9 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         ) -> tuple[tuple[PRNGKey, IntArray], Weight]:
             key, idx = carry
             key = jax.random.fold_in(key, idx)
-            subprojection = projection(idx)
-            assert isinstance(subprojection, Selection)
             w = subtrace.project(
                 key,
-                subprojection,
+                projection,
             )
 
             return (key, idx + 1), w
@@ -481,11 +479,10 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             key, idx, carried_value = carry
             subtrace, scanned_in = scanned_over
             key = jax.random.fold_in(key, idx)
-            subselection = selection(idx)
             (
                 (carried_out, score),
                 (new_subtrace, scanned_out, w, inner_bwd_request),
-            ) = _inner_edit(key, subtrace, subselection, carried_value, scanned_in)
+            ) = _inner_edit(key, subtrace, selection, carried_value, scanned_in)
 
             return (key, idx + 1, carried_out), (
                 new_subtrace,

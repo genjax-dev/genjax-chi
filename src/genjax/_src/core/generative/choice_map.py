@@ -351,7 +351,7 @@ class Selection(Projection["ChoiceMap"], Pytree):
 
     def __call__(
         self,
-        addr: AddressComponent | Address,
+        addr: StaticAddressComponent | StaticAddress,
     ) -> "Selection":
         addr = addr if isinstance(addr, tuple) else (addr,)
         subselection = self
@@ -361,14 +361,14 @@ class Selection(Projection["ChoiceMap"], Pytree):
 
     def __getitem__(
         self,
-        addr: AddressComponent | Address,
+        addr: StaticAddressComponent | StaticAddress,
     ) -> Flag:
         subselection = self(addr)
         return subselection.check()
 
     def __contains__(
         self,
-        addr: AddressComponent | Address,
+        addr: StaticAddressComponent | StaticAddress,
     ) -> Flag:
         return self[addr]
 
@@ -377,7 +377,7 @@ class Selection(Projection["ChoiceMap"], Pytree):
         pass
 
     @abstractmethod
-    def get_subselection(self, addr: AddressComponent) -> "Selection":
+    def get_subselection(self, addr: StaticAddressComponent) -> "Selection":
         pass
 
 
@@ -533,7 +533,7 @@ class ComplementSel(Selection):
     def check(self) -> Flag:
         return FlagOp.not_(self.s.check())
 
-    def get_subselection(self, addr: AddressComponent) -> Selection:
+    def get_subselection(self, addr: StaticAddressComponent) -> Selection:
         remaining = self.s(addr)
         return ~remaining
 
@@ -584,7 +584,7 @@ class StaticSel(Selection):
             return self.s.mask(addr == self.addr)
 
         else:
-            return Selection.none()
+            return self
 
 
 @Pytree.dataclass(match_args=True)
@@ -633,7 +633,7 @@ class AndSel(Selection):
     def check(self) -> Flag:
         return FlagOp.and_(self.s1.check(), self.s2.check())
 
-    def get_subselection(self, addr: AddressComponent) -> Selection:
+    def get_subselection(self, addr: StaticAddressComponent) -> Selection:
         remaining1 = self.s1(addr)
         remaining2 = self.s2(addr)
         return remaining1 & remaining2
@@ -687,7 +687,7 @@ class OrSel(Selection):
     def check(self) -> Flag:
         return FlagOp.or_(self.s1.check(), self.s2.check())
 
-    def get_subselection(self, addr: AddressComponent) -> Selection:
+    def get_subselection(self, addr: StaticAddressComponent) -> Selection:
         remaining1 = self.s1(addr)
         remaining2 = self.s2(addr)
         return remaining1 | remaining2
@@ -1557,7 +1557,7 @@ class Indexed(ChoiceMap):
 
     def filter(self, selection: Selection) -> ChoiceMap:
         addr = _full_slice if self.addr is None else self.addr
-        return self.c.filter(selection(addr)).extend(addr)
+        return self.c.filter(selection).extend(addr)
 
     def get_value(self) -> Any:
         return None
@@ -1820,7 +1820,7 @@ def _shape_selection(chm: ChoiceMap) -> Selection:
                 return acc
 
             case Indexed(c, addr):
-                return loop(c, selection(_full_slice)).extend(...)
+                return loop(c, selection).extend(...)
 
             case Choice():
                 return LeafSel()

@@ -222,14 +222,12 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         assert isinstance(projection, Selection)
 
         dim_length = trace.dim_length
-        idx_array = jnp.arange(dim_length)
         sub_keys = jax.random.split(key, dim_length)
 
-        def _project(key, idx, subtrace):
-            subprojection = projection(idx)
-            return subtrace.project(key, subprojection)
+        def _project(key, subtrace):
+            return subtrace.project(key, projection)
 
-        weights = jax.vmap(_project)(sub_keys, idx_array, trace.inner)
+        weights = jax.vmap(_project)(sub_keys, trace.inner)
         return jnp.sum(weights)
 
     def edit_choice_map(
