@@ -135,9 +135,6 @@ class TestGetSubtrace:
         tr = h.simulate(jax.random.key(0), ())
         flip_tr = tr.get_subtrace("flip")
         flip = flip_tr.get_retval()
-        print(tr)
-        print(flip_tr)
-        print(flip)
         assert (
             tr.get_subtrace("z", 0, "x").get_score()
             == tr.get_score() - flip_tr.get_score()

@@ -193,18 +193,26 @@ class Trace(Generic[R], Pytree):
             selection,
         )
 
-    def get_subtrace(self, *addresses: ExtendedAddress):
+    def get_subtrace(self, *addresses: ExtendedAddress) -> "Trace[R]":
         """
         Return the subtrace having the supplied address. Specifying multiple addresses
-        will apply the operation recursively. Beware of using the value of `get_score` on
-        internal traces obtained this way in further inference: the score of the parent
-        trace may depend on the score of the subtrace in a non-obvious way."""
+        will apply the operation recursively.
+
+        GenJAX does not guarantee the validity of any inference computations performed
+        using information from the returned subtrace. In other words, it is safe to
+        inspect the data of subtraces -- but it not safe to use that data to make decisions
+        about inference. This is true of all the methods on the subtrace, including
+        `Trace.get_args`, `Trace.get_score`, `Trace.get_retval`, etc. It is safe to look,
+        but don't use the data for non-trivial things!"""
 
         return functools.reduce(
             lambda tr, addr: tr.get_inner_trace(addr), addresses, self
         )
 
-    def get_inner_trace(self, address: ExtendedAddress):
+    def get_inner_trace(self, address: ExtendedAddress) -> "Trace[R]":
+        """Override this method to provide `Trace.get_subtrace` support
+        for those trace types that have substructure that can be addressed
+        in this way."""
         raise NotImplementedError(
             "This type of Trace object does not possess subtraces."
         )
