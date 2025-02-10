@@ -114,7 +114,7 @@ class StaticTrace(Generic[R], Trace[R]):
                 "use of get_subtrace(('x',)) is deprecated: prefer get_subtrace('x')",
                 DeprecationWarning,
             )
-            return self.subtraces[addr[0]]
+            addr = addr[0]
 
         return self.subtraces[addr]
 
