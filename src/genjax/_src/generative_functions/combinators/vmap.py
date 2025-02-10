@@ -34,7 +34,11 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ChoiceMapConstraint, Selection
+from genjax._src.core.generative.choice_map import (
+    ChoiceMapConstraint,
+    ExtendedAddress,
+    Selection,
+)
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -84,6 +88,9 @@ class VmapTrace(Generic[R], Trace[R]):
 
     def get_score(self) -> Score:
         return self.score
+
+    def get_inner_trace(self, address: ExtendedAddress):
+        return self.inner.get_inner_trace(address)
 
 
 @Pytree.dataclass

@@ -24,7 +24,6 @@ from genjax import ChoiceMapBuilder as C
 from genjax import Selection as S
 from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.typing import Array
-from genjax._src.generative_functions.static import VoidTrace
 from genjax.generative_functions.static import AddressReuse
 from genjax.typing import FloatArray
 
@@ -1140,13 +1139,3 @@ class TestStaticGenFnInline:
             1.0,
             1.0,
         ), "They are present as `partial_args`"
-
-
-class TestVoidTrace:
-    def test_void_trace(self):
-        tr = VoidTrace()
-        assert tr.get_args() == ()
-        assert tr.get_retval() is None
-        assert tr.get_choices().static_is_empty()
-        assert tr.get_score() == 0.0
-        assert tr.get_gen_fn().inline() is None

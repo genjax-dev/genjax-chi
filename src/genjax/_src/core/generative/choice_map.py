@@ -54,7 +54,7 @@ StaticAddress = StaticAddressComponent | tuple[StaticAddressComponent, ...]
 ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
 ExtendedStaticAddress = tuple[ExtendedStaticAddressComponent, ...]
 ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
-ExtendedAddress = tuple[ExtendedAddressComponent, ...]
+ExtendedAddress = ExtendedAddressComponent | tuple[ExtendedAddressComponent, ...]
 
 T = TypeVar("T")
 K_addr = TypeVar("K_addr", bound=AddressComponent | Address)

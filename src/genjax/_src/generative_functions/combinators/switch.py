@@ -25,7 +25,7 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import Selection
+from genjax._src.core.generative.choice_map import ExtendedAddress, Selection
 from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
 from genjax._src.core.interpreters.staging import multi_switch, tree_choose
 from genjax._src.core.pytree import Pytree
@@ -81,6 +81,10 @@ class SwitchTrace(Generic[R], Trace[R]):
 
     def get_score(self):
         return self.score
+
+    def get_inner_trace(self, address: ExtendedAddress):
+        assert isinstance(address, int)
+        return self.subtraces[address]
 
 
 #####################

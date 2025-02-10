@@ -16,6 +16,7 @@ import functools
 import warnings
 from abc import abstractmethod
 from dataclasses import dataclass
+from typing import cast
 
 import jax
 import jax.numpy as jnp
@@ -41,6 +42,7 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
+from genjax._src.core.generative.choice_map import ExtendedAddress
 from genjax._src.core.generative.generative_function import R, push_trace_overload_stack
 from genjax._src.core.interpreters.forward import (
     InitialStylePrimitive,
@@ -102,44 +104,20 @@ class StaticTrace(Generic[R], Trace[R]):
             jnp.array([tr.get_score() for tr in self.subtraces.values()], copy=False),
         )
 
-    def get_subtrace(self, addr: StaticAddress):
+    def get_inner_trace(self, address: ExtendedAddress):
         if (
-            isinstance(addr, tuple)
-            and len(addr) == 1
-            and addr not in self.subtraces
-            and addr[0] in self.subtraces
+            isinstance(address, tuple)
+            and len(address) == 1
+            and cast(StaticAddress, address) not in self.subtraces
+            and address[0] in self.subtraces
         ):
             warnings.warn(
                 "use of get_subtrace(('x',)) is deprecated: prefer get_subtrace('x')",
                 DeprecationWarning,
             )
-            addr = addr[0]
+            address = address[0]
+        return self.subtraces[cast(StaticAddress, address)]
 
-        return self.subtraces[addr]
-
-
-@Pytree.dataclass
-class VoidTrace(Trace[None]):
-    """Under normal circumstances, you should not use or receive an object
-    of this type, which represents a Trace whose content is not yet known."""
-
-    def get_retval(self):
-        return None
-
-    def get_args(self):
-        return ()
-
-    def get_score(self) -> Score:
-        return jnp.zeros(())
-
-    def get_choices(self):
-        return ChoiceMap.empty()
-
-    def get_gen_fn(self):
-        return StaticGenerativeFunction(Closure((), lambda: None))
-
-
-VOID_TRACE = VoidTrace()
 
 ####################################
 # Static (trie-like) edit request  #
@@ -447,11 +425,11 @@ class UpdateHandler(StaticHandler):
     def get_subconstraint(self, addr: StaticAddress) -> ChoiceMap:
         return self.constraint(addr)
 
-    def get_subtrace(
+    def get_inner_trace(
         self,
         addr: StaticAddress,
     ):
-        return self.previous_trace.get_subtrace(addr)
+        return self.previous_trace.get_inner_trace(addr)
 
     def handle_retval(self, v):
         return jtu.tree_leaves(v, is_leaf=lambda v: isinstance(v, Diff))
@@ -463,7 +441,7 @@ class UpdateHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        subtrace = self.get_subtrace(addr)
+        subtrace = self.get_inner_trace(addr)
         constraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
         request = Update(constraint)

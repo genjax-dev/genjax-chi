@@ -31,7 +31,10 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ChoiceMapConstraint
+from genjax._src.core.generative.choice_map import (
+    ChoiceMapConstraint,
+    ExtendedAddress,
+)
 from genjax._src.core.generative.functional_types import Mask
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
@@ -89,6 +92,9 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
 
     def get_score(self):
         return self.score
+
+    def get_inner_trace(self, address: ExtendedAddress):
+        return self.inner.get_inner_trace(address)
 
 
 @Pytree.dataclass(match_args=True)

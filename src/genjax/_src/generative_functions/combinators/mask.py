@@ -29,7 +29,7 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import Selection
+from genjax._src.core.generative.choice_map import ExtendedAddress, Selection
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
@@ -103,6 +103,9 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
 
     def get_score(self):
         return self.score
+
+    def get_inner_trace(self, address: ExtendedAddress):
+        return self.inner.get_inner_trace(address)
 
 
 @Pytree.dataclass

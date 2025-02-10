@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
@@ -20,6 +21,7 @@ from deprecated import deprecated
 from genjax._src.core.generative.choice_map import (
     ChoiceMap,
     ChoiceMapConstraint,
+    ExtendedAddress,
     Selection,
 )
 from genjax._src.core.generative.core import (
@@ -189,6 +191,22 @@ class Trace(Generic[R], Pytree):
             key,
             self,
             selection,
+        )
+
+    def get_subtrace(self, *addresses: ExtendedAddress):
+        """
+        Return the subtrace having the supplied address. Specifying multiple addresses
+        will apply the operation recursively. Beware of using the value of `get_score` on
+        internal traces obtained this way in further inference: the score of the parent
+        trace may depend on the score of the subtrace in a non-obvious way."""
+
+        return functools.reduce(
+            lambda tr, addr: tr.get_inner_trace(addr), addresses, self
+        )
+
+    def get_inner_trace(self, address: ExtendedAddress):
+        raise NotImplementedError(
+            "This type of Trace object does not possess subtraces."
         )
 
     ###################
