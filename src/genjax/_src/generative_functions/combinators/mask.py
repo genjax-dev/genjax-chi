@@ -104,7 +104,7 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     def get_score(self):
         return self.score
 
-    def get_inner_trace(self, address: ExtendedAddress):
+    def get_inner_trace(self, address: ExtendedAddress) -> Trace[R]:
         return self.inner.get_inner_trace(address)
 
 

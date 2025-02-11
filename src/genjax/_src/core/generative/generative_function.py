@@ -193,7 +193,7 @@ class Trace(Generic[R], Pytree):
             selection,
         )
 
-    def get_subtrace(self, *addresses: ExtendedAddress) -> "Trace[R]":
+    def get_subtrace(self, *addresses: ExtendedAddress) -> "Trace[Any]":
         """
         Return the subtrace having the supplied address. Specifying multiple addresses
         will apply the operation recursively.
@@ -209,7 +209,7 @@ class Trace(Generic[R], Pytree):
             lambda tr, addr: tr.get_inner_trace(addr), addresses, self
         )
 
-    def get_inner_trace(self, address: ExtendedAddress) -> "Trace[R]":
+    def get_inner_trace(self, address: ExtendedAddress) -> "Trace[Any]":
         """Override this method to provide `Trace.get_subtrace` support
         for those trace types that have substructure that can be addressed
         in this way."""

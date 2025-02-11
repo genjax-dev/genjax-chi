@@ -62,7 +62,7 @@ class DimapTrace(Generic[R, S], Trace[S]):
     def get_score(self) -> Score:
         return self.inner.get_score()
 
-    def get_inner_trace(self, address: ExtendedAddress):
+    def get_inner_trace(self, address: ExtendedAddress) -> Trace[R]:
         return self.inner.get_inner_trace(address)
 
 
