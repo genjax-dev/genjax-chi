@@ -31,8 +31,7 @@ if TYPE_CHECKING:
 
 
 def tfp_distribution(
-    dist: Callable[..., "dist.Distribution"],
-    name: str | None = None
+    dist: Callable[..., "dist.Distribution"], name: str | None = None
 ) -> ExactDensity[Array]:
     """
     Creates a generative function from a TensorFlow Probability distribution.
@@ -62,7 +61,9 @@ def tfp_distribution(
 #####################
 # Wrapper instances #
 #####################
-bernoulli = tfp_distribution(lambda logits: tfd.Bernoulli(logits=logits), name="Bernoulli")
+bernoulli = tfp_distribution(
+    lambda logits: tfd.Bernoulli(logits=logits), name="Bernoulli"
+)
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions.
 """
@@ -87,7 +88,9 @@ binomial: ExactDensity[Array] = tfp_distribution(tfd.Binomial)
 A `tfp_distribution` generative function which wraps the [`tfd.Binomial`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Binomial) distribution from TensorFlow Probability distributions.
 """
 
-categorical = tfp_distribution(lambda logits: tfd.Categorical(logits=logits), name="Categorical")
+categorical = tfp_distribution(
+    lambda logits: tfd.Categorical(logits=logits), name="Categorical"
+)
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Categorical`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Categorical) distribution from TensorFlow Probability distributions.
 """
