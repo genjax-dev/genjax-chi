@@ -1245,9 +1245,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.or_else(self, gen_fn)
 
-    def switch(
-        self, *branches: "GenerativeFunction[R]"
-    ) -> "genjax.SwitchCombinator[R]":
+    def switch(self, *branches: "GenerativeFunction[R]") -> "genjax.Switch[R]":
         """
         Given `n` [`genjax.GenerativeFunction`][] inputs, returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
 
@@ -1342,7 +1340,6 @@ class GenerativeFunction(Generic[R], Pytree):
         *,
         pre: Callable[..., ArgTuple],
         post: Callable[[tuple[Any, ...], ArgTuple, R], S],
-        info: str | None = None,
     ) -> "GenerativeFunction[S]":
         """
         Returns a new [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
@@ -1353,7 +1350,6 @@ class GenerativeFunction(Generic[R], Pytree):
         Args:
             pre: A callable that preprocesses the arguments before passing them to the wrapped function. Note that `pre` must return a _tuple_ of arguments, not a bare argument. Default is the identity function.
             post: A callable that postprocesses the return value of the wrapped function. Default is the identity function.
-            info: An optional string providing additional information about the `dimap` operation.
 
         Returns:
             A new [`genjax.GenerativeFunction`][] with `pre` and `post` applied.
@@ -1377,9 +1373,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return genjax.normal(x, y) @ "z"
 
 
-            dimap_model = model.dimap(
-                pre=pre_process, post=post_process, info="Square of normal"
-            )
+            dimap_model = model.dimap(pre=pre_process, post=post_process)
 
             # Use the dimap model
             key = jax.random.key(0)
@@ -1390,17 +1384,14 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.dimap(pre=pre, post=post, info=info)(self)
+        return genjax.dimap(pre=pre, post=post)(self)
 
-    def map(
-        self, f: Callable[[R], S], *, info: str | None = None
-    ) -> "GenerativeFunction[S]":
+    def map(self, f: Callable[[R], S]) -> "GenerativeFunction[S]":
         """
         Specialized version of [`genjax.dimap`][] where only the post-processing function is applied.
 
         Args:
             f: A callable that postprocesses the return value of the wrapped function.
-            info: An optional string providing additional information about the `map` operation.
 
         Returns:
             A [`genjax.GenerativeFunction`][] that acts like `self` with a post-processing function to its return value.
@@ -1420,7 +1411,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return genjax.normal(x, 1.0) @ "z"
 
 
-            map_model = model.map(square, info="Square of normal")
+            map_model = model.map(square)
 
             # Use the map model
             key = jax.random.key(0)
@@ -1431,17 +1422,14 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.map(f=f, info=info)(self)
+        return genjax.map(f=f)(self)
 
-    def contramap(
-        self, f: Callable[..., ArgTuple], *, info: str | None = None
-    ) -> "GenerativeFunction[R]":
+    def contramap(self, f: Callable[..., ArgTuple]) -> "GenerativeFunction[R]":
         """
         Specialized version of [`genjax.GenerativeFunction.dimap`][] where only the pre-processing function is applied.
 
         Args:
             f: A callable that preprocesses the arguments of the wrapped function. Note that `f` must return a _tuple_ of arguments, not a bare argument.
-            info: An optional string providing additional information about the `contramap` operation.
 
         Returns:
             A [`genjax.GenerativeFunction`][] that acts like `self` with a pre-processing function to its arguments.
@@ -1462,7 +1450,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return genjax.normal(x, 1.0) @ "z"
 
 
-            contramap_model = model.contramap(add_one, info="Add one to input")
+            contramap_model = model.contramap(add_one)
 
             # Use the contramap model
             key = jax.random.key(0)
@@ -1473,7 +1461,7 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.contramap(f=f, info=info)(self)
+        return genjax.contramap(f=f)(self)
 
     #####################
     # GenSP / inference #
