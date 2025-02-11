@@ -296,7 +296,7 @@ def map(
 
 
         # Apply map to a generative function
-        @genjax.map(square, info="Square of normal")
+        @genjax.map(square)
         @genjax.gen
         def map_model(x):
             return genjax.normal(x, 1.0) @ "z"

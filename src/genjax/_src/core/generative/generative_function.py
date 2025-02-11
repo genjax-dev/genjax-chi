@@ -1375,9 +1375,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return genjax.normal(x, y) @ "z"
 
 
-            dimap_model = model.dimap(
-                pre=pre_process, post=post_process, info="Square of normal"
-            )
+            dimap_model = model.dimap(pre=pre_process, post=post_process)
 
             # Use the dimap model
             key = jax.random.key(0)
