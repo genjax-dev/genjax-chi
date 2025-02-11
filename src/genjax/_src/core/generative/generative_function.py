@@ -1245,9 +1245,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.or_else(self, gen_fn)
 
-    def switch(
-        self, *branches: "GenerativeFunction[R]"
-    ) -> "genjax.SwitchCombinator[R]":
+    def switch(self, *branches: "GenerativeFunction[R]") -> "genjax.Switch[R]":
         """
         Given `n` [`genjax.GenerativeFunction`][] inputs, returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
 

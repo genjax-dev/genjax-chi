@@ -55,7 +55,7 @@ Y = TypeVar("Y")
 
 @Pytree.dataclass
 class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
-    scan_gen_fn: "ScanCombinator[Carry, Y]"
+    scan_gen_fn: "Scan[Carry, Y]"
     inner: Trace[tuple[Carry, Y]]
     args: tuple[Any, ...]
     retval: tuple[Carry, Y]
@@ -65,7 +65,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
 
     @staticmethod
     def build(
-        scan_gen_fn: "ScanCombinator[Carry, Y]",
+        scan_gen_fn: "Scan[Carry, Y]",
         inner: Trace[tuple[Carry, Y]],
         args: tuple[Any, ...],
         retval: tuple[Carry, Y],
@@ -122,8 +122,8 @@ class VectorRequest(PrimitiveEditRequest):
 
 
 @Pytree.dataclass
-class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
-    """`ScanCombinator` wraps a `kernel_gen_fn` [`genjax.GenerativeFunction`][]
+class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
+    """`Scan` wraps a `kernel_gen_fn` [`genjax.GenerativeFunction`][]
     of type `(c, a) -> (c, b)` in a new [`genjax.GenerativeFunction`][] of type
     `(c, [a]) -> (c, [b])`, where.
 
@@ -771,7 +771,7 @@ def scan(
     """
 
     def decorator(f: GenerativeFunction[tuple[Carry, Y]]):
-        return ScanCombinator[Carry, Y](f, length=n)
+        return Scan[Carry, Y](f, length=n)
 
     return decorator
 

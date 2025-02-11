@@ -24,7 +24,7 @@ from genjax import Selection
 from genjax._src.core.typing import IntArray
 
 
-class TestVmapCombinator:
+class TestVmap:
     def test_vmap_combinator_simple_normal(self):
         @genjax.vmap(in_axes=(0,))
         @genjax.gen

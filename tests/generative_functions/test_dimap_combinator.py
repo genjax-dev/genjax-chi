@@ -18,7 +18,7 @@ import genjax
 from genjax import ChoiceMapBuilder as C
 
 
-class TestDimapCombinator:
+class TestDimap:
     def test_dimap_update_retval(self):
         # Define pre- and post-processing functions
         def pre_process(x, y):
