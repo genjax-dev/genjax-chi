@@ -59,8 +59,7 @@ tfd = tfp.distributions
 
 
 def adev_distribution(
-    adev_primitive: ADEVPrimitive,
-    differentiable_logpdf: Callable[..., Any],
+    adev_primitive: ADEVPrimitive, differentiable_logpdf: Callable[..., Any], name: str
 ) -> ExactDensity[Any]:
     """
     Return an [`ExactDensity`][genjax.ExactDensity] distribution whose sampler invokes an ADEV sampling primitive, with a provided differentiable log density function.
@@ -79,7 +78,7 @@ def adev_distribution(
         else:
             return lp
 
-    return exact_density(sampler, logpdf)
+    return exact_density(sampler, logpdf, name)
 
 
 def logpdf(gen_fn):
@@ -88,41 +87,32 @@ def logpdf(gen_fn):
 
 # We import ADEV specific sampling primitives, but then wrap them in
 # adev_distribution, for usage inside of generative functions.
-flip_enum = adev_distribution(
-    flip_enum,
-    logpdf(flip),
-)
+flip_enum = adev_distribution(flip_enum, logpdf(flip), "flip_enum")
 
-flip_mvd = adev_distribution(
-    flip_mvd,
-    logpdf(flip),
-)
+flip_mvd = adev_distribution(flip_mvd, logpdf(flip), "flip_mvd")
 
 categorical_enum = adev_distribution(
     categorical_enum_parallel,
     lambda v, probs: tfd.Categorical(probs=probs).log_prob(v),
+    "categorical_enum",
 )
 
 normal_reinforce = adev_distribution(
-    normal_reinforce,
-    logpdf(normal),
+    normal_reinforce, logpdf(normal), "normal_reinforce"
 )
 
-normal_reparam = adev_distribution(
-    normal_reparam,
-    logpdf(normal),
-)
+normal_reparam = adev_distribution(normal_reparam, logpdf(normal), "normal_reparam")
 
 mv_normal_diag_reparam = adev_distribution(
     mv_normal_diag_reparam,
     lambda v, loc, scale_diag: tfd.MultivariateNormalDiag(
         loc=loc, scale_diag=scale_diag
     ).log_prob(v),
+    "mv_normal_diag_reparam",
 )
 
 geometric_reinforce = adev_distribution(
-    geometric_reinforce,
-    logpdf(geometric),
+    geometric_reinforce, logpdf(geometric), "geometric_reinforce"
 )
 
 

@@ -13,6 +13,7 @@
 # limitations under the License.
 """This module contains the `Distribution` abstract base class."""
 
+import warnings
 from abc import abstractmethod
 
 import jax
@@ -368,20 +369,6 @@ class ExactDensity(Generic[R], Distribution[R]):
     def __abstract_call__(self, *args):
         return to_shape_fn(self.sample, jnp.zeros)(_fake_key, *args)
 
-    def handle_kwargs(self) -> GenerativeFunction[R]:
-        @Pytree.partial(self)
-        def sample_with_kwargs(self: "ExactDensity[R]", key, args, kwargs):
-            return self.sample(key, *args, **kwargs)
-
-        @Pytree.partial(self)
-        def logpdf_with_kwargs(self: "ExactDensity[R]", v, args, kwargs):
-            return self.logpdf(v, *args, **kwargs)
-
-        return ExactDensityFromCallables(
-            sample_with_kwargs,
-            logpdf_with_kwargs,
-        )
-
     def random_weighted(
         self,
         key: PRNGKey,
@@ -433,26 +420,27 @@ class ExactDensity(Generic[R], Distribution[R]):
                 return w, v
 
 
-@Pytree.dataclass
-class ExactDensityFromCallables(Generic[R], ExactDensity[R]):
-    sampler: Closure[R]
-    logpdf_evaluator: Closure[Score]
-
-    def sample(self, key, *args) -> R:
-        return self.sampler(key, *args)
-
-    def logpdf(self, v, *args) -> Score:
-        return self.logpdf_evaluator(v, *args)
-
-
 def exact_density(
     sample: Closure[R] | Callable[..., R],
     logpdf: Closure[Score] | Callable[..., Score],
-):
-    if not isinstance(sample, Closure):
-        sample = Closure[R]((), sample)
+    name: str | None = None,
+) -> ExactDensity[R]:
+    """Construct a new type, a subclass of ExactDensity, with the given name,
+    (with `genjax.` prepended, to avoid confusion with the underlying object,
+    which may not share the same interface) and attach the supplied functions
+    as the `sample` and `logpdf` methods. The return value is an instance of
+    this new type, and should be treated as a singleton."""
+    if name is None:
+        warnings.warn("You should supply a name argument to exact_density")
+        name = "unknown"
 
-    if not isinstance(logpdf, Closure):
-        logpdf = Closure[Score]((), logpdf)
+    T = type(
+        f"genjax.{name}",
+        (ExactDensity,),
+        {
+            "sample": lambda self, key, *args, **kwargs: sample(key, *args, **kwargs),
+            "logpdf": lambda self, v, *args, **kwargs: logpdf(v, *args, **kwargs),
+        },
+    )
 
-    return ExactDensityFromCallables[R](sample, logpdf)
+    return Pytree.dataclass(T)()

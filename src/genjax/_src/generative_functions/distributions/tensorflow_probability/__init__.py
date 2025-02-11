@@ -18,7 +18,7 @@ from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.core.typing import Array, Callable
 from genjax._src.generative_functions.distributions.distribution import (
-    ExactDensityFromCallables,
+    ExactDensity,
     exact_density,
 )
 
@@ -32,9 +32,9 @@ if TYPE_CHECKING:
 
 def tfp_distribution(
     dist: Callable[..., "dist.Distribution"],
-) -> ExactDensityFromCallables[Array]:
+) -> ExactDensity[Array]:
     """
-    Creates an ExactDensityFromCallables generative function from a TensorFlow Probability distribution.
+    Creates a generative function from a TensorFlow Probability distribution.
 
     Args:
         dist: A callable that returns a TensorFlow Probability distribution.
@@ -55,7 +55,7 @@ def tfp_distribution(
         d = dist(*args, **kwargs)
         return d.log_prob(v)
 
-    return exact_density(sampler, logpdf)
+    return exact_density(sampler, logpdf, dist.__name__)
 
 
 #####################
@@ -81,7 +81,7 @@ beta_quotient = tfp_distribution(tfd.BetaQuotient)
 A `tfp_distribution` generative function which wraps the [`tfd.BetaQuotient`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/BetaQuotient) distribution from TensorFlow Probability distributions.
 """
 
-binomial: ExactDensityFromCallables[Array] = tfp_distribution(tfd.Binomial)
+binomial: ExactDensity[Array] = tfp_distribution(tfd.Binomial)
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Binomial`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Binomial) distribution from TensorFlow Probability distributions.
 """

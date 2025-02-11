@@ -20,7 +20,6 @@ from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
 from genjax._src.generative_functions.distributions.distribution import (
     Distribution,
     ExactDensity,
-    ExactDensityFromCallables,
     exact_density,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
@@ -77,7 +76,6 @@ __all__ = [
     "DiscreteHMMConfiguration",
     "Distribution",
     "ExactDensity",
-    "ExactDensityFromCallables",
     "bernoulli",
     "beta",
     "beta_binomial",
