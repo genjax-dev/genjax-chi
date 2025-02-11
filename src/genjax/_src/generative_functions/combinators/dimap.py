@@ -266,6 +266,19 @@ def dimap(
     """
 
     def decorator(f: GenerativeFunction[R]) -> DimapCombinator[ArgTuple, R, S]:
+        if isinstance(f, DimapCombinator):
+            # Compose the pre-processing functions
+            def composed_pre(*args):
+                intermediate = pre(*args)
+                return f.argument_mapping(*intermediate)
+
+            # Compose the post-processing functions
+            def composed_post(args, xformed, retval):
+                intermediate = f.retval_mapping(args, xformed, retval)
+                return post(args, xformed, intermediate)
+
+            return DimapCombinator(f.inner, composed_pre, composed_post)
+
         return DimapCombinator(f, pre, post)
 
     return decorator
