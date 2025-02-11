@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 
 def tfp_distribution(
     dist: Callable[..., "dist.Distribution"],
+    name: str | None = None
 ) -> ExactDensity[Array]:
     """
     Creates a generative function from a TensorFlow Probability distribution.
@@ -55,13 +56,13 @@ def tfp_distribution(
         d = dist(*args, **kwargs)
         return d.log_prob(v)
 
-    return exact_density(sampler, logpdf, dist.__name__)
+    return exact_density(sampler, logpdf, name or dist.__name__)
 
 
 #####################
 # Wrapper instances #
 #####################
-bernoulli = tfp_distribution(lambda logits: tfd.Bernoulli(logits=logits))
+bernoulli = tfp_distribution(lambda logits: tfd.Bernoulli(logits=logits), name="Bernoulli")
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions.
 """
@@ -86,7 +87,7 @@ binomial: ExactDensity[Array] = tfp_distribution(tfd.Binomial)
 A `tfp_distribution` generative function which wraps the [`tfd.Binomial`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Binomial) distribution from TensorFlow Probability distributions.
 """
 
-categorical = tfp_distribution(lambda logits: tfd.Categorical(logits=logits))
+categorical = tfp_distribution(lambda logits: tfd.Categorical(logits=logits), name="Categorical")
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Categorical`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Categorical) distribution from TensorFlow Probability distributions.
 """
@@ -136,7 +137,7 @@ exponential = tfp_distribution(tfd.Exponential)
 A `tfp_distribution` generative function which wraps the [`tfd.Exponential`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Exponential) distribution from TensorFlow Probability distributions.
 """
 
-flip = tfp_distribution(lambda p: tfd.Bernoulli(probs=p, dtype=jnp.bool_))
+flip = tfp_distribution(lambda p: tfd.Bernoulli(probs=p, dtype=jnp.bool_), name="flip")
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions, but is constructed using a probability value and not a logit.
 """
