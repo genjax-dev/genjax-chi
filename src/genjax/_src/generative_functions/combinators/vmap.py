@@ -294,11 +294,10 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
                 return jtu.tree_map(lambda v: jnp.take(v, idx, axis=axis), x)
 
         # First get the primal. The shape of this is going to match the in_axes shape.
-        primal = Diff.tree_primal(argdiffs)
         primal_slice = jax.tree_util.tree_map(
             slice_argdiffs,
             self.in_axes,
-            primal,
+            primals,
             is_leaf=lambda x: x is None,
         )
         argdiffs_slice = Diff.tree_diff(primal_slice, Diff.tree_tangent(argdiffs))
@@ -341,6 +340,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         )
 
         map_tr = VmapTrace.build(self, new_inner_trace, primals, dim_length)
+
         # We always set the carried out value to be an unknown change, conservatively.
         retdiff = Diff.unknown_change(argdiffs)
 
