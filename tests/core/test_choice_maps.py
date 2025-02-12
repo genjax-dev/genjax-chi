@@ -531,7 +531,7 @@ class TestChoiceMap:
         assert extended["a", "b"] == 1
 
         assert extended.get_value() is None
-        assert extended.get_submap("a").get_submap("b").get_value() == 1
+        assert extended.get_submap("a", "b").get_value() == 1
         assert ChoiceMap.empty().extend("a", "b").static_is_empty()
 
     def test_switch_chm(self):
