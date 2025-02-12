@@ -277,6 +277,32 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         dim_length = trace.dim_length
 
         trace_slice = jtu.tree_map(lambda v: v[idx], trace.inner)
+
+        def slice_argdiffs(axis: int | None, x: Any) -> Any:
+            """Helper function to slice argdiffs based on axis.
+
+            Args:
+                axis: The axis to slice along, or None if no slicing needed
+                x: The value to slice
+
+            Returns:
+                The sliced value if axis is provided, otherwise returns x unchanged
+            """
+            if axis is None:
+                return x
+            else:
+                return jtu.tree_map(lambda v: jnp.take(v, idx, axis=axis), x)
+
+        # First get the primal. The shape of this is going to match the in_axes shape.
+        primal = Diff.tree_primal(argdiffs)
+        primal_slice = jax.tree_util.tree_map(
+            slice_argdiffs,
+            self.in_axes,
+            primal,
+            is_leaf=lambda x: x is None,
+        )
+        argdiffs_slice = Diff.tree_diff(primal_slice, Diff.tree_tangent(argdiffs))
+
         jax.debug.print("Better looking printing: {v}", v=trace.inner.get_choices())
         # jax.debug.print("Better looking printing: {v}", v=trace_slice.get_choices())
         jax.debug.print(
@@ -287,24 +313,29 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             key,
             trace_slice,
             request,
-            argdiffs,
+            argdiffs_slice,
         )
+
+        jax.debug.print(fmt="chm: {v}", v=trace.get_choices())
+        jax.debug.print(fmt="chm_slice: {v}", v=trace_slice.get_choices())
+        jax.debug.print(fmt="argdiffs: {v}", v=argdiffs)
+        jax.debug.print(fmt="argdiffs_slice: {v}", v=argdiffs_slice)
+
         # jax.debug.print("Better looking printing: {v}", v=new_trace_slice.get_choices())
         jax.debug.print(
             "Better looking printing: {v}",
-            v=jax.tree.map(lambda x: x.shape, new_trace_slice),
+            v=jax.tree.map(lambda x: jnp.asarray(x).shape, new_trace_slice),
         )
 
         def mutator(v, idx, setter):
-            jax.debug.print("mutator setter printing: {v}", v=setter.shape)
-            jax.debug.print("mutator v printing: {v}", v=v.shape)
+            jax.debug.print("mutator setter printing: {v}", v=jnp.asarray(setter).shape)
+            jax.debug.print("mutator v printing: {v}", v=jnp.asarray(v).shape)
             return v.at[idx].set(setter)
 
         jax.debug.print(
             "Better looking printing: {v}",
             v=jtu.tree_map(lambda v: v[idx], tree=trace.inner).get_choices(),
         )
-
         new_inner_trace = jtu.tree_map(
             lambda v, v_: mutator(v, idx, v_), trace.inner, new_trace_slice
         )
