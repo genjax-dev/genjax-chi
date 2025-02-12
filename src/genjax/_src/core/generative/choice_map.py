@@ -728,7 +728,7 @@ class ChmSel(Selection):
         return self.c.has_value()
 
     def get_subselection(self, addr: AddressComponent) -> Selection:
-        submap = self.c.get_submap(addr)
+        submap = self.c.get_inner_map(addr)
         return submap.get_selection()
 
 
@@ -765,9 +765,7 @@ def _drop_prefix(
     return dynamic_components[prefix_end:]
 
 
-def _validate_addr(
-    addr: AddressComponent | Address, allow_partial_slice: bool = False
-) -> Address:
+def _validate_addr(addr: Address, allow_partial_slice: bool = False) -> Address:
     """
     Validates the structure of an address tuple.
 
@@ -787,8 +785,6 @@ def _validate_addr(
     Raises:
         ValueError: If the address structure is invalid.
     """
-
-    addr = addr if isinstance(addr, tuple) else (addr,)
     dynamic_components = [
         comp for comp in addr if isinstance(comp, (slice, int, Array))
     ]
@@ -1003,11 +999,19 @@ class ChoiceMap(Pytree):
         pass
 
     @abstractmethod
-    def get_submap(
+    def get_inner_map(
         self,
         addr: AddressComponent,
     ) -> "ChoiceMap":
         pass
+
+    def get_submap(self, *addr: AddressComponent) -> "ChoiceMap":
+        addr = _validate_addr(addr, allow_partial_slice=True)
+
+        submap = self
+        for comp in addr:
+            submap = submap.get_inner_map(comp)
+        return submap
 
     def has_value(self) -> Flag:
         match self.get_value():
@@ -1346,6 +1350,7 @@ class ChoiceMap(Pytree):
     ###########
     # Dunders #
     ###########
+
     @deprecated(
         reason="^ is deprecated, please use | or _.merge(...) instead.",
         version="0.8.0",
@@ -1366,12 +1371,8 @@ class ChoiceMap(Pytree):
         self,
         addr: AddressComponent | Address,
     ) -> "ChoiceMap":
-        addr = _validate_addr(addr, allow_partial_slice=True)
-
-        submap = self
-        for comp in addr:
-            submap = submap.get_submap(comp)
-        return submap
+        addr = addr if isinstance(addr, tuple) else (addr,)
+        return self.get_submap(*addr)
 
     def __getitem__(
         self,
@@ -1504,7 +1505,7 @@ class Choice(Generic[T], ChoiceMap):
     def get_value(self) -> T:
         return self.v
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def get_inner_map(self, addr: AddressComponent) -> ChoiceMap:
         if isinstance(addr, StaticAddressComponent):
             return ChoiceMap.empty()
         else:
@@ -1562,7 +1563,7 @@ class Indexed(ChoiceMap):
     def get_value(self) -> Any:
         return None
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def get_inner_map(self, addr: AddressComponent) -> ChoiceMap:
         if isinstance(addr, StaticAddressComponent):
             return ChoiceMap.empty()
 
@@ -1664,7 +1665,7 @@ class Static(ChoiceMap):
     def get_value(self) -> Any:
         return None
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def get_inner_map(self, addr: AddressComponent) -> ChoiceMap:
         if isinstance(addr, StaticAddressComponent):
             v = self.mapping.get(addr, {})
             return Static(v) if isinstance(v, dict) else v
@@ -1728,8 +1729,8 @@ class Switch(ChoiceMap):
 
         return Mask.or_n(*entries) if entries else None
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
-        return Switch(self.idx, [chm.get_submap(addr) for chm in self.chms])
+    def get_inner_map(self, addr: AddressComponent) -> ChoiceMap:
+        return Switch(self.idx, [chm.get_inner_map(addr) for chm in self.chms])
 
 
 @Pytree.dataclass(match_args=True)
@@ -1802,9 +1803,9 @@ class Or(ChoiceMap):
     def get_value(self) -> Any:
         return None
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
-        submap1 = self.c1.get_submap(addr)
-        submap2 = self.c2.get_submap(addr)
+    def get_inner_map(self, addr: AddressComponent) -> ChoiceMap:
+        submap1 = self.c1.get_inner_map(addr)
+        submap2 = self.c2.get_inner_map(addr)
         return submap1 | submap2
 
 
