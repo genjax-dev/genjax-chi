@@ -24,7 +24,7 @@ from genjax import Diff
 from genjax._src.core.typing import Array
 
 
-class TestSwitchCombinator:
+class TestSwitch:
     def test_switch_combinator_simulate_in_gen_fn(self):
         @genjax.gen
         def f():

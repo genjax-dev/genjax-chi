@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The `VmapCombinator` is a generative function combinator which exposes vectorization
+"""The `Vmap` is a generative function combinator which exposes vectorization
 on the input arguments of a provided generative function callee.
 
 This vectorization is implemented using `jax.vmap`, and the combinator expects the user to specify `in_axes` as part of the construction of an instance of this combinator.
@@ -27,7 +27,6 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    Projection,
     R,
     Retdiff,
     Score,
@@ -35,7 +34,11 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ChoiceMapConstraint
+from genjax._src.core.generative.choice_map import (
+    ChoiceMapConstraint,
+    ExtendedAddress,
+    Selection,
+)
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -49,7 +52,7 @@ from genjax._src.core.typing import (
 
 @Pytree.dataclass
 class VmapTrace(Generic[R], Trace[R]):
-    gen_fn: "VmapCombinator[R]"
+    gen_fn: "Vmap[R]"
     inner: Trace[R]
     args: tuple[Any, ...]
     score: Score
@@ -60,7 +63,7 @@ class VmapTrace(Generic[R], Trace[R]):
 
     @staticmethod
     def build(
-        gen_fn: "VmapCombinator[R]", tr: Trace[R], args: tuple[Any, ...], length: int
+        gen_fn: "Vmap[R]", tr: Trace[R], args: tuple[Any, ...], length: int
     ) -> "VmapTrace[R]":
         score = jnp.sum(jax.vmap(lambda tr: tr.get_score())(tr))
         # TODO make a note here about why we are jax.vmapping; we are library authors!! we should not depend on the user convenience here of get_choices() on a vectorized choicemap.
@@ -86,10 +89,13 @@ class VmapTrace(Generic[R], Trace[R]):
     def get_score(self) -> Score:
         return self.score
 
+    def get_inner_trace(self, address: ExtendedAddress):
+        return self.inner.get_inner_trace(address)
+
 
 @Pytree.dataclass
-class VmapCombinator(Generic[R], GenerativeFunction[R]):
-    """`VmapCombinator` is a generative function which lifts another generative function to support `vmap`-based patterns of parallel (and generative) computation.
+class Vmap(Generic[R], GenerativeFunction[R]):
+    """`Vmap` is a generative function which lifts another generative function to support `vmap`-based patterns of parallel (and generative) computation.
 
     In contrast to the full set of options which [`jax.vmap`](https://jax.readthedocs.io/en/latest/_autosummary/jax.vmap.html), this combinator expects an `in_axes: tuple` configuration argument, which indicates how the underlying `vmap` patterns should be broadcast across the input arguments to the generative function.
 
@@ -99,7 +105,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         in_axes: A tuple specifying which input arguments (or indices into them) should be vectorized. `in_axes` must match (or prefix) the `Pytree` type of the argument tuple for the underlying `gen_fn`. Defaults to 0, i.e., the first argument. See [this link](https://jax/readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
 
     Examples:
-        Create a `VmapCombinator` using the [`genjax.vmap`][] decorator:
+        Create a `Vmap` using the [`genjax.vmap`][] decorator:
         ```python exec="yes" html="true" source="material-block" session="vmap"
         import jax, genjax
         import jax.numpy as jnp
@@ -216,9 +222,18 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
-        raise NotImplementedError
+        assert isinstance(trace, VmapTrace)
+
+        dim_length = trace.dim_length
+        sub_keys = jax.random.split(key, dim_length)
+
+        def _project(key, subtrace):
+            return subtrace.project(key, selection)
+
+        weights = jax.vmap(_project)(sub_keys, trace.inner)
+        return jnp.sum(weights)
 
     def edit_choice_map(
         self,
@@ -298,9 +313,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 #############
 
 
-def vmap(
-    *, in_axes: InAxes = 0
-) -> Callable[[GenerativeFunction[R]], VmapCombinator[R]]:
+def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction[R]], Vmap[R]]:
     """
     Returns a decorator that wraps a [`GenerativeFunction`][genjax.GenerativeFunction] and returns a new `GenerativeFunction` that performs a vectorized map over the argument specified by `in_axes`. Traced values are nested under an index, and the retval is vectorized.
 
@@ -333,7 +346,7 @@ def vmap(
         ```
     """
 
-    def decorator(gen_fn: GenerativeFunction[R]) -> VmapCombinator[R]:
-        return VmapCombinator(gen_fn, in_axes)
+    def decorator(gen_fn: GenerativeFunction[R]) -> Vmap[R]:
+        return Vmap(gen_fn, in_axes)
 
     return decorator

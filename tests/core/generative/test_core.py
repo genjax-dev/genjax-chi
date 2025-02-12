@@ -15,11 +15,13 @@
 
 import jax
 import jax.numpy as jnp
+import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Selection
 from genjax import SelectionBuilder as S
+from genjax._src.generative_functions.static import StaticTrace
 
 
 class TestTupleAddr:
@@ -35,6 +37,21 @@ class TestTupleAddr:
         x_score, _ = genjax.normal.assess(C.v(chm["x", "x0"]), (0.0, 1.0))
         assert x_score == tr.project(jax.random.key(1), Selection.at["x", "x0"])
 
+    @pytest.mark.skip(reason="this check is not yet implemented")
+    def test_tupled_address_conflict(self):
+        @genjax.gen
+        def submodel():
+            return genjax.normal(0.0, 1.0) @ "y"
+
+        @genjax.gen
+        def model():
+            _ = genjax.normal(0.0, 1.0) @ ("x", "y")
+            return submodel() @ "x"
+
+        with pytest.raises(Exception):
+            tr = model.simulate(jax.random.key(0), ())
+            tr.get_choices()
+
 
 class TestProject:
     def test_project(self):
@@ -48,12 +65,107 @@ class TestProject:
         tr = f.simulate(jax.random.key(0), ())
         # evaluations
         x_score = tr.project(jax.random.key(1), S["x"])
-        assert x_score == tr.subtraces[0].get_score()
+        with pytest.deprecated_call():
+            assert x_score == tr.get_subtrace(("x",)).get_score()
+        assert x_score == tr.get_subtrace("x").get_score()
 
         y_score = tr.project(jax.random.key(1), S["y"])
-        assert y_score == tr.subtraces[1].get_score()
+        with pytest.deprecated_call():
+            assert y_score == tr.get_subtrace(("y",)).get_score()
+        assert y_score == tr.get_subtrace("y").get_score()
 
         assert tr.get_score() == x_score + y_score
+
+
+class TestGetSubtrace:
+    def test_get_subtrace(self):
+        @genjax.gen
+        def f():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = genjax.normal(0.0, 1.0) @ "y"
+            return x, y
+
+        @genjax.gen
+        def g():
+            x, y = f() @ "f"
+            return x + y
+
+        @genjax.gen
+        def h():
+            return g() @ "g"
+
+        tr = g.simulate(jax.random.key(1), ())
+        f_tr = tr.get_subtrace("f")
+        assert isinstance(f_tr, StaticTrace)
+        assert (
+            tr.get_subtrace("f", "x").get_score() == f_tr.get_subtrace("x").get_score()
+        )
+        assert (
+            tr.get_subtrace("f", "y").get_score() == f_tr.get_subtrace("y").get_score()
+        )
+
+        tr = h.simulate(jax.random.key(2), ())
+        assert (
+            tr.get_subtrace("g").get_subtrace("f").get_subtrace("x").get_score()
+            == tr.get_subtrace("g", "f", "x").get_score()
+        )
+        assert (
+            tr.get_subtrace("g").get_subtrace("f", "x").get_score()
+            == tr.get_subtrace("g", "f", "x").get_score()
+        )
+        assert (
+            tr.get_subtrace("g", "f").get_subtrace("x").get_score()
+            == tr.get_subtrace("g", "f", "x").get_score()
+        )
+
+    def test_get_subtrace_switch(self):
+        @genjax.gen
+        def f():
+            return genjax.normal(0.0, 0.01) @ "x"
+
+        @genjax.gen
+        def g():
+            return genjax.uniform(10.0, 11.0) @ "y"
+
+        @genjax.gen
+        def h():
+            flip = genjax.flip(0.5) @ "flip"
+            return f.or_else(g)(flip, (), ()) @ "z"
+
+        tr = h.simulate(jax.random.key(0), ())
+        flip_tr = tr.get_subtrace("flip")
+        flip = flip_tr.get_retval()
+        assert (
+            tr.get_subtrace("z", 0, "x").get_score()
+            == tr.get_score() - flip_tr.get_score()
+            if flip
+            else 0.0
+        )
+        assert (
+            tr.get_subtrace("z", 1, "y").get_score() == 0.0
+            if flip
+            else tr.get_score() - flip_tr.get_score()
+        )
+
+    def test_get_subtrace_vmap(self):
+        @genjax.vmap()
+        @genjax.gen
+        def f(x):
+            return genjax.normal(x, 0.01) @ "y"
+
+        tr = f.simulate(jax.random.key(0), (jnp.arange(5.0),))
+        assert tr.get_subtrace("y").get_score().shape == (5,)
+        assert tr.get_score() == jnp.sum(tr.get_subtrace("y").get_score())
+
+    def test_get_subtrace_scan(self):
+        @genjax.gen
+        def f(state, step):
+            return state + genjax.normal(step, 0.01) @ "y", None
+
+        tr = f.scan().simulate(jax.random.key(0), (5.0, jnp.arange(3.0)))
+        print(tr)
+        assert tr.get_subtrace("y").get_score().shape == (3,)
+        assert tr.get_score() == jnp.sum(tr.get_subtrace("y").get_score())
 
 
 class TestCombinators:
@@ -125,3 +237,20 @@ class TestCombinators:
 
         else_tr = jit_fn(key, (False,))
         assert "else_value" in else_tr.get_choices()("tossed")
+
+
+class TestRepr:
+    def test_distribution_repr(self):
+        @genjax.gen
+        def model():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            y = genjax.bernoulli(0.0) @ "y"
+            z = genjax.flip(0.5) @ "z"
+            t = genjax.categorical([0.0, 0.0]) @ "t"
+            return x, y, z, t
+
+        tr = model.simulate(jax.random.key(0), ())
+        assert str(tr.get_subtrace("x").get_gen_fn()) == "genjax.Normal()"
+        assert str(tr.get_subtrace("y").get_gen_fn()) == "genjax.Bernoulli()"
+        assert str(tr.get_subtrace("z").get_gen_fn()) == "genjax.flip()"
+        assert str(tr.get_subtrace("t").get_gen_fn()) == "genjax.Categorical()"

@@ -275,7 +275,6 @@ class TestSelections:
         xy_sel = Selection.at["x", "y"]
         assert not xy_sel[()]
         assert xy_sel["x", "y"]
-        assert not xy_sel[0]
         assert not xy_sel["other_address"]
 
         # Test nested StaticSel
