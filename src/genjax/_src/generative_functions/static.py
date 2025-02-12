@@ -144,6 +144,10 @@ class AddressReuse(Exception):
     """
 
 
+class MissingAddress(Exception):
+    """Attempt to assess a model without supplying values for all sampled addresses"""
+
+
 ##############
 # Primitives #
 ##############
@@ -310,6 +314,8 @@ class AssessHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         submap = self.get_subsample(addr)
+        if submap.static_is_empty():
+            raise MissingAddress(addr)
         (score, v) = gen_fn.assess(submap, args)
         self.score += score
         return v
