@@ -302,12 +302,6 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         )
         argdiffs_slice = Diff.tree_diff(primal_slice, Diff.tree_tangent(argdiffs))
 
-        jax.debug.print("Better looking printing: {v}", v=trace.inner.get_choices())
-        # jax.debug.print("Better looking printing: {v}", v=trace_slice.get_choices())
-        jax.debug.print(
-            "Better looking printing: {v}",
-            v=jax.tree.map(lambda x: x.shape, trace_slice),
-        )
         new_trace_slice, w, retdiff, bwd_request = self.gen_fn.edit(
             key,
             trace_slice,
@@ -315,26 +309,9 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             argdiffs_slice,
         )
 
-        jax.debug.print(fmt="chm: {v}", v=trace.get_choices())
-        jax.debug.print(fmt="chm_slice: {v}", v=trace_slice.get_choices())
-        jax.debug.print(fmt="argdiffs: {v}", v=argdiffs)
-        jax.debug.print(fmt="argdiffs_slice: {v}", v=argdiffs_slice)
-
-        # jax.debug.print("Better looking printing: {v}", v=new_trace_slice.get_choices())
-        jax.debug.print(
-            "Better looking printing: {v}",
-            v=jax.tree.map(lambda x: jnp.asarray(x).shape, new_trace_slice),
-        )
-
         def mutator(v, idx, setter):
-            jax.debug.print("mutator setter printing: {v}", v=jnp.asarray(setter).shape)
-            jax.debug.print("mutator v printing: {v}", v=jnp.asarray(v).shape)
             return v.at[idx].set(setter)
 
-        jax.debug.print(
-            "Better looking printing: {v}",
-            v=jtu.tree_map(lambda v: v[idx], tree=trace.inner).get_choices(),
-        )
         new_inner_trace = jtu.tree_map(
             lambda v, v_: mutator(v, idx, v_), trace.inner, new_trace_slice
         )
@@ -342,7 +319,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         map_tr = VmapTrace.build(self, new_inner_trace, primals, dim_length)
 
         # We always set the carried out value to be an unknown change, conservatively.
-        retdiff = Diff.unknown_change(argdiffs)
+        retdiff = Diff.unknown_change(map_tr.get_retval())
 
         return (map_tr, w, retdiff, IndexRequest(idx, bwd_request))
 
