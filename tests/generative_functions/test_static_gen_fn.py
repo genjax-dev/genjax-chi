@@ -299,10 +299,13 @@ class TestStaticGenFnAssess:
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        with pytest.raises(MissingAddress):
+        with pytest.raises(MissingAddress) as exc:
             _ = model.assess(C["y1"].set(1.0), ())
-        with pytest.raises(MissingAddress):
+        assert exc.value.args == ("y2",)
+
+        with pytest.raises(MissingAddress) as exc:
             _ = model.assess(C["y2"].set(1.0), ())
+        assert exc.value.args == ("y1",)
 
         score_retval = model.assess(C["y1"].set(1.0).at["y2"].set(-1.0), ())
         assert score_retval == (-2.837877, 0.0)
