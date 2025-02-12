@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   build-deploy:
-    runs-on: ubuntu-22.04
+    runs-on: DocsBuilder
 
     steps:
       - name: Check out repository
