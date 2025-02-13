@@ -22,6 +22,7 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
+    IndexRequest,
     PrimitiveEditRequest,
     Regenerate,
     Retdiff,
@@ -95,20 +96,6 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
 
     def get_inner_trace(self, address: ExtendedAddress):
         return self.inner.get_inner_trace(address)
-
-
-@Pytree.dataclass(match_args=True)
-class IndexRequest(PrimitiveEditRequest):
-    """
-    An `IndexRequest` is a primitive edit request which denotes a request to update a trace
-    at a particular index of a vector combinator.
-
-    The subrequest can be any type of `EditRequest`, the subrequest is responsible for enforcing or raising
-    its own conditions for compositional usage.
-    """
-
-    idx: IntArray
-    request: EditRequest
 
 
 @Pytree.dataclass(match_args=True)

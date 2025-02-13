@@ -26,6 +26,7 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     FloatArray,
+    IntArray,
     Is,
     PRNGKey,
     Self,
@@ -157,6 +158,20 @@ class PrimitiveEditRequest(EditRequest):
     ) -> "tuple[genjax.Trace[R], Weight, Retdiff[R], EditRequest]":
         gen_fn = tr.get_gen_fn()
         return gen_fn.edit(key, tr, self, argdiffs)
+
+
+@Pytree.dataclass(match_args=True)
+class IndexRequest(PrimitiveEditRequest):
+    """
+    An `IndexRequest` is a primitive edit request which denotes a request to update a trace
+    at a particular index of a vector combinator.
+
+    The subrequest can be any type of `EditRequest`, the subrequest is responsible for enforcing or raising
+    its own conditions for compositional usage.
+    """
+
+    idx: IntArray
+    request: EditRequest
 
 
 class NotSupportedEditRequest(Exception):
