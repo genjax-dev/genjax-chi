@@ -116,7 +116,7 @@ class TestMaskCombinator:
             retval_flag
             * jax.vmap(lambda v: genjax.normal.logpdf(v, 0.0, 1.0))(retval_val)
         )
-        vmap_tr = tr.get_subtrace(("init",))
+        vmap_tr = tr.get_subtrace("init")
         assert isinstance(vmap_tr, VmapTrace)
         inner_scores = jax.vmap(lambda tr: tr.get_score())(vmap_tr.inner)
         # score should be sum of sub-scores masked True

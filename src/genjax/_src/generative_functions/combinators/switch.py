@@ -19,13 +19,13 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    Projection,
     Retdiff,
     Score,
     Trace,
     Update,
     Weight,
 )
+from genjax._src.core.generative.choice_map import ExtendedAddress, Selection
 from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
 from genjax._src.core.interpreters.staging import multi_switch, tree_choose
 from genjax._src.core.pytree import Pytree
@@ -47,7 +47,7 @@ R = TypeVar("R")
 
 @Pytree.dataclass
 class SwitchTrace(Generic[R], Trace[R]):
-    gen_fn: "SwitchCombinator[R]"
+    gen_fn: "Switch[R]"
     args: tuple[Any, ...]
     subtraces: list[Trace[R]]
     retval: R
@@ -61,7 +61,7 @@ class SwitchTrace(Generic[R], Trace[R]):
             The index value used to select the executed branch.
 
         Note:
-            This method assumes that the first argument passed to the SwitchCombinator was the index used for branch selection.
+            This method assumes that the first argument passed to the Switch was the index used for branch selection.
         """
         return self.get_args()[0]
 
@@ -82,6 +82,10 @@ class SwitchTrace(Generic[R], Trace[R]):
     def get_score(self):
         return self.score
 
+    def get_inner_trace(self, address: ExtendedAddress):
+        assert isinstance(address, int)
+        return self.subtraces[address]
+
 
 #####################
 # Switch combinator #
@@ -89,9 +93,9 @@ class SwitchTrace(Generic[R], Trace[R]):
 
 
 @Pytree.dataclass
-class SwitchCombinator(Generic[R], GenerativeFunction[R]):
+class Switch(Generic[R], GenerativeFunction[R]):
     """
-    `SwitchCombinator` accepts `n` generative functions as input and returns a new [`genjax.GenerativeFunction`][] that accepts `n+1` arguments:
+    `Switch` accepts `n` generative functions as input and returns a new [`genjax.GenerativeFunction`][] that accepts `n+1` arguments:
 
     - an index in the range `[0, n-1]`
     - a tuple of arguments for each of the input generative functions
@@ -105,10 +109,10 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         This pattern allows `GenJAX` to express existence uncertainty over random choices -- as different generative function branches need not share addresses.
 
     Attributes:
-        branches: generative functions that the `SwitchCombinator` will select from based on the supplied index.
+        branches: generative functions that the `Switch` will select from based on the supplied index.
 
     Examples:
-        Create a `SwitchCombinator` via the [`genjax.switch`][] method:
+        Create a `Switch` via the [`genjax.switch`][] method:
         ```python exec="yes" html="true" source="material-block" session="switch"
         import jax, genjax
 
@@ -206,13 +210,13 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
         assert isinstance(trace, SwitchTrace)
         idx = trace.get_idx()
 
         fs = list(f.project for f in self.branches)
-        f_args = list((key, tr, projection) for tr in trace.subtraces)
+        f_args = list((key, tr, selection) for tr in trace.subtraces)
 
         return tree_choose(idx, multi_switch(idx, fs, f_args))
 
@@ -304,7 +308,7 @@ class SwitchCombinator(Generic[R], GenerativeFunction[R]):
 
 def switch(
     *gen_fns: GenerativeFunction[R],
-) -> SwitchCombinator[R]:
+) -> Switch[R]:
     """
     Given `n` [`genjax.GenerativeFunction`][] inputs, returns a [`genjax.GenerativeFunction`][] that accepts `n+1` arguments:
 
@@ -316,10 +320,10 @@ def switch(
     If `index` is out of bounds, `index` is clamped to within bounds.
 
     Args:
-        gen_fns: generative functions that the `SwitchCombinator` will select from.
+        gen_fns: generative functions that the `Switch` will select from.
 
     Examples:
-        Create a `SwitchCombinator` via the [`genjax.switch`][] method:
+        Create a `Switch` via the [`genjax.switch`][] method:
         ```python exec="yes" html="true" source="material-block" session="switch"
         import jax, genjax
 
@@ -345,4 +349,4 @@ def switch(
         print(tr.render_html())
         ```
     """
-    return SwitchCombinator[R](gen_fns)
+    return Switch[R](gen_fns)

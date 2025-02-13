@@ -24,7 +24,6 @@ from genjax._src.core.generative import (
     GenerativeFunction,
     IndexRequest,
     PrimitiveEditRequest,
-    Projection,
     Regenerate,
     Retdiff,
     Score,
@@ -33,7 +32,10 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ChoiceMapConstraint
+from genjax._src.core.generative.choice_map import (
+    ChoiceMapConstraint,
+    ExtendedAddress,
+)
 from genjax._src.core.generative.functional_types import Mask
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
@@ -54,7 +56,7 @@ Y = TypeVar("Y")
 
 @Pytree.dataclass
 class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
-    scan_gen_fn: "ScanCombinator[Carry, Y]"
+    scan_gen_fn: "Scan[Carry, Y]"
     inner: Trace[tuple[Carry, Y]]
     args: tuple[Any, ...]
     retval: tuple[Carry, Y]
@@ -64,7 +66,7 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
 
     @staticmethod
     def build(
-        scan_gen_fn: "ScanCombinator[Carry, Y]",
+        scan_gen_fn: "Scan[Carry, Y]",
         inner: Trace[tuple[Carry, Y]],
         args: tuple[Any, ...],
         retval: tuple[Carry, Y],
@@ -92,6 +94,9 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
     def get_score(self):
         return self.score
 
+    def get_inner_trace(self, address: ExtendedAddress):
+        return self.inner.get_inner_trace(address)
+
 
 @Pytree.dataclass(match_args=True)
 class VectorRequest(PrimitiveEditRequest):
@@ -104,8 +109,8 @@ class VectorRequest(PrimitiveEditRequest):
 
 
 @Pytree.dataclass
-class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
-    """`ScanCombinator` wraps a `kernel_gen_fn` [`genjax.GenerativeFunction`][]
+class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
+    """`Scan` wraps a `kernel_gen_fn` [`genjax.GenerativeFunction`][]
     of type `(c, a) -> (c, b)` in a new [`genjax.GenerativeFunction`][] of type
     `(c, [a]) -> (c, [b])`, where.
 
@@ -296,9 +301,8 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         self,
         key: PRNGKey,
         trace: Trace[tuple[Carry, Y]],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
-        assert isinstance(projection, Selection)
         assert isinstance(trace, ScanTrace)
 
         def _project(
@@ -307,11 +311,9 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         ) -> tuple[tuple[PRNGKey, IntArray], Weight]:
             key, idx = carry
             key = jax.random.fold_in(key, idx)
-            subprojection = projection(idx)
-            assert isinstance(subprojection, Selection)
             w = subtrace.project(
                 key,
-                subprojection,
+                selection,
             )
 
             return (key, idx + 1), w
@@ -468,11 +470,10 @@ class ScanCombinator(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             key, idx, carried_value = carry
             subtrace, scanned_in = scanned_over
             key = jax.random.fold_in(key, idx)
-            subselection = selection(idx)
             (
                 (carried_out, score),
                 (new_subtrace, scanned_out, w, inner_bwd_request),
-            ) = _inner_edit(key, subtrace, subselection, carried_value, scanned_in)
+            ) = _inner_edit(key, subtrace, selection, carried_value, scanned_in)
 
             return (key, idx + 1, carried_out), (
                 new_subtrace,
@@ -757,7 +758,7 @@ def scan(
     """
 
     def decorator(f: GenerativeFunction[tuple[Carry, Y]]):
-        return ScanCombinator[Carry, Y](f, length=n)
+        return Scan[Carry, Y](f, length=n)
 
     return decorator
 

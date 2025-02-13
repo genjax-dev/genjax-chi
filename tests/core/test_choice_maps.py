@@ -275,7 +275,6 @@ class TestSelections:
         xy_sel = Selection.at["x", "y"]
         assert not xy_sel[()]
         assert xy_sel["x", "y"]
-        assert not xy_sel[0]
         assert not xy_sel["other_address"]
 
         # Test nested StaticSel
@@ -532,7 +531,7 @@ class TestChoiceMap:
         assert extended["a", "b"] == 1
 
         assert extended.get_value() is None
-        assert extended.get_submap("a").get_submap("b").get_value() == 1
+        assert extended.get_submap("a", "b").get_value() == 1
         assert ChoiceMap.empty().extend("a", "b").static_is_empty()
 
     def test_switch_chm(self):

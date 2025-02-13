@@ -13,9 +13,9 @@
 # limitations under the License.
 
 site_name: GenJAX
-site_url: https://chi-collective.github.io/genjax/
-repo_url: https://github.com/chi-collective/genjax
-repo_name: chi-collective/genjax
+site_url: https://chisym.github.io/genjax/
+repo_url: https://github.com/chisym/genjax
+repo_name: chisym/genjax
 edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 
@@ -53,6 +53,7 @@ nav:
               - Update:
                 - Importance: cookbook/inactive/update/1_importance.ipynb
                 - Update: cookbook/inactive/update/2_update.ipynb
+                - Incremental: cookbook/inactive/update/3_speed_gains.ipynb
 
           - Library developers:
               - Dimap combinator: cookbook/inactive/library_author/dimap_combinator.ipynb

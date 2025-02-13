@@ -12,19 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 from deprecated import deprecated
 
-from genjax._src.core.generative.choice_map import ChoiceMap, ChoiceMapConstraint
+from genjax._src.core.generative.choice_map import (
+    ChoiceMap,
+    ChoiceMapConstraint,
+    ExtendedAddress,
+    Selection,
+)
 from genjax._src.core.generative.core import (
     Argdiffs,
     Arguments,
     Constraint,
     EditRequest,
     PrimitiveEditRequest,
-    Projection,
     Retdiff,
     Score,
     Weight,
@@ -179,13 +184,37 @@ class Trace(Generic[R], Pytree):
     def project(
         self,
         key: PRNGKey,
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
         gen_fn = self.get_gen_fn()
         return gen_fn.project(
             key,
             self,
-            projection,
+            selection,
+        )
+
+    def get_subtrace(self, *addresses: ExtendedAddress) -> "Trace[Any]":
+        """
+        Return the subtrace having the supplied address. Specifying multiple addresses
+        will apply the operation recursively.
+
+        GenJAX does not guarantee the validity of any inference computations performed
+        using information from the returned subtrace. In other words, it is safe to
+        inspect the data of subtraces -- but it not safe to use that data to make decisions
+        about inference. This is true of all the methods on the subtrace, including
+        `Trace.get_args`, `Trace.get_score`, `Trace.get_retval`, etc. It is safe to look,
+        but don't use the data for non-trivial things!"""
+
+        return functools.reduce(
+            lambda tr, addr: tr.get_inner_trace(addr), addresses, self
+        )
+
+    def get_inner_trace(self, address: ExtendedAddress) -> "Trace[Any]":
+        """Override this method to provide `Trace.get_subtrace` support
+        for those trace types that have substructure that can be addressed
+        in this way."""
+        raise NotImplementedError(
+            "This type of Trace object does not possess subtraces."
         )
 
     ###################
@@ -455,7 +484,7 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
         pass
 
@@ -1216,9 +1245,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.or_else(self, gen_fn)
 
-    def switch(
-        self, *branches: "GenerativeFunction[R]"
-    ) -> "genjax.SwitchCombinator[R]":
+    def switch(self, *branches: "GenerativeFunction[R]") -> "genjax.Switch[R]":
         """
         Given `n` [`genjax.GenerativeFunction`][] inputs, returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
 
@@ -1313,7 +1340,6 @@ class GenerativeFunction(Generic[R], Pytree):
         *,
         pre: Callable[..., ArgTuple],
         post: Callable[[tuple[Any, ...], ArgTuple, R], S],
-        info: str | None = None,
     ) -> "GenerativeFunction[S]":
         """
         Returns a new [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
@@ -1324,7 +1350,6 @@ class GenerativeFunction(Generic[R], Pytree):
         Args:
             pre: A callable that preprocesses the arguments before passing them to the wrapped function. Note that `pre` must return a _tuple_ of arguments, not a bare argument. Default is the identity function.
             post: A callable that postprocesses the return value of the wrapped function. Default is the identity function.
-            info: An optional string providing additional information about the `dimap` operation.
 
         Returns:
             A new [`genjax.GenerativeFunction`][] with `pre` and `post` applied.
@@ -1348,9 +1373,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return genjax.normal(x, y) @ "z"
 
 
-            dimap_model = model.dimap(
-                pre=pre_process, post=post_process, info="Square of normal"
-            )
+            dimap_model = model.dimap(pre=pre_process, post=post_process)
 
             # Use the dimap model
             key = jax.random.key(0)
@@ -1361,17 +1384,14 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.dimap(pre=pre, post=post, info=info)(self)
+        return genjax.dimap(pre=pre, post=post)(self)
 
-    def map(
-        self, f: Callable[[R], S], *, info: str | None = None
-    ) -> "GenerativeFunction[S]":
+    def map(self, f: Callable[[R], S]) -> "GenerativeFunction[S]":
         """
         Specialized version of [`genjax.dimap`][] where only the post-processing function is applied.
 
         Args:
             f: A callable that postprocesses the return value of the wrapped function.
-            info: An optional string providing additional information about the `map` operation.
 
         Returns:
             A [`genjax.GenerativeFunction`][] that acts like `self` with a post-processing function to its return value.
@@ -1391,7 +1411,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return genjax.normal(x, 1.0) @ "z"
 
 
-            map_model = model.map(square, info="Square of normal")
+            map_model = model.map(square)
 
             # Use the map model
             key = jax.random.key(0)
@@ -1402,17 +1422,14 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.map(f=f, info=info)(self)
+        return genjax.map(f=f)(self)
 
-    def contramap(
-        self, f: Callable[..., ArgTuple], *, info: str | None = None
-    ) -> "GenerativeFunction[R]":
+    def contramap(self, f: Callable[..., ArgTuple]) -> "GenerativeFunction[R]":
         """
         Specialized version of [`genjax.GenerativeFunction.dimap`][] where only the pre-processing function is applied.
 
         Args:
             f: A callable that preprocesses the arguments of the wrapped function. Note that `f` must return a _tuple_ of arguments, not a bare argument.
-            info: An optional string providing additional information about the `contramap` operation.
 
         Returns:
             A [`genjax.GenerativeFunction`][] that acts like `self` with a pre-processing function to its arguments.
@@ -1433,7 +1450,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return genjax.normal(x, 1.0) @ "z"
 
 
-            contramap_model = model.contramap(add_one, info="Add one to input")
+            contramap_model = model.contramap(add_one)
 
             # Use the contramap model
             key = jax.random.key(0)
@@ -1444,7 +1461,7 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.contramap(f=f, info=info)(self)
+        return genjax.contramap(f=f)(self)
 
     #####################
     # GenSP / inference #
@@ -1547,9 +1564,9 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[Any],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
-        return self.wrapped.project(key, trace, projection)
+        return self.wrapped.project(key, trace, selection)
 
     def edit(
         self,
@@ -1650,9 +1667,9 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[Any],
-        projection: Projection[Any],
+        selection: Selection,
     ):
-        return self.gen_fn.project(key, trace, projection)
+        return self.gen_fn.project(key, trace, selection)
 
     def edit(
         self,

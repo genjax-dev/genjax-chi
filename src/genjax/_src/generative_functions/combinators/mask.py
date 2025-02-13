@@ -23,13 +23,13 @@ from genjax._src.core.generative import (
     EditRequest,
     GenerativeFunction,
     Mask,
-    Projection,
     Retdiff,
     Score,
     Trace,
     Update,
     Weight,
 )
+from genjax._src.core.generative.choice_map import ExtendedAddress, Selection
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
@@ -104,6 +104,9 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     def get_score(self):
         return self.score
 
+    def get_inner_trace(self, address: ExtendedAddress) -> Trace[R]:
+        return self.inner.get_inner_trace(address)
+
 
 @Pytree.dataclass
 class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
@@ -170,7 +173,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         self,
         key: PRNGKey,
         trace: Trace[Mask[R]],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
         raise NotImplementedError
 

@@ -24,6 +24,7 @@ from genjax import ChoiceMapBuilder as C
 from genjax import Selection as S
 from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.typing import Array
+from genjax._src.generative_functions.static import MissingAddress
 from genjax.generative_functions.static import AddressReuse
 from genjax.typing import FloatArray
 
@@ -290,6 +291,24 @@ class TestStaticGenFnAssess:
         choice = tr.get_choices()
         (score, _retval) = jitted(choice, ())
         assert score == tr.get_score()
+
+    def test_assess_missing_address(self):
+        @genjax.gen
+        def model():
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            y2 = genjax.normal(0.0, 1.0) @ "y2"
+            return y1 + y2
+
+        with pytest.raises(MissingAddress) as exc:
+            _ = model.assess(C["y1"].set(1.0), ())
+        assert exc.value.args == ("y2",)
+
+        with pytest.raises(MissingAddress) as exc:
+            _ = model.assess(C["y2"].set(1.0), ())
+        assert exc.value.args == ("y1",)
+
+        score_retval = model.assess(C["y1"].set(1.0).at["y2"].set(-1.0), ())
+        assert score_retval == (-2.837877, 0.0)
 
 
 @Pytree.dataclass
@@ -763,7 +782,7 @@ class TestStaticGenFnStaticAddressChecks:
         key = jax.random.key(314159)
         with pytest.raises(AddressReuse) as exc_info:
             _ = simple_normal_addr_dup.simulate(key, ())
-        assert exc_info.value.args[0] == ("y1",)
+        assert exc_info.value.args[0] == "y1"
 
     def test_simple_normal_addr_tracer(self):
         @genjax.gen

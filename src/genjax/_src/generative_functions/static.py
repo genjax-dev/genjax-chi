@@ -13,8 +13,10 @@
 # limitations under the License.
 
 import functools
+import warnings
 from abc import abstractmethod
 from dataclasses import dataclass
+from typing import cast
 
 import jax
 import jax.numpy as jnp
@@ -30,7 +32,6 @@ from genjax._src.core.generative import (
     GenerativeFunction,
     NotSupportedEditRequest,
     PrimitiveEditRequest,
-    Projection,
     Regenerate,
     Retdiff,
     Score,
@@ -41,6 +42,7 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
+from genjax._src.core.generative.choice_map import ExtendedAddress
 from genjax._src.core.generative.generative_function import R, push_trace_overload_stack
 from genjax._src.core.interpreters.forward import (
     InitialStylePrimitive,
@@ -57,7 +59,6 @@ from genjax._src.core.pytree import Closure, Const, Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
-    FloatArray,
     Generic,
     PRNGKey,
     TypeAlias,
@@ -71,28 +72,6 @@ _WRAPPER_ASSIGNMENTS = (
     "__annotations__",
 )
 
-
-# Usage in transforms: checks for duplicate addresses.
-@Pytree.dataclass
-class AddressVisitor(Pytree):
-    visited: list[StaticAddress] = Pytree.static(default_factory=list)
-
-    def visit(self, addr: StaticAddress):
-        if addr in self.visited:
-            raise AddressReuse(addr)
-        else:
-            self.visited.append(addr)
-
-    def get_visited(self):
-        return self.visited
-
-
-def collapse_address(
-    addr: StaticAddressComponent | StaticAddress,
-) -> StaticAddressComponent | StaticAddress:
-    return addr[0] if isinstance(addr, tuple) and len(addr) == 1 else addr
-
-
 #########
 # Trace #
 #########
@@ -103,8 +82,7 @@ class StaticTrace(Generic[R], Trace[R]):
     gen_fn: "StaticGenerativeFunction[R]"
     args: tuple[Any, ...]
     retval: R
-    addresses: AddressVisitor
-    subtraces: list[Trace[Any]]
+    subtraces: dict[StaticAddress, Trace[R]]
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
@@ -116,19 +94,29 @@ class StaticTrace(Generic[R], Trace[R]):
         return self.gen_fn
 
     def get_choices(self) -> ChoiceMap:
-        addresses = self.addresses.get_visited()
-        sub_chms = (tr.get_choices() for tr in self.subtraces)
-        return ChoiceMap.from_mapping(zip(addresses, sub_chms))
+        return ChoiceMap.d({
+            address: subtrace.get_choices()
+            for address, subtrace in self.subtraces.items()
+        })
 
     def get_score(self) -> Score:
         return jnp.sum(
-            jnp.array([tr.get_score() for tr in self.subtraces], copy=False),
+            jnp.array([tr.get_score() for tr in self.subtraces.values()], copy=False),
         )
 
-    def get_subtrace(self, addr: StaticAddress):
-        addresses = self.addresses.get_visited()
-        idx = addresses.index(addr)
-        return self.subtraces[idx]
+    def get_inner_trace(self, address: ExtendedAddress):
+        if (
+            isinstance(address, tuple)
+            and len(address) == 1
+            and cast(StaticAddress, address) not in self.subtraces
+            and address[0] in self.subtraces
+        ):
+            warnings.warn(
+                "use of get_subtrace(('x',)) is deprecated: prefer get_subtrace('x')",
+                DeprecationWarning,
+            )
+            address = address[0]
+        return self.subtraces[cast(StaticAddress, address)]
 
 
 ####################################
@@ -156,6 +144,10 @@ class AddressReuse(Exception):
     """
 
 
+class MissingAddress(Exception):
+    """Attempt to assess a model without supplying values for all sampled addresses"""
+
+
 ##############
 # Primitives #
 ##############
@@ -173,7 +165,7 @@ trace_p = InitialStylePrimitive("trace")
 # stage, any traced values stored in `gen_fn`
 # get lifted to by `get_shaped_aval`.
 def _abstract_gen_fn_call(
-    _: tuple[Const[StaticAddress], ...],
+    _: Const[StaticAddressComponent] | tuple[Const[StaticAddress], ...],
     gen_fn: GenerativeFunction[R],
     args: tuple[Any, ...],
 ):
@@ -214,8 +206,15 @@ def trace(
 # This explicitly makes assumptions about some common fields:
 # e.g. it assumes if you are using `StaticHandler.get_submap`
 # in your code, that your derived instance has a `constraints` field.
-@dataclass
 class StaticHandler(StatefulHandler):
+    def __init__(self):
+        self.traces: dict[StaticAddress, Trace[Any]] = {}
+
+    def record(self, addr, trace):
+        if addr in self.traces:
+            raise AddressReuse(addr)
+        self.traces[addr] = trace
+
     @abstractmethod
     def handle_trace(
         self,
@@ -252,26 +251,19 @@ class StaticHandler(StatefulHandler):
 ############
 
 
-@dataclass
 class SimulateHandler(StaticHandler):
-    key: PRNGKey
-    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
-    key_counter: int = Pytree.static(default=1)
+    def __init__(self, key: PRNGKey):
+        super().__init__()
+        self.key = key
+        self.key_counter = 1
 
     def fresh_key_and_increment(self):
         new_key = jax.random.fold_in(self.key, self.key_counter)
         self.key_counter += 1
         return new_key
 
-    def visit(self, addr):
-        self.address_visitor.visit(addr)
-
     def yield_state(self):
-        return (
-            self.address_visitor,
-            self.address_traces,
-        )
+        return self.traces
 
     def handle_trace(
         self,
@@ -279,10 +271,9 @@ class SimulateHandler(StaticHandler):
         gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
-        self.visit(addr)
         sub_key = self.fresh_key_and_increment()
         tr = gen_fn.simulate(sub_key, args)
-        self.address_traces.append(tr)
+        self.record(addr, tr)
         v = tr.get_retval()
         return v
 
@@ -292,16 +283,8 @@ def simulate_transform(source_fn):
     def wrapper(key, args):
         stateful_handler = SimulateHandler(key)
         retval = forward(source_fn)(stateful_handler, *args)
-        (
-            address_visitor,
-            address_traces,
-        ) = stateful_handler.yield_state()
-        return (
-            args,
-            retval,
-            address_visitor,
-            address_traces,
-        )
+        traces = stateful_handler.yield_state()
+        return (args, retval, traces)
 
     return wrapper
 
@@ -313,9 +296,10 @@ def simulate_transform(source_fn):
 
 @dataclass
 class AssessHandler(StaticHandler):
-    choice_map_sample: ChoiceMap
-    score: Score = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
+    def __init__(self, choice_map_sample: ChoiceMap):
+        super().__init__()
+        self.choice_map_sample = choice_map_sample
+        self.score = jnp.zeros(())
 
     def yield_state(self):
         return (self.score,)
@@ -330,6 +314,8 @@ class AssessHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         submap = self.get_subsample(addr)
+        if submap.static_is_empty():
+            raise MissingAddress(addr)
         (score, v) = gen_fn.assess(submap, args)
         self.score += score
         return v
@@ -353,32 +339,24 @@ def assess_transform(source_fn):
 
 @dataclass
 class GenerateHandler(StaticHandler):
-    key: PRNGKey
-    choice_map: ChoiceMap
-    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    weight: Weight = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
-    key_counter: int = Pytree.static(default=1)
+    def __init__(self, key: PRNGKey, choice_map: ChoiceMap):
+        super().__init__()
+        self.key = key
+        self.choice_map = choice_map
+        self.weight: Weight = jnp.zeros(())
+        self.key_counter = 1
 
     def fresh_key_and_increment(self):
         new_key = jax.random.fold_in(self.key, self.key_counter)
         self.key_counter += 1
         return new_key
 
-    def visit(self, addr: StaticAddress):
-        self.address_visitor.visit(addr)
-
     def yield_state(
         self,
-    ) -> tuple[
-        Weight,
-        AddressVisitor,
-        list[Trace[Any]],
-    ]:
+    ) -> tuple[Weight, dict[StaticAddress, Trace[Any]]]:
         return (
             self.weight,
-            self.address_visitor,
-            self.address_traces,
+            self.traces,
         )
 
     def get_subconstraint(
@@ -393,12 +371,11 @@ class GenerateHandler(StaticHandler):
         gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
-        self.visit(addr)
         subconstraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
         (tr, w) = gen_fn.generate(sub_key, subconstraint, args)
         self.weight += w
-        self.address_traces.append(tr)
+        self.record(addr, tr)
 
         return tr.get_retval()
 
@@ -412,20 +389,11 @@ def generate_transform(source_fn):
     ):
         stateful_handler = GenerateHandler(key, choice_map)
         retval = forward(source_fn)(stateful_handler, *args)
-        (
-            weight,
-            address_visitor,
-            address_traces,
-        ) = stateful_handler.yield_state()
+        (weight, traces) = stateful_handler.yield_state()
         return (
             weight,
             # Trace.
-            (
-                args,
-                retval,
-                address_visitor,
-                address_traces,
-            ),
+            (args, retval, traces),
         )
 
     return wrapper
@@ -436,16 +404,17 @@ def generate_transform(source_fn):
 ###############
 
 
-@dataclass
 class UpdateHandler(StaticHandler):
-    key: PRNGKey
-    previous_trace: StaticTrace[Any]
-    constraint: ChoiceMap
-    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
-    bwd_constraints: list[ChoiceMap] = Pytree.field(default_factory=list)
-    key_counter: int = Pytree.static(default=1)
+    def __init__(
+        self, key: PRNGKey, previous_trace: StaticTrace[Any], constraint: ChoiceMap
+    ):
+        super().__init__()
+        self.key = key
+        self.previous_trace = previous_trace
+        self.constraint = constraint
+        self.weight = jnp.zeros(())
+        self.bwd_constraints: list[ChoiceMap] = []
+        self.key_counter = 1
 
     def fresh_key_and_increment(self):
         new_key = jax.random.fold_in(self.key, self.key_counter)
@@ -455,22 +424,18 @@ class UpdateHandler(StaticHandler):
     def yield_state(self):
         return (
             self.weight,
-            self.address_visitor,
-            self.address_traces,
+            self.traces,
             self.bwd_constraints,
         )
-
-    def visit(self, addr):
-        self.address_visitor.visit(addr)
 
     def get_subconstraint(self, addr: StaticAddress) -> ChoiceMap:
         return self.constraint(addr)
 
-    def get_subtrace(
+    def get_inner_trace(
         self,
         addr: StaticAddress,
     ):
-        return self.previous_trace.get_subtrace(addr)
+        return self.previous_trace.get_inner_trace(addr)
 
     def handle_retval(self, v):
         return jtu.tree_leaves(v, is_leaf=lambda v: isinstance(v, Diff))
@@ -482,8 +447,7 @@ class UpdateHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        self.visit(addr)
-        subtrace = self.get_subtrace(addr)
+        subtrace = self.get_inner_trace(addr)
         constraint = self.get_subconstraint(addr)
         sub_key = self.fresh_key_and_increment()
         request = Update(constraint)
@@ -497,7 +461,7 @@ class UpdateHandler(StaticHandler):
         )
         self.bwd_constraints.append(bwd_request.constraint)
         self.weight += w
-        self.address_traces.append(tr)
+        self.record(addr, tr)
 
         return retval_diff
 
@@ -519,8 +483,7 @@ def update_transform(source_fn):
         retval_primals = Diff.tree_primal(retval_diffs)
         (
             weight,
-            address_visitor,
-            address_traces,
+            traces,
             bwd_requests,
         ) = stateful_handler.yield_state()
         return (
@@ -531,8 +494,7 @@ def update_transform(source_fn):
                 (
                     diff_primals,
                     retval_primals,
-                    address_visitor,
-                    address_traces,
+                    traces,
                 ),
                 # Backward update problem.
                 bwd_requests,
@@ -547,16 +509,17 @@ def update_transform(source_fn):
 ###################################
 
 
-@dataclass
 class StaticEditRequestHandler(StaticHandler):
-    key: PRNGKey
-    previous_trace: StaticTrace[Any]
-    addressed: StaticDict
-    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
-    bwd_requests: list[EditRequest] = Pytree.field(default_factory=list)
-    key_counter: int = Pytree.static(default=1)
+    def __init__(
+        self, key: PRNGKey, previous_trace: StaticTrace[Any], addressed: StaticDict
+    ):
+        super().__init__()
+        self.key = key
+        self.previous_trace = previous_trace
+        self.addressed = addressed
+        self.weight = jnp.zeros(())
+        self.bwd_requests: list[EditRequest] = []
+        self.key_counter = 1
 
     def fresh_key_and_increment(self):
         new_key = jax.random.fold_in(self.key, self.key_counter)
@@ -566,18 +529,13 @@ class StaticEditRequestHandler(StaticHandler):
     def yield_state(self):
         return (
             self.weight,
-            self.address_visitor,
-            self.address_traces,
+            self.traces,
             self.bwd_requests,
         )
-
-    def visit(self, addr):
-        self.address_visitor.visit(addr)
 
     def get_subrequest(
         self, addr: StaticAddressComponent | StaticAddress
     ) -> EditRequest:
-        addr = collapse_address(addr)
         return self.addressed.get(addr, EmptyRequest())
 
     def get_subtrace(
@@ -596,7 +554,6 @@ class StaticEditRequestHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        self.visit(addr)
         subtrace = self.get_subtrace(addr)
         subrequest = self.get_subrequest(addr)
         sub_key = self.fresh_key_and_increment()
@@ -607,8 +564,7 @@ class StaticEditRequestHandler(StaticHandler):
         )
         self.bwd_requests.append(bwd_request)
         self.weight += w
-        self.address_traces.append(tr)
-
+        self.record(addr, tr)
         return retval_diff
 
 
@@ -617,7 +573,7 @@ def static_edit_request_transform(source_fn):
     def wrapper(
         key: PRNGKey,
         previous_trace: StaticTrace[R],
-        addressed: dict[StaticAddressComponent | StaticAddress, EditRequest],
+        addressed: dict[StaticAddress, EditRequest],
         diffs: tuple[Any, ...],
     ):
         stateful_handler = StaticEditRequestHandler(
@@ -633,8 +589,7 @@ def static_edit_request_transform(source_fn):
         retval_primals = Diff.tree_primal(retval_diffs)
         (
             weight,
-            address_visitor,
-            address_traces,
+            traces,
             bwd_requests,
         ) = stateful_handler.yield_state()
         return (
@@ -645,8 +600,7 @@ def static_edit_request_transform(source_fn):
                 (
                     diff_primals,
                     retval_primals,
-                    address_visitor,
-                    address_traces,
+                    traces,
                 ),
                 # Backward update problem.
                 bwd_requests,
@@ -661,17 +615,22 @@ def static_edit_request_transform(source_fn):
 #####################
 
 
-@dataclass
 class RegenerateRequestHandler(StaticHandler):
-    key: PRNGKey
-    previous_trace: StaticTrace[Any]
-    selection: Selection
-    edit_request: EditRequest
-    address_visitor: AddressVisitor = Pytree.field(default_factory=AddressVisitor)
-    weight: FloatArray = Pytree.field(default_factory=lambda: jnp.zeros(()))
-    address_traces: list[Trace[Any]] = Pytree.field(default_factory=list)
-    bwd_requests: list[EditRequest] = Pytree.field(default_factory=list)
-    key_counter: int = Pytree.static(default=1)
+    def __init__(
+        self,
+        key: PRNGKey,
+        previous_trace: StaticTrace[Any],
+        selection: Selection,
+        edit_request: EditRequest,
+    ):
+        super().__init__()
+        self.key = key
+        self.previous_trace = previous_trace
+        self.selection = selection
+        self.edit_request = edit_request
+        self.weight = jnp.zeros(())
+        self.bwd_requests: list[EditRequest] = []
+        self.key_counter = 1
 
     def fresh_key_and_increment(self):
         new_key = jax.random.fold_in(self.key, self.key_counter)
@@ -681,13 +640,9 @@ class RegenerateRequestHandler(StaticHandler):
     def yield_state(self):
         return (
             self.weight,
-            self.address_visitor,
-            self.address_traces,
+            self.traces,
             self.bwd_requests,
         )
-
-    def visit(self, addr):
-        self.address_visitor.visit(addr)
 
     def get_subselection(self, addr: StaticAddress) -> Selection:
         return self.selection(addr)
@@ -708,7 +663,6 @@ class RegenerateRequestHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
-        self.visit(addr)
         subtrace = self.get_subtrace(addr)
         subselection = self.get_subselection(addr)
         sub_key = self.fresh_key_and_increment()
@@ -716,7 +670,7 @@ class RegenerateRequestHandler(StaticHandler):
         tr, w, retval_diff, bwd_request = subrequest.edit(sub_key, subtrace, argdiffs)
         self.bwd_requests.append(bwd_request)
         self.weight += w
-        self.address_traces.append(tr)
+        self.record(addr, tr)
 
         return retval_diff
 
@@ -744,8 +698,7 @@ def regenerate_transform(source_fn):
         retval_primals = Diff.tree_primal(retval_diffs)
         (
             weight,
-            address_visitor,
-            address_traces,
+            traces,
             bwd_requests,
         ) = stateful_handler.yield_state()
         return (
@@ -756,8 +709,7 @@ def regenerate_transform(source_fn):
                 (
                     diff_primals,
                     retval_primals,
-                    address_visitor,
-                    address_traces,
+                    traces,
                 ),
                 # Backward update problem.
                 bwd_requests,
@@ -780,7 +732,7 @@ def handler_trace_with_static(
     gen_fn: GenerativeFunction[Any],
     args: tuple[Any, ...],
 ):
-    return trace(addr if isinstance(addr, tuple) else (addr,), gen_fn, args)
+    return trace(addr, gen_fn, args)
 
 
 @Pytree.dataclass
@@ -853,16 +805,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
-        (args, retval, address_visitor, address_traces) = simulate_transform(
-            syntax_sugar_handled
-        )(key, args)
-        return StaticTrace(
-            self,
-            args,
-            retval,
-            address_visitor,
-            address_traces,
-        )
+        (args, retval, traces) = simulate_transform(syntax_sugar_handled)(key, args)
+        return StaticTrace(self, args, retval, traces)
 
     def generate(
         self,
@@ -882,29 +826,22 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             (
                 args,
                 retval,
-                address_visitor,
-                address_traces,
+                traces,
             ),
         ) = generate_transform(syntax_sugar_handled)(key, constraint.choice_map, args)
-        return StaticTrace(
-            self,
-            args,
-            retval,
-            address_visitor,
-            address_traces,
-        ), weight
+        return StaticTrace(self, args, retval, traces), weight
 
     def project(
         self,
         key: PRNGKey,
         trace: Trace[Any],
-        projection: Projection[ChoiceMap],
+        selection: Selection,
     ) -> Weight:
         assert isinstance(trace, StaticTrace)
-        assert isinstance(projection, Selection), type(projection)
+
         weight = jnp.array(0.0)
-        for addr in trace.addresses.get_visited():
-            subprojection = projection(addr)
+        for addr in trace.subtraces.keys():
+            subprojection = selection(addr)
             subtrace = trace.get_subtrace(addr)
             weight += subtrace.project(key, subprojection)
         return weight
@@ -926,8 +863,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 (
                     arg_primals,
                     retval_primals,
-                    address_visitor,
-                    address_traces,
+                    traces,
                 ),
                 bwd_requests,
             ),
@@ -935,20 +871,18 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         if not Diff.static_check_tree_diff(retval_diffs):
             retval_diffs = Diff.no_change(retval_diffs)
 
-        def make_bwd_request(visitor, subconstraints):
-            addresses = visitor.get_visited()
-            addresses = Pytree.tree_const_unwrap(addresses)
+        def make_bwd_request(traces, subconstraints):
+            addresses = traces.keys()
             chm = ChoiceMap.from_mapping(zip(addresses, subconstraints))
             return Update(chm)
 
-        bwd_request = make_bwd_request(address_visitor, bwd_requests)
+        bwd_request = make_bwd_request(traces, bwd_requests)
         return (
             StaticTrace(
                 self,
                 arg_primals,
                 retval_primals,
-                address_visitor,
-                address_traces,
+                traces,
             ),
             weight,
             retval_diffs,
@@ -972,8 +906,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 (
                     arg_primals,
                     retval_primals,
-                    address_visitor,
-                    address_traces,
+                    traces,
                 ),
                 bwd_requests,
             ),
@@ -982,23 +915,18 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         )
 
         def make_bwd_request(
-            visitor: AddressVisitor,
+            traces: dict[StaticAddress, Trace[R]],
             subrequests: list[EditRequest],
         ):
-            addresses = visitor.get_visited()
-            addresses = Pytree.tree_const_unwrap(addresses)
-            addresses = map(collapse_address, addresses)
-            bwd_addressed = dict(zip(addresses, subrequests))
-            return StaticRequest(bwd_addressed)
+            return StaticRequest(dict(zip(traces.keys(), subrequests)))
 
-        bwd_request = make_bwd_request(address_visitor, bwd_requests)
+        bwd_request = make_bwd_request(traces, bwd_requests)
         return (
             StaticTrace(
                 self,
                 arg_primals,
                 retval_primals,
-                address_visitor,
-                address_traces,
+                traces,
             ),
             weight,
             retval_diffs,
@@ -1023,8 +951,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 (
                     arg_primals,
                     retval_primals,
-                    address_visitor,
-                    address_traces,
+                    traces,
                 ),
                 bwd_requests,
             ),
@@ -1033,23 +960,18 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         )
 
         def make_bwd_request(
-            visitor: AddressVisitor,
+            traces: dict[StaticAddress, Trace[R]],
             subrequests: list[EditRequest],
         ):
-            addresses = visitor.get_visited()
-            addresses = Pytree.tree_const_unwrap(addresses)
-            addresses = map(collapse_address, addresses)
-            bwd_addressed = dict(zip(addresses, subrequests))
-            return StaticRequest(bwd_addressed)
+            return StaticRequest(dict(zip(traces.keys(), subrequests)))
 
-        bwd_request = make_bwd_request(address_visitor, bwd_requests)
+        bwd_request = make_bwd_request(traces, bwd_requests)
         return (
             StaticTrace(
                 self,
                 arg_primals,
                 retval_primals,
-                address_visitor,
-                address_traces,
+                traces,
             ),
             weight,
             retval_diffs,

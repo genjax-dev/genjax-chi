@@ -3,7 +3,7 @@ name = "genjax"
 
 # Leave this at 0.0.0; this key can't be missing, but it's subbed out
 # dynamically by `poetry.dynamic-versioning`.
-version = "0.8.2.dev17+1e1d09d7"
+version = "0.0.0"
 
 description = "Probabilistic programming with Gen, built on top of JAX."
 authors = [
@@ -17,9 +17,9 @@ maintainers = [
 ]
 license = "Apache 2.0"
 readme = "README_pypi.md"
-homepage = "https://github.com/chi-collective/genjax"
-repository = "https://github.com/chi-collective/genjax"
-documentation = "https://chi-collective.github.io/genjax/"
+homepage = "https://github.com/chisym/genjax"
+repository = "https://github.com/chisym/genjax"
+documentation = "https://chisym.github.io/genjax/"
 keywords = [
     "artificial-intelligence",
     "probabilistic-programming",
@@ -34,10 +34,10 @@ classifiers = [
 ]
 
 [tool.poetry.urls]
-Changelog = "https://github.com/chi-collective/genjax/releases"
+Changelog = "https://github.com/chisym/genjax/releases"
 
 [tool.poetry.dependencies]
-python = ">=3.11,<3.13"
+python = ">=3.11,<4.0"
 jax = "^0.4.24"
 tensorflow-probability = "^0.23.0"
 jaxtyping = "^0.2.24"
@@ -48,7 +48,7 @@ treescope = "^0.1.5"
 # Numpy <2.0.0 is due to tfp issues: https://github.com/tensorflow/probability/issues/1814
 # remove this constraint when that issue is closed.
 numpy = ">=1.22,<2.0.0"
-genstudio = ">=2025.1.5"
+genstudio = ">=2025.2.1"
 
 [tool.poetry.group.dev]
 optional = true
@@ -183,7 +183,7 @@ show_error_codes = true
 show_error_context = true
 
 [tool.poetry-dynamic-versioning]
-enable = false
+enable = true
 vcs = "git"
 style = "pep440"
 

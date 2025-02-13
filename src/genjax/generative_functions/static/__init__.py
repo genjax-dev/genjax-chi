@@ -14,6 +14,7 @@
 
 from genjax._src.generative_functions.static import (
     AddressReuse,
+    MissingAddress,
     StaticGenerativeFunction,
     StaticRequest,
     gen,
@@ -23,6 +24,7 @@ from genjax._src.generative_functions.static import (
 
 __all__ = [
     "AddressReuse",
+    "MissingAddress",
     "StaticGenerativeFunction",
     "StaticRequest",
     "gen",

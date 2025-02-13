@@ -26,7 +26,6 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     FloatArray,
-    Generic,
     IntArray,
     Is,
     PRNGKey,
@@ -96,21 +95,6 @@ class Constraint(Pytree):
     """
     Constraints represent a request to force a value to satisfy a predicate.
     """
-
-
-###############
-# Projections #
-###############
-
-
-class Projection(Generic[S]):
-    @abstractmethod
-    def filter(self, sample: S) -> S:
-        pass
-
-    @abstractmethod
-    def complement(self) -> "Projection[S]":
-        pass
 
 
 #################
