@@ -26,7 +26,6 @@ repos:
       - id: poetry-check
       - id: poetry-install
         args: ["--with", "dev", "--all-extras"]
-        additional_dependencies: ['keyrings.google-artifactregistry-auth']
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.9.6
