@@ -14,31 +14,31 @@
 
 
 import jax.numpy as jnp
+import jax.tree_util as jtu
 
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    EmptyTrace,
+    Constraint,
+    EditRequest,
     GenerativeFunction,
-    GenericProblem,
-    ImportanceProblem,
     Mask,
-    MaskedProblem,
-    MaskedSample,
     Retdiff,
     Score,
     Trace,
-    UpdateProblem,
+    Update,
     Weight,
 )
-from genjax._src.core.generative.core import Constraint
+from genjax._src.core.generative.choice_map import ExtendedAddress, Selection
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import Flag
+from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
+    Flag,
     Generic,
     PRNGKey,
+    ScalarFlag,
     TypeVar,
 )
 
@@ -47,31 +47,65 @@ R = TypeVar("R")
 
 @Pytree.dataclass
 class MaskTrace(Generic[R], Trace[Mask[R]]):
+    """A trace type for the `MaskCombinator` generative function.
+
+    Users should use `MaskTrace.build` for constructing instances of `MaskTrace`,
+    """
+
     mask_combinator: "MaskCombinator[R]"
     inner: Trace[R]
+    args: tuple[Any, ...]
+    chm: ChoiceMap
+    score: Score
+    ret: Mask[R]
     check: Flag
 
-    def get_args(self) -> tuple[Flag, Any]:
-        return (self.check, *self.inner.get_args())
+    @staticmethod
+    def build(
+        scan_gen_fn: "MaskCombinator[R]", inner: Trace[R], check: ScalarFlag
+    ) -> "MaskTrace[R]":
+        """Construct a new `MaskTrace` instance.
+
+        This static method builds a `MaskTrace` by combining an inner trace with a check flag.
+        The check flag determines whether the inner trace's choices and return value are masked.
+
+        Args:
+            scan_gen_fn: The MaskCombinator generative function
+            inner: The inner trace to be masked
+            check: A scalar boolean flag indicating whether to mask the inner trace
+
+        Returns:
+            A new MaskTrace instance with choices, return value and score masked with the check flag
+        """
+        # NOTE: constructing these values in `build`, where `check` is guaranteed scalar, allows us
+        # to construct simple, non-vectorized `MaskTrace` instances. Returning these from `jax.vmap`
+        # will allow JAX to construct a vectorized `MaskTrace` for us.
+        #
+        # If we instead deferred these computations to the methods (get_choices() etc), these methods would have to combine vectorized `self.inner.get_choices()` with a vectorized `self.check`. This is tricky and error-prone.
+        args = (check, *inner.get_args())
+        chm = inner.get_choices().mask(check)
+        ret = Mask.build(inner.get_retval(), check)
+        score = check * inner.get_score()
+
+        return MaskTrace(scan_gen_fn, inner, args, chm, score, ret, check)
+
+    def get_args(self) -> tuple[Any, ...]:
+        return self.args
 
     def get_gen_fn(self):
         return self.mask_combinator
 
-    def get_sample(self):
-        inner_sample = self.inner.get_sample()
-        if isinstance(inner_sample, ChoiceMap):
-            return ChoiceMap.maybe(self.check, inner_sample)
-        else:
-            return MaskedSample(self.check, self.inner.get_sample())
+    def get_choices(self) -> ChoiceMap:
+        return self.chm
 
     def get_retval(self):
-        return Mask(self.check, self.inner.get_retval())
+        return self.ret
 
     def get_score(self):
-        inner_score = self.inner.get_score()
-        return jnp.asarray(
-            self.check.where(inner_score, jnp.zeros(shape=inner_score.shape))
-        )
+        return self.score
+
+    def get_inner_trace(self, address: ExtendedAddress) -> Trace[R]:
+        return self.inner.get_inner_trace(address)
 
 
 @Pytree.dataclass
@@ -101,7 +135,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
             return genjax.normal(mean, 1.0) @ "x"
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         tr = jax.jit(masked_normal_draw.simulate)(
             key,
             (
@@ -121,119 +155,126 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         args: tuple[Any, ...],
     ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
-        check = Flag.as_flag(check)
-
         tr = self.gen_fn.simulate(key, inner_args)
-        return MaskTrace(self, tr, check)
+        return MaskTrace.build(self, tr, check)
 
-    def update_change_target(
+    def generate(
+        self,
+        key: PRNGKey,
+        constraint: Constraint,
+        args: tuple[Any, ...],
+    ) -> tuple[MaskTrace[R], Weight]:
+        check, inner_args = args[0], args[1:]
+
+        tr, w = self.gen_fn.generate(key, constraint, inner_args)
+        return MaskTrace.build(self, tr, check), w * check
+
+    def project(
         self,
         key: PRNGKey,
         trace: Trace[Mask[R]],
-        update_problem: UpdateProblem,
+        selection: Selection,
+    ) -> Weight:
+        raise NotImplementedError
+
+    def edit(
+        self,
+        key: PRNGKey,
+        trace: Trace[Mask[R]],
+        edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
-        check = Diff.tree_primal(argdiffs)[0]
+    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], EditRequest]:
+        assert isinstance(trace, MaskTrace)
+        assert isinstance(edit_request, Update)
+
         check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
+        post_check: ScalarFlag = Diff.tree_primal(check_diff)
+
         match trace:
             case MaskTrace():
-                inner_trace = trace.inner
-            case EmptyTrace():
-                inner_trace = EmptyTrace(self.gen_fn)
-            case _:
-                raise NotImplementedError(f"Unexpected trace type: {trace}")
+                pre_check = trace.check
+                original_trace: Trace[R] = trace.inner
 
-        premasked_trace, w, retdiff, bwd_problem = self.gen_fn.update(
-            key, inner_trace, GenericProblem(inner_argdiffs, update_problem)
+        subrequest = Update(edit_request.constraint)
+
+        premasked_trace, weight, retdiff, bwd_request = self.gen_fn.edit(
+            key, original_trace, subrequest, inner_argdiffs
         )
 
-        w = check.where(w, -trace.get_score())
+        final_trace: Trace[R] = jtu.tree_map(
+            lambda v1, v2: jnp.where(post_check, v1, v2),
+            premasked_trace,
+            original_trace,
+        )
+
+        t_to_t = FlagOp.and_(pre_check, post_check)
+        t_to_f = FlagOp.and_(pre_check, FlagOp.not_(post_check))
+        f_to_f = FlagOp.and_(FlagOp.not_(pre_check), FlagOp.not_(post_check))
+        f_to_t = FlagOp.and_(FlagOp.not_(pre_check), post_check)
+
+        final_weight = (
+            #       What's the math for the weight term here?
+            #
+            # Well, if we started with a "masked false trace",
+            # and then we flip the check_arg to True, we can re-use
+            # the sampling process which created the original trace as
+            # part of the move. The weight is the entire new trace's score.
+            #
+            # That's the transition False -> True:
+            #
+            #               final_weight = final_trace.score()
+            #
+            f_to_t * final_trace.get_score()
+            #
+            # On the other hand, if we started True, and went False, no matter
+            # the update, we can make the choice that this move is just removing
+            # the samples from the original trace, and ignoring the move.
+            #
+            # That's the transition True -> False:
+            #
+            #               final_weight = -original_trace.score()
+            #
+            + t_to_f * -original_trace.get_score()
+            #
+            # For the transition False -> False, we just ignore the move entirely.
+            #
+            #               final_weight = 0.0
+            #
+            + f_to_f * 0.0
+            #
+            # For the transition True -> True, we apply the move to the existing
+            # unmasked trace. In that case, the weight is just the weight of the move.
+            #
+            #               final_weight = weight
+            #
+            + t_to_t * weight
+            #
+            # In any case, we always apply the move... we're not avoiding
+            # that computation.
+        )
+
+        assert isinstance(bwd_request, Update)
+        inner_chm = bwd_request.constraint
 
         return (
-            MaskTrace(self, premasked_trace, check),
-            w,
-            Mask.maybe(check_diff, retdiff),
-            MaskedProblem(check, bwd_problem),
+            MaskTrace.build(self, premasked_trace, post_check),
+            final_weight,
+            Mask.build(retdiff, check_diff),
+            Update(
+                inner_chm.mask(post_check),
+            ),
         )
-
-    def update_change_target_from_false(
-        self,
-        key: PRNGKey,
-        trace: Trace[Mask[R]],
-        update_problem: UpdateProblem,
-        argdiffs: Argdiffs,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
-        check = Diff.tree_primal(argdiffs)[0]
-        check_diff, inner_argdiffs = argdiffs[0], argdiffs[1:]
-
-        inner_trace = EmptyTrace(self.gen_fn)
-
-        assert isinstance(update_problem, Constraint)
-        imp_update_problem = ImportanceProblem(update_problem)
-
-        premasked_trace, w, _, _ = self.gen_fn.update(
-            key, inner_trace, GenericProblem(inner_argdiffs, imp_update_problem)
-        )
-
-        _, _, retdiff, bwd_problem = self.gen_fn.update(
-            key, premasked_trace, GenericProblem(inner_argdiffs, update_problem)
-        )
-
-        premasked_score = premasked_trace.get_score()
-        w = check.where(premasked_score, jnp.zeros(premasked_score.shape))
-
-        return (
-            MaskTrace(self, premasked_trace, check),
-            w,
-            Mask.maybe(check_diff, retdiff),
-            MaskedProblem(check, bwd_problem),
-        )
-
-    def update(
-        self,
-        key: PRNGKey,
-        trace: Trace[Mask[R]],
-        update_problem: UpdateProblem,
-    ) -> tuple[MaskTrace[R], Weight, Retdiff[Mask[R]], UpdateProblem]:
-        assert isinstance(trace, MaskTrace) or isinstance(trace, EmptyTrace)
-
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem) if isinstance(
-                subproblem, ImportanceProblem
-            ):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
-            case GenericProblem(argdiffs, subproblem):
-                assert isinstance(trace, MaskTrace)
-
-                if trace.check.concrete_false():
-                    raise Exception(
-                        "This move is not currently supported! See https://github.com/probcomp/genjax/issues/1230 for notes."
-                    )
-
-                return trace.check.cond(
-                    self.update_change_target,
-                    self.update_change_target_from_false,
-                    key,
-                    trace,
-                    subproblem,
-                    argdiffs,
-                )
-
-            case _:
-                return self.update_change_target(
-                    key, trace, update_problem, Diff.no_change(trace.get_args())
-                )
 
     def assess(
         self,
         sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, Mask[R]]:
-        (check, *inner_args) = args
-        score, retval = self.gen_fn.assess(sample, tuple(inner_args))
+        check, inner_args = args[0], args[1:]
+        score, retval = self.gen_fn.assess(sample, inner_args)
         return (
-            check.f * score,
-            Mask(check, retval),
+            check * score,
+            Mask(retval, check),
         )
 
 
@@ -268,7 +309,7 @@ def mask(f: GenerativeFunction[R]) -> MaskCombinator[R]:
             return genjax.normal(mean, 1.0) @ "x"
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         tr = jax.jit(masked_normal_draw.simulate)(
             key,
             (

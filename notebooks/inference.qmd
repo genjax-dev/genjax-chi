@@ -1,5 +1,0 @@
----
-title: "Inference"
----
-
-This sections shows some of the ways do to inference in GenJAX, either by using lbrary functions or by showing how to design custom inference logic that plays well that plays well with the system.

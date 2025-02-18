@@ -1,5 +1,0 @@
----
-title: "Speed"
----
-
-This sections shows some strategies for speeding up inference, leveraging the fact that GenJAX can natively run on a GPU.

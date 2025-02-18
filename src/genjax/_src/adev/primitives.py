@@ -14,8 +14,15 @@
 """Defines ADEV primitives."""
 
 import jax
+import jax._src.core
+import jax._src.dtypes as jax_dtypes
 import jax.numpy as jnp
-from jax.interpreters.ad import instantiate_zeros, recast_to_float0, zeros_like_jaxval
+from jax._src.ad_util import Zero
+from jax._src.core import (
+    get_aval,
+    raise_to_shaped,
+)
+from jax.interpreters.ad import zeros_like_aval
 from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.adev.core import (
@@ -32,6 +39,26 @@ from genjax._src.core.typing import (
 )
 
 tfd = tfp.distributions
+
+# These methods are pulled from jax.interpreters.ad:
+
+
+def instantiate_zeros(tangent):
+    return zeros_like_aval(tangent.aval) if type(tangent) is Zero else tangent
+
+
+def zeros_like_jaxval(val):
+    return zeros_like_aval(raise_to_shaped(get_aval(val)))
+
+
+def recast_to_float0(primal, tangent):
+    if (
+        jax._src.core.primal_dtype_to_tangent_dtype(jax_dtypes.dtype(primal))
+        == jax_dtypes.float0
+    ):
+        return Zero(jax._src.core.get_aval(primal).at_least_vspace())
+    else:
+        return tangent
 
 
 def zero(v):

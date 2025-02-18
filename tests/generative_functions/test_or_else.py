@@ -14,7 +14,6 @@
 
 import jax
 import pytest
-from jax import numpy as jnp
 
 import genjax
 
@@ -22,7 +21,7 @@ import genjax
 class TestOrElse:
     @pytest.fixture
     def key(self):
-        return jax.random.PRNGKey(314159)
+        return jax.random.key(314159)
 
     def test_assess_or_else(self, key):
         @genjax.gen
@@ -31,24 +30,26 @@ class TestOrElse:
 
         f_or_f = f.or_else(f)
         args = (True, (), ())
+        tr = f_or_f.simulate(key, args)
         score, ret = f_or_f.assess(f_or_f.simulate(key, args).get_choices(), args)
 
-        assert -0.9247955 == score
-        assert -0.108230986 == ret
+        assert tr.get_score() == score
+        assert tr.get_retval() == ret
 
     def test_assess_or_else_inside_fn(self, key):
         p = 0.5
 
         @genjax.gen
         def f():
-            flip = jnp.bool_(genjax.flip(p) @ "flip")
+            flip = genjax.flip(p) @ "flip"
             return (
                 genjax.normal(0.0, 1.0).or_else(genjax.normal(2.0, 1.0))(flip, (), ())
                 @ "value"
             )
 
         args = ()
-        score, ret = f.assess(f.simulate(key, args).get_choices(), args)
+        tr = f.simulate(key, args)
+        score, ret = f.assess(tr.get_choices(), args)
 
-        assert -1.6497414 == score
-        assert 0.27442896 == ret
+        assert tr.get_score() == score
+        assert tr.get_retval() == ret

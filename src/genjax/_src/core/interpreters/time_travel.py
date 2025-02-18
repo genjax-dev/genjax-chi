@@ -31,8 +31,6 @@ from genjax._src.core.typing import (
     ArrayLike,
     Callable,
     Generic,
-    Int,
-    String,
     TypeVar,
 )
 
@@ -53,7 +51,7 @@ class FrameRecording(Generic[R, S], Pytree):
 @Pytree.dataclass
 class RecordPoint(Generic[R, S], Pytree):
     callable: Closure[R]
-    debug_tag: String | None = Pytree.static()
+    debug_tag: str | None = Pytree.static()
 
     def default_call(self, *args) -> R:
         return self.callable(*args)
@@ -81,10 +79,10 @@ class RecordPoint(Generic[R, S], Pytree):
 
 def rec(
     callable: Callable[..., R],
-    debug_tag: String | None = None,
+    debug_tag: str | None = None,
 ):
     if not isinstance(callable, Closure):
-        callable = Pytree.partial()(callable)
+        callable = Closure[R]((), callable)
 
     def inner(*args):
         return RecordPoint(callable, debug_tag)(*args)
@@ -124,7 +122,7 @@ class TimeTravelCPSInterpreter(Pytree):
         ):
             jax_util.safe_map(env.write, invars, flat_args)
 
-            for eqn_idx, eqn in list(enumerate(eqns)):
+            for eqn_idx, eqn in enumerate(eqns):
                 with src_util.user_context(eqn.source_info.traceback):
                     invals = jax_util.safe_map(env.read, eqn.invars)
                     subfuns, params = eqn.primitive.get_bind_params(eqn.params)
@@ -203,21 +201,21 @@ class TimeTravelingDebugger(Pytree):
     final_retval: Any
     sequence: list[FrameRecording[Any, Any]]
     jump_points: dict[Any, Any] = Pytree.static()
-    ptr: Int = Pytree.static()
+    ptr: int = Pytree.static()
 
-    def frame(self) -> tuple[String | None, FrameRecording[Any, Any]]:
+    def frame(self) -> tuple[str | None, FrameRecording[Any, Any]]:
         frame = self.sequence[self.ptr]
         reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
         jump_tag = reverse_jump_points.get(self.ptr, None)
         return jump_tag, frame
 
-    def summary(self) -> tuple[Any, tuple[String | None, FrameRecording[Any, Any]]]:
+    def summary(self) -> tuple[Any, tuple[str | None, FrameRecording[Any, Any]]]:
         frame = self.sequence[self.ptr]
         reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
         jump_tag = reverse_jump_points.get(self.ptr, None)
         return self.final_retval, (jump_tag, frame)
 
-    def jump(self, debug_tag: String) -> "TimeTravelingDebugger":
+    def jump(self, debug_tag: str) -> "TimeTravelingDebugger":
         jump_pt = self.jump_points[debug_tag]
         return TimeTravelingDebugger(
             self.final_retval,
@@ -254,11 +252,11 @@ class TimeTravelingDebugger(Pytree):
         frame = self.sequence[self.ptr]
         f, cont = frame.f, frame.cont
         local_retval = f(*args)
-        _, _debugger = _record(cont)(*args)
+        _, debugger = _record(cont)(*args)
         new_frame = FrameRecording(f, args, local_retval, cont)
         return TimeTravelingDebugger(
-            _debugger.final_retval,
-            [*self.sequence[: self.ptr], new_frame, *_debugger.sequence],
+            debugger.final_retval,
+            [*self.sequence[: self.ptr], new_frame, *debugger.sequence],
             self.jump_points,
             self.ptr,
         )
@@ -269,7 +267,7 @@ class TimeTravelingDebugger(Pytree):
 
 def _record(source: Callable[..., Any]):
     def inner(*args) -> tuple[Any, TimeTravelingDebugger]:
-        retval, next = time_travel(source)(*args)
+        retval, next = time_travel(source)(*args)  # pyright: ignore[reportGeneralTypeIssues]
         sequence = []
         jump_points = {}
         while next:
@@ -278,7 +276,7 @@ def _record(source: Callable[..., Any]):
             if debug_tag:
                 jump_points[debug_tag] = len(sequence) - 1
             args, cont = frame.args, frame.cont
-            retval, next = time_travel(cont)(*args)
+            retval, next = time_travel(cont)(*args)  # pyright: ignore[reportGeneralTypeIssues]
         return retval, TimeTravelingDebugger(retval, sequence, jump_points, 0)
 
     return inner

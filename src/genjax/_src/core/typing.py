@@ -41,27 +41,25 @@ IntArray = jtyping.Int[jtyping.Array, "..."]
 FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
+TypeAlias = btyping.TypeAlias
 Sequence = btyping.Sequence
+Iterable = btyping.Iterable
+Final = btyping.Final
 Generator = btyping.Generator
+Literal = btyping.Literal
 
 # JAX Type alias.
-InAxes = int | None | Sequence[Any]
+InAxes = int | Sequence[Any] | None
 
-# Types of Python literals.
-Int = int
-Float = float
-Bool = bool
-String = str
-
-Value = Any
+Flag = bool | BoolArray
 
 #################################
 # Trace-time-checked primitives #
 #################################
 
 ScalarShaped = Is[lambda arr: jnp.array(arr, copy=False).shape == ()]
-ScalarBool = Annotated[Bool | BoolArray, ScalarShaped]
-
+ScalarFlag = Annotated[Flag, ScalarShaped]
+ScalarInt = Annotated[IntArray, ScalarShaped]
 
 ############
 # Generics #
@@ -77,7 +75,7 @@ ParamSpec = btyping.ParamSpec
 #################
 
 
-def static_check_is_array(v: Any) -> Bool:
+def static_check_is_array(v: Any) -> bool:
     return (
         isinstance(v, jnp.ndarray)
         or isinstance(v, np.ndarray)
@@ -95,7 +93,7 @@ def static_check_supports_grad(v):
     return static_check_is_array(v) and v.dtype == np.float32
 
 
-def static_check_shape_dtype_equivalence(vs: list[Array]) -> Bool:
+def static_check_shape_dtype_equivalence(vs: list[Array]) -> bool:
     shape_dtypes = [(v.shape, v.dtype) for v in vs]
     num_unique = set(shape_dtypes)
     return len(num_unique) == 1
@@ -106,26 +104,27 @@ __all__ = [
     "Any",
     "Array",
     "ArrayLike",
-    "Bool",
     "BoolArray",
     "Callable",
     "EllipsisType",
-    "Float",
+    "Final",
+    "Flag",
     "FloatArray",
     "Generator",
     "Generic",
     "InAxes",
-    "Int",
     "IntArray",
     "Is",
+    "Iterable",
     "PRNGKey",
     "ParamSpec",
-    "ScalarBool",
+    "ScalarFlag",
+    "ScalarInt",
     "ScalarShaped",
     "Self",
     "Sequence",
+    "TypeAlias",
     "TypeVar",
-    "Value",
     "static_check_is_array",
     "static_check_is_concrete",
     "static_check_shape_dtype_equivalence",

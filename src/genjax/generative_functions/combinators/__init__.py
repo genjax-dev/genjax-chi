@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from genjax._src.generative_functions.combinators.dimap import (
-    DimapCombinator,
+    Dimap,
     contramap,
     dimap,
     map,
@@ -33,29 +33,35 @@ from genjax._src.generative_functions.combinators.repeat import (
     repeat,
 )
 from genjax._src.generative_functions.combinators.scan import (
-    ScanCombinator,
+    IndexRequest,
+    Scan,
+    VectorRequest,
     accumulate,
     iterate,
     iterate_final,
+    masked_iterate,
+    masked_iterate_final,
     reduce,
     scan,
 )
 from genjax._src.generative_functions.combinators.switch import (
-    SwitchCombinator,
+    Switch,
     switch,
 )
 from genjax._src.generative_functions.combinators.vmap import (
-    VmapCombinator,
+    Vmap,
     vmap,
 )
 
 __all__ = [
-    "DimapCombinator",
+    "Dimap",
+    "IndexRequest",
     "MaskCombinator",
     "RepeatCombinator",
-    "ScanCombinator",
-    "SwitchCombinator",
-    "VmapCombinator",
+    "Scan",
+    "Switch",
+    "VectorRequest",
+    "Vmap",
     "accumulate",
     "contramap",
     "dimap",
@@ -63,6 +69,8 @@ __all__ = [
     "iterate_final",
     "map",
     "mask",
+    "masked_iterate",
+    "masked_iterate_final",
     "mix",
     "or_else",
     "reduce",

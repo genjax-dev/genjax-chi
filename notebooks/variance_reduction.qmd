@@ -1,5 +1,0 @@
----
-title: "Variance Reductions"
----
-
-This section shows how to apply some variance reduction techniques in GenJAX to improve inference quality.

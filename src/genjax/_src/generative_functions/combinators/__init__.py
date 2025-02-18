@@ -21,7 +21,7 @@ lifting the operation to support generative function semantics.
 GenJAX exposes several combinators:
 
 * [`MaskedCombinator`](masked.md) - which can mask a generative computation based on a runtime determined `BoolArray` argument.
-* [`VmapCombinator`](map.md) - which exposes generative vectorization over input arguments. The implementation essentially wraps [`jax.vmap`](https://jax.readthedocs.io/en/latest/_autosummary/jax.vmap.html) into the interfaces.
-* [`ScanCombinator`](unfold.md) - which exposes a scan-like pattern for generative computation in a state space pattern, by utilizing the control flow primitive [`jax.lax.scan`](https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.scan.html).
-* [`SwitchCombinator`](switch.md) - which exposes stochastic branching patterns, by utilizing the control flow primitive [`jax.lax.switch`](https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html).
+* [`Vmap`](map.md) - which exposes generative vectorization over input arguments. The implementation essentially wraps [`jax.vmap`](https://jax.readthedocs.io/en/latest/_autosummary/jax.vmap.html) into the interfaces.
+* [`Scan`](unfold.md) - which exposes a scan-like pattern for generative computation in a state space pattern, by utilizing the control flow primitive [`jax.lax.scan`](https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.scan.html).
+* [`Switch`](switch.md) - which exposes stochastic branching patterns, by utilizing the control flow primitive [`jax.lax.switch`](https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html).
 """
