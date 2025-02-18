@@ -50,6 +50,7 @@ Literal = btyping.Literal
 
 # JAX Type alias.
 InAxes = int | Sequence[Any] | None
+OutAxes = int | Sequence[Any] | None
 
 Flag = bool | BoolArray
 
@@ -116,6 +117,7 @@ __all__ = [
     "IntArray",
     "Is",
     "Iterable",
+    "OutAxes",
     "PRNGKey",
     "ParamSpec",
     "ScalarFlag",

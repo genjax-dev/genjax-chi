@@ -46,6 +46,7 @@ from genjax._src.core.typing import (
     Callable,
     Generic,
     InAxes,
+    OutAxes,
     PRNGKey,
 )
 
@@ -97,12 +98,14 @@ class VmapTrace(Generic[R], Trace[R]):
 class Vmap(Generic[R], GenerativeFunction[R]):
     """`Vmap` is a generative function which lifts another generative function to support `vmap`-based patterns of parallel (and generative) computation.
 
-    In contrast to the full set of options which [`jax.vmap`](https://jax.readthedocs.io/en/latest/_autosummary/jax.vmap.html), this combinator expects an `in_axes: tuple` configuration argument, which indicates how the underlying `vmap` patterns should be broadcast across the input arguments to the generative function.
+    In contrast to the full set of options which [`jax.vmap`](https://docs.jax.dev/en/latest/_autosummary/jax.vmap.html), this combinator expects an `in_axes: tuple` configuration argument, which indicates how the underlying `vmap` patterns should be broadcast across the input arguments to the generative function.
 
     Attributes:
         gen_fn: A [`genjax.GenerativeFunction`][] to be vectorized.
 
-        in_axes: A tuple specifying which input arguments (or indices into them) should be vectorized. `in_axes` must match (or prefix) the `Pytree` type of the argument tuple for the underlying `gen_fn`. Defaults to 0, i.e., the first argument. See [this link](https://jax/readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
+        in_axes: A tuple specifying which input arguments (or indices into them) should be vectorized. `in_axes` must match (or prefix) the `Pytree` type of the argument tuple for the underlying `gen_fn`. Defaults to 0, i.e., the first argument. See [this link](https://docs.jax.dev/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
+
+        out_axis: A tuple specifying which output values (or indices into them) should be vectorized. `out_axes` must match (or prefix) the `Pytree` type of the output tuple for the underlying `gen_fn`. Defaults to 0, i.e., the first argument.
 
     Examples:
         Create a `Vmap` using the [`genjax.vmap`][] decorator:
@@ -144,6 +147,7 @@ class Vmap(Generic[R], GenerativeFunction[R]):
 
     gen_fn: GenerativeFunction[R]
     in_axes: InAxes = Pytree.static()
+    out_axes: OutAxes = Pytree.static()
 
     def __abstract_call__(self, *args) -> Any:
         return jax.vmap(self.gen_fn.__abstract_call__, in_axes=self.in_axes)(*args)
@@ -185,7 +189,9 @@ class Vmap(Generic[R], GenerativeFunction[R]):
         sub_keys = jax.random.split(key, dim_length)
 
         # vmapping over `gen_fn`'s `simulate` gives us a new trace with vector-shaped leaves.
-        tr = jax.vmap(self.gen_fn.simulate, (0, self.in_axes))(sub_keys, args)
+        tr = jax.vmap(self.gen_fn.simulate, (0, self.in_axes), out_axes=self.out_axes)(
+            sub_keys, args
+        )
 
         return VmapTrace.build(self, tr, args, dim_length)
 
