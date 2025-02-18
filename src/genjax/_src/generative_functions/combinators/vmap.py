@@ -317,18 +317,15 @@ class Vmap(Generic[R], GenerativeFunction[R]):
         )
         argdiffs_slice = Diff.tree_diff(primal_slice, Diff.tree_tangent(argdiffs))
 
-        new_trace_slice, w, retdiff, bwd_request = self.gen_fn.edit(
+        new_trace_slice, w, _, bwd_request = self.gen_fn.edit(
             key,
             trace_slice,
             request,
             argdiffs_slice,
         )
 
-        def mutator(v, idx, setter):
-            return v.at[idx].set(setter)
-
         new_inner_trace = jtu.tree_map(
-            lambda v, v_: mutator(v, idx, v_), trace.inner, new_trace_slice
+            lambda v, v_: v.at[idx].set(v_), trace.inner, new_trace_slice
         )
 
         map_tr = VmapTrace.build(self, new_inner_trace, primals, dim_length)
