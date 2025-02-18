@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 
 import jax
 import jax.numpy as jnp
+from beartype.typing import overload
 from jax import core as jc
 from jax import tree_util as jtu
 from jax.experimental import checkify
@@ -63,51 +64,93 @@ class FlagOp:
     """
 
     @staticmethod
+    def is_scalar(f: Flag) -> bool:
+        """Check if a flag is scalar.
+
+        A flag is considered scalar if it is either a Python bool or a JAX array with empty shape ().
+
+        Args:
+            f: The flag to check. Can be a Python bool or JAX array.
+
+        Returns:
+            bool: True if the flag is scalar, False otherwise.
+        """
+        return isinstance(f, bool) or f.shape == ()
+
+    @staticmethod
+    @overload
+    def and_(f: bool, g: bool) -> bool: ...
+
+    @staticmethod
+    @overload
+    def and_(f: Array, g: bool | Array) -> Array: ...
+
+    @staticmethod
+    @overload
+    def and_(f: bool | Array, g: Array) -> Array: ...
+
+    @staticmethod
     def and_(f: Flag, g: Flag) -> Flag:
-        # True and X => X. False and X => False.
-        if f is True:
-            return g
-        if f is False:
-            return f
-        if g is True:
-            return f
-        if g is False:
-            return g
-        return jnp.logical_and(f, g)
+        if isinstance(f, bool) and isinstance(g, bool):
+            return f & g
+        else:
+            return jnp.logical_and(f, g)
+
+    @staticmethod
+    @overload
+    def or_(f: bool, g: bool) -> bool: ...
+
+    @staticmethod
+    @overload
+    def or_(f: Array, g: bool | Array) -> Array: ...
+
+    @staticmethod
+    @overload
+    def or_(f: bool | Array, g: Array) -> Array: ...
 
     @staticmethod
     def or_(f: Flag, g: Flag) -> Flag:
-        # True or X => True. False or X => X.
-        if f is True:
-            return f
-        if f is False:
-            return g
-        if g is True:
-            return g
-        if g is False:
-            return f
-        return jnp.logical_or(f, g)
+        if isinstance(f, bool) and isinstance(g, bool):
+            return f | g
+        else:
+            return jnp.logical_or(f, g)
+
+    @staticmethod
+    @overload
+    def xor_(f: bool, g: bool) -> bool: ...
+
+    @staticmethod
+    @overload
+    def xor_(f: Array, g: bool | Array) -> Array: ...
+
+    @staticmethod
+    @overload
+    def xor_(f: bool | Array, g: Array) -> Array: ...
 
     @staticmethod
     def xor_(f: Flag, g: Flag) -> Flag:
-        # True xor X => ~X. False xor X => X.
-        if f is True:
-            return FlagOp.not_(g)
-        if f is False:
-            return g
-        if g is True:
-            return FlagOp.not_(f)
-        if g is False:
-            return f
-        return jnp.logical_xor(f, g)
+        if isinstance(f, bool) and isinstance(g, bool):
+            return f ^ g
+        else:
+            return jnp.logical_xor(f, g)
+
+    @staticmethod
+    @overload
+    def not_(f: bool) -> bool: ...
+
+    @staticmethod
+    @overload
+    def not_(f: Array) -> Array: ...
 
     @staticmethod
     def not_(f: Flag) -> Flag:
-        if f is True:
-            return False
-        if f is False:
-            return True
-        return jnp.logical_not(f)
+        match f:
+            case True:
+                return False
+            case False:
+                return True
+            case _:
+                return jnp.logical_not(f)
 
     @staticmethod
     def concrete_true(f: Flag) -> bool:

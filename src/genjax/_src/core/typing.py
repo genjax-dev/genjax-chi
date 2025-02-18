@@ -41,17 +41,17 @@ IntArray = jtyping.Int[jtyping.Array, "..."]
 FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
+TypeAlias = btyping.TypeAlias
 Sequence = btyping.Sequence
 Iterable = btyping.Iterable
 Final = btyping.Final
 Generator = btyping.Generator
+Literal = btyping.Literal
 
 # JAX Type alias.
-InAxes = int | None | Sequence[Any]
+InAxes = int | Sequence[Any] | None
 
 Flag = bool | BoolArray
-
-Value = Any
 
 #################################
 # Trace-time-checked primitives #
@@ -59,7 +59,7 @@ Value = Any
 
 ScalarShaped = Is[lambda arr: jnp.array(arr, copy=False).shape == ()]
 ScalarFlag = Annotated[Flag, ScalarShaped]
-
+ScalarInt = Annotated[IntArray, ScalarShaped]
 
 ############
 # Generics #
@@ -119,11 +119,12 @@ __all__ = [
     "PRNGKey",
     "ParamSpec",
     "ScalarFlag",
+    "ScalarInt",
     "ScalarShaped",
     "Self",
     "Sequence",
+    "TypeAlias",
     "TypeVar",
-    "Value",
     "static_check_is_array",
     "static_check_is_concrete",
     "static_check_shape_dtype_equivalence",

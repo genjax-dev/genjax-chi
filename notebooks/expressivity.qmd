@@ -1,5 +1,0 @@
----
-title: "Expressivity"
----
-
-This section shows some of the expressivity of the modelling language in GenJAX. It emphasizes a modular design where complex generative functions and distributions can be constructed from simpler components.

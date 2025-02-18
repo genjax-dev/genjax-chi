@@ -12,15 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
+
 import jax
 import jax.numpy as jnp
 import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
+from genjax import Selection
+from genjax._src.core.typing import IntArray
 
 
-class TestVmapCombinator:
+class TestVmap:
     def test_vmap_combinator_simple_normal(self):
         @genjax.vmap(in_axes=(0,))
         @genjax.gen
@@ -33,6 +37,24 @@ class TestVmapCombinator:
         tr = jax.jit(model.simulate)(key, (map_over,))
         map_score = tr.get_score()
         assert map_score == jnp.sum(tr.inner.get_score())
+
+    def test_vmap_simple_normal_project(self):
+        @genjax.gen
+        def model(x):
+            z = genjax.normal(x, 1.0) @ "z"
+            return z
+
+        vmapped = model.vmap(in_axes=(0,))
+
+        key = jax.random.key(314159)
+        means = jnp.arange(0, 10, dtype=float)
+
+        tr = jax.jit(vmapped.simulate)(key, (means,))
+
+        vmapped_score = tr.get_score()
+
+        assert tr.project(key, Selection.all()) == vmapped_score
+        assert tr.project(key, Selection.none()) == 0.0
 
     def test_vmap_combinator_vector_choice_map_importance(self):
         @genjax.vmap(in_axes=(0,))
@@ -75,7 +97,7 @@ class TestVmapCombinator:
         (tr, _) = kernel.importance(sub_key, chm, (map_over,))
         for i in range(0, 3):
             v = tr.get_choices()[i, "z"]
-            assert v == genjax.Mask(zv[i], True)
+            assert v == zv[i]
 
     def test_vmap_combinator_nested_indexed_choice_map_importance(self):
         @genjax.vmap(in_axes=(0,))
@@ -142,7 +164,7 @@ class TestVmapCombinator:
         key = jax.random.key(314159)
         map_over = jnp.arange(0, 50, dtype=float)
         tr = jax.jit(model.simulate)(key, (map_over,))
-        sample = tr.get_sample()
+        sample = tr.get_choices()
         map_score = tr.get_score()
         assert model.assess(sample, (map_over,))[0] == map_score
 
@@ -177,7 +199,9 @@ class TestVmapCombinator:
         # in_axes doesn't match args
         with pytest.raises(
             TypeError,
-            match="Found incompatible dtypes, <class 'numpy.float32'> and <class 'numpy.int32'>",
+            match=re.escape(
+                "Found incompatible dtypes, <class 'numpy.float32'> and <class 'numpy.int32'>"
+            ),
         ):
             jax.jit(foo.vmap(in_axes=(None, 0)).simulate)(key, (10.0, jnp.arange(3)))
 
@@ -201,7 +225,7 @@ class TestVmapCombinator:
         assert results.get_score().shape == (10,)
 
         # the inner vmap has vmap'd over the y's
-        assert chm[..., "y"].shape == (10, 5)
+        assert chm[:, "y"].shape == (10, 5)
 
     def test_zero_length_vmap(self):
         @genjax.gen
@@ -210,9 +234,37 @@ class TestVmapCombinator:
             return (new_x, new_x + 1)
 
         trace = step.vmap(in_axes=(None, 0)).simulate(
-            jax.random.PRNGKey(20), (2.0, jnp.arange(0, dtype=float))
+            jax.random.key(20), (2.0, jnp.arange(0, dtype=float))
         )
 
-        assert (
-            trace.get_choices().static_is_empty()
-        ), "zero-length vmap produces empty choicemaps."
+        assert trace.get_choices().static_is_empty(), (
+            "zero-length vmap produces empty choicemaps."
+        )
+
+
+@genjax.Pytree.dataclass
+class MyClass(genjax.PythonicPytree):
+    x: IntArray
+
+
+class TestVmapPytree:
+    def test_vmap_pytree(self):
+        batched_val = jax.vmap(lambda x: MyClass(x))(jnp.arange(5))
+
+        def regular_function(mc: MyClass):
+            return mc.x + 5
+
+        assert jnp.array_equal(
+            jax.vmap(regular_function)(batched_val), jnp.arange(5) + 5
+        )
+
+        @genjax.gen
+        def generative_function(mc: MyClass):
+            return mc.x + 5
+
+        key = jax.random.key(0)
+
+        # check that we can vmap over a vectorized pytree.
+        assert jnp.array_equal(
+            generative_function.vmap(in_axes=0)(batched_val)(key), jnp.arange(5) + 5
+        )

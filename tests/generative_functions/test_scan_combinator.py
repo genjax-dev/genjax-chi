@@ -12,13 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
+
 import jax
 import jax.numpy as jnp
 import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import Diff
+from genjax import Diff, IndexRequest, Regenerate, StaticRequest
+from genjax import Selection as S
 from genjax._src.core.typing import ArrayLike
 from genjax.typing import FloatArray
 
@@ -52,9 +55,9 @@ class TestIterateSimpleNormal:
         key, sub_key = jax.random.split(key)
         for i in range(1, 5):
             tr, w = jax.jit(scanner.importance)(sub_key, C[i, "z"].set(0.5), (0.01,))
-            value = tr.get_sample()[i, "z"]
-            assert value == genjax.Mask(0.5, True)
-            prev = tr.get_sample()[i - 1, "z"].unmask()
+            value = tr.get_choices()[i, "z"]
+            assert value == 0.5
+            prev = tr.get_choices()[i - 1, "z"]
             assert w == genjax.normal.assess(C.v(value), (prev, 1.0))[0]
 
     def test_iterate_simple_normal_update(self, key):
@@ -73,7 +76,7 @@ class TestIterateSimpleNormal:
                 C[i, "z"].set(1.0),
                 Diff.no_change((0.01,)),
             )
-            assert new_tr.get_sample()[i, "z"] == genjax.Mask(1.0, True)
+            assert new_tr.get_choices()[i, "z"] == 1.0
 
 
 @genjax.gen
@@ -335,7 +338,7 @@ class TestScanUpdate:
         tr = model.simulate(k1, (jnp.array(1.0),))
         u, w, _, _ = tr.update(k2, C["steps", 1, "b"].set(99.0))
         assert jnp.allclose(
-            u.get_choices()["steps", ..., "b"], jnp.array([2.0, 99.0, 7.0]), atol=0.1
+            u.get_choices()["steps", :, "b"], jnp.array([2.0, 99.0, 7.0]), atol=0.1
         )
         assert w < -100.0
 
@@ -384,17 +387,17 @@ class TestScanWithParameters:
         tr = walk_step.scan(n=5).simulate(key, args)
         _, expected = tr.get_retval()
         assert jnp.allclose(
-            tr.get_choices()[..., "x"],
+            tr.get_choices()[:, "x"],
             expected,
         )
 
         tr = walk_step.scan().simulate(key, args)
-        assert jnp.allclose(tr.get_choices()[..., "x"], expected)
+        assert jnp.allclose(tr.get_choices()[:, "x"], expected)
 
         # now with jit
         jitted = jax.jit(walk_step.scan().simulate)
         tr = jitted(key, args)
-        assert jnp.allclose(tr.get_choices()[..., "x"], expected)
+        assert jnp.allclose(tr.get_choices()[:, "x"], expected)
 
     def test_zero_length_scan(self, key):
         # GEN-333
@@ -405,9 +408,9 @@ class TestScanWithParameters:
 
         trace = step.scan(n=0).simulate(key, (2.0, jnp.arange(0, dtype=float)))
 
-        assert (
-            trace.get_choices().static_is_empty()
-        ), "zero-length scan produces empty choicemaps."
+        assert trace.get_choices().static_is_empty(), (
+            "zero-length scan produces empty choicemaps."
+        )
 
         key, subkey = jax.random.split(key)
         step.scan().importance(
@@ -429,7 +432,8 @@ class TestScanWithParameters:
             "scale": jnp.array([1.0]),
         }
         with pytest.raises(
-            ValueError, match="scan got values with different leading axis sizes: 2, 1."
+            ValueError,
+            match=re.escape("scan got values with different leading axis sizes: 2, 1."),
         ):
             jax.jit(foo.scan().simulate)(key, (jnp.array([1.0]), d))
 
@@ -453,4 +457,78 @@ class TestScanWithParameters:
         assert results.get_score().shape == (10,)
 
         # the inner scan has scanned over the y's
-        assert chm[..., "y"].shape == (10, 5)
+        assert chm[:, "y"].shape == (10, 5)
+
+
+class TestScanRegenerate:
+    @pytest.fixture
+    def key(self):
+        return jax.random.key(314159)
+
+    def test_scan_regenerate(self, key):
+        @genjax.gen
+        def scanned_normal():
+            @genjax.gen
+            def kernel(carry, _):
+                z = genjax.normal(0.0, 1.0) @ "z"
+                return z, None
+
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            _ = genjax.normal(0.0, 1.0) @ "y2"
+            return kernel.scan(n=10)(y1, None) @ "kernel"
+
+        key, sub_key = jax.random.split(key)
+        tr = scanned_normal.simulate(sub_key, ())
+        # First, try y1 and test for correctness.
+        old_y1 = tr.get_choices()["y1"]
+        old_target_density = genjax.normal.logpdf(old_y1, 0.0, 1.0)
+        request = genjax.Regenerate(S.at["y1"])
+        new_tr, fwd_w, _, _ = request.edit(key, tr, ())
+        new_y1 = new_tr.get_choices()["y1"]
+        new_target_density = genjax.normal.logpdf(new_y1, 0.0, 1.0)
+        assert fwd_w == new_target_density - old_target_density
+
+
+class TestScanIndexRequest:
+    @pytest.fixture
+    def key(self):
+        return jax.random.key(314159)
+
+    def test_scan_regenerate(self):
+        @genjax.gen
+        def scanned_normal():
+            @genjax.gen
+            def kernel(carry, _):
+                z = genjax.normal(0.0, 1.0) @ "z"
+                return z, None
+
+            y1 = genjax.normal(0.0, 1.0) @ "y1"
+            _ = genjax.normal(0.0, 1.0) @ "y2"
+            return kernel.scan(n=10)(y1, None) @ "kernel"
+
+        key = jax.random.key(314159)
+        key, sub_key = jax.random.split(key)
+        tr = scanned_normal.simulate(sub_key, ())
+        # Try all indices and test for correctness.
+        for idx in range(10):
+            old_z = tr.get_choices()["kernel", idx, "z"]
+            old_target_density = genjax.normal.logpdf(old_z, 0.0, 1.0)
+            request = StaticRequest({
+                "kernel": IndexRequest(jnp.array(idx), Regenerate(S.at["z"])),
+            })
+            new_tr, fwd_w, _, _ = request.edit(key, tr, ())
+            new_z = new_tr.get_choices()["kernel", idx, "z"]
+            new_target_density = genjax.normal.logpdf(new_z, 0.0, 1.0)
+            assert fwd_w == new_target_density - old_target_density
+
+        with pytest.raises(AssertionError):
+            idx = 11
+            old_z = tr.get_choices()["kernel", idx, "z"]
+            old_target_density = genjax.normal.logpdf(old_z, 0.0, 1.0)
+            request = StaticRequest({
+                "kernel": IndexRequest(jnp.array(idx), Regenerate(S.at["z"])),
+            })
+            new_tr, fwd_w, _, _ = request.edit(key, tr, ())
+            new_z = new_tr.get_choices()["kernel", idx, "z"]
+            new_target_density = genjax.normal.logpdf(new_z, 0.0, 1.0)
+            assert fwd_w == new_target_density - old_target_density

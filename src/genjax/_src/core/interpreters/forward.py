@@ -21,12 +21,12 @@ import jax.tree_util as jtu
 from jax import tree_util
 from jax import util as jax_util
 from jax.extend import linear_util as lu
-from jax.interpreters import ad, batching, mlir
+from jax.interpreters import batching, mlir
 from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.interpreters.staging import WrappedFunWithAux, stage
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.typing import Any, Callable, Value
+from genjax._src.core.typing import Any, Callable
 
 #########################
 # Custom JAX primitives #
@@ -67,17 +67,6 @@ class FlatPrimitive(jc.Primitive):
 
         self.def_abstract_eval(_abstract)
 
-        def _jvp(primals, tangents, **params):
-            primals_out, tangents_out = ad.jvp(
-                lu.wrap_init(self.impl, params)
-            ).call_wrapped(primals, tangents)
-            tangents_out = jax_util.safe_map(
-                ad.recast_to_float0, primals_out, tangents_out
-            )
-            return primals_out, tangents_out
-
-        ad.primitive_jvps[self] = _jvp
-
         def _batch(args, dims, **params):
             batched, out_dims = batch_fun(lu.wrap_init(self.impl, params), dims)
             return batched.call_wrapped(*args), out_dims()
@@ -113,13 +102,13 @@ def initial_style_bind(prim, **params):
 
         def wrapped(*args, **kwargs):
             """Runs a function and binds it to a call primitive."""
-            _jaxpr, (flat_args, in_tree, out_tree) = stage(f)(*args, **kwargs)
+            jaxpr, (flat_args, in_tree, out_tree) = stage(f)(*args, **kwargs)
             outs = prim.bind(
-                *it.chain(_jaxpr.literals, flat_args),
-                _jaxpr=_jaxpr.jaxpr,
+                *it.chain(jaxpr.literals, flat_args),
+                _jaxpr=jaxpr.jaxpr,
                 in_tree=in_tree,
                 out_tree=out_tree,
-                num_consts=len(_jaxpr.literals),
+                num_consts=len(jaxpr.literals),
                 **params,
             )
             return tree_util.tree_unflatten(out_tree(), outs)
@@ -140,9 +129,9 @@ VarOrLiteral = jc.Var | jc.Literal
 class Environment(Pytree):
     """Keeps track of variables and their values during propagation."""
 
-    env: dict[int, Value] = Pytree.field(default_factory=dict)
+    env: dict[int, Any] = Pytree.field(default_factory=dict)
 
-    def read(self, var: VarOrLiteral) -> Value:
+    def read(self, var: VarOrLiteral) -> Any:
         if isinstance(var, jc.Literal):
             return var.val
         else:
@@ -153,13 +142,13 @@ class Environment(Pytree):
                 )
             return v
 
-    def get(self, var: VarOrLiteral) -> Value:
+    def get(self, var: VarOrLiteral) -> Any:
         if isinstance(var, jc.Literal):
             return var.val
         else:
             return self.env.get(var.count)
 
-    def write(self, var: VarOrLiteral, cell: Value) -> Value:
+    def write(self, var: VarOrLiteral, cell: Any) -> Any:
         if isinstance(var, jc.Literal):
             return cell
         cur_cell = self.get(var)
@@ -168,7 +157,7 @@ class Environment(Pytree):
         self.env[var.count] = cell
         return self.env[var.count]
 
-    def __getitem__(self, var: VarOrLiteral) -> Value:
+    def __getitem__(self, var: VarOrLiteral) -> Any:
         return self.read(var)
 
     def __setitem__(self, key, val):
@@ -232,11 +221,11 @@ class ForwardInterpreter(Pytree):
         def _inner(*args):
             return fn(*args, **kwargs)
 
-        _closed_jaxpr, (flat_args, _, out_tree) = stage(_inner)(*args)
-        _jaxpr, consts = _closed_jaxpr.jaxpr, _closed_jaxpr.literals
+        closed_jaxpr, (flat_args, _, out_tree) = stage(_inner)(*args)
+        jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         flat_out = self._eval_jaxpr_forward(
             stateful_handler,
-            _jaxpr,
+            jaxpr,
             consts,
             flat_args,
         )

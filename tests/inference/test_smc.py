@@ -19,7 +19,9 @@ from jax.scipy.special import logsumexp
 
 import genjax
 from genjax import ChoiceMapBuilder as C
+from genjax import SelectionBuilder as S
 from genjax._src.core.typing import Any
+from genjax._src.inference.sp import Target
 
 
 def logpdf(v):
@@ -83,3 +85,22 @@ class TestSMC:
         ).log_marginal_likelihood_estimate(key)
         Z_exact = flip_flip_exact_log_marginal_density(inference_problem)
         assert Z_est == pytest.approx(Z_exact, 1e-1)
+
+    def test_non_marginal_target(self):
+        @genjax.gen
+        def model():
+            idx = genjax.categorical([0.5, 0.25, 0.25]) @ "idx"
+            # under the prior, 50% chance to be in cluster 1 and 50% chance to be in cluster 2.
+            means = jnp.array([0.0, 10.0, 11.0])
+            vars = jnp.array([1.0, 1.0, 1.0])
+            x = genjax.normal(means[idx], vars[idx]) @ "x"
+            y = genjax.normal(means[idx], vars[idx]) @ "y"
+            return x, y
+
+        marginal_model = model.marginal(
+            selection=S["x"] | S["y"]
+        )  # This means we are projection onto the variables x and y, marginalizing out the rest
+
+        obs1 = C["x"].set(1.0)
+        with pytest.raises(TypeError):
+            Target(marginal_model, (), obs1)

@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""The `VmapCombinator` is a generative function combinator which exposes vectorization
+"""The `Vmap` is a generative function combinator which exposes vectorization
 on the input arguments of a provided generative function callee.
 
 This vectorization is implemented using `jax.vmap`, and the combinator expects the user to specify `in_axes` as part of the construction of an instance of this combinator.
@@ -27,7 +27,6 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    Projection,
     R,
     Retdiff,
     Score,
@@ -35,7 +34,11 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ChoiceMapConstraint
+from genjax._src.core.generative.choice_map import (
+    ChoiceMapConstraint,
+    ExtendedAddress,
+    Selection,
+)
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -49,7 +52,7 @@ from genjax._src.core.typing import (
 
 @Pytree.dataclass
 class VmapTrace(Generic[R], Trace[R]):
-    gen_fn: "VmapCombinator[R]"
+    gen_fn: "Vmap[R]"
     inner: Trace[R]
     args: tuple[Any, ...]
     score: Score
@@ -60,11 +63,14 @@ class VmapTrace(Generic[R], Trace[R]):
 
     @staticmethod
     def build(
-        gen_fn: "VmapCombinator[R]", tr: Trace[R], args: tuple[Any, ...], length: int
+        gen_fn: "Vmap[R]", tr: Trace[R], args: tuple[Any, ...], length: int
     ) -> "VmapTrace[R]":
-        score = jnp.sum(tr.get_score())
-        chm = tr.get_choices().extend(jnp.arange(length))
-
+        score = jnp.sum(jax.vmap(lambda tr: tr.get_score())(tr))
+        # TODO make a note here about why we are jax.vmapping; we are library authors!! we should not depend on the user convenience here of get_choices() on a vectorized choicemap.
+        if length == 0:
+            chm = ChoiceMap.empty()
+        else:
+            chm = jax.vmap(lambda tr: tr.get_choices())(tr)
         return VmapTrace(gen_fn, tr, args, score, chm, length)
 
     def get_args(self) -> tuple[Any, ...]:
@@ -83,10 +89,13 @@ class VmapTrace(Generic[R], Trace[R]):
     def get_score(self) -> Score:
         return self.score
 
+    def get_inner_trace(self, address: ExtendedAddress):
+        return self.inner.get_inner_trace(address)
+
 
 @Pytree.dataclass
-class VmapCombinator(Generic[R], GenerativeFunction[R]):
-    """`VmapCombinator` is a generative function which lifts another generative function to support `vmap`-based patterns of parallel (and generative) computation.
+class Vmap(Generic[R], GenerativeFunction[R]):
+    """`Vmap` is a generative function which lifts another generative function to support `vmap`-based patterns of parallel (and generative) computation.
 
     In contrast to the full set of options which [`jax.vmap`](https://jax.readthedocs.io/en/latest/_autosummary/jax.vmap.html), this combinator expects an `in_axes: tuple` configuration argument, which indicates how the underlying `vmap` patterns should be broadcast across the input arguments to the generative function.
 
@@ -96,7 +105,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         in_axes: A tuple specifying which input arguments (or indices into them) should be vectorized. `in_axes` must match (or prefix) the `Pytree` type of the argument tuple for the underlying `gen_fn`. Defaults to 0, i.e., the first argument. See [this link](https://jax/readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
 
     Examples:
-        Create a `VmapCombinator` using the [`genjax.vmap`][] decorator:
+        Create a `Vmap` using the [`genjax.vmap`][] decorator:
         ```python exec="yes" html="true" source="material-block" session="vmap"
         import jax, genjax
         import jax.numpy as jnp
@@ -110,7 +119,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             return x + noise1 + noise2
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         arr = jnp.ones(100)
 
         tr = jax.jit(mapped.simulate)(key, (arr,))
@@ -153,7 +162,8 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         def find_axis_size(axis: int | None, x: Any) -> int | None:
             """Find the size of the axis specified by `axis` for the argument `x`."""
             if axis is not None:
-                return x.shape[axis]
+                leaf = jax.tree_util.tree_leaves(x)[0]
+                return leaf.shape[axis]
 
         # tree_map uses in_axes as a template. To have passed vmap validation, Any non-None entry
         # must bottom out in an array-shaped leaf, and all such leafs must have the same size for
@@ -193,7 +203,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 
         def _inner(key, idx, args):
             # Here we have to vmap across indices and perform individual lookups because the user might only constrain a subset of all indices. This forces recomputation.
-            submap = constraint.choice_map(idx)
+            submap = constraint.choice_map.get_submap(idx)
             tr, w = self.gen_fn.generate(
                 key,
                 ChoiceMapConstraint(submap),
@@ -212,9 +222,18 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
-        raise NotImplementedError
+        assert isinstance(trace, VmapTrace)
+
+        dim_length = trace.dim_length
+        sub_keys = jax.random.split(key, dim_length)
+
+        def _project(key, subtrace):
+            return subtrace.project(key, selection)
+
+        weights = jax.vmap(_project)(sub_keys, trace.inner)
+        return jnp.sum(weights)
 
     def edit_choice_map(
         self,
@@ -242,7 +261,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
             )
             assert isinstance(bwd_request, Update)
             inner_chm = bwd_request.constraint
-            return (new_subtrace, w, retdiff, inner_chm.extend(idx))
+            return (new_subtrace, w, retdiff, inner_chm)
 
         new_subtraces, w, retdiff, bwd_constraints = jax.vmap(
             _edit, in_axes=(0, 0, 0, self.in_axes)
@@ -278,8 +297,13 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
         sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
-        scores, retvals = jax.vmap(self.gen_fn.assess, in_axes=(0, self.in_axes))(
-            sample(...), args
+        dim_length = self._static_broadcast_dim_length(self.in_axes, args)
+
+        def _inner(idx, args):
+            return self.gen_fn.assess(sample(idx), args)
+
+        scores, retvals = jax.vmap(_inner, in_axes=(0, self.in_axes))(
+            jnp.arange(dim_length), args
         )
         return jnp.sum(scores), retvals
 
@@ -289,9 +313,7 @@ class VmapCombinator(Generic[R], GenerativeFunction[R]):
 #############
 
 
-def vmap(
-    *, in_axes: InAxes = 0
-) -> Callable[[GenerativeFunction[R]], VmapCombinator[R]]:
+def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction[R]], Vmap[R]]:
     """
     Returns a decorator that wraps a [`GenerativeFunction`][genjax.GenerativeFunction] and returns a new `GenerativeFunction` that performs a vectorized map over the argument specified by `in_axes`. Traced values are nested under an index, and the retval is vectorized.
 
@@ -314,7 +336,7 @@ def vmap(
             return genjax.normal(v, 0.01) @ "q"
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         arr = jnp.ones(100)
 
         # `vmapped_model` accepts an array of numbers:
@@ -324,7 +346,7 @@ def vmap(
         ```
     """
 
-    def decorator(gen_fn: GenerativeFunction[R]) -> VmapCombinator[R]:
-        return VmapCombinator(gen_fn, in_axes)
+    def decorator(gen_fn: GenerativeFunction[R]) -> Vmap[R]:
+        return Vmap(gen_fn, in_axes)
 
     return decorator

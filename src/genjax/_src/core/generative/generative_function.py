@@ -12,16 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from genjax._src.core.generative.choice_map import ChoiceMap, ChoiceMapConstraint
+from deprecated import deprecated
+
+from genjax._src.core.generative.choice_map import (
+    ChoiceMap,
+    ChoiceMapConstraint,
+    ExtendedAddress,
+    Selection,
+)
 from genjax._src.core.generative.core import (
     Argdiffs,
     Arguments,
     Constraint,
     EditRequest,
-    Projection,
+    PrimitiveEditRequest,
     Retdiff,
     Score,
     Weight,
@@ -85,7 +93,7 @@ class Trace(Generic[R], Pytree):
     def get_score(self) -> Score:
         """Return the [`Score`][genjax.core.Score] of the `Trace`.
 
-        The score must satisfy a particular mathematical specification: it's either an exact density evaluation of $P$ (the distribution over samples) for the sample returned by [`genjax.Trace.get_sample`][], or _a sample from an estimator_ (a density estimate) if the generative function contains _untraced randomness_.
+        The score must satisfy a particular mathematical specification: it's either an exact density evaluation of $P$ (the distribution over samples) for the sample returned by [`genjax.Trace.get_choices`][], or _a sample from an estimator_ (a density estimate) if the generative function contains _untraced randomness_.
 
         Let $s$ be the score, $t$ the sample, and $a$ the arguments: when the generative function contains no _untraced randomness_, the score (in logspace) is given by:
 
@@ -128,14 +136,14 @@ class Trace(Generic[R], Pytree):
 
         """
 
-    def get_sample(self) -> "genjax.ChoiceMap":
-        """alias for [`genjax.Trace.get_choices`][]."""
-        return self.get_choices()
-
     @abstractmethod
     def get_choices(self) -> "genjax.ChoiceMap":
-        """Version of [`genjax.Trace.get_sample`][] for traces where the sample is an instance of [`genjax.ChoiceMap`][]."""
+        """Retrieves the random choices made in a trace in the form of a [`genjax.ChoiceMap`][]."""
         pass
+
+    @deprecated(reason="Use .get_choices() instead.", version="0.8.1")
+    def get_sample(self):
+        return self.get_choices()
 
     @abstractmethod
     def get_gen_fn(self) -> "GenerativeFunction[R]":
@@ -176,13 +184,37 @@ class Trace(Generic[R], Pytree):
     def project(
         self,
         key: PRNGKey,
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
         gen_fn = self.get_gen_fn()
         return gen_fn.project(
             key,
             self,
-            projection,
+            selection,
+        )
+
+    def get_subtrace(self, *addresses: ExtendedAddress) -> "Trace[Any]":
+        """
+        Return the subtrace having the supplied address. Specifying multiple addresses
+        will apply the operation recursively.
+
+        GenJAX does not guarantee the validity of any inference computations performed
+        using information from the returned subtrace. In other words, it is safe to
+        inspect the data of subtraces -- but it not safe to use that data to make decisions
+        about inference. This is true of all the methods on the subtrace, including
+        `Trace.get_args`, `Trace.get_score`, `Trace.get_retval`, etc. It is safe to look,
+        but don't use the data for non-trivial things!"""
+
+        return functools.reduce(
+            lambda tr, addr: tr.get_inner_trace(addr), addresses, self
+        )
+
+    def get_inner_trace(self, address: ExtendedAddress) -> "Trace[Any]":
+        """Override this method to provide `Trace.get_subtrace` support
+        for those trace types that have substructure that can be addressed
+        in this way."""
+        raise NotImplementedError(
+            "This type of Trace object does not possess subtraces."
         )
 
     ###################
@@ -221,7 +253,6 @@ class GenerativeFunction(Generic[R], Pytree):
         ```python exec="yes" html="true" source="material-block" session="core"
         import jax
         from jax.scipy.special import logsumexp
-        from jax.random import PRNGKey
         import jax.tree_util as jtu
         from genjax import ChoiceMapBuilder as C
         from genjax import gen, uniform, flip, categorical
@@ -243,10 +274,10 @@ class GenerativeFunction(Generic[R], Pytree):
             )
             logits = log_weights - logsumexp(log_weights)
             idx = categorical(logits)(key)
-            return jtu.tree_map(lambda v: v[idx], tr.get_sample())
+            return jtu.tree_map(lambda v: v[idx], tr.get_choices())
 
 
-        sub_keys = jax.random.split(PRNGKey(0), 50)
+        sub_keys = jax.random.split(jax.random.key(0), 50)
         samples = jax.jit(jax.vmap(importance_sampling, in_axes=(0, None)))(
             sub_keys, C.kw(f1=True, f2=True)
         )
@@ -294,7 +325,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return x + y + z
 
 
-            key = jax.random.PRNGKey(0)
+            key = jax.random.key(0)
             kw_model = model.handle_kwargs()
 
             tr = kw_model.simulate(key, ((1.0, 2.0), {"z": 3.0}))
@@ -353,13 +384,13 @@ class GenerativeFunction(Generic[R], Pytree):
 
         The [`Trace`][genjax.core.Trace] returned by `simulate` implements its own interface.
 
-        It is responsible for storing the arguments of the invocation ([`genjax.Trace.get_args`][]), the return value of the generative function ([`genjax.Trace.get_retval`][]), the identity of the generative function which produced the trace ([`genjax.Trace.get_gen_fn`][]), the sample of traced random choices produced during the invocation ([`genjax.Trace.get_sample`][]) and _the score_ of the sample ([`genjax.Trace.get_score`][]).
+        It is responsible for storing the arguments of the invocation ([`genjax.Trace.get_args`][]), the return value of the generative function ([`genjax.Trace.get_retval`][]), the identity of the generative function which produced the trace ([`genjax.Trace.get_gen_fn`][]), the sample of traced random choices produced during the invocation ([`genjax.Trace.get_choices`][]) and _the score_ of the sample ([`genjax.Trace.get_score`][]).
 
         Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
             import genjax
+            import jax
             from jax import vmap, jit
-            from jax.random import PRNGKey
             from jax.random import split
 
 
@@ -369,7 +400,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return x
 
 
-            key = PRNGKey(0)
+            key = jax.random.key(0)
             tr = model.simulate(key, ())
             print(tr.render_html())
             ```
@@ -382,14 +413,14 @@ class GenerativeFunction(Generic[R], Pytree):
                 return x
 
 
-            key = PRNGKey(0)
+            key = jax.random.key(0)
             tr = model.repeat(n=10).simulate(key, ())
             print(tr.render_html())
             ```
 
             (**Fun, flirty, fast ... parallel?**) Feel free to use `jax.jit` and `jax.vmap`!
             ```python exec="yes" html="true" source="material-block" session="core"
-            key = PRNGKey(0)
+            key = jax.random.key(0)
             sub_keys = split(key, 10)
             sim = model.repeat(n=10).simulate
             tr = jit(vmap(sim, in_axes=(0, None)))(sub_keys, ())
@@ -453,7 +484,7 @@ class GenerativeFunction(Generic[R], Pytree):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
         pass
 
@@ -473,13 +504,10 @@ class GenerativeFunction(Generic[R], Pytree):
         Examples:
             Updating a trace in response to a request for a [`Target`][genjax.inference.Target] change induced by a change to the arguments:
             ```python exec="yes" source="material-block" session="core"
-            from genjax import gen
-            from genjax import normal
-            from genjax import Diff
-            from genjax import Update
-            from genjax import ChoiceMap as C
+            import jax
+            from genjax import gen, normal, Diff, Update, ChoiceMap as C
 
-            key = PRNGKey(0)
+            key = jax.random.key(0)
 
 
             @gen
@@ -508,7 +536,7 @@ class GenerativeFunction(Generic[R], Pytree):
             Now, let's inspect the trace:
             ```python exec="yes" html="true" source="material-block" session="core"
             # Inspect the trace, the sampled values should not have changed!
-            sample = new_tr.get_sample()
+            sample = new_tr.get_choices()
             print(sample["v1"], sample["v2"])
             ```
 
@@ -563,7 +591,7 @@ class GenerativeFunction(Generic[R], Pytree):
             ),
             Diff.unknown_change((3.0,)),
         )
-        print((new_tr.get_sample()["v1"], w))
+        print((new_tr.get_choices()["v1"], w))
         ```
 
         **Additional notes on [`Argdiffs`][genjax.core.Argdiffs]**
@@ -606,14 +634,14 @@ class GenerativeFunction(Generic[R], Pytree):
         Examples:
             (**Full constraints**) A simple example using the `importance` interface on distributions:
             ```python exec="yes" html="true" source="material-block" session="core"
+            import jax
             from genjax import normal
             from genjax import ChoiceMapBuilder as C
-            from jax.random import PRNGKey
 
-            key = PRNGKey(0)
+            key = jax.random.key(0)
 
             tr, w = normal.importance(key, C.v(1.0), (0.0, 1.0))
-            print(tr.get_sample().render_html())
+            print(tr.get_choices().render_html())
             ```
 
             (**Internal proposal for partial constraints**) Specifying a _partial_ constraint on a [`StaticGenerativeFunction`][genjax.StaticGenerativeFunction]:
@@ -630,7 +658,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
 
             tr, w = model.importance(key, C.kw(f1=True, f2=True), ())
-            print(tr.get_sample().render_html())
+            print(tr.get_choices().render_html())
             ```
 
         Under the hood, creates an [`EditRequest`][genjax.core.EditRequest] which requests that the generative function respond with a move from the _empty_ trace (the only possible value for _empty_ target $\\delta_\\emptyset$) to the target induced by the generative function for constraint $C$ with arguments $a$.
@@ -653,7 +681,7 @@ class GenerativeFunction(Generic[R], Pytree):
         Samples a [`ChoiceMap`][genjax.core.ChoiceMap] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the `R` of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
         """
         tr = self.simulate(key, args)
-        sample = tr.get_sample()
+        sample = tr.get_choices()
         score = tr.get_score()
         retval = tr.get_retval()
         return sample, score, retval
@@ -1050,6 +1078,86 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.iterate_final(n=n)(self)
 
+    def masked_iterate(self) -> "GenerativeFunction[R]":
+        """
+        Transforms a generative function that takes a single argument of type `a` and returns a value of type `a`, into a function that takes a tuple of arguments `(a, [mask])` and returns a list of values of type `a`.
+
+        The original function is modified to accept an additional argument `mask`, which is a boolean value indicating whether the operation should be masked or not. The function returns a Masked list of results of the original operation with the input [mask] as mask.
+
+        All traced values from the kernel generative function are traced (with an added axis due to the scan) but only those indices from [mask] with a flag of True will accounted for in inference, notably for score computations.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="scan"
+            import jax
+            import genjax
+
+            masks = jnp.array([True, False, True])
+
+
+            # Create a kernel generative function
+            @genjax.gen
+            def step(x):
+                _ = (
+                    genjax.normal.mask().vmap(in_axes=(0, None, None))(masks, x, 1.0)
+                    @ "rats"
+                )
+                return x
+
+
+            # Create a model using masked_iterate
+            model = step.masked_iterate()
+
+            # Simulate from the model
+            key = jax.random.key(0)
+            mask_steps = jnp.arange(10) < 5
+            tr = model.simulate(key, (0.0, mask_steps))
+            print(tr.render_html())
+            ```
+        """
+        import genjax
+
+        return genjax.masked_iterate()(self)
+
+    def masked_iterate_final(self) -> "GenerativeFunction[R]":
+        """
+        Transforms a generative function that takes a single argument of type `a` and returns a value of type `a`, into a function that takes a tuple of arguments `(a, [mask])` and returns a value of type `a`.
+
+        The original function is modified to accept an additional argument `mask`, which is a boolean value indicating whether the operation should be masked or not. The function returns the result of the original operation if `mask` is `True`, and the original input if `mask` is `False`.
+
+        All traced values from the kernel generative function are traced (with an added axis due to the scan) but only those indices from [mask] with a flag of True will accounted for in inference, notably for score computations.
+
+        Example:
+            ```python exec="yes" html="true" source="material-block" session="scan"
+            import jax
+            import genjax
+
+            masks = jnp.array([True, False, True])
+
+
+            # Create a kernel generative function
+            @genjax.gen
+            def step(x):
+                _ = (
+                    genjax.normal.mask().vmap(in_axes=(0, None, None))(masks, x, 1.0)
+                    @ "rats"
+                )
+                return x
+
+
+            # Create a model using masked_iterate_final
+            model = step.masked_iterate_final()
+
+            # Simulate from the model
+            key = jax.random.key(0)
+            mask_steps = jnp.arange(10) < 5
+            tr = model.simulate(key, (0.0, mask_steps))
+            print(tr.render_html())
+            ```
+        """
+        import genjax
+
+        return genjax.masked_iterate_final()(self)
+
     def mask(self, /) -> "GenerativeFunction[genjax.Mask[R]]":
         """
         Enables dynamic masking of generative functions. Returns a new [`genjax.GenerativeFunction`][] like `self`, but which accepts an additional boolean first argument.
@@ -1137,9 +1245,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.or_else(self, gen_fn)
 
-    def switch(
-        self, *branches: "GenerativeFunction[R]"
-    ) -> "genjax.SwitchCombinator[R]":
+    def switch(self, *branches: "GenerativeFunction[R]") -> "genjax.Switch[R]":
         """
         Given `n` [`genjax.GenerativeFunction`][] inputs, returns a new [`genjax.GenerativeFunction`][] that accepts `n+2` arguments:
 
@@ -1233,8 +1339,7 @@ class GenerativeFunction(Generic[R], Pytree):
         /,
         *,
         pre: Callable[..., ArgTuple],
-        post: Callable[[ArgTuple, R], S],
-        info: str | None = None,
+        post: Callable[[tuple[Any, ...], ArgTuple, R], S],
     ) -> "GenerativeFunction[S]":
         """
         Returns a new [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
@@ -1245,7 +1350,6 @@ class GenerativeFunction(Generic[R], Pytree):
         Args:
             pre: A callable that preprocesses the arguments before passing them to the wrapped function. Note that `pre` must return a _tuple_ of arguments, not a bare argument. Default is the identity function.
             post: A callable that postprocesses the return value of the wrapped function. Default is the identity function.
-            info: An optional string providing additional information about the `dimap` operation.
 
         Returns:
             A new [`genjax.GenerativeFunction`][] with `pre` and `post` applied.
@@ -1260,7 +1364,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return (x + 1, y * 2)
 
 
-            def post_process(args, retval):
+            def post_process(args, xformed, retval):
                 return retval**2
 
 
@@ -1269,9 +1373,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return genjax.normal(x, y) @ "z"
 
 
-            dimap_model = model.dimap(
-                pre=pre_process, post=post_process, info="Square of normal"
-            )
+            dimap_model = model.dimap(pre=pre_process, post=post_process)
 
             # Use the dimap model
             key = jax.random.key(0)
@@ -1282,17 +1384,14 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.dimap(pre=pre, post=post, info=info)(self)
+        return genjax.dimap(pre=pre, post=post)(self)
 
-    def map(
-        self, f: Callable[[R], S], *, info: str | None = None
-    ) -> "GenerativeFunction[S]":
+    def map(self, f: Callable[[R], S]) -> "GenerativeFunction[S]":
         """
         Specialized version of [`genjax.dimap`][] where only the post-processing function is applied.
 
         Args:
             f: A callable that postprocesses the return value of the wrapped function.
-            info: An optional string providing additional information about the `map` operation.
 
         Returns:
             A [`genjax.GenerativeFunction`][] that acts like `self` with a post-processing function to its return value.
@@ -1312,7 +1411,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return genjax.normal(x, 1.0) @ "z"
 
 
-            map_model = model.map(square, info="Square of normal")
+            map_model = model.map(square)
 
             # Use the map model
             key = jax.random.key(0)
@@ -1323,17 +1422,14 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.map(f=f, info=info)(self)
+        return genjax.map(f=f)(self)
 
-    def contramap(
-        self, f: Callable[..., ArgTuple], *, info: str | None = None
-    ) -> "GenerativeFunction[R]":
+    def contramap(self, f: Callable[..., ArgTuple]) -> "GenerativeFunction[R]":
         """
         Specialized version of [`genjax.GenerativeFunction.dimap`][] where only the pre-processing function is applied.
 
         Args:
             f: A callable that preprocesses the arguments of the wrapped function. Note that `f` must return a _tuple_ of arguments, not a bare argument.
-            info: An optional string providing additional information about the `contramap` operation.
 
         Returns:
             A [`genjax.GenerativeFunction`][] that acts like `self` with a pre-processing function to its arguments.
@@ -1354,7 +1450,7 @@ class GenerativeFunction(Generic[R], Pytree):
                 return genjax.normal(x, 1.0) @ "z"
 
 
-            contramap_model = model.contramap(add_one, info="Add one to input")
+            contramap_model = model.contramap(add_one)
 
             # Use the contramap model
             key = jax.random.key(0)
@@ -1365,7 +1461,7 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.contramap(f=f, info=info)(self)
+        return genjax.contramap(f=f)(self)
 
     #####################
     # GenSP / inference #
@@ -1468,9 +1564,9 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[Any],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
-        return self.wrapped.project(key, trace, projection)
+        return self.wrapped.project(key, trace, selection)
 
     def edit(
         self,
@@ -1571,9 +1667,9 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[Any],
-        projection: Projection[Any],
+        selection: Selection,
     ):
-        return self.gen_fn.project(key, trace, projection)
+        return self.gen_fn.project(key, trace, selection)
 
     def edit(
         self,
@@ -1612,14 +1708,5 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
 
 @Pytree.dataclass(match_args=True)
-class Update(EditRequest):
+class Update(PrimitiveEditRequest):
     constraint: ChoiceMap
-
-    def edit(
-        self,
-        key: PRNGKey,
-        tr: Trace[R],
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
-        gen_fn = tr.get_gen_fn()
-        return gen_fn.edit(key, tr, self, argdiffs)

@@ -265,13 +265,34 @@ class Const(Generic[R], Pytree):
     val: R = Pytree.static()
 
     def __call__(self, *args):
-        assert isinstance(
-            self.val, Callable
-        ), f"Wrapped `val` {self.val} is not Callable."
+        assert isinstance(self.val, Callable), (
+            f"Wrapped `val` {self.val} is not Callable."
+        )
         return self.val(*args)
 
-    def unwrap(self):
-        return self.val
+    def unwrap(self: Any) -> R:
+        """Unwrap a constant value from a `Const` instance.
+
+        This method can be used as an instance method or as a static method. When used as a static method, it returns the input value unchanged if it is not a `Const` instance.
+
+        Returns:
+            R: The unwrapped value if self is a `Const`, otherwise returns self unchanged.
+
+        Examples:
+            ```python exec="yes" html="true" source="material-block" session="core"
+            from genjax import Pytree, Const
+
+            c = Pytree.const(5)
+            val = c.unwrap()  # Returns 5
+
+            # Can also be used as static method
+            val = Const.unwrap(10)  # Returns 10 unchanged
+            ```
+        """
+        if isinstance(self, Const):
+            return self.val
+        else:
+            return self
 
 
 # Construct for a type of closure which closes over dynamic values.
@@ -313,7 +334,7 @@ class Closure(Generic[R], Pytree):
         return self.fn(*self.dyn_args, *args, **kwargs)
 
 
-def nth(x: Pytree, idx: int | slice):
+def nth(x: Pytree, idx: int | slice | jnp.ndarray):
     """Returns a Pytree in which `[idx]` has been applied to every leaf."""
     return jtu.tree_map(lambda v: v[idx], x)
 

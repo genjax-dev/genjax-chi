@@ -82,7 +82,7 @@ def rec(
     debug_tag: str | None = None,
 ):
     if not isinstance(callable, Closure):
-        callable = Pytree.partial()(callable)
+        callable = Closure[R]((), callable)
 
     def inner(*args):
         return RecordPoint(callable, debug_tag)(*args)
@@ -252,11 +252,11 @@ class TimeTravelingDebugger(Pytree):
         frame = self.sequence[self.ptr]
         f, cont = frame.f, frame.cont
         local_retval = f(*args)
-        _, _debugger = _record(cont)(*args)
+        _, debugger = _record(cont)(*args)
         new_frame = FrameRecording(f, args, local_retval, cont)
         return TimeTravelingDebugger(
-            _debugger.final_retval,
-            [*self.sequence[: self.ptr], new_frame, *_debugger.sequence],
+            debugger.final_retval,
+            [*self.sequence[: self.ptr], new_frame, *debugger.sequence],
             self.jump_points,
             self.ptr,
         )
@@ -267,7 +267,7 @@ class TimeTravelingDebugger(Pytree):
 
 def _record(source: Callable[..., Any]):
     def inner(*args) -> tuple[Any, TimeTravelingDebugger]:
-        retval, next = time_travel(source)(*args)
+        retval, next = time_travel(source)(*args)  # pyright: ignore[reportGeneralTypeIssues]
         sequence = []
         jump_points = {}
         while next:
@@ -276,7 +276,7 @@ def _record(source: Callable[..., Any]):
             if debug_tag:
                 jump_points[debug_tag] = len(sequence) - 1
             args, cont = frame.args, frame.cont
-            retval, next = time_travel(cont)(*args)
+            retval, next = time_travel(cont)(*args)  # pyright: ignore[reportGeneralTypeIssues]
         return retval, TimeTravelingDebugger(retval, sequence, jump_points, 0)
 
     return inner

@@ -13,8 +13,13 @@
 # limitations under the License.
 
 from genjax._src.core.generative.requests import (
-    ChoiceMapEditRequest,
+    DiffAnnotate,
+    EmptyRequest,
     Regenerate,
 )
 
-__all__ = ["ChoiceMapEditRequest", "Regenerate"]
+__all__ = [
+    "DiffAnnotate",
+    "EmptyRequest",
+    "Regenerate",
+]
