@@ -20,7 +20,8 @@ import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import Selection
+from genjax import IndexRequest, Regenerate, Selection, StaticRequest, Update
+from genjax import Selection as S
 from genjax._src.core.typing import IntArray
 
 
@@ -268,3 +269,58 @@ class TestVmapPytree:
         assert jnp.array_equal(
             generative_function.vmap(in_axes=0)(batched_val)(key), jnp.arange(5) + 5
         )
+
+
+class TestVmapIndexRequest:
+    @pytest.fixture
+    def key(self):
+        return jax.random.key(314159)
+
+    def test_vmap_regenerate(self):
+        @genjax.gen
+        def model():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            _ = genjax.normal.vmap()(jnp.zeros(1000), jnp.ones(1000)) @ "a"
+            return x
+
+        key = jax.random.key(314159)
+        key, sub_key = jax.random.split(key)
+        tr = model.simulate(sub_key, ())
+        for idx in range(10):
+            old_a = tr.get_choices()["a", idx]
+            old_target_density = genjax.normal.logpdf(old_a, 0.0, 1.0)
+
+            request = StaticRequest({
+                "a": IndexRequest(jnp.array(idx), Regenerate(S.all()))
+            })
+
+            new_tr, fwd_w, _, _ = request.edit(key, tr, ())
+            new_a = new_tr.get_choices()["a", idx]
+            new_target_density = genjax.normal.logpdf(new_a, 0.0, 1.0)
+
+            assert fwd_w == new_target_density - old_target_density
+
+    def test_vmap_update(self):
+        @genjax.gen
+        def model():
+            x = genjax.normal(0.0, 1.0) @ "x"
+            _ = genjax.normal.vmap()(jnp.zeros(1000), jnp.ones(1000)) @ "a"
+            return x
+
+        key = jax.random.key(314159)
+        key, sub_key = jax.random.split(key)
+        tr = model.simulate(sub_key, ())
+        for idx in range(10):
+            old_a = tr.get_choices()["a", idx]
+            old_target_density = genjax.normal.logpdf(old_a, 0.0, 1.0)
+
+            request = StaticRequest({
+                "a": IndexRequest(jnp.array(idx), Update(C.v(idx + 7.0)))
+            })
+
+            new_tr, fwd_w, _, _ = request.edit(key, tr, ())
+            new_a = new_tr.get_choices()["a", idx]
+            new_target_density = genjax.normal.logpdf(new_a, 0.0, 1.0)
+
+            assert new_a == idx + 7.0
+            assert fwd_w == new_target_density - old_target_density
