@@ -447,17 +447,31 @@ def exact_density(
         warnings.warn("You should supply a name argument to exact_density")
         name = "unknown"
 
+    def kwargle(f, a0, args, kwargs):
+        """Keyword arguments currently get unusual treatment in GenJAX: when
+        a keyword argument is provided to a generative function, the function
+        is asked to provide a new vesion of itself which receives a different
+        signature: `(args, kwargs)` instead of `(*args, **kwargs)`. The
+        replacement of the GF with a new object may cause JAX to believe that
+        the implementations are materially different. To avoid this, we
+        reply to the handle_kwargs request with self and infer kwargs handling
+        by seeing whether we were passed a 2-tuple with a dict in the [1] slot.
+        We are assuming that this will not represent a useful argument package
+        to any of the TF distributions."""
+        if len(args) == 2 and isinstance(args[1], dict):
+            return f(a0, *args[0], **args[1])
+        else:
+            return f(a0, *args, **kwargs)
+
     T = type(
         canonicalize_distribution_name(name),
         (ExactDensity,),
         {
-            "sample": lambda self, key, *args, **kwargs: sample(key, *args, **kwargs),
-            "logpdf": lambda self, v, *args, **kwargs: logpdf(v, *args, **kwargs),
-            "handle_kwargs": lambda self: exact_density(
-                lambda key, *args: self.sample(key, *args[0], **args[1]),
-                lambda v, *args: self.logpdf(v, *args[0], **args[1]),
-                name,
+            "sample": lambda self, key, *args, **kwargs: kwargle(
+                sample, key, args, kwargs
             ),
+            "logpdf": lambda self, v, *args, **kwargs: kwargle(logpdf, v, args, kwargs),
+            "handle_kwargs": lambda self: self,
         },
     )
 
