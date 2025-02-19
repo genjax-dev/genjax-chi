@@ -87,8 +87,7 @@ class InitialStylePrimitive(FlatPrimitive):
         super().__init__(name)
 
         def fun_impl(*args, **params):
-            consts, args = jax_util.split_list(args, [params["num_consts"]])
-            return jc.eval_jaxpr(params["_jaxpr"], consts, *args)
+            return params["impl"](*args, **params)
 
         self.def_impl(fun_impl)
 
@@ -103,9 +102,14 @@ def initial_style_bind(prim, **params):
         def wrapped(*args, **kwargs):
             """Runs a function and binds it to a call primitive."""
             jaxpr, (flat_args, in_tree, out_tree) = stage(f)(*args, **kwargs)
+
+            def impl(*args, **params):
+                consts, args = jax_util.split_list(args, [params["num_consts"]])
+                return jc.eval_jaxpr(jaxpr.jaxpr, consts, *args)
+
             outs = prim.bind(
                 *it.chain(jaxpr.literals, flat_args),
-                _jaxpr=jaxpr.jaxpr,
+                impl=impl,
                 in_tree=in_tree,
                 out_tree=out_tree,
                 num_consts=len(jaxpr.literals),
