@@ -421,9 +421,9 @@ class ExactDensity(Generic[R], Distribution[R]):
                 return w, v
 
 
-def canonicalize_distribution_name(s) -> str:
-    """Converts underlyinig distribution name from CamelCase to snake_case
-    and prepents `genjax.`"""
+def canonicalize_distribution_name(s: str) -> str:
+    """Converts underlying distribution name from CamelCase to snake_case
+    and prepends `genjax.`"""
     t = []
     for c in s:
         if c.isupper():
@@ -466,7 +466,7 @@ def exact_density(
 
 def implicit_logit_warning(dist):
     """Early versions of GenJAX interpreted bare parameters to certain distributions
-    in logit scale, but many newcomers to probabilistic programming are use to thinking
+    in logit scale, but many newcomers to probabilistic programming may be used to thinking
     in probability scale and expect this to be the default. To conserve the meaning of
     GenJAX programs, use of a bare parameter in these cases now provokes a warning
     requesting that the caller make an explicit choice."""
