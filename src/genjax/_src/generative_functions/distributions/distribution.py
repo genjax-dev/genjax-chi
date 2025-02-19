@@ -450,7 +450,7 @@ def exact_density(
     def kwargle(f, a0, args, kwargs):
         """Keyword arguments currently get unusual treatment in GenJAX: when
         a keyword argument is provided to a generative function, the function
-        is asked to provide a new vesion of itself which receives a different
+        is asked to provide a new version of itself which receives a different
         signature: `(args, kwargs)` instead of `(*args, **kwargs)`. The
         replacement of the GF with a new object may cause JAX to believe that
         the implementations are materially different. To avoid this, we
