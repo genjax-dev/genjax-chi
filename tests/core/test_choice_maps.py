@@ -176,22 +176,6 @@ class TestSelections:
         assert sel1 | sel1 == sel1
         assert sel2 | sel2 == sel2
 
-    def test_selection_mask(self):
-        sel = S["x"] | S["y"]
-        masked_sel = sel.mask(jnp.asarray(True))
-        assert masked_sel["x"]
-        assert masked_sel["y"]
-        assert not masked_sel["z"]
-
-        masked_sel = sel.mask(False)
-        assert not masked_sel["x"]
-        assert not masked_sel["y"]
-        assert not masked_sel["z"]
-
-        # bool works like flags
-        assert sel.mask(True) == sel.mask(True)
-        assert sel.mask(False) == sel.mask(False)
-
     def test_selection_filter(self):
         # Create a ChoiceMap
         chm = ChoiceMap.kw(x=1, y=2, z=3)
@@ -681,20 +665,19 @@ class TestChoiceMap:
         assert filtered.simplify() == C["x", "y"].set(maskv), "simplify removes filters"
 
         xyz = ChoiceMap.d({"x": 1, "y": 2, "z": 3})
-        or_chm = xyz.filter(S["x"]) | xyz.filter(S["y"].mask(jnp.array(True)))
-
-        xor_chm = xyz.filter(S["x"]) ^ xyz.filter(S["y"].mask(jnp.array(True)))
+        or_chm = xyz.filter(S["x"]) | xyz.filter(S["y"])
+        xor_chm = xyz.filter(S["x"]) ^ xyz.filter(S["y"])
 
         assert or_chm.simplify() == xor_chm.simplify(), "filters pushed down"
 
         assert or_chm["x"] == 1
-        assert or_chm["y"] == maskv
+        assert or_chm["y"] == 2
         with pytest.raises(ChoiceMapNoValueAtAddress, match="z"):
             or_chm["z"]
 
         assert or_chm.simplify() == ChoiceMap.d({
             "x": 1,
-            "y": maskv,
+            "y": 2,
         }), "filters pushed down"
 
         assert C["x"].set(None).simplify() == C["x"].set(None), "None is not filtered"
