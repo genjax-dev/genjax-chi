@@ -13,6 +13,7 @@
 # limitations under the License.
 """This module contains the `Distribution` abstract base class."""
 
+import textwrap
 import warnings
 from abc import abstractmethod
 
@@ -42,7 +43,7 @@ from genjax._src.core.generative import (
 from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import FlagOp, to_shape_fn
-from genjax._src.core.pytree import Closure, Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
@@ -363,7 +364,7 @@ class ExactDensity(Generic[R], Distribution[R]):
         pass
 
     @abstractmethod
-    def logpdf(self, v: R, *args) -> Score:
+    def logpdf(self, v: R, *args, **kwargs) -> Score:
         pass
 
     def __abstract_call__(self, *args):
@@ -420,10 +421,22 @@ class ExactDensity(Generic[R], Distribution[R]):
                 return w, v
 
 
+def canonicalize_distribution_name(s: str) -> str:
+    """Converts underlying distribution name from CamelCase to snake_case
+    and prepends `genjax.`"""
+    t = []
+    for c in s:
+        if c.isupper():
+            if t:
+                t.append("_")
+            t.append(c.lower())
+        else:
+            t.append(c)
+    return "genjax." + "".join(t)
+
+
 def exact_density(
-    sample: Closure[R] | Callable[..., R],
-    logpdf: Closure[Score] | Callable[..., Score],
-    name: str | None = None,
+    sample: Callable[..., R], logpdf: Callable[..., Score], name: str | None = None
 ) -> ExactDensity[R]:
     """Construct a new type, a subclass of ExactDensity, with the given name,
     (with `genjax.` prepended, to avoid confusion with the underlying object,
@@ -434,13 +447,56 @@ def exact_density(
         warnings.warn("You should supply a name argument to exact_density")
         name = "unknown"
 
+    def kwargle(f, a0, args, kwargs):
+        """Keyword arguments currently get unusual treatment in GenJAX: when
+        a keyword argument is provided to a generative function, the function
+        is asked to provide a new version of itself which receives a different
+        signature: `(args, kwargs)` instead of `(*args, **kwargs)`. The
+        replacement of the GF with a new object may cause JAX to believe that
+        the implementations are materially different. To avoid this, we
+        reply to the handle_kwargs request with self and infer kwargs handling
+        by seeing whether we were passed a 2-tuple with a dict in the [1] slot.
+        We are assuming that this will not represent a useful argument package
+        to any of the TF distributions."""
+        if len(args) == 2 and isinstance(args[1], dict):
+            return f(a0, *args[0], **args[1])
+        else:
+            return f(a0, *args, **kwargs)
+
     T = type(
-        f"genjax.{name}",
+        canonicalize_distribution_name(name),
         (ExactDensity,),
         {
-            "sample": lambda self, key, *args, **kwargs: sample(key, *args, **kwargs),
-            "logpdf": lambda self, v, *args, **kwargs: logpdf(v, *args, **kwargs),
+            "sample": lambda self, key, *args, **kwargs: kwargle(
+                sample, key, args, kwargs
+            ),
+            "logpdf": lambda self, v, *args, **kwargs: kwargle(logpdf, v, args, kwargs),
+            "handle_kwargs": lambda self: self,
         },
     )
 
     return Pytree.dataclass(T)()
+
+
+def implicit_logit_warning(dist):
+    """Early versions of GenJAX interpreted bare parameters to certain distributions
+    in logit scale, but many newcomers to probabilistic programming may be used to thinking
+    in probability scale and expect this to be the default. To conserve the meaning of
+    GenJAX programs, use of a bare parameter in these cases now provokes a warning
+    requesting that the caller make an explicit choice."""
+
+    def wrapper(implicit_logits=None, **kwargs):
+        if implicit_logits is not None:
+            warnings.warn(
+                textwrap.dedent(
+                    f"""
+                    The use of a bare argument to {canonicalize_distribution_name(dist.__name__)}
+                    is deprecated. Please specify `logits=` or `probs=` for the parameters.
+                    The default, which will be used in this case, is logits."""
+                ),
+                DeprecationWarning,
+            )
+            return dist(logits=implicit_logits, **kwargs)
+        return dist(**kwargs)
+
+    return wrapper

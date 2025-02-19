@@ -355,7 +355,7 @@ class GenerativeFunction(Generic[R], Pytree):
             @genjax.gen
             def weather_model():
                 temperature = genjax.normal(20.0, 5.0) @ "temperature"
-                is_sunny = genjax.bernoulli(0.7) @ "is_sunny"
+                is_sunny = genjax.bernoulli(probs=0.7) @ "is_sunny"
                 return {"temperature": temperature, "is_sunny": is_sunny}
 
 
@@ -1268,7 +1268,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
             @genjax.gen
             def branch_2():
-                x = genjax.bernoulli(0.3) @ "x2"
+                x = genjax.bernoulli(probs=0.3) @ "x2"
 
 
             switch = branch_1.switch(branch_2)

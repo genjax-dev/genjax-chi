@@ -124,7 +124,7 @@ class Switch(Generic[R], GenerativeFunction[R]):
 
         @genjax.gen
         def branch_2():
-            x = genjax.bernoulli(0.3) @ "x2"
+            x = genjax.bernoulli(probs=0.3) @ "x2"
 
 
         switch = genjax.switch(branch_1, branch_2)
@@ -335,7 +335,7 @@ def switch(
 
         @genjax.gen
         def branch_2():
-            x = genjax.bernoulli(0.3) @ "x2"
+            x = genjax.bernoulli(probs=0.3) @ "x2"
 
 
         switch = genjax.switch(branch_1, branch_2)
