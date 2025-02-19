@@ -244,13 +244,45 @@ class TestRepr:
         @genjax.gen
         def model():
             x = genjax.normal(0.0, 1.0) @ "x"
-            y = genjax.bernoulli(0.0) @ "y"
+            y = genjax.bernoulli(logits=0.0) @ "y"
             z = genjax.flip(0.5) @ "z"
-            t = genjax.categorical([0.0, 0.0]) @ "t"
+            t = genjax.categorical(logits=[0.0, 0.0]) @ "t"
             return x, y, z, t
 
         tr = model.simulate(jax.random.key(0), ())
-        assert str(tr.get_subtrace("x").get_gen_fn()) == "genjax.Normal()"
-        assert str(tr.get_subtrace("y").get_gen_fn()) == "genjax.Bernoulli()"
+        assert str(tr.get_subtrace("x").get_gen_fn()) == "genjax.normal()"
+        assert str(tr.get_subtrace("y").get_gen_fn()) == "genjax.bernoulli()"
         assert str(tr.get_subtrace("z").get_gen_fn()) == "genjax.flip()"
-        assert str(tr.get_subtrace("t").get_gen_fn()) == "genjax.Categorical()"
+        assert str(tr.get_subtrace("t").get_gen_fn()) == "genjax.categorical()"
+
+    def test_distribution_kwargs(self):
+        @genjax.gen
+        def model():
+            c = genjax.categorical(logits=[-0.3, -0.5]) @ "c"
+            p = genjax.categorical(probs=[0.3, 0.7]) @ "p"
+            n = genjax.normal(loc=0.0, scale=0.1) @ "n"
+            return c + p + n
+
+        tr = model.simulate(jax.random.key(0), ())
+        assert tr.get_subtrace("c").get_args() == ((), {"logits": [-0.3, -0.5]})
+        assert tr.get_subtrace("p").get_args() == ((), {"probs": [0.3, 0.7]})
+        assert tr.get_subtrace("n").get_args() == ((), {"loc": 0.0, "scale": 0.1})
+
+    def test_deprecation_warnings(self):
+        @genjax.gen
+        def f():
+            return genjax.categorical([-0.3, -0.5]) @ "c"
+
+        @genjax.gen
+        def g():
+            return genjax.bernoulli(-0.4) @ "b"
+
+        with pytest.warns(
+            DeprecationWarning, match="bare argument to genjax.categorical"
+        ):
+            _ = f.simulate(jax.random.key(0), ())
+
+        with pytest.warns(
+            DeprecationWarning, match="bare argument to genjax.bernoulli"
+        ):
+            _ = g.simulate(jax.random.key(0), ())

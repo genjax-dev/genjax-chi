@@ -195,7 +195,7 @@ class TestDistributions:
         def model():
             _ = (
                 genjax.bernoulli(
-                    0.5,
+                    probs=0.5,
                 )
                 @ "a"
             )
@@ -212,7 +212,7 @@ class TestDistributions:
             )
             _ = (
                 genjax.categorical(
-                    [0.5, 0.5],
+                    probs=[0.5, 0.5],
                 )
                 @ "g"
             )

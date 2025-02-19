@@ -147,7 +147,7 @@ class TestMisc:
         @genjax.gen
         def model(x):
             y = genjax.normal(x, 1.0) @ "y"
-            z = genjax.bernoulli(0.7) @ "z"
+            z = genjax.bernoulli(probs=0.7) @ "z"
             return y + z
 
         zero_trace = model.get_zero_trace(0.0)
@@ -806,7 +806,7 @@ class TestStaticGenFnForwardRef:
 
             @genjax.gen
             def outlier(prob):
-                is_outlier = genjax.bernoulli(prob) @ "is_outlier"
+                is_outlier = genjax.bernoulli(probs=prob) @ "is_outlier"
                 return is_outlier
 
             return proposal
@@ -815,7 +815,7 @@ class TestStaticGenFnForwardRef:
         proposal = make_gen_fn()
         tr = proposal.simulate(key, (0.3,))
 
-        assert tr.get_score() == genjax.bernoulli.logpdf(tr.get_retval(), 0.3)
+        assert tr.get_score() == genjax.bernoulli.logpdf(tr.get_retval(), probs=0.3)
 
 
 class TestGenFnClosure:

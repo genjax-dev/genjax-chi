@@ -889,7 +889,7 @@ class TestChoiceMap:
         @genjax.gen
         def model(x):
             y = genjax.normal(x, 1.0) @ "y"
-            z = genjax.bernoulli(0.5) @ "z"
+            z = genjax.bernoulli(probs=0.5) @ "z"
             return y + z
 
         # Valid ChoiceMap
@@ -908,7 +908,7 @@ class TestChoiceMap:
         @genjax.gen
         def inner_model():
             a = genjax.normal(0.0, 1.0) @ "a"
-            b = genjax.bernoulli(0.5) @ "b"
+            b = genjax.bernoulli(probs=0.5) @ "b"
             return a + b
 
         @genjax.gen
@@ -943,7 +943,7 @@ class TestChoiceMap:
         @genjax.gen
         def inner_model(x):
             a = genjax.normal(x, 1.0) @ "a"
-            b = genjax.bernoulli(0.5) @ "b"
+            b = genjax.bernoulli(probs=0.5) @ "b"
             return a + b
 
         @genjax.gen
@@ -1011,7 +1011,7 @@ class TestChoiceMap:
 
         @genjax.gen
         def outer_model():
-            choice = genjax.categorical([0.3, 0.3, 0.4]) @ "choice"
+            choice = genjax.categorical(probs=[0.3, 0.3, 0.4]) @ "choice"
             return switch_model(choice, (), (), ()) @ "out"
 
         # Valid ChoiceMap for model1
