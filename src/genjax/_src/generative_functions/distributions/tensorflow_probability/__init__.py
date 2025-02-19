@@ -66,6 +66,10 @@ bernoulli = tfp_distribution(
 )
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions.
+
+Takes an N-D Tensor representing the log-odds of a 1 event. Each entry in the Tensor parameterizes an independent Bernoulli distribution where the probability of an event is sigmoid(logits).
+
+(Note that this is the `logits` argument to the `tfd.Bernoulli` constructor.)
 """
 
 beta = tfp_distribution(tfd.Beta)
@@ -143,6 +147,10 @@ A `tfp_distribution` generative function which wraps the [`tfd.Exponential`](htt
 flip = tfp_distribution(lambda p: tfd.Bernoulli(probs=p, dtype=jnp.bool_), name="flip")
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions, but is constructed using a probability value and not a logit.
+
+Takes an N-D Tensor representing the probability of a 1 event. Each entry in the Tensor parameterizes an independent Bernoulli distribution.
+
+(Note that this is the `probs` argument to the `tfd.Bernoulli` constructor.)
 """
 
 gamma = tfp_distribution(tfd.Gamma)
