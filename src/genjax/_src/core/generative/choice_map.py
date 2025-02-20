@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 from abc import abstractmethod
 from dataclasses import dataclass
 from operator import or_
@@ -938,13 +939,12 @@ class ChoiceMap(Pytree):
     ) -> "ChoiceMap":
         pass
 
-    def get_submap(self, *addr: AddressComponent) -> "ChoiceMap":
-        addr = _validate_addr(addr, allow_partial_slice=True)
-
-        submap = self
-        for comp in addr:
-            submap = submap.get_inner_map(comp)
-        return submap
+    def get_submap(self, *addresses: Address) -> "ChoiceMap":
+        addr = sum((a if isinstance(a, tuple) else (a,) for a in addresses), ())
+        addr: tuple[AddressComponent, ...] = _validate_addr(
+            addr, allow_partial_slice=True
+        )
+        return functools.reduce(lambda chm, addr: chm.get_inner_map(addr), addr, self)
 
     def has_value(self) -> bool:
         return self.get_value() is not None
@@ -1219,6 +1219,7 @@ class ChoiceMap(Pytree):
                 acc = Static.build({addr: acc})
             else:
                 acc = Indexed.build(acc, addr)
+
         return acc
 
     def merge(self, other: "ChoiceMap") -> "ChoiceMap":
@@ -1296,10 +1297,10 @@ class ChoiceMap(Pytree):
 
     def __call__(
         self,
-        addr: Address,
+        *addresses: Address,
     ) -> "ChoiceMap":
-        addr = addr if isinstance(addr, tuple) else (addr,)
-        return self.get_submap(*addr)
+        """TODO add some tests that we flatten out one layer of nested tuples, and that get_submap can now take multiple arguments."""
+        return self.get_submap(*addresses)
 
     def __getitem__(
         self,
