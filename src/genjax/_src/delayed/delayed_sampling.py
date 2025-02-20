@@ -32,10 +32,13 @@ R = TypeVar("R", bound=Any)
 # Language #
 ############
 
-# We extend `Jaxpr` with a set of primitives to model
+# We extend the `Jaxpr` language with a set of primitives to model
 # the checkpoints of Murray et al, 2017.
 assume_p = InitialStylePrimitive("assume")
 observe_p = InitialStylePrimitive("observe")
+
+# TODO: might be useful to have a primitive for
+# for "black box" computations which force values?
 placeholder_p = InitialStylePrimitive("placeholder")
 
 
@@ -179,7 +182,7 @@ class DelayedSamplingVirtualMachine:
         self,
         var: jc.Var,
     ) -> bool:
-        if not var in self.marginalized:
+        if var not in self.marginalized:
             return False
         child = self.children.get(var.count, var)
         return var == child or child not in self.marginalized
@@ -315,10 +318,8 @@ class DelayedSamplingVirtualMachine:
         var: jc.Literal | jc.Var,
     ) -> bool:
         val = self.read(var)
-        return (
-            isinstance(var, jc.Var)
-            and isinstance(val, Delayed)
-            or isinstance(val, Marginalized)
+        return (isinstance(var, jc.Var) and isinstance(val, Delayed)) or isinstance(
+            val, Marginalized
         )
 
     def value(

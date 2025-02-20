@@ -15,7 +15,7 @@
 from genjax._src.delayed.delayed_sampling import assume, delay, observe
 
 __all__ = [
+    "assume",
     "delay",
     "observe",
-    "assume",
 ]
