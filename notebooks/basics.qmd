@@ -1,5 +1,0 @@
----
-title: "Basics"
----
-
-This section shows some of the building blocks of GenJAX such as creating generative functions and manipulating them.

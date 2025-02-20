@@ -18,14 +18,13 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
-    Projection,
     Retdiff,
     Score,
     Trace,
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ChoiceMap
+from genjax._src.core.generative.choice_map import ChoiceMap, ExtendedAddress, Selection
 from genjax._src.core.interpreters.incremental import Diff, incremental
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -43,7 +42,7 @@ S = TypeVar("S")
 
 @Pytree.dataclass
 class DimapTrace(Generic[R, S], Trace[S]):
-    gen_fn: "DimapCombinator[Any, R, S]"
+    gen_fn: "Dimap[Any, R, S]"
     inner: Trace[R]
     args: tuple[Any, ...]
     retval: S
@@ -63,9 +62,12 @@ class DimapTrace(Generic[R, S], Trace[S]):
     def get_score(self) -> Score:
         return self.inner.get_score()
 
+    def get_inner_trace(self, address: ExtendedAddress) -> Trace[R]:
+        return self.inner.get_inner_trace(address)
+
 
 @Pytree.dataclass
-class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
+class Dimap(Generic[ArgTuple, R, S], GenerativeFunction[S]):
     """
     A combinator that transforms both the arguments and return values of a [`genjax.GenerativeFunction`][].
 
@@ -108,7 +110,6 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
     inner: GenerativeFunction[R]
     argument_mapping: Callable[..., ArgTuple] = Pytree.static()
     retval_mapping: Callable[[tuple[Any, ...], ArgTuple, R], S] = Pytree.static()
-    info: str | None = Pytree.static(default=None)
 
     def simulate(
         self,
@@ -137,10 +138,10 @@ class DimapCombinator(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         self,
         key: PRNGKey,
         trace: Trace[S],
-        projection: Projection[Any],
+        selection: Selection,
     ) -> Weight:
         assert isinstance(trace, DimapTrace)
-        return trace.inner.project(key, projection)
+        return trace.inner.project(key, selection)
 
     def edit_change_target(
         self,
@@ -221,8 +222,7 @@ def dimap(
     post: Callable[[tuple[Any, ...], ArgTuple, R], S] = lambda _,
     _xformed,
     retval: retval,
-    info: str | None = None,
-) -> Callable[[GenerativeFunction[R]], DimapCombinator[ArgTuple, R, S]]:
+) -> Callable[[GenerativeFunction[R]], Dimap[ArgTuple, R, S]]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
 
@@ -232,7 +232,6 @@ def dimap(
     Args:
         pre: A callable that preprocesses the arguments before passing them to the wrapped function. Note that `pre` must return a _tuple_ of arguments, not a bare argument. Default is the identity function.
         post: A callable that postprocesses the return value of the wrapped function. Default is the identity function.
-        info: An optional string providing additional information about the `dimap` operation.
 
     Returns:
         A decorator that takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] with the same behavior but with the arguments and return value transformed according to `pre` and `post`.
@@ -252,7 +251,7 @@ def dimap(
 
 
         # Apply dimap to a generative function
-        @genjax.dimap(pre=pre_process, post=post_process, info="Square of normal")
+        @genjax.dimap(pre=pre_process, post=post_process)
         @genjax.gen
         def dimap_model(x, y):
             return genjax.normal(x, y) @ "z"
@@ -266,17 +265,15 @@ def dimap(
         ```
     """
 
-    def decorator(f: GenerativeFunction[R]) -> DimapCombinator[ArgTuple, R, S]:
-        return DimapCombinator(f, pre, post, info)
+    def decorator(f: GenerativeFunction[R]) -> Dimap[ArgTuple, R, S]:
+        return Dimap(f, pre, post)
 
     return decorator
 
 
 def map(
     f: Callable[[R], S],
-    *,
-    info: str | None = None,
-) -> Callable[[GenerativeFunction[R]], DimapCombinator[tuple[Any, ...], R, S]]:
+) -> Callable[[GenerativeFunction[R]], Dimap[tuple[Any, ...], R, S]]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies a post-processing function to its return value.
 
@@ -284,7 +281,6 @@ def map(
 
     Args:
         f: A callable that postprocesses the return value of the wrapped function.
-        info: An optional string providing additional information about the `map` operation.
 
     Returns:
         A decorator that takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] with the same behavior but with the return value transformed according to `f`.
@@ -300,7 +296,7 @@ def map(
 
 
         # Apply map to a generative function
-        @genjax.map(square, info="Square of normal")
+        @genjax.map(square)
         @genjax.gen
         def map_model(x):
             return genjax.normal(x, 1.0) @ "z"
@@ -317,14 +313,12 @@ def map(
     def post(_args, _xformed, x: R) -> S:
         return f(x)
 
-    return dimap(pre=lambda *args: args, post=post, info=info)
+    return dimap(pre=lambda *args: args, post=post)
 
 
 def contramap(
     f: Callable[..., ArgTuple],
-    *,
-    info: str | None = None,
-) -> Callable[[GenerativeFunction[R]], DimapCombinator[ArgTuple, R, R]]:
+) -> Callable[[GenerativeFunction[R]], Dimap[ArgTuple, R, R]]:
     """
     Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies a pre-processing function to its arguments.
 
@@ -332,7 +326,6 @@ def contramap(
 
     Args:
         f: A callable that preprocesses the arguments of the wrapped function. Note that `f` must return a _tuple_ of arguments, not a bare argument.
-        info: An optional string providing additional information about the `contramap` operation.
 
     Returns:
         A decorator that takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] with the same behavior but with the arguments transformed according to `f`.
@@ -349,7 +342,7 @@ def contramap(
 
 
         # Apply contramap to a generative function
-        @genjax.contramap(add_one, info="Add one to input")
+        @genjax.contramap(add_one)
         @genjax.gen
         def contramap_model(x):
             return genjax.normal(x, 1.0) @ "z"
@@ -362,4 +355,4 @@ def contramap(
         print(trace.render_html())
         ```
     """
-    return dimap(pre=f, post=lambda _args, _xformed, ret: ret, info=info)
+    return dimap(pre=f, post=lambda _args, _xformed, ret: ret)

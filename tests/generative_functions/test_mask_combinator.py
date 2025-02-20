@@ -49,7 +49,7 @@ class TestMaskCombinator:
         assert tr.get_score() == 0.0
         assert not tr.get_retval().flag
 
-        score, retval = jax.jit(model.assess)(tr.get_sample(), tr.get_args())
+        score, retval = jax.jit(model.assess)(tr.get_choices(), tr.get_args())
         assert score == 0.0
         assert not retval.flag
 
@@ -116,7 +116,7 @@ class TestMaskCombinator:
             retval_flag
             * jax.vmap(lambda v: genjax.normal.logpdf(v, 0.0, 1.0))(retval_val)
         )
-        vmap_tr = tr.get_subtrace(("init",))
+        vmap_tr = tr.get_subtrace("init")
         assert isinstance(vmap_tr, VmapTrace)
         inner_scores = jax.vmap(lambda tr: tr.get_score())(vmap_tr.inner)
         # score should be sum of sub-scores masked True

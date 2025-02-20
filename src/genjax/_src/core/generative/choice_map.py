@@ -22,7 +22,7 @@ import jax.tree_util as jtu
 import treescope.repr_lib as trl
 from deprecated import deprecated
 
-from genjax._src.core.generative.core import Constraint, Projection
+from genjax._src.core.generative.core import Constraint
 from genjax._src.core.generative.functional_types import Mask
 from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
@@ -50,11 +50,11 @@ StaticAddressComponent = str
 DynamicAddressComponent = int | IntArray | slice
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
 Address = tuple[AddressComponent, ...]
-StaticAddress = tuple[StaticAddressComponent, ...]
+StaticAddress = StaticAddressComponent | tuple[StaticAddressComponent, ...]
 ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
 ExtendedStaticAddress = tuple[ExtendedStaticAddressComponent, ...]
 ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
-ExtendedAddress = tuple[ExtendedAddressComponent, ...]
+ExtendedAddress = ExtendedAddressComponent | tuple[ExtendedAddressComponent, ...]
 
 T = TypeVar("T")
 K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
@@ -71,19 +71,54 @@ _full_slice = slice(None, None, None)
 
 
 class _SelectionBuilder:
+    @property
+    def all(self) -> "Selection":
+        """
+        Returns a Selection that selects all addresses.
+
+        Returns:
+            A Selection that selects everything.
+        """
+        return Selection.all()
+
+    @property
+    def none(self) -> "Selection":
+        """
+        Returns a Selection that selects no addresses.
+
+        Returns:
+            A Selection that selects nothing.
+        """
+        return Selection.none()
+
+    @property
+    def leaf(self) -> "Selection":
+        """
+        Returns a Selection that selects only leaf addresses.
+
+        A leaf address is an address that doesn't have any sub-addresses.
+        This selection is useful when you want to target only the final elements in a nested structure.
+
+        Returns:
+            A Selection that selects only leaf addresses.
+        """
+        return Selection.leaf()
+
     def __getitem__(
         self, addr: ExtendedStaticAddressComponent | ExtendedStaticAddress
     ) -> "Selection":
         addr = addr if isinstance(addr, tuple) else (addr,)
-
-        return Selection.all().extend(*addr)
+        if addr == ():
+            return Selection.leaf()
+        else:
+            return Selection.all().extend(*addr)
 
 
 SelectionBuilder = _SelectionBuilder()
 """Deprecated! please use `Selection.at`."""
 
 
-class Selection(Projection["ChoiceMap"], Pytree):
+class Selection(Pytree):
     """
     A class representing a selection of addresses in a ChoiceMap.
 
@@ -316,7 +351,7 @@ class Selection(Projection["ChoiceMap"], Pytree):
 
     def __call__(
         self,
-        addr: AddressComponent | Address,
+        addr: StaticAddressComponent | StaticAddress,
     ) -> "Selection":
         addr = addr if isinstance(addr, tuple) else (addr,)
         subselection = self
@@ -326,14 +361,14 @@ class Selection(Projection["ChoiceMap"], Pytree):
 
     def __getitem__(
         self,
-        addr: AddressComponent | Address,
+        addr: StaticAddressComponent | StaticAddress,
     ) -> Flag:
         subselection = self(addr)
         return subselection.check()
 
     def __contains__(
         self,
-        addr: AddressComponent | Address,
+        addr: StaticAddressComponent | StaticAddress,
     ) -> Flag:
         return self[addr]
 
@@ -342,7 +377,7 @@ class Selection(Projection["ChoiceMap"], Pytree):
         pass
 
     @abstractmethod
-    def get_subselection(self, addr: AddressComponent) -> "Selection":
+    def get_subselection(self, addr: StaticAddressComponent) -> "Selection":
         pass
 
 
@@ -498,7 +533,7 @@ class ComplementSel(Selection):
     def check(self) -> Flag:
         return FlagOp.not_(self.s.check())
 
-    def get_subselection(self, addr: AddressComponent) -> Selection:
+    def get_subselection(self, addr: StaticAddressComponent) -> Selection:
         remaining = self.s(addr)
         return ~remaining
 
@@ -549,7 +584,7 @@ class StaticSel(Selection):
             return self.s.mask(addr == self.addr)
 
         else:
-            return Selection.none()
+            return self
 
 
 @Pytree.dataclass(match_args=True)
@@ -598,7 +633,7 @@ class AndSel(Selection):
     def check(self) -> Flag:
         return FlagOp.and_(self.s1.check(), self.s2.check())
 
-    def get_subselection(self, addr: AddressComponent) -> Selection:
+    def get_subselection(self, addr: StaticAddressComponent) -> Selection:
         remaining1 = self.s1(addr)
         remaining2 = self.s2(addr)
         return remaining1 & remaining2
@@ -652,7 +687,7 @@ class OrSel(Selection):
     def check(self) -> Flag:
         return FlagOp.or_(self.s1.check(), self.s2.check())
 
-    def get_subselection(self, addr: AddressComponent) -> Selection:
+    def get_subselection(self, addr: StaticAddressComponent) -> Selection:
         remaining1 = self.s1(addr)
         remaining2 = self.s2(addr)
         return remaining1 | remaining2
@@ -693,7 +728,7 @@ class ChmSel(Selection):
         return self.c.has_value()
 
     def get_subselection(self, addr: AddressComponent) -> Selection:
-        submap = self.c.get_submap(addr)
+        submap = self.c.get_inner_map(addr)
         return submap.get_selection()
 
 
@@ -730,9 +765,7 @@ def _drop_prefix(
     return dynamic_components[prefix_end:]
 
 
-def _validate_addr(
-    addr: AddressComponent | Address, allow_partial_slice: bool = False
-) -> Address:
+def _validate_addr(addr: Address, allow_partial_slice: bool = False) -> Address:
     """
     Validates the structure of an address tuple.
 
@@ -752,8 +785,6 @@ def _validate_addr(
     Raises:
         ValueError: If the address structure is invalid.
     """
-
-    addr = addr if isinstance(addr, tuple) else (addr,)
     dynamic_components = [
         comp for comp in addr if isinstance(comp, (slice, int, Array))
     ]
@@ -956,7 +987,7 @@ class ChoiceMap(Pytree):
 
             key = jax.random.key(314159)
             tr = model.simulate(key, ())
-            chm = tr.get_sample()
+            chm = tr.get_choices()
             selection = S["x"]
             filtered = chm.filter(selection)
             assert "y" not in filtered
@@ -968,11 +999,19 @@ class ChoiceMap(Pytree):
         pass
 
     @abstractmethod
-    def get_submap(
+    def get_inner_map(
         self,
         addr: AddressComponent,
     ) -> "ChoiceMap":
         pass
+
+    def get_submap(self, *addr: AddressComponent) -> "ChoiceMap":
+        addr = _validate_addr(addr, allow_partial_slice=True)
+
+        submap = self
+        for comp in addr:
+            submap = submap.get_inner_map(comp)
+        return submap
 
     def has_value(self) -> Flag:
         match self.get_value():
@@ -1311,6 +1350,7 @@ class ChoiceMap(Pytree):
     ###########
     # Dunders #
     ###########
+
     @deprecated(
         reason="^ is deprecated, please use | or _.merge(...) instead.",
         version="0.8.0",
@@ -1331,12 +1371,8 @@ class ChoiceMap(Pytree):
         self,
         addr: AddressComponent | Address,
     ) -> "ChoiceMap":
-        addr = _validate_addr(addr, allow_partial_slice=True)
-
-        submap = self
-        for comp in addr:
-            submap = submap.get_submap(comp)
-        return submap
+        addr = addr if isinstance(addr, tuple) else (addr,)
+        return self.get_submap(*addr)
 
     def __getitem__(
         self,
@@ -1469,7 +1505,7 @@ class Choice(Generic[T], ChoiceMap):
     def get_value(self) -> T:
         return self.v
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def get_inner_map(self, addr: AddressComponent) -> ChoiceMap:
         if isinstance(addr, StaticAddressComponent):
             return ChoiceMap.empty()
         else:
@@ -1522,12 +1558,12 @@ class Indexed(ChoiceMap):
 
     def filter(self, selection: Selection) -> ChoiceMap:
         addr = _full_slice if self.addr is None else self.addr
-        return self.c.filter(selection(addr)).extend(addr)
+        return self.c.filter(selection).extend(addr)
 
     def get_value(self) -> Any:
         return None
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def get_inner_map(self, addr: AddressComponent) -> ChoiceMap:
         if isinstance(addr, StaticAddressComponent):
             return ChoiceMap.empty()
 
@@ -1629,7 +1665,7 @@ class Static(ChoiceMap):
     def get_value(self) -> Any:
         return None
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
+    def get_inner_map(self, addr: AddressComponent) -> ChoiceMap:
         if isinstance(addr, StaticAddressComponent):
             v = self.mapping.get(addr, {})
             return Static(v) if isinstance(v, dict) else v
@@ -1693,8 +1729,8 @@ class Switch(ChoiceMap):
 
         return Mask.or_n(*entries) if entries else None
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
-        return Switch(self.idx, [chm.get_submap(addr) for chm in self.chms])
+    def get_inner_map(self, addr: AddressComponent) -> ChoiceMap:
+        return Switch(self.idx, [chm.get_inner_map(addr) for chm in self.chms])
 
 
 @Pytree.dataclass(match_args=True)
@@ -1767,9 +1803,9 @@ class Or(ChoiceMap):
     def get_value(self) -> Any:
         return None
 
-    def get_submap(self, addr: AddressComponent) -> ChoiceMap:
-        submap1 = self.c1.get_submap(addr)
-        submap2 = self.c2.get_submap(addr)
+    def get_inner_map(self, addr: AddressComponent) -> ChoiceMap:
+        submap1 = self.c1.get_inner_map(addr)
+        submap2 = self.c2.get_inner_map(addr)
         return submap1 | submap2
 
 
@@ -1785,7 +1821,7 @@ def _shape_selection(chm: ChoiceMap) -> Selection:
                 return acc
 
             case Indexed(c, addr):
-                return loop(c, selection(_full_slice)).extend(...)
+                return loop(c, selection).extend(...)
 
             case Choice():
                 return LeafSel()

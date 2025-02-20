@@ -267,7 +267,7 @@ class TimeTravelingDebugger(Pytree):
 
 def _record(source: Callable[..., Any]):
     def inner(*args) -> tuple[Any, TimeTravelingDebugger]:
-        retval, next = time_travel(source)(*args)
+        retval, next = time_travel(source)(*args)  # pyright: ignore[reportGeneralTypeIssues]
         sequence = []
         jump_points = {}
         while next:
@@ -276,7 +276,7 @@ def _record(source: Callable[..., Any]):
             if debug_tag:
                 jump_points[debug_tag] = len(sequence) - 1
             args, cont = frame.args, frame.cont
-            retval, next = time_travel(cont)(*args)
+            retval, next = time_travel(cont)(*args)  # pyright: ignore[reportGeneralTypeIssues]
         return retval, TimeTravelingDebugger(retval, sequence, jump_points, 0)
 
     return inner

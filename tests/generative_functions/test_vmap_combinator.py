@@ -20,10 +20,11 @@ import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
+from genjax import Selection
 from genjax._src.core.typing import IntArray
 
 
-class TestVmapCombinator:
+class TestVmap:
     def test_vmap_combinator_simple_normal(self):
         @genjax.vmap(in_axes=(0,))
         @genjax.gen
@@ -36,6 +37,24 @@ class TestVmapCombinator:
         tr = jax.jit(model.simulate)(key, (map_over,))
         map_score = tr.get_score()
         assert map_score == jnp.sum(tr.inner.get_score())
+
+    def test_vmap_simple_normal_project(self):
+        @genjax.gen
+        def model(x):
+            z = genjax.normal(x, 1.0) @ "z"
+            return z
+
+        vmapped = model.vmap(in_axes=(0,))
+
+        key = jax.random.key(314159)
+        means = jnp.arange(0, 10, dtype=float)
+
+        tr = jax.jit(vmapped.simulate)(key, (means,))
+
+        vmapped_score = tr.get_score()
+
+        assert tr.project(key, Selection.all()) == vmapped_score
+        assert tr.project(key, Selection.none()) == 0.0
 
     def test_vmap_combinator_vector_choice_map_importance(self):
         @genjax.vmap(in_axes=(0,))
@@ -145,7 +164,7 @@ class TestVmapCombinator:
         key = jax.random.key(314159)
         map_over = jnp.arange(0, 50, dtype=float)
         tr = jax.jit(model.simulate)(key, (map_over,))
-        sample = tr.get_sample()
+        sample = tr.get_choices()
         map_score = tr.get_score()
         assert model.assess(sample, (map_over,))[0] == map_score
 
@@ -243,7 +262,7 @@ class TestVmapPytree:
         def generative_function(mc: MyClass):
             return mc.x + 5
 
-        key = jax.random.PRNGKey(0)
+        key = jax.random.key(0)
 
         # check that we can vmap over a vectorized pytree.
         assert jnp.array_equal(

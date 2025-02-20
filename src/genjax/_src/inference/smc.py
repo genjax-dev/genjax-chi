@@ -175,7 +175,7 @@ class SMCAlgorithm(Generic[R], Algorithm[R]):
             particle.get_score()
             - particle_collection.get_log_marginal_likelihood_estimate()
         )
-        chm = target.filter_to_unconstrained(particle.get_sample())
+        chm = target.filter_to_unconstrained(particle.get_choices())
         return log_density_estimate, chm
 
     def estimate_logpdf(
@@ -377,7 +377,7 @@ class ChangeTarget(Generic[R], SMCAlgorithm[R]):
         # to a new set which is properly weighted for the new target.
         def _reweight(key, particle, weight) -> tuple[Trace[R], Any]:
             latents = self.prev.get_final_target().filter_to_unconstrained(
-                particle.get_sample()
+                particle.get_choices()
             )
             new_trace, new_weight = self.target.importance(key, latents)
             this_weight = new_weight - particle.get_score() + weight
@@ -406,7 +406,7 @@ class ChangeTarget(Generic[R], SMCAlgorithm[R]):
         # to a new set which is properly weighted for the new target.
         def _reweight(key, particle, weight) -> tuple[Trace[R], Any]:
             latents = self.prev.get_final_target().filter_to_unconstrained(
-                particle.get_sample()
+                particle.get_choices()
             )
             new_trace, new_score = self.target.importance(key, latents)
             this_weight = new_score - particle.get_score() + weight
@@ -442,7 +442,7 @@ class ChangeTarget(Generic[R], SMCAlgorithm[R]):
         # to a new set which is properly weighted for the new target.
         def _reweight(key, particle, weight):
             latents = self.prev.get_final_target().filter_to_unconstrained(
-                particle.get_sample()
+                particle.get_choices()
             )
             _, new_score = self.target.importance(key, latents)
             this_weight = new_score - particle.get_score() + weight

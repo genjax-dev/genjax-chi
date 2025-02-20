@@ -81,6 +81,4 @@ def or_else(
         idx = jnp.array(jnp.logical_not(b), dtype=int)
         return (idx, if_args, else_args)
 
-    return if_gen_fn.switch(else_gen_fn).contramap(
-        argument_mapping, info="Derived combinator (OrElse)"
-    )
+    return if_gen_fn.switch(else_gen_fn).contramap(argument_mapping)
