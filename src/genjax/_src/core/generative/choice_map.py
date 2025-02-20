@@ -15,7 +15,7 @@
 from abc import abstractmethod
 from dataclasses import dataclass
 from operator import or_
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -45,18 +45,23 @@ if TYPE_CHECKING:
 # Address types #
 #################
 
+# Address components
 StaticAddressComponent = str
 DynamicAddressComponent = int | IntArray | slice
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
-Address = tuple[AddressComponent, ...]
-StaticAddress = StaticAddressComponent | tuple[StaticAddressComponent, ...]
 ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
-ExtendedStaticAddress = tuple[ExtendedStaticAddressComponent, ...]
 ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
+
+# Addresses
+Address = AddressComponent | tuple[AddressComponent, ...]
+StaticAddress: TypeAlias = StaticAddressComponent | tuple[StaticAddressComponent, ...]
+ExtendedStaticAddress = (
+    ExtendedStaticAddressComponent | tuple[ExtendedStaticAddressComponent, ...]
+)
 ExtendedAddress = ExtendedAddressComponent | tuple[ExtendedAddressComponent, ...]
 
 T = TypeVar("T")
-K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
+K_addr = TypeVar("K_addr", bound=Address)
 
 _full_slice = slice(None, None, None)
 
@@ -103,9 +108,7 @@ class _SelectionBuilder:
         """
         return Selection.leaf()
 
-    def __getitem__(
-        self, addr: ExtendedStaticAddressComponent | ExtendedStaticAddress
-    ) -> "Selection":
+    def __getitem__(self, addr: ExtendedStaticAddress) -> "Selection":
         addr = addr if isinstance(addr, tuple) else (addr,)
         if addr == ():
             return Selection.leaf()
@@ -322,7 +325,7 @@ class Selection(Pytree):
 
     def __call__(
         self,
-        addr: StaticAddressComponent | StaticAddress,
+        addr: StaticAddress,
     ) -> "Selection":
         addr = addr if isinstance(addr, tuple) else (addr,)
         subselection = self
@@ -332,14 +335,14 @@ class Selection(Pytree):
 
     def __getitem__(
         self,
-        addr: StaticAddressComponent | StaticAddress,
+        addr: StaticAddress,
     ) -> Flag:
         subselection = self(addr)
         return subselection.check()
 
     def __contains__(
         self,
-        addr: StaticAddressComponent | StaticAddress,
+        addr: StaticAddress,
     ) -> Flag:
         return self[addr]
 
@@ -676,7 +679,7 @@ class ChoiceMapNoValueAtAddress(Exception):
         subaddr: The address or sub-address where the value was not found.
     """
 
-    subaddr: AddressComponent | Address
+    subaddr: Address
 
 
 def _drop_prefix(
@@ -693,7 +696,9 @@ def _drop_prefix(
     return dynamic_components[prefix_end:]
 
 
-def _validate_addr(addr: Address, allow_partial_slice: bool = False) -> Address:
+def _validate_addr(
+    addr: tuple[AddressComponent, ...], allow_partial_slice: bool = False
+) -> tuple[AddressComponent, ...]:
     """
     Validates the structure of an address tuple.
 
@@ -752,7 +757,7 @@ class _ChoiceMapBuilder:
         self.choice_map = choice_map
         self.addrs = addrs
 
-    def __getitem__(self, addr: AddressComponent | Address) -> "_ChoiceMapBuilder":
+    def __getitem__(self, addr: Address) -> "_ChoiceMapBuilder":
         addr = addr if isinstance(addr, tuple) else (addr,)
         return _ChoiceMapBuilder(
             self.choice_map,
@@ -1291,14 +1296,14 @@ class ChoiceMap(Pytree):
 
     def __call__(
         self,
-        addr: AddressComponent | Address,
+        addr: Address,
     ) -> "ChoiceMap":
         addr = addr if isinstance(addr, tuple) else (addr,)
         return self.get_submap(*addr)
 
     def __getitem__(
         self,
-        addr: AddressComponent | Address,
+        addr: Address,
     ):
         submap = self(addr)
         v = submap.get_value()
@@ -1309,7 +1314,7 @@ class ChoiceMap(Pytree):
 
     def __contains__(
         self,
-        addr: AddressComponent | Address,
+        addr: Address,
     ) -> Flag:
         submap = self(addr)
         return submap.has_value()

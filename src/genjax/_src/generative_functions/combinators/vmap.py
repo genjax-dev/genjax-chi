@@ -36,8 +36,8 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.generative.choice_map import (
+    Address,
     ChoiceMapConstraint,
-    ExtendedAddress,
     Selection,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -92,7 +92,7 @@ class VmapTrace(Generic[R], Trace[R]):
     def get_score(self) -> Score:
         return self.score
 
-    def get_inner_trace(self, address: ExtendedAddress):
+    def get_inner_trace(self, address: Address):
         return self.inner.get_inner_trace(address)
 
 

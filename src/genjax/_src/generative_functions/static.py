@@ -42,7 +42,7 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ExtendedAddress
+from genjax._src.core.generative.choice_map import Address
 from genjax._src.core.generative.generative_function import R, push_trace_overload_stack
 from genjax._src.core.interpreters.forward import (
     InitialStylePrimitive,
@@ -104,7 +104,7 @@ class StaticTrace(Generic[R], Trace[R]):
             jnp.array([tr.get_score() for tr in self.subtraces.values()], copy=False),
         )
 
-    def get_inner_trace(self, address: ExtendedAddress):
+    def get_inner_trace(self, address: Address):
         if (
             isinstance(address, tuple)
             and len(address) == 1
@@ -123,7 +123,7 @@ class StaticTrace(Generic[R], Trace[R]):
 # Static (trie-like) edit request  #
 ####################################
 
-StaticDict: TypeAlias = dict[StaticAddressComponent | StaticAddress, EditRequest]
+StaticDict: TypeAlias = dict[StaticAddress, EditRequest]
 
 
 @Pytree.dataclass(match_args=True)
@@ -533,9 +533,7 @@ class StaticEditRequestHandler(StaticHandler):
             self.bwd_requests,
         )
 
-    def get_subrequest(
-        self, addr: StaticAddressComponent | StaticAddress
-    ) -> EditRequest:
+    def get_subrequest(self, addr: StaticAddress) -> EditRequest:
         return self.addressed.get(addr, EmptyRequest())
 
     def get_subtrace(
@@ -728,7 +726,7 @@ def regenerate_transform(source_fn):
 
 
 def handler_trace_with_static(
-    addr: StaticAddressComponent | StaticAddress,
+    addr: StaticAddress,
     gen_fn: GenerativeFunction[Any],
     args: tuple[Any, ...],
 ):

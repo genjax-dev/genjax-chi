@@ -19,9 +19,9 @@ from typing import TYPE_CHECKING
 from deprecated import deprecated
 
 from genjax._src.core.generative.choice_map import (
+    Address,
     ChoiceMap,
     ChoiceMapConstraint,
-    ExtendedAddress,
     Selection,
 )
 from genjax._src.core.generative.core import (
@@ -193,7 +193,7 @@ class Trace(Generic[R], Pytree):
             selection,
         )
 
-    def get_subtrace(self, *addresses: ExtendedAddress) -> "Trace[Any]":
+    def get_subtrace(self, *addresses: Address) -> "Trace[Any]":
         """
         Return the subtrace having the supplied address. Specifying multiple addresses
         will apply the operation recursively.
@@ -209,7 +209,7 @@ class Trace(Generic[R], Pytree):
             lambda tr, addr: tr.get_inner_trace(addr), addresses, self
         )
 
-    def get_inner_trace(self, address: ExtendedAddress) -> "Trace[Any]":
+    def get_inner_trace(self, _address: Address) -> "Trace[Any]":
         """Override this method to provide `Trace.get_subtrace` support
         for those trace types that have substructure that can be addressed
         in this way."""
