@@ -1,3 +1,43 @@
+### INITIAL PLAN:
+### exact inference on discretized model
+### exact Gibbs move on discretized model
+### exact Gibbs for continuous model
+### test exact Gibbs
+### update for cont model
+
+### What do I want?
+# Ideally, model.exact_infer(key, obs, args)
+# as well as the generality for sub_model.exact_infer(key, obs, args)
+# something cool would be an automatic plotting of the BayesNet of the model.
+
+### Math for complexity of exact inference on this model:
+# model:
+# P(latents | image, hypers)
+# = P(latents, image | hypers) / P(image)
+# = P(xy_mean, rgb_mean, mixture_weight | hypers)
+# * P(blob_idx | mixture_weight)
+# * P(xy | xy_mean rgb, blob_idx, hypers)
+# * P( rgb | rgb_mean rgb, blob_idx, hypers)  / P(image) = sum_{xy_mean, rgb_mean, mixture_weight, blob_idx} P(latents, image | hypers)
+# size of the sum: |xy_mean| * | rgb_mean| * |mixture_weight| * |blob_idx| * |n_blobs | * | image |
+# = 64**2 * 64 ** 3 * 64 * 100 * 10 ** 6
+# ~ 7. 10^18, without counting the cost of each eval nor ranging over a set of hyper parameters.
+# L4 GPU can do 30 * 10^12 flop per sec -> problem.
+
+
+### However, that's the naive version not tacking the Markov blanket and conditional independence into account. E.g. in HMM using dynamic programming
+# we can reduce the complexity from exponential in the length of the chain to linear. The argument there is as follows for a chain of length 3.
+# P(x1, x2, x2 | y1, y2, y3)
+# = P(x1 | y1) . P(x2 | x1, y2). P(x3 | x2, y3)
+# = (P(x1 , y1) / \sum_{x1} P(x1, y1))
+# . (P(x1, x2, y2) / \sum_{x1, x2} P(x1, x2, y2))
+# . (...)
+# =
+
+# NOTES:
+# - I may want to keep the distribution for observed data continuous to simplify and avoid unnecessary 0 likelihood.
+# - can compress the image to make inference faster, and one can even do SMC from low res to high res.
+
+
 import jax.numpy as jnp
 from discrete_distributions import (
     discrete_gamma,
