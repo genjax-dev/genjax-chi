@@ -1,3 +1,27 @@
+### This file describes the generative model used in the Gen2D project.
+#
+# This is an extension of the Dirichlet mixture model used in the Gen1D model
+# The model is designed so that block-Gibbs is expected to do well for inference on the model, i.e. the model has be co-designed with the inference we
+# are running on it.
+#
+# The generative model is described as follows.
+# - Fix hyperparameters sigma_xy, sigma_rgb and other global parameters like the ones for the inverse gamma distributions.
+# - Generate N Gaussians
+#   For each Gaussian
+#       xy_mean ~ Normal(mu, sigma_xy * eye(2))
+#       xy_sigma ~ InverseGamma(…some parameter…)
+#       r_mean, g_mean, b_mean {~}_{iid} Normal(127.5, sigma_rgb)
+#       rgb_sigma ~ InverseGamma(…some parameter…)
+#  - mixture_weight ~ Gamma(alpha, 1) # alpha is an arg to the model
+#    probs = normalize([gaussian.mixture_weight for gaussian in gaussians])
+#  - Generate a H*W array of datapoints.
+#   For each datapoint:
+#       idx ~ categorical([probs])
+#       mygaussian = gaussians[idx]
+#       xy ~ mvnormal(mygaussian.xy_mean, mygaussian.sigma_xy * eye(2))
+#       rgb ~ mvnormal(mygaussian.rgb_mean, mygaussian.sigma_rgb * eye(3))
+
+
 import jax.numpy as jnp
 from jax._src.basearray import Array
 
