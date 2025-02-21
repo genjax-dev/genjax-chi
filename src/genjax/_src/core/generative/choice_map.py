@@ -16,7 +16,7 @@ import functools
 from abc import abstractmethod
 from dataclasses import dataclass
 from operator import or_
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -55,7 +55,7 @@ ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressCompon
 
 # Addresses
 Address = AddressComponent | tuple[AddressComponent, ...]
-StaticAddress: TypeAlias = StaticAddressComponent | tuple[StaticAddressComponent, ...]
+StaticAddress = StaticAddressComponent | tuple[StaticAddressComponent, ...]
 ExtendedStaticAddress = (
     ExtendedStaticAddressComponent | tuple[ExtendedStaticAddressComponent, ...]
 )
@@ -940,7 +940,9 @@ class ChoiceMap(Pytree):
         pass
 
     def get_submap(self, *addresses: Address) -> "ChoiceMap":
-        addr = sum((a if isinstance(a, tuple) else (a,) for a in addresses), ())
+        addr = tuple(
+            label for a in addresses for label in (a if isinstance(a, tuple) else (a,))
+        )
         addr: tuple[AddressComponent, ...] = _validate_addr(
             addr, allow_partial_slice=True
         )
