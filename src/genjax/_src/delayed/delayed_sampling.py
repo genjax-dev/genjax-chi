@@ -22,6 +22,7 @@ from genjax._src.core.typing import Any, BoolArray, Generic, PRNGKey, TypeVar
 from genjax._src.generative_functions.distributions.distribution import Distribution
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     beta,
+    categorical,
     flip,
     normal,
 )
@@ -36,6 +37,9 @@ R = TypeVar("R", bound=Any)
 # the checkpoints of Murray et al, 2017.
 assume_p = InitialStylePrimitive("assume")
 observe_p = InitialStylePrimitive("observe")
+# value_p (for `value` from the paper)
+# in this implementation, is not a primitive.
+# It's handled by the interpreter directly.
 
 # TODO: might be useful to have a primitive for
 # for "black box" computations which force values?
@@ -87,11 +91,14 @@ class DelayedSamplingVirtualMachine:
     key: PRNGKey
     weight: Weight
     env: Environment = field(default_factory=Environment)
+
+    # This is all the stuff that has to do with
+    # the "graph of random variables"
     initialized: list[jc.Var] = field(default_factory=list)
     marginalized: list[jc.Var] = field(default_factory=list)
     realized: list[jc.Var] = field(default_factory=list)
     parents: dict[int, jc.Var] = field(default_factory=dict)
-    pullbacks: dict[int, "SymbolicPullback"] = field(default_factory=dict)
+    bwd_messages: dict[int, "BackwardMessage"] = field(default_factory=dict)
     children: dict[int, jc.Var] = field(default_factory=dict)
     incoming: dict[int, list[jc.Var | jc.Literal]] = field(default_factory=dict)
 
@@ -193,14 +200,14 @@ class DelayedSamplingVirtualMachine:
         symbolic_pullback,
     ):
         parent = self.get_parent(var)
-        self.pullbacks[parent.count] = symbolic_pullback
+        self.bwd_messages[parent.count] = symbolic_pullback
 
     def get_pullback(
         self,
         var: jc.Var,
     ):
-        assert var.count in self.pullbacks
-        return self.pullbacks[var.count]
+        assert var.count in self.bwd_messages
+        return self.bwd_messages[var.count]
 
     ######################################################
     # These can be read directly from the paper (Fig. 1) #
@@ -402,6 +409,7 @@ class DelayedSamplingInterpreter(Pytree):
         consts: list[Any],
         args: list[Any],
     ):
+        # This is the "environment" for delayed sampling.
         vm = DelayedSamplingVirtualMachine(key, jnp.array(0.0))
         jax_util.safe_map(vm.write, jaxpr.constvars, consts)
         jax_util.safe_map(vm.write, jaxpr.invars, args)
@@ -435,6 +443,9 @@ class DelayedSamplingInterpreter(Pytree):
                     # Force values.
                     invals = [vm.value(var) for var in eqn.invars]
                     args = subfuns + invals
+
+                    # Subtle and complex line...
+                    # `bind` says -- ask for JAX to interpret me!
                     outvals = eqn.primitive.bind(*args, **params)
                     if not eqn.primitive.multiple_results:
                         outvals = [outvals]
@@ -443,11 +454,16 @@ class DelayedSamplingInterpreter(Pytree):
         # Value checkpoints are forced here.
         return [vm.value(var) for var in jaxpr.outvars], vm.weight
 
-    def run_interpreter(self, key: PRNGKey, fn, *args, **kwargs):
-        def _inner(*args):
-            return fn(*args, **kwargs)
+    # Initial style interpreter pattern.
+    def run_interpreter(self, key: PRNGKey, fn, *args):
+        # Roughly: break a function down into
+        # a "flat" version of itself -- by unzipping Pytrees
+        # figuring out the operations that occur on the arrays
+        # recording those operations
+        # etc -- the recording is the "closed jaxpr"
+        # `out_tree` is the "output Pytree shape"
+        closed_jaxpr, (flat_args, _, out_tree) = stage(fn)(*args)
 
-        closed_jaxpr, (flat_args, _, out_tree) = stage(_inner)(*args)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         flat_out, weight = self._eval_jaxpr_delayed(
             key,
@@ -467,7 +483,7 @@ class DelayedSamplingInterpreter(Pytree):
 # for marginalization and conditioning.
 
 SymbolicBundle = Any
-SymbolicPullback = Any
+BackwardMessage = Any
 
 
 class SymbolicDistribution(Pytree):
@@ -479,7 +495,7 @@ class SymbolicDistribution(Pytree):
     def marginalize(
         self,
         *args,
-    ) -> tuple[SymbolicBundle, SymbolicPullback]:
+    ) -> tuple[SymbolicBundle, BackwardMessage]:
         raise NotImplementedError
 
 
@@ -543,13 +559,14 @@ class SymbolicNormal(SymbolicDistribution):
         self,
         mean,
         cov,
-    ) -> tuple[SymbolicBundle, SymbolicPullback]:
+    ) -> tuple[SymbolicBundle, BackwardMessage]:
         match (mean, cov):
             case ((SymbolicNormal(), _mean, _cov), _):
+                # This is about REALIZE(L5):
                 # The pullback is a rule that allows us to
                 # construct the posterior for the parent
                 # given the marginal of the parent.
-                def mean_pullback(
+                def mean_bwd_message(
                     child_observation: Any,
                     parent_marginal: SymbolicBundle,
                 ) -> SymbolicBundle:
@@ -557,9 +574,11 @@ class SymbolicNormal(SymbolicDistribution):
                     return (SymbolicNormal(), (child_observation, _cov))
 
                 # The new marginal is the marginal at this node.
+                # This "new_marginal" is doing the integral in
+                # MARGINALIZE(L2).
                 new_marginal = (SymbolicNormal(), (_mean, cov + _cov))
 
-                return new_marginal, mean_pullback
+                return new_marginal, mean_bwd_message
             case _, _:
                 raise NotImplementedError
 
@@ -572,7 +591,7 @@ class SymbolicBeta(SymbolicDistribution):
     def marginalize(  # pyright: ignore
         self,
         p,
-    ) -> tuple[SymbolicBundle, SymbolicPullback]:
+    ) -> tuple[SymbolicBundle, BackwardMessage]:
         raise NotImplementedError
 
 
@@ -600,7 +619,7 @@ class SymbolicFlip(SymbolicDistribution):
     def marginalize(  # pyright: ignore
         self,
         p,
-    ) -> tuple[SymbolicBundle, SymbolicPullback]:
+    ) -> tuple[SymbolicBundle, BackwardMessage]:
         match p:
             case (SymbolicBeta(), alpha, beta):
                 # The pullback is a rule that allows us to
@@ -608,7 +627,7 @@ class SymbolicFlip(SymbolicDistribution):
                 # given the marginal of the parent.
                 def p_pullback(
                     obs: BoolArray,
-                    parent_marginal: SymbolicBundle,
+                    parent_marginal: SymbolicBundle,  # Beta
                 ) -> SymbolicBundle:
                     (d, (alpha, beta)) = parent_marginal
                     assert isinstance(d, SymbolicBeta)
@@ -623,3 +642,33 @@ class SymbolicFlip(SymbolicDistribution):
 
 
 extend_symbolic(flip, SymbolicFlip())
+
+
+@Pytree.dataclass
+class SymbolicCategorical(SymbolicDistribution):
+    def marginalize(  # pyright: ignore
+        self,
+        probs,
+    ) -> tuple[SymbolicBundle, BackwardMessage]:
+        match probs:
+            case (SymbolicBeta(), alpha, beta):
+                # The pullback is a rule that allows us to
+                # construct the posterior for the parent
+                # given the marginal of the parent.
+                def probs_bwd_message(
+                    obs: BoolArray,
+                    parent_marginal: SymbolicBundle,  # Beta
+                ) -> SymbolicBundle:
+                    (d, (alpha, beta)) = parent_marginal
+                    assert isinstance(d, SymbolicBeta)
+                    return (SymbolicBeta(), alpha + obs, beta + 1 - obs)
+
+                # The new marginal is the marginal at this node.
+                new_marginal = (SymbolicFlip(), alpha / (alpha + beta))
+
+                return new_marginal, probs_bwd_message
+            case _:
+                raise NotImplementedError
+
+
+extend_symbolic(categorical, SymbolicCategorical())

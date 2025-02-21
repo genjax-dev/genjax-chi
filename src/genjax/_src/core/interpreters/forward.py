@@ -131,7 +131,7 @@ VarOrLiteral = jc.Var | jc.Literal
 
 @Pytree.dataclass
 class Environment(Pytree):
-    """Keeps track of variables and their values during propagation."""
+    """Keeps track of variables and their values during interpretation."""
 
     env: dict[int, Any] = Pytree.field(default_factory=dict)
 
