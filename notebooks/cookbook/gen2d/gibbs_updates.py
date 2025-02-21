@@ -46,57 +46,57 @@ from genjax import ChoiceMapBuilder as C
 #     )
 
 
-# def dirichlet_categorical_update(key, associations, n_clusters, alpha):
-#     """Returns (categorical_vector, metadata_dict)."""
+def dirichlet_categorical_update(key, associations, n_clusters, alpha):
+    """Returns (categorical_vector, metadata_dict)."""
 
-#     def get_assoc_count(cluster_idx):
-#         masked_relevant_datapoint_indices = tiling.relevant_datapoints_for_blob(
-#             cluster_idx
-#         )
-#         relevant_associations = associations[masked_relevant_datapoint_indices.value]
-#         return jnp.sum(
-#             jnp.logical_and(
-#                 masked_relevant_datapoint_indices.flag,
-#                 relevant_associations == cluster_idx,
-#             )
-#         )
+    def get_assoc_count(cluster_idx):
+        masked_relevant_datapoint_indices = tiling.relevant_datapoints_for_blob(
+            cluster_idx
+        )
+        relevant_associations = associations[masked_relevant_datapoint_indices.value]
+        return jnp.sum(
+            jnp.logical_and(
+                masked_relevant_datapoint_indices.flag,
+                relevant_associations == cluster_idx,
+            )
+        )
 
-#     assoc_counts = jax.vmap(get_assoc_count)(jnp.arange(n_clusters))
-#     prior_alpha = alpha
-#     post_alpha = prior_alpha + assoc_counts
-#     return dirichlet(post_alpha)(key), {}
+    assoc_counts = jax.vmap(get_assoc_count)(jnp.arange(n_clusters))
+    prior_alpha = alpha
+    post_alpha = prior_alpha + assoc_counts
+    return dirichlet(post_alpha)(key), {}
 
 
-# def conjugate_dirichlet_categorical(
-#     key, associations, n_clusters, alpha, λ=model_simple_continuous.GAMMA_RATE_PARAMETER
-# ):
-#     """
-#     Conjugate update for the case where we have
-#         X_i ~ Gamma(alpha_i / n, lambda) for i = 1, 2, ..., n;
-#         X_0 := sum_i X_i
-#         p := [X_1, X_2, ..., X_n] / X_0
-#         Y_i ~ Categorical(p) for i = 1, 2, ..., m.
+def conjugate_dirichlet_categorical(
+    key, associations, n_clusters, alpha, λ=model_simple_continuous.GAMMA_RATE_PARAMETER
+):
+    """
+    Conjugate update for the case where we have
+        X_i ~ Gamma(alpha_i / n, lambda) for i = 1, 2, ..., n;
+        X_0 := sum_i X_i
+        p := [X_1, X_2, ..., X_n] / X_0
+        Y_i ~ Categorical(p) for i = 1, 2, ..., m.
 
-#     Here, `n_clusters` is `n`, `associations` is `Y`,
-#     and `alpha_vec_for_gamma_distributions[i-1]` is `alpha_i`.
+    Here, `n_clusters` is `n`, `associations` is `Y`,
+    and `alpha_vec_for_gamma_distributions[i-1]` is `alpha_i`.
 
-#     Returns (mixture_weights, metadata), where `mixture_weights`
-#     is the same thing as the vector `[X_1, X_2, ..., X_n]`.
-#     """
-#     ## Derivation of this update:
-#     # With notation as the above, it turns out
-#     # X_0 ~ Gamma(alpha.sum(), lambda),
-#     # p ~ Dirichlet(alpha_1, alpha_2, ..., alpha_n),
-#     # and X_0 and p are independent.
-#     # Thus, the posterior on (X_0, p) is
-#     # p ~ dirichlet_categorical_posterior(alpha, n, assoc_counts);
-#     # X_0 ~ gamma(alpha.sum(), lambda). # Ie. same as the prior.
-#     k1, k2 = jax.random.split(key)
-#     posterior_pvec, _ = dirichlet_categorical_update(
-#         k1, associations, n_clusters, alpha
-#     )
-#     total = gamma(alpha.sum(), λ)(k2)
-#     return posterior_pvec * total, {}
+    Returns (mixture_weights, metadata), where `mixture_weights`
+    is the same thing as the vector `[X_1, X_2, ..., X_n]`.
+    """
+    ## Derivation of this update:
+    # With notation as the above, it turns out
+    # X_0 ~ Gamma(alpha.sum(), lambda),
+    # p ~ Dirichlet(alpha_1, alpha_2, ..., alpha_n),
+    # and X_0 and p are independent.
+    # Thus, the posterior on (X_0, p) is
+    # p ~ dirichlet_categorical_posterior(alpha, n, assoc_counts);
+    # X_0 ~ gamma(alpha.sum(), lambda). # Ie. same as the prior.
+    k1, k2 = jax.random.split(key)
+    posterior_pvec, _ = dirichlet_categorical_update(
+        k1, associations, n_clusters, alpha
+    )
+    total = gamma(alpha.sum(), λ)(k2)
+    return posterior_pvec * total, {}
 
 
 # # one option in the mean time is to replace inverse_gamma in the model by a categorical with 64 values.
@@ -200,31 +200,66 @@ def update_trace_with_xy_mean(key, trace, new_means):
 
 
 def update_xy_mean(key, trace):
-    # datapoint_indexes, datapoints, n_clusters, prior_mean, current_means, prior_variance, obs_variance = markov_for_xy_mean_from_trace(trace)
+    (
+        datapoint_indexes,
+        datapoints,
+        n_clusters,
+        prior_mean,
+        current_means,
+        prior_variance,
+        obs_variance,
+    ) = markov_for_xy_mean_from_trace(trace)
 
-    # category_counts = category_count(datapoint_indexes, n_clusters)
+    category_counts = category_count(datapoint_indexes, n_clusters)
 
-    # cluster_means = compute_means(datapoints, datapoint_indexes, n_clusters, category_counts)
+    cluster_means = compute_means(
+        datapoints, datapoint_indexes, n_clusters, category_counts
+    )
 
-    # posterior_means, posterior_variances = update_normal_normal_conjugacy(prior_mean, prior_variance, cluster_means, obs_variance, category_counts)
+    posterior_means, posterior_variances = update_normal_normal_conjugacy(
+        prior_mean, prior_variance, cluster_means, obs_variance, category_counts
+    )
 
-    # key, subkey = jax.random.split(key)
-    # new_means = xy_mean_resampling(key, hypers, current_means, category_counts, prior_variance, category_counts)
+    key, subkey = jax.random.split(key)
+    new_means = xy_mean_resampling(
+        key, hypers, current_means, category_counts, prior_variance, category_counts
+    )
 
-    # new_trace = update_trace_with_xy_mean(subkey, trace, new_means)
+    new_trace = update_trace_with_xy_mean(subkey, trace, new_means)
 
-    # return new_trace
-    return trace
+    return new_trace
 
 
 def update_xy_sigma(key, trace):
-    # datapoint_indexes, datapoints, n_clusters, prior_mean, current_means, prior_variance, obs_variance = markov_for_xy_mean_from_trace(trace)
+    (
+        datapoint_indexes,
+        datapoints,
+        n_clusters,
+        prior_mean,
+        current_means,
+        prior_variance,
+        obs_variance,
+    ) = markov_for_xy_mean_from_trace(trace)
 
-    # prior_alphas =
-    # prior_betas =
-    # posterior_alphas = prior_alphas + n_clusters / 2
+    prior_alphas = jnp.tile(trace.get_args()[0].a_xy, (n_clusters, 1))
+    posterior_alphas = prior_alphas + jnp.expand_dims(n_clusters, -1) / 2
 
-    return trace
+    prior_betas = jnp.tile(trace.get_args()[0].b_xy, (n_clusters, 1))
+    empirical_cluster_means = compute_means(
+        datapoints, datapoint_indexes, n_clusters, category_counts
+    )
+    mean_diff = 1 / 2 * (empirical_cluster_means - prior_mean)
+    posterior_betas = prior_betas + mean_diff
+    new_sigma_xy = genjax.inverse_gamma.vmap().vmap()(posterior_alphas, posterior_betas)
+
+    sigma_xy = trace.get_choices()["blob_model", "sigma_xy"]
+    new_sigma_xy = jnp.where(category_counts == 0, sigma_xy, new_sigma_xy)
+
+    argdiffs = genjax.Diff.no_change(trace.args)
+    new_trace, _, _, _ = trace.update(
+        key, C["blob_model", "sigma_xy"].set(new_sigma_xy), argdiffs
+    )
+    return new_trace
 
 
 def update_rgb_mean(key, trace):
@@ -236,8 +271,57 @@ def update_rgb_sigma(key, trace):
 
 
 def update_cluster_assignment(key, trace):
-    return trace
+    def compute_local_density(x, i):
+        datapoint_xy_mean = trace.get_choices()["likelihood_model", "xy", x]
+        datapoint_rgb_mean = trace.get_choices()["likelihood_model", "rgb", x]
+
+        chm = (
+            C["xy"]
+            .set(datapoint_mean)
+            .at["blob_idx"]
+            .set(i)
+            .at["rgb"]
+            .set(datapoint_rgb_mean)
+        )
+
+        # TODO: from here
+        clusters = Cluster(trace.get_choices()["clusters", "mean"])
+        probs = trace.get_choices()["probs"]
+        args = (i, probs, clusters)
+        model_logpdf, _ = likelihood_model.assess(chm, args)
+        return model_logpdf
+
+    local_densities = jax.vmap(
+        lambda x: jax.vmap(lambda i: compute_local_density(x, i))(
+            jnp.arange(n_clusters)
+        )
+    )(jnp.arange(n_datapoints))
+
+    key, subkey = jax.random.split(key)
+    new_datapoint_indexes = (
+        genjax.categorical.vmap().simulate(key, (local_densities,)).get_choices()
+    )
+
+    argdiffs = genjax.Diff.no_change(trace.args)
+    new_trace, _, _, _ = trace.update(
+        subkey, C["likelihood_model", "idx"].set(new_datapoint_indexes), argdiffs
+    )
+    return new_trace
 
 
 def update_mixture_weight(key, trace):
-    return trace
+    n_clusters = trace.get_args()[0].n_blobs
+    prior_alpha = trace.get_args()[0].alpha
+    datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
+    category_counts = category_count(datapoint_indexes, n_clusters)
+
+    new_alphas = prior_alpha + category_counts
+    key, subkey = jax.random.split(key)
+    new_weights = genjax.dirichlet.sample(key, new_alphas)
+
+    argdiffs = genjax.Diff.no_change(trace.args)
+    new_trace, _, _, _ = trace.update(
+        subkey, C["blob_model", "mixture_weight"].set(new_weights), argdiffs
+    )
+
+    return new_trace
