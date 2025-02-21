@@ -1141,11 +1141,13 @@ class TestChoiceMap:
 
 dictionaries_for_choice_maps = st.deferred(
     lambda: st.dictionaries(
-        st.text(), st.floats(allow_nan=False) | st.lists(st.floats(allow_nan=False)) | dictionaries_for_choice_maps,
-        min_size=1
+        st.text(),
+        st.floats(allow_nan=False)
+        | st.lists(st.floats(allow_nan=False))
+        | dictionaries_for_choice_maps,
+        min_size=1,
     )
 )
-
 
 
 def all_paths(mapping):
