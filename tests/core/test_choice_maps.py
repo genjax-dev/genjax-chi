@@ -19,7 +19,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import pytest
-
+from hypothesis import given, strategies as st, assume, settings
 import genjax
 from genjax import ChoiceMap, Selection
 from genjax import ChoiceMapBuilder as C
@@ -1137,3 +1137,52 @@ class TestChoiceMap:
 
         # Verify that partial slices are allowed in lookup
         assert complex_chm[0, "a", 0, 1:3, "b"] == genjax.Mask(jnp.array([1.0]), True)
+
+
+dictionaries_for_choice_maps = st.deferred(
+    lambda: st.dictionaries(
+        st.text(), st.floats(allow_nan=False) | st.lists(st.floats(allow_nan=False)) | dictionaries_for_choice_maps,
+        min_size=1
+    )
+)
+
+
+
+def all_paths(mapping):
+    paths = []
+    stack = [((), mapping)]
+    while stack:
+        prefix, mapping = stack.pop()
+        if isinstance(mapping, dict) and mapping:
+            for k, v in mapping.items():
+                stack.append((prefix + (k,), v))
+        else:
+            paths.append((prefix, mapping))
+    return paths
+
+
+class TestSubmap:
+    @given(dictionaries_for_choice_maps, st.data())
+    def test_get_submap_split_path(self, mapping, data):
+        choice_map = ChoiceMap.d(mapping)
+        paths = all_paths(mapping)
+
+        path, value = data.draw(st.sampled_from(paths))
+
+        assume(path)
+
+        i = data.draw(st.integers(0, len(path)))
+
+        assert choice_map.get_submap(path[:i])[path[i:]] == value
+        assert choice_map.get_submap(path[:i], path[i:]) == choice_map.get_submap(path)
+
+    @given(dictionaries_for_choice_maps, st.data())
+    def test_path_can_be_splat(self, mapping, data):
+        choice_map = ChoiceMap.d(mapping)
+        paths = all_paths(mapping)
+
+        path, _ = data.draw(st.sampled_from(paths))
+
+        assume(path)
+
+        assert choice_map.get_submap(path) == choice_map.get_submap(*path)
