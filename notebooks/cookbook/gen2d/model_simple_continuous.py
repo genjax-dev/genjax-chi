@@ -1,20 +1,17 @@
 import jax.numpy as jnp
-from tensorflow_probability.substrates import jax as tfp
+from jax._src.basearray import Array
 
 import genjax
-from genjax import Pytree, categorical, gen, inverse_gamma, normal
+from genjax import Pytree, categorical, gamma, gen, inverse_gamma, normal
 from genjax.typing import FloatArray
-
-# Adding a gamma distribution to GenJAX
-_gamma = genjax.tfp_distribution(tfp.distributions.Gamma)
 
 
 def sample_gamma_safe(key, alpha, beta):
-    sample = _gamma.sample(key, alpha, beta)
+    sample = gamma.sample(key, alpha, beta)
     return jnp.where(sample == 0, 1e-12, sample)
 
 
-gamma = genjax.exact_density(sample_gamma_safe, _gamma.logpdf)
+gamma_safe = genjax.exact_density(sample_gamma_safe, gamma.logpdf)
 
 MID_PIXEL_VAL = 255.0 / 2.0
 GAMMA_RATE_PARAMETER = 1.0
@@ -25,14 +22,11 @@ class Hyperparams(Pytree):
     # Most parameters will be inferred via enumerative Gibbs in revised version
 
     # Hyper params for xy inverse-gamma
-    a_x: float
-    b_x: float
-    a_y: float
-    b_y: float
+    a_xy: jnp.ndarray
+    b_xy: jnp.ndarray
 
     # Hyper params for prior mean on xy
-    mu_x: float
-    mu_y: float
+    mu_xy: jnp.ndarray
 
     # Hyper params for rgb inverse-gamma
     a_rgb: jnp.ndarray
@@ -55,12 +49,10 @@ class Hyperparams(Pytree):
 
 @gen
 def xy_model(blob_idx: int, hypers: Hyperparams):
-    sigma_x = inverse_gamma(hypers.a_x, hypers.b_x) @ "sigma_x"
-    sigma_y = inverse_gamma(hypers.a_y, hypers.b_y) @ "sigma_y"
+    sigma_xy = inverse_gamma.vmap(in_axes=(0, 0))(hypers.a_xy, hypers.b_xy) @ "sigma_xy"
 
-    x_mean = normal(hypers.mu_x, sigma_x) @ "x_mean"
-    y_mean = normal(hypers.mu_y, sigma_y) @ "y_mean"
-    return jnp.array([x_mean, y_mean])
+    xy_mean = normal.vmap(in_axes=(0, 0))(hypers.mu_xy, sigma_xy) @ "xy_mean"
+    return xy_mean
 
 
 @gen
@@ -77,8 +69,7 @@ def rgb_model(blob_idx: int, hypers: Hyperparams):
 def blob_model(blob_idx: int, hypers: Hyperparams):
     xy_mean = xy_model.inline(blob_idx, hypers)
     rgb_mean = rgb_model.inline(blob_idx, hypers)
-    mixture_weight = gamma(hypers.alpha, GAMMA_RATE_PARAMETER) @ "mixture_weight"
-
+    mixture_weight = gamma_safe(hypers.alpha, GAMMA_RATE_PARAMETER) @ "mixture_weight"
     return xy_mean, rgb_mean, mixture_weight
 
 
@@ -92,7 +83,7 @@ class LikelihoodParams(Pytree):
 @gen
 def likelihood_model(pixel_idx: int, params: LikelihoodParams, hypers: Hyperparams):
     blob_idx = categorical(params.mixture_probs) @ "blob_idx"
-    xy_mean = params.xy_mean[blob_idx]
+    xy_mean: Array = params.xy_mean[blob_idx]
     rgb_mean = params.rgb_mean[blob_idx]
 
     xy = normal.vmap(in_axes=(0, 0))(xy_mean, hypers.sigma_xy) @ "xy"
@@ -107,6 +98,7 @@ def model(hypers: Hyperparams):
         @ "blob_model"
     )
 
+    # TODO: should I use them in logspace?
     mixture_probs = mixture_weights / sum(mixture_weights)
     likelihood_params = LikelihoodParams(xy_mean, rgb_mean, mixture_probs)
 
