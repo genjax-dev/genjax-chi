@@ -195,9 +195,6 @@ class Trace(Generic[R], Pytree):
 
     def get_subtrace(self, *addresses: Address) -> "Trace[Any]":
         """
-
-        NOTE that this is just for debugging, so you don't have to know the specific fields that are in the trace. It's the "missing method" alongside get_args, get_choices, get_gen_fn, get_retval, get_score.
-
         Return the subtrace having the supplied address. Specifying multiple addresses
         will apply the operation recursively.
 
@@ -217,9 +214,9 @@ class Trace(Generic[R], Pytree):
         for those trace types that have substructure that can be addressed
         in this way.
 
-        TODO add a note about why this is taking a full Address, not an AddressComponent
+        NOTE: `get_inner_trace` takes a full `Address` because, unlike `ChoiceMap`, if a user traces to a tupled address like ("a", "b"), then the resulting `StaticTrace` will store a sub-trace at this address, vs flattening it out.
 
-        TODO I THINK we can solve this at the Static level by supporting a query on the first element of a tuple, and then iterating through the dict, dropping all keys that don't match OR don't have a tuple with that prefix, and maybe dropping tuples and then returning the same trace with a different dict? maybe?"""
+        As a result, `tr.get_inner_trace(("a", "b"))` does not equal `tr.get_inner_trace("a").get_inner_trace("b")`."""
         raise NotImplementedError(
             "This type of Trace object does not possess subtraces."
         )

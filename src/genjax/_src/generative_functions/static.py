@@ -84,21 +84,6 @@ class StaticTrace(Generic[R], Trace[R]):
     retval: R
     subtraces: dict[StaticAddress, Trace[R]]
 
-    # If you trace like @ ("a", "b") you'll get
-    # {("a", "b"): tr}
-
-    #
-    # if you trace model @ "a" and model traces @ "b" you'll get
-    # {"a": StaticTrace({"b": tr}})
-
-    # this means that it's meaningful to call
-    # tr.get_subtrace(("a", "b"), ("c",))
-    #
-    # and that does NOT mean the same thing as
-    # tr.get_subtrace("a", "b", "c")
-
-    # choicemaps look like {"a": {"b": 1.0}}
-
     def get_args(self) -> tuple[Any, ...]:
         return self.args
 

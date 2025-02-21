@@ -165,7 +165,7 @@ class Selection(Pytree):
         assert sel("x") == Selection.at["y"]
         assert sel("z") == Selection.none()
 
-        # Querying the selection using [] returns a `Flag` representing whether or not the input matches:
+        # Querying the selection using [] returns a `bool` representing whether or not the input matches:
         assert sel["x"] == False
         assert sel["x", "y"] == True
 
@@ -337,14 +337,13 @@ class Selection(Pytree):
     def __getitem__(
         self,
         addr: StaticAddress,
-    ) -> Flag:
-        subselection = self(addr)
-        return subselection.check()
+    ) -> bool:
+        return self(addr).check()
 
     def __contains__(
         self,
         addr: StaticAddress,
-    ) -> Flag:
+    ) -> bool:
         return self[addr]
 
     @abstractmethod
@@ -1301,14 +1300,14 @@ class ChoiceMap(Pytree):
         self,
         *addresses: Address,
     ) -> "ChoiceMap":
-        """TODO add some tests that we flatten out one layer of nested tuples, and that get_submap can now take multiple arguments."""
+        """Alias for `get_submap(*addresses)`."""
         return self.get_submap(*addresses)
 
     def __getitem__(
         self,
         addr: Address,
     ):
-        submap = self(addr)
+        submap = self.get_submap(addr)
         v = submap.get_value()
         if v is None:
             raise ChoiceMapNoValueAtAddress(addr)
@@ -1318,9 +1317,8 @@ class ChoiceMap(Pytree):
     def __contains__(
         self,
         addr: Address,
-    ) -> Flag:
-        submap = self(addr)
-        return submap.has_value()
+    ) -> bool:
+        return self.get_submap(addr).has_value()
 
     @property
     def at(self) -> _ChoiceMapBuilder:
