@@ -16,7 +16,6 @@
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    Constraint,
     EditRequest,
     GenerativeFunction,
     Retdiff,
@@ -189,7 +188,7 @@ class Switch(Generic[R], GenerativeFunction[R]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[SwitchTrace[R], Weight]:
         idx, branch_args = args[0], args[1:]

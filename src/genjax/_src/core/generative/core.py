@@ -86,16 +86,6 @@ Retdiff = Annotated[
 When used under type checking, `Retdiff` assumes that the return value is a `Pytree` (either, defined via GenJAX's `Pytree` interface or registered with JAX's system). It checks that _the leaves_ are `Diff` type with attached `ChangeType`.
 """
 
-###############
-# Constraints #
-###############
-
-
-class Constraint(Pytree):
-    """
-    Constraints represent a request to force a value to satisfy a predicate.
-    """
-
 
 #################
 # Edit requests #

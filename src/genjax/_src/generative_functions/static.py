@@ -25,8 +25,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapConstraint,
-    Constraint,
     EditRequest,
     EmptyRequest,
     GenerativeFunction,
@@ -362,8 +360,8 @@ class GenerateHandler(StaticHandler):
     def get_subconstraint(
         self,
         addr: StaticAddress,
-    ) -> Constraint:
-        return ChoiceMapConstraint(self.choice_map(addr))
+    ) -> ChoiceMap:
+        return self.choice_map(addr)
 
     def handle_trace(
         self,
@@ -809,11 +807,9 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[StaticTrace[R], Weight]:
-        assert isinstance(constraint, ChoiceMapConstraint), type(constraint)
-
         syntax_sugar_handled = push_trace_overload_stack(
             handler_trace_with_static, self.source
         )
@@ -826,7 +822,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 retval,
                 traces,
             ),
-        ) = generate_transform(syntax_sugar_handled)(key, constraint.choice_map, args)
+        ) = generate_transform(syntax_sugar_handled)(key, constraint, args)
         return StaticTrace(self, args, retval, traces), weight
 
     def project(
