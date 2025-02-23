@@ -55,6 +55,7 @@ optional = true
 
 [tool.poetry.group.dev.dependencies]
 coverage = "^7.0.0"
+hypothesis = "^6.119.0"
 matplotlib = "^3.6.2"
 mypy = "^0.991"
 pytest = "^7.2.0"

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 from abc import abstractmethod
 from dataclasses import dataclass
 from operator import or_
@@ -45,18 +46,23 @@ if TYPE_CHECKING:
 # Address types #
 #################
 
+# Address components
 StaticAddressComponent = str
 DynamicAddressComponent = int | IntArray | slice
 AddressComponent = StaticAddressComponent | DynamicAddressComponent
-Address = tuple[AddressComponent, ...]
-StaticAddress = StaticAddressComponent | tuple[StaticAddressComponent, ...]
 ExtendedStaticAddressComponent = StaticAddressComponent | EllipsisType
-ExtendedStaticAddress = tuple[ExtendedStaticAddressComponent, ...]
 ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressComponent
+
+# Addresses
+Address = AddressComponent | tuple[AddressComponent, ...]
+StaticAddress = StaticAddressComponent | tuple[StaticAddressComponent, ...]
+ExtendedStaticAddress = (
+    ExtendedStaticAddressComponent | tuple[ExtendedStaticAddressComponent, ...]
+)
 ExtendedAddress = ExtendedAddressComponent | tuple[ExtendedAddressComponent, ...]
 
 T = TypeVar("T")
-K_addr = TypeVar("K_addr", bound=AddressComponent | Address)
+K_addr = TypeVar("K_addr", bound=Address)
 
 _full_slice = slice(None, None, None)
 
@@ -103,9 +109,7 @@ class _SelectionBuilder:
         """
         return Selection.leaf()
 
-    def __getitem__(
-        self, addr: ExtendedStaticAddressComponent | ExtendedStaticAddress
-    ) -> "Selection":
+    def __getitem__(self, addr: ExtendedStaticAddress) -> "Selection":
         addr = addr if isinstance(addr, tuple) else (addr,)
         if addr == ():
             return Selection.leaf()
@@ -161,7 +165,7 @@ class Selection(Pytree):
         assert sel("x") == Selection.at["y"]
         assert sel("z") == Selection.none()
 
-        # Querying the selection using [] returns a `Flag` representing whether or not the input matches:
+        # Querying the selection using [] returns a `bool` representing whether or not the input matches:
         assert sel["x"] == False
         assert sel["x", "y"] == True
 
@@ -322,7 +326,7 @@ class Selection(Pytree):
 
     def __call__(
         self,
-        addr: StaticAddressComponent | StaticAddress,
+        addr: StaticAddress,
     ) -> "Selection":
         addr = addr if isinstance(addr, tuple) else (addr,)
         subselection = self
@@ -332,15 +336,14 @@ class Selection(Pytree):
 
     def __getitem__(
         self,
-        addr: StaticAddressComponent | StaticAddress,
-    ) -> Flag:
-        subselection = self(addr)
-        return subselection.check()
+        addr: StaticAddress,
+    ) -> bool:
+        return self(addr).check()
 
     def __contains__(
         self,
-        addr: StaticAddressComponent | StaticAddress,
-    ) -> Flag:
+        addr: StaticAddress,
+    ) -> bool:
         return self[addr]
 
     @abstractmethod
@@ -676,7 +679,7 @@ class ChoiceMapNoValueAtAddress(Exception):
         subaddr: The address or sub-address where the value was not found.
     """
 
-    subaddr: AddressComponent | Address
+    subaddr: Address
 
 
 def _drop_prefix(
@@ -693,7 +696,9 @@ def _drop_prefix(
     return dynamic_components[prefix_end:]
 
 
-def _validate_addr(addr: Address, allow_partial_slice: bool = False) -> Address:
+def _validate_addr(
+    addr: tuple[AddressComponent, ...], allow_partial_slice: bool = False
+) -> tuple[AddressComponent, ...]:
     """
     Validates the structure of an address tuple.
 
@@ -752,7 +757,7 @@ class _ChoiceMapBuilder:
         self.choice_map = choice_map
         self.addrs = addrs
 
-    def __getitem__(self, addr: AddressComponent | Address) -> "_ChoiceMapBuilder":
+    def __getitem__(self, addr: Address) -> "_ChoiceMapBuilder":
         addr = addr if isinstance(addr, tuple) else (addr,)
         return _ChoiceMapBuilder(
             self.choice_map,
@@ -933,13 +938,14 @@ class ChoiceMap(Pytree):
     ) -> "ChoiceMap":
         pass
 
-    def get_submap(self, *addr: AddressComponent) -> "ChoiceMap":
-        addr = _validate_addr(addr, allow_partial_slice=True)
-
-        submap = self
-        for comp in addr:
-            submap = submap.get_inner_map(comp)
-        return submap
+    def get_submap(self, *addresses: Address) -> "ChoiceMap":
+        addr = tuple(
+            label for a in addresses for label in (a if isinstance(a, tuple) else (a,))
+        )
+        addr: tuple[AddressComponent, ...] = _validate_addr(
+            addr, allow_partial_slice=True
+        )
+        return functools.reduce(lambda chm, addr: chm.get_inner_map(addr), addr, self)
 
     def has_value(self) -> bool:
         return self.get_value() is not None
@@ -1214,6 +1220,7 @@ class ChoiceMap(Pytree):
                 acc = Static.build({addr: acc})
             else:
                 acc = Indexed.build(acc, addr)
+
         return acc
 
     def merge(self, other: "ChoiceMap") -> "ChoiceMap":
@@ -1291,16 +1298,16 @@ class ChoiceMap(Pytree):
 
     def __call__(
         self,
-        addr: AddressComponent | Address,
+        *addresses: Address,
     ) -> "ChoiceMap":
-        addr = addr if isinstance(addr, tuple) else (addr,)
-        return self.get_submap(*addr)
+        """Alias for `get_submap(*addresses)`."""
+        return self.get_submap(*addresses)
 
     def __getitem__(
         self,
-        addr: AddressComponent | Address,
+        addr: Address,
     ):
-        submap = self(addr)
+        submap = self.get_submap(addr)
         v = submap.get_value()
         if v is None:
             raise ChoiceMapNoValueAtAddress(addr)
@@ -1309,10 +1316,9 @@ class ChoiceMap(Pytree):
 
     def __contains__(
         self,
-        addr: AddressComponent | Address,
-    ) -> Flag:
-        submap = self(addr)
-        return submap.has_value()
+        addr: Address,
+    ) -> bool:
+        return self.get_submap(addr).has_value()
 
     @property
     def at(self) -> _ChoiceMapBuilder:

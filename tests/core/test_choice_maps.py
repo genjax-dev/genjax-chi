@@ -19,6 +19,8 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import pytest
+from hypothesis import assume, given
+from hypothesis import strategies as st
 
 import genjax
 from genjax import ChoiceMap, Selection
@@ -27,9 +29,11 @@ from genjax import SelectionBuilder as S
 from genjax._src.core.generative.choice_map import (
     ChoiceMapNoValueAtAddress,
     Static,
+    StaticAddress,
     Switch,
 )
 from genjax._src.core.generative.functional_types import Mask
+from genjax._src.core.typing import Any
 
 
 class TestSelections:
@@ -1137,3 +1141,62 @@ class TestChoiceMap:
 
         # Verify that partial slices are allowed in lookup
         assert complex_chm[0, "a", 0, 1:3, "b"] == genjax.Mask(jnp.array([1.0]), True)
+
+
+dictionaries_for_choice_maps = st.deferred(
+    lambda: st.dictionaries(
+        st.text(),
+        st.floats(allow_nan=False)
+        | st.lists(st.floats(allow_nan=False))
+        | dictionaries_for_choice_maps,
+        min_size=1,
+    )
+)
+
+
+def all_paths(mapping) -> list[tuple[tuple[StaticAddress, ...], Any]]:
+    paths = []
+    stack: list[tuple[StaticAddress, Any]] = [((), mapping)]
+    while stack:
+        prefix, mapping = stack.pop()
+        if isinstance(mapping, dict) and mapping:
+            for k, v in mapping.items():
+                stack.append(((*prefix, k), v))
+        else:
+            paths.append((prefix, mapping))
+    return paths
+
+
+class TestSubmap:
+    @given(dictionaries_for_choice_maps, st.data())
+    def test_get_submap_split_path(self, mapping, data):
+        choice_map = ChoiceMap.d(mapping)
+        paths = all_paths(mapping)
+
+        path, value = data.draw(st.sampled_from(paths))
+
+        assume(path)
+
+        i = data.draw(st.integers(0, len(path)))
+
+        assert choice_map.get_submap(path[:i])[path[i:]] == value, (
+            "a path split between get_submap and [] will reach the value"
+        )
+        assert choice_map.get_submap(path[:i], path[i:]) == choice_map.get_submap(
+            path
+        ), (
+            "get_submap can take multiple path-segments and reach the same leaf as a full path"
+        )
+
+    @given(dictionaries_for_choice_maps, st.data())
+    def test_path_can_be_splat(self, mapping, data):
+        choice_map = ChoiceMap.d(mapping)
+        paths = all_paths(mapping)
+
+        path, _ = data.draw(st.sampled_from(paths))
+
+        assume(path)
+
+        assert choice_map.get_submap(path) == choice_map.get_submap(*path), (
+            "Splatting out a path returns the same result as providing the tuple of path segments"
+        )
