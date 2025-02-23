@@ -289,6 +289,50 @@ def simulate_transform(source_fn):
     return wrapper
 
 
+#########
+# Lower #
+#########
+
+
+@dataclass
+class LoweringHandler(StaticHandler):
+    def __init__(self, choice_map: ChoiceMap):
+        super().__init__()
+        self.choice_map = choice_map
+        self.output_choice_map = ChoiceMap.empty()
+
+    def yield_state(self):
+        return (self.output_choice_map,)
+
+    def get_submap(self, addr: StaticAddress) -> ChoiceMap:
+        return self.choice_map(addr)
+
+    def handle_trace(
+        self,
+        addr: StaticAddress,
+        gen_fn: GenerativeFunction[Any],
+        args: tuple[Any, ...],
+    ):
+        submap = self.get_submap(addr)
+        retval, choice_map = gen_fn.lower(submap, args)
+        self.output_choice_map = self.output_choice_map.merge(choice_map.extend(addr))
+        return retval
+
+
+def lowering_transform(source_fn):
+    @functools.wraps(source_fn)
+    def wrapper(choice_map: ChoiceMap, args):
+        stateful_handler = LoweringHandler(choice_map)
+        retval = forward(source_fn)(stateful_handler, *args)
+        (output_choice_map,) = stateful_handler.yield_state()
+        return (
+            retval,
+            output_choice_map,
+        )
+
+    return wrapper
+
+
 ##########
 # Assess #
 ##########
@@ -1023,6 +1067,19 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         )
         (retval, score) = assess_transform(syntax_sugar_handled)(sample, args)
         return (score, retval)
+
+    def lower(
+        self,
+        choice_map: ChoiceMap,
+        args: tuple[Any, ...],
+    ) -> tuple[R, ChoiceMap]:
+        syntax_sugar_handled = push_trace_overload_stack(
+            handler_trace_with_static, self.source
+        )
+        retval, output_choice_map = lowering_transform(syntax_sugar_handled)(
+            choice_map, args
+        )
+        return retval, output_choice_map
 
     def inline(self, *args):
         return self.source(*args)

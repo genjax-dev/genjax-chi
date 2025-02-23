@@ -49,7 +49,11 @@ placeholder_p = InitialStylePrimitive("placeholder")
 # These are the functions that users actually use to use the primitives
 # in their code.
 def assume(d: Distribution[R], *args):
-    def sample_abstract(*args):
+    # This looks kind of weird.
+    # This gets traced by JAX, and the
+    # type of the return value is grabbed -- for
+    # the abstract evaluation rule.
+    def assume_abstract_eval(*args):
         key = jrand.key(0)
         _, v = d.random_weighted(key, *args)
         return v
@@ -57,7 +61,7 @@ def assume(d: Distribution[R], *args):
     # Distributions are provided _as static values_ here
     # that means they should not hold JAX values!
     # They need to be nullary class instances!
-    return initial_style_bind(assume_p, distribution=d)(sample_abstract)(*args)
+    return initial_style_bind(assume_p, distribution=d)(assume_abstract_eval)(*args)
 
 
 def observe(v, d: Distribution[R], *args):

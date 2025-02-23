@@ -342,6 +342,19 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             case _:
                 raise NotSupportedEditRequest(edit_request)
 
+    def lower(
+        self,
+        choice_map: ChoiceMap,
+        args: tuple[Any, ...],
+    ) -> tuple[R, ChoiceMap]:
+        from genjax.delayed import assume, observe
+
+        if choice_map.has_value():
+            retval = observe(choice_map.get_value(), self, *args)
+        else:
+            retval = assume(self, *args)
+        return retval, ChoiceMap.value(retval)
+
     def assess(
         self,
         sample: ChoiceMap,
