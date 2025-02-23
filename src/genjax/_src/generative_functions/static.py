@@ -834,9 +834,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         constraint: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
-        syntax_sugar_handled = push_trace_overload_stack(
-            handler_trace_with_static, self.source
-        )
         (
             (
                 retval_diffs,
@@ -848,7 +845,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_requests,
             ),
-        ) = update_transform(syntax_sugar_handled)(key, trace, constraint, argdiffs)
+        ) = update_transform(self.source)(key, trace, constraint, argdiffs)
         if not Diff.static_check_tree_diff(retval_diffs):
             retval_diffs = Diff.no_change(retval_diffs)
 
