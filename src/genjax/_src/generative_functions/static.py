@@ -721,6 +721,7 @@ def regenerate_transform(source_fn):
 # Generative function #
 #######################
 
+
 @Pytree.dataclass
 class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     """A `StaticGenerativeFunction` is a generative function which relies on program
