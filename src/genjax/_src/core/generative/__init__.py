@@ -33,6 +33,7 @@ from .core import (
     R,
     Retdiff,
     Score,
+    Transform,
     Weight,
 )
 from .functional_types import Mask
@@ -76,4 +77,5 @@ __all__ = [
     "Trace",
     "Update",
     "Weight",
+    "Transform",
 ]

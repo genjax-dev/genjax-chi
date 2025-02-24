@@ -32,6 +32,7 @@ from genjax._src.core.generative.core import (
     PrimitiveEditRequest,
     Retdiff,
     Score,
+    Transform,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -599,6 +600,24 @@ class GenerativeFunction(Generic[R], Pytree):
         Argument changes induce changes to the distribution over samples, internal K and L proposals, and (by virtue of changes to $P$) target distributions. The [`Argdiffs`][genjax.core.Argdiffs] type denotes the type of values attached with a _change type_, a piece of data which indicates how the value has changed from the arguments which created the trace. Generative functions can utilize change type information to inform efficient [`edit`][genjax.core.GenerativeFunction.edit] implementations.
         """
         pass
+
+    #############################
+    # Transformation interfaces #
+    #############################
+
+    def lower(
+        self,
+        choice_map: ChoiceMap,
+        arguments: Arguments,
+    ):
+        raise NotImplementedError
+
+    def transform(
+        self,
+        transform: Transform,
+        arguments: Arguments,
+    ) -> "GenerativeFunction[R]":
+        raise NotImplementedError
 
     ######################
     # Derived interfaces #

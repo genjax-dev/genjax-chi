@@ -36,6 +36,7 @@ from genjax._src.core.generative import (
     Score,
     Selection,
     Trace,
+    Transform,
     Update,
     Weight,
 )
@@ -354,6 +355,13 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         else:
             retval = assume(self, *args)
         return retval, ChoiceMap.value(retval)
+
+    def transform(
+        self,
+        transform: Transform,
+        args: tuple[Any, ...],
+    ):
+        pass
 
     def assess(
         self,

@@ -161,3 +161,7 @@ class PrimitiveEditRequest(EditRequest):
 
 class NotSupportedEditRequest(Exception):
     pass
+
+
+class Transform:
+    pass
