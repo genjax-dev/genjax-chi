@@ -357,7 +357,7 @@ class GenerativeFunction(Generic[R], Pytree):
             @genjax.gen
             def weather_model():
                 temperature = genjax.normal(20.0, 5.0) @ "temperature"
-                is_sunny = genjax.bernoulli(probs=0.7) @ "is_sunny"
+                is_sunny = genjax.bernoulli(0.7) @ "is_sunny"
                 return {"temperature": temperature, "is_sunny": is_sunny}
 
 
@@ -1268,7 +1268,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
             @genjax.gen
             def branch_2():
-                x = genjax.bernoulli(probs=0.3) @ "x2"
+                x = genjax.bernoulli(0.3) @ "x2"
 
 
             switch = branch_1.switch(branch_2)
@@ -1482,33 +1482,6 @@ class GenerativeFunction(Generic[R], Pytree):
         return marginal(selection=selection, algorithm=algorithm)(self)
 
 
-# NOTE: Setup a global handler stack for the `trace` callee sugar.
-# C.f. above.
-# This stack will not interact with JAX tracers at all
-# so it's safe, and will be resolved at JAX tracing time.
-GLOBAL_TRACE_OP_HANDLER_STACK: list[Callable[..., Any]] = []
-
-
-def handle_off_trace_stack(addr, gen_fn: GenerativeFunction[R], args) -> R:
-    if GLOBAL_TRACE_OP_HANDLER_STACK:
-        handler = GLOBAL_TRACE_OP_HANDLER_STACK[-1]
-        return handler(addr, gen_fn, args)
-    else:
-        raise Exception(
-            "Attempting to invoke trace outside of a tracing context.\nIf you want to invoke the generative function closure, and recieve a return value,\ninvoke it with a key."
-        )
-
-
-def push_trace_overload_stack(handler, fn):
-    def wrapped(*args):
-        GLOBAL_TRACE_OP_HANDLER_STACK.append(handler)
-        ret = fn(*args)
-        GLOBAL_TRACE_OP_HANDLER_STACK.pop()
-        return ret
-
-    return wrapped
-
-
 @Pytree.dataclass
 class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
     """
@@ -1591,15 +1564,17 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
     # NOTE: Supports callee syntax, and the ability to overload it in callers.
     def __matmul__(self, addr) -> R:
+        from genjax._src.generative_functions.static import trace
+
         if self.kwargs:
             maybe_kwarged_gen_fn = self._with_kwargs()
-            return handle_off_trace_stack(
+            return trace(
                 addr,
                 maybe_kwarged_gen_fn,
                 (self.args, self.kwargs),
             )
         else:
-            return handle_off_trace_stack(
+            return trace(
                 addr,
                 self.gen_fn,
                 self.args,
