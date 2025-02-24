@@ -19,9 +19,9 @@ from typing import TYPE_CHECKING
 from deprecated import deprecated
 
 from genjax._src.core.generative.choice_map import (
+    Address,
     ChoiceMap,
     ChoiceMapConstraint,
-    ExtendedAddress,
     Selection,
 )
 from genjax._src.core.generative.core import (
@@ -194,7 +194,7 @@ class Trace(Generic[R], Pytree):
             selection,
         )
 
-    def get_subtrace(self, *addresses: ExtendedAddress) -> "Trace[Any]":
+    def get_subtrace(self, *addresses: Address) -> "Trace[Any]":
         """
         Return the subtrace having the supplied address. Specifying multiple addresses
         will apply the operation recursively.
@@ -210,10 +210,14 @@ class Trace(Generic[R], Pytree):
             lambda tr, addr: tr.get_inner_trace(addr), addresses, self
         )
 
-    def get_inner_trace(self, address: ExtendedAddress) -> "Trace[Any]":
+    def get_inner_trace(self, _address: Address) -> "Trace[Any]":
         """Override this method to provide `Trace.get_subtrace` support
         for those trace types that have substructure that can be addressed
-        in this way."""
+        in this way.
+
+        NOTE: `get_inner_trace` takes a full `Address` because, unlike `ChoiceMap`, if a user traces to a tupled address like ("a", "b"), then the resulting `StaticTrace` will store a sub-trace at this address, vs flattening it out.
+
+        As a result, `tr.get_inner_trace(("a", "b"))` does not equal `tr.get_inner_trace("a").get_inner_trace("b")`."""
         raise NotImplementedError(
             "This type of Trace object does not possess subtraces."
         )
@@ -1501,33 +1505,6 @@ class GenerativeFunction(Generic[R], Pytree):
         return marginal(selection=selection, algorithm=algorithm)(self)
 
 
-# NOTE: Setup a global handler stack for the `trace` callee sugar.
-# C.f. above.
-# This stack will not interact with JAX tracers at all
-# so it's safe, and will be resolved at JAX tracing time.
-GLOBAL_TRACE_OP_HANDLER_STACK: list[Callable[..., Any]] = []
-
-
-def handle_off_trace_stack(addr, gen_fn: GenerativeFunction[R], args) -> R:
-    if GLOBAL_TRACE_OP_HANDLER_STACK:
-        handler = GLOBAL_TRACE_OP_HANDLER_STACK[-1]
-        return handler(addr, gen_fn, args)
-    else:
-        raise Exception(
-            "Attempting to invoke trace outside of a tracing context.\nIf you want to invoke the generative function closure, and recieve a return value,\ninvoke it with a key."
-        )
-
-
-def push_trace_overload_stack(handler, fn):
-    def wrapped(*args):
-        GLOBAL_TRACE_OP_HANDLER_STACK.append(handler)
-        ret = fn(*args)
-        GLOBAL_TRACE_OP_HANDLER_STACK.pop()
-        return ret
-
-    return wrapped
-
-
 @Pytree.dataclass
 class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
     """
@@ -1610,15 +1587,17 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
     # NOTE: Supports callee syntax, and the ability to overload it in callers.
     def __matmul__(self, addr) -> R:
+        from genjax._src.generative_functions.static import trace
+
         if self.kwargs:
             maybe_kwarged_gen_fn = self._with_kwargs()
-            return handle_off_trace_stack(
+            return trace(
                 addr,
                 maybe_kwarged_gen_fn,
                 (self.args, self.kwargs),
             )
         else:
-            return handle_off_trace_stack(
+            return trace(
                 addr,
                 self.gen_fn,
                 self.args,

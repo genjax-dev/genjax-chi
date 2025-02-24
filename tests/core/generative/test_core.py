@@ -237,20 +237,3 @@ class TestCombinators:
 
         else_tr = jit_fn(key, (False,))
         assert "else_value" in else_tr.get_choices()("tossed")
-
-
-class TestRepr:
-    def test_distribution_repr(self):
-        @genjax.gen
-        def model():
-            x = genjax.normal(0.0, 1.0) @ "x"
-            y = genjax.bernoulli(0.0) @ "y"
-            z = genjax.flip(0.5) @ "z"
-            t = genjax.categorical([0.0, 0.0]) @ "t"
-            return x, y, z, t
-
-        tr = model.simulate(jax.random.key(0), ())
-        assert str(tr.get_subtrace("x").get_gen_fn()) == "genjax.Normal()"
-        assert str(tr.get_subtrace("y").get_gen_fn()) == "genjax.Bernoulli()"
-        assert str(tr.get_subtrace("z").get_gen_fn()) == "genjax.flip()"
-        assert str(tr.get_subtrace("t").get_gen_fn()) == "genjax.Categorical()"

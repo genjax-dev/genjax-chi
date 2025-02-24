@@ -27,6 +27,7 @@ from genjax._src.core.generative import (
     Constraint,
     EditRequest,
     GenerativeFunction,
+    IndexRequest,
     R,
     Retdiff,
     Score,
@@ -35,8 +36,8 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.generative.choice_map import (
+    Address,
     ChoiceMapConstraint,
-    ExtendedAddress,
     Selection,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -44,8 +45,10 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
+    FloatArray,
     Generic,
     InAxes,
+    IntArray,
     PRNGKey,
 )
 
@@ -55,7 +58,7 @@ class VmapTrace(Generic[R], Trace[R]):
     gen_fn: "Vmap[R]"
     inner: Trace[R]
     args: tuple[Any, ...]
-    score: Score
+    score: FloatArray
     chm: ChoiceMap
 
     # TODO is this really helpful? what if someone has inflated the dimension out from around us? How do we re-use this?
@@ -89,7 +92,7 @@ class VmapTrace(Generic[R], Trace[R]):
     def get_score(self) -> Score:
         return self.score
 
-    def get_inner_trace(self, address: ExtendedAddress):
+    def get_inner_trace(self, address: Address):
         return self.inner.get_inner_trace(address)
 
 
@@ -275,6 +278,63 @@ class Vmap(Generic[R], GenerativeFunction[R]):
             Update(bwd_constraints),
         )
 
+    def edit_index(
+        self,
+        key: PRNGKey,
+        trace: VmapTrace[R],
+        idx: IntArray,
+        request: EditRequest,
+        argdiffs: Argdiffs,
+    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
+        # For now, we don't allow changes to the arguments for this type of edit.
+        assert Diff.static_check_no_change(argdiffs)
+        primals = Diff.tree_primal(argdiffs)
+        dim_length = trace.dim_length
+
+        trace_slice = jtu.tree_map(lambda v: v[idx], trace.inner)
+
+        def slice_argdiffs(axis: int | None, x: Any) -> Any:
+            """Helper function to slice argdiffs based on axis.
+
+            Args:
+                axis: The axis to slice along, or None if no slicing needed
+                x: The value to slice
+
+            Returns:
+                The sliced value if axis is provided, otherwise returns x unchanged
+            """
+            if axis is None:
+                return x
+            else:
+                return jtu.tree_map(lambda v: jnp.take(v, idx, axis=axis), x)
+
+        # First get the primal. The shape of this is going to match the in_axes shape.
+        primal_slice = jax.tree_util.tree_map(
+            slice_argdiffs,
+            self.in_axes,
+            primals,
+            is_leaf=lambda x: x is None,
+        )
+        argdiffs_slice = Diff.tree_diff(primal_slice, Diff.tree_tangent(argdiffs))
+
+        new_trace_slice, w, _, bwd_request = self.gen_fn.edit(
+            key,
+            trace_slice,
+            request,
+            argdiffs_slice,
+        )
+
+        new_inner_trace = jtu.tree_map(
+            lambda v, v_: v.at[idx].set(v_), trace.inner, new_trace_slice
+        )
+
+        map_tr = VmapTrace.build(self, new_inner_trace, primals, dim_length)
+
+        # We always set the carried out value to be an unknown change, conservatively.
+        retdiff = Diff.unknown_change(map_tr.get_retval())
+
+        return (map_tr, w, retdiff, IndexRequest(idx, bwd_request))
+
     def edit(
         self,
         key: PRNGKey,
@@ -283,14 +343,26 @@ class Vmap(Generic[R], GenerativeFunction[R]):
         argdiffs: Argdiffs,
     ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
         assert isinstance(trace, VmapTrace)
-        assert isinstance(edit_request, Update), type(edit_request)
-        constraint = edit_request.constraint
-        return self.edit_choice_map(
-            key,
-            trace,
-            constraint,
-            argdiffs,
-        )
+
+        match edit_request:
+            case Update(constraint):
+                constraint = edit_request.constraint
+                return self.edit_choice_map(
+                    key,
+                    trace,
+                    constraint,
+                    argdiffs,
+                )
+            case IndexRequest(idx, subrequest):
+                return self.edit_index(
+                    key,
+                    trace,
+                    idx,
+                    subrequest,
+                    argdiffs,
+                )
+            case _:
+                raise NotImplementedError
 
     def assess(
         self,
