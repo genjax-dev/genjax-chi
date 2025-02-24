@@ -804,7 +804,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 retval,
                 traces,
             ),
-        ) = generate_transform(self.source)(key, constraint.choice_map, args)
+        ) = generate_transform(self.source)(key, constraint, args)
         return StaticTrace(self, args, retval, traces), weight
 
     def project(
