@@ -26,7 +26,6 @@ from genjax._src.checkify import optional_check
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    Constraint,
     EditRequest,
     GenerativeFunction,
     Mask,
@@ -41,7 +40,6 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import FlagOp, to_shape_fn
 from genjax._src.core.pytree import Pytree
@@ -152,12 +150,12 @@ class Distribution(Generic[R], GenerativeFunction[R]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Trace[R], Weight]:
         match constraint:
-            case ChoiceMapConstraint(chm):
-                tr, w = self.generate_choice_map(key, chm, args)
+            case ChoiceMap():
+                tr, w = self.generate_choice_map(key, constraint, args)
 
             case _:
                 raise Exception("Unhandled type.")
@@ -183,13 +181,13 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        constraint: Constraint,
+        constraint: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], Update]:
         primals = Diff.tree_primal(argdiffs)
         match constraint:
-            case ChoiceMapConstraint(chm):
-                match chm.get_value():
+            case ChoiceMap():
+                match constraint.get_value():
                     case Mask() as masked_value:
 
                         def _true_branch(key, new_value: R, _):
@@ -306,11 +304,11 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         self,
         key: PRNGKey,
         trace: Trace[R],
-        constraint: Constraint,
+        constraint: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], Update]:
         match constraint:
-            case ChoiceMapConstraint():
+            case ChoiceMap():
                 return self.edit_update_with_constraint(
                     key, trace, constraint, argdiffs
                 )
@@ -330,7 +328,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 return self.edit_update(
                     key,
                     trace,
-                    ChoiceMapConstraint(chm),
+                    chm,
                     argdiffs,
                 )
             case Regenerate(selection):

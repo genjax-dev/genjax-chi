@@ -21,13 +21,11 @@ from deprecated import deprecated
 from genjax._src.core.generative.choice_map import (
     Address,
     ChoiceMap,
-    ChoiceMapConstraint,
     Selection,
 )
 from genjax._src.core.generative.core import (
     Argdiffs,
     Arguments,
-    Constraint,
     EditRequest,
     PrimitiveEditRequest,
     Retdiff,
@@ -171,7 +169,7 @@ class Trace(Generic[R], Pytree):
         key: PRNGKey,
         constraint: ChoiceMap,
         argdiffs: tuple[Any, ...] | None = None,
-    ) -> tuple[Self, Weight, Retdiff[R], Constraint]:
+    ) -> tuple[Self, Weight, Retdiff[R], ChoiceMap]:
         """
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
         """
@@ -249,7 +247,7 @@ class GenerativeFunction(Generic[R], Pytree):
     Generative functions also support a family of [`Target`][genjax.inference.Target] distributions - a [`Target`][genjax.inference.Target] distribution is a (possibly unnormalized) distribution, typically induced by inference problems.
 
     * $\\delta_\\emptyset$ - the empty target, whose only possible value is the empty sample, with density 1.
-    * (**Family of targets induced by $P$**) $T_P(a, c)$ - a family of targets indexed by arguments $a$ and [`Constraint`][genjax.core.Constraint] $c$, created by pairing the distribution over samples $P$ with arguments and constraint.
+    * (**Family of targets induced by $P$**) $T_P(a, c)$ - a family of targets indexed by arguments $a$ and constraints (`ChoiceMap`), created by pairing the distribution over samples $P$ with arguments and constraint.
 
     Generative functions expose computations using these ingredients through the _generative function interface_ (the methods which are documented below).
 
@@ -479,7 +477,7 @@ class GenerativeFunction(Generic[R], Pytree):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[R], Weight]:
         pass
@@ -633,7 +631,7 @@ class GenerativeFunction(Generic[R], Pytree):
         trace: Trace[R],
         constraint: ChoiceMap,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], Constraint]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], ChoiceMap]:
         request = Update(
             constraint,
         )
@@ -643,12 +641,12 @@ class GenerativeFunction(Generic[R], Pytree):
             argdiffs,
         )
         assert isinstance(bwd, Update), type(bwd)
-        return tr, w, rd, ChoiceMapConstraint(bwd.constraint)
+        return tr, w, rd, bwd.constraint
 
     def importance(
         self,
         key: PRNGKey,
-        constraint: ChoiceMap | Constraint,
+        constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[R], Weight]:
         """
@@ -686,8 +684,6 @@ class GenerativeFunction(Generic[R], Pytree):
 
         Under the hood, creates an [`EditRequest`][genjax.core.EditRequest] which requests that the generative function respond with a move from the _empty_ trace (the only possible value for _empty_ target $\\delta_\\emptyset$) to the target induced by the generative function for constraint $C$ with arguments $a$.
         """
-        if isinstance(constraint, ChoiceMap):
-            constraint = ChoiceMapConstraint(constraint)
 
         return self.generate(
             key,
@@ -1550,7 +1546,7 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[Any], Weight]:
         (args, _kwargs) = args
@@ -1647,7 +1643,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[Any], Weight]:
         full_args = self.args + args

@@ -23,7 +23,6 @@ import jax.tree_util as jtu
 import treescope.repr_lib as trl
 from deprecated import deprecated
 
-from genjax._src.core.generative.core import Constraint
 from genjax._src.core.generative.functional_types import Mask
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -1788,8 +1787,3 @@ ChoiceMapBuilder = _ChoiceMapBuilder(_empty, [])
 ################################
 # Choice map specialized types #
 ################################
-
-
-@Pytree.dataclass(match_args=True)
-class ChoiceMapConstraint(Constraint):
-    choice_map: ChoiceMap

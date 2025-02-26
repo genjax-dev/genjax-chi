@@ -19,7 +19,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    Constraint,
     EditRequest,
     GenerativeFunction,
     IndexRequest,
@@ -34,7 +33,6 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.choice_map import (
     Address,
-    ChoiceMapConstraint,
 )
 from genjax._src.core.generative.functional_types import Mask
 from genjax._src.core.interpreters.incremental import Diff
@@ -239,16 +237,14 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[ScanTrace[Carry, Y], Weight]:
-        assert isinstance(constraint, ChoiceMapConstraint)
-
         (carry, scanned_in) = args
 
         def _inner_generate(
             key: PRNGKey,
-            constraint: Constraint,
+            constraint: ChoiceMap,
             carry: Carry,
             scanned_in: Any,
         ) -> tuple[tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y, Weight]]:
@@ -270,8 +266,8 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         ]:
             key, idx, carried_value = carry
             key = jax.random.fold_in(key, idx)
-            submap = constraint.choice_map.get_submap(idx)
-            subconstraint = ChoiceMapConstraint(submap)
+            submap = constraint.get_submap(idx)
+            subconstraint = submap
 
             (carried_out, score), (tr, scanned_out, w) = _inner_generate(
                 key, subconstraint, carried_value, scanned_over
