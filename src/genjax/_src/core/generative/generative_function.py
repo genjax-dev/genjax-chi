@@ -43,6 +43,7 @@ from genjax._src.core.typing import (
     PRNGKey,
     Self,
     TypeVar,
+    nobeartype,
 )
 
 # Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
@@ -139,6 +140,7 @@ class Trace(Generic[R], Pytree):
         """Retrieves the random choices made in a trace in the form of a [`genjax.ChoiceMap`][]."""
         pass
 
+    @nobeartype
     @deprecated(reason="Use .get_choices() instead.", version="0.8.1")
     def get_sample(self):
         return self.get_choices()

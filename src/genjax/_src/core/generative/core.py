@@ -65,7 +65,7 @@ Arguments = tuple
 
 Argdiffs = Annotated[
     tuple[Any, ...],
-    Is[Diff.static_check_tree_diff],
+    Is[lambda x: Diff.static_check_tree_diff(x)],
 ]
 """
 `Argdiffs` is the type of argument values with an attached `ChangeType` (c.f. [`edit`][genjax.core.GenerativeFunction.edit]).
@@ -76,7 +76,7 @@ When used under type checking, `Retdiff` assumes that the argument values are `P
 
 Retdiff = Annotated[
     R,
-    Is[Diff.static_check_tree_diff],
+    Is[lambda x: Diff.static_check_tree_diff(x)],
 ]
 
 
