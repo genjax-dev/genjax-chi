@@ -993,7 +993,7 @@ class ChoiceMap(Pytree):
     @staticmethod
     @nobeartype
     @deprecated("Use ChoiceMap.choice() instead.")
-    def value(v):
+    def value(v: Any) -> "ChoiceMap":
         return ChoiceMap.choice(v)
 
     @staticmethod
@@ -1286,7 +1286,7 @@ class ChoiceMap(Pytree):
         reason="^ is deprecated, please use | or _.merge(...) instead.",
         version="0.8.0",
     )
-    def __xor__(self, other):
+    def __xor__(self, other: "ChoiceMap") -> "ChoiceMap":
         return self | other
 
     def __or__(self, other: "ChoiceMap") -> "ChoiceMap":
