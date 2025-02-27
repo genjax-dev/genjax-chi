@@ -36,7 +36,7 @@ class TestMixture:
 
         # Test simulation
         key = jax.random.key(0)
-        logits = jnp.array([0.3, 0.7])
+        logits = jnp.array([-0.1, -0.2])
         trace = mixture.simulate(key, (logits, (0.0,), (0.0,)))
 
         # Check structure
