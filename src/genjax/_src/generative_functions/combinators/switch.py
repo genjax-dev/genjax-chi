@@ -82,8 +82,7 @@ class SwitchTrace(Generic[R], Trace[R]):
         return self.score
 
     def get_inner_trace(self, address: Address):
-        assert isinstance(address, int)
-        return self.subtraces[address]
+        return self.subtraces[self.get_idx()].get_inner_trace(address)
 
 
 #####################
