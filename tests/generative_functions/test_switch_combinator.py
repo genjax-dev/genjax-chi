@@ -92,9 +92,11 @@ class TestSwitch:
         key = jax.random.key(314159)
         jitted = jax.jit(switch.simulate)
         tr = jitted(key, (0, (), ()))
-        assert "y1" in tr.get_choices()
-        assert "y2" in tr.get_choices()
-        assert "y3" not in tr.get_choices()
+        chm = tr.get_choices()
+        assert "y1" in chm
+        assert "y2" in chm
+        assert "y3" in chm
+        assert chm["y3"] == genjax.Mask(jnp.array(False), jnp.array(False))
 
     def test_switch_combinator_importance(self):
         @genjax.gen

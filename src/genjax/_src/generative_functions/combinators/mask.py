@@ -19,7 +19,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    Constraint,
     EditRequest,
     GenerativeFunction,
     Mask,
@@ -29,7 +28,7 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ExtendedAddress, Selection
+from genjax._src.core.generative.choice_map import Address, Selection
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
@@ -104,7 +103,7 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
     def get_score(self):
         return self.score
 
-    def get_inner_trace(self, address: ExtendedAddress) -> Trace[R]:
+    def get_inner_trace(self, address: Address) -> Trace[R]:
         return self.inner.get_inner_trace(address)
 
 
@@ -161,7 +160,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[MaskTrace[R], Weight]:
         check, inner_args = args[0], args[1:]

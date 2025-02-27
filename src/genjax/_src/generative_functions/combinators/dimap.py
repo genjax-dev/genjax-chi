@@ -15,7 +15,6 @@
 
 from genjax._src.core.generative import (
     Argdiffs,
-    Constraint,
     EditRequest,
     GenerativeFunction,
     Retdiff,
@@ -24,7 +23,11 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ChoiceMap, ExtendedAddress, Selection
+from genjax._src.core.generative.choice_map import (
+    Address,
+    ChoiceMap,
+    Selection,
+)
 from genjax._src.core.interpreters.incremental import Diff, incremental
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -62,7 +65,7 @@ class DimapTrace(Generic[R, S], Trace[S]):
     def get_score(self) -> Score:
         return self.inner.get_score()
 
-    def get_inner_trace(self, address: ExtendedAddress) -> Trace[R]:
+    def get_inner_trace(self, address: Address) -> Trace[R]:
         return self.inner.get_inner_trace(address)
 
 
@@ -125,7 +128,7 @@ class Dimap(Generic[ArgTuple, R, S], GenerativeFunction[S]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[DimapTrace[R, S], Weight]:
         inner_args = self.argument_mapping(*args)

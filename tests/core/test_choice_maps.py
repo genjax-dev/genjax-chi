@@ -19,6 +19,8 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import pytest
+from hypothesis import assume, given
+from hypothesis import strategies as st
 
 import genjax
 from genjax import ChoiceMap, Selection
@@ -27,9 +29,11 @@ from genjax import SelectionBuilder as S
 from genjax._src.core.generative.choice_map import (
     ChoiceMapNoValueAtAddress,
     Static,
+    StaticAddress,
     Switch,
 )
 from genjax._src.core.generative.functional_types import Mask
+from genjax._src.core.typing import Any
 
 
 class TestSelections:
@@ -175,22 +179,6 @@ class TestSelections:
         # idempotence
         assert sel1 | sel1 == sel1
         assert sel2 | sel2 == sel2
-
-    def test_selection_mask(self):
-        sel = S["x"] | S["y"]
-        masked_sel = sel.mask(jnp.asarray(True))
-        assert masked_sel["x"]
-        assert masked_sel["y"]
-        assert not masked_sel["z"]
-
-        masked_sel = sel.mask(False)
-        assert not masked_sel["x"]
-        assert not masked_sel["y"]
-        assert not masked_sel["z"]
-
-        # bool works like flags
-        assert sel.mask(True) == sel.mask(True)
-        assert sel.mask(False) == sel.mask(False)
 
     def test_selection_filter(self):
         # Create a ChoiceMap
@@ -681,20 +669,19 @@ class TestChoiceMap:
         assert filtered.simplify() == C["x", "y"].set(maskv), "simplify removes filters"
 
         xyz = ChoiceMap.d({"x": 1, "y": 2, "z": 3})
-        or_chm = xyz.filter(S["x"]) | xyz.filter(S["y"].mask(jnp.array(True)))
-
-        xor_chm = xyz.filter(S["x"]) ^ xyz.filter(S["y"].mask(jnp.array(True)))
+        or_chm = xyz.filter(S["x"]) | xyz.filter(S["y"])
+        xor_chm = xyz.filter(S["x"]) ^ xyz.filter(S["y"])
 
         assert or_chm.simplify() == xor_chm.simplify(), "filters pushed down"
 
         assert or_chm["x"] == 1
-        assert or_chm["y"] == maskv
+        assert or_chm["y"] == 2
         with pytest.raises(ChoiceMapNoValueAtAddress, match="z"):
             or_chm["z"]
 
         assert or_chm.simplify() == ChoiceMap.d({
             "x": 1,
-            "y": maskv,
+            "y": 2,
         }), "filters pushed down"
 
         assert C["x"].set(None).simplify() == C["x"].set(None), "None is not filtered"
@@ -889,7 +876,7 @@ class TestChoiceMap:
         @genjax.gen
         def model(x):
             y = genjax.normal(x, 1.0) @ "y"
-            z = genjax.bernoulli(0.5) @ "z"
+            z = genjax.bernoulli(probs=0.5) @ "z"
             return y + z
 
         # Valid ChoiceMap
@@ -908,7 +895,7 @@ class TestChoiceMap:
         @genjax.gen
         def inner_model():
             a = genjax.normal(0.0, 1.0) @ "a"
-            b = genjax.bernoulli(0.5) @ "b"
+            b = genjax.bernoulli(probs=0.5) @ "b"
             return a + b
 
         @genjax.gen
@@ -943,7 +930,7 @@ class TestChoiceMap:
         @genjax.gen
         def inner_model(x):
             a = genjax.normal(x, 1.0) @ "a"
-            b = genjax.bernoulli(0.5) @ "b"
+            b = genjax.bernoulli(probs=0.5) @ "b"
             return a + b
 
         @genjax.gen
@@ -1011,7 +998,7 @@ class TestChoiceMap:
 
         @genjax.gen
         def outer_model():
-            choice = genjax.categorical([0.3, 0.3, 0.4]) @ "choice"
+            choice = genjax.categorical(probs=[0.3, 0.3, 0.4]) @ "choice"
             return switch_model(choice, (), (), ()) @ "out"
 
         # Valid ChoiceMap for model1
@@ -1154,3 +1141,62 @@ class TestChoiceMap:
 
         # Verify that partial slices are allowed in lookup
         assert complex_chm[0, "a", 0, 1:3, "b"] == genjax.Mask(jnp.array([1.0]), True)
+
+
+dictionaries_for_choice_maps = st.deferred(
+    lambda: st.dictionaries(
+        st.text(),
+        st.floats(allow_nan=False)
+        | st.lists(st.floats(allow_nan=False))
+        | dictionaries_for_choice_maps,
+        min_size=1,
+    )
+)
+
+
+def all_paths(mapping) -> list[tuple[tuple[StaticAddress, ...], Any]]:
+    paths = []
+    stack: list[tuple[StaticAddress, Any]] = [((), mapping)]
+    while stack:
+        prefix, mapping = stack.pop()
+        if isinstance(mapping, dict) and mapping:
+            for k, v in mapping.items():
+                stack.append(((*prefix, k), v))
+        else:
+            paths.append((prefix, mapping))
+    return paths
+
+
+class TestSubmap:
+    @given(dictionaries_for_choice_maps, st.data())
+    def test_get_submap_split_path(self, mapping, data):
+        choice_map = ChoiceMap.d(mapping)
+        paths = all_paths(mapping)
+
+        path, value = data.draw(st.sampled_from(paths))
+
+        assume(path)
+
+        i = data.draw(st.integers(0, len(path)))
+
+        assert choice_map.get_submap(path[:i])[path[i:]] == value, (
+            "a path split between get_submap and [] will reach the value"
+        )
+        assert choice_map.get_submap(path[:i], path[i:]) == choice_map.get_submap(
+            path
+        ), (
+            "get_submap can take multiple path-segments and reach the same leaf as a full path"
+        )
+
+    @given(dictionaries_for_choice_maps, st.data())
+    def test_path_can_be_splat(self, mapping, data):
+        choice_map = ChoiceMap.d(mapping)
+        paths = all_paths(mapping)
+
+        path, _ = data.draw(st.sampled_from(paths))
+
+        assume(path)
+
+        assert choice_map.get_submap(path) == choice_map.get_submap(*path), (
+            "Splatting out a path returns the same result as providing the tuple of path segments"
+        )
