@@ -25,6 +25,7 @@ import beartype.typing as btyping
 import jax.numpy as jnp
 import jaxtyping as jtyping
 import numpy as np
+from beartype import BeartypeConf, BeartypeStrategy, beartype
 from beartype.vale import Is
 from jax import core as jc
 
@@ -69,6 +70,7 @@ Generic = btyping.Generic
 TypeVar = btyping.TypeVar
 ParamSpec = btyping.ParamSpec
 
+nobeartype = beartype(conf=BeartypeConf(strategy=BeartypeStrategy.O0))
 
 #################
 # Static checks #
@@ -125,6 +127,7 @@ __all__ = [
     "Sequence",
     "TypeAlias",
     "TypeVar",
+    "nobeartype",
     "static_check_is_array",
     "static_check_is_concrete",
     "static_check_shape_dtype_equivalence",
