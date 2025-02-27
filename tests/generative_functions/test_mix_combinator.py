@@ -40,11 +40,12 @@ class TestMixture:
         trace = mixture.simulate(key, (logits, (0.0,), (0.0,)))
 
         # Check structure
-        assert "mixture_component" in trace.get_choices()
-        assert ("component_sample", "y") in trace.get_choices()
+        chm = trace.get_choices()
+        assert "mixture_component" in chm
+        assert ("component_sample", "y") in chm
 
         # Test assessment
-        choices = C["mixture_component"].set(0) & C["component_sample"].set(1.0)
+        choices = C["mixture_component"].set(0) | C["component_sample", "y"].set(1.0)
         score, _ = mixture.assess(choices, (logits, (0.0,), (0.0,)))
         assert jnp.isfinite(score)
 
