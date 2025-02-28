@@ -55,6 +55,7 @@ ExtendedAddressComponent = ExtendedStaticAddressComponent | DynamicAddressCompon
 
 # Addresses
 Address = AddressComponent | tuple[AddressComponent, ...]
+DynamicAddress = DynamicAddressComponent | tuple[DynamicAddressComponent, ...]
 StaticAddress = StaticAddressComponent | tuple[StaticAddressComponent, ...]
 ExtendedStaticAddress = (
     ExtendedStaticAddressComponent | tuple[ExtendedStaticAddressComponent, ...]
