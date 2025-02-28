@@ -49,6 +49,8 @@ nav:
           - Differentiation:
               - ADEV Example: cookbook/inactive/differentiation/adev_example.py
 
+          - Variance:
+            - Rao-Blackwellisation: cookbook/inactive/variance/rao_blackwell.ipynb
           - Speed:
               - Update:
                 - Importance: cookbook/inactive/update/1_importance.ipynb
