@@ -21,11 +21,6 @@ import jax.tree_util as jtu
 from jax.experimental import checkify
 
 from genjax._src.checkify import optional_check
-from genjax._src.core.generative.choice_map import (
-    DynamicAddress,
-    DynamicAddressComponent,
-    K_addr,
-)
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.interpreters.staging import FlagOp, tree_choose
 from genjax._src.core.pytree import Pytree
@@ -33,15 +28,15 @@ from genjax._src.core.typing import (
     Any,
     Array,
     ArrayLike,
-    Callable,
     Flag,
     Generic,
     IntArray,
     TypeVar,
 )
 
+DynamicAddressComponent = int | IntArray | slice
+DynamicAddress = DynamicAddressComponent | tuple[DynamicAddressComponent, ...]
 R = TypeVar("R")
-
 
 #########################
 # Masking and sum types #
@@ -464,7 +459,7 @@ class _SparseBuilder:
             [*self.addrs, *addr],
         )
 
-    def set(self, v) -> "Sparse":
+    def set(self, v) -> "Sparse" | ArrayLike:
         addrs = _validate_addr(tuple(self.addrs), allow_partial_slice=False)
         sparse = Sparse.extend(v, *addrs)
         if self.sparse is None:
@@ -472,207 +467,107 @@ class _SparseBuilder:
         else:
             return sparse | self.sparse
 
-    def update(self, f: Callable[..., "dict[K_addr, Any] | Sparse | Any"]) -> "Sparse":
-        """
-        Updates an existing value or ChoiceMap at the current address.
-        This method allows updating a value or ChoiceMap at the address specified by the builder.
-        The provided function `f` is called with the current value or ChoiceMap at that address.
-        Args:
-            f: A callable that takes the current value (or None) and returns a new value,
-               dict, or ChoiceMap to be set at the current address.
-        Returns:
-            A new ChoiceMap with the updated value at the specified address.
-        Example:
-            ```python exec="yes" html="true" source="material-block" session="choicemap"
-            chm = ChoiceMap.d({"x": 5, "y": {"z": 10}})
-            updated = chm.at["y", "z"].update(lambda v: v * 2)
-            assert updated["y", "z"] == 20
-            # Updating a non-existent address
-            new_chm = chm.at["w"].update(lambda _: 42)
-            assert new_chm["w"] == 42
-            ```
-        """
-        if self.sparse is None:
-            # TODO what do we do here?
-            # return self.set(f(_empty))
-            pass
-
-        else:
-            submap = self.sparse(tuple(self.addrs))
-            if submap.has_value():
-                return self.set(f(submap.get_value()))
-            else:
-                return self.set(f(submap))
-
 
 class Sparse(Pytree):
-    """The type `ChoiceMap` denotes a map-like value which can be sampled from
-    generative functions.
-
-    Generative functions which utilize `ChoiceMap` as their sample representation typically support a notion of _addressing_ for the random choices they make. `ChoiceMap` stores addressed random choices, and provides a data language for querying and manipulating these choices.
-
-    Examples:
-        (**Making choice maps**) Choice maps can be constructed using the `ChoiceMapBuilder` interface
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        from genjax import ChoiceMapBuilder as C
-
-        chm = C["x"].set(3.0)
-        print(chm.render_html())
-        ```
-
-        (**Getting submaps**) Hierarchical choice maps support `__call__`, which allows for the retrieval of _submaps_ at addresses:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        from genjax import ChoiceMapBuilder as C
-
-        chm = C["x", "y"].set(3.0)
-        submap = chm("x")
-        print(submap.render_html())
-        ```
-
-        (**Getting values**) Choice maps support `__getitem__`, which allows for the retrieval of _values_ at addresses:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        from genjax import ChoiceMapBuilder as C
-
-        chm = C["x", "y"].set(3.0)
-        value = chm["x", "y"]
-        print(value)
-        ```
-
-        (**Making vectorized choice maps**) Choice maps can be constructed using `jax.vmap`:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        from genjax import ChoiceMapBuilder as C
-        from jax import vmap
-        import jax.numpy as jnp
-
-        vec_chm = vmap(lambda idx, v: C["x", idx].set(v))(jnp.arange(10), jnp.ones(10))
-        print(vec_chm.render_html())
-        ```
-    """
-
-    #######################
-    # Map-like interfaces #
-    #######################
-
-    @abstractmethod
-    def mask(self, flag: Flag) -> "Sparse":
-        pass
-
-    @abstractmethod
-    def get_value(self) -> Any:
-        pass
-
-    @abstractmethod
-    def get_inner(
-        self,
-        addr: DynamicAddressComponent,
-    ) -> "Sparse":
-        pass
-
-    def get_submap(self, *addresses: DynamicAddress) -> "Sparse":
-        addr = tuple(
-            label for a in addresses for label in (a if isinstance(a, tuple) else (a,))
-        )
-        addr: tuple[DynamicAddressComponent, ...] = _validate_addr(
-            addr, allow_partial_slice=True
-        )
-        return functools.reduce(lambda sparse, addr: sparse.get_inner(addr), addr, self)
-
-    def has_value(self) -> bool:
-        return self.get_value() is not None
-
-    ######################
-    # Combinator methods #
-    ######################
-
-    def extend(self, *addrs: DynamicAddressComponent) -> "Sparse":
-        acc = self
+    @staticmethod
+    def extend(
+        v: "Sparse" | Mask[Any] | ArrayLike, *addrs: DynamicAddressComponent
+    ) -> "Sparse" | ArrayLike:
+        acc = v
         for addr in reversed(addrs):
             acc = Indexed.build(acc, addr)
 
         return acc
 
-    def merge(self, other: "Sparse") -> "Sparse":
-        return self | other
+    @staticmethod
+    def to_mask(
+        v: "Sparse" | Mask[Any] | ArrayLike, flag: Flag
+    ) -> "Sparse" | Mask[Any]:
+        if isinstance(v, Sparse):
+            return v.mask(flag)
+        else:
+            return Mask.build(v, flag)
 
-    ###########
-    # Dunders #
-    ###########
+    @abstractmethod
+    def mask(self, flag: Flag) -> "Sparse" | Mask[Any] | ArrayLike:
+        pass
 
-    def __or__(self, other: "Sparse") -> "Sparse":
-        return Or.build(self, other)
-
-    def __call__(
+    @abstractmethod
+    def get(
         self,
-        *addresses: DynamicAddress,
-    ) -> "Sparse":
-        """Alias for `get_submap(*addresses)`."""
-        return self.get_submap(*addresses)
+        addr: DynamicAddressComponent,
+    ) -> "Sparse" | Mask[Any] | ArrayLike:
+        pass
+
+    def deep_get(self, *addresses: DynamicAddressComponent) -> "Sparse" | ArrayLike:
+        flat_addr: tuple[DynamicAddressComponent, ...] = _validate_addr(
+            addresses, allow_partial_slice=True
+        )
+        # Start with the full sparse object
+        result = self
+
+        # Process each address component
+        for i, addr in enumerate(flat_addr):
+            # Get the next level
+            next_level = result.get(addr)
+
+            # If we got back a Sparse, keep going
+            if isinstance(next_level, Sparse):
+                result = next_level
+            else:
+                # We hit an ArrayLike - pass remaining components to it
+                remaining = flat_addr[i + 1 :]
+                if remaining:
+                    if isinstance(next_level, Array):
+                        return next_level[remaining]
+                    else:
+                        raise ValueError(
+                            f"Cannot index into non-array type {type(next_level)} with remaining indices {remaining}"
+                        )
+                return next_level
+
+        return result
+
+    ######################
+    # Combinator methods #
+    ######################
+
+    def __or__(self, other: "Sparse" | ArrayLike) -> "Sparse" | ArrayLike:
+        return Or.build(self, other)
 
     def __getitem__(
         self,
         addr: DynamicAddress,
     ):
-        submap = self.get_submap(addr)
-        v = submap.get_value()
-        if v is None:
-            raise Exception(f"No value at address {addr}")
-        else:
-            return v
-
-    def __contains__(
-        self,
-        addr: DynamicAddress,
-    ) -> bool:
-        return self.get_submap(addr).has_value()
+        addr_tuple = addr if isinstance(addr, tuple) else (addr,)
+        return self.deep_get(*addr_tuple)
 
 
 @Pytree.dataclass(match_args=True)
 class Indexed(Sparse):
-    """Represents a choice map with dynamic indexing.
-
-    This class represents a choice map that uses dynamic (array-based) addressing.
-    It allows for indexing into the choice map using array-like address components.
-
-    Attributes:
-        c: The underlying choice map.
-        addr: The dynamic address component used for indexing.
-
-    Examples:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        import jax.numpy as jnp
-
-        base_chm = ChoiceMap.value(jnp.array([1, 2, 3]))
-        idx_chm = base_chm.extend(jnp.array([0, 1, 2]))
-
-        assert idx_chm.get_submap(1).get_value() == genjax.Mask(2, True)
-        ```
-    """
-
-    sparse: Sparse
+    sparse: Sparse | Mask[Any] | ArrayLike
     addr: int | IntArray
 
     @staticmethod
-    def build(sparse: Sparse, addr: DynamicAddressComponent) -> Sparse:
+    def build(
+        v: Sparse | Mask[Any] | ArrayLike, addr: DynamicAddressComponent
+    ) -> Sparse | Mask[Any] | ArrayLike:
         if isinstance(addr, slice):
             if addr == _full_slice:
-                return sparse
+                return v
             else:
                 raise ValueError(f"Partial slices not supported: {addr}")
-
-        elif isinstance(addr, Array) and addr.shape == (0,):
-            return Sparse.empty()
-
         else:
-            return Indexed(sparse, addr)
+            return Indexed(v, addr)
 
-    def mask(self, flag: Flag) -> Sparse:
+    def mask(self, flag: Flag) -> Sparse | Mask[Any] | ArrayLike:
         addr = _full_slice if self.addr is None else self.addr
-        return self.sparse.mask(flag).extend(addr)
+        return Sparse.extend(Sparse.to_mask(self.sparse, flag), addr)
 
     def get_value(self) -> Any:
         return None
 
-    def get_inner(self, addr: DynamicAddressComponent) -> Sparse:
+    def get(self, addr: DynamicAddressComponent) -> Sparse:
         if not isinstance(addr, slice):
             # If we allowed non-scalar addresses, the `get_submap` call would not reduce the leaf by a dimension, and further get_submap calls would target the same dimension.
             assert not jnp.asarray(addr, copy=False).shape, (
@@ -709,46 +604,20 @@ class Indexed(Sparse):
 
 @Pytree.dataclass(match_args=True)
 class Or(Sparse):
-    """Represents a choice map that combines two choice maps using an OR operation.
-
-    This class combines two choice maps, prioritizing the first choice map (c1) over the second (c2)
-    when there are overlapping addresses. It returns values from c1 if present, otherwise from c2.
-
-    Attributes:
-        c1: The first choice map (higher priority).
-        c2: The second choice map (lower priority).
-
-    Examples:
-        ```python exec="yes" html="true" source="material-block" session="choicemap"
-        chm1 = ChoiceMap.value(5)
-        chm2 = ChoiceMap.value(10)
-        or_chm = chm1 | chm2
-        assert or_chm.get_value() == 5  # c1 takes priority
-
-        chm3 = ChoiceMap.empty()
-        chm4 = ChoiceMap.value(15)
-        or_chm2 = chm3 | chm4
-        assert or_chm2.get_value() == 15  # c2 used when c1 is empty
-        ```
-    """
-
-    c1: Sparse
-    c2: Sparse
+    c1: Sparse | ArrayLike
+    c2: Sparse | ArrayLike
 
     @staticmethod
     def build(
-        c1: Sparse,
-        c2: Sparse,
-    ) -> Sparse:
+        c1: Sparse | ArrayLike,
+        c2: Sparse | ArrayLike,
+    ) -> Sparse | ArrayLike:
         return Or(c1, c2)
 
-    def mask(self, flag: Flag) -> Sparse:
+    def mask(self, flag: Flag) -> Sparse | ArrayLike:
         return self.c1.mask(flag) | self.c2.mask(flag)
 
-    def get_value(self) -> Any:
-        return None
-
-    def get_inner(self, addr: DynamicAddressComponent) -> Sparse:
-        submap1 = self.c1.get_inner(addr)
-        submap2 = self.c2.get_inner(addr)
+    def get(self, addr: DynamicAddressComponent) -> Sparse | ArrayLike:
+        submap1 = self.c1.get(addr)
+        submap2 = self.c2.get(addr)
         return submap1 | submap2
