@@ -17,54 +17,50 @@ codebase.
 Type annotations in the codebase are exported out of this module for consistency.
 """
 
-from typing import Annotated  # noqa: F401, I001
+import sys
 from types import EllipsisType
+from typing import Annotated
 
 import beartype.typing as btyping
-from jax import core as jc
 import jax.numpy as jnp
 import jaxtyping as jtyping
 import numpy as np
-from beartype import BeartypeConf, beartype
+from beartype import BeartypeConf, BeartypeStrategy, beartype
 from beartype.vale import Is
+from jax import core as jc
 
-from genjax._src.core.traceback_util import register_exclusion
-
-register_exclusion(__file__)
+if sys.version_info >= (3, 11, 0):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 Any = btyping.Any
 PRNGKey = jtyping.PRNGKeyArray
 Array = jtyping.Array
 ArrayLike = jtyping.ArrayLike
-Union = btyping.Union
 IntArray = jtyping.Int[jtyping.Array, "..."]
 FloatArray = jtyping.Float[jtyping.Array, "..."]
 BoolArray = jtyping.Bool[jtyping.Array, "..."]
 Callable = btyping.Callable
+TypeAlias = btyping.TypeAlias
 Sequence = btyping.Sequence
-Tuple = btyping.Tuple
-Dict = btyping.Dict
-List = btyping.List
-Optional = btyping.Optional
-Type = btyping.Type
+Iterable = btyping.Iterable
+Final = btyping.Final
+Generator = btyping.Generator
+Literal = btyping.Literal
 
 # JAX Type alias.
-InAxes = int | None | Sequence[Any]
+InAxes = int | Sequence[Any] | None
 
-# Types of Python literals.
-Int = int
-Float = float
-Bool = bool
-String = str
-
-Value = Any
+Flag = bool | BoolArray
 
 #################################
 # Trace-time-checked primitives #
 #################################
 
 ScalarShaped = Is[lambda arr: jnp.array(arr, copy=False).shape == ()]
-ScalarBool = Annotated[Bool | BoolArray, ScalarShaped]
+ScalarFlag = Annotated[Flag, ScalarShaped]
+ScalarInt = Annotated[IntArray, ScalarShaped]
 
 ############
 # Generics #
@@ -74,63 +70,14 @@ Generic = btyping.Generic
 TypeVar = btyping.TypeVar
 ParamSpec = btyping.ParamSpec
 
-########################################
-# Static typechecking from annotations #
-########################################
-
-global_conf = BeartypeConf(
-    is_color=True,
-    is_debug=False,
-    is_pep484_tower=True,
-    violation_type=TypeError,
-)
-
-
-def typecheck_with_config(**kwargs):
-    return beartype(conf=BeartypeConf(**kwargs))
-
-
-typecheck = beartype(conf=global_conf)
-"""
-Accepts a function, and returns a function which uses `beartype` to perform type checking.
-
-Examples:
-    The below examples are roughly what you should expect to see if you trip over `beartype` via `genjax.typing.typecheck`.
-
-    ```python exec="yes" source="material-block" session="core"
-    from genjax.typing import Int
-    from genjax.typing import typecheck_with_config as typecheck
-
-    @typecheck(is_color=False, violation_type=TypeError)
-    def f(x: Int) -> Int:
-        return x + 1.0
-
-    try:
-        f(1.0)
-    except TypeError as e:
-        print("TypeError: ", e)
-    ```
-
-    This also works for the return values:
-
-    ```python exec="yes" source="material-block" session="core"
-    @typecheck(is_color=False, violation_type=TypeError)
-    def f(x: Int) -> Int:
-        return x + 1.0
-
-    try:
-        f(1)
-    except TypeError as e:
-        print("TypeError: ", e)
-    ```
-"""
+nobeartype = beartype(conf=BeartypeConf(strategy=BeartypeStrategy.O0))
 
 #################
 # Static checks #
 #################
 
 
-def static_check_is_array(v: Any) -> Bool:
+def static_check_is_array(v: Any) -> bool:
     return (
         isinstance(v, jnp.ndarray)
         or isinstance(v, np.ndarray)
@@ -138,12 +85,8 @@ def static_check_is_array(v: Any) -> Bool:
     )
 
 
-def static_check_is_concrete(x: Any) -> Bool:
+def static_check_is_concrete(x: Any) -> bool:
     return not isinstance(x, jc.Tracer)
-
-
-def static_check_bool(x: Any) -> Bool:
-    return static_check_is_concrete(x) and isinstance(x, Bool)
 
 
 # TODO: the dtype comparison needs to be replaced with something
@@ -152,8 +95,7 @@ def static_check_supports_grad(v):
     return static_check_is_array(v) and v.dtype == np.float32
 
 
-@typecheck
-def static_check_shape_dtype_equivalence(vs: List[Array]) -> Bool:
+def static_check_shape_dtype_equivalence(vs: list[Array]) -> bool:
     shape_dtypes = [(v.shape, v.dtype) for v in vs]
     num_unique = set(shape_dtypes)
     return len(num_unique) == 1
@@ -164,33 +106,30 @@ __all__ = [
     "Any",
     "Array",
     "ArrayLike",
-    "Bool",
     "BoolArray",
     "Callable",
-    "Dict",
     "EllipsisType",
-    "Float",
+    "Final",
+    "Flag",
     "FloatArray",
+    "Generator",
     "Generic",
     "InAxes",
-    "Int",
     "IntArray",
     "Is",
-    "List",
-    "ParamSpec",
+    "Iterable",
     "PRNGKey",
-    "ScalarBool",
+    "ParamSpec",
+    "ScalarFlag",
+    "ScalarInt",
     "ScalarShaped",
+    "Self",
     "Sequence",
-    "Tuple",
-    "Type",
+    "TypeAlias",
     "TypeVar",
-    "Union",
-    "Value",
+    "nobeartype",
     "static_check_is_array",
     "static_check_is_concrete",
     "static_check_shape_dtype_equivalence",
     "static_check_supports_grad",
-    "typecheck",
-    "typecheck_with_config",
 ]

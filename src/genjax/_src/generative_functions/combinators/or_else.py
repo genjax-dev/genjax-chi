@@ -15,17 +15,15 @@
 import jax.numpy as jnp
 
 from genjax._src.core.generative import GenerativeFunction
-from genjax._src.core.traceback_util import register_exclusion
-from genjax._src.core.typing import ScalarBool, Tuple, typecheck
+from genjax._src.core.typing import Any, ScalarFlag, TypeVar
 
-register_exclusion(__file__)
+R = TypeVar("R")
 
 
-@typecheck
 def or_else(
-    if_gen_fn: GenerativeFunction,
-    else_gen_fn: GenerativeFunction,
-) -> GenerativeFunction:
+    if_gen_fn: GenerativeFunction[R],
+    else_gen_fn: GenerativeFunction[R],
+) -> GenerativeFunction[R]:
     """
     Given two [`genjax.GenerativeFunction`][]s `if_gen_fn` and `else_gen_fn`, returns a new [`genjax.GenerativeFunction`][] that accepts
 
@@ -68,7 +66,7 @@ def or_else(
             return or_else_model(toss, (1.0,), (10.0,)) @ "tossed"
 
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         tr = jax.jit(model.simulate)(key, (True,))
 
@@ -76,12 +74,11 @@ def or_else(
         ```
     """
 
-    @typecheck
-    def argument_mapping(b: ScalarBool, if_args: Tuple, else_args: Tuple):
+    def argument_mapping(
+        b: ScalarFlag, if_args: tuple[Any, ...], else_args: tuple[Any, ...]
+    ):
         # Note that `True` maps to 0 to select the "if" branch, `False` to 1.
         idx = jnp.array(jnp.logical_not(b), dtype=int)
         return (idx, if_args, else_args)
 
-    return if_gen_fn.switch(else_gen_fn).contramap(
-        argument_mapping, info="Derived combinator (OrElse)"
-    )
+    return if_gen_fn.switch(else_gen_fn).contramap(argument_mapping)

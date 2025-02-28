@@ -12,12 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import genjax
 import jax
 import jax.numpy as jnp
 import pytest
-from genjax import ChoiceMapBuilder as C
 from jax.scipy.special import logsumexp
+
+import genjax
+from genjax import ChoiceMapBuilder as C
+from genjax import SelectionBuilder as S
+from genjax._src.core.typing import Any
+from genjax._src.inference.sp import Target
 
 
 def logpdf(v):
@@ -31,11 +35,11 @@ class TestSMC:
             _ = genjax.flip(0.5) @ "x"
             _ = genjax.flip(0.7) @ "y"
 
-        def flip_flip_exact_log_marginal_density(target: genjax.Target):
+        def flip_flip_exact_log_marginal_density(target: genjax.Target[Any]):
             y = target.constraint.get_submap("y")
             return genjax.flip.assess(y, (0.7,))[0]
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         inference_problem = genjax.Target(flip_flip_trivial, (), C["y"].set(True))
 
         # Single sample IS.
@@ -59,7 +63,7 @@ class TestSMC:
             p = jax.lax.cond(v1, lambda: 0.9, lambda: 0.3)
             _ = genjax.flip(p) @ "y"
 
-        def flip_flip_exact_log_marginal_density(target: genjax.Target):
+        def flip_flip_exact_log_marginal_density(target: genjax.Target[Any]):
             y = target["y"]
             x_prior = jnp.array([
                 logpdf(genjax.flip)(True, 0.5),
@@ -72,7 +76,7 @@ class TestSMC:
             y_marginal = logsumexp(x_prior + y_likelihood)
             return y_marginal
 
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         inference_problem = genjax.Target(flip_flip, (), C["y"].set(True))
 
         # K-sample IS.
@@ -81,3 +85,22 @@ class TestSMC:
         ).log_marginal_likelihood_estimate(key)
         Z_exact = flip_flip_exact_log_marginal_density(inference_problem)
         assert Z_est == pytest.approx(Z_exact, 1e-1)
+
+    def test_non_marginal_target(self):
+        @genjax.gen
+        def model():
+            idx = genjax.categorical(probs=[0.5, 0.25, 0.25]) @ "idx"
+            # under the prior, 50% chance to be in cluster 1 and 50% chance to be in cluster 2.
+            means = jnp.array([0.0, 10.0, 11.0])
+            vars = jnp.array([1.0, 1.0, 1.0])
+            x = genjax.normal(means[idx], vars[idx]) @ "x"
+            y = genjax.normal(means[idx], vars[idx]) @ "y"
+            return x, y
+
+        marginal_model = model.marginal(
+            selection=S["x"] | S["y"]
+        )  # This means we are projection onto the variables x and y, marginalizing out the rest
+
+        obs1 = C["x"].set(1.0)
+        with pytest.raises(TypeError):
+            Target(marginal_model, (), obs1)

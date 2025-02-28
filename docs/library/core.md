@@ -1,22 +1,18 @@
 # Journey to the center of `genjax.core`
 
 
-This page describes the set of core concepts and datatypes in GenJAX, including Gen's generative datatypes and concepts ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`Sample`][genjax.core.Sample], [`Constraint`][genjax.core.Constraint], and [`UpdateProblem`][genjax.core.UpdateProblem]), the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree], [`Const`][genjax.core.Const], and [`Closure`][genjax.core.Closure]), as well as functionally inspired `Pytree` extensions ([`Mask`][genjax.core.Mask], [`Sum`][genjax.core.Sum]), and GenJAX's approach to "static" (JAX tracing time) typechecking ([`typecheck`][genjax.typing.typecheck]).
+This page describes the set of core concepts and datatypes in GenJAX, including Gen's generative datatypes and concepts ([`GenerativeFunction`][genjax.core.GenerativeFunction], [`Trace`][genjax.core.Trace], [`ChoiceMap`][genjax.core.ChoiceMap], and [`EditRequest`][genjax.core.EditRequest]), the core JAX compatibility datatypes ([`Pytree`][genjax.core.Pytree], [`Const`][genjax.core.Const], and [`Closure`][genjax.core.Closure]), as well as functionally inspired `Pytree` extensions ([`Mask`][genjax.core.Mask]), and GenJAX's approach to "static" (JAX tracing time) typechecking.
 
 ::: genjax.core.GenerativeFunction
 
 Traces are data structures which record (execution and inference) data about the invocation of generative functions. Traces are often specialized to a generative function language, to take advantage of data locality, and other representation optimizations. Traces support a _trace interface_: a set of accessor methods designed to provide convenient manipulation when handling traces in inference algorithms. We document this interface below for the `Trace` data type.
 
 ::: genjax.core.Trace
-::: genjax.core.Sample
-::: genjax.core.UpdateProblem
-::: genjax.core.Constraint
+::: genjax.core.EditRequest
 
 ## Generative functions with addressed random choices
 
-Generative functions will often include _addressed_ random choices. These are random choices which are given a name via an addressing syntax, and can be accessed by name via extended interfaces on the `Sample` type which supports the addressing.
-
-The standard `Sample` type for this type of generative function is the `ChoiceMap` type.
+Generative functions will often include _addressed_ random choices. These are random choices which are given a name via an addressing syntax, and can be accessed by name via extended interfaces on the `ChoiceMap` type which supports the addressing.
 
 ::: genjax.core.ChoiceMap
 ::: genjax.core.Selection
@@ -55,7 +51,7 @@ For instance, JAX disallows usage of runtime values to resolve Python control fl
 
 In GenJAX, we take advantage of JAX's tracing to construct code which, when traced, produces specialized code _depending on static information_. At the same time, we are careful to encode Gen's interfaces to respect JAX's rules which govern how static / runtime values can be used.
 
-The most primitive way to encode _runtime uncertainty_ about a piece of data is to attach a `Bool` to it, which indicates whether the data is "on" or "off".
+The most primitive way to encode _runtime uncertainty_ about a piece of data is to attach a `bool` to it, which indicates whether the data is "on" or "off".
 
 GenJAX contains a system for tagging data with flags, to indicate if the data is valid or invalid during inference interface computations _at runtime_. The key data structure which supports this system is `genjax.core.Mask`.
 
@@ -66,22 +62,13 @@ GenJAX contains a system for tagging data with flags, to indicate if the data is
           - unmask
           - match
 
-Another mechanism to encode runtime uncertainty (again, inspired by functional programming) is the `Sum` type. This type encodes the possibility that the value inhabiting this type may actually be one of several options, and we can't statically determine which one it is. This type pairs an `idx: IntArray` with a list of values.
-
-::: genjax.core.Sum
-    options:
-        show_root_heading: true
-
 ## Static typing with `genjax.typing` a.k.a 🐻`beartype`🐻
 
 GenJAX uses [`beartype`](https://github.com/beartype/beartype) to perform type checking _during JAX tracing / compile time_. This means that `beartype`, normally a fast _runtime_ type checker, operates _at JAX tracing time_ to ensure that the arguments and return values are correct, with zero runtime cost.
 
-::: genjax.typing.typecheck
-
 ###  Generative interface types
 
 ::: genjax.core.Arguments
-::: genjax.core.Retval
 ::: genjax.core.Score
 ::: genjax.core.Weight
 ::: genjax.core.Retdiff

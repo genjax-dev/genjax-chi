@@ -26,44 +26,39 @@ from genjax._src.core.interpreters.forward import (
 )
 from genjax._src.core.interpreters.staging import stage
 from genjax._src.core.pytree import Closure, Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
     Callable,
-    Int,
-    List,
-    Optional,
-    String,
-    Tuple,
-    typecheck,
+    Generic,
+    TypeVar,
 )
 
-register_exclusion(__file__)
-
+R = TypeVar("R")
+S = TypeVar("S")
 
 record_p = InitialStylePrimitive("record_p")
 
 
 @Pytree.dataclass
-class FrameRecording(Pytree):
-    f: Callable[..., Any]
-    args: Tuple
-    local_retval: Any
-    cont: Callable[..., Any]
+class FrameRecording(Generic[R, S], Pytree):
+    f: Callable[..., R]
+    args: tuple[Any, ...]
+    local_retval: R
+    cont: Callable[..., S]
 
 
 @Pytree.dataclass
-class RecordPoint(Pytree):
-    callable: Closure
-    debug_tag: Optional[String] = Pytree.static()
+class RecordPoint(Generic[R, S], Pytree):
+    callable: Closure[R]
+    debug_tag: str | None = Pytree.static()
 
-    def default_call(self, *args):
+    def default_call(self, *args) -> R:
         return self.callable(*args)
 
-    def handle(self, cont: Callable[..., Any], *args):
+    def handle(self, cont: Callable[[R], tuple[S, Any]], *args):
         @Pytree.partial()
-        def _cont(*args):
+        def _cont(*args) -> S:
             final_ret, _ = cont(self.callable(*args))
             return final_ret
 
@@ -75,7 +70,6 @@ class RecordPoint(Pytree):
             FrameRecording(self.callable, args, ret, _cont),
         )
 
-    @typecheck
     def __call__(self, *args):
         def _cont_prim_call(brk_pt, *args):
             return brk_pt.default_call(*args)
@@ -83,13 +77,12 @@ class RecordPoint(Pytree):
         return initial_style_bind(record_p)(_cont_prim_call)(self, *args)
 
 
-@typecheck
 def rec(
-    callable: Callable[..., Any],
-    debug_tag: Optional[String] = None,
+    callable: Callable[..., R],
+    debug_tag: str | None = None,
 ):
     if not isinstance(callable, Closure):
-        callable = Pytree.partial()(callable)
+        callable = Closure[R]((), callable)
 
     def inner(*args):
         return RecordPoint(callable, debug_tag)(*args)
@@ -111,8 +104,8 @@ class TimeTravelCPSInterpreter(Pytree):
     @staticmethod
     def _eval_jaxpr_hybrid_cps(
         jaxpr: jc.Jaxpr,
-        consts: List[ArrayLike],
-        flat_args: List[ArrayLike],
+        consts: list[ArrayLike],
+        flat_args: list[ArrayLike],
         out_tree,
     ):
         env = Environment()
@@ -129,7 +122,7 @@ class TimeTravelCPSInterpreter(Pytree):
         ):
             jax_util.safe_map(env.write, invars, flat_args)
 
-            for eqn_idx, eqn in list(enumerate(eqns)):
+            for eqn_idx, eqn in enumerate(eqns):
                 with src_util.user_context(eqn.source_info.traceback):
                     invals = jax_util.safe_map(env.read, eqn.invars)
                     subfuns, params = eqn.primitive.get_bind_params(eqn.params)
@@ -206,23 +199,23 @@ def time_travel(f):
 @Pytree.dataclass
 class TimeTravelingDebugger(Pytree):
     final_retval: Any
-    sequence: List[FrameRecording]
-    jump_points: dict = Pytree.static()
-    ptr: Int = Pytree.static()
+    sequence: list[FrameRecording[Any, Any]]
+    jump_points: dict[Any, Any] = Pytree.static()
+    ptr: int = Pytree.static()
 
-    def frame(self) -> Tuple[Optional[String], FrameRecording]:
+    def frame(self) -> tuple[str | None, FrameRecording[Any, Any]]:
         frame = self.sequence[self.ptr]
         reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
         jump_tag = reverse_jump_points.get(self.ptr, None)
         return jump_tag, frame
 
-    def summary(self) -> Tuple[Any, Tuple[Optional[String], FrameRecording]]:
+    def summary(self) -> tuple[Any, tuple[str | None, FrameRecording[Any, Any]]]:
         frame = self.sequence[self.ptr]
         reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
         jump_tag = reverse_jump_points.get(self.ptr, None)
         return self.final_retval, (jump_tag, frame)
 
-    def jump(self, debug_tag: String) -> "TimeTravelingDebugger":
+    def jump(self, debug_tag: str) -> "TimeTravelingDebugger":
         jump_pt = self.jump_points[debug_tag]
         return TimeTravelingDebugger(
             self.final_retval,
@@ -259,11 +252,11 @@ class TimeTravelingDebugger(Pytree):
         frame = self.sequence[self.ptr]
         f, cont = frame.f, frame.cont
         local_retval = f(*args)
-        _, _debugger = _record(cont)(*args)
+        _, debugger = _record(cont)(*args)
         new_frame = FrameRecording(f, args, local_retval, cont)
         return TimeTravelingDebugger(
-            _debugger.final_retval,
-            [*self.sequence[: self.ptr], new_frame, *_debugger.sequence],
+            debugger.final_retval,
+            [*self.sequence[: self.ptr], new_frame, *debugger.sequence],
             self.jump_points,
             self.ptr,
         )
@@ -272,10 +265,9 @@ class TimeTravelingDebugger(Pytree):
         return self.remix(*args)
 
 
-@typecheck
 def _record(source: Callable[..., Any]):
-    def inner(*args) -> Tuple[Any, TimeTravelingDebugger]:
-        retval, next = time_travel(source)(*args)
+    def inner(*args) -> tuple[Any, TimeTravelingDebugger]:
+        retval, next = time_travel(source)(*args)  # pyright: ignore[reportGeneralTypeIssues]
         sequence = []
         jump_points = {}
         while next:
@@ -284,13 +276,12 @@ def _record(source: Callable[..., Any]):
             if debug_tag:
                 jump_points[debug_tag] = len(sequence) - 1
             args, cont = frame.args, frame.cont
-            retval, next = time_travel(cont)(*args)
+            retval, next = time_travel(cont)(*args)  # pyright: ignore[reportGeneralTypeIssues]
         return retval, TimeTravelingDebugger(retval, sequence, jump_points, 0)
 
     return inner
 
 
-@typecheck
 def time_machine(source: Callable[..., Any]):
     def instrumented(*args):
         return tag(rec(source, "_enter")(*args), "exit")

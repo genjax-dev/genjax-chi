@@ -1,16 +1,17 @@
 name: safety
 
 on:
-  # Runs on pushes targeting the default branch
+  pull_request:
   push:
-    branches: ["main"]
+    branches:
+      - main
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  safety:
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
@@ -18,19 +19,16 @@ jobs:
         with:
           python-version: 3.11.5
 
-      - id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
       - name: Setup Nox
         uses: daisylb/setup-nox@v2.1.0
 
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.8.5
+
       - name: Install poetry/nox-poetry
-        run: pip install poetry nox-poetry
+        run: pip install nox-poetry
 
       - name: Cache Nox environments
         uses: actions/cache@v4

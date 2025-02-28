@@ -13,23 +13,15 @@
 # limitations under the License.
 
 from genjax._src.inference.smc import (
-    AttachCombinator,
     ChangeTarget,
     Importance,
     ImportanceK,
     SMCAlgorithm,
-    SMCMove,
-    SMCP3Move,
-    attach,
 )
 
 __all__ = [
-    "AttachCombinator",
     "ChangeTarget",
     "Importance",
     "ImportanceK",
     "SMCAlgorithm",
-    "SMCMove",
-    "SMCP3Move",
-    "attach",
 ]

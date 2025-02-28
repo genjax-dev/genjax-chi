@@ -10,7 +10,6 @@ This project uses:
 - [poetry](https://python-poetry.org/) for dependency management
 - [nox](https://nox.thea.codes/en/stable/) to automate testing/linting/building.
 - [mkdocs](https://www.mkdocs.org/) to generate static documentation.
-- [quarto](https://quarto.org/) to render Jupyter notebooks for tutorial notebooks.
 
 ### Commit Hooks
 
@@ -58,7 +57,7 @@ conda create --name genjax-py311 python=3.11 --channel=conda-forge
 conda activate genjax-py311
 pip install nox
 pip install nox-poetry
-git clone https://github.com/probcomp/genjax
+git clone https://github.com/chisym/genjax
 cd genjax
 poetry self add "poetry-dynamic-versioning[plugin]"
 poetry install
@@ -122,10 +121,6 @@ version of `jax` and `jaxlib` resolve with the versions of packages in the
 
 ### Documentation environment setup
 
-If you want to deploy the documentation and Jupyter notebooks to static HTML,
-you'll need to install [quarto](https://quarto.org/docs/get-started/) on your
-machine.
-
 GenJAX builds documentation using an insiders-only version of
 [mkdocs-material](https://squidfunk.github.io/mkdocs-material/). GenJAX will
 attempt to fetch this repository during the documentation build step.
@@ -136,8 +131,7 @@ Run the following command to fully build the documentation:
 nox -r -s docs-build
 ```
 
-This command will use `mkdocs` to build the static site, and then use `quarto`
-to render the notebooks into the static site directory.
+This command will use `mkdocs` to build the static site.
 
 To view the generated site, run:
 
@@ -151,26 +145,11 @@ or to run both commands in sequence:
 nox -r -s docs-build-serve
 ```
 
-## Granting someone access to GenJAX's Artifact Registry
-
-- Visit the [artifact registry
-  page](https://console.cloud.google.com/artifacts?hl=en&project=probcomp-caliban)
-  and click the checkbox next to `probcomp` to bring up the "Permissions" tab on
-  the right side of the page
-- Click "Add Principal"
-- Under "New principals", type in the email addresses (associated with a Google
-  account) of the people you want to grant access
-- Under "Role", fill in "Artifact Registry Reader"
-- Click "Save"
-
-These users should now be able to follow the README.md instructions to install
-GenJAX.
-
 ## Releasing GenJAX
 
 Published GenJAX artifacts live [on PyPI](https://pypi.org/project/genjax/) and
 are published automatically by GitHub with each new
-[release](https://github.com/probcomp/genjax/releases).
+[release](https://github.com/chisym/genjax/releases).
 
 ### Release checklist
 
@@ -182,7 +161,7 @@ Before cutting a new release:
 
 ### Releasing via GitHub
 
-- Visit https://github.com/probcomp/genjax/releases/new to create a new release.
+- Visit https://github.com/chisym/genjax/releases/new to create a new release.
 - From the "Choose a tag" dropdown, type the new version (using the format
   `v<MAJOR>.<MINOR>.<INCREMENTAL>`, like `v0.1.0`) and select "Create new tag
   on publish"
@@ -192,49 +171,11 @@ Before cutting a new release:
 
 This will build and publish the new version to Artifact Registry.
 
-### Manually publishing to Google Artifact Registry
-
-- Ask @sritchie to add you to the `probcomp-caliban` project on Google Cloud.
-- [Install the Google Cloud command line
-  tools](https://cloud.google.com/sdk/docs/install).
-- Follow the instructions on the [installation
-  page](https://cloud.google.com/sdk/docs/install)
-- run `gcloud init` as described [in this
-  guide](https://cloud.google.com/sdk/docs/initializing) and configure the tool
-  with the ID of your new Cloud project.
-- Make sure you've added the dynamic versioning plugin, then configure poetry to
-  deploy to the `probcomp-caliban` artifact registry:
-
-```shell
-poetry self add poetry-dynamic-versioning[plugin]
-poetry self add keyrings.google-artifactregistry-auth
-poetry config repositories.gcp https://us-west1-python.pkg.dev/probcomp-caliban/probcomp/
-```
-
-- create a new version tag on the `main` branch of the form
-  `v<MAJOR>.<MINOR>.<INCREMENTAL>`, like `v0.1.0`, and push the tag to the
-  remote repository:
-
-```sh
-git tag v0.1.0
-git push --tags
-```
-
-- use Poetry to build and publish the artifact to Artifact Registry:
-
-```sh
-poetry publish --build --repository gcp
-```
-
-
 ### Manually publishing to PyPI
-
-> NOTE: please only do this once we've made the repository public and released a
-> version to PyPI.
 
 To publish a version manually, you'll need to be added to the GenJAX Maintainers
 list on PyPI, or ask a [current maintainer from the project
-page]((https://pypi.org/project/genjax/)) for help. Once that's settled:
+page](https://pypi.org/project/genjax/) for help. Once that's settled:
 
 - generate an API token on your [pypi account
   page](https://pypi.org/manage/account/token/), scoped to all projects or

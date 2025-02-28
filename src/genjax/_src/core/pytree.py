@@ -16,40 +16,25 @@
 The Pytree interface determines how data classes behave across JAX-transformed function boundaries - it provides a user with the freedom to declare subfields of a class as "static" (meaning, the value of the field cannot be a JAX traced value, it must be a Python literal, or a constant array - and the value is embedded in the `PyTreeDef` of any instance) or "dynamic" (meaning, the value may be a JAX traced value).
 """
 
-import inspect
-from dataclasses import field, fields
+from dataclasses import field
 from typing import overload
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from penzai import pz
-from penzai.treescope import default_renderer
-from penzai.treescope.foldable_representation import (
-    basic_parts,
-    common_structures,
-    common_styles,
-    foldable_impl,
-)
-from penzai.treescope.handlers import builtin_structure_handler
-from penzai.treescope.handlers.penzai import struct_handler
+import penzai.pz as pz
+import treescope
+from treescope import formatting_util
 from typing_extensions import dataclass_transform
 
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
-    Int,
-    List,
-    Tuple,
+    Generic,
     TypeVar,
-    static_check_is_array,
     static_check_is_concrete,
-    static_check_supports_grad,
 )
 
-register_exclusion(__file__)
-
-_T = TypeVar("_T")
+R = TypeVar("R")
 
 
 class Pytree(pz.Struct):
@@ -65,34 +50,31 @@ class Pytree(pz.Struct):
 
     """
 
-    @classmethod
+    @staticmethod
     @overload
     def dataclass(
-        cls,
         incoming: None = None,
         /,
         **kwargs,
-    ) -> Callable[[type[_T]], type[_T]]: ...
+    ) -> Callable[[type[R]], type[R]]: ...
 
-    @classmethod
+    @staticmethod
     @overload
     def dataclass(
-        cls,
-        incoming: type[_T],
+        incoming: type[R],
         /,
         **kwargs,
-    ) -> type[_T]: ...
+    ) -> type[R]: ...
 
     @dataclass_transform(
         frozen_default=True,
     )
-    @classmethod
+    @staticmethod
     def dataclass(
-        cls,
-        incoming: type[_T] | None = None,
+        incoming: type[R] | None = None,
         /,
         **kwargs,
-    ) -> type[_T] | Callable[[type[_T]], type[_T]]:
+    ) -> type[R] | Callable[[type[R]], type[R]]:
         """
         Denote that a class (which is inheriting `Pytree`) should be treated as a dataclass, meaning it can hold data in fields which are declared as part of the class.
 
@@ -106,12 +88,12 @@ class Pytree(pz.Struct):
         Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
             from genjax import Pytree
-            from genjax.typing import FloatArray, typecheck
+            from genjax.typing import FloatArray
             import jax.numpy as jnp
 
 
             @Pytree.dataclass
-            @typecheck  # Enforces type annotations on instantiation.
+            # Enforces type annotations on instantiation.
             class MyClass(Pytree):
                 my_static_field: int = Pytree.static()
                 my_dynamic_field: FloatArray
@@ -123,6 +105,7 @@ class Pytree(pz.Struct):
 
         return pz.pytree_dataclass(
             incoming,
+            overwrite_parent_init=True,
             **kwargs,
         )
 
@@ -135,7 +118,7 @@ class Pytree(pz.Struct):
         Examples:
             ```python exec="yes" html="true" source="material-block" session="core"
             @Pytree.dataclass
-            @typecheck  # Enforces type annotations on instantiation.
+            # Enforces type annotations on instantiation.
             class MyClass(Pytree):
                 my_dynamic_field: FloatArray
                 my_static_field: int = Pytree.static(default=0)
@@ -185,10 +168,10 @@ class Pytree(pz.Struct):
         )
 
     @staticmethod
-    def tree_unwrap_const(v):
+    def tree_const_unwrap(v):
         def _inner(v):
             if isinstance(v, Const):
-                return v.const
+                return v.val
             else:
                 return v
 
@@ -199,8 +182,8 @@ class Pytree(pz.Struct):
         )
 
     @staticmethod
-    def partial(*args):
-        return lambda fn: Closure(args, fn)
+    def partial(*args) -> Callable[[Callable[..., R]], "Closure[R]"]:
+        return lambda fn: Closure[R](args, fn)
 
     def treedef(self):
         return jtu.tree_structure(self)
@@ -210,7 +193,7 @@ class Pytree(pz.Struct):
     #################
 
     @staticmethod
-    def static_check_tree_structure_equivalence(trees: List):
+    def static_check_tree_structure_equivalence(trees: list[Any]):
         if not trees:
             return True
         else:
@@ -219,196 +202,23 @@ class Pytree(pz.Struct):
             check = all(map(lambda v: treedef == jtu.tree_structure(v), rest))
             return check
 
-    @staticmethod
-    def static_check_none(v):
-        return v == Const(None)
+    def treescope_color(self) -> str:
+        """Computes a CSS color to display for this object in treescope.
 
-    @staticmethod
-    def static_check_tree_leaves_have_matching_leading_dim(tree):
-        def _inner(v):
-            if static_check_is_array(v):
-                shape = v.shape
-                return shape[0] if shape else 0
-            else:
-                return 0
+        This function can be overridden to change the color for a particular object
+        in treescope, without having to register a new handler.
 
-        broadcast_dim_tree = jtu.tree_map(lambda v: _inner(v), tree)
-        leaves = jtu.tree_leaves(broadcast_dim_tree)
-        leaf_lengths = set(leaves)
-        # all the leaves must have the same first dim size.
-        assert len(leaf_lengths) == 1
-        max_index = list(leaf_lengths).pop()
-        return max_index
+        (note that we are overriding the Penzai base class's implementation so that ALL structs receive colors, not just classes with `__call__` implemented.)
 
-    #############
-    # Utilities #
-    #############
-
-    @staticmethod
-    def tree_stack(trees):
-        """Takes a list of trees and stacks every corresponding leaf.
-
-        For example, given two trees ((a, b), c) and ((a', b'), c'), returns ((stack(a,
-        a'), stack(b, b')), stack(c, c')).
-
-        Useful for turning a list of objects into something you can feed to a vmapped
-        function.
+        Returns:
+          A CSS color string to use as a background/highlight color for this object.
+          Alternatively, a tuple of (border, fill) CSS colors.
         """
-        leaves_list = []
-        treedef_list = []
-        for tree in trees:
-            leaves, treedef = jtu.tree_flatten(tree)
-            leaves_list.append(leaves)
-            treedef_list.append(treedef)
-
-        grouped_leaves = zip(*leaves_list)
-        result_leaves = [
-            jnp.squeeze(jnp.stack(leaf, axis=-1)) for leaf in grouped_leaves
-        ]
-        return treedef_list[0].unflatten(result_leaves)
-
-    @staticmethod
-    def tree_unstack(tree):
-        """Takes a tree and turns it into a list of trees. Inverse of tree_stack.
-
-        For example, given a tree ((a, b), c), where a, b, and c all have
-        first dimension k, will make k trees [((a[0], b[0]), c[0]), ...,
-        ((a[k], b[k]), c[k])]
-
-        Useful for turning the output of a vmapped function into normal
-        objects.
-        """
-        leaves, treedef = jtu.tree_flatten(tree)
-        n_trees = leaves[0].shape[0]
-        new_leaves = [[] for _ in range(n_trees)]
-        for leaf in leaves:
-            for i in range(n_trees):
-                new_leaves[i].append(leaf[i])
-        new_trees = [treedef.unflatten(leaf) for leaf in new_leaves]
-        return new_trees
-
-    @staticmethod
-    def tree_grad_split(tree):
-        def _grad_filter(v):
-            if static_check_supports_grad(v):
-                return v
-            else:
-                return None
-
-        def _nograd_filter(v):
-            if not static_check_supports_grad(v):
-                return v
-            else:
-                return None
-
-        grad = jtu.tree_map(_grad_filter, tree)
-        nograd = jtu.tree_map(_nograd_filter, tree)
-
-        return grad, nograd
-
-    @staticmethod
-    def tree_grad_zip(grad, nograd):
-        def _zipper(*args):
-            for arg in args:
-                if arg is not None:
-                    return arg
-            return None
-
-        def _is_none(x):
-            return x is None
-
-        return jtu.tree_map(_zipper, grad, nograd, is_leaf=_is_none)
+        type_string = type(self).__module__ + "." + type(self).__qualname__
+        return formatting_util.color_from_string(type_string)
 
     def render_html(self):
-        def _pytree_handler(node, subtree_renderer):
-            constructor_open = struct_handler.render_struct_constructor(node)
-            fs = fields(node)
-
-            (
-                background_color,
-                background_pattern,
-            ) = builtin_structure_handler.parse_color_and_pattern(
-                node.treescope_color(), type(node).__name__
-            )
-
-            if background_pattern is not None:
-                if background_color is None:
-                    raise ValueError(
-                        "background_color must be provided if background_pattern is"
-                    )
-
-                def wrap_block(block):
-                    return common_styles.WithBlockPattern(
-                        block, color=background_color, pattern=background_pattern
-                    )
-
-                wrap_topline = common_styles.PatternedTopLineSpanGroup
-                wrap_bottomline = common_styles.PatternedBottomLineSpanGroup
-
-            elif background_color is not None and background_color != "transparent":
-
-                def wrap_block(block):
-                    return common_styles.WithBlockColor(block, color=background_color)
-
-                wrap_topline = common_styles.ColoredTopLineSpanGroup
-                wrap_bottomline = common_styles.ColoredBottomLineSpanGroup
-
-            else:
-
-                def id(rendering):
-                    return rendering
-
-                wrap_block = id
-                wrap_topline = id
-                wrap_bottomline = id
-
-            children = builtin_structure_handler.build_field_children(
-                node,
-                None,
-                subtree_renderer,
-                fields_or_attribute_names=fs,
-                key_path_fn=node.key_for_field,
-                attr_style_fn=struct_handler.struct_attr_style_fn_for_fields(fs),
-            )
-            children = basic_parts.IndentedChildren(children)
-
-            suffix = ")"
-
-            return wrap_block(
-                basic_parts.Siblings(
-                    children=[
-                        wrap_topline(constructor_open),
-                        basic_parts.Siblings.build(
-                            foldable_impl.HyperlinkTarget(
-                                foldable_impl.FoldableTreeNodeImpl(
-                                    basic_parts.FoldCondition(
-                                        collapsed=basic_parts.Text("..."),
-                                        expanded=children,
-                                    )
-                                ),
-                                keypath=None,
-                            ),
-                            wrap_bottomline(basic_parts.Text(suffix)),
-                        ),
-                    ],
-                )
-            )
-
-        def custom_handler(node, path, subtree_renderer):
-            if inspect.isfunction(node):
-                return common_structures.build_one_line_tree_node(
-                    line=common_styles.CustomTextColor(
-                        basic_parts.Text(f"<fn {node.__name__}>"),
-                        color="blue",
-                    ),
-                    path=None,
-                )
-            if isinstance(node, Pytree):
-                return _pytree_handler(node, subtree_renderer)
-            return NotImplemented
-
-        default_renderer.active_renderer.get().handlers.insert(0, custom_handler)
-        return pz.ts.render_to_html(
+        return treescope.render_to_html(
             self,
             roundtrip_mode=False,
         )
@@ -421,7 +231,7 @@ class Pytree(pz.Struct):
 
 # Wrapper for static values (can include callables).
 @Pytree.dataclass
-class Const(Pytree):
+class Const(Generic[R], Pytree):
     """
     JAX-compatible way to tag a value as a constant. Valid constants include Python literals, strings, essentially anything **that won't hold JAX arrays** inside of a computation.
 
@@ -452,15 +262,42 @@ class Const(Pytree):
         ```
     """
 
-    const: Any = Pytree.static()
+    val: R = Pytree.static()
 
     def __call__(self, *args):
-        return self.const(*args)
+        assert isinstance(self.val, Callable), (
+            f"Wrapped `val` {self.val} is not Callable."
+        )
+        return self.val(*args)
+
+    def unwrap(self: Any) -> R:
+        """Unwrap a constant value from a `Const` instance.
+
+        This method can be used as an instance method or as a static method. When used as a static method, it returns the input value unchanged if it is not a `Const` instance.
+
+        Returns:
+            R: The unwrapped value if self is a `Const`, otherwise returns self unchanged.
+
+        Examples:
+            ```python exec="yes" html="true" source="material-block" session="core"
+            from genjax import Pytree, Const
+
+            c = Pytree.const(5)
+            val = c.unwrap()  # Returns 5
+
+            # Can also be used as static method
+            val = Const.unwrap(10)  # Returns 10 unchanged
+            ```
+        """
+        if isinstance(self, Const):
+            return self.val
+        else:
+            return self
 
 
 # Construct for a type of closure which closes over dynamic values.
 @Pytree.dataclass
-class Closure(Pytree):
+class Closure(Generic[R], Pytree):
     """
     JAX-compatible closure type. It's a closure _as a [`Pytree`][genjax.core.Pytree]_ - meaning the static _source code_ / _callable_ is separated from dynamic data (which must be tracked by JAX).
 
@@ -490,14 +327,14 @@ class Closure(Pytree):
         ```
     """
 
-    dyn_args: Tuple
-    fn: Callable[..., Any] = Pytree.static()
+    dyn_args: tuple[Any, ...]
+    fn: Callable[..., R] = Pytree.static()
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> R:
         return self.fn(*self.dyn_args, *args, **kwargs)
 
 
-def nth(x: Pytree, idx: Int):
+def nth(x: Pytree, idx: int | slice | jnp.ndarray):
     """Returns a Pytree in which `[idx]` has been applied to every leaf."""
     return jtu.tree_map(lambda v: v[idx], x)
 

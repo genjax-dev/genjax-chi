@@ -10,12 +10,10 @@ env:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   build-deploy:
-    runs-on: ubuntu-latest
+    runs-on: DocsBuilder
 
     steps:
       - name: Check out repository
@@ -31,26 +29,17 @@ jobs:
             ${{ secrets.INSIDER_SSH_KEY }}
             ${{ secrets.MKDOCSTRINGS_PYTHON_SSH_KEY }}
 
-      - name: Set up Quarto
-        uses: quarto-dev/quarto-actions/setup@v2
-
       - uses: actions/setup-python@v4
         with:
           python-version: 3.11.5
-
-      - id: auth
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: "${{ secrets.ARTIFACT_REGISTRY_KEY }}"
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
 
       - name: Setup Nox
         uses: daisylb/setup-nox@v2.1.0
 
       - name: Install and configure Poetry
         uses: snok/install-poetry@v1
+        with:
+          version: 1.8.5
 
       - name: Install nox-poetry
         run: pip install nox-poetry
@@ -63,15 +52,4 @@ jobs:
           restore-keys: ${{ runner.os }}-nox
 
       - name: Run Docs Build
-        run: nox -r -s docs-build
-
-      - name: Create website artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: website
-          path: ./site
-  publish:
-    needs: build-deploy
-    uses: probcomp/gen-website-private/.github/workflows/publish_private_website.yml@main
-    with:
-      artifact: website
+        run: nox -r -s docs-build-deploy

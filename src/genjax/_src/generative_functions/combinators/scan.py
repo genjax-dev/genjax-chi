@@ -19,55 +19,72 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    EmptyProblem,
-    EmptyTrace,
+    EditRequest,
     GenerativeFunction,
-    GenericProblem,
-    ImportanceProblem,
+    IndexRequest,
+    PrimitiveEditRequest,
+    Regenerate,
     Retdiff,
-    Sample,
     Score,
     Selection,
     Trace,
-    UpdateProblem,
+    Update,
     Weight,
 )
+from genjax._src.core.generative.choice_map import (
+    Address,
+)
+from genjax._src.core.generative.functional_types import Mask
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
-from genjax._src.core.traceback_util import register_exclusion
 from genjax._src.core.typing import (
     Any,
     Callable,
+    Flag,
     FloatArray,
-    Int,
+    Generic,
     IntArray,
-    Optional,
     PRNGKey,
-    Tuple,
-    typecheck,
+    TypeVar,
 )
 
-register_exclusion(__file__)
+Carry = TypeVar("Carry")
+Y = TypeVar("Y")
 
 
 @Pytree.dataclass
-class ScanTrace(Trace):
-    scan_gen_fn: "ScanCombinator"
-    inner: Trace
-    args: Tuple
-    retval: Any
+class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
+    scan_gen_fn: "Scan[Carry, Y]"
+    inner: Trace[tuple[Carry, Y]]
+    args: tuple[Any, ...]
+    retval: tuple[Carry, Y]
     score: FloatArray
+    chm: ChoiceMap
+    scan_length: int = Pytree.static()
 
-    def get_args(self) -> Tuple:
+    @staticmethod
+    def build(
+        scan_gen_fn: "Scan[Carry, Y]",
+        inner: Trace[tuple[Carry, Y]],
+        args: tuple[Any, ...],
+        retval: tuple[Carry, Y],
+        score: FloatArray,
+        scan_length: int,
+    ) -> "ScanTrace[Carry, Y]":
+        if scan_length == 0:
+            chm = ChoiceMap.empty()
+        else:
+            chm = jax.vmap(lambda tr: tr.get_choices())(inner)
+        return ScanTrace(scan_gen_fn, inner, args, retval, score, chm, scan_length)
+
+    def get_args(self) -> tuple[Any, ...]:
         return self.args
 
-    def get_retval(self):
+    def get_retval(self) -> tuple[Carry, Y]:
         return self.retval
 
-    def get_sample(self):
-        return jax.vmap(
-            lambda idx, subtrace: ChoiceMap.idx(idx, subtrace.get_sample()),
-        )(jnp.arange(self.scan_gen_fn.length), self.inner)
+    def get_choices(self) -> ChoiceMap:
+        return self.chm
 
     def get_gen_fn(self):
         return self.scan_gen_fn
@@ -75,40 +92,13 @@ class ScanTrace(Trace):
     def get_score(self):
         return self.score
 
-    def index_update(
-        self,
-        idx: IntArray,
-        problem: UpdateProblem,
-    ) -> UpdateProblem:
-        return IndexProblem(idx, problem)
-
-    def checkerboard_update(
-        self,
-        problem: UpdateProblem,
-    ) -> UpdateProblem:
-        return CheckerboardProblem(problem)
-
-
-#######################
-# Custom update specs #
-#######################
+    def get_inner_trace(self, address: Address):
+        return self.inner.get_inner_trace(address)
 
 
 @Pytree.dataclass(match_args=True)
-class StaticResizeProblem(UpdateProblem):
-    subproblem: UpdateProblem
-    resized_length: Int = Pytree.static()
-
-
-@Pytree.dataclass(match_args=True)
-class IndexProblem(UpdateProblem):
-    index: IntArray
-    subproblem: UpdateProblem
-
-
-@Pytree.dataclass(match_args=True)
-class CheckerboardProblem(UpdateProblem):
-    subproblem: UpdateProblem
+class VectorRequest(PrimitiveEditRequest):
+    request: EditRequest
 
 
 ###################
@@ -117,9 +107,10 @@ class CheckerboardProblem(UpdateProblem):
 
 
 @Pytree.dataclass
-class ScanCombinator(GenerativeFunction):
-    """
-    `ScanCombinator` wraps a `kernel_gen_fn` [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)` in a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])`, where
+class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
+    """`Scan` wraps a `kernel_gen_fn` [`genjax.GenerativeFunction`][]
+    of type `(c, a) -> (c, b)` in a new [`genjax.GenerativeFunction`][] of type
+    `(c, [a]) -> (c, [b])`, where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `a` may be a primitive, an array type or a pytree (container) type with array leaves
@@ -152,10 +143,6 @@ class ScanCombinator(GenerativeFunction):
 
         length: optional integer specifying the number of loop iterations, which (if supplied) must agree with the sizes of leading axes of the arrays in the returned function's second argument. If supplied then the returned generative function can take `None` as its second argument.
 
-        reverse: optional boolean specifying whether to run the scan iteration forward (the default) or in reverse, equivalent to reversing the leading axes of the arrays in both `xs` and in `ys`.
-
-        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many scan iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
-
     Examples:
         Use the [`genjax.GenerativeFunction.scan`][] method:
         ```python exec="yes" html="true" source="material-block" session="scan"
@@ -171,7 +158,7 @@ class ScanCombinator(GenerativeFunction):
 
 
         init = 0.5
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         random_walk = random_walk_step.scan(n=1000)
 
@@ -193,334 +180,474 @@ class ScanCombinator(GenerativeFunction):
         ```
     """
 
-    kernel_gen_fn: GenerativeFunction
+    kernel_gen_fn: GenerativeFunction[tuple[Carry, Y]]
 
     # Only required for `None` carry inputs
-    length: Optional[Int] = Pytree.static()
-    reverse: bool = Pytree.static(default=False)
-    unroll: int | bool = Pytree.static(default=1)
+    length: int | None = Pytree.static()
 
-    # To get the type of return value, just invoke
-    # the scanned over source (with abstract tracer arguments).
-    def __abstract_call__(self, *args) -> Any:
-        (carry, scanned_in) = args
-
-        def _inner(carry, scanned_in):
-            v, scanned_out = self.kernel_gen_fn.__abstract_call__(carry, scanned_in)
-            return v, scanned_out
-
-        v, scanned_out = jax.lax.scan(
-            _inner,
-            carry,
-            scanned_in,
-            length=self.length,
-            reverse=self.reverse,
-            unroll=self.unroll,
+    # To get the type of return value, invoke the scanned over source (with abstract tracer arguments).
+    def __abstract_call__(self, *args) -> tuple[Carry, Y]:
+        return jax.lax.scan(
+            self.kernel_gen_fn.__abstract_call__, *args, length=self.length
         )
 
-        return v, scanned_out
+    @staticmethod
+    def _static_scan_length(xs: Any, length: int | None) -> int:
+        # We start by triggering a scan to force all JAX validations to run.
+        jax.lax.scan(lambda c, x: (c, None), None, xs, length=length)
+        return length or jtu.tree_leaves(xs)[0].shape[0]
 
-    @typecheck
     def simulate(
         self,
         key: PRNGKey,
-        args: Tuple,
-    ) -> ScanTrace:
+        args: tuple[Any, ...],
+    ) -> ScanTrace[Carry, Y]:
         carry, scanned_in = args
 
-        def _inner_simulate(key, carry, scanned_in):
-            tr = self.kernel_gen_fn.simulate(key, (carry, scanned_in))
-            (carry, scanned_out) = tr.get_retval()
-            score = tr.get_score()
-            return (carry, score), (tr, scanned_out)
-
-        def _inner(carry, scanned_over):
+        def _inner(
+            carry: tuple[PRNGKey, IntArray, Carry], scanned_in: Any
+        ) -> tuple[
+            tuple[PRNGKey, IntArray, Carry], tuple[Trace[tuple[Carry, Y]], Y, Score]
+        ]:
             key, count, carried_value = carry
             key = jax.random.fold_in(key, count)
-            (carry, score), (tr, scanned_out) = _inner_simulate(
-                key, carried_value, scanned_over
-            )
 
-            return (key, count + 1, carry), (tr, scanned_out, score)
+            tr = self.kernel_gen_fn.simulate(key, (carried_value, scanned_in))
+            (carried_out, scanned_out) = tr.get_retval()
+            score = tr.get_score()
+
+            return (key, count + 1, carried_out), (tr, scanned_out, score)
 
         (_, _, carried_out), (tr, scanned_out, scores) = jax.lax.scan(
             _inner,
-            (key, 0, carry),
+            (key, jnp.asarray(0), carry),
             scanned_in,
             length=self.length,
-            reverse=self.reverse,
-            unroll=self.unroll,
         )
 
-        return ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores))
+        return ScanTrace.build(
+            self,
+            tr,
+            args,
+            (carried_out, scanned_out),
+            jnp.sum(scores),
+            self._static_scan_length(scanned_in, self.length),
+        )
 
-    @typecheck
-    def update_importance(
+    def generate(
         self,
         key: PRNGKey,
         constraint: ChoiceMap,
-        args: Tuple,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
+        args: tuple[Any, ...],
+    ) -> tuple[ScanTrace[Carry, Y], Weight]:
         (carry, scanned_in) = args
 
-        def _inner_importance(key, constraint, carry, scanned_in):
-            tr, w, _retdiff, bwd_problem = self.kernel_gen_fn.update(
+        def _inner_generate(
+            key: PRNGKey,
+            constraint: ChoiceMap,
+            carry: Carry,
+            scanned_in: Any,
+        ) -> tuple[tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y, Weight]]:
+            tr, w = self.kernel_gen_fn.generate(
                 key,
-                EmptyTrace(self.kernel_gen_fn),
-                GenericProblem(
-                    Diff.unknown_change((carry, scanned_in)),
-                    ImportanceProblem(constraint),
-                ),
+                constraint,
+                (carry, scanned_in),
             )
             (carry, scanned_out) = tr.get_retval()
             score = tr.get_score()
-            return (carry, score), (tr, scanned_out, w, bwd_problem)
+            return (carry, score), (tr, scanned_out, w)
 
-        def _importance(carry, scanned_over):
+        def _generate(
+            carry: tuple[PRNGKey, IntArray, Carry],
+            scanned_over: Any,
+        ) -> tuple[
+            tuple[PRNGKey, IntArray, Carry],
+            tuple[Trace[tuple[Carry, Y]], Y, Score, Weight],
+        ]:
             key, idx, carried_value = carry
             key = jax.random.fold_in(key, idx)
             submap = constraint.get_submap(idx)
-            (carry, score), (tr, scanned_out, w, inner_bwd_problem) = _inner_importance(
-                key, submap, carried_value, scanned_over
+            subconstraint = submap
+
+            (carried_out, score), (tr, scanned_out, w) = _inner_generate(
+                key, subconstraint, carried_value, scanned_over
             )
-            bwd_problem = ChoiceMap.idx(idx, inner_bwd_problem)
 
-            return (key, idx + 1, carry), (tr, scanned_out, score, w, bwd_problem)
+            return (key, idx + 1, carried_out), (tr, scanned_out, score, w)
 
-        (_, _, carried_out), (tr, scanned_out, scores, ws, bwd_problems) = jax.lax.scan(
-            _importance,
-            (key, 0, carry),
+        (_, _, carried_out), (tr, scanned_out, scores, ws) = jax.lax.scan(
+            _generate,
+            (key, jnp.asarray(0), carry),
             scanned_in,
             length=self.length,
-            reverse=self.reverse,
-            unroll=self.unroll,
         )
         return (
-            ScanTrace(self, tr, args, (carried_out, scanned_out), jnp.sum(scores)),
+            ScanTrace[Carry, Y].build(
+                self,
+                tr,
+                args,
+                (carried_out, scanned_out),
+                jnp.sum(scores),
+                self._static_scan_length(scanned_in, self.length),
+            ),
             jnp.sum(ws),
-            Diff.unknown_change((carried_out, scanned_out)),
-            bwd_problems,
         )
 
-    def _get_subproblem(
-        self,
-        problem: UpdateProblem,
-        idx: IntArray,
-    ) -> UpdateProblem:
-        match problem:
-            case ChoiceMap():
-                return problem(idx)
-
-            case Selection():
-                subproblem = problem(idx)
-                return subproblem
-
-            case _:
-                raise Exception(f"Not implemented subproblem: {problem}")
-
-    @typecheck
-    def update_generic(
+    def project(
         self,
         key: PRNGKey,
-        trace: Trace,
-        problem: UpdateProblem,
+        trace: Trace[tuple[Carry, Y]],
+        selection: Selection,
+    ) -> Weight:
+        assert isinstance(trace, ScanTrace)
+
+        def _project(
+            carry: tuple[PRNGKey, IntArray],
+            subtrace: Trace[Any],
+        ) -> tuple[tuple[PRNGKey, IntArray], Weight]:
+            key, idx = carry
+            key = jax.random.fold_in(key, idx)
+            w = subtrace.project(
+                key,
+                selection,
+            )
+
+            return (key, idx + 1), w
+
+        (_, _), ws = jax.lax.scan(
+            _project,
+            (key, jnp.asarray(0)),
+            trace.inner,
+            length=self.length,
+        )
+        return jnp.sum(ws)
+
+    def edit_index(
+        self,
+        key: PRNGKey,
+        trace: ScanTrace[Carry, Y],
+        idx: IntArray,
+        request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> Tuple[ScanTrace, Weight, Retdiff, UpdateProblem]:
-        carry_diff, *scanned_in_diff = Diff.tree_diff_unknown_change(
-            Diff.tree_primal(argdiffs)
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+        # For now, we don't allow changes to the arguments for this type of edit.
+        assert Diff.static_check_no_change(argdiffs)
+
+        (_, scanned_argdiff) = argdiffs
+        scanned_in = Diff.tree_primal(scanned_argdiff)
+        (old_carried_out, old_scanned_out) = trace.get_retval()
+        trace_slice: Trace[tuple[Carry, Y]] = jtu.tree_map(
+            lambda v: v[idx], trace.inner
+        )
+        new_slice_trace, w, retdiff, bwd_request = request.edit(
+            key, trace_slice, Diff.no_change(trace_slice.get_args())
+        )
+        (carry_retdiff, scanned_retdiff) = retdiff
+        next_slice, next_scanned_in = jtu.tree_map(
+            lambda v: v[idx + 1], (trace.inner, scanned_in)
         )
 
-        def _inner_update(key, subtrace, subproblem, carry, scanned_in):
+        # The Update edit request here is used to force a visitation of
+        # generative function callees which could be affected by the changes
+        # above -- to account for new scores, and changes reflected in the weight.
+        next_request = Update(ChoiceMap.empty())
+        next_slice_trace, next_w, retdiff, _ = next_request.edit(
+            key,
+            next_slice,
+            (carry_retdiff, Diff.no_change(next_scanned_in)),
+        )
+
+        # The carry value better not have changed, otherwise
+        # the assumptions of this edit are not satisfied.
+        #
+        # Here, we could allow the carry from the slice to flow out via the scanned out
+        # value in the next slice, but we just disallow that for now for simplicity.
+        assert Diff.static_check_no_change(retdiff)
+
+        idx_array = jnp.arange(trace.scan_length)
+        slice_scanned_out = Diff.tree_primal(scanned_retdiff)
+        new_scanned_out: Y = jtu.tree_map(
+            lambda v1, v2: jnp.where(idx_array == idx, v1, v2),
+            slice_scanned_out,
+            old_scanned_out,
+        )
+        new_scanned_retdiff = Diff.unknown_change(new_scanned_out)
+        max_length = self._static_scan_length(scanned_in, self.length)
+
+        # Mutate the trace in-place.
+        # Underneath JIT, should compile to an in-place update.
+        def mutator(v, idx, setter):
+            return v.at[idx].set(
+                jnp.where(idx < max_length, setter, v[idx]),
+            )
+
+        new_inner_trace = jtu.tree_map(
+            lambda v, v_: mutator(v, idx, v_), trace.inner, new_slice_trace
+        )
+        new_inner_trace = jtu.tree_map(
+            lambda v, v_: mutator(v, idx + 1, v_), new_inner_trace, next_slice_trace
+        )
+        scores = jax.vmap(lambda tr: tr.get_score())(new_inner_trace)
+
+        # We don't actually know if the index which was updated was the last one.
+        # Therefore, we need to provide a where selection
+        # between the carry from index, and the next slice --
+        carry_out = Diff.tree_primal(carry_retdiff)
+        carry_out_ = Diff.tree_primal(retdiff[0])
+        carried_out = jtu.tree_map(
+            lambda v, v_: jnp.where(idx < max_length, v_, v),
+            carry_out,
+            carry_out_,
+        )
+
+        return (
+            ScanTrace[Carry, Y].build(
+                self,
+                new_inner_trace,
+                Diff.tree_primal(argdiffs),
+                (carried_out, new_scanned_out),
+                jnp.sum(scores),
+                self._static_scan_length(scanned_in, self.length),
+            ),
+            w + (next_w * (idx + 1 < max_length)),
+            # We always set the carried out value to be an unknown change, conservatively.
+            (Diff.unknown_change(old_carried_out), new_scanned_retdiff),
+            IndexRequest(idx, bwd_request),
+        )
+
+    def edit_regenerate(
+        self,
+        key: PRNGKey,
+        trace: ScanTrace[Carry, Y],
+        selection: Selection,
+        argdiffs: Argdiffs,
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+        diffs = Diff.unknown_change(Diff.tree_primal(argdiffs))
+        carry_diff: Carry = diffs[0]
+        scanned_in_diff: Any = diffs[1:]
+
+        def _inner_edit(
+            key: PRNGKey,
+            subtrace: Trace[tuple[Carry, Y]],
+            subselection: Selection,
+            carry: Carry,
+            scanned_in: Any,
+        ) -> tuple[
+            tuple[Carry, Score],
+            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Weight, EditRequest],
+        ]:
+            request = Regenerate(subselection)
             (
                 new_subtrace,
                 w,
                 kernel_retdiff,
-                bwd_problem,
-            ) = self.kernel_gen_fn.update(
+                bwd_request,
+            ) = request.edit(
                 key,
                 subtrace,
-                GenericProblem(
-                    (carry, scanned_in),
-                    subproblem,
-                ),
+                (carry, scanned_in),
             )
-            (carry_retdiff, scanned_out_retdiff) = Diff.tree_diff_unknown_change(
-                kernel_retdiff
-            )
+            (carry_retdiff, scanned_out_retdiff) = Diff.unknown_change(kernel_retdiff)
             score = new_subtrace.get_score()
             return (carry_retdiff, score), (
                 new_subtrace,
                 scanned_out_retdiff,
                 w,
-                bwd_problem,
+                bwd_request,
             )
 
-        def _update(carry, scanned_over):
+        def _edit(
+            carry: tuple[PRNGKey, IntArray, Carry],
+            scanned_over: tuple[Trace[tuple[Carry, Y]], Any],
+        ) -> tuple[
+            tuple[PRNGKey, IntArray, Carry],
+            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Score, Weight, EditRequest],
+        ]:
             key, idx, carried_value = carry
             subtrace, scanned_in = scanned_over
             key = jax.random.fold_in(key, idx)
-            subproblem = self._get_subproblem(problem, idx)
             (
-                (carry, score),
-                (new_subtrace, scanned_out, w, inner_bwd_problem),
-            ) = _inner_update(key, subtrace, subproblem, carried_value, scanned_in)
-            bwd_problem = ChoiceMap.idx(idx, inner_bwd_problem)
+                (carried_out, score),
+                (new_subtrace, scanned_out, w, inner_bwd_request),
+            ) = _inner_edit(key, subtrace, selection, carried_value, scanned_in)
 
-            return (key, idx + 1, carry), (
+            return (key, idx + 1, carried_out), (
                 new_subtrace,
                 scanned_out,
                 score,
                 w,
-                bwd_problem,
+                inner_bwd_request,
             )
 
         (
             (_, _, carried_out_diff),
-            (new_subtraces, scanned_out_diff, scores, ws, bwd_problems),
+            (new_subtraces, scanned_out_diff, scores, ws, bwd_constraints),
         ) = jax.lax.scan(
-            _update,
-            (key, 0, carry_diff),
+            _edit,
+            (key, jnp.asarray(0), carry_diff),
             (trace.inner, *scanned_in_diff),
             length=self.length,
-            reverse=self.reverse,
-            unroll=self.unroll,
         )
         carried_out, scanned_out = Diff.tree_primal((
             carried_out_diff,
             scanned_out_diff,
         ))
         return (
-            ScanTrace(
+            ScanTrace.build(
                 self,
                 new_subtraces,
                 Diff.tree_primal(argdiffs),
                 (carried_out, scanned_out),
                 jnp.sum(scores),
+                trace.scan_length,
             ),
             jnp.sum(ws),
             (carried_out_diff, scanned_out_diff),
-            bwd_problems,
+            VectorRequest(bwd_constraints),
         )
 
-    def update_index(
+    def edit_update(
         self,
         key: PRNGKey,
-        trace: ScanTrace,
-        index: IntArray,
-        update_problem: UpdateProblem,
-    ):
-        starting_subslice = jtu.tree_map(lambda v: v[index], trace.inner)
-        affected_subslice = jtu.tree_map(lambda v: v[index + 1], trace.inner)
-        starting_argdiffs = Diff.no_change(starting_subslice.get_args())
-        (
-            updated_start,
-            start_w,
-            starting_retdiff,
-            bwd_problem,
-        ) = self.kernel_gen_fn.update(
-            key,
-            starting_subslice,
-            update_problem,
-            starting_argdiffs,
-        )
-        updated_end, end_w, ending_retdiff, _ = self.kernel_gen_fn.update(
-            key,
-            affected_subslice,
-            EmptyProblem(),
-            starting_retdiff,
-        )
-
-        # Must be true for this type of update to be valid.
-        assert Diff.static_check_no_change(ending_retdiff)
-
-        def _mutate_in_place(arr, updated_start, updated_end):
-            arr = arr.at[index].set(updated_start)
-            arr = arr.at[index + 1].set(updated_end)
-            return arr
-
-        new_inner = jtu.tree_map(
-            _mutate_in_place, trace.inner, updated_start, updated_end
-        )
-        new_retvals = new_inner.get_retval()
-        return (
-            ScanTrace(
-                self,
-                new_inner,
-                new_inner.get_args(),
-                new_retvals,
-                jnp.sum(new_inner.get_score()),
-            ),
-            start_w + end_w,
-            Diff.unknown_change(new_retvals),
-            IndexProblem(index, bwd_problem),
-        )
-
-    @typecheck
-    def update_change_target(
-        self,
-        key: PRNGKey,
-        trace: Trace,
-        update_problem: UpdateProblem,
+        trace: ScanTrace[Carry, Y],
+        constraint: ChoiceMap,
         argdiffs: Argdiffs,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        assert isinstance(trace, EmptyTrace | ScanTrace)
-        match update_problem:
-            case ImportanceProblem(constraint) if isinstance(constraint, ChoiceMap):
-                return self.update_importance(
-                    key, constraint, Diff.tree_primal(argdiffs)
-                )
-            case IndexProblem(index, subproblem):
-                if Diff.static_check_no_change(argdiffs):
-                    return self.update_index(key, trace, index, subproblem)
-                else:
-                    return self.update_generic(
-                        key, trace, ChoiceMap.idx(index, subproblem), argdiffs
-                    )
-            case _:
-                return self.update_generic(key, trace, update_problem, argdiffs)
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+        diffs = Diff.unknown_change(Diff.tree_primal(argdiffs))
+        carry_diff: Carry = diffs[0]
+        scanned_in_diff: Any = diffs[1:]
 
-    @GenerativeFunction.gfi_boundary
-    @typecheck
-    def update(
+        def _inner_edit(
+            key: PRNGKey,
+            subtrace: Trace[tuple[Carry, Y]],
+            subconstraint: ChoiceMap,
+            carry: Carry,
+            scanned_in: Any,
+        ) -> tuple[
+            tuple[Carry, Score],
+            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Weight, EditRequest],
+        ]:
+            (
+                new_subtrace,
+                w,
+                kernel_retdiff,
+                bwd_request,
+            ) = self.kernel_gen_fn.edit(
+                key,
+                subtrace,
+                Update(subconstraint),
+                (carry, scanned_in),
+            )
+            (carry_retdiff, scanned_out_retdiff) = Diff.unknown_change(kernel_retdiff)
+            score = new_subtrace.get_score()
+            return (carry_retdiff, score), (
+                new_subtrace,
+                scanned_out_retdiff,
+                w,
+                bwd_request,
+            )
+
+        def _edit(
+            carry: tuple[PRNGKey, IntArray, Carry],
+            scanned_over: tuple[Trace[tuple[Carry, Y]], Any],
+        ) -> tuple[
+            tuple[PRNGKey, IntArray, Carry],
+            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Score, Weight, ChoiceMap],
+        ]:
+            key, idx, carried_value = carry
+            subtrace, scanned_in = scanned_over
+            key = jax.random.fold_in(key, idx)
+            subconstraint = constraint(idx)
+            assert isinstance(subconstraint, ChoiceMap)
+            (
+                (carried_out, score),
+                (new_subtrace, scanned_out, w, inner_bwd_request),
+            ) = _inner_edit(key, subtrace, subconstraint, carried_value, scanned_in)
+            assert isinstance(inner_bwd_request, Update)
+            bwd_chm = inner_bwd_request.constraint
+
+            return (key, idx + 1, carried_out), (
+                new_subtrace,
+                scanned_out,
+                score,
+                w,
+                bwd_chm,
+            )
+
+        (
+            (_, _, carried_out_diff),
+            (new_subtraces, scanned_out_diff, scores, ws, bwd_constraints),
+        ) = jax.lax.scan(
+            _edit,
+            (key, jnp.asarray(0), carry_diff),
+            (trace.inner, *scanned_in_diff),
+            length=self.length,
+        )
+        carried_out, scanned_out = Diff.tree_primal((
+            carried_out_diff,
+            scanned_out_diff,
+        ))
+        return (
+            ScanTrace.build(
+                self,
+                new_subtraces,
+                Diff.tree_primal(argdiffs),
+                (carried_out, scanned_out),
+                jnp.sum(scores),
+                trace.scan_length,
+            ),
+            jnp.sum(ws),
+            (carried_out_diff, scanned_out_diff),
+            Update(bwd_constraints),
+        )
+
+    def edit(
         self,
         key: PRNGKey,
-        trace: Trace,
-        update_problem: UpdateProblem,
-    ) -> Tuple[Trace, Weight, Retdiff, UpdateProblem]:
-        match update_problem:
-            case GenericProblem(argdiffs, subproblem):
-                return self.update_change_target(key, trace, subproblem, argdiffs)
-
-            case _:
-                return self.update(
+        trace: Trace[tuple[Carry, Y]],
+        edit_request: EditRequest,
+        argdiffs: Argdiffs,
+    ) -> tuple[ScanTrace[Carry, Y], Weight, Retdiff[tuple[Carry, Y]], EditRequest]:
+        assert isinstance(trace, ScanTrace)
+        match edit_request:
+            case Regenerate(selection):
+                return self.edit_regenerate(
                     key,
                     trace,
-                    GenericProblem(
-                        Diff.no_change(trace.get_args()),
-                        update_problem,
-                    ),
+                    selection,
+                    argdiffs,
                 )
+            case Update(constraint):
+                return self.edit_update(
+                    key,
+                    trace,
+                    constraint,
+                    argdiffs,
+                )
+            case IndexRequest(idx, subrequest):
+                return self.edit_index(
+                    key,
+                    trace,
+                    idx,
+                    subrequest,
+                    argdiffs,
+                )
+            case _:
+                raise NotImplementedError
 
-    @GenerativeFunction.gfi_boundary
-    @typecheck
     def assess(
         self,
-        sample: Sample,
-        args: Tuple,
-    ) -> Tuple[Score, Any]:
+        sample: ChoiceMap,
+        args: tuple[Any, ...],
+    ) -> tuple[Score, Any]:
         (carry, scanned_in) = args
-        assert isinstance(sample, ChoiceMap)
 
-        def _inner_assess(sample, carry, scanned_in):
-            score, retval = self.kernel_gen_fn.assess(sample, (carry, scanned_in))
-            (carry, scanned_out) = retval
-            return (carry, score), scanned_out
-
-        def _assess(carry, scanned_over):
+        def _assess(carry, scanned_in):
             idx, carried_value = carry
             submap = sample.get_submap(idx)
-            (carry, score), scanned_out = _inner_assess(
-                submap, carried_value, scanned_over
+
+            score, (carry, scanned_out) = self.kernel_gen_fn.assess(
+                submap, (carried_value, scanned_in)
             )
 
             return (idx + 1, carry), (scanned_out, score)
@@ -530,8 +657,6 @@ class ScanCombinator(GenerativeFunction):
             (0, carry),
             scanned_in,
             length=self.length,
-            reverse=self.reverse,
-            unroll=self.unroll,
         )
         return (
             jnp.sum(scores),
@@ -544,12 +669,14 @@ class ScanCombinator(GenerativeFunction):
 ##############
 
 
-@typecheck
 def scan(
-    *, n: Optional[Int] = None, reverse: bool = False, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `(c, a) -> (c, b)`and returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> (c, [b])` where
+    *, n: int | None = None
+) -> Callable[
+    [GenerativeFunction[tuple[Carry, Y]]], GenerativeFunction[tuple[Carry, Y]]
+]:
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    `(c, a) -> (c, b)`and returns a new [`genjax.GenerativeFunction`][] of type
+    `(c, [a]) -> (c, [b])` where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `a` may be a primitive, an array type or a pytree (container) type with array leaves
@@ -580,10 +707,6 @@ def scan(
     Args:
         n: optional integer specifying the number of loop iterations, which (if supplied) must agree with the sizes of leading axes of the arrays in the returned function's second argument. If supplied then the returned generative function can take `None` as its second argument.
 
-        reverse: optional boolean specifying whether to run the scan iteration forward (the default) or in reverse, equivalent to reversing the leading axes of the arrays in both `xs` and in `ys`.
-
-        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many scan iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
-
     Returns:
         A new [`genjax.GenerativeFunction`][] that takes a loop-carried value and a new input, and returns a new loop-carried value along with either `None` or an output to be collected into the second return value.
 
@@ -602,7 +725,7 @@ def scan(
 
 
         init = 0.5
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         tr = jax.jit(random_walk.simulate)(key, (init, None))
         print(tr.render_html())
@@ -630,15 +753,17 @@ def scan(
         ```
     """
 
-    def decorator(f):
-        return ScanCombinator(f, length=n, reverse=reverse, unroll=unroll)
+    def decorator(f: GenerativeFunction[tuple[Carry, Y]]):
+        return Scan[Carry, Y](f, length=n)
 
     return decorator
 
 
-def prepend_initial_acc(args, ret):
-    """
-    Prepends the initial accumulator value to the array of accumulated values.
+def prepend_initial_acc(
+    args: tuple[Carry, ...], _: tuple[Carry, ...], ret: tuple[Carry, Carry]
+) -> Carry:
+    """Prepends the initial accumulator value to the array of accumulated
+    values.
 
     This function is used in the context of scan operations to include the initial
     accumulator state in the output, effectively providing a complete history of
@@ -663,12 +788,10 @@ def prepend_initial_acc(args, ret):
     return jax.tree.map(cat, init_acc, xs)
 
 
-@typecheck
-def accumulate(
-    *, reverse: bool = False, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> [c]` where
+def accumulate() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]:
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type
+    `(c, [a]) -> [c]` where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `[c]` is an array of all loop-carried values seen during iteration (including the first)
@@ -694,11 +817,6 @@ def accumulate(
 
     The loop-carried value `c` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `c` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
 
-    Args:
-        reverse: optional boolean specifying whether to run the accumulation forward (the default) or in reverse, equivalent to reversing the leading axes of the arrays in both `xs` and in `carries`.
-
-        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
-
     Examples:
         accumulate a running total:
         ```python exec="yes" html="true" source="material-block" session="scan"
@@ -715,7 +833,7 @@ def accumulate(
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         xs = jnp.ones(10)
 
         tr = jax.jit(add.simulate)(key, (init, xs))
@@ -723,22 +841,20 @@ def accumulate(
         ```
     """
 
-    def decorator(f: GenerativeFunction):
+    def decorator(f: GenerativeFunction[Carry]) -> GenerativeFunction[Carry]:
         return (
             f.map(lambda ret: (ret, ret))
-            .scan(reverse=reverse, unroll=unroll)
+            .scan()
             .dimap(pre=lambda *args: args, post=prepend_initial_acc)
         )
 
     return decorator
 
 
-@typecheck
-def reduce(
-    *, reverse: bool = False, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type `(c, [a]) -> c` where
+def reduce() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]:
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type
+    `(c, [a]) -> c` where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `a` may be a primitive, an array type or a pytree (container) type with array leaves
@@ -761,11 +877,6 @@ def reduce(
 
     The loop-carried value `c` must hold a fixed shape and dtype across all iterations (and not just be consistent up to NumPy rank/shape broadcasting and dtype promotion rules, for example). In other words, the type `c` in the type signature above represents an array with a fixed shape and dtype (or a nested tuple/list/dict container data structure with a fixed structure and arrays with fixed shape and dtype at the leaves).
 
-    Args:
-        reverse: optional boolean specifying whether to run the accumulation forward (the default) or in reverse, equivalent to reversing the leading axis of the array `xs`.
-
-        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
-
     Examples:
         sum an array of numbers:
         ```python exec="yes" html="true" source="material-block" session="scan"
@@ -782,7 +893,7 @@ def reduce(
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
         xs = jnp.ones(10)
 
         tr = jax.jit(add.simulate)(key, (init, xs))
@@ -790,22 +901,22 @@ def reduce(
         ```
     """
 
-    def decorator(f: GenerativeFunction):
-        return (
-            f.map(lambda ret: (ret, None))
-            .scan(reverse=reverse, unroll=unroll)
-            .map(lambda ret: ret[0])
-        )
+    def decorator(f: GenerativeFunction[Carry]) -> GenerativeFunction[Carry]:
+        def pre(ret: Carry):
+            return ret, None
+
+        def post(ret: tuple[Carry, None]):
+            return ret[0]
+
+        return f.map(pre).scan().map(post)
 
     return decorator
 
 
-@typecheck
-def iterate(
-    *, n: Int, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> [a]` where
+def iterate(*, n: int) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a ->
+    [a]` where.
 
     - `a` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - `[a]` is an array of all `a`, `f(a)`, `f(f(a))` etc. values seen during iteration.
@@ -831,8 +942,6 @@ def iterate(
     Args:
         n: the number of iterations to run.
 
-        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
-
     Examples:
         iterative addition, returning all intermediate sums:
         ```python exec="yes" html="true" source="material-block" session="scan"
@@ -847,30 +956,33 @@ def iterate(
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         tr = jax.jit(inc.simulate)(key, (init,))
         print(tr.render_html())
         ```
     """
 
-    def decorator(f: GenerativeFunction):
+    def decorator(f: GenerativeFunction[Y]) -> GenerativeFunction[Y]:
         # strip off the JAX-supplied `None` on the way in, accumulate `ret` on the way out.
         return (
-            f.dimap(pre=lambda *args: args[:-1], post=lambda _, ret: (ret, ret))
-            .scan(n=n, unroll=unroll)
+            f.dimap(
+                pre=lambda *args: args[:-1],
+                post=lambda _args, _xformed, ret: (ret, ret),
+            )
+            .scan(n=n)
             .dimap(pre=lambda *args: (*args, None), post=prepend_initial_acc)
         )
 
     return decorator
 
 
-@typecheck
 def iterate_final(
-    *, n: Int, unroll: int | bool = 1
-) -> Callable[[GenerativeFunction], GenerativeFunction]:
-    """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a` where
+    *, n: int
+) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
+    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
+    `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a`
+    where.
 
     - `a` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
     - the original function is invoked `n` times with each input coming from the previous invocation's output, so that the new function returns $f^n(a)$
@@ -894,8 +1006,6 @@ def iterate_final(
     Args:
         n: the number of iterations to run.
 
-        unroll: optional positive int or bool specifying, in the underlying operation of the scan primitive, how many iterations to unroll within a single iteration of a loop. If an integer is provided, it determines how many unrolled loop iterations to run within a single rolled iteration of the loop. If a boolean is provided, it will determine if the loop is competely unrolled (i.e. `unroll=True`) or left completely unrolled (i.e. `unroll=False`).
-
     Examples:
         iterative addition:
         ```python exec="yes" html="true" source="material-block" session="scan"
@@ -910,19 +1020,131 @@ def iterate_final(
 
 
         init = 0.0
-        key = jax.random.PRNGKey(314159)
+        key = jax.random.key(314159)
 
         tr = jax.jit(inc.simulate)(key, (init,))
         print(tr.render_html())
         ```
     """
 
-    def decorator(f: GenerativeFunction):
+    def decorator(f: GenerativeFunction[Y]) -> GenerativeFunction[Y]:
         # strip off the JAX-supplied `None` on the way in, no accumulation on the way out.
+        def pre_post(_, _xformed, ret: Y):
+            return ret, None
+
+        def post_post(_, _xformed, ret: tuple[Y, None]):
+            return ret[0]
+
         return (
-            f.dimap(pre=lambda *args: args[:-1], post=lambda _, ret: (ret, None))
-            .scan(n=n, unroll=unroll)
-            .dimap(pre=lambda *args: (*args, None), post=lambda _, ret: ret[0])
+            f.dimap(pre=lambda *args: args[:-1], post=pre_post)
+            .scan(n=n)
+            .dimap(pre=lambda *args: (*args, None), post=post_post)
         )
+
+    return decorator
+
+
+# Masked Combinators
+
+
+def masked_iterate_final() -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
+    """
+    Transforms a generative function that takes a single argument of type `a` and returns a value of type `a`, into a function that takes a tuple of arguments `(a, [mask])` and returns a value of type `a`.
+
+    The original function is modified to accept an additional argument `mask`, which is a boolean value indicating whether the operation should be masked or not. The function returns the result of the original operation if `mask` is `True`, and the original input if `mask` is `False`.
+
+    All traced values from the kernel generative function are traced (with an added axis due to the scan) but only those indices from [mask] with a flag of True will accounted for in inference, notably for score computations.
+
+    Example:
+        ```python exec="yes" html="true" source="material-block" session="scan"
+        import jax
+        import genjax
+
+        masks = jnp.array([True, False, True])
+
+
+        # Create a kernel generative function
+        @genjax.gen
+        def step(x):
+            _ = (
+                genjax.normal.mask().vmap(in_axes=(0, None, None))(masks, x, 1.0)
+                @ "rats"
+            )
+            return x
+
+
+        # Create a model using masked_iterate_final
+        model = genjax.masked_iterate_final()(step)
+
+        # Simulate from the model
+        key = jax.random.key(0)
+        mask_steps = jnp.arange(10) < 5
+        tr = model.simulate(key, (0.0, mask_steps))
+        print(tr.render_html())
+        ```
+    """
+
+    def decorator(step: GenerativeFunction[Y]) -> GenerativeFunction[Y]:
+        def pre(state, flag: Flag):
+            return flag, state
+
+        def post(_unused_args, _xformed, masked_retval: Mask[Y]):
+            return masked_retval.value, None
+
+        # scan_step: (a, bool) -> a
+        scan_step = step.mask().dimap(pre=pre, post=post)
+        return scan_step.scan().map(lambda ret: ret[0])
+
+    return decorator
+
+
+def masked_iterate() -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
+    """
+    Transforms a generative function that takes a single argument of type `a` and returns a value of type `a`, into a function that takes a tuple of arguments `(a, [mask])` and returns a list of values of type `a`.
+
+    The original function is modified to accept an additional argument `mask`, which is a boolean value indicating whether the operation should be masked or not. The function returns a Masked list of results of the original operation with the input [mask] as mask.
+
+    All traced values from the kernel generative function are traced (with an added axis due to the scan) but only those indices from [mask] with a flag of True will accounted for in inference, notably for score computations.
+
+    Example:
+        ```python exec="yes" html="true" source="material-block" session="scan"
+        import jax
+        import genjax
+
+        masks = jnp.array([True, False, True])
+
+
+        # Create a kernel generative function
+        @genjax.gen
+        def step(x):
+            _ = (
+                genjax.normal.mask().vmap(in_axes=(0, None, None))(masks, x, 1.0)
+                @ "rats"
+            )
+            return x
+
+
+        # Create a model using masked_iterate
+        model = genjax.masked_iterate()(step)
+
+        # Simulate from the model
+        key = jax.random.key(0)
+        mask_steps = jnp.arange(10) < 5
+        tr = model.simulate(key, (0.0, mask_steps))
+        print(tr.render_html())
+        ```
+    """
+
+    def decorator(step: GenerativeFunction[Y]) -> GenerativeFunction[Y]:
+        def pre(state, flag: Flag):
+            return flag, state
+
+        def post(_unused_args, _xformed, masked_retval: Mask[Y]):
+            v = masked_retval.value
+            return v, v
+
+        # scan_step: (a, bool) -> a
+        scan_step = step.mask().dimap(pre=pre, post=post)
+        return scan_step.scan().dimap(pre=lambda *args: args, post=prepend_initial_acc)
 
     return decorator

@@ -12,39 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+import functools
+
 import jax.numpy as jnp
+import jax.tree_util as jtu
 from jax.experimental import checkify
-from jax.tree_util import tree_map
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import (
-    staged_and,
-)
+from genjax._src.core.interpreters.staging import FlagOp, tree_choose
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
-    Any,
-    BoolArray,
-    Int,
-    IntArray,
-    List,
-    static_check_bool,
-    static_check_is_concrete,
-    typecheck,
+    Array,
+    ArrayLike,
+    Flag,
+    Generic,
+    TypeVar,
 )
+
+R = TypeVar("R")
+
 
 #########################
 # Masking and sum types #
 #########################
 
 
-@Pytree.dataclass(match_args=True)
-class Mask(Pytree):
+@Pytree.dataclass(match_args=True, init=False)
+class Mask(Generic[R], Pytree):
     """The `Mask` datatype wraps a value in a Boolean flag which denotes whether the data is valid or invalid to use in inference computations.
 
-    Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as `Sample` instances, and participate in generative and inference computations (like scores, and importance weights or density ratios). Invalid data **should** be considered unusable, and should be handled with care.
+    Masks can be used in a variety of ways as part of generative computations - their primary role is to denote data which is valid under inference computations. Valid data can be used as `ChoiceMap` leaves, and participate in generative and inference computations (like scores, and importance weights or density ratios). A Mask with a False flag **should** be considered unusable, and should be handled with care.
 
-    Masks are also used internally by generative function combinators which include uncertainty over structure.
+    If a `flag` has a non-scalar shape, that implies that the mask is vectorized, and that the `ArrayLike` value, or each leaf in the pytree, must have the flag's shape as its prefix (i.e., must have been created with a `jax.vmap` call or via a GenJAX `vmap` combinator).
 
     ## Encountering `Mask` in your computation
 
@@ -56,171 +57,312 @@ class Mask(Pytree):
 
     ## Usage of invalid data
 
-    If you use invalid `Mask(False, data)` data in inference computations, you may encounter silently incorrect results.
+    If you use invalid `Mask(data, False)` data in inference computations, you may encounter silently incorrect results.
     """
 
-    flag: BoolArray
-    value: Any
+    value: R
+    flag: Flag | Diff[Flag]
 
-    @classmethod
-    def maybe(cls, f: BoolArray, v: Any):
-        match v:
-            case Mask(flag, value):
-                return Mask.maybe_none(staged_and(f, flag), value)
-            case _:
-                return Mask(f, v)
+    ################
+    # Constructors #
+    ################
 
-    @classmethod
-    def maybe_none(cls, f: BoolArray, v: Any):
-        return (
-            None
-            if v is None
-            else v
-            if static_check_bool(f) and f
-            else None
-            if static_check_bool(f)
-            else Mask.maybe(f, v)
+    def __init__(self, value: R, flag: Flag | Diff[Flag] = True) -> None:
+        assert not isinstance(value, Mask), (
+            f"Mask should not be instantiated with another Mask! found {value}"
         )
+        Mask._validate_init(value, flag)
 
-    ######################
-    # Masking interfaces #
-    ######################
+        self.value, self.flag = value, flag  # pyright: ignore[reportAttributeAccessIssue]
 
-    def unmask(self):
-        """Unmask the `Mask`, returning the value within.
+    @staticmethod
+    def _validate_init(value: R, flag: Flag | Diff[Flag]) -> None:
+        """Validates that non-scalar flags are only used with vectorized masks.
 
-        This operation is inherently unsafe with respect to inference semantics, and is only valid if the `Mask` wraps valid data at runtime.
+        When a flag has a non-scalar shape (e.g. shape (3,)), this indicates the mask is vectorized.
+        In this case, each leaf value in the pytree must have the flag's shape as a prefix of its own shape.
+        For example, if flag has shape (3,), then array leaves must have shapes like (3,), (3,4), (3,2,1) etc.
+
+        This ensures that vectorized flags properly align with vectorized data.
+
+        Args:
+            value: The value to be masked, can be a pytree
+            flag: The flag to apply, either a scalar or array flag
+
+        Raises:
+            ValueError: If a non-scalar flag's shape is not a prefix of all leaf value shapes
+        """
+        flag = flag.get_primal() if isinstance(flag, Diff) else flag
+        f_shape = jnp.shape(flag)
+        if f_shape == ():
+            return None
+
+        leaf_shapes = [jnp.shape(leaf) for leaf in jtu.tree_leaves(value)]
+        prefix_len = len(f_shape)
+
+        for shape in leaf_shapes:
+            if shape[:prefix_len] != f_shape:
+                raise ValueError(
+                    f"Vectorized flag {flag}'s shape {f_shape} must be a prefix of all leaf shapes. Found {shape}."
+                )
+
+    @staticmethod
+    def _validate_leaf_shapes(this: R, other: R):
+        """Validates that two values have matching shapes at each leaf.
+
+        Used by __or__, __xor__ etc. to ensure we only combine masks with values whose leaves have matching shapes.
+        Broadcasting is not supported - array shapes must match exactly.
+
+        Args:
+            this: First value to compare
+            other: Second value to compare
+
+        Raises:
+            ValueError: If any leaf shapes don't match exactly
         """
 
-        # If a user chooses to `unmask`, require that they
-        # jax.experimental.checkify.checkify their call in transformed
-        # contexts.
-        def _check():
-            check_flag = jnp.all(self.flag)
-            checkify.check(
-                check_flag,
-                "Attempted to unmask when a mask flag is False: the masked value is invalid.\n",
-            )
-
-        optional_check(_check)
-        return self.value
-
-    def unsafe_unmask(self):
-        # Unsafe version of unmask -- should only be used internally,
-        # or carefully.
-        return self.value
-
-
-@Pytree.dataclass(match_args=True)
-class Sum(Pytree):
-    """
-    A `Sum` instance represents a sum type, which is a union of possible values - which value is active is determined by the `Sum.idx` field.
-
-    The `Sum` type is used to represent a choice between multiple possible values, and is used in generative computations to represent uncertainty over values.
-
-    Examples:
-        A common scenario which will produce `Sum` types is when using a `SwitchCombinator` with branches that have
-        multiple possible return value types:
-        ```python exec="yes" html="true" source="material-block" session="core"
-        from genjax import gen, normal, bernoulli
-
-
-        @gen
-        def model1():
-            return normal(0.0, 1.0) @ "x"
-
-
-        @gen
-        def model2():
-            z = bernoulli(0.5) @ "z"
-            return (z, z)
-
-
-        tr = jax.jit(model1.switch(model2).simulate)(key, (1, (), ()))
-        print(tr.get_retval().render_html())
-        ```
-
-        Users can collapse the `Sum` type by consuming it via [`jax.lax.switch`](https://jax.readthedocs.io/en/latest/_autosummary/jax.lax.switch.html), for instance:
-        ```python exec="yes" html="true" source="material-block" session="core"
-        def collapsing_a_sum_type(key, idx):
-            tr = model1.switch(model2).simulate(key, (idx, (), ()))
-            sum = tr.get_retval()
-            v = jax.lax.switch(
-                sum.idx,
-                [
-                    lambda: sum.values[0] + 3.0,
-                    lambda: 1.0 + sum.values[1][0] + sum.values[1][1],
-                ],
-            )
-            return v
-
-
-        x = jax.jit(collapsing_a_sum_type)(key, 1)
-        print(x)
-        ```
-
-        Users can index into the `Sum` type using a **static** integer index, creating a `Mask` type:
-        ```python exec="yes" html="true" source="material-block" session="core"
-        from genjax import Sum
-
-
-        def uncertain_idx(idx):
-            s = Sum(idx, [1, 2, 3])
-            return s[2]
-
-
-        mask = jax.jit(uncertain_idx)(1)
-        print(mask.render_html())
-        ```
-    """
-
-    idx: IntArray | Diff
-    """
-    The runtime index tag for which value in `Sum.values` is active.
-    """
-    values: List
-    """
-    The possible values for the `Sum` instance.
-    """
-
-    @classmethod
-    @typecheck
-    def maybe(
-        cls,
-        idx: Int | IntArray | Diff,
-        vs: List,
-    ):
-        return (
-            vs[idx]
-            if static_check_is_concrete(idx) and isinstance(idx, Int)
-            else Sum(idx, list(vs)).maybe_collapse()
-        )
-
-    @classmethod
-    @typecheck
-    def maybe_none(
-        cls,
-        idx: Int | IntArray | Diff,
-        vs: List,
-    ):
-        possibles = []
-        for _idx, v in enumerate(vs):
-            if v is not None:
-                possibles.append(Mask.maybe_none(idx == _idx, v))
-        if not possibles:
+        # Check array shapes match exactly (no broadcasting)
+        def check_leaf_shapes(x, y):
+            x_shape = jnp.shape(x)
+            y_shape = jnp.shape(y)
+            if x_shape != y_shape:
+                raise ValueError(
+                    f"Cannot combine masks with different array shapes: {x_shape} vs {y_shape}"
+                )
             return None
-        if len(possibles) == 1:
-            return possibles[0]
-        else:
-            return Sum.maybe(idx, vs)
 
-    def maybe_collapse(self):
-        if Pytree.static_check_tree_structure_equivalence(self.values):
-            idx = Diff.tree_primal(self.idx)
-            return tree_map(lambda *vs: jnp.choose(idx, vs, mode="wrap"), *self.values)
+        jtu.tree_map(check_leaf_shapes, this, other)
+
+    def _validate_mask_shapes(self, other: "Mask[R]") -> None:
+        """Used by __or__, __xor__ etc. to ensure we only combine masks with matching pytree shape and matching leaf shapes."""
+        if jtu.tree_structure(self.value) != jtu.tree_structure(other.value):
+            raise ValueError("Cannot combine masks with different tree structures!")
+
+        Mask._validate_leaf_shapes(self, other)
+        return None
+
+    @staticmethod
+    def build(v: "R | Mask[R]", f: Flag | Diff[Flag] = True) -> "Mask[R]":
+        """
+        Create a Mask instance, potentially from an existing Mask or a raw value.
+
+        This method allows for the creation of a new Mask or the modification of an existing one. If the input is already a Mask, it combines the new flag with the existing one using a logical AND operation.
+
+        Args:
+            v: The value to be masked. Can be a raw value or an existing Mask.
+            f: The flag to be applied to the value.
+
+        Returns:
+            A new Mask instance with the given value and flag.
+
+        Note:
+            If `v` is already a Mask, the new flag is combined with the existing one using a logical AND, ensuring that the resulting Mask is only valid if both input flags are valid.
+        """
+        match v:
+            case Mask(value, g):
+                assert not isinstance(f, Diff) and not isinstance(g, Diff)
+                assert FlagOp.is_scalar(f) or (jnp.shape(f) == jnp.shape(g)), (
+                    f"Can't build a Mask with non-matching Flag shapes {jnp.shape(f)} and {jnp.shape(g)}"
+                )
+                return Mask[R](value, FlagOp.and_(f, g))
+            case _:
+                return Mask[R](v, f)
+
+    @staticmethod
+    def maybe_mask(v: "R | Mask[R]", f: Flag) -> "R | Mask[R] | None":
+        """
+        Create a Mask instance or return the original value based on the flag.
+
+        This method is similar to `build`, but it handles concrete flag values differently. For concrete True flags, it returns the original value without wrapping it in a Mask. For concrete False flags, it returns None. For non-concrete flags, it creates a new Mask instance.
+
+        Args:
+            v: The value to be potentially masked. Can be a raw value or an existing Mask.
+            f: The flag to be applied to the value.
+
+        Returns:
+            - The original value `v` if `f` is concretely True.
+            - None if `f` is concretely False.
+            - A new Mask instance with the given value and flag if `f` is not concrete.
+        """
+        return Mask.build(v, f).flatten()
+
+    #############
+    # Accessors #
+    #############
+
+    def __getitem__(self, path) -> "Mask[R]":
+        path = path if isinstance(path, tuple) else (path,)
+
+        f = self.primal_flag()
+        if isinstance(f, Array) and f.shape:
+            # A non-scalar flag must have been produced via vectorization. Because a scalar flag can
+            # wrap a non-scalar value, only use the vectorized components of the path to index into the flag...
+            f = f[path[: len(f.shape)]]
+
+        # but the use full path to index into the value.
+        v_idx = jtu.tree_map(lambda v: v[path], self.value)
+
+        # Reconstruct Diff if needed
+        if isinstance(self.flag, Diff):
+            f = Diff(f, self.flag.tangent)
+
+        return Mask.build(v_idx, f)
+
+    def flatten(self) -> "R | Mask[R] | None":
+        """
+        Flatten a Mask instance into its underlying value or None.
+
+        "Flattening" occurs when the flag value is a concrete Boolean (True/False). In these cases, the Mask is simplified to either its raw value or None. If the flag is not concrete (i.e., a symbolic/traced value), the Mask remains intact.
+
+        This method evaluates the mask's flag and returns:
+        - None if the flag is concretely False or the value is None
+        - The raw value if the flag is concretely True
+        - The Mask instance itself if the flag is not concrete
+
+        Returns:
+            The flattened result based on the mask's flag state.
+        """
+        flag = self.primal_flag()
+        if FlagOp.concrete_false(flag):
+            return None
+        elif FlagOp.concrete_true(flag):
+            return self.value
         else:
             return self
 
-    @typecheck
-    def __getitem__(self, idx: Int):
-        return Mask.maybe_none(idx == self.idx, self.values[idx])
+    def unmask(self, default: R | None = None) -> R:
+        """
+        Unmask the `Mask`, returning the value within.
+
+        This operation is inherently unsafe with respect to inference semantics if no default value is provided. It is only valid if the `Mask` wraps valid data at runtime, or if a default value is supplied.
+
+        Args:
+            default: An optional default value to return if the mask is invalid.
+
+        Returns:
+            The unmasked value if valid, or the default value if provided and the mask is invalid.
+        """
+        if default is None:
+
+            def _check():
+                checkify.check(
+                    jnp.all(self.primal_flag()),
+                    "Attempted to unmask when a mask flag (or some flag in a vectorized mask) is False: the unmasked value is invalid.\n",
+                )
+
+            optional_check(_check)
+            return self.value
+        else:
+
+            def inner(true_v: ArrayLike, false_v: ArrayLike) -> Array:
+                return jnp.where(self.primal_flag(), true_v, false_v)
+
+            return jtu.tree_map(inner, self.value, default)
+
+    def primal_flag(self) -> Flag:
+        """
+        Returns the primal flag of the mask.
+
+        This method retrieves the primal (non-`Diff`-wrapped) flag value. If the flag
+        is a Diff type (which contains both primal and tangent components), it returns
+        the primal component. Otherwise, it returns the flag as is.
+
+        Returns:
+            The primal flag value.
+        """
+        match self.flag:
+            case Diff(primal, _):
+                return primal
+            case flag:
+                return flag
+
+    ###############
+    # Combinators #
+    ###############
+
+    def _or_idx(self, first: Flag, second: Flag):
+        """Converts a pair of flag arrays into an array of indices for selecting between two values.
+
+        This function implements a truth table for selecting between two values based on their flags:
+
+        first | second | output | meaning
+        ------+--------+--------+------------------
+            0   |   0    |   -1   | neither valid
+            1   |   0    |    0   | first valid only
+            0   |   1    |    1   | second valid only
+            1   |   1    |    0   | both valid for OR, invalid for XOR
+
+        The output index is used to select between the corresponding values:
+           0 -> select first value
+           1 -> select second value
+
+        Args:
+            first: The flag for the first value
+            second: The flag for the second value
+
+        Returns:
+            An Array of indices (-1, 0, or 1) indicating which value to select from each side.
+        """
+        # Note that the validation has already run to check that these flags have the same shape.
+        return first + 2 * FlagOp.and_(FlagOp.not_(first), second) - 1
+
+    def __or__(self, other: "Mask[R]") -> "Mask[R]":
+        self._validate_mask_shapes(other)
+
+        match self.primal_flag(), other.primal_flag():
+            case True, _:
+                return self
+            case False, _:
+                return other
+            case self_flag, other_flag:
+                idx = self._or_idx(self_flag, other_flag)
+                return tree_choose(idx, [self, other])
+
+    def __xor__(self, other: "Mask[R]") -> "Mask[R]":
+        self._validate_mask_shapes(other)
+
+        match self.primal_flag(), other.primal_flag():
+            case (False, False) | (True, True):
+                return Mask.build(self, False)
+            case True, False:
+                return self
+            case False, True:
+                return other
+            case self_flag, other_flag:
+                idx = self._or_idx(self_flag, other_flag)
+
+                # note that `idx` above will choose the correct side for the FF, FT and TF cases,
+                # but will equal 0 for TT flags. We use `FlagOp.xor_` to override this flag to equal
+                # False, since neither side in the TT case will provide a `False` flag for us.
+                chosen = tree_choose(idx, [self.value, other.value])
+                return Mask(chosen, FlagOp.xor_(self_flag, other_flag))
+
+    def __invert__(self) -> "Mask[R]":
+        not_flag = jtu.tree_map(FlagOp.not_, self.flag)
+        return Mask(self.value, not_flag)
+
+    @staticmethod
+    def or_n(mask: "Mask[R]", *masks: "Mask[R]") -> "Mask[R]":
+        """Performs an n-ary OR operation on a sequence of Mask objects.
+
+        Args:
+            mask: The first mask to combine
+            *masks: Variable number of additional masks to combine with OR
+
+        Returns:
+            A new Mask combining all inputs with OR operations
+        """
+        return functools.reduce(lambda a, b: a | b, masks, mask)
+
+    @staticmethod
+    def xor_n(mask: "Mask[R]", *masks: "Mask[R]") -> "Mask[R]":
+        """Performs an n-ary XOR operation on a sequence of Mask objects.
+
+        Args:
+            mask: The first mask to combine
+            *masks: Variable number of additional masks to combine with XOR
+
+        Returns:
+            A new Mask combining all inputs with XOR operations
+        """
+        return functools.reduce(lambda a, b: a ^ b, masks, mask)

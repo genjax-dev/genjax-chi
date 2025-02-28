@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from contextlib import contextmanager  # noqa: I001
-from genjax._src.core.typing import Callable, typecheck
+from contextlib import contextmanager
+
+from genjax._src.core.typing import Callable
 
 _GLOBAL_CHECKIFY_HANDLER = []
 
@@ -27,7 +28,6 @@ def do_checkify():
         _GLOBAL_CHECKIFY_HANDLER.pop()
 
 
-@typecheck
 def optional_check(check: Callable[[], None]):
     if _GLOBAL_CHECKIFY_HANDLER:
         check()
