@@ -22,7 +22,6 @@ import genjax
 from genjax import ChoiceMap, Diff, Pytree, Regenerate, StaticRequest, Update
 from genjax import ChoiceMapBuilder as C
 from genjax import Selection as S
-from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 from genjax._src.core.typing import Array
 from genjax._src.generative_functions.static import MissingAddress
 from genjax.generative_functions.static import AddressReuse
@@ -147,7 +146,7 @@ class TestMisc:
         @genjax.gen
         def model(x):
             y = genjax.normal(x, 1.0) @ "y"
-            z = genjax.bernoulli(0.7) @ "z"
+            z = genjax.bernoulli(probs=0.7) @ "z"
             return y + z
 
         zero_trace = model.get_zero_trace(0.0)
@@ -514,7 +513,6 @@ class TestStaticGenFnUpdate:
             new,
             (),
         )
-        assert isinstance(discard, ChoiceMapConstraint)
 
         updated_choice = updated.get_choices()
         y1 = updated_choice["y1"]
@@ -526,7 +524,7 @@ class TestStaticGenFnUpdate:
             key, updated_choice.get_submap("y2"), (0.0, 1.0)
         )
         test_score = score1 + score2
-        assert original_choice["y1",] == discard.choice_map["y1",]
+        assert original_choice["y1",] == discard["y1",]
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
@@ -562,8 +560,6 @@ class TestStaticGenFnUpdate:
         key, sub_key = jax.random.split(key)
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
 
-        assert isinstance(discard, ChoiceMapConstraint)
-
         updated_choice = updated.get_choices()
         y1 = updated_choice["y1"]
         y2 = updated_choice["y2"]
@@ -572,7 +568,7 @@ class TestStaticGenFnUpdate:
         score2, _ = genjax.normal.assess(C.v(y2), (y1, 1.0))
         score3, _ = genjax.normal.assess(y3, (y1 + y2, 1.0))
         test_score = score1 + score2 + score3
-        assert original_choice["y1"] == discard.choice_map["y1"]
+        assert original_choice["y1"] == discard["y1"]
         assert updated.get_score() == pytest.approx(original_score + w, 0.01)
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
@@ -600,7 +596,6 @@ class TestStaticGenFnUpdate:
         key, sub_key = jax.random.split(key)
 
         (updated, w, _, discard) = jitted(sub_key, tr, new, ())
-        assert isinstance(discard, ChoiceMapConstraint)
 
         updated_choice = updated.get_choices()
         y1 = updated_choice["y1"]
@@ -613,7 +608,7 @@ class TestStaticGenFnUpdate:
         score2, _ = genjax.normal.assess(C.v(y2), (y1, 1.0))
         score3, _ = genjax.normal.assess(C.v(y3), (y1 + y2, 1.0))
         test_score = score1 + score2 + score3
-        assert original_choice["y1"] == discard.choice_map["y1"]
+        assert original_choice["y1"] == discard["y1"]
         assert updated.get_score() == original_score + w
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
@@ -806,7 +801,7 @@ class TestStaticGenFnForwardRef:
 
             @genjax.gen
             def outlier(prob):
-                is_outlier = genjax.bernoulli(prob) @ "is_outlier"
+                is_outlier = genjax.bernoulli(probs=prob) @ "is_outlier"
                 return is_outlier
 
             return proposal
@@ -815,7 +810,7 @@ class TestStaticGenFnForwardRef:
         proposal = make_gen_fn()
         tr = proposal.simulate(key, (0.3,))
 
-        assert tr.get_score() == genjax.bernoulli.logpdf(tr.get_retval(), 0.3)
+        assert tr.get_score() == genjax.bernoulli.logpdf(tr.get_retval(), probs=0.3)
 
 
 class TestGenFnClosure:
@@ -872,8 +867,8 @@ class TestGenFnClosure:
         # Test generate with kwargs
         constraint = C.kw(sampled=3.0)
         assert (
-            gfc.generate(key, ChoiceMapConstraint(constraint), ())[1]
-            == model.generate(key, ChoiceMapConstraint(constraint), arg_tuple)[1]
+            gfc.importance(key, constraint, ())[1]
+            == model.generate(key, constraint, arg_tuple)[1]
         )
 
         # Test __abstract_call__ with kwargs

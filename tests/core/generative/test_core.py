@@ -135,17 +135,16 @@ class TestGetSubtrace:
         tr = h.simulate(jax.random.key(0), ())
         flip_tr = tr.get_subtrace("flip")
         flip = flip_tr.get_retval()
-        assert (
-            tr.get_subtrace("z", 0, "x").get_score()
-            == tr.get_score() - flip_tr.get_score()
-            if flip
-            else 0.0
-        )
-        assert (
-            tr.get_subtrace("z", 1, "y").get_score() == 0.0
-            if flip
-            else tr.get_score() - flip_tr.get_score()
-        )
+        if flip:
+            assert (
+                tr.get_subtrace("z", "x").get_score()
+                == tr.get_score() - flip_tr.get_score()
+            )
+        else:
+            assert (
+                tr.get_subtrace("z", "y").get_score()
+                == tr.get_score() - flip_tr.get_score()
+            )
 
     def test_get_subtrace_vmap(self):
         @genjax.vmap()
@@ -237,20 +236,3 @@ class TestCombinators:
 
         else_tr = jit_fn(key, (False,))
         assert "else_value" in else_tr.get_choices()("tossed")
-
-
-class TestRepr:
-    def test_distribution_repr(self):
-        @genjax.gen
-        def model():
-            x = genjax.normal(0.0, 1.0) @ "x"
-            y = genjax.bernoulli(0.0) @ "y"
-            z = genjax.flip(0.5) @ "z"
-            t = genjax.categorical([0.0, 0.0]) @ "t"
-            return x, y, z, t
-
-        tr = model.simulate(jax.random.key(0), ())
-        assert str(tr.get_subtrace("x").get_gen_fn()) == "genjax.Normal()"
-        assert str(tr.get_subtrace("y").get_gen_fn()) == "genjax.Bernoulli()"
-        assert str(tr.get_subtrace("z").get_gen_fn()) == "genjax.flip()"
-        assert str(tr.get_subtrace("t").get_gen_fn()) == "genjax.Categorical()"

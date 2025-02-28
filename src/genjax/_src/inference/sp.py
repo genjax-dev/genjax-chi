@@ -52,7 +52,7 @@ def validate_non_marginal(x):
 @Pytree.dataclass
 class Target(Generic[R], Pytree):
     """
-    A `Target` represents an unnormalized target distribution induced by conditioning a generative function on a [`genjax.Constraint`][].
+    A `Target` represents an unnormalized target distribution induced by conditioning a generative function on a [`genjax.ChoiceMap`][].
 
     Targets are created by providing a generative function, arguments to the generative function, and a constraint.
 

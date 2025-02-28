@@ -20,6 +20,7 @@ from genjax._src.core.typing import Array, Callable
 from genjax._src.generative_functions.distributions.distribution import (
     ExactDensity,
     exact_density,
+    implicit_logit_warning,
 )
 
 tfd = tfp.distributions
@@ -61,11 +62,16 @@ def tfp_distribution(
 #####################
 # Wrapper instances #
 #####################
-bernoulli = tfp_distribution(
-    lambda logits: tfd.Bernoulli(logits=logits), name="Bernoulli"
-)
+
+
+bernoulli = tfp_distribution(implicit_logit_warning(tfd.Bernoulli), name="bernoulli")
+
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions.
+
+Takes an N-D Tensor representing the log-odds of a 1 event. Each entry in the Tensor parameterizes an independent Bernoulli distribution where the probability of an event is sigmoid(logits).
+
+(Note that this is the `logits` argument to the `tfd.Bernoulli` constructor.)
 """
 
 beta = tfp_distribution(tfd.Beta)
@@ -89,8 +95,9 @@ A `tfp_distribution` generative function which wraps the [`tfd.Binomial`](https:
 """
 
 categorical = tfp_distribution(
-    lambda logits: tfd.Categorical(logits=logits), name="Categorical"
+    implicit_logit_warning(tfd.Categorical), name="categorical"
 )
+
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Categorical`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Categorical) distribution from TensorFlow Probability distributions.
 """
@@ -143,6 +150,10 @@ A `tfp_distribution` generative function which wraps the [`tfd.Exponential`](htt
 flip = tfp_distribution(lambda p: tfd.Bernoulli(probs=p, dtype=jnp.bool_), name="flip")
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions, but is constructed using a probability value and not a logit.
+
+Takes an N-D Tensor representing the probability of a 1 event. Each entry in the Tensor parameterizes an independent Bernoulli distribution.
+
+(Note that this is the `probs` argument to the `tfd.Bernoulli` constructor.)
 """
 
 gamma = tfp_distribution(tfd.Gamma)

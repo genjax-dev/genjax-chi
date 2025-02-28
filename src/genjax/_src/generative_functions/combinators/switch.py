@@ -16,7 +16,6 @@
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    Constraint,
     EditRequest,
     GenerativeFunction,
     Retdiff,
@@ -25,7 +24,7 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.generative.choice_map import ExtendedAddress, Selection
+from genjax._src.core.generative.choice_map import Address, Selection
 from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
 from genjax._src.core.interpreters.staging import multi_switch, tree_choose
 from genjax._src.core.pytree import Pytree
@@ -82,9 +81,8 @@ class SwitchTrace(Generic[R], Trace[R]):
     def get_score(self):
         return self.score
 
-    def get_inner_trace(self, address: ExtendedAddress):
-        assert isinstance(address, int)
-        return self.subtraces[address]
+    def get_inner_trace(self, address: Address):
+        return self.subtraces[self.get_idx()].get_inner_trace(address)
 
 
 #####################
@@ -124,7 +122,7 @@ class Switch(Generic[R], GenerativeFunction[R]):
 
         @genjax.gen
         def branch_2():
-            x = genjax.bernoulli(0.3) @ "x2"
+            x = genjax.bernoulli(probs=0.3) @ "x2"
 
 
         switch = genjax.switch(branch_1, branch_2)
@@ -189,7 +187,7 @@ class Switch(Generic[R], GenerativeFunction[R]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[SwitchTrace[R], Weight]:
         idx, branch_args = args[0], args[1:]
@@ -335,7 +333,7 @@ def switch(
 
         @genjax.gen
         def branch_2():
-            x = genjax.bernoulli(0.3) @ "x2"
+            x = genjax.bernoulli(probs=0.3) @ "x2"
 
 
         switch = genjax.switch(branch_1, branch_2)

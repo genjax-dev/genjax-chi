@@ -24,7 +24,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    Constraint,
     EditRequest,
     GenerativeFunction,
     IndexRequest,
@@ -36,8 +35,7 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.generative.choice_map import (
-    ChoiceMapConstraint,
-    ExtendedAddress,
+    Address,
     Selection,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -92,7 +90,7 @@ class VmapTrace(Generic[R], Trace[R]):
     def get_score(self) -> Score:
         return self.score
 
-    def get_inner_trace(self, address: ExtendedAddress):
+    def get_inner_trace(self, address: Address):
         return self.inner.get_inner_trace(address)
 
 
@@ -195,21 +193,19 @@ class Vmap(Generic[R], GenerativeFunction[R]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[VmapTrace[R], Weight]:
-        assert isinstance(constraint, ChoiceMapConstraint)
-
         dim_length = self._static_broadcast_dim_length(self.in_axes, args)
         idx_array = jnp.arange(dim_length)
         sub_keys = jax.random.split(key, dim_length)
 
         def _inner(key, idx, args):
             # Here we have to vmap across indices and perform individual lookups because the user might only constrain a subset of all indices. This forces recomputation.
-            submap = constraint.choice_map.get_submap(idx)
+            submap = constraint.get_submap(idx)
             tr, w = self.gen_fn.generate(
                 key,
-                ChoiceMapConstraint(submap),
+                submap,
                 args,
             )
             return tr, w
@@ -317,18 +313,15 @@ class Vmap(Generic[R], GenerativeFunction[R]):
         )
         argdiffs_slice = Diff.tree_diff(primal_slice, Diff.tree_tangent(argdiffs))
 
-        new_trace_slice, w, retdiff, bwd_request = self.gen_fn.edit(
+        new_trace_slice, w, _, bwd_request = self.gen_fn.edit(
             key,
             trace_slice,
             request,
             argdiffs_slice,
         )
 
-        def mutator(v, idx, setter):
-            return v.at[idx].set(setter)
-
         new_inner_trace = jtu.tree_map(
-            lambda v, v_: mutator(v, idx, v_), trace.inner, new_trace_slice
+            lambda v, v_: v.at[idx].set(v_), trace.inner, new_trace_slice
         )
 
         map_tr = VmapTrace.build(self, new_inner_trace, primals, dim_length)

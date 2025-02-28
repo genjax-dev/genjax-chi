@@ -17,7 +17,6 @@ import jax.numpy as jnp
 
 from genjax import ChoiceMapBuilder as C
 from genjax import gen, normal
-from genjax._src.core.generative.choice_map import ChoiceMapConstraint
 
 
 class TestRepeatCombinator:
@@ -55,5 +54,5 @@ class TestRepeatCombinator:
 
         chm = C[jnp.array(0), :, "x"].set(jnp.ones(10))
 
-        tr, _ = big_model.generate(key, ChoiceMapConstraint(chm), ())
+        tr, _ = big_model.importance(key, chm, ())
         assert jnp.array_equal(tr.get_choices()[0, :, "x"], jnp.ones(10))
