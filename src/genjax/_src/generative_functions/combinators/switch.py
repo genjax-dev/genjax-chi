@@ -16,7 +16,6 @@
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    Constraint,
     EditRequest,
     GenerativeFunction,
     Retdiff,
@@ -83,8 +82,7 @@ class SwitchTrace(Generic[R], Trace[R]):
         return self.score
 
     def get_inner_trace(self, address: Address):
-        assert isinstance(address, int)
-        return self.subtraces[address]
+        return self.subtraces[self.get_idx()].get_inner_trace(address)
 
 
 #####################
@@ -189,7 +187,7 @@ class Switch(Generic[R], GenerativeFunction[R]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[SwitchTrace[R], Weight]:
         idx, branch_args = args[0], args[1:]

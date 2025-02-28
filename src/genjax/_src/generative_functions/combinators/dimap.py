@@ -15,7 +15,6 @@
 
 from genjax._src.core.generative import (
     Argdiffs,
-    Constraint,
     EditRequest,
     GenerativeFunction,
     Retdiff,
@@ -129,7 +128,7 @@ class Dimap(Generic[ArgTuple, R, S], GenerativeFunction[S]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[DimapTrace[R, S], Weight]:
         inner_args = self.argument_mapping(*args)

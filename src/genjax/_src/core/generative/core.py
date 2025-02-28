@@ -65,7 +65,7 @@ Arguments = tuple
 
 Argdiffs = Annotated[
     tuple[Any, ...],
-    Is[Diff.static_check_tree_diff],
+    Is[lambda x: Diff.static_check_tree_diff(x)],
 ]
 """
 `Argdiffs` is the type of argument values with an attached `ChangeType` (c.f. [`edit`][genjax.core.GenerativeFunction.edit]).
@@ -76,7 +76,7 @@ When used under type checking, `Retdiff` assumes that the argument values are `P
 
 Retdiff = Annotated[
     R,
-    Is[Diff.static_check_tree_diff],
+    Is[lambda x: Diff.static_check_tree_diff(x)],
 ]
 
 
@@ -85,16 +85,6 @@ Retdiff = Annotated[
 
 When used under type checking, `Retdiff` assumes that the return value is a `Pytree` (either, defined via GenJAX's `Pytree` interface or registered with JAX's system). It checks that _the leaves_ are `Diff` type with attached `ChangeType`.
 """
-
-###############
-# Constraints #
-###############
-
-
-class Constraint(Pytree):
-    """
-    Constraints represent a request to force a value to satisfy a predicate.
-    """
 
 
 #################

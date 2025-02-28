@@ -25,8 +25,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    ChoiceMapConstraint,
-    Constraint,
     EditRequest,
     EmptyRequest,
     GenerativeFunction,
@@ -43,7 +41,7 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.generative.choice_map import Address
-from genjax._src.core.generative.generative_function import R, push_trace_overload_stack
+from genjax._src.core.generative.generative_function import R
 from genjax._src.core.interpreters.forward import (
     InitialStylePrimitive,
     StatefulHandler,
@@ -362,8 +360,8 @@ class GenerateHandler(StaticHandler):
     def get_subconstraint(
         self,
         addr: StaticAddress,
-    ) -> Constraint:
-        return ChoiceMapConstraint(self.choice_map(addr))
+    ) -> ChoiceMap:
+        return self.choice_map(addr)
 
     def handle_trace(
         self,
@@ -722,17 +720,6 @@ def regenerate_transform(source_fn):
 #######################
 
 
-# Callee syntactic sugar handler.
-
-
-def handler_trace_with_static(
-    addr: StaticAddress,
-    gen_fn: GenerativeFunction[Any],
-    args: tuple[Any, ...],
-):
-    return trace(addr, gen_fn, args)
-
-
 @Pytree.dataclass
 class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
     """A `StaticGenerativeFunction` is a generative function which relies on program
@@ -800,24 +787,15 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         key: PRNGKey,
         args: tuple[Any, ...],
     ) -> StaticTrace[R]:
-        syntax_sugar_handled = push_trace_overload_stack(
-            handler_trace_with_static, self.source
-        )
-        (args, retval, traces) = simulate_transform(syntax_sugar_handled)(key, args)
+        (args, retval, traces) = simulate_transform(self.source)(key, args)
         return StaticTrace(self, args, retval, traces)
 
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[StaticTrace[R], Weight]:
-        assert isinstance(constraint, ChoiceMapConstraint), type(constraint)
-
-        syntax_sugar_handled = push_trace_overload_stack(
-            handler_trace_with_static, self.source
-        )
-
         (
             weight,
             # Trace.
@@ -826,7 +804,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 retval,
                 traces,
             ),
-        ) = generate_transform(syntax_sugar_handled)(key, constraint.choice_map, args)
+        ) = generate_transform(self.source)(key, constraint, args)
         return StaticTrace(self, args, retval, traces), weight
 
     def project(
@@ -851,9 +829,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         constraint: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
-        syntax_sugar_handled = push_trace_overload_stack(
-            handler_trace_with_static, self.source
-        )
         (
             (
                 retval_diffs,
@@ -865,7 +840,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_requests,
             ),
-        ) = update_transform(syntax_sugar_handled)(key, trace, constraint, argdiffs)
+        ) = update_transform(self.source)(key, trace, constraint, argdiffs)
         if not Diff.static_check_tree_diff(retval_diffs):
             retval_diffs = Diff.no_change(retval_diffs)
 
@@ -894,9 +869,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         addressed: StaticDict,
         argdiffs: Argdiffs,
     ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
-        syntax_sugar_handled = push_trace_overload_stack(
-            handler_trace_with_static, self.source
-        )
         (
             (
                 retval_diffs,
@@ -908,9 +880,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_requests,
             ),
-        ) = static_edit_request_transform(syntax_sugar_handled)(
-            key, trace, addressed, argdiffs
-        )
+        ) = static_edit_request_transform(self.source)(key, trace, addressed, argdiffs)
 
         def make_bwd_request(
             traces: dict[StaticAddress, Trace[R]],
@@ -939,9 +909,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
-        syntax_sugar_handled = push_trace_overload_stack(
-            handler_trace_with_static, self.source
-        )
         (
             (
                 retval_diffs,
@@ -953,7 +920,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_requests,
             ),
-        ) = regenerate_transform(syntax_sugar_handled)(
+        ) = regenerate_transform(self.source)(
             key, trace, selection, edit_request, argdiffs
         )
 
@@ -1016,10 +983,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         sample: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
-        syntax_sugar_handled = push_trace_overload_stack(
-            handler_trace_with_static, self.source
-        )
-        (retval, score) = assess_transform(syntax_sugar_handled)(sample, args)
+        (retval, score) = assess_transform(self.source)(sample, args)
         return (score, retval)
 
     def inline(self, *args):

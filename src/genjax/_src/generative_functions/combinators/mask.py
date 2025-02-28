@@ -19,7 +19,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    Constraint,
     EditRequest,
     GenerativeFunction,
     Mask,
@@ -161,7 +160,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[MaskTrace[R], Weight]:
         check, inner_args = args[0], args[1:]

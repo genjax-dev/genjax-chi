@@ -24,7 +24,6 @@ import jax.tree_util as jtu
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
-    Constraint,
     EditRequest,
     GenerativeFunction,
     IndexRequest,
@@ -37,7 +36,6 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.choice_map import (
     Address,
-    ChoiceMapConstraint,
     Selection,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -195,21 +193,19 @@ class Vmap(Generic[R], GenerativeFunction[R]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[VmapTrace[R], Weight]:
-        assert isinstance(constraint, ChoiceMapConstraint)
-
         dim_length = self._static_broadcast_dim_length(self.in_axes, args)
         idx_array = jnp.arange(dim_length)
         sub_keys = jax.random.split(key, dim_length)
 
         def _inner(key, idx, args):
             # Here we have to vmap across indices and perform individual lookups because the user might only constrain a subset of all indices. This forces recomputation.
-            submap = constraint.choice_map.get_submap(idx)
+            submap = constraint.get_submap(idx)
             tr, w = self.gen_fn.generate(
                 key,
-                ChoiceMapConstraint(submap),
+                submap,
                 args,
             )
             return tr, w

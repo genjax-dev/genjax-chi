@@ -21,13 +21,11 @@ from deprecated import deprecated
 from genjax._src.core.generative.choice_map import (
     Address,
     ChoiceMap,
-    ChoiceMapConstraint,
     Selection,
 )
 from genjax._src.core.generative.core import (
     Argdiffs,
     Arguments,
-    Constraint,
     EditRequest,
     PrimitiveEditRequest,
     Retdiff,
@@ -45,6 +43,7 @@ from genjax._src.core.typing import (
     PRNGKey,
     Self,
     TypeVar,
+    nobeartype,
 )
 
 # Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
@@ -141,6 +140,7 @@ class Trace(Generic[R], Pytree):
         """Retrieves the random choices made in a trace in the form of a [`genjax.ChoiceMap`][]."""
         pass
 
+    @nobeartype
     @deprecated(reason="Use .get_choices() instead.", version="0.8.1")
     def get_sample(self):
         return self.get_choices()
@@ -170,7 +170,7 @@ class Trace(Generic[R], Pytree):
         key: PRNGKey,
         constraint: ChoiceMap,
         argdiffs: tuple[Any, ...] | None = None,
-    ) -> tuple[Self, Weight, Retdiff[R], Constraint]:
+    ) -> tuple[Self, Weight, Retdiff[R], ChoiceMap]:
         """
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
         """
@@ -248,7 +248,7 @@ class GenerativeFunction(Generic[R], Pytree):
     Generative functions also support a family of [`Target`][genjax.inference.Target] distributions - a [`Target`][genjax.inference.Target] distribution is a (possibly unnormalized) distribution, typically induced by inference problems.
 
     * $\\delta_\\emptyset$ - the empty target, whose only possible value is the empty sample, with density 1.
-    * (**Family of targets induced by $P$**) $T_P(a, c)$ - a family of targets indexed by arguments $a$ and [`Constraint`][genjax.core.Constraint] $c$, created by pairing the distribution over samples $P$ with arguments and constraint.
+    * (**Family of targets induced by $P$**) $T_P(a, c)$ - a family of targets indexed by arguments $a$ and constraints (`ChoiceMap`), created by pairing the distribution over samples $P$ with arguments and constraint.
 
     Generative functions expose computations using these ingredients through the _generative function interface_ (the methods which are documented below).
 
@@ -359,7 +359,7 @@ class GenerativeFunction(Generic[R], Pytree):
             @genjax.gen
             def weather_model():
                 temperature = genjax.normal(20.0, 5.0) @ "temperature"
-                is_sunny = genjax.bernoulli(probs=0.7) @ "is_sunny"
+                is_sunny = genjax.bernoulli(0.7) @ "is_sunny"
                 return {"temperature": temperature, "is_sunny": is_sunny}
 
 
@@ -478,7 +478,7 @@ class GenerativeFunction(Generic[R], Pytree):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[R], Weight]:
         pass
@@ -614,7 +614,7 @@ class GenerativeFunction(Generic[R], Pytree):
         trace: Trace[R],
         constraint: ChoiceMap,
         argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], Constraint]:
+    ) -> tuple[Trace[R], Weight, Retdiff[R], ChoiceMap]:
         request = Update(
             constraint,
         )
@@ -624,12 +624,12 @@ class GenerativeFunction(Generic[R], Pytree):
             argdiffs,
         )
         assert isinstance(bwd, Update), type(bwd)
-        return tr, w, rd, ChoiceMapConstraint(bwd.constraint)
+        return tr, w, rd, bwd.constraint
 
     def importance(
         self,
         key: PRNGKey,
-        constraint: ChoiceMap | Constraint,
+        constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[R], Weight]:
         """
@@ -667,8 +667,6 @@ class GenerativeFunction(Generic[R], Pytree):
 
         Under the hood, creates an [`EditRequest`][genjax.core.EditRequest] which requests that the generative function respond with a move from the _empty_ trace (the only possible value for _empty_ target $\\delta_\\emptyset$) to the target induced by the generative function for constraint $C$ with arguments $a$.
         """
-        if isinstance(constraint, ChoiceMap):
-            constraint = ChoiceMapConstraint(constraint)
 
         return self.generate(
             key,
@@ -1272,7 +1270,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
             @genjax.gen
             def branch_2():
-                x = genjax.bernoulli(probs=0.3) @ "x2"
+                x = genjax.bernoulli(0.3) @ "x2"
 
 
             switch = branch_1.switch(branch_2)
@@ -1486,33 +1484,6 @@ class GenerativeFunction(Generic[R], Pytree):
         return marginal(selection=selection, algorithm=algorithm)(self)
 
 
-# NOTE: Setup a global handler stack for the `trace` callee sugar.
-# C.f. above.
-# This stack will not interact with JAX tracers at all
-# so it's safe, and will be resolved at JAX tracing time.
-GLOBAL_TRACE_OP_HANDLER_STACK: list[Callable[..., Any]] = []
-
-
-def handle_off_trace_stack(addr, gen_fn: GenerativeFunction[R], args) -> R:
-    if GLOBAL_TRACE_OP_HANDLER_STACK:
-        handler = GLOBAL_TRACE_OP_HANDLER_STACK[-1]
-        return handler(addr, gen_fn, args)
-    else:
-        raise Exception(
-            "Attempting to invoke trace outside of a tracing context.\nIf you want to invoke the generative function closure, and recieve a return value,\ninvoke it with a key."
-        )
-
-
-def push_trace_overload_stack(handler, fn):
-    def wrapped(*args):
-        GLOBAL_TRACE_OP_HANDLER_STACK.append(handler)
-        ret = fn(*args)
-        GLOBAL_TRACE_OP_HANDLER_STACK.pop()
-        return ret
-
-    return wrapped
-
-
 @Pytree.dataclass
 class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
     """
@@ -1558,7 +1529,7 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[Any], Weight]:
         (args, _kwargs) = args
@@ -1595,15 +1566,17 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
     # NOTE: Supports callee syntax, and the ability to overload it in callers.
     def __matmul__(self, addr) -> R:
+        from genjax._src.generative_functions.static import trace
+
         if self.kwargs:
             maybe_kwarged_gen_fn = self._with_kwargs()
-            return handle_off_trace_stack(
+            return trace(
                 addr,
                 maybe_kwarged_gen_fn,
                 (self.args, self.kwargs),
             )
         else:
-            return handle_off_trace_stack(
+            return trace(
                 addr,
                 self.gen_fn,
                 self.args,
@@ -1653,7 +1626,7 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
     def generate(
         self,
         key: PRNGKey,
-        constraint: Constraint,
+        constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[Any], Weight]:
         full_args = self.args + args
