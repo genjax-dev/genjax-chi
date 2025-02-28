@@ -89,7 +89,7 @@ class TestSMC:
     def test_non_marginal_target(self):
         @genjax.gen
         def model():
-            idx = genjax.categorical([0.5, 0.25, 0.25]) @ "idx"
+            idx = genjax.categorical(probs=[0.5, 0.25, 0.25]) @ "idx"
             # under the prior, 50% chance to be in cluster 1 and 50% chance to be in cluster 2.
             means = jnp.array([0.0, 10.0, 11.0])
             vars = jnp.array([1.0, 1.0, 1.0])

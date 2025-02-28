@@ -14,7 +14,7 @@
 
 
 from genjax._src.core.generative import GenerativeFunction
-from genjax._src.core.typing import TypeVar
+from genjax._src.core.generative.core import R
 from genjax._src.generative_functions.combinators.switch import (
     switch,
 )
@@ -22,8 +22,6 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     categorical,
 )
 from genjax._src.generative_functions.static import gen
-
-R = TypeVar("R")
 
 
 def mix(*gen_fns: GenerativeFunction[R]) -> GenerativeFunction[R]:
@@ -75,10 +73,9 @@ def mix(*gen_fns: GenerativeFunction[R]) -> GenerativeFunction[R]:
 
     inner_combinator_closure = switch(*gen_fns)
 
-    @gen
     def mixture_model(mixture_logits, *args) -> R:
         mix_idx = categorical(mixture_logits) @ "mixture_component"
         v = inner_combinator_closure(mix_idx, *args) @ "component_sample"
         return v
 
-    return mixture_model
+    return gen(mixture_model)

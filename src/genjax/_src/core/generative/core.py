@@ -26,6 +26,7 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     FloatArray,
+    IntArray,
     Is,
     PRNGKey,
     Self,
@@ -64,7 +65,7 @@ Arguments = tuple
 
 Argdiffs = Annotated[
     tuple[Any, ...],
-    Is[Diff.static_check_tree_diff],
+    Is[lambda x: Diff.static_check_tree_diff(x)],
 ]
 """
 `Argdiffs` is the type of argument values with an attached `ChangeType` (c.f. [`edit`][genjax.core.GenerativeFunction.edit]).
@@ -75,7 +76,7 @@ When used under type checking, `Retdiff` assumes that the argument values are `P
 
 Retdiff = Annotated[
     R,
-    Is[Diff.static_check_tree_diff],
+    Is[lambda x: Diff.static_check_tree_diff(x)],
 ]
 
 
@@ -84,16 +85,6 @@ Retdiff = Annotated[
 
 When used under type checking, `Retdiff` assumes that the return value is a `Pytree` (either, defined via GenJAX's `Pytree` interface or registered with JAX's system). It checks that _the leaves_ are `Diff` type with attached `ChangeType`.
 """
-
-###############
-# Constraints #
-###############
-
-
-class Constraint(Pytree):
-    """
-    Constraints represent a request to force a value to satisfy a predicate.
-    """
 
 
 #################
@@ -157,6 +148,20 @@ class PrimitiveEditRequest(EditRequest):
     ) -> "tuple[genjax.Trace[R], Weight, Retdiff[R], EditRequest]":
         gen_fn = tr.get_gen_fn()
         return gen_fn.edit(key, tr, self, argdiffs)
+
+
+@Pytree.dataclass(match_args=True)
+class IndexRequest(PrimitiveEditRequest):
+    """
+    An `IndexRequest` is a primitive edit request which denotes a request to update a trace
+    at a particular index of a vector combinator.
+
+    The subrequest can be any type of `EditRequest`, the subrequest is responsible for enforcing or raising
+    its own conditions for compositional usage.
+    """
+
+    idx: IntArray
+    request: EditRequest
 
 
 class NotSupportedEditRequest(Exception):
