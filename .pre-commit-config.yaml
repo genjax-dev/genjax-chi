@@ -28,7 +28,7 @@ repos:
         args: ["--with", "dev", "--all-extras"]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.7
+    rev: v0.9.9
     hooks:
       - id: ruff
         types_or: [ python, pyi, jupyter ]
@@ -43,6 +43,6 @@ repos:
       - id: vulture
 
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.394
+    rev: v1.1.396
     hooks:
     - id: pyright
