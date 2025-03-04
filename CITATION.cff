@@ -4,6 +4,14 @@ authors:
 - family-names: "Becker"
   given-names: "McCoy"
   orcid: "https://orcid.org/0009-0000-1930-8150"
+- family-names: "Huot"
+  given-names: "Mathieu"
+  orcid: "https://orcid.org/0000-0002-5294-9088"
+- family-names: "Ritchie"
+  given-names: "Sam"
+  orcid: "https://orcid.org/0000-0002-0545-6360"
+- family-names: "Smith"
+  given-names: "Colin"
 title: "GenJAX: Probabilistic Programming with Gen, built on top of JAX"
 version: 0.10.0
 date-released: 2025
