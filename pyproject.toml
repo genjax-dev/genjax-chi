@@ -16,7 +16,7 @@ maintainers = [
     "Sam Ritchie <sam@mentat.org>",
 ]
 license = "Apache 2.0"
-readme = "README_pypi.md"
+readme = "README.md"
 homepage = "https://github.com/chisym/genjax"
 repository = "https://github.com/chisym/genjax"
 documentation = "https://chisym.github.io/genjax/"
