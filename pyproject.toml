@@ -127,6 +127,7 @@ reportUnknownParameterType = "none"
 reportUnknownVariableType = "none"
 
 [tool.ruff]
+target-version = "py311"
 exclude = [
     ".bzr",
     ".direnv",

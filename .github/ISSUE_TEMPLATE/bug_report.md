@@ -1,32 +1,47 @@
 ---
 name: Bug report
-about: Create a report to help us improve the library.
-title: "[BUG]"
-labels: bug
-assignees: femtomc
+description: >-
+  Report a bug or unexpected behavior to help us improve the package
+labels:
+- bug
 
----
+body:
+- type: markdown
+  attributes:
+    value: >
+      ## Thank you for helping us improve JAX!
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+      * Please first verify that your issue is not already reported using the
+      [Issue search][issue search].
 
-**To Reproduce**
-Steps or code (or Gist!) to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+      * If you prefer a non-templated issue report, click [here][Raw report].
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+      [issue search]: https://github.com/ChiSym/genjax/search?q=is%3Aissue&type=issues
+      [Raw report]: http://github.com/ChiSym/genjax/issues/new
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+- type: textarea
+  attributes:
+    label: Description
+    description: >-
+      A concise description of the bug, preferably including self-contained
+      code to reproduce the issue.
+    placeholder: |
+      Text may use markdown formatting.
+      ```python
+      # for codeblocks, use triple backticks
+      ```
+  validations:
+    required: true
 
-**Execution environment (please complete the following information):**
- - OS: [e.g. iOS]
- - Python version: [e.g 3.10]
- - GenJAX version: [e.g. 22]
-
-**Additional context**
-Add any other context about the problem here.
+- type: textarea
+  attributes:
+    label: System info (python version, jaxlib version, accelerator, etc.)
+    description: >-
+      Include the output of `import jax; jax.print_environment_info()`
+      and `import genjax; print(genjax.__version__)`
+    placeholder: |
+      ```
+      ...
+      ```
+  validations:
+    required: true
