@@ -150,8 +150,6 @@ def find_first_above(values, threshold):
 
 
 ### FloatFromDiscreteSet ###
-
-
 @dataclass
 class Domain:
     """
@@ -316,3 +314,45 @@ def uniformly_replace_slots_in_seq(
 ):
     T = len(seq)
     return replace_slots_in_seq(seq, replacements, jnp.tile(do_replace, (T, 1)))
+
+
+### Manipulating traces
+
+
+# Extract relevant info for the update from the trace
+def markov_for_xy_mean_from_trace(trace):
+    datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
+    datapoints = trace.get_choices()["likelihood_model", "xy"]
+    n_clusters = trace.get_args()[0].n_blobs
+    prior_mean = trace.get_args()[0].mu_xy
+    current_means = trace.get_choices()["blob_model", "xy_mean"]  # shape (N,2)
+    prior_variance = trace.get_choices()["blob_model", "sigma_xy"]
+    obs_variance = trace.get_args()[0].sigma_xy
+
+    return (
+        datapoint_indexes,
+        datapoints,
+        n_clusters,
+        prior_mean,
+        current_means,
+        prior_variance,
+        obs_variance,
+    )
+
+
+# Count the number of points per cluster
+def category_count(datapoint_indexes, n_clusters):
+    return jnp.bincount(
+        datapoint_indexes,
+        length=n_clusters,
+        minlength=n_clusters,
+    )
+
+
+# Update the trace with new xy_mean
+def update_trace_with_xy_mean(key, trace, new_means):
+    argdiffs = genjax.Diff.no_change(trace.args)
+    new_trace, _, _, _ = trace.update(
+        key, C["blob_model", "xy_mean"].set(new_means), argdiffs
+    )
+    return new_trace
