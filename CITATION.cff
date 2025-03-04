@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Becker"
+  given-names: "McCoy"
+  orcid: "https://orcid.org/0009-0000-1930-8150"
+title: "GenJAX: Probabilistic Programming with Gen, built on top of JAX"
+version: 0.10.0
+date-released: 2025
+type: software
+url: "https://github.com/ChiSym/genjax"
+license: Apache-2.0
+license-url: "https://github.com/ChiSym/genjax/blob/main/LICENSE"
+repository-code: "https://github.com/ChiSym/genjax"
