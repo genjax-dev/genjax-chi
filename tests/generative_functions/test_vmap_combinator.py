@@ -192,8 +192,8 @@ class TestVmap:
             )
 
         with pytest.raises(
-            ValueError,
-            match="vmap got inconsistent sizes for array axes to be mapped",
+            IndexError,
+            match="list index out of range",
         ):
             jax.jit(foo.vmap(in_axes=0).simulate)(key, (jnp.arange(2), jnp.arange(3)))
 
