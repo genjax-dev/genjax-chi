@@ -1,5 +1,6 @@
 ### This file contains different function for conjugate pairs updates for the Gen2D model, which are used in the Gibbs-inference loop.
 
+import model_simple_continuous
 
 # def conjugate_update_mvnormal_with_known_cov(
 #     prior_mean,  # (D,)
