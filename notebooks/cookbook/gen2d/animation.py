@@ -8,6 +8,21 @@ It creates an interactive animation showing the evolution of clusters over itera
 - Frame-by-frame playback controls
 """
 
+import json
+import math
+
+import genstudio.plot as Plot
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy import datasets
+from scipy.spatial.distance import cdist
+
+# TODO:
+# - need to fix colour of points to match that of their cluster,
+# - the counting of points per cluster is busted.
+# - hovering busted
+# - number of clusters shown busted
+
 
 def create_cluster_visualization(
     all_posterior_xy_means,
@@ -49,14 +64,6 @@ def create_cluster_visualization(
     Plot object
         The interactive visualization
     """
-    import json
-    import math
-
-    import genstudio.plot as Plot
-    import matplotlib.pyplot as plt
-    import numpy as np
-    from scipy import datasets
-    from scipy.spatial.distance import cdist
 
     # Load the default image if none provided
     if image is None:
