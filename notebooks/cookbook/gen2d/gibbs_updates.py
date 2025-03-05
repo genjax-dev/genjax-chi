@@ -1,18 +1,18 @@
-### This file contains the different Gibbs updates for the Gen2D model.
-#
-# The inference logic is simply block-Gibbs:
-# - sample an initial trace:
-# - perform N Gibbs sweeps on that trace
-# - return the posterior sample
-#
-# Initialization:
-# - preprocess a H by W image into a (H*W, 5) array of (x, y, r, g, b) values
-# - generate an initial trace with constraints so that every Gaussian ends up associated with at least one datapoint.
+"""
+This module contains Gibbs update functions for the Gen2D model.
 
-# Gibbs sweep:
-# - update xy_mean, xy_sigma, rgb_mean, rgb_sigma in parallel using Normal-Inverse-Gamma conjugacy, given the datapoints currently associated with it
-# - update cluster assignment for each datapoint in parallel via enumerative Gibbs
-# - update mixture weights using Dirichlet categorical conjugacy, using the fact that normalizing many gamma-distributed mixture weights is the same as sampling from a Dirichlet distribution
+The inference logic follows a block-Gibbs sampling scheme:
+1. Sample an initial trace with constraints ensuring each Gaussian has at least one datapoint
+2. Perform N Gibbs sweeps on that trace
+3. Return the posterior sample
+
+The Gibbs sweep updates:
+- Cluster parameters (xy_mean, xy_sigma, rgb_mean, rgb_sigma) using Normal-Inverse-Gamma conjugacy
+- Cluster assignments for each datapoint via enumerative Gibbs
+- Mixture weights using Dirichlet-Categorical conjugacy
+
+The input data is preprocessed from an HxW image into an (H*W, 5) array of (x, y, r, g, b) values.
+"""
 
 import conjugacy
 import jax.numpy as jnp

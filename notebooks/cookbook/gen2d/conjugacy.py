@@ -1,4 +1,14 @@
-### This file contains different function for conjugate pairs updates for the Gen2D model, which are used in the Gibbs-inference loop.
+"""
+This module contains conjugate pair update functions for the Gen2D model, used in Gibbs sampling inference.
+
+The conjugate pairs implemented are:
+- Dirichlet-Categorical: For updating cluster weights based on point assignments
+- Normal-Normal: For updating cluster means based on assigned points
+- Multivariate Normal with known covariance (commented out)
+
+Each function takes the prior parameters and observations, and returns the posterior parameters
+according to the conjugate update equations.
+"""
 
 import model_simple_continuous
 

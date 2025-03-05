@@ -1,26 +1,37 @@
-### This file describes the generative model used in the Gen2D project.
-#
-# This is an extension of the Dirichlet mixture model used in the Gen1D model
-# The model is designed so that block-Gibbs is expected to do well for inference on the model, i.e. the model has be co-designed with the inference we
-# are running on it.
-#
-# The generative model is described as follows.
-# - Fix hyperparameters sigma_xy, sigma_rgb and other global parameters like the ones for the inverse gamma distributions.
-# - Generate N Gaussians
-#   For each Gaussian
-#       xy_mean ~ Normal(mu, sigma_xy * eye(2))
-#       xy_sigma ~ InverseGamma(…some parameter…)
-#       r_mean, g_mean, b_mean {~}_{iid} Normal(127.5, sigma_rgb)
-#       rgb_sigma ~ InverseGamma(…some parameter…)
-#  - mixture_weight ~ Gamma(alpha, 1) # alpha is an arg to the model
-#    probs = normalize([gaussian.mixture_weight for gaussian in gaussians])
-#  - Generate a H*W array of datapoints.
-#   For each datapoint:
-#       idx ~ categorical([probs])
-#       mygaussian = gaussians[idx]
-#       xy ~ mvnormal(mygaussian.xy_mean, mygaussian.sigma_xy * eye(2))
-#       rgb ~ mvnormal(mygaussian.rgb_mean, mygaussian.sigma_rgb * eye(3))
+"""
+This file implements the generative model for the Gen2D project, which extends the Dirichlet mixture model from Gen1D.
 
+The model is designed to work well with block-Gibbs sampling inference, following a co-design approach between model and inference method.
+
+Model Structure:
+---------------
+1. Global Hyperparameters:
+   - sigma_xy: Controls spatial variance
+   - sigma_rgb: Controls color variance
+   - Additional parameters for inverse gamma distributions
+
+2. Gaussian Mixture Components (N components):
+   For each Gaussian i=1..N:
+   - Spatial parameters:
+     * xy_mean[i] ~ Normal(mu, sigma_xy * I_2)  # 2D spatial mean
+     * xy_sigma[i] ~ InverseGamma(a_xy, b_xy)   # Spatial variance
+
+   - Color parameters:
+     * rgb_mean[i] ~ Normal(127.5, sigma_rgb)    # Independent RGB means
+     * rgb_sigma[i] ~ InverseGamma(a_rgb, b_rgb) # Color variance
+
+   - Mixture weight:
+     * weight[i] ~ Gamma(alpha, 1)               # Component weight
+     * probs = normalize(weights)                # Normalized mixture probabilities
+
+3. Data Generation (H*W datapoints):
+   For each pixel:
+   - idx ~ Categorical(probs)                    # Select Gaussian component
+   - xy ~ MVNormal(xy_mean[idx], xy_sigma[idx] * I_2)  # Sample spatial location
+   - rgb ~ MVNormal(rgb_mean[idx], rgb_sigma[idx] * I_3) # Sample RGB color
+
+The model is implemented using the GenJAX probabilistic programming framework.
+"""
 
 import jax.numpy as jnp
 from jax._src.basearray import Array

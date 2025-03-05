@@ -1,3 +1,14 @@
+"""
+This module provides visualization tools for clustering results, specifically for the Gen2D model.
+It creates an interactive animation showing the evolution of clusters over iterations, including:
+- Cluster positions and standard deviations shown as ellipses
+- Cluster weights and assignments shown in a sortable table
+- Interactive highlighting of clusters on hover
+- Background image with sampled pixels
+- Frame-by-frame playback controls
+"""
+
+
 def create_cluster_visualization(
     all_posterior_xy_means,
     all_posterior_xy_variances,
