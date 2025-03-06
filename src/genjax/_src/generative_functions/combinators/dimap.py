@@ -20,7 +20,6 @@ from genjax._src.core.generative import (
     Retdiff,
     Score,
     Trace,
-    Update,
     Weight,
 )
 from genjax._src.core.generative.choice_map import (
