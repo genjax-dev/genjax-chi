@@ -324,11 +324,11 @@ def uniformly_replace_slots_in_seq(
 def markov_for_xy_mean_from_trace(trace):
     datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
     datapoints = trace.get_choices()["likelihood_model", "xy"]
-    n_clusters = trace.get_args()[0].n_blobs
-    prior_mean = trace.get_args()[0].mu_xy
+    n_clusters = trace.args[0].n_blobs
+    prior_mean = trace.args[0].mu_xy
     cluster_xy_means = trace.get_choices()["blob_model", "xy_mean"]  # shape (N,2)
     cluster_xy_variances = trace.get_choices()["blob_model", "sigma_xy"]
-    obs_variance = trace.get_args()[0].sigma_xy
+    obs_variance = trace.args[0].sigma_xy
 
     return (
         datapoint_indexes,
@@ -344,11 +344,11 @@ def markov_for_xy_mean_from_trace(trace):
 def markov_for_rgb_mean_from_trace(trace):
     datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
     datapoints = trace.get_choices()["likelihood_model", "rgb"]
-    n_clusters = trace.get_args()[0].n_blobs
+    n_clusters = trace.args[0].n_blobs
     prior_mean = model_simple_continuous.MID_PIXEL_VAL * jnp.ones(3)
     cluster_rgb_means = trace.get_choices()["blob_model", "rgb_mean"]  # shape (N,3)
     cluster_rgb_variances = trace.get_choices()["blob_model", "sigma_rgb"]
-    obs_variance = trace.get_args()[0].sigma_rgb
+    obs_variance = trace.args[0].sigma_rgb
 
     return (
         datapoint_indexes,

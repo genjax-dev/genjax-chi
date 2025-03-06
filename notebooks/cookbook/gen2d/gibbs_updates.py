@@ -23,6 +23,7 @@ generating an initial trace where each Gaussian is associated with at least one 
 import conjugacy
 import jax
 import jax.numpy as jnp
+import model_simple_continuous
 import utils
 
 import genjax
@@ -182,6 +183,74 @@ def update_rgb_mean(key, trace):
     return new_trace
 
 
+def update_cluster_assignment(key, trace):
+    def compute_local_density(x, i):
+        datapoint_xy_mean = trace.get_choices()["likelihood_model", "xy", x]
+        datapoint_rgb_mean = trace.get_choices()["likelihood_model", "rgb", x]
+        sigma_xy = trace.args[0].sigma_xy
+        sigma_rgb = trace.args[0].sigma_rgb
+
+        chm = (
+            C["xy"]
+            .set(datapoint_xy_mean)
+            .at["blob_idx"]
+            .set(i)
+            .at["rgb"]
+            .set(datapoint_rgb_mean)
+        )
+
+        cluster_xy_means = trace.get_choices()["blob_model", "xy_mean"]
+        cluster_rgb_means = trace.get_choices()["blob_model", "rgb_mean"]
+        mixture_weights = trace.get_choices()["blob_model", "mixture_weight"]
+
+        mixture_probs = mixture_weights / sum(mixture_weights)
+        likelihood_params = model_simple_continuous.LikelihoodParams(
+            cluster_xy_means, cluster_rgb_means, mixture_probs
+        )
+
+        args = (i, likelihood_params, sigma_xy, sigma_rgb)
+        model_logpdf, _ = model_simple_continuous.likelihood_model.assess(chm, args)
+        return model_logpdf
+
+    n_clusters = trace.args[0].n_blobs
+    n_datapoints = trace.args[0].H * trace.args[0].W
+
+    local_densities = jax.vmap(
+        lambda x: jax.vmap(lambda i: compute_local_density(x, i))(
+            jnp.arange(n_clusters)
+        )
+    )(jnp.arange(n_datapoints))
+
+    key, subkey = jax.random.split(key)
+    new_datapoint_indexes = (
+        genjax.categorical.vmap().simulate(key, (local_densities,)).get_choices()
+    )
+
+    argdiffs = genjax.Diff.no_change(trace.args)
+    new_trace, _, _, _ = trace.update(
+        subkey, C["likelihood_model", "blob_idx"].set(new_datapoint_indexes), argdiffs
+    )
+    return new_trace
+
+
+def update_mixture_weight(key, trace):
+    n_clusters = trace.args[0].n_blobs
+    prior_alpha = trace.args[0].alpha
+    datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
+    category_counts = utils.category_count(datapoint_indexes, n_clusters)
+
+    new_alphas = prior_alpha + category_counts
+    key, subkey = jax.random.split(key)
+    new_weights = genjax.dirichlet.sample(key, new_alphas)
+
+    argdiffs = genjax.Diff.no_change(trace.args)
+    new_trace, _, _, _ = trace.update(
+        subkey, C["blob_model", "mixture_weight"].set(new_weights), argdiffs
+    )
+
+    return new_trace
+
+
 def update_xy_sigma(key, trace):
     (
         datapoint_indexes,
@@ -193,10 +262,10 @@ def update_xy_sigma(key, trace):
         obs_variance,
     ) = utils.markov_for_xy_mean_from_trace(trace)
 
-    prior_alphas = jnp.tile(trace.get_args()[0].a_xy, (n_clusters, 1))
+    prior_alphas = jnp.tile(trace.args[0].a_xy, (n_clusters, 1))
     posterior_alphas = prior_alphas + jnp.expand_dims(n_clusters, -1) / 2
 
-    prior_betas = jnp.tile(trace.get_args()[0].b_xy, (n_clusters, 1))
+    prior_betas = jnp.tile(trace.args[0].b_xy, (n_clusters, 1))
     empirical_cluster_means = compute_means(
         datapoints, datapoint_indexes, n_clusters, category_counts
     )
@@ -216,60 +285,3 @@ def update_xy_sigma(key, trace):
 
 def update_rgb_sigma(key, trace):
     return trace
-
-
-def update_cluster_assignment(key, trace):
-    def compute_local_density(x, i):
-        datapoint_xy_mean = trace.get_choices()["likelihood_model", "xy", x]
-        datapoint_rgb_mean = trace.get_choices()["likelihood_model", "rgb", x]
-
-        chm = (
-            C["xy"]
-            .set(datapoint_mean)
-            .at["blob_idx"]
-            .set(i)
-            .at["rgb"]
-            .set(datapoint_rgb_mean)
-        )
-
-        # TODO: from here
-        clusters = Cluster(trace.get_choices()["clusters", "mean"])
-        probs = trace.get_choices()["probs"]
-        args = (i, probs, clusters)
-        model_logpdf, _ = likelihood_model.assess(chm, args)
-        return model_logpdf
-
-    local_densities = jax.vmap(
-        lambda x: jax.vmap(lambda i: compute_local_density(x, i))(
-            jnp.arange(n_clusters)
-        )
-    )(jnp.arange(n_datapoints))
-
-    key, subkey = jax.random.split(key)
-    new_datapoint_indexes = (
-        genjax.categorical.vmap().simulate(key, (local_densities,)).get_choices()
-    )
-
-    argdiffs = genjax.Diff.no_change(trace.args)
-    new_trace, _, _, _ = trace.update(
-        subkey, C["likelihood_model", "idx"].set(new_datapoint_indexes), argdiffs
-    )
-    return new_trace
-
-
-def update_mixture_weight(key, trace):
-    n_clusters = trace.get_args()[0].n_blobs
-    prior_alpha = trace.get_args()[0].alpha
-    datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
-    category_counts = category_count(datapoint_indexes, n_clusters)
-
-    new_alphas = prior_alpha + category_counts
-    key, subkey = jax.random.split(key)
-    new_weights = genjax.dirichlet.sample(key, new_alphas)
-
-    argdiffs = genjax.Diff.no_change(trace.args)
-    new_trace, _, _, _ = trace.update(
-        subkey, C["blob_model", "mixture_weight"].set(new_weights), argdiffs
-    )
-
-    return new_trace

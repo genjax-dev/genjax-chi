@@ -38,6 +38,7 @@ from jax._src.basearray import Array
 
 import genjax
 from genjax import Pytree, categorical, gamma, gen, inverse_gamma, normal
+from genjax._src.core.typing import Array
 from genjax.typing import FloatArray
 
 
@@ -82,6 +83,13 @@ class Hyperparams(Pytree):
     W: int = Pytree.static()
 
 
+@Pytree.dataclass
+class LikelihoodParams(Pytree):
+    xy_mean: FloatArray
+    rgb_mean: FloatArray
+    mixture_probs: FloatArray
+
+
 @gen
 def xy_model(blob_idx: int, a_xy: jnp.ndarray, b_xy: jnp.ndarray, mu_xy: jnp.ndarray):
     sigma_xy = inverse_gamma.vmap(in_axes=(0, 0))(a_xy, b_xy) @ "sigma_xy"
@@ -113,21 +121,19 @@ def blob_model(blob_idx: int, hypers: Hyperparams):
     return xy_mean, rgb_mean, mixture_weight
 
 
-@Pytree.dataclass
-class LikelihoodParams(Pytree):
-    xy_mean: FloatArray
-    rgb_mean: FloatArray
-    mixture_probs: FloatArray
-
-
 @gen
-def likelihood_model(pixel_idx: int, params: LikelihoodParams, hypers: Hyperparams):
-    blob_idx = categorical(params.mixture_probs) @ "blob_idx"
+def likelihood_model(
+    pixel_idx: int,
+    params: LikelihoodParams,
+    sigma_xy: jnp.ndarray,
+    sigma_rgb: jnp.ndarray,
+):
+    blob_idx: Array = categorical(params.mixture_probs) @ "blob_idx"
     xy_mean: Array = params.xy_mean[blob_idx]
     rgb_mean = params.rgb_mean[blob_idx]
 
-    xy = normal.vmap(in_axes=(0, 0))(xy_mean, hypers.sigma_xy) @ "xy"
-    rgb = normal.vmap(in_axes=(0, 0))(rgb_mean, hypers.sigma_rgb) @ "rgb"
+    xy = normal.vmap(in_axes=(0, 0))(xy_mean, sigma_xy) @ "xy"
+    rgb = normal.vmap(in_axes=(0, 0))(rgb_mean, sigma_rgb) @ "rgb"
     return xy, rgb
 
 
@@ -141,10 +147,13 @@ def model(hypers: Hyperparams):
     # TODO: should I use them in logspace?
     mixture_probs = mixture_weights / sum(mixture_weights)
     likelihood_params = LikelihoodParams(xy_mean, rgb_mean, mixture_probs)
+    idxs = jnp.arange(hypers.H * hypers.W)
+    sigma_xy = hypers.sigma_xy
+    sigma_rgb = hypers.sigma_rgb
 
     _ = (
-        likelihood_model.vmap(in_axes=(0, None, None))(
-            jnp.arange(hypers.H * hypers.W), likelihood_params, hypers
+        likelihood_model.vmap(in_axes=(0, None, None, None))(
+            idxs, likelihood_params, sigma_xy, sigma_rgb
         )
         @ "likelihood_model"
     )
