@@ -83,18 +83,16 @@ class Hyperparams(Pytree):
 
 
 @gen
-def xy_model(blob_idx: int, hypers: Hyperparams):
-    sigma_xy = inverse_gamma.vmap(in_axes=(0, 0))(hypers.a_xy, hypers.b_xy) @ "sigma_xy"
+def xy_model(blob_idx: int, a_xy: jnp.ndarray, b_xy: jnp.ndarray, mu_xy: jnp.ndarray):
+    sigma_xy = inverse_gamma.vmap(in_axes=(0, 0))(a_xy, b_xy) @ "sigma_xy"
 
-    xy_mean = normal.vmap(in_axes=(0, 0))(hypers.mu_xy, sigma_xy) @ "xy_mean"
+    xy_mean = normal.vmap(in_axes=(0, 0))(mu_xy, sigma_xy) @ "xy_mean"
     return xy_mean
 
 
 @gen
-def rgb_model(blob_idx: int, hypers: Hyperparams):
-    rgb_sigma = (
-        inverse_gamma.vmap(in_axes=(0, 0))(hypers.a_rgb, hypers.b_rgb) @ "sigma_rgb"
-    )
+def rgb_model(blob_idx: int, a_rgb: jnp.ndarray, b_rgb: jnp.ndarray):
+    rgb_sigma = inverse_gamma.vmap(in_axes=(0, 0))(a_rgb, b_rgb) @ "sigma_rgb"
 
     rgb_mean = normal.vmap(in_axes=(None, 0))(MID_PIXEL_VAL, rgb_sigma) @ "rgb_mean"
     return rgb_mean
@@ -102,9 +100,16 @@ def rgb_model(blob_idx: int, hypers: Hyperparams):
 
 @gen
 def blob_model(blob_idx: int, hypers: Hyperparams):
-    xy_mean = xy_model.inline(blob_idx, hypers)
-    rgb_mean = rgb_model.inline(blob_idx, hypers)
-    mixture_weight = gamma_safe(hypers.alpha, GAMMA_RATE_PARAMETER) @ "mixture_weight"
+    a_xy = hypers.a_xy
+    b_xy = hypers.b_xy
+    mu_xy = hypers.mu_xy
+    a_rgb = hypers.a_rgb
+    b_rgb = hypers.b_rgb
+    alpha = hypers.alpha
+
+    xy_mean = xy_model.inline(blob_idx, a_xy, b_xy, mu_xy)
+    rgb_mean = rgb_model.inline(blob_idx, a_rgb, b_rgb)
+    mixture_weight = gamma_safe(alpha, GAMMA_RATE_PARAMETER) @ "mixture_weight"
     return xy_mean, rgb_mean, mixture_weight
 
 
