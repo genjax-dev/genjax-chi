@@ -61,7 +61,7 @@ def compute_means(datapoints, datapoint_indexes, n_clusters, category_counts):
     return means
 
 
-def xy_mean_resampling(
+def mean_resampling(
     key, posterior_means, posterior_variances, current_means, category_counts
 ):
     """Perform Gibbs resampling of cluster means.
@@ -109,7 +109,7 @@ def update_xy_mean(key, trace):
         n_clusters,
         prior_mean,
         current_means,
-        prior_variance,
+        current_variance,
         obs_variance,
     ) = utils.markov_for_xy_mean_from_trace(trace)
 
@@ -119,16 +119,64 @@ def update_xy_mean(key, trace):
     )
 
     posterior_means, posterior_variances = conjugacy.update_normal_normal_conjugacy(
-        prior_mean, prior_variance, cluster_means, obs_variance, category_counts
+        prior_mean, current_variance, cluster_means, obs_variance, category_counts
     )
 
-    new_means = xy_mean_resampling(
+    new_means = mean_resampling(
         key, posterior_means, posterior_variances, current_means, category_counts
     )
 
     argdiffs = genjax.Diff.no_change(trace.args)
     new_trace, _, _, _ = trace.update(
         key, C["blob_model", "xy_mean"].set(new_means), argdiffs
+    )
+
+    return new_trace
+
+
+def update_rgb_mean(key, trace):
+    """Perform Gibbs update for the RGB means of each Gaussian component.
+
+    This function:
+    1. Extracts relevant data from the trace
+    2. Computes cluster assignments and means
+    3. Updates the means using normal-normal conjugacy
+    4. Resamples new means from the posterior
+    5. Updates the trace with new means
+
+    Args:
+        key: JAX random key for sampling
+        trace: GenJAX trace containing current model state
+
+    Returns:
+        Updated trace with new rgb_mean values
+    """
+    (
+        datapoint_indexes,
+        datapoints,
+        n_clusters,
+        prior_mean,
+        current_means,
+        current_variance,
+        obs_variance,
+    ) = utils.markov_for_rgb_mean_from_trace(trace)
+
+    category_counts = utils.category_count(datapoint_indexes, n_clusters)
+    cluster_means = compute_means(
+        datapoints, datapoint_indexes, n_clusters, category_counts
+    )
+
+    posterior_means, posterior_variances = conjugacy.update_normal_normal_conjugacy(
+        prior_mean, current_variance, cluster_means, obs_variance, category_counts
+    )
+
+    new_means = mean_resampling(
+        key, posterior_means, posterior_variances, current_means, category_counts
+    )
+
+    argdiffs = genjax.Diff.no_change(trace.args)
+    new_trace, _, _, _ = trace.update(
+        key, C["blob_model", "rgb_mean"].set(new_means), argdiffs
     )
 
     return new_trace
@@ -164,10 +212,6 @@ def update_xy_sigma(key, trace):
         key, C["blob_model", "sigma_xy"].set(new_sigma_xy), argdiffs
     )
     return new_trace
-
-
-def update_rgb_mean(key, trace):
-    return trace
 
 
 def update_rgb_sigma(key, trace):

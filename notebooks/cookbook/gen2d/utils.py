@@ -5,6 +5,7 @@ from typing import TypeVar
 
 import jax
 import jax.numpy as jnp
+import model_simple_continuous
 import numpy as np
 from tensorflow_probability.substrates import jax as tfp
 
@@ -325,8 +326,8 @@ def markov_for_xy_mean_from_trace(trace):
     datapoints = trace.get_choices()["likelihood_model", "xy"]
     n_clusters = trace.get_args()[0].n_blobs
     prior_mean = trace.get_args()[0].mu_xy
-    current_means = trace.get_choices()["blob_model", "xy_mean"]  # shape (N,2)
-    prior_variance = trace.get_choices()["blob_model", "sigma_xy"]
+    cluster_xy_means = trace.get_choices()["blob_model", "xy_mean"]  # shape (N,2)
+    cluster_xy_variances = trace.get_choices()["blob_model", "sigma_xy"]
     obs_variance = trace.get_args()[0].sigma_xy
 
     return (
@@ -334,8 +335,28 @@ def markov_for_xy_mean_from_trace(trace):
         datapoints,
         n_clusters,
         prior_mean,
-        current_means,
-        prior_variance,
+        cluster_xy_means,
+        cluster_xy_variances,
+        obs_variance,
+    )
+
+
+def markov_for_rgb_mean_from_trace(trace):
+    datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
+    datapoints = trace.get_choices()["likelihood_model", "rgb"]
+    n_clusters = trace.get_args()[0].n_blobs
+    prior_mean = model_simple_continuous.MID_PIXEL_VAL * jnp.ones(3)
+    cluster_rgb_means = trace.get_choices()["blob_model", "rgb_mean"]  # shape (N,3)
+    cluster_rgb_variances = trace.get_choices()["blob_model", "sigma_rgb"]
+    obs_variance = trace.get_args()[0].sigma_rgb
+
+    return (
+        datapoint_indexes,
+        datapoints,
+        n_clusters,
+        prior_mean,
+        cluster_rgb_means,
+        cluster_rgb_variances,
         obs_variance,
     )
 
