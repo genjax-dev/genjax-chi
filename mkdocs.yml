@@ -45,6 +45,7 @@ nav:
               - Importance sampling: cookbook/inactive/inference/importance_sampling.ipynb
               - Custom proposal: cookbook/inactive/inference/custom_proposal.ipynb
               - MCMC: cookbook/inactive/inference/mcmc.ipynb
+              - Block-Gibbs: cookbook/inactive/update/7_application_dirichlet_mixture_model.ipynb
 
           - Differentiation:
               - ADEV Example: cookbook/inactive/differentiation/adev_example.py

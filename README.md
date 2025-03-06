@@ -60,7 +60,7 @@ On a Linux machine with a GPU, run the following command:
 pip install jax[cuda12]~=0.4.24
 ```
 
-### Quick example [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://console.cloud.google.com/vertex-ai/colab/notebooks?project=probcomp-caliban&activeNb=projects%2Fprobcomp-caliban%2Flocations%2Fus-west1%2Frepositories%2F09be0f8e-ccfd-4d34-a029-fed94d455c48)
+### Quick example [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1KWMa5No95tMDYEdmA4N0iqVFD-UsCSgp?usp=sharing)
 
 
 The following code snippet defines a generative function called `beta_bernoulli` that
