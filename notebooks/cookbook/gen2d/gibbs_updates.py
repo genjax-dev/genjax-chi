@@ -184,6 +184,21 @@ def update_rgb_mean(key, trace):
 
 
 def update_cluster_assignment(key, trace):
+    """Perform Gibbs update for cluster assignments of each datapoint.
+
+    This function:
+    1. Computes local density for each datapoint-cluster pair using current parameters
+    2. Samples new cluster assignments from categorical distribution over densities
+    3. Updates the trace with new assignments
+
+    Args:
+        key: JAX random key for sampling
+        trace: GenJAX trace containing current model state
+
+    Returns:
+        Updated trace with new cluster assignments
+    """
+
     def compute_local_density(x, i):
         datapoint_xy_mean = trace.get_choices()["likelihood_model", "xy", x]
         datapoint_rgb_mean = trace.get_choices()["likelihood_model", "rgb", x]
@@ -234,11 +249,29 @@ def update_cluster_assignment(key, trace):
 
 
 def update_mixture_weight(key, trace):
+    """Perform Gibbs update for the mixture weights of the Gaussian components.
+
+    This function uses Dirichlet-categorical conjugacy to update the mixture weights
+    by:
+    1. Computing counts of datapoints per cluster
+    2. Adding prior alpha to get posterior Dirichlet parameters
+    3. Sampling new weights from posterior Dirichlet
+
+    Args:
+        key: JAX random key
+        trace: Current execution trace containing model state
+
+    Returns:
+        Updated trace with new mixture weights
+    """
     n_clusters = trace.args[0].n_blobs
     prior_alpha = trace.args[0].alpha
     datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
     category_counts = utils.category_count(datapoint_indexes, n_clusters)
 
+    # TODO: check math here. might be alpha/n or something.
+    # check the way George did it.
+    # this seems to currently update the mixture weight correctly though.
     new_alphas = prior_alpha + category_counts
     key, subkey = jax.random.split(key)
     new_weights = genjax.dirichlet.sample(key, new_alphas)
