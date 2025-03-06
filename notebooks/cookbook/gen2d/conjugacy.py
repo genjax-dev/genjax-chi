@@ -4,38 +4,16 @@ This module contains conjugate pair update functions for the Gen2D model, used i
 The conjugate pairs implemented are:
 - Dirichlet-Categorical: For updating cluster weights based on point assignments
 - Normal-Normal: For updating cluster means based on assigned points
-- Multivariate Normal with known covariance (commented out)
 
 Each function takes the prior parameters and observations, and returns the posterior parameters
 according to the conjugate update equations.
 """
 
+import jax
+import jax.numpy as jnp
 import model_simple_continuous
 
-# def conjugate_update_mvnormal_with_known_cov(
-#     prior_mean,  # (D,)
-#     prior_cov,  # (D, D)
-#     obs_cov,  # (D, D)
-#     obs,  # (M, D)
-# ):
-#     """
-#     Returns the posterior mean and covariance for the mean
-#     of a multivariate normal distribution with known covariance.
-#     That is, given
-#       mu ~ Normal(prior_mean, prior_cov),
-#       obs_i ~ Normal(mu, obs_cov) for i = 0, 1, ..., M-1,
-#     this function returns (post_mean, post_cov) where
-#       P(mu | obs) = Normal(post_mean, post_cov).
-#     """
-#     M = obs.shape[0]
-#     post_cov = jnp.linalg.inv(jnp.linalg.inv(prior_cov) + M * jnp.linalg.inv(obs_cov))
-#     obsmean = jnp.sum(obs) / M
-#     post_mean = post_cov @ (
-#         jnp.linalg.inv(prior_cov) @ prior_mean + M * jnp.linalg.inv(obs_cov) @ obsmean
-#     )
-#     return jnp.where(M > 0, post_mean, prior_mean), jnp.where(
-#         M > 0, post_cov, prior_cov
-#     )
+from genjax import dirichlet, gamma
 
 
 def dirichlet_categorical_update(key, associations, n_clusters, alpha):
@@ -92,10 +70,32 @@ def conjugate_dirichlet_categorical(
 
 
 # Conjugate update for Normal-iid-Normal distribution
-# TODO: currently busted because tensor shape
 def update_normal_normal_conjugacy(
     prior_mean, prior_variance, likelihood_mean, likelihood_variance, category_counts
 ):
+    """Compute posterior parameters for Normal-Normal conjugate update.
+
+    Given a Normal prior N(prior_mean, prior_variance) and Normal likelihood
+    N(likelihood_mean, likelihood_variance/n) for n i.i.d. observations,
+    computes the parameters of the posterior Normal distribution.
+
+    Args:
+        prior_mean: Array of shape (D,) containing prior means
+        prior_variance: Array of shape (N,D) containing prior variances
+        likelihood_mean: Array of shape (N,D) containing empirical means of observations
+        likelihood_variance: Array of shape (D,) containing likelihood variances
+        category_counts: Array of shape (N,) containing number of observations per group
+
+    Returns:
+        Tuple of:
+        - posterior_means: Array of shape (N,D) containing posterior means
+        - posterior_variances: Array of shape (N,D) containing posterior variances
+    """
+    # Expand dimensions to align shapes for broadcasting
+    prior_mean = prior_mean[None, :]  # (1,2)
+    likelihood_variance = likelihood_variance[None, :]  # (1,2)
+    category_counts = category_counts[:, None]  # (10,1)
+
     posterior_means = (
         prior_variance
         / (prior_variance + likelihood_variance / category_counts)

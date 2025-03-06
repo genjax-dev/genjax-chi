@@ -1,20 +1,27 @@
 """
-This module contains Gibbs update functions for the Gen2D model.
+Gibbs sampling updates for the Gen2D model.
 
-The inference logic follows a block-Gibbs sampling scheme:
-1. Sample an initial trace with constraints ensuring each Gaussian has at least one datapoint
-2. Perform N Gibbs sweeps on that trace
-3. Return the posterior sample
+This module implements block Gibbs sampling for a 2D Gaussian mixture model with RGB values.
+The inference procedure alternates between:
 
-The Gibbs sweep updates:
-- Cluster parameters (xy_mean, xy_sigma, rgb_mean, rgb_sigma) using Normal-Inverse-Gamma conjugacy
-- Cluster assignments for each datapoint via enumerative Gibbs
-- Mixture weights using Dirichlet-Categorical conjugacy
+1. Updating cluster parameters:
+   - xy_mean, xy_sigma: Location and scale of 2D Gaussians using Normal-Inverse-Gamma conjugacy
+   - rgb_mean, rgb_sigma: Color parameters using Normal-Inverse-Gamma conjugacy
 
-The input data is preprocessed from an HxW image into an (H*W, 5) array of (x, y, r, g, b) values.
+2. Updating cluster assignments:
+   - For each datapoint, sample new cluster via enumerative Gibbs
+   - Uses parallel updates across all points
+
+3. Updating mixture weights:
+   - Uses Dirichlet-categorical conjugacy
+   - Leverages fact that normalized Gamma RVs follow Dirichlet distribution
+
+The model is initialized by preprocessing an HxW image into (x,y,r,g,b) points and
+generating an initial trace where each Gaussian is associated with at least one point.
 """
 
 import conjugacy
+import jax
 import jax.numpy as jnp
 import model_simple_continuous
 import utils
@@ -26,20 +33,33 @@ from genjax import ChoiceMapBuilder as C
 # Compute the means of the datapoints per cluster
 # Will contain some NaN due to clusters having no datapoint
 def compute_means(datapoints, datapoint_indexes, n_clusters, category_counts):
-    # TODO: busted
-    # return jax.vmap(
-    #     lambda i: jnp.sum(
-    #         jnp.where(
-    #             jnp.expand_dims(datapoint_indexes == i, -1),
-    #             datapoints,
-    #             jnp.zeros_like(datapoints),
-    #         ),
-    #         axis=0,
-    #     ),
-    #     in_axes=(0),
-    #     out_axes=(0),
-    # )(jnp.arange(n_clusters)) / jnp.expand_dims(category_counts, -1)
-    return None
+    """Compute the mean of datapoints for each cluster.
+
+    Args:
+        datapoints: Array of shape (N, 2) containing 2D coordinates
+        datapoint_indexes: Array of shape (N,) containing cluster assignments
+        n_clusters: Integer number of clusters
+        category_counts: Array of shape (n_clusters,) containing counts per cluster
+
+    Returns:
+        Array of shape (n_clusters, 2) containing mean coordinates per cluster
+    """
+    # First sum up all points belonging to each cluster
+    sums = jax.vmap(
+        lambda i: jnp.sum(
+            jnp.where(
+                datapoint_indexes[:, None]
+                == i,  # Broadcasting to match datapoints shape
+                datapoints,
+                0.0,
+            ),
+            axis=0,  # Sum over datapoints
+        )
+    )(jnp.arange(n_clusters))
+
+    # Divide by counts to get means, handling division by zero
+    means = sums / category_counts[:, None]  # Broadcasting counts for division
+    return means
 
 
 # Gibbs resampling of cluster means
@@ -53,7 +73,7 @@ def xy_mean_resampling(key, hypers, current_means, prior_variance, category_coun
     )
 
     # Remove the sampled Nan due to clusters having no datapoint and pick previous mean in that case, i.e. no Gibbs update for them
-    chosen_means = jnp.where(category_counts == 0, current_means, new_means)
+    chosen_means = utils.mywhere(category_counts == 0, current_means, new_means)
 
     return chosen_means
 
@@ -69,8 +89,9 @@ def update_xy_mean(key, trace):
         obs_variance,
     ) = utils.markov_for_xy_mean_from_trace(trace)
 
-    category_counts = utils.category_count(datapoint_indexes, n_clusters)
+    hypers = trace.get_args()[0]
 
+    category_counts = utils.category_count(datapoint_indexes, n_clusters)
     cluster_means = compute_means(
         datapoints, datapoint_indexes, n_clusters, category_counts
     )
@@ -79,12 +100,13 @@ def update_xy_mean(key, trace):
         prior_mean, prior_variance, cluster_means, obs_variance, category_counts
     )
 
-    key, subkey = jax.random.split(key)
     new_means = xy_mean_resampling(
-        key, hypers, current_means, category_counts, prior_variance, category_counts
+        key, hypers, current_means, prior_variance, category_counts
     )
-
-    new_trace = utils.update_trace_with_xy_mean(subkey, trace, new_means)
+    argdiffs = genjax.Diff.no_change(trace.args)
+    new_trace, _, _, _ = trace.update(
+        key, C["blob_model", "xy_mean"].set(new_means), argdiffs
+    )
 
     return new_trace
 

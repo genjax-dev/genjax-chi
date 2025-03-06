@@ -347,12 +347,3 @@ def category_count(datapoint_indexes, n_clusters):
         length=n_clusters,
         minlength=n_clusters,
     )
-
-
-# Update the trace with new xy_mean
-def update_trace_with_xy_mean(key, trace, new_means):
-    argdiffs = genjax.Diff.no_change(trace.args)
-    new_trace, _, _, _ = trace.update(
-        key, C["blob_model", "xy_mean"].set(new_means), argdiffs
-    )
-    return new_trace
