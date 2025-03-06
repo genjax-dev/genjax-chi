@@ -66,10 +66,10 @@ def compute_means(datapoints, datapoint_indexes, n_clusters, category_counts):
 def xy_mean_resampling(key, hypers, current_means, prior_variance, category_counts):
     args = (jnp.arange(hypers.n_blobs), hypers)
     obs = C["sigma_xy"].set(prior_variance)
-    new_means = (
-        model_simple_continuous.xy_model.vmap(in_axes=(0, None))
-        .importance(key, obs, args)[0]
-        .get_choices()["xy_mean"]
+    new_means = jax.vmap(
+        model_simple_continuous.xy_model.importance(key, obs, args)[0].get_choices()[
+            "xy_mean"
+        ]
     )
 
     # Remove the sampled Nan due to clusters having no datapoint and pick previous mean in that case, i.e. no Gibbs update for them
@@ -100,9 +100,30 @@ def update_xy_mean(key, trace):
         prior_mean, prior_variance, cluster_means, obs_variance, category_counts
     )
 
-    new_means = xy_mean_resampling(
-        key, hypers, current_means, prior_variance, category_counts
-    )
+    # TODO: should attempt to modify hypers in place. this works following what McCoy recommended. It creates a copy but it's convenient syntax.
+    # from dataclasses import dataclass, replace
+    # replace(hypers, a_xy=jnp.array([301.0, 301.0]))
+    # could also use George's pythonic Pytree.
+
+    # new_hypers =  model_simple_continuous.Hyperparams(
+    #     a_xy=hypers.b_xy,
+    #     b_xy=hypers.b_xy,
+    #     mu_xy=posterior_means,
+    #     a_rgb=hypers.a_rgb,
+    #     b_rgb=hypers.b_rgb,
+    #     alpha=hypers.alpha,
+    #     sigma_xy=posterior_variances,
+    #     sigma_rgb=hypers.sigma_rgb,
+    #     n_blobs=hypers.n_blobs,
+    #     H=hypers.H,
+    #     W=hypers.W,
+    # )
+
+    new_means = current_means
+    # new_means = xy_mean_resampling(
+    #     key, new_hypers, current_means, prior_variance, category_counts
+    # )
+
     argdiffs = genjax.Diff.no_change(trace.args)
     new_trace, _, _, _ = trace.update(
         key, C["blob_model", "xy_mean"].set(new_means), argdiffs
