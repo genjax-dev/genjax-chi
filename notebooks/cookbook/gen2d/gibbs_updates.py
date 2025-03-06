@@ -23,7 +23,6 @@ generating an initial trace where each Gaussian is associated with at least one 
 import conjugacy
 import jax
 import jax.numpy as jnp
-import model_simple_continuous
 import utils
 
 import genjax
@@ -62,23 +61,48 @@ def compute_means(datapoints, datapoint_indexes, n_clusters, category_counts):
     return means
 
 
-# Gibbs resampling of cluster means
-def xy_mean_resampling(key, hypers, current_means, prior_variance, category_counts):
-    args = (jnp.arange(hypers.n_blobs), hypers)
-    obs = C["sigma_xy"].set(prior_variance)
-    new_means = jax.vmap(
-        model_simple_continuous.xy_model.importance(key, obs, args)[0].get_choices()[
-            "xy_mean"
-        ]
+def xy_mean_resampling(
+    key, posterior_means, posterior_variances, current_means, category_counts
+):
+    """Perform Gibbs resampling of cluster means.
+
+    Args:
+        key: JAX random key
+        posterior_means: Array of shape (n_clusters, 2) containing posterior means
+        posterior_variances: Array of shape (n_clusters, 2) containing posterior variances
+        current_means: Array of shape (n_clusters, 2) containing current cluster means
+        category_counts: Array of shape (n_clusters,) containing counts per cluster
+
+    Returns:
+        Array of shape (n_clusters, 2) containing updated cluster means, where clusters
+        with no datapoints retain their previous means
+    """
+    new_means = (
+        genjax.normal.vmap(in_axes=(0, 0))
+        .simulate(key, (posterior_means, posterior_variances))
+        .get_retval()
     )
-
-    # Remove the sampled Nan due to clusters having no datapoint and pick previous mean in that case, i.e. no Gibbs update for them
     chosen_means = utils.mywhere(category_counts == 0, current_means, new_means)
-
     return chosen_means
 
 
 def update_xy_mean(key, trace):
+    """Perform Gibbs update for the spatial (xy) means of each Gaussian component.
+
+    This function:
+    1. Extracts relevant data from the trace
+    2. Computes cluster assignments and means
+    3. Updates the means using normal-normal conjugacy
+    4. Resamples new means from the posterior
+    5. Updates the trace with new means
+
+    Args:
+        key: JAX random key for sampling
+        trace: GenJAX trace containing current model state
+
+    Returns:
+        Updated trace with new xy_mean values
+    """
     (
         datapoint_indexes,
         datapoints,
@@ -89,8 +113,6 @@ def update_xy_mean(key, trace):
         obs_variance,
     ) = utils.markov_for_xy_mean_from_trace(trace)
 
-    hypers = trace.get_args()[0]
-
     category_counts = utils.category_count(datapoint_indexes, n_clusters)
     cluster_means = compute_means(
         datapoints, datapoint_indexes, n_clusters, category_counts
@@ -100,29 +122,9 @@ def update_xy_mean(key, trace):
         prior_mean, prior_variance, cluster_means, obs_variance, category_counts
     )
 
-    # TODO: should attempt to modify hypers in place. this works following what McCoy recommended. It creates a copy but it's convenient syntax.
-    # from dataclasses import dataclass, replace
-    # replace(hypers, a_xy=jnp.array([301.0, 301.0]))
-    # could also use George's pythonic Pytree.
-
-    # new_hypers =  model_simple_continuous.Hyperparams(
-    #     a_xy=hypers.b_xy,
-    #     b_xy=hypers.b_xy,
-    #     mu_xy=posterior_means,
-    #     a_rgb=hypers.a_rgb,
-    #     b_rgb=hypers.b_rgb,
-    #     alpha=hypers.alpha,
-    #     sigma_xy=posterior_variances,
-    #     sigma_rgb=hypers.sigma_rgb,
-    #     n_blobs=hypers.n_blobs,
-    #     H=hypers.H,
-    #     W=hypers.W,
-    # )
-
-    new_means = current_means
-    # new_means = xy_mean_resampling(
-    #     key, new_hypers, current_means, prior_variance, category_counts
-    # )
+    new_means = xy_mean_resampling(
+        key, posterior_means, posterior_variances, current_means, category_counts
+    )
 
     argdiffs = genjax.Diff.no_change(trace.args)
     new_trace, _, _, _ = trace.update(
