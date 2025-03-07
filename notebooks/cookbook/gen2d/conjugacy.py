@@ -110,3 +110,41 @@ def update_normal_normal_conjugacy(
     )
 
     return posterior_means, posterior_variances
+
+
+# Conjugate update for InverseGamma-Normal distribution
+def update_inverse_gamma_normal_conjugacy(
+    prior_alpha, prior_beta, likelihood_mean, category_counts
+):
+    """Compute posterior parameters for InverseGamma-Normal conjugate update.
+
+    Given an InverseGamma prior IG(alpha, beta) and Normal likelihood
+    N(mu, sigma^2) where sigma^2 ~ IG(alpha, beta), computes the parameters
+    of the posterior InverseGamma distribution.
+
+    Args:
+        prior_alpha: Array of shape (D,) containing prior shape parameters
+        prior_beta: Array of shape (D,) containing prior scale parameters
+        likelihood_mean: Array of shape (N,D) containing empirical means of observations
+        category_counts: Array of shape (N,) containing number of observations per group
+
+    Returns:
+        Tuple of:
+        - posterior_alpha: Array of shape (N,D) containing posterior shape parameters
+        - posterior_beta: Array of shape (N,D) containing posterior scale parameters
+    """
+    # Expand dimensions to align shapes for broadcasting
+    prior_alpha = prior_alpha[None, :]  # (1,D)
+    prior_beta = prior_beta[None, :]  # (1,D)
+    category_counts = category_counts[:, None]  # (N,1)
+
+    # Update shape parameter
+    posterior_alpha = prior_alpha + category_counts / 2
+
+    # Update scale parameter
+    # Sum of squared deviations term
+    squared_deviations = category_counts * likelihood_mean**2 / 2
+
+    posterior_beta = prior_beta + squared_deviations
+
+    return posterior_alpha, posterior_beta

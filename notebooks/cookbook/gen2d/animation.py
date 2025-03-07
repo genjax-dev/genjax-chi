@@ -360,8 +360,8 @@ def create_cluster_visualization(
                 const assignments = allAssignments[frame] || [];
                 const totalAssignments = allTotalAssignments[frame] || 1;  // Use 1 as fallback to avoid division by zero
 
-                // Sort clusters by weight and take top 10
-                const topClusters = weights
+                // Sort all clusters by weight
+                const sortedClusters = weights
                     .map((weight, idx) => ({
                         id: idx,
                         weight: Number(weight),
@@ -369,12 +369,11 @@ def create_cluster_visualization(
                         points: Number(assignments[idx] || 0),
                         percentage: ((assignments[idx] || 0) / totalAssignments * 100).toFixed(1)
                     }))
-                    .sort((a, b) => b.weight - a.weight)
-                    .slice(0, 10);
+                    .sort((a, b) => b.weight - a.weight);
 
                 return [
                     "div", {},
-                    ["h3", {}, `Top ${topClusters.length} Clusters by Weight`],
+                    ["h3", {}, `All Clusters by Weight`],
                     ["div", {"style": {"height": "400px", "overflow": "auto"}},
                         ["table", {"className": "w-full mt-2"},
                             ["thead", ["tr",
@@ -383,7 +382,7 @@ def create_cluster_visualization(
                                 ["th", {"className": "text-left"}, "Points (%)"]
                             ]],
                             ["tbody",
-                                ...topClusters.map(cluster =>
+                                ...sortedClusters.map(cluster =>
                                     ["tr", {
                                         "className": "h-8"
                                     },
