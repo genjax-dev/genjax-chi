@@ -2,71 +2,19 @@
 This module contains conjugate pair update functions for the Gen2D model, used in Gibbs sampling inference.
 
 The conjugate pairs implemented are:
-- Dirichlet-Categorical: For updating cluster weights based on point assignments
 - Normal-Normal: For updating cluster means based on assigned points
+- InverseGamma-Normal: For updating cluster variances based on assigned points
 
 Each function takes the prior parameters and observations, and returns the posterior parameters
 according to the conjugate update equations.
+
+The Normal-Normal conjugacy is used to update the means of both the spatial (xy) and color (rgb)
+components of each Gaussian cluster. The InverseGamma-Normal conjugacy is used to update the
+variances of both components.
+
+The update equations follow standard Bayesian conjugate prior formulas, with careful handling of
+vectorized operations across multiple clusters and dimensions.
 """
-
-import jax
-import jax.numpy as jnp
-import model_simple_continuous
-
-from genjax import dirichlet, gamma
-
-
-def dirichlet_categorical_update(key, associations, n_clusters, alpha):
-    """Returns (categorical_vector, metadata_dict)."""
-
-    def get_assoc_count(cluster_idx):
-        masked_relevant_datapoint_indices = tiling.relevant_datapoints_for_blob(
-            cluster_idx
-        )
-        relevant_associations = associations[masked_relevant_datapoint_indices.value]
-        return jnp.sum(
-            jnp.logical_and(
-                masked_relevant_datapoint_indices.flag,
-                relevant_associations == cluster_idx,
-            )
-        )
-
-    assoc_counts = jax.vmap(get_assoc_count)(jnp.arange(n_clusters))
-    prior_alpha = alpha
-    post_alpha = prior_alpha + assoc_counts
-    return dirichlet(post_alpha)(key), {}
-
-
-def conjugate_dirichlet_categorical(
-    key, associations, n_clusters, alpha, λ=model_simple_continuous.GAMMA_RATE_PARAMETER
-):
-    """
-    Conjugate update for the case where we have
-        X_i ~ Gamma(alpha_i / n, lambda) for i = 1, 2, ..., n;
-        X_0 := sum_i X_i
-        p := [X_1, X_2, ..., X_n] / X_0
-        Y_i ~ Categorical(p) for i = 1, 2, ..., m.
-
-    Here, `n_clusters` is `n`, `associations` is `Y`,
-    and `alpha_vec_for_gamma_distributions[i-1]` is `alpha_i`.
-
-    Returns (mixture_weights, metadata), where `mixture_weights`
-    is the same thing as the vector `[X_1, X_2, ..., X_n]`.
-    """
-    ## Derivation of this update:
-    # With notation as the above, it turns out
-    # X_0 ~ Gamma(alpha.sum(), lambda),
-    # p ~ Dirichlet(alpha_1, alpha_2, ..., alpha_n),
-    # and X_0 and p are independent.
-    # Thus, the posterior on (X_0, p) is
-    # p ~ dirichlet_categorical_posterior(alpha, n, assoc_counts);
-    # X_0 ~ gamma(alpha.sum(), lambda). # Ie. same as the prior.
-    k1, k2 = jax.random.split(key)
-    posterior_pvec, _ = dirichlet_categorical_update(
-        k1, associations, n_clusters, alpha
-    )
-    total = gamma(alpha.sum(), λ)(k2)
-    return posterior_pvec * total, {}
 
 
 # Conjugate update for Normal-iid-Normal distribution
