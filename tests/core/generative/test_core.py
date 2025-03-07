@@ -135,17 +135,16 @@ class TestGetSubtrace:
         tr = h.simulate(jax.random.key(0), ())
         flip_tr = tr.get_subtrace("flip")
         flip = flip_tr.get_retval()
-        assert (
-            tr.get_subtrace("z", 0, "x").get_score()
-            == tr.get_score() - flip_tr.get_score()
-            if flip
-            else 0.0
-        )
-        assert (
-            tr.get_subtrace("z", 1, "y").get_score() == 0.0
-            if flip
-            else tr.get_score() - flip_tr.get_score()
-        )
+        if flip:
+            assert (
+                tr.get_subtrace("z", "x").get_score()
+                == tr.get_score() - flip_tr.get_score()
+            )
+        else:
+            assert (
+                tr.get_subtrace("z", "y").get_score()
+                == tr.get_score() - flip_tr.get_score()
+            )
 
     def test_get_subtrace_vmap(self):
         @genjax.vmap()

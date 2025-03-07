@@ -36,6 +36,7 @@ from genjax._src.core.typing import (
     IntArray,
     Iterable,
     TypeVar,
+    nobeartype,
 )
 
 if TYPE_CHECKING:
@@ -990,6 +991,7 @@ class ChoiceMap(Pytree):
         return Choice.build(v)
 
     @staticmethod
+    @nobeartype
     @deprecated("Use ChoiceMap.choice() instead.")
     def value(v: Any) -> "ChoiceMap":
         return ChoiceMap.choice(v)
@@ -1279,6 +1281,7 @@ class ChoiceMap(Pytree):
     # Dunders #
     ###########
 
+    @nobeartype
     @deprecated(
         reason="^ is deprecated, please use | or _.merge(...) instead.",
         version="0.8.0",
@@ -1343,6 +1346,7 @@ class ChoiceMap(Pytree):
         """
         return _ChoiceMapBuilder(self, [])
 
+    @nobeartype
     @deprecated(
         reason="Acts as identity; filters are now automatically pushed down.",
         version="0.8.0",

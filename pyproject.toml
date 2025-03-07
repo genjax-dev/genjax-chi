@@ -16,7 +16,7 @@ maintainers = [
     "Sam Ritchie <sam@mentat.org>",
 ]
 license = "Apache 2.0"
-readme = "README_pypi.md"
+readme = "README.md"
 homepage = "https://github.com/chisym/genjax"
 repository = "https://github.com/chisym/genjax"
 documentation = "https://chisym.github.io/genjax/"
@@ -41,7 +41,7 @@ python = ">=3.11,<4.0"
 jax = "^0.4.24"
 tensorflow-probability = "^0.23.0"
 jaxtyping = "^0.2.24"
-beartype = "^0.18.5"
+beartype = "^0.20.0"
 deprecated = "^1.2.14"
 penzai = "^0.2.2"
 treescope = "^0.1.5"
@@ -127,6 +127,7 @@ reportUnknownParameterType = "none"
 reportUnknownVariableType = "none"
 
 [tool.ruff]
+target-version = "py311"
 exclude = [
     ".bzr",
     ".direnv",
