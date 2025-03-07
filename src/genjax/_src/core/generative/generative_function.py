@@ -30,7 +30,6 @@ from genjax._src.core.generative.core import (
     PrimitiveEditRequest,
     Retdiff,
     Score,
-    Transform,
     Weight,
 )
 from genjax._src.core.interpreters.incremental import Diff
@@ -612,15 +611,16 @@ class GenerativeFunction(Generic[R], Pytree):
     def lower(
         self,
         choice_map: ChoiceMap,
-        arguments: Arguments,
+        args: Arguments,
     ):
         raise NotImplementedError
 
-    def transform(
+    def blanket(
         self,
-        transform: Transform,
-        arguments: Arguments,
-    ) -> "GenerativeFunction[R]":
+        trace: Trace[R],
+        selection: Selection,
+        argdiffs: Argdiffs,
+    ) -> tuple[Retdiff[R], Any]:
         raise NotImplementedError
 
     ######################

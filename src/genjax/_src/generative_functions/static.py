@@ -331,6 +331,83 @@ def lowering_transform(source_fn):
     return wrapper
 
 
+###########
+# Blanket #
+###########
+
+
+@dataclass
+class BlanketHandler(StaticHandler):
+    def __init__(self, trace: Trace[Any], selection: Selection):
+        super().__init__()
+        self.trace = trace
+        self.selection = selection
+        self.output_choice_map = ChoiceMap.empty()
+
+    def yield_state(self):
+        return ()
+
+    def get_subtrace(
+        self,
+        addr: StaticAddress,
+    ):
+        return self.trace.get_subtrace(addr)
+
+    def get_subselection(
+        self,
+        addr: StaticAddress,
+    ) -> Selection:
+        return self.selection(addr)
+
+    def handle_retval(self, v):
+        return jtu.tree_leaves(
+            v,
+            is_leaf=lambda v: isinstance(v, Diff),
+        )
+
+    def handle_trace(
+        self,
+        addr: StaticAddress,
+        gen_fn: GenerativeFunction[Any],
+        args: tuple[Any, ...],
+    ):
+        argdiffs: Argdiffs = args
+        subtrace = self.get_subtrace(addr)
+        subselection = self.get_subselection(addr)
+        retdiff, blanket_fn = gen_fn.blanket(subtrace, subselection, argdiffs)
+        diff_tangents = Diff.tree_tangent(retdiff)
+        new_retval = blanket_fn(*Diff.tree_primal(argdiffs))
+        new_retdiff = Diff.tree_diff(new_retval, diff_tangents)
+        return new_retdiff
+
+
+def blanket_transform(source_fn):
+    @functools.wraps(source_fn)
+    def wrapper(
+        trace: Trace[Any],
+        selection: Selection,
+        argdiffs: Argdiffs,
+    ):
+        stateful_handler = BlanketHandler(trace, selection)
+        diff_primals = Diff.tree_primal(argdiffs)
+        diff_tangents = Diff.tree_tangent(argdiffs)
+
+        def blanket_fn(*primals):
+            return incremental(source_fn)(
+                stateful_handler,
+                primals,
+                diff_tangents,
+            )
+
+        retdiff = blanket_fn(*diff_primals)
+        return (
+            retdiff,
+            blanket_fn,
+        )
+
+    return wrapper
+
+
 ##########
 # Assess #
 ##########
@@ -1035,13 +1112,17 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         choice_map: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[R, ChoiceMap]:
-        syntax_sugar_handled = push_trace_overload_stack(
-            handler_trace_with_static, self.source
-        )
-        retval, output_choice_map = lowering_transform(syntax_sugar_handled)(
-            choice_map, args
-        )
+        retval, output_choice_map = lowering_transform(self.source)(choice_map, args)
         return retval, output_choice_map
+
+    def blanket(
+        self,
+        trace: Trace[R],
+        selection: Selection,
+        argdiffs: tuple[Any, ...],
+    ) -> tuple[Retdiff[R], Any]:
+        retdiff, blanket_fn = blanket_transform(self.source)(trace, selection, argdiffs)
+        return retdiff, blanket_fn
 
     def inline(self, *args):
         return self.source(*args)

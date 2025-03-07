@@ -36,7 +36,6 @@ from genjax._src.core.generative import (
     Score,
     Selection,
     Trace,
-    Transform,
     Update,
     Weight,
 )
@@ -355,12 +354,33 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             retval = assume(self, *args)
         return retval, ChoiceMap.value(retval)
 
-    def transform(
+    def blanket(
         self,
-        transform: Transform,
-        args: tuple[Any, ...],
-    ):
-        pass
+        trace: Trace[R],
+        selection: Selection,
+        argdiffs: Argdiffs,
+    ) -> tuple[Retdiff[R], Any]:
+        from genjax.delayed import assume, observe
+
+        retval = trace.get_retval()
+
+        if () in selection:
+            return (
+                Diff.unknown_change(retval),
+                lambda *args: assume(self, *args),
+            )
+        else:
+            if not Diff.static_check_no_change(argdiffs):
+                chm = trace.get_choices()
+                return (
+                    Diff.no_change(retval),
+                    lambda *args: observe(chm.get_value(), self, *args),
+                )
+            else:
+                return (
+                    Diff.no_change(retval),
+                    lambda *args: retval,
+                )
 
     def assess(
         self,

@@ -73,7 +73,7 @@ __all__ = [
     "StaticAddress",
     "StaticAddressComponent",
     "Trace",
+    "Transform",
     "Update",
     "Weight",
-    "Transform",
 ]
