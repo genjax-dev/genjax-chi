@@ -57,23 +57,23 @@ GAMMA_RATE_PARAMETER = 1.0
 class Hyperparams(Pytree):
     # Most parameters will be inferred via enumerative Gibbs in revised version
 
-    # Hyper params for xy inverse-gamma
+    # Hyper params for prior xy mean and spread of clusters
+    mu_xy: jnp.ndarray
+    sigma_xy: jnp.ndarray
+
+    # Hyper params for prior rgb spread of clusters
+    sigma_rgb: jnp.ndarray
+
+    # Hyper params for xy inverse-gamma, roughly xy width of each cluster
     a_xy: jnp.ndarray
     b_xy: jnp.ndarray
 
-    # Hyper params for prior mean on xy
-    mu_xy: jnp.ndarray
-
-    # Hyper params for rgb inverse-gamma
+    # Hyper params for rgb inverse-gamma, roughly rgb width of each cluster
     a_rgb: jnp.ndarray
     b_rgb: jnp.ndarray
 
     # Hyper param for mixture weight
     alpha: float
-
-    # Hyper params for noise in likelihood
-    sigma_xy: jnp.ndarray
-    sigma_rgb: jnp.ndarray
 
     # number of Gaussians
     n_blobs: int = Pytree.static()
@@ -86,24 +86,34 @@ class Hyperparams(Pytree):
 @Pytree.dataclass
 class LikelihoodParams(Pytree):
     xy_mean: FloatArray
+    xy_spread: FloatArray
     rgb_mean: FloatArray
+    rgb_spread: FloatArray
     mixture_probs: FloatArray
 
 
 @gen
-def xy_model(blob_idx: int, a_xy: jnp.ndarray, b_xy: jnp.ndarray, mu_xy: jnp.ndarray):
-    sigma_xy = inverse_gamma.vmap(in_axes=(0, 0))(a_xy, b_xy) @ "sigma_xy"
+def xy_model(
+    blob_idx: int,
+    a_xy: jnp.ndarray,
+    b_xy: jnp.ndarray,
+    mu_xy: jnp.ndarray,
+    sigma_xy: jnp.ndarray,
+):
+    xy_spread = inverse_gamma.vmap(in_axes=(0, 0))(a_xy, b_xy) @ "sigma_xy"
 
     xy_mean = normal.vmap(in_axes=(0, 0))(mu_xy, sigma_xy) @ "xy_mean"
-    return xy_mean
+    return xy_mean, xy_spread
 
 
 @gen
-def rgb_model(blob_idx: int, a_rgb: jnp.ndarray, b_rgb: jnp.ndarray):
-    rgb_sigma = inverse_gamma.vmap(in_axes=(0, 0))(a_rgb, b_rgb) @ "sigma_rgb"
+def rgb_model(
+    blob_idx: int, a_rgb: jnp.ndarray, b_rgb: jnp.ndarray, sigma_rgb: jnp.ndarray
+):
+    rgb_spread = inverse_gamma.vmap(in_axes=(0, 0))(a_rgb, b_rgb) @ "sigma_rgb"
 
-    rgb_mean = normal.vmap(in_axes=(None, 0))(MID_PIXEL_VAL, rgb_sigma) @ "rgb_mean"
-    return rgb_mean
+    rgb_mean = normal.vmap(in_axes=(None, 0))(MID_PIXEL_VAL, sigma_rgb) @ "rgb_mean"
+    return rgb_mean, rgb_spread
 
 
 @gen
@@ -114,47 +124,47 @@ def blob_model(blob_idx: int, hypers: Hyperparams):
     a_rgb = hypers.a_rgb
     b_rgb = hypers.b_rgb
     alpha = hypers.alpha
+    sigma_xy = hypers.sigma_xy
+    sigma_rgb = hypers.sigma_rgb
 
-    xy_mean = xy_model.inline(blob_idx, a_xy, b_xy, mu_xy)
-    rgb_mean = rgb_model.inline(blob_idx, a_rgb, b_rgb)
+    xy_mean, xy_spread = xy_model.inline(blob_idx, a_xy, b_xy, mu_xy, sigma_xy)
+    rgb_mean, rgb_spread = rgb_model.inline(blob_idx, a_rgb, b_rgb, sigma_rgb)
     mixture_weight = gamma_safe(alpha, GAMMA_RATE_PARAMETER) @ "mixture_weight"
-    return xy_mean, rgb_mean, mixture_weight
+    return xy_mean, xy_spread, rgb_mean, rgb_spread, mixture_weight
 
 
 @gen
 def likelihood_model(
     pixel_idx: int,
     params: LikelihoodParams,
-    sigma_xy: jnp.ndarray,
-    sigma_rgb: jnp.ndarray,
 ):
     blob_idx: Array = categorical(params.mixture_probs) @ "blob_idx"
     xy_mean: Array = params.xy_mean[blob_idx]
+    xy_spread = params.xy_spread[blob_idx]
     rgb_mean = params.rgb_mean[blob_idx]
+    rgb_spread = params.rgb_spread[blob_idx]
 
-    xy = normal.vmap(in_axes=(0, 0))(xy_mean, sigma_xy) @ "xy"
-    rgb = normal.vmap(in_axes=(0, 0))(rgb_mean, sigma_rgb) @ "rgb"
+    xy = normal.vmap(in_axes=(0, 0))(xy_mean, xy_spread) @ "xy"
+    rgb = normal.vmap(in_axes=(0, 0))(rgb_mean, rgb_spread) @ "rgb"
     return xy, rgb
 
 
 @gen
 def model(hypers: Hyperparams):
-    xy_mean, rgb_mean, mixture_weights = (
+    xy_mean, xy_spread, rgb_mean, rgb_spread, mixture_weights = (
         blob_model.vmap(in_axes=(0, None))(jnp.arange(hypers.n_blobs), hypers)
         @ "blob_model"
     )
 
     # TODO: should I use them in logspace?
     mixture_probs = mixture_weights / sum(mixture_weights)
-    likelihood_params = LikelihoodParams(xy_mean, rgb_mean, mixture_probs)
+    likelihood_params = LikelihoodParams(
+        xy_mean, xy_spread, rgb_mean, rgb_spread, mixture_probs
+    )
     idxs = jnp.arange(hypers.H * hypers.W)
-    sigma_xy = hypers.sigma_xy
-    sigma_rgb = hypers.sigma_rgb
 
     _ = (
-        likelihood_model.vmap(in_axes=(0, None, None, None))(
-            idxs, likelihood_params, sigma_xy, sigma_rgb
-        )
+        likelihood_model.vmap(in_axes=(0, None))(idxs, likelihood_params)
         @ "likelihood_model"
     )
 
