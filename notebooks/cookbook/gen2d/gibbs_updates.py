@@ -30,25 +30,6 @@ import genjax
 from genjax import ChoiceMapBuilder as C
 
 
-def compute_means(datapoints, datapoint_indexes, n_clusters, category_counts):
-    """Compute the mean of datapoints for each cluster.
-
-    Args:
-        datapoints: Array of shape (N, D)
-        datapoint_indexes: Array of shape (N,) containing cluster assignments
-        n_clusters: Integer number of clusters
-        category_counts: Array of shape (n_clusters,) containing counts per cluster
-
-    Returns:
-        Array of shape (n_clusters, D) containing mean coordinates per cluster
-    """
-    # Use segment_sum for more efficient summation
-    sums = jax.ops.segment_sum(datapoints, datapoint_indexes, n_clusters)
-    safe_counts = jnp.maximum(category_counts, 1)
-    means = sums / safe_counts[:, None]
-    return means
-
-
 def mean_resampling(
     key, posterior_means, posterior_variances, current_means, category_counts
 ):
@@ -102,7 +83,7 @@ def update_xy_mean(key, trace):
     ) = utils.markov_for_xy_mean_from_trace(trace)
 
     category_counts = utils.category_count(datapoint_indexes, n_clusters)
-    cluster_means = compute_means(
+    cluster_means = utils.compute_means(
         datapoints, datapoint_indexes, n_clusters, category_counts
     )
 
@@ -150,7 +131,7 @@ def update_rgb_mean(key, trace):
     ) = utils.markov_for_rgb_mean_from_trace(trace)
 
     category_counts = utils.category_count(datapoint_indexes, n_clusters)
-    cluster_means = compute_means(
+    cluster_means = utils.compute_means(
         datapoints, datapoint_indexes, n_clusters, category_counts
     )
 
@@ -278,33 +259,59 @@ def update_xy_sigma(key, trace):
     # Get data and parameters from trace
     datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
     datapoints = trace.get_choices()["likelihood_model", "xy"]
+    cluster_means = trace.get_choices()["blob_model", "xy_mean"]
     n_clusters = trace.args[0].n_blobs
+    prior_alphas = trace.args[0].a_xy
+    prior_betas = trace.args[0].b_xy
 
     # Get counts per cluster
     category_counts = utils.category_count(datapoint_indexes, n_clusters)
 
-    # Calculate empirical means for each cluster
-    empirical_means = compute_means(
-        datapoints, datapoint_indexes, n_clusters, category_counts
+    # Compute sum of squared deviations using cluster means (μ), not empirical means
+    squared_deviations = utils.compute_squared_deviations(
+        datapoints, datapoint_indexes, cluster_means, n_clusters
     )
 
-    # Get prior parameters
-    prior_alphas = trace.args[0].a_xy
-    prior_betas = trace.args[0].b_xy
+    scale = jnp.array([1000.0 * 700.0]) / 100.0  # Total area / target variance
+    squared_deviations = squared_deviations / scale
 
     # Calculate posterior parameters using conjugate update function
     posterior_alphas, posterior_betas = conjugacy.update_inverse_gamma_normal_conjugacy(
-        prior_alphas, prior_betas, empirical_means, category_counts
+        prior_alphas, prior_betas, squared_deviations, category_counts
     )
 
-    # Sample new sigma values from inverse gamma posterior
-    # TODO: current shapes are (100, 2, 2), (100, 2).
-    key, subkey = jax.random.split(key)
-    new_sigma_xy = genjax.inverse_gamma.sample(key, (posterior_alphas, posterior_betas))
+    # jax.debug.print("Cluster means: {m}", m=cluster_means)
 
+    # # Print stats for first cluster using where
+    # mask = (datapoint_indexes == 0)[:, None]
+    # diffs_0 = jnp.where(
+    #     mask,
+    #     datapoints - cluster_means[0],
+    #     0.0
+    # )
+    # sq_diffs_0 = jnp.sum(diffs_0**2, axis=0)
+
+    # jax.debug.print("Cluster 0 count: {n}", n=jnp.sum(datapoint_indexes == 0))
+    # jax.debug.print("Cluster 0 mean: {m}", m=cluster_means[0])
+    # jax.debug.print("Cluster 0 sum sq diffs: {s}", s=sq_diffs_0)
+    # jax.debug.print("All squared deviations: {s}", s=squared_deviations[:10])
+    # jax.debug.print("Category counts: {c}", c=category_counts[:10])
+    # jax.debug.print("Prior alpha: {a}", a=prior_alphas[:10])
+    # jax.debug.print("Prior beta: {b}", b=prior_betas[:10])
+
+    # Sample new sigma values from inverse gamma posterior
+    key, subkey = jax.random.split(key)
+    new_sigma_xy = (
+        genjax.inverse_gamma.vmap(in_axes=(0, 0))
+        .simulate(key, (posterior_alphas, posterior_betas))
+        .get_retval()
+    )
     # Keep old sigma values for empty clusters
     old_sigma_xy = trace.get_choices()["blob_model", "sigma_xy"]
+    # jax.debug.print("Old sigma_xy: {s}", s=old_sigma_xy[:10])
+    # jax.debug.print("New sigma_xy (before empty cluster fix): {s}", s=new_sigma_xy[:10])
     new_sigma_xy = jnp.where(category_counts[:, None] == 0, old_sigma_xy, new_sigma_xy)
+    # jax.debug.print("Final sigma_xy: {s}", s=new_sigma_xy[:10])
 
     # Update trace with new sigma values
     argdiffs = genjax.Diff.no_change(trace.args)
@@ -333,7 +340,7 @@ def update_rgb_sigma(key, trace):
     category_counts = utils.category_count(datapoint_indexes, n_clusters)
 
     # Calculate empirical means for each cluster
-    empirical_means = compute_means(
+    empirical_means = utils.compute_means(
         datapoints, datapoint_indexes, n_clusters, category_counts
     )
 

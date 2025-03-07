@@ -1,28 +1,16 @@
-### Taken from gen3d/src/gen3d/variants/condor/utils.py
-
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from typing import TypeVar
 
 import jax
 import jax.numpy as jnp
 import model_simple_continuous
-import numpy as np
-from tensorflow_probability.substrates import jax as tfp
 
 import genjax
-from genjax import Const, PythonicPytree, Pytree
+from genjax import Const, PythonicPytree
 
 T = TypeVar("T")
 
-_gamma = genjax.tfp_distribution(tfp.distributions.Gamma)
-
-
-def sample_gamma_safe(key, alpha, beta):
-    sample = _gamma.sample(key, alpha, beta)
-    return jnp.where(sample == 0, 1e-12, sample)
-
-
-gamma = genjax.exact_density(sample_gamma_safe, _gamma.logpdf)
+### Taken from gen3d/src/gen3d/variants/condor/utils.py
 
 
 def sample_dirichlet_safe(key, alpha):
@@ -76,210 +64,9 @@ class MyPytree(PythonicPytree):
         return jax.tree_util.tree_map(lambda v: v[idx], self)
 
 
-def normalize(arr):
-    return arr / jnp.sum(arr)
-
-
-@Pytree.dataclass
-class Intrinsics(Pytree):
-    fx: float
-    fy: float
-    cx: float
-    cy: float
-    near: float
-    far: float
-    image_height: int = Pytree.static()
-    image_width: int = Pytree.static()
-
-    def downscale(self, factor):
-        return Intrinsics(
-            self.fx / factor,
-            self.fy / factor,
-            self.cx / factor,
-            self.cy / factor,
-            self.near,
-            self.far,
-            self.image_height // factor,
-            self.image_width // factor,
-        )
-
-    def crop(self, miny, maxy, minx, maxx):
-        return Intrinsics(
-            self.fx,
-            self.fy,
-            self.cx - minx,
-            self.cy - miny,
-            self.near,
-            self.far,
-            maxy - miny,
-            maxx - minx,
-        )
-
-
-@Pytree.dataclass
-class ImageWithIntrinsics(PythonicPytree):
-    """
-    An image paired with its intrinsics.
-
-    (This supports cropping, downscaling, etc., with
-    the intrinsics automatically being updated.)
-    """
-
-    image: jnp.ndarray  # (H, W, ...)
-    intrinsics: Intrinsics
-
-    def downscale(self, factor):
-        return ImageWithIntrinsics(
-            image=self.image[::factor, ::factor],
-            intrinsics=self.intrinsics.downscale(factor),
-        )
-
-    def crop(self, miny, maxy, minx, maxx):
-        return ImageWithIntrinsics(
-            image=self.image[miny:maxy, minx:maxx],
-            intrinsics=self.intrinsics.crop(miny, maxy, minx, maxx),
-        )
-
-
-def find_first_above(values, threshold):
-    """
-    Returns the first index where `values[idx] >= threshold`.
-    If no such index exists, returns -1.
-    """
-    first = jnp.argmax(values >= threshold)
-    return jnp.where(jnp.logical_and(first == 0, values[0] < threshold), -1, first)
-
-
-### FloatFromDiscreteSet ###
-@dataclass
-class Domain:
-    """
-    Represents the domain of a :class:`FloatFromDiscreteSet`.
-    """
-
-    # JAX array of the values in this domain.
-    # At runtime, this will live on the GPU, and
-    # accessing `FloatFromDiscreteSet.value` will
-    # index into this array.
-    values: jnp.ndarray
-
-    # A copy of the values on the CPU, for use at compile time.
-    _numpy_values: np.ndarray
-
-    def __init__(self, values):
-        self.values = values
-        self._numpy_values = np.array(values)
-
-    @property
-    def discrete_float_values(self):
-        """
-        A batched `FloatFromDiscreteSet` containing
-        each element in this domain.
-        """
-        return jax.vmap(lambda idx: FloatFromDiscreteSet(idx=idx, domain=self))(
-            jnp.arange(self.values.shape[0])
-        )
-
-    def first_value_above(self, val) -> "FloatFromDiscreteSet":
-        """
-        Return a `FloatFromDiscreteSet` for the smallest value
-        greater than or equal `val` in the domain.
-
-        If no such value exists, returns FloatFromDiscreteSet(-1, domain).
-        """
-        idx = find_first_above(self.values, val)
-        return FloatFromDiscreteSet(idx=idx, domain=self)
-
-    def __eq__(self, other):
-        return bool(np.all(self._numpy_values == other._numpy_values))
-
-    def __len__(self):
-        return len(self.values)
-
-    def __hash__(self):
-        return hash(tuple(self._numpy_values))
-
-
-@Pytree.dataclass
-class FloatFromDiscreteSet(MyPytree):
-    """
-    Represents a floating point value that is one of a
-    discrete set of possible floating point values.
-    Use `.value` to get the represented value.
-    Use `.idx` to get the index of the value in the set
-    of possible values.
-
-    ### Representation
-    A `FloatFromDiscreteSet` object stores
-    a reference to JAX array `domain` containing the set of
-    all possible values this variable can take,
-    and the index of the represented value in that array.
-
-    ### Motivation
-    When a probability distribution is represented
-    as a probability vector over the domain of a
-    `FloatFromDiscreteSet` variable, this index-based
-    representation enables evaluating the PMF
-    in O(1) time.  (Conversely, storing the float directly
-    would require searching the domain for the float
-    before the PMF could be evaluated, taking
-    O(log n) time.)
-    """
-
-    idx: int
-    domain: Domain = Pytree.static()
-
-    @property
-    def value(self):
-        return self.domain.values[self.idx]
-
-    @property
-    def shape(self):
-        return self.idx.shape
-
-    def tile(self, *tile_args, **tile_kwargs):
-        return FloatFromDiscreteSet(
-            idx=jnp.tile(self.idx, *tile_args, **tile_kwargs), domain=self.domain
-        )
-
-    def __eq__(self, other):
-        return self.domain == other.domain and jnp.all(
-            jnp.array(self.idx) == jnp.array(other.idx)
-        )
-
-
-@genjax.Pytree.dataclass
-class IndexSpaceUniform(genjax.ExactDensity):
-    """
-    A distribution over `FloatFromDiscreteSet` objects,
-    where the distribution over indices into the `FloatFromDiscreteSet`
-    `Domain` is uniform.
-
-    Distribution arguments:
-    - `domain`: a `Domain`.
-
-    Distribution support:
-    - The support is the set of all `FloatFromDiscreteSet` objects
-        with the given `Domain`.
-    """
-
-    def sample(self, key, domain: Domain):
-        idx = jax.random.randint(key, (), 0, len(domain))
-        return FloatFromDiscreteSet(idx=idx, domain=domain)
-
-    def logpdf(self, x: FloatFromDiscreteSet, domain):
-        assert x.domain == domain
-        return -jnp.log(len(domain))
-
-    @property
-    def __doc__(self):
-        return IndexSpaceUniform.__doc__
-
-
-index_space_uniform = IndexSpaceUniform()
-
-
 ### Pytree indexing utils ###
+
+
 def mywhere(b, x, y):
     """
     Like jnp.where(b, x, y), but can handle cases like
@@ -294,34 +81,34 @@ def mywhere(b, x, y):
         )
 
 
-def replace_slots_in_seq(
-    seq: MyPytree,  # Batched, (T, N, ...)
-    replacements: MyPytree,  # Batched, (N, ...)
-    do_replace: jnp.ndarray,  # (T, N)
-):
-    return jax.tree.map(
-        lambda s, r: jax.vmap(
-            lambda x, rep, do_rep: mywhere(do_rep, rep, x), in_axes=(0, None, 0)
-        )(s, r, do_replace),
-        seq,
-        replacements,
-    )
+### Manipulating traces ###
 
 
-def uniformly_replace_slots_in_seq(
-    seq: MyPytree,  # Batched, (T, N, ...)
-    replacements: MyPytree,  # Batched, (N, ...)
-    do_replace: jnp.ndarray,  # (N,)
-):
-    T = len(seq)
-    return replace_slots_in_seq(seq, replacements, jnp.tile(do_replace, (T, 1)))
-
-
-### Manipulating traces
-
-
-# Extract relevant info for the update from the trace
 def markov_for_xy_mean_from_trace(trace):
+    """Extract XY mean-related parameters from trace for Gibbs update.
+
+    This function extracts all parameters needed for updating XY means via Gibbs sampling:
+    - Cluster assignments for each datapoint
+    - XY coordinates for each datapoint
+    - Number of clusters
+    - Prior mean location
+    - Current XY means for each cluster
+    - Current XY variances for each cluster
+    - Observation variance
+
+    Args:
+        trace: GenJAX trace containing current model state
+
+    Returns:
+        Tuple containing:
+        - datapoint_indexes: Array of cluster assignments for each point
+        - datapoints: Array of XY coordinates for each point
+        - n_clusters: Integer number of clusters
+        - prior_mean: Array of prior XY mean values
+        - cluster_xy_means: Array of current XY means per cluster
+        - cluster_xy_variances: Array of current XY variances per cluster
+        - obs_variance: Observation variance parameter
+    """
     datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
     datapoints = trace.get_choices()["likelihood_model", "xy"]
     n_clusters = trace.args[0].n_blobs
@@ -342,6 +129,30 @@ def markov_for_xy_mean_from_trace(trace):
 
 
 def markov_for_rgb_mean_from_trace(trace):
+    """Extract RGB mean-related parameters from trace for Gibbs update.
+
+    This function extracts all parameters needed for updating RGB means via Gibbs sampling:
+    - Cluster assignments for each datapoint
+    - RGB values for each datapoint
+    - Number of clusters
+    - Prior mean (mid pixel value)
+    - Current RGB means for each cluster
+    - Current RGB variances for each cluster
+    - Observation variance
+
+    Args:
+        trace: GenJAX trace containing current model state
+
+    Returns:
+        Tuple containing:
+        - datapoint_indexes: Array of cluster assignments for each point
+        - datapoints: Array of RGB values for each point
+        - n_clusters: Integer number of clusters
+        - prior_mean: Array of prior RGB mean values
+        - cluster_rgb_means: Array of current RGB means per cluster
+        - cluster_rgb_variances: Array of current RGB variances per cluster
+        - obs_variance: Observation variance parameter
+    """
     datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
     datapoints = trace.get_choices()["likelihood_model", "rgb"]
     n_clusters = trace.args[0].n_blobs
@@ -361,10 +172,71 @@ def markov_for_rgb_mean_from_trace(trace):
     )
 
 
-# Count the number of points per cluster
+### Conjugacy updates helpers ###
+
+
 def category_count(datapoint_indexes, n_clusters):
+    """Count the number of points assigned to each cluster.
+
+    Args:
+        datapoint_indexes: Array of shape (N,) containing cluster assignments for each point
+        n_clusters: Integer number of clusters to count
+
+    Returns:
+        Array of shape (n_clusters,) containing count of points per cluster
+    """
     return jnp.bincount(
         datapoint_indexes,
         length=n_clusters,
         minlength=n_clusters,
     )
+
+
+def compute_means(datapoints, datapoint_indexes, n_clusters, category_counts):
+    """Compute the mean of datapoints for each cluster.
+
+    Args:
+        datapoints: Array of shape (N, D)
+        datapoint_indexes: Array of shape (N,) containing cluster assignments
+        n_clusters: Integer number of clusters
+        category_counts: Array of shape (n_clusters,) containing counts per cluster
+
+    Returns:
+        Array of shape (n_clusters, D) containing mean coordinates per cluster
+    """
+    # Use segment_sum for more efficient summation
+    sums = jax.ops.segment_sum(datapoints, datapoint_indexes, n_clusters)
+    safe_counts = jnp.maximum(category_counts, 1)
+    means = sums / safe_counts[:, None]
+    return means
+
+
+def compute_squared_deviations(datapoints, cluster_indices, means, n_clusters):
+    """Compute sum of squared deviations from cluster means.
+
+    Args:
+        datapoints: Array of shape (N, D) containing observations
+        cluster_indices: Array of shape (N,) containing cluster assignments
+        means: Array of shape (K, D) containing cluster means
+        n_clusters: Number of clusters K
+
+    Returns:
+        Array of shape (K, D) containing sum of squared deviations per cluster
+    """
+
+    def sum_squared_devs(cluster_idx):
+        # Compute (x - μ)² for all points
+        diffs = datapoints - means[cluster_idx]
+        squared_diffs = diffs**2
+
+        # Use where to mask points not in this cluster
+        masked_diffs = jnp.where(
+            (cluster_indices == cluster_idx)[:, None], squared_diffs, 0.0
+        )
+
+        # Sum over all points
+        return jnp.sum(masked_diffs, axis=0)
+
+    # Compute for each cluster
+    deviations = jax.vmap(sum_squared_devs)(jnp.arange(n_clusters))
+    return deviations
