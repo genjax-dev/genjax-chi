@@ -272,6 +272,7 @@ def update_xy_sigma(key, trace):
         datapoints, datapoint_indexes, cluster_means, n_clusters
     )
 
+    # TODO: this is a hack breaking proper Bayesian update. I don't understand why I need this yet. There's probably a proper bug somewhere.
     scale = jnp.array([1000.0 * 700.0]) / 100.0  # Total area / target variance
     squared_deviations = squared_deviations / scale
 
@@ -322,7 +323,12 @@ def update_xy_sigma(key, trace):
 
 
 def update_rgb_sigma(key, trace):
-    """Update RGB sigma values using conjugate inverse gamma posterior.
+    """Perform Gibbs update for the RGB variance parameters of each cluster.
+
+    Uses inverse-gamma conjugate prior to update sigma_rgb based on:
+    1. Prior parameters a_rgb, b_rgb from hyperparameters
+    2. Empirical means and counts of points in each cluster
+    3. Posterior parameters derived from conjugate update equations
 
     Args:
         key: JAX random key
@@ -334,29 +340,34 @@ def update_rgb_sigma(key, trace):
     # Get data and parameters from trace
     datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
     datapoints = trace.get_choices()["likelihood_model", "rgb"]
+    cluster_means = trace.get_choices()["blob_model", "rgb_mean"]
     n_clusters = trace.args[0].n_blobs
+    prior_alphas = trace.args[0].a_rgb
+    prior_betas = trace.args[0].b_rgb
 
     # Get counts per cluster
     category_counts = utils.category_count(datapoint_indexes, n_clusters)
 
-    # Calculate empirical means for each cluster
-    empirical_means = utils.compute_means(
-        datapoints, datapoint_indexes, n_clusters, category_counts
+    # Compute sum of squared deviations using cluster means (μ), not empirical means
+    squared_deviations = utils.compute_squared_deviations(
+        datapoints, datapoint_indexes, cluster_means, n_clusters
     )
 
-    # Get prior parameters
-    prior_alphas = trace.args[0].a_rgb
-    prior_betas = trace.args[0].b_rgb
+    # Scale squared deviations similar to xy case
+    scale = jnp.array([255.0 * 255.0]) / 100.0  # Color range squared / target variance
+    squared_deviations = squared_deviations / scale
 
     # Calculate posterior parameters using conjugate update function
     posterior_alphas, posterior_betas = conjugacy.update_inverse_gamma_normal_conjugacy(
-        prior_alphas, prior_betas, empirical_means, category_counts
+        prior_alphas, prior_betas, squared_deviations, category_counts
     )
 
     # Sample new sigma values from inverse gamma posterior
     key, subkey = jax.random.split(key)
-    new_sigma_rgb = genjax.inverse_gamma.sample(
-        key, (posterior_alphas, posterior_betas)
+    new_sigma_rgb = (
+        genjax.inverse_gamma.vmap(in_axes=(0, 0))
+        .simulate(key, (posterior_alphas, posterior_betas))
+        .get_retval()
     )
 
     # Keep old sigma values for empty clusters
