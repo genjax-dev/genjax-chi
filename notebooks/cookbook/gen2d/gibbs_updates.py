@@ -178,8 +178,6 @@ def update_cluster_assignment(key, trace):
     # Extract all needed parameters once
     n_clusters = trace.args[0].n_blobs
     n_datapoints = trace.args[0].H * trace.args[0].W
-    sigma_xy = trace.args[0].sigma_xy
-    sigma_rgb = trace.args[0].sigma_rgb
 
     # Get all datapoints at once
     datapoints_xy = trace.get_choices()["likelihood_model", "xy"]
@@ -187,12 +185,18 @@ def update_cluster_assignment(key, trace):
 
     # Get cluster parameters
     cluster_xy_means = trace.get_choices()["blob_model", "xy_mean"]
+    cluster_xy_spread = trace.get_choices()["blob_model", "sigma_xy"]
     cluster_rgb_means = trace.get_choices()["blob_model", "rgb_mean"]
+    cluster_rgb_spread = trace.get_choices()["blob_model", "sigma_rgb"]
     mixture_weights = trace.get_choices()["blob_model", "mixture_weight"]
     mixture_probs = mixture_weights / jnp.sum(mixture_weights)
 
     likelihood_params = model_simple_continuous.LikelihoodParams(
-        cluster_xy_means, cluster_rgb_means, mixture_probs
+        cluster_xy_means,
+        cluster_xy_spread,
+        cluster_rgb_means,
+        cluster_rgb_spread,
+        mixture_probs,
     )
 
     # Vectorized computation across all points and clusters
@@ -200,7 +204,7 @@ def update_cluster_assignment(key, trace):
         chm = C["xy"].set(datapoints_xy[x_idx]).at["rgb"].set(datapoints_rgb[x_idx])
         return jax.vmap(
             lambda i: model_simple_continuous.likelihood_model.assess(
-                chm.at["blob_idx"].set(i), (i, likelihood_params, sigma_xy, sigma_rgb)
+                chm.at["blob_idx"].set(i), (i, likelihood_params)
             )[0]
         )(jnp.arange(n_clusters))
 
