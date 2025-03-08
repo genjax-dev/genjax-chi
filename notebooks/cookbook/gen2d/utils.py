@@ -6,6 +6,7 @@ import jax.numpy as jnp
 import model_simple_continuous
 
 import genjax
+from genjax import ChoiceMapBuilder as C
 from genjax import Const, PythonicPytree
 
 T = TypeVar("T")
@@ -82,8 +83,6 @@ def mywhere(b, x, y):
 
 
 ### Manipulating traces ###
-
-
 def markov_for_xy_mean_from_trace(trace):
     """Extract XY mean-related parameters from trace for Gibbs update.
 
@@ -170,6 +169,55 @@ def markov_for_rgb_mean_from_trace(trace):
         cluster_rgb_variances,
         obs_variance,
     )
+
+
+def extract_blob_params(trace):
+    """Extract blob parameters from a model trace.
+
+    Extracts the spatial variances (sigma_xy), RGB variances (sigma_rgb),
+    spatial means (xy_mean), RGB means (rgb_mean), and mixture weights
+    from the blob model choices in the trace.
+
+    Args:
+        trace: A model execution trace containing blob model parameters
+
+    Returns:
+        tuple: A 5-tuple containing:
+            - sigma_xy: Spatial variance parameters for each cluster
+            - sigma_rgb: RGB variance parameters for each cluster
+            - xy_mean: Spatial mean parameters for each cluster
+            - rgb_mean: RGB mean parameters for each cluster
+            - mixture_weight: Mixture weights for each cluster
+    """
+    sigma_xy = trace.get_choices()["blob_model", "sigma_xy"]
+    sigma_rgb = trace.get_choices()["blob_model", "sigma_rgb"]
+    xy_mean = trace.get_choices()["blob_model", "xy_mean"]
+    rgb_mean = trace.get_choices()["blob_model", "rgb_mean"]
+    mixture_weight = trace.get_choices()["blob_model", "mixture_weight"]
+    return sigma_xy, sigma_rgb, xy_mean, rgb_mean, mixture_weight
+
+
+def create_blob_observations(sigma_xy, sigma_rgb, xy_mean, rgb_mean, mixture_weight):
+    """Create an observation object from blob parameters.
+
+    Args:
+        sigma_xy: Spatial variance parameters for each cluster
+        sigma_rgb: RGB variance parameters for each cluster
+        xy_mean: Spatial mean parameters for each cluster
+        rgb_mean: RGB mean parameters for each cluster
+        mixture_weight: Mixture weights for each cluster
+
+    Returns:
+        obs: Combined observation object with all blob parameters
+    """
+    obs = (
+        C["blob_model", "sigma_xy"].set(sigma_xy)
+        | C["blob_model", "sigma_rgb"].set(sigma_rgb)
+        | C["blob_model", "xy_mean"].set(xy_mean)
+        | C["blob_model", "rgb_mean"].set(rgb_mean)
+        | C["blob_model", "mixture_weight"].set(mixture_weight)
+    )
+    return obs
 
 
 ### Conjugacy updates helpers ###
