@@ -20,10 +20,13 @@ The model is initialized by preprocessing an HxW image into (x,y,r,g,b) points a
 generating an initial trace where each Gaussian is associated with at least one point.
 """
 
+from typing import Any
+
 import conjugacy
 import jax
 import jax.numpy as jnp
 import model_simple_continuous
+import tensorflow_probability.substrates.jax as tfp
 import utils
 
 import genjax
@@ -46,11 +49,9 @@ def mean_resampling(
         Array of shape (n_clusters, 2) containing updated cluster means, where clusters
         with no datapoints retain their previous means
     """
-    new_means = (
-        genjax.normal.vmap(in_axes=(0, 0))
-        .simulate(key, (posterior_means, posterior_variances))
-        .get_retval()
-    )
+    new_means = tfp.distributions.Normal(
+        loc=posterior_means, scale=posterior_variances
+    ).sample(seed=key)
     chosen_means = utils.mywhere(category_counts == 0, current_means, new_means)
     return chosen_means
 
@@ -258,7 +259,7 @@ def update_xy_sigma(key, trace):
     """
     # Get data and parameters from trace
     datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
-    datapoints = trace.get_choices()["likelihood_model", "xy"]
+    datapoints: Any = trace.get_choices()["likelihood_model", "xy"]
     cluster_means = trace.get_choices()["blob_model", "xy_mean"]
     n_clusters = trace.args[0].n_blobs
     prior_alphas = trace.args[0].a_xy
@@ -267,7 +268,7 @@ def update_xy_sigma(key, trace):
     # Get counts per cluster
     category_counts = utils.category_count(datapoint_indexes, n_clusters)
 
-    # Compute sum of squared deviations using cluster means (μ), not empirical means
+    # Compute sum of squared deviations
     squared_deviations = utils.compute_squared_deviations(
         datapoints, datapoint_indexes, cluster_means, n_clusters
     )
@@ -302,17 +303,15 @@ def update_xy_sigma(key, trace):
 
     # Sample new sigma values from inverse gamma posterior
     key, subkey = jax.random.split(key)
-    new_sigma_xy = (
-        genjax.inverse_gamma.vmap(in_axes=(0, 0))
-        .simulate(key, (posterior_alphas, posterior_betas))
-        .get_retval()
-    )
-    # Keep old sigma values for empty clusters
-    old_sigma_xy = trace.get_choices()["blob_model", "sigma_xy"]
-    # jax.debug.print("Old sigma_xy: {s}", s=old_sigma_xy[:10])
-    # jax.debug.print("New sigma_xy (before empty cluster fix): {s}", s=new_sigma_xy[:10])
-    new_sigma_xy = jnp.where(category_counts[:, None] == 0, old_sigma_xy, new_sigma_xy)
-    # jax.debug.print("Final sigma_xy: {s}", s=new_sigma_xy[:10])
+    # TODO: trying TFP version directly for maybe speed gains
+    # new_sigma_xy = (
+    #     genjax.inverse_gamma.vmap(in_axes=(0, 0))
+    #     .simulate(key, (posterior_alphas, posterior_betas))
+    #     .get_retval()
+    # )
+    new_sigma_xy = tfp.distributions.InverseGamma(
+        concentration=posterior_alphas, scale=posterior_betas
+    ).sample(seed=subkey)
 
     # Update trace with new sigma values
     argdiffs = genjax.Diff.no_change(trace.args)
