@@ -43,19 +43,12 @@ def update_normal_normal_conjugacy(
     prior_mean = prior_mean[None, :]  # (1,2)
     likelihood_variance = likelihood_variance[None, :]  # (1,2)
     category_counts = category_counts[:, None]  # (10,1)
-
+    scaled_likelihood_var = likelihood_variance / category_counts
+    denominator = prior_variance + scaled_likelihood_var
     posterior_means = (
-        prior_variance
-        / (prior_variance + likelihood_variance / category_counts)
-        * likelihood_mean
-        + (likelihood_variance / category_counts)
-        / (prior_variance + likelihood_variance / category_counts)
-        * prior_mean
-    )
-
-    posterior_variances = 1 / (
-        1 / prior_variance + category_counts / likelihood_variance
-    )
+        prior_variance * likelihood_mean + scaled_likelihood_var * prior_mean
+    ) / denominator
+    posterior_variances = (prior_variance * scaled_likelihood_var) / denominator
 
     return posterior_means, posterior_variances
 
@@ -89,13 +82,7 @@ def update_inverse_gamma_normal_conjugacy(
         - posterior_beta: Array of shape (N,D) containing posterior scale parameters
     """
     # Expand dimensions to align shapes for broadcasting
-    prior_alpha = prior_alpha[None, :]  # (1,D)
-    prior_beta = prior_beta[None, :]  # (1,D)
-    category_counts = category_counts[:, None]  # (N,1)
-
-    # Update shape parameter
-    posterior_alpha = prior_alpha + category_counts / 2
-
-    posterior_beta = prior_beta + squared_deviations / 2
+    posterior_alpha = prior_alpha[None, :] + category_counts[:, None] * 0.5
+    posterior_beta = prior_beta[None, :] + squared_deviations * 0.5
 
     return posterior_alpha, posterior_beta
