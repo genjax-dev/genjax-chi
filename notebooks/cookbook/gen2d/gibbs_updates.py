@@ -194,9 +194,9 @@ def update_cluster_assignment(key, trace):
 
     # Sample new assignments
     key, subkey = jax.random.split(key)
-    new_datapoint_indexes = (
-        genjax.categorical.vmap().simulate(key, (local_densities,)).get_choices()
-    )
+    new_datapoint_indexes = tfp.distributions.Categorical(
+        logits=local_densities
+    ).sample(seed=key)
 
     # Update trace
     argdiffs = genjax.Diff.no_change(trace.args)
@@ -303,12 +303,6 @@ def update_xy_sigma(key, trace):
 
     # Sample new sigma values from inverse gamma posterior
     key, subkey = jax.random.split(key)
-    # TODO: trying TFP version directly for maybe speed gains
-    # new_sigma_xy = (
-    #     genjax.inverse_gamma.vmap(in_axes=(0, 0))
-    #     .simulate(key, (posterior_alphas, posterior_betas))
-    #     .get_retval()
-    # )
     new_sigma_xy = tfp.distributions.InverseGamma(
         concentration=posterior_alphas, scale=posterior_betas
     ).sample(seed=subkey)
@@ -321,6 +315,7 @@ def update_xy_sigma(key, trace):
     return new_trace
 
 
+# TODO: currently absolutely busted. And very slow.
 def update_rgb_sigma(key, trace):
     """Perform Gibbs update for the RGB variance parameters of each cluster.
 
@@ -363,17 +358,9 @@ def update_rgb_sigma(key, trace):
 
     # Sample new sigma values from inverse gamma posterior
     key, subkey = jax.random.split(key)
-    new_sigma_rgb = (
-        genjax.inverse_gamma.vmap(in_axes=(0, 0))
-        .simulate(key, (posterior_alphas, posterior_betas))
-        .get_retval()
-    )
-
-    # Keep old sigma values for empty clusters
-    old_sigma_rgb = trace.get_choices()["blob_model", "sigma_rgb"]
-    new_sigma_rgb = jnp.where(
-        category_counts[:, None] == 0, old_sigma_rgb, new_sigma_rgb
-    )
+    new_sigma_rgb = tfp.distributions.InverseGamma(
+        concentration=posterior_alphas, scale=posterior_betas
+    ).sample(seed=subkey)
 
     # Update trace with new sigma values
     argdiffs = genjax.Diff.no_change(trace.args)
