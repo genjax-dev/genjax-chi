@@ -1,5 +1,11 @@
-from dataclasses import replace
-from typing import TypeVar
+"""Utility functions for the Gen2D model.
+
+This module provides utility functions for working with the Gen2D model, including:
+
+- Pytree indexing utilities
+- Trace manipulation functions for extracting and merging parameters
+- Conjugacy update helper functions for Gibbs sampling
+"""
 
 import jax
 import jax.numpy as jnp
@@ -7,68 +13,11 @@ import model_simple_continuous
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import Const, PythonicPytree, Pytree, Trace
+from genjax import Pytree, Trace
 from genjax._src.core.generative.choice_map import ChoiceMap
-
-T = TypeVar("T")
-
-### Taken from gen3d/src/gen3d/variants/condor/utils.py
-
-
-def sample_dirichlet_safe(key, alpha):
-    if alpha.shape == (1,):
-        return jnp.array([1.0])
-    sample = genjax.dirichlet.sample(key, alpha)
-    return jnp.where(sample == 0, 1e-12, sample)
-
-
-def logpdf_dirichlet_safe(val, alpha):
-    if alpha.shape == (1,):
-        return jnp.array([0.0])
-    return genjax.dirichlet.logpdf(val, alpha)
-
-
-dirichlet = genjax.exact_density(sample_dirichlet_safe, logpdf_dirichlet_safe)
-
-
-def unwrap(x):
-    """Unwrap `x` if it is a `Const`; otherwise return `x`."""
-    if isinstance(x, Const):
-        return x.val
-    else:
-        return x
-
-
-class MyPytree(PythonicPytree):
-    """
-    Pytree base class with some extra bells and whistles, including:
-        - supports self.replace(...) to functionally update fields
-    """
-
-    def replace(self: T, **kwargs) -> T:
-        return replace(self, **kwargs)
-
-    @staticmethod
-    def eq(x, y):
-        # See https://github.com/probcomp/genjax/issues/1441 for why
-        # I didn't just override __eq__.
-        # (Could get the __eq__ override to work with a bit more effort, however.)
-        if jax.tree_util.tree_structure(x) != jax.tree_util.tree_structure(y):
-            return False
-        leaves1 = jax.tree_util.tree_leaves(x)
-        leaves2 = jax.tree_util.tree_leaves(y)
-        bools = [jnp.all(l1 == l2) for l1, l2 in zip(leaves1, leaves2)]
-        return jnp.all(jnp.array(bools))
-
-    # The __getitem__ override is needed for GenJAX versions
-    # prior to https://github.com/probcomp/genjax/pull/1440.
-    def __getitem__(self, idx):
-        return jax.tree_util.tree_map(lambda v: v[idx], self)
 
 
 ### Pytree indexing utils ###
-
-
 def mywhere(b, x, y):
     """
     Like jnp.where(b, x, y), but can handle cases like
@@ -234,17 +183,49 @@ def extract_likelihood(trace):
 
 @Pytree.dataclass
 class TraceDiff(Pytree):
+    """A class representing a compact trace representation containing arguments and choice map.
+
+    This class is used instead of full traces during inference.
+    It contains the original arguments and a choice map
+    representing the changes/choices made.
+
+    Args:
+        args: Tuple of arguments from the original trace
+        chm: ChoiceMap containing the choices/changes made in this trace difference
+    """
+
     args: tuple
     chm: ChoiceMap
 
 
 def merge(key, trace: Trace, tracediff: TraceDiff):
+    """Merge a TraceDiff back into a full Trace.
+
+    Args:
+        key: JAX random key
+        trace: Original trace to merge into
+        tracediff: TraceDiff containing changes to merge
+
+    Returns:
+        new_trace: Updated trace with changes from tracediff merged in
+    """
     argdiffs = genjax.Diff.no_change(trace.args)
     new_trace, _, _, _ = trace.update(key, tracediff.chm, argdiffs)
     return new_trace
 
 
 def extract(trace) -> TraceDiff:
+    """Extract a TraceDiff from a full Trace. Specialized for the Gen2D model.
+
+    Creates a TraceDiff containing the blob parameters and likelihood choices
+    from the given trace.
+
+    Args:
+        trace: Trace to extract from
+
+    Returns:
+        TraceDiff containing the extracted parameters and choices
+    """
     sigma_xy, sigma_rgb, xy_mean, rgb_mean, mixture_weight = extract_blob_params(trace)
     chm1 = create_blob_observations(
         sigma_xy, sigma_rgb, xy_mean, rgb_mean, mixture_weight
@@ -254,6 +235,16 @@ def extract(trace) -> TraceDiff:
 
 
 def concat(tracediff: TraceDiff, chm) -> TraceDiff:
+    """Concatenate a ChoiceMap with a TraceDiff's existing choices.
+     The choices form the ChoiceMap overwrite existing ones from the TraceDiff.
+
+    Args:
+        tracediff: Original TraceDiff
+        chm: ChoiceMap to concatenate with tracediff's choices
+
+    Returns:
+        New TraceDiff with concatenated choices
+    """
     new_chm = chm | tracediff.chm
     return TraceDiff(args=tracediff.args, chm=new_chm)
 
