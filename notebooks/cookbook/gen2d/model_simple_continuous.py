@@ -34,7 +34,6 @@ The model is implemented using the GenJAX probabilistic programming framework.
 """
 
 import jax.numpy as jnp
-from jax._src.basearray import Array
 
 import genjax
 from genjax import Pytree, categorical, gamma, gen, inverse_gamma, normal

@@ -56,7 +56,7 @@ def mean_resampling(
     return chosen_means
 
 
-def update_xy_mean(key, trace):
+def update_xy_mean(key, tracediff):
     """Perform Gibbs update for the spatial (xy) means of each Gaussian component.
 
     This function:
@@ -81,7 +81,7 @@ def update_xy_mean(key, trace):
         current_means,
         current_variance,
         obs_variance,
-    ) = utils.markov_for_xy_mean_from_trace(trace)
+    ) = utils.markov_for_xy_mean_from_trace(tracediff)
 
     category_counts = utils.category_count(datapoint_indexes, n_clusters)
     cluster_means = utils.compute_means(
@@ -96,15 +96,12 @@ def update_xy_mean(key, trace):
         key, posterior_means, posterior_variances, current_means, category_counts
     )
 
-    argdiffs = genjax.Diff.no_change(trace.args)
-    new_trace, _, _, _ = trace.update(
-        key, C["blob_model", "xy_mean"].set(new_means), argdiffs
-    )
-
-    return new_trace
+    # Update tracediff
+    new_tracediff = utils.concat(tracediff, C["blob_model", "xy_mean"].set(new_means))
+    return new_tracediff
 
 
-def update_rgb_mean(key, trace):
+def update_rgb_mean(key, tracediff):
     """Perform Gibbs update for the RGB means of each Gaussian component.
 
     This function:
@@ -129,7 +126,7 @@ def update_rgb_mean(key, trace):
         current_means,
         current_variance,
         obs_variance,
-    ) = utils.markov_for_rgb_mean_from_trace(trace)
+    ) = utils.markov_for_rgb_mean_from_trace(tracediff)
 
     category_counts = utils.category_count(datapoint_indexes, n_clusters)
     cluster_means = utils.compute_means(
@@ -144,33 +141,30 @@ def update_rgb_mean(key, trace):
         key, posterior_means, posterior_variances, current_means, category_counts
     )
 
-    argdiffs = genjax.Diff.no_change(trace.args)
-    new_trace, _, _, _ = trace.update(
-        key, C["blob_model", "rgb_mean"].set(new_means), argdiffs
-    )
-
-    return new_trace
+    # Update tracediff
+    new_tracediff = utils.concat(tracediff, C["blob_model", "rgb_mean"].set(new_means))
+    return new_tracediff
 
 
-def update_cluster_assignment(key, trace):
+def update_cluster_assignment(key, tracediff):
     """Perform Gibbs update for cluster assignments of each datapoint.
 
     Vectorized implementation that computes all local densities in parallel.
     """
     # Extract all needed parameters once
-    n_clusters = trace.args[0].n_blobs
-    n_datapoints = trace.args[0].H * trace.args[0].W
+    n_clusters = tracediff.args[0].n_blobs
+    n_datapoints = tracediff.args[0].H * tracediff.args[0].W
 
     # Get all datapoints at once
-    datapoints_xy = trace.get_choices()["likelihood_model", "xy"]
-    datapoints_rgb = trace.get_choices()["likelihood_model", "rgb"]
+    datapoints_xy = tracediff.chm["likelihood_model", "xy"]
+    datapoints_rgb = tracediff.chm["likelihood_model", "rgb"]
 
     # Get cluster parameters
-    cluster_xy_means = trace.get_choices()["blob_model", "xy_mean"]
-    cluster_xy_spread = trace.get_choices()["blob_model", "sigma_xy"]
-    cluster_rgb_means = trace.get_choices()["blob_model", "rgb_mean"]
-    cluster_rgb_spread = trace.get_choices()["blob_model", "sigma_rgb"]
-    mixture_weights = trace.get_choices()["blob_model", "mixture_weight"]
+    cluster_xy_means = tracediff.chm["blob_model", "xy_mean"]
+    cluster_xy_spread = tracediff.chm["blob_model", "sigma_xy"]
+    cluster_rgb_means = tracediff.chm["blob_model", "rgb_mean"]
+    cluster_rgb_spread = tracediff.chm["blob_model", "sigma_rgb"]
+    mixture_weights = tracediff.chm["blob_model", "mixture_weight"]
     mixture_probs = mixture_weights / jnp.sum(mixture_weights)
 
     likelihood_params = model_simple_continuous.LikelihoodParams(
@@ -193,20 +187,18 @@ def update_cluster_assignment(key, trace):
     local_densities = jax.vmap(compute_density_for_point)(jnp.arange(n_datapoints))
 
     # Sample new assignments
-    key, subkey = jax.random.split(key)
     new_datapoint_indexes = tfp.distributions.Categorical(
         logits=local_densities
     ).sample(seed=key)
 
-    # Update trace
-    argdiffs = genjax.Diff.no_change(trace.args)
-    new_trace, _, _, _ = trace.update(
-        subkey, C["likelihood_model", "blob_idx"].set(new_datapoint_indexes), argdiffs
+    # Update tracediff
+    new_tracediff = utils.concat(
+        tracediff, C["likelihood_model", "blob_idx"].set(new_datapoint_indexes)
     )
-    return new_trace
+    return new_tracediff
 
 
-def update_mixture_weight(key, trace):
+def update_mixture_weight(key, tracediff):
     """Perform Gibbs update for the mixture weights of the Gaussian components.
 
     This function uses Dirichlet-categorical conjugacy to update the mixture weights
@@ -222,27 +214,26 @@ def update_mixture_weight(key, trace):
     Returns:
         Updated trace with new mixture weights
     """
-    n_clusters = trace.args[0].n_blobs
-    prior_alpha = trace.args[0].alpha
-    datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
+    n_clusters = tracediff.args[0].n_blobs
+    prior_alpha = tracediff.args[0].alpha
+    datapoint_indexes = tracediff.chm["likelihood_model", "blob_idx"]
     category_counts = utils.category_count(datapoint_indexes, n_clusters)
 
     # TODO: check math here. might be alpha/n or something.
     # check the way George did it.
     # this seems to currently update the mixture weight correctly though.
     new_alphas = prior_alpha + category_counts
-    key, subkey = jax.random.split(key)
+
     new_weights = genjax.dirichlet.sample(key, new_alphas)
 
-    argdiffs = genjax.Diff.no_change(trace.args)
-    new_trace, _, _, _ = trace.update(
-        subkey, C["blob_model", "mixture_weight"].set(new_weights), argdiffs
+    # Update tracediff
+    new_tracediff = utils.concat(
+        tracediff, C["blob_model", "mixture_weight"].set(new_weights)
     )
+    return new_tracediff
 
-    return new_trace
 
-
-def update_xy_sigma(key, trace):
+def update_xy_sigma(key, tracediff):
     """Perform Gibbs update for the spatial variance parameters of each cluster.
 
     Uses inverse-gamma conjugate prior to update sigma_xy based on:
@@ -258,12 +249,12 @@ def update_xy_sigma(key, trace):
         Updated trace with new sigma_xy values
     """
     # Get data and parameters from trace
-    datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
-    datapoints: Any = trace.get_choices()["likelihood_model", "xy"]
-    cluster_means = trace.get_choices()["blob_model", "xy_mean"]
-    n_clusters = trace.args[0].n_blobs
-    prior_alphas = trace.args[0].a_xy
-    prior_betas = trace.args[0].b_xy
+    datapoint_indexes = tracediff.chm["likelihood_model", "blob_idx"]
+    datapoints: Any = tracediff.chm["likelihood_model", "xy"]
+    cluster_means = tracediff.chm["blob_model", "xy_mean"]
+    n_clusters = tracediff.args[0].n_blobs
+    prior_alphas = tracediff.args[0].a_xy
+    prior_betas = tracediff.args[0].b_xy
 
     # Calculate posterior parameters using conjugate update function
     category_counts = utils.category_count(datapoint_indexes, n_clusters)
@@ -283,16 +274,16 @@ def update_xy_sigma(key, trace):
     # Rescaling sigma^2 -> sigma
     new_sigma_xy = jnp.sqrt(new_sigma_xy)
 
-    # Update trace with new sigma values
-    argdiffs = genjax.Diff.no_change(trace.args)
-    new_trace, _, _, _ = trace.update(
-        subkey, C["blob_model", "sigma_xy"].set(new_sigma_xy), argdiffs
+    # Update tracediff
+    new_tracediff = utils.concat(
+        tracediff, C["blob_model", "sigma_xy"].set(new_sigma_xy)
     )
-    return new_trace
+
+    return new_tracediff
 
 
 # TODO: currently absolutely busted. And very slow.
-def update_rgb_sigma(key, trace):
+def update_rgb_sigma(key, tracediff):
     """Perform Gibbs update for the RGB variance parameters of each cluster.
 
     Uses inverse-gamma conjugate prior to update sigma_rgb based on:
@@ -308,12 +299,12 @@ def update_rgb_sigma(key, trace):
         Updated trace with new sigma_rgb values
     """
     # Get data and parameters from trace
-    datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
-    datapoints = trace.get_choices()["likelihood_model", "rgb"]
-    cluster_means = trace.get_choices()["blob_model", "rgb_mean"]
-    n_clusters = trace.args[0].n_blobs
-    prior_alphas = trace.args[0].a_rgb
-    prior_betas = trace.args[0].b_rgb
+    datapoint_indexes = tracediff.chm["likelihood_model", "blob_idx"]
+    datapoints = tracediff.chm["likelihood_model", "rgb"]
+    cluster_means = tracediff.chm["blob_model", "rgb_mean"]
+    n_clusters = tracediff.args[0].n_blobs
+    prior_alphas = tracediff.args[0].a_rgb
+    prior_betas = tracediff.args[0].b_rgb
 
     # Calculate posterior parameters using conjugate update function
     category_counts = utils.category_count(datapoint_indexes, n_clusters)
@@ -345,9 +336,9 @@ def update_rgb_sigma(key, trace):
     # jax.debug.print("posterior_betas sample: {x}", x=posterior_betas[:5])
     # jax.debug.print("new_sigma_rgb sample: {x}", x=new_sigma_rgb[:5])
 
-    # Update trace with new sigma values
-    argdiffs = genjax.Diff.no_change(trace.args)
-    new_trace, _, _, _ = trace.update(
-        subkey, C["blob_model", "sigma_rgb"].set(new_sigma_rgb), argdiffs
+    # Update tracediff
+    new_tracediff = utils.concat(
+        tracediff, C["blob_model", "sigma_rgb"].set(new_sigma_rgb)
     )
-    return new_trace
+
+    return new_tracediff

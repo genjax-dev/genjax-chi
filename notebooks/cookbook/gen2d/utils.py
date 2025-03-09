@@ -7,7 +7,8 @@ import model_simple_continuous
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import Const, PythonicPytree
+from genjax import Const, PythonicPytree, Pytree, Trace
+from genjax._src.core.generative.choice_map import ChoiceMap
 
 T = TypeVar("T")
 
@@ -83,7 +84,7 @@ def mywhere(b, x, y):
 
 
 ### Manipulating traces ###
-def markov_for_xy_mean_from_trace(trace):
+def markov_for_xy_mean_from_trace(tracediff):
     """Extract XY mean-related parameters from trace for Gibbs update.
 
     This function extracts all parameters needed for updating XY means via Gibbs sampling:
@@ -108,13 +109,13 @@ def markov_for_xy_mean_from_trace(trace):
         - cluster_xy_variances: Array of current XY variances per cluster
         - obs_variance: Observation variance parameter
     """
-    datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
-    datapoints = trace.get_choices()["likelihood_model", "xy"]
-    n_clusters = trace.args[0].n_blobs
-    prior_mean = trace.args[0].mu_xy
-    cluster_xy_means = trace.get_choices()["blob_model", "xy_mean"]  # shape (N,2)
-    cluster_xy_variances = trace.get_choices()["blob_model", "sigma_xy"]
-    obs_variance = trace.args[0].sigma_xy
+    datapoint_indexes = tracediff.chm["likelihood_model", "blob_idx"]
+    datapoints = tracediff.chm["likelihood_model", "xy"]
+    n_clusters = tracediff.args[0].n_blobs
+    prior_mean = tracediff.args[0].mu_xy
+    cluster_xy_means = tracediff.chm["blob_model", "xy_mean"]  # shape (N,2)
+    cluster_xy_variances = tracediff.chm["blob_model", "sigma_xy"]
+    obs_variance = tracediff.args[0].sigma_xy
 
     return (
         datapoint_indexes,
@@ -127,7 +128,7 @@ def markov_for_xy_mean_from_trace(trace):
     )
 
 
-def markov_for_rgb_mean_from_trace(trace):
+def markov_for_rgb_mean_from_trace(tracediff):
     """Extract RGB mean-related parameters from trace for Gibbs update.
 
     This function extracts all parameters needed for updating RGB means via Gibbs sampling:
@@ -152,13 +153,13 @@ def markov_for_rgb_mean_from_trace(trace):
         - cluster_rgb_variances: Array of current RGB variances per cluster
         - obs_variance: Observation variance parameter
     """
-    datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
-    datapoints = trace.get_choices()["likelihood_model", "rgb"]
-    n_clusters = trace.args[0].n_blobs
+    datapoint_indexes = tracediff.chm["likelihood_model", "blob_idx"]
+    datapoints = tracediff.chm["likelihood_model", "rgb"]
+    n_clusters = tracediff.args[0].n_blobs
     prior_mean = model_simple_continuous.MID_PIXEL_VAL * jnp.ones(3)
-    cluster_rgb_means = trace.get_choices()["blob_model", "rgb_mean"]  # shape (N,3)
-    cluster_rgb_variances = trace.get_choices()["blob_model", "sigma_rgb"]
-    obs_variance = trace.args[0].sigma_rgb
+    cluster_rgb_means = tracediff.chm["blob_model", "rgb_mean"]  # shape (N,3)
+    cluster_rgb_variances = tracediff.chm["blob_model", "sigma_rgb"]
+    obs_variance = tracediff.args[0].sigma_rgb
 
     return (
         datapoint_indexes,
@@ -220,9 +221,44 @@ def create_blob_observations(sigma_xy, sigma_rgb, xy_mean, rgb_mean, mixture_wei
     return obs
 
 
+def extract_likelihood(trace):
+    datapoint_indexes = trace.get_choices()["likelihood_model", "blob_idx"]
+    datapoints_xy = trace.get_choices()["likelihood_model", "xy"]
+    datapoints_rgb = trace.get_choices()["likelihood_model", "rgb"]
+    return (
+        C["likelihood_model", "blob_idx"].set(datapoint_indexes)
+        | C["likelihood_model", "xy"].set(datapoints_xy)
+        | C["likelihood_model", "rgb"].set(datapoints_rgb)
+    )
+
+
+@Pytree.dataclass
+class TraceDiff(Pytree):
+    args: tuple
+    chm: ChoiceMap
+
+
+def merge(key, trace: Trace, tracediff: TraceDiff):
+    argdiffs = genjax.Diff.no_change(trace.args)
+    new_trace, _, _, _ = trace.update(key, tracediff.chm, argdiffs)
+    return new_trace
+
+
+def extract(trace) -> TraceDiff:
+    sigma_xy, sigma_rgb, xy_mean, rgb_mean, mixture_weight = extract_blob_params(trace)
+    chm1 = create_blob_observations(
+        sigma_xy, sigma_rgb, xy_mean, rgb_mean, mixture_weight
+    )
+    chm2 = extract_likelihood(trace)
+    return TraceDiff(args=trace.args, chm=chm1 | chm2)
+
+
+def concat(tracediff: TraceDiff, chm) -> TraceDiff:
+    new_chm = chm | tracediff.chm
+    return TraceDiff(args=tracediff.args, chm=new_chm)
+
+
 ### Conjugacy updates helpers ###
-
-
 def category_count(datapoint_indexes, n_clusters):
     """Count the number of points assigned to each cluster.
 
