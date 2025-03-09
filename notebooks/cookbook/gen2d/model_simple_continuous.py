@@ -99,9 +99,9 @@ def xy_model(
     mu_xy: jnp.ndarray,
     sigma_xy: jnp.ndarray,
 ):
-    xy_spread = inverse_gamma.vmap(in_axes=(0, 0))(a_xy, b_xy) @ "sigma_xy"
+    xy_spread = inverse_gamma(a_xy, b_xy) @ "sigma_xy"
 
-    xy_mean = normal.vmap(in_axes=(0, 0))(mu_xy, sigma_xy) @ "xy_mean"
+    xy_mean = normal(mu_xy, sigma_xy) @ "xy_mean"
     return xy_mean, xy_spread
 
 
@@ -109,9 +109,9 @@ def xy_model(
 def rgb_model(
     blob_idx: int, a_rgb: jnp.ndarray, b_rgb: jnp.ndarray, sigma_rgb: jnp.ndarray
 ):
-    rgb_spread = inverse_gamma.vmap(in_axes=(0, 0))(a_rgb, b_rgb) @ "sigma_rgb"
+    rgb_spread = inverse_gamma(a_rgb, b_rgb) @ "sigma_rgb"
 
-    rgb_mean = normal.vmap(in_axes=(None, 0))(MID_PIXEL_VAL, sigma_rgb) @ "rgb_mean"
+    rgb_mean = normal(MID_PIXEL_VAL, sigma_rgb) @ "rgb_mean"
     return rgb_mean, rgb_spread
 
 
@@ -143,8 +143,8 @@ def likelihood_model(
     rgb_mean = params.rgb_mean[blob_idx]
     rgb_spread = params.rgb_spread[blob_idx]
 
-    xy = normal.vmap(in_axes=(0, 0))(xy_mean, xy_spread) @ "xy"
-    rgb = normal.vmap(in_axes=(0, 0))(rgb_mean, rgb_spread) @ "rgb"
+    xy = normal(xy_mean, xy_spread) @ "xy"
+    rgb = normal(rgb_mean, rgb_spread) @ "rgb"
     return xy, rgb
 
 
