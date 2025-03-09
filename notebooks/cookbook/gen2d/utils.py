@@ -275,9 +275,7 @@ def compute_squared_deviations(datapoints, cluster_indices, means, n_clusters):
     def sum_squared_devs(cluster_idx):
         # Compute (x - μ)² for all points
         diffs = datapoints - means[cluster_idx]
-        squared_diffs = jnp.sum(
-            diffs**2, axis=1, keepdims=True
-        )  # Sum across dimensions first
+        squared_diffs = diffs**2
 
         # Use where to mask points not in this cluster
         masked_diffs = jnp.where(

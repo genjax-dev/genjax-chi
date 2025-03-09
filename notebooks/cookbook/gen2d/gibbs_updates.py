@@ -265,47 +265,23 @@ def update_xy_sigma(key, trace):
     prior_alphas = trace.args[0].a_xy
     prior_betas = trace.args[0].b_xy
 
-    # Get counts per cluster
+    # Calculate posterior parameters using conjugate update function
     category_counts = utils.category_count(datapoint_indexes, n_clusters)
-
-    # Compute sum of squared deviations
     squared_deviations = utils.compute_squared_deviations(
         datapoints, datapoint_indexes, cluster_means, n_clusters
     )
-
-    # TODO: this is a hack breaking proper Bayesian update. I don't understand why I need this yet. There's probably a proper bug somewhere.
-    scale = jnp.array([1000.0 * 700.0]) / 100.0  # Total area / target variance
-    squared_deviations = squared_deviations / scale
-
-    # Calculate posterior parameters using conjugate update function
     posterior_alphas, posterior_betas = conjugacy.update_inverse_gamma_normal_conjugacy(
         prior_alphas, prior_betas, squared_deviations, category_counts
     )
-
-    # jax.debug.print("Cluster means: {m}", m=cluster_means)
-
-    # # Print stats for first cluster using where
-    # mask = (datapoint_indexes == 0)[:, None]
-    # diffs_0 = jnp.where(
-    #     mask,
-    #     datapoints - cluster_means[0],
-    #     0.0
-    # )
-    # sq_diffs_0 = jnp.sum(diffs_0**2, axis=0)
-
-    # jax.debug.print("Cluster 0 count: {n}", n=jnp.sum(datapoint_indexes == 0))
-    # jax.debug.print("Cluster 0 mean: {m}", m=cluster_means[0])
-    # jax.debug.print("Cluster 0 sum sq diffs: {s}", s=sq_diffs_0)
-    # jax.debug.print("All squared deviations: {s}", s=squared_deviations[:10])
-    # jax.debug.print("Category counts: {c}", c=category_counts[:10])
-    # jax.debug.print("Prior alpha: {a}", a=prior_alphas[:10])
-    # jax.debug.print("Prior beta: {b}", b=prior_betas[:10])
 
     # Sample new sigma values from inverse gamma posterior
     key, subkey = jax.random.split(key)
     new_sigma_xy = tfp.distributions.InverseGamma(
         concentration=posterior_alphas, scale=posterior_betas
     ).sample(seed=subkey)
+
+    # Rescaling sigma^2 -> sigma
+    new_sigma_xy = jnp.sqrt(new_sigma_xy)
 
     # Update trace with new sigma values
     argdiffs = genjax.Diff.no_change(trace.args)
@@ -339,19 +315,11 @@ def update_rgb_sigma(key, trace):
     prior_alphas = trace.args[0].a_rgb
     prior_betas = trace.args[0].b_rgb
 
-    # Get counts per cluster
+    # Calculate posterior parameters using conjugate update function
     category_counts = utils.category_count(datapoint_indexes, n_clusters)
-
-    # Compute sum of squared deviations using cluster means (μ), not empirical means
     squared_deviations = utils.compute_squared_deviations(
         datapoints, datapoint_indexes, cluster_means, n_clusters
     )
-
-    # Scale squared deviations similar to xy case
-    scale = jnp.array([255.0 * 255.0]) / 100.0  # Color range squared / target variance
-    squared_deviations = squared_deviations / scale
-
-    # Calculate posterior parameters using conjugate update function
     posterior_alphas, posterior_betas = conjugacy.update_inverse_gamma_normal_conjugacy(
         prior_alphas, prior_betas, squared_deviations, category_counts
     )
@@ -361,6 +329,21 @@ def update_rgb_sigma(key, trace):
     new_sigma_rgb = tfp.distributions.InverseGamma(
         concentration=posterior_alphas, scale=posterior_betas
     ).sample(seed=subkey)
+
+    # Rescaling sigma^2 -> sigma
+    new_sigma_rgb = jnp.sqrt(new_sigma_rgb)
+
+    # jax.debug.print("datapoint_indexes sample: {x}", x=datapoint_indexes[:5])
+    # jax.debug.print("datapoints sample: {x}", x=datapoints[:5])
+    # jax.debug.print("cluster_means sample: {x}", x=cluster_means[:5])
+    # jax.debug.print("prior_alphas: {x}", x=prior_alphas)
+    # jax.debug.print("prior_betas: {x}", x=prior_betas)
+    # jax.debug.print("category_counts: {x}", x=category_counts)
+    # jax.debug.print("squared_deviations shape: {x}", x=squared_deviations.shape)
+    # jax.debug.print("squared_deviations sample: {x}", x=squared_deviations[:5])
+    # jax.debug.print("posterior_alphas sample: {x}", x=posterior_alphas[:5])
+    # jax.debug.print("posterior_betas sample: {x}", x=posterior_betas[:5])
+    # jax.debug.print("new_sigma_rgb sample: {x}", x=new_sigma_rgb[:5])
 
     # Update trace with new sigma values
     argdiffs = genjax.Diff.no_change(trace.args)
