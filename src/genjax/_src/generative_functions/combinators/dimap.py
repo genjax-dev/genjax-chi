@@ -20,7 +20,6 @@ from genjax._src.core.generative import (
     Retdiff,
     Score,
     Trace,
-    Update,
     Weight,
 )
 from genjax._src.core.generative.choice_map import (
@@ -200,7 +199,6 @@ class Dimap(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
-        assert isinstance(edit_request, Update)
         return self.edit_change_target(key, trace, edit_request, argdiffs)
 
     def assess(

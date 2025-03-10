@@ -151,7 +151,7 @@ This is a research project. Expect bugs and sharp edges. Please help by trying o
 ## Get Involved + Get Support
 
 Pull requests and bug reports are always welcome! Check out our [Contributor's
-Guide](CONTRIBUTING.md) for information on how to get started contributing to Caliban.
+Guide](CONTRIBUTING.md) for information on how to get started contributing to GenJAX.
 
 The TL;DR; is:
 
