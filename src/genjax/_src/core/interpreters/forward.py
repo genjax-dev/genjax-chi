@@ -20,6 +20,7 @@ import jax.core as jc
 import jax.tree_util as jtu
 from jax import tree_util
 from jax import util as jax_util
+from jax.interpreters import mlir
 from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.interpreters.staging import stage
@@ -49,6 +50,12 @@ class InitialStylePrimitive(jc.Primitive):
             return jc.eval_jaxpr(params["_jaxpr"], consts, *args)
 
         self.def_impl(fun_impl)
+
+        def _mlir(ctx: mlir.LoweringRuleContext, *mlir_args, **params):
+            lowering = mlir.lower_fun(self.impl, multiple_results=True)
+            return lowering(ctx, *mlir_args, **params)
+
+        mlir.register_lowering(self, _mlir)
 
 
 def initial_style_bind(prim, **params):
