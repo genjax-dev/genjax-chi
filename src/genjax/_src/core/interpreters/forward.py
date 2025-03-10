@@ -46,8 +46,8 @@ class InitialStylePrimitive(jc.Primitive):
         self.def_abstract_eval(_abstract)
 
         def fun_impl(*args, **params):
-            consts, args = jax_util.split_list(args, [params["num_consts"]])
-            return jc.eval_jaxpr(params["_jaxpr"], consts, *args)
+            impl = params["impl"]
+            return impl(*args, **params)
 
         self.def_impl(fun_impl)
 
