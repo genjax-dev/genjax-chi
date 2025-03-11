@@ -36,3 +36,9 @@ notebooks/hidden
 notebooks/dippl/data
 site
 /.luarc.json
+
+# pixi environments
+.pixi
+*.egg-info
+
+.hypothesis/

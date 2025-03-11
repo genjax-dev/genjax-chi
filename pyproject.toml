@@ -1,92 +1,151 @@
-[tool.poetry]
-name = "genjax"
-
-# Leave this at 0.0.0; this key can't be missing, but it's subbed out
-# dynamically by `poetry.dynamic-versioning`.
-version = "0.0.0"
-
-description = "Probabilistic programming with Gen, built on top of JAX."
+[project]
 authors = [
-    "McCoy R. Becker <mccoyb@mit.edu>",
-    "MIT Probabilistic Computing Project <probcomp-assist@csail.mit.edu>",
+    {name = "Aaron Steele", email = "aaron@chi-fro.org"},
 ]
-maintainers = [
-    "McCoy R. Becker <mccoyb@mit.edu>",
-    "Colin Smith <colin.smith@gmail.com>",
-    "Sam Ritchie <sam@mentat.org>",
-]
-license = "Apache 2.0"
-readme = "README.md"
-homepage = "https://github.com/chisym/genjax"
-repository = "https://github.com/chisym/genjax"
-documentation = "https://chisym.github.io/genjax/"
-keywords = [
-    "artificial-intelligence",
-    "probabilistic-programming",
-    "bayesian-inference",
-    "differentiable-programming",
-]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
+name = "genjax"
+requires-python = ">=3.11,<4.0"
+version = "0.0.0"
+dependencies = [
+    "jax>=0.4.24",
+    "tensorflow-probability>=0.23.0",
+    "jaxtyping>=0.2.24",
+    "beartype>=0.20.0",
+    "deprecated>=1.2.14",
+    "penzai>=0.2.2",
+    "treescope>=0.1.5",
+    "numpy>=1.22,<2.0.0",
+    "genstudio>=2025.2.1"
 ]
 
-[tool.poetry.urls]
-Changelog = "https://github.com/chisym/genjax/releases"
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
 
-[tool.poetry.dependencies]
-python = ">=3.11,<4.0"
-jax = "^0.4.24"
-tensorflow-probability = "^0.23.0"
-jaxtyping = "^0.2.24"
-beartype = "^0.20.0"
-deprecated = "^1.2.14"
-penzai = "^0.2.2"
-treescope = "^0.1.5"
-# Numpy <2.0.0 is due to tfp issues: https://github.com/tensorflow/probability/issues/1814
-# remove this constraint when that issue is closed.
-numpy = ">=1.22,<2.0.0"
-genstudio = ">=2025.2.1"
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-arm64"]
 
-[tool.poetry.group.dev]
-optional = true
+[tool.pixi.activation.env]
+XLA_PYTHON_CLIENT_PREALLOCATE = "false"
+XLA_PYTHON_CLIENT_ALLOCATOR = "platform"
 
-[tool.poetry.group.dev.dependencies]
-coverage = "^7.0.0"
-hypothesis = "^6.119.0"
-matplotlib = "^3.6.2"
-mypy = "^0.991"
-pytest = "^7.2.0"
-pytest-benchmark = "^4.0.0"
-pytest-xdist = { version = "^3.2.0", extras = ["psutil"] }
-ruff = "^0.1.3"
-safety = "^2.3.5"
-seaborn = "^0.12.1"
-xdoctest = "^1.1.0"
-jupyterlab = "^4.2.5"
-nox = "^2024.3.2"
-nox-poetry = "^1.0.3"
-jupytext = "^1.16.2"
+[tool.pixi.environments]
+cpu = { features = ["cpu"], solve-group = "default" }
+cpu-dev = { features = ["cpu", "dev"], solve-group = "default" }
+gpu = { features = ["cuda"], solve-group = "cuda" }
+# gpu-dev = { features = ["cuda", "dev"], solve-group = "default" }
+# gpu-docs = { features = ["cuda", "docs"], solve-group = "default" }
 
-[tool.poetry.group.docs]
-optional = true
+[tool.pixi.pypi-dependencies]
+genjax = { path = ".", editable = true }
 
-[tool.poetry.group.docs.dependencies]
-mkdocs = "^1.5.3"
-mkdocs-git-authors-plugin = "^0.7.2"
-mkdocs-git-revision-date-localized-plugin = "^1.1.0"
-mkdocs-git-committers-plugin-2 = "^1.1.1"
-markdown-exec = { version = "^1.8.3", extras = ["ansi"] }
-mkdocs-material = { git = "git@github.com:probcomp/mkdocs-material-insiders.git" }
-mkdocstrings-python = { git = "git@github.com:probcomp/mkdocstrings-python.git" }
-black = "^24.4.2"
-mkdocs-jupyter = "^0.25.1"
+[tool.pixi.feature.dev.tasks]
+tests = { cmd = [
+    "pytest",
+    "--benchmark-disable",
+    "--ignore",
+    "scratch",
+    "--ignore",
+    "notebooks",
+    "-n",
+    "auto"
+] }
+coverage-run = { cmd = [
+    "coverage",
+    "run",
+    "-m",
+    "pytest",
+    "--benchmark-disable",
+    "--ignore",
+    "scratch",
+] }
+coverage-json = { cmd = [
+    "coverage",
+    "json",
+    "--omit",
+    "test*",
+] }
+coverage-report = { cmd = [
+    "coverage",
+    "report",
+    "--omit",
+    "test*",
+] }
+xdoctests = { cmd = [
+    "xdoctest",
+    "--modname=genjax",
+    "--command=all",
+    "--colored=1",
+] }
+safety = { cmd = [
+    "safety",
+    "check",
+    "--ignore",
+    "70612",
+    "--ignore",
+    "73456",
+    "--ignore",
+    "74439",
+    "--ignore",
+    "74735",
+    "--full-report",
+] }
+ruff-check = { cmd = [
+    "ruff",
+    "check",
+    "--fix",
+    ".",
+] }
+ruff-format = { cmd = [
+    "ruff",
+    "format",
+    ".",
+] }
+docs-build = { cmd = [
+    "mkdocs",
+    "build",
+    "--strict",
+] }
 
-[tool.poetry.extras]
-genstudio = ["genstudio"]
-all = ["genstudio"]
+[tool.pixi.dependencies]
+
+[tool.pixi.feature.dev.pypi-dependencies]
+coverage = ">=7.0.0,<8.0.0"
+hypothesis = ">=6.119.0,<7.0.0"
+matplotlib = ">=3.6.2,<4.0.0"
+mypy = ">=0.991,<1.0.0"
+pytest = ">=7.2.0,<8.0.0"
+pytest-benchmark = ">=4.0.0,<5.0.0"
+pytest-xdist = { version = ">=3.2.0,<4.0.0", extras = ["psutil"] }
+ruff = ">=0.1.3,<1.0.0"
+safety = "*"
+seaborn = ">=0.12.1,<1.0.0"
+xdoctest = { version = ">=1.1.0,<2.0.0", extras = ["colors"] }
+jupyterlab = ">=4.2.5,<5.0.0"
+jupytext = ">=1.16.2,<2.0.0"
+mkdocs = ">=1.5.3,<2.0.0"
+mkdocs-git-authors-plugin = ">=0.7.2,<1.0.0"
+mkdocs-git-revision-date-localized-plugin = ">=1.1.0,<2.0.0"
+mkdocs-git-committers-plugin-2 = ">=1.1.1,<2.0.0"
+markdown-exec = { version = ">=1.8.3,<2.0.0", extras = ["ansi"] }
+mkdocs-material = { git = "git+https://github.com/probcomp/mkdocs-material-insiders" }
+mkdocstrings-python = { git = "git+https://github.com/probcomp/mkdocstrings-python" }
+black = ">=24.4.2,<25.0.0"
+mkdocs-jupyter = ">=0.25.1,<1.0.0"
+griffe = ">=0.25.5,<1.0.0"
+
+[tool.pixi.feature.cpu.pypi-dependencies]
+jax = ">=0.4.24,<0.5.0"
+
+[tool.pixi.feature.cuda]
+platforms = ["linux-64", "osx-arm64"]
+system-requirements = { cuda = "12.6" }
+
+[tool.pixi.feature.cuda.target.linux-64.dependencies]
+cudnn = ">=9.7.1.26,<10"
+
+[tool.pixi.feature.cuda.target.linux-64.pypi-dependencies]
+jax = { version = ">=0.4.35", extras = ["cuda12"] }
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
@@ -116,8 +175,6 @@ defineConstant = { DEBUG = true }
 typeCheckingMode = "strict"
 deprecateTypingAliases = true
 
-# `strict` sets all of these to error; these remaining `none` entries are tests that we can't yet
-# pass.
 reportMissingTypeStubs = "none"
 reportMissingParameterType = "none"
 reportUnknownArgumentType = "none"
@@ -189,6 +246,3 @@ enable = true
 vcs = "git"
 style = "pep440"
 
-[build-system]
-requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning>=1.0.0,<2.0.0"]
-build-backend = "poetry_dynamic_versioning.backend"
