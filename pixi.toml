@@ -1,0 +1,165 @@
+[workspace]
+channels = [
+  "https://prefix.dev/pixi-build-backends",
+  "https://prefix.dev/conda-forge",
+]
+platforms = ["linux-64", "osx-arm64"]
+preview = ["pixi-build"]
+
+[dependencies]
+python = ">=3.11,<4.0"
+genjax = { path = "." }
+
+[pypi-dependencies]
+jax = ">=0.4.24"
+tensorflow-probability = ">=0.23.0"
+jaxtyping = ">=0.2.24"
+beartype = ">=0.20.0"
+deprecated = ">=1.2.14"
+penzai = ">=0.2.2"
+treescope = ">=0.1.5"
+numpy = ">=1.22,<2.0.0"
+genstudio = ">=2025.2.1"
+
+# [tool.pixi.pypi-options]
+# no-build = true
+
+# [build-system]
+# build-backend = "hatchling.build"
+# requires = ["hatchling"]
+
+
+# [tool.pixi.project]
+# channels = ["conda-forge"]
+# platforms = ["linux-64", "osx-arm64"]
+
+
+[activation.env]
+XLA_PYTHON_CLIENT_PREALLOCATE = "false"
+XLA_PYTHON_CLIENT_ALLOCATOR = "platform"
+
+[environments]
+cpu = { features = ["cpu"], solve-group = "default" }
+cpu-dev = { features = ["cpu", "dev"], solve-group = "default" }
+gpu = { features = ["cuda"], solve-group = "default" }
+gpu-dev = { features = ["cuda", "dev"], solve-group = "default" }
+
+[feature.dev.tasks]
+tests = { cmd = [
+    "pytest",
+    "--benchmark-disable",
+    "--ignore",
+    "scratch",
+    "--ignore",
+    "notebooks",
+    "-n",
+    "auto"
+] }
+coverage-run = { cmd = [
+    "coverage",
+    "run",
+    "-m",
+    "pytest",
+    "--benchmark-disable",
+    "--ignore",
+    "scratch",
+] }
+coverage-json = { cmd = [
+    "coverage",
+    "json",
+    "--omit",
+    "test*",
+] }
+coverage-report = { cmd = [
+    "coverage",
+    "report",
+    "--omit",
+    "test*",
+] }
+xdoctests = { cmd = [
+    "xdoctest",
+    "--modname=genjax",
+    "--command=all",
+    "--colored=1",
+] }
+safety = { cmd = [
+    "safety",
+    "check",
+    "--ignore",
+    "70612",
+    "--ignore",
+    "73456",
+    "--ignore",
+    "74439",
+    "--ignore",
+    "74735",
+    "--full-report",
+] }
+ruff-check = { cmd = [
+    "ruff",
+    "check",
+    "--fix",
+    ".",
+] }
+ruff-format = { cmd = [
+    "ruff",
+    "format",
+    ".",
+] }
+docs-build = { cmd = [
+    "mkdocs",
+    "build",
+    "--strict",
+] }
+
+[feature.dev.pypi-dependencies]
+coverage = ">=7.0.0,<8.0.0"
+hypothesis = ">=6.119.0,<7.0.0"
+matplotlib = ">=3.6.2,<4.0.0"
+mypy = ">=0.991,<1.0.0"
+pytest = ">=7.2.0,<8.0.0"
+pytest-benchmark = ">=4.0.0,<5.0.0"
+pytest-xdist = { version = ">=3.2.0,<4.0.0", extras = ["psutil"] }
+ruff = ">=0.1.3,<1.0.0"
+safety = "*"
+seaborn = ">=0.12.1,<1.0.0"
+xdoctest = { version = ">=1.1.0,<2.0.0", extras = ["colors"] }
+jupyterlab = ">=4.2.5,<5.0.0"
+jupytext = ">=1.16.2,<2.0.0"
+mkdocs = ">=1.5.3,<2.0.0"
+mkdocs-git-authors-plugin = ">=0.7.2,<1.0.0"
+mkdocs-git-revision-date-localized-plugin = ">=1.1.0,<2.0.0"
+mkdocs-git-committers-plugin-2 = ">=1.1.1,<2.0.0"
+markdown-exec = { version = ">=1.8.3,<2.0.0", extras = ["ansi"] }
+mkdocs-material = { git = "git+https://github.com/probcomp/mkdocs-material-insiders" }
+mkdocstrings-python = { git = "git+https://github.com/probcomp/mkdocstrings-python" }
+black = ">=24.4.2,<25.0.0"
+mkdocs-jupyter = ">=0.25.1,<1.0.0"
+griffe = ">=0.25.5,<1.0.0"
+
+[feature.cpu.pypi-dependencies]
+jax = ">=0.4.24,<0.5.0"
+
+[feature.cuda]
+platforms = ["linux-64"]
+system-requirements = { cuda = "12.6" }
+
+[feature.cuda.target.linux-64.dependencies]
+cudnn = ">=9.7.1.26,<10"
+
+[feature.cuda.target.linux-64.pypi-dependencies]
+jax = { version = ">=0.4.35", extras = ["cuda12"] }
+
+[package]
+name = "genjax"
+version = "0.0.0"
+
+[package.build]
+backend = { name = "pixi-build-python", version = "0.1.*" }
+
+[package.host-dependencies]
+hatchling = "==1.26.3"
+python = ">=3.11,<4.0"
+
+[package.run-dependencies]
+numpy = "<2.0.0"
