@@ -1939,7 +1939,7 @@ packages:
   - numpy <2.0.0
   - python
   input:
-    hash: 46f8693d0e417e52cdfd9d100fa8f352a2953ae094118b2bbce6123341452ffe
+    hash: da41a7b04d02b40c56200f8d0ad6406bb59f844a4f301f65d5ce187598a507af
     globs:
     - pixi.toml
 - pypi: https://files.pythonhosted.org/packages/af/b3/02869ca980c8bcb95cdaa970139b4b3f190d820859fb08726751d3dcf40f/genstudio-2025.3.9-py3-none-any.whl
