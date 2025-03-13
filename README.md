@@ -25,15 +25,15 @@
 
 ## 🔎 What is GenJAX?
 
-GenJAX is a GPU-accelerated probabilistic programming language (PPL): a system which provides automation for building programs which denote probability distributions, and as well as automation for constructing samplers, variational approximations, gradient estimators for expected values, and more.
+(**A PPL**) GenJAX is a GPU-accelerated probabilistic programming language (PPL): a system which provides automation for building programs which denote probability distributions, and as well as automation for constructing samplers, variational approximations, gradient estimators for expected values, and more.
 
-The design of GenJAX is centered on _programmable inference_, automation which allows users to express and customize Bayesian inference algorithms, including advanced forms of Monte Carlo and variational inference methods.
+(**With programmable inference**) The design of GenJAX is centered on _programmable inference_, automation which allows users to express and customize Bayesian inference algorithms, including advanced forms of Monte Carlo and variational inference methods.
 
 GenJAX's automation is based on two key concepts: _generative functions_ (GenJAX's version of probabilistic programs) and _traces_ (samples from probabilistic programs). GenJAX provides:
 * Modeling language automation for constructing complex probability distributions from pieces
 * Inference automation for constructing Monte Carlo samplers using convenient idioms (programs involve "editing" traces), and [variational inference automation](https://dl.acm.org/doi/10.1145/3656463) using [new extensions to automatic differentation for expected values](https://dl.acm.org/doi/10.1145/3571198).
 
-All of GenJAX's automation is fully compatible with JAX, implying that any program written in GenJAX can be `vmap`'d and `jit` compiled.
+(**Fully compatible with JAX**) All of GenJAX's automation is fully compatible with JAX, implying that any program written in GenJAX can be `vmap`'d and `jit` compiled.
 
 <div align="center">
 <a href="https://chisym.github.io/genjax/cookbook/">Jump into the notebooks!</a>
