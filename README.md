@@ -25,11 +25,11 @@
 
 ## 🔎 What is GenJAX?
 
-GenJAX is a GPU-accelerated probabilistic programming system.
+GenJAX is a GPU-accelerated probabilistic programming language (PPL): a system which provides automation for building programs which denote probability distributions, and as well as automation for constructing samplers, variational approximations, gradient estimators for expectations, and more.
 
-It is designed to support _programmable inference_ (allowing users to express complex Bayesian inference algorithms, including advanced forms of Monte Carlo and variational inference methods) for probabilistic models represented as programs.
+The design of GenJAX is centered on _programmable inference_, automation which allows users to express and customize Bayesian inference algorithms, including advanced forms of Monte Carlo and variational inference methods.
 
-GenJAX's automation is centered on two key concepts: _generative functions_ (probabilistic programs) and _traces_ (samples from probabilistic programs). GenJAX provides:
+GenJAX's automation is based on two key concepts: _generative functions_ (GenJAX's version of probabilistic programs) and _traces_ (samples from probabilistic programs). GenJAX provides:
 * Modeling language automation for constructing complex probability distributions from pieces
 * Inference automation for constructing Monte Carlo samplers using convenient idioms (programs involve "editing" traces), and [variational inference automation](https://dl.acm.org/doi/10.1145/3656463) using [new extensions to automatic differentation for expected values](https://dl.acm.org/doi/10.1145/3571198).
 
