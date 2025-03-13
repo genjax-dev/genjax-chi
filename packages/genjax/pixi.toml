@@ -98,7 +98,19 @@ docs-build = { cmd = [
     "--strict",
 ] }
 
+docs-serve = { cmd = [
+    "python",
+    "-m",
+    "http.server",
+    "8080",
+    "--bind",
+    "127.0.0.1",
+    "--directory",
+    "site"
+] }
+
 [feature.dev.pypi-dependencies]
+genstudio = ">=2025.2.1"
 coverage = ">=7.0.0,<8.0.0"
 hypothesis = ">=6.119.0,<7.0.0"
 matplotlib = ">=3.6.2,<4.0.0"
@@ -147,17 +159,9 @@ backend = { name = "pixi-build-python", version = "0.1.*" }
 hatchling = "==1.26.3"
 python = ">=3.11,<4.0"
 
-# [workspace.build-variants]
-# jax = [{ version = ">=0.4.24, <0.5", extras = ["cuda12"] }]
-
 [package.run-dependencies]
 numpy = "<2.0.0"
-# jax = ">=0.4.24, <0.5"
-# tensorflow-probability = ">=0.23.0"
 jaxtyping = ">=0.2.24"
 beartype = ">=0.20.0"
 deprecated = ">=1.2.14"
-# penzai = "*"
 treescope = ">=0.1.5"
-# #numpy = ">=1.22,<2.0.0"
-#genstudio = ">=2025.2.1"

@@ -1218,7 +1218,7 @@ packages:
   depends:
   - python
   input:
-    hash: 71ddbe82faab7d7edb091e4a6560616362fb6ce96dd1ded9deec7413a39f6882
+    hash: b4d7154956aa367034151bddff2dd16e5bb624b85337a9638346ee3f06743cd2
     globs:
     - pixi.toml
 - conda: ../genjax
