@@ -44,7 +44,7 @@ GenJAX's automation is based on two key concepts: _generative functions_ (GenJAX
 > [!TIP]
 > GenJAX is part of a larger ecosystem of probabilistic programming tools based upon Gen. [Explore more...](https://www.gen.dev/)
 
-## ELI5 GenJAX example [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1KWMa5No95tMDYEdmA4N0iqVFD-UsCSgp?usp=sharing)
+## Seriously, what is it? [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1KWMa5No95tMDYEdmA4N0iqVFD-UsCSgp?usp=sharing)
 
 The following code snippet defines a generative function called `beta_bernoulli` which represents [a Beta-Bernoulli model](https://en.wikipedia.org/wiki/Beta-binomial_distribution).
 
