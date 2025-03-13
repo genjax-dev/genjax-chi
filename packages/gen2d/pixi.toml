@@ -1,0 +1,59 @@
+[workspace]
+channels = [
+  "https://prefix.dev/pixi-build-backends",
+  "https://prefix.dev/conda-forge",
+]
+platforms = ["linux-64", "osx-arm64"]
+preview = ["pixi-build"]
+
+[environments]
+cpu = { features = ["cpu"], solve-group = "default" }
+gpu = { features = ["cuda"], solve-group = "default" }
+
+[activation.env]
+XLA_PYTHON_CLIENT_PREALLOCATE = "false"
+XLA_PYTHON_CLIENT_ALLOCATOR = "platform"
+XLA_FLAGS = "--xla_gpu_enable_command_buffer="
+
+[dependencies]
+gen2d = { path = "." }
+genjax = { path = "../genjax" }
+python = ">=3.11,<4.0"
+pooch = ">=1.8.2,<2"
+
+[pypi-dependencies]
+genstudio = ">=2025.2.1"
+pillow = ">=10.4.0, <11"
+ipython = ">=8.32.0, <9"
+ipykernel = ">=6.29.5, <7"
+seaborn = ">=0.13.2, <0.14"
+numpy = "<2.0.0"
+tensorflow-probability = ">=0.23.0, <0.24"
+tensorflow = ">=2.18.0, <3"
+penzai = "*"
+
+[feature.cpu.pypi-dependencies]
+jax = "==0.4.35"
+
+[feature.cuda]
+platforms = ["linux-64"]
+system-requirements = { cuda = "12.4" }
+
+[feature.cuda.target.linux-64.dependencies]
+cudnn = ">=9.7.1.26,<10"
+
+[feature.cuda.target.linux-64.pypi-dependencies]
+jax = { version = "==0.4.35", extras = ["cuda12-local"] }
+
+[package]
+name = "gen2d"
+version = "0.1.0"
+
+[package.build]
+backend = { name = "pixi-build-python", version = "0.1.*" }
+
+[package.host-dependencies]
+hatchling = "==1.26.3"
+python = ">=3.11,<4.0"
+
+[package.run-dependencies]
