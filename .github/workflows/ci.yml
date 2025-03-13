@@ -30,5 +30,6 @@ jobs:
             gpu-dev
 
       - run: |
-          pixi run --manifest-path packages/genjax -e gpu-dev tests
-          pixi run --manifest-path packages/genjax -e cpu-dev tests
+          cd ~/genjax/packages/genjax
+          pixi run -e gpu-dev tests
+          pixi run -e cpu-dev tests
