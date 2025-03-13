@@ -195,7 +195,9 @@ class TestVmap:
             ValueError,
             match="vmap got inconsistent sizes for array axes to be mapped",
         ):
-            jax.jit(foo.vmap(in_axes=0).simulate)(key, (jnp.arange(2), jnp.arange(3)))
+            jax.jit(foo.vmap(in_axes=(0, 0)).simulate)(
+                key, (jnp.arange(2), jnp.arange(3))
+            )
 
         # in_axes doesn't match args
         with pytest.raises(

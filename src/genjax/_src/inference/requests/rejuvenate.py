@@ -14,6 +14,11 @@
 
 import jax.random as jrand
 
+from genjax._src.core.generative import (
+    GenerativeFunction,
+    Trace,
+    Update,
+)
 from genjax._src.core.generative.choice_map import (
     ChoiceMap,
 )
@@ -22,11 +27,6 @@ from genjax._src.core.generative.core import (
     EditRequest,
     Retdiff,
     Weight,
-)
-from genjax._src.core.generative.generative_function import (
-    GenerativeFunction,
-    Trace,
-    Update,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
