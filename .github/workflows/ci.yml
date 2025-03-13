@@ -23,15 +23,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: 3.11.5
-
       - name: Install Pixi
         run: |
           curl -fsSL https://pixi.sh/install.sh | bash
           source ~/.bashrc
           export PATH=$HOME/.pixi/bin
+          ls -la
           cd packages/genjax
           pixi run -e gpu-dev tests
           pixi run -e cpu-dev tests
