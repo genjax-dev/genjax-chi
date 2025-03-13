@@ -179,11 +179,13 @@ def tangent_line_plot(theta_tan):
     return Plot.line(
         [[0, y_intercept], [1, slope + y_intercept]],
         stroke=Plot.constantly(label),
-    ) + Plot.color_map({
-        label: Plot.js(
-            f"""d3.interpolateHsl("{color1}", "{color2}")({theta_tan}/{theta_tangent_points[-1]})"""
-        )
-    })
+    ) + Plot.color_map(
+        {
+            label: Plot.js(
+                f"""d3.interpolateHsl("{color1}", "{color2}")({theta_tan}/{theta_tangent_points[-1]})"""
+            )
+        }
+    )
 
 
 (
@@ -308,10 +310,12 @@ slope_estimates = [slope + i / 20 for i in range(-4, 4)]
     + [slope_estimate_plot(slope_est) for slope_est in slope_estimates]
     + exact_tangent_plot
     + Plot.title("Expectation curve and Tangent Estimates at θ=0.3")
-    + Plot.color_map({
-        "Tangent estimate": color1,
-        "Exact tangent at θ=0.3": color2,
-    })
+    + Plot.color_map(
+        {
+            "Tangent estimate": color1,
+            "Exact tangent at θ=0.3": color2,
+        }
+    )
     + Plot.domain([0, 1], [0, 0.4])
 )
 
@@ -370,10 +374,12 @@ def plot_tangents(gradients, title):
         Plot.domain([0, 1], [0, 0.4]),
         tangents_plots,
         Plot.title(title),
-        Plot.color_map({
-            f"Tangent at θ={theta_tangents[0]}": color1,
-            f"Tangent at θ={theta_tangents[-1]}": color2,
-        }),
+        Plot.color_map(
+            {
+                f"Tangent at θ={theta_tangents[0]}": color1,
+                f"Tangent at θ={theta_tangents[-1]}": color2,
+            }
+        ),
     )
 
 
@@ -523,14 +529,16 @@ def render_plot(initial_val, initial_sigma):
         currentKey = jax.random.split(currentKey)[0]
         widget.state.update(computeState(widget.state.val, widget.state.sigma))
 
-    onChange = Plot.onChange({
-        "val": lambda widget, e: widget.state.update(
-            computeState(float(e["value"]), widget.state.sigma)
-        ),
-        "sigma": lambda widget, e: widget.state.update(
-            computeState(widget.state.val, float(e["value"]))
-        ),
-    })
+    onChange = Plot.onChange(
+        {
+            "val": lambda widget, e: widget.state.update(
+                computeState(float(e["value"]), widget.state.sigma)
+            ),
+            "sigma": lambda widget, e: widget.state.update(
+                computeState(widget.state.val, float(e["value"]))
+            ),
+        }
+    )
 
     samples_plot = make_samples_plot(thetas, js("$state.samples"))
 
@@ -636,49 +644,53 @@ def render_plot(initial_val, initial_sigma):
         label="Iteration:",
     )
 
-    controls = Plot.html([
-        "div.flex.mb-3.gap-4.bg-gray-200.rounded-md.p-3",
+    controls = Plot.html(
         [
-            "div.flex.flex-col.gap-1.w-32",
-            input_slider(
-                label="Initial Value:",
-                value=js("$state.val"),
-                min=0,
-                max=1,
-                step=SLIDER_STEP,
-                on_change=js("(e) => $state.val = parseFloat(e.target.value)"),
-                default=initial_val,
-            ),
-            input_slider(
-                label="Sigma:",
-                value=js("$state.sigma"),
-                min=0,
-                max=0.2,
-                step=0.01,
-                on_change=js("(e) => $state.sigma = parseFloat(e.target.value)"),
-                default=initial_sigma,
-            ),
-        ],
-        [
-            "div.flex.flex-col.gap-2.flex-auto",
-            input_checkbox(
-                label="Show expected value",
-                value=js("$state.show_expected_value"),
-                on_change=js("(e) => $state.show_expected_value = e.target.checked"),
-            ),
-            Plot.katex(r"""
+            "div.flex.mb-3.gap-4.bg-gray-200.rounded-md.p-3",
+            [
+                "div.flex.flex-col.gap-1.w-32",
+                input_slider(
+                    label="Initial Value:",
+                    value=js("$state.val"),
+                    min=0,
+                    max=1,
+                    step=SLIDER_STEP,
+                    on_change=js("(e) => $state.val = parseFloat(e.target.value)"),
+                    default=initial_val,
+                ),
+                input_slider(
+                    label="Sigma:",
+                    value=js("$state.sigma"),
+                    min=0,
+                    max=0.2,
+                    step=0.01,
+                    on_change=js("(e) => $state.sigma = parseFloat(e.target.value)"),
+                    default=initial_sigma,
+                ),
+            ],
+            [
+                "div.flex.flex-col.gap-2.flex-auto",
+                input_checkbox(
+                    label="Show expected value",
+                    value=js("$state.show_expected_value"),
+                    on_change=js(
+                        "(e) => $state.show_expected_value = e.target.checked"
+                    ),
+                ),
+                Plot.katex(r"""
 y(\theta) = \mathbb{E}_{x\sim P(\theta)}[x] = \int_{\mathbb{R}}\left[\theta^2\frac{1}{\sqrt{2\pi \sigma^2}}e^{\left(\frac{x}{\sigma}\right)^2} + (1-\theta)\frac{1}{\sqrt{2\pi \sigma^2}}e^{\left(\frac{x-0.5\theta}{\sigma}\right)^2}\right]dx =\frac{\theta-\theta^2}{2}
         """),
-            [
-                "button.w-32",
-                {
-                    "onClick": lambda widget, e: refresh(widget),
-                    "class": button_classes,
-                },
-                "Refresh",
+                [
+                    "button.w-32",
+                    {
+                        "onClick": lambda widget, e: refresh(widget),
+                        "class": button_classes,
+                    },
+                    "Refresh",
+                ],
             ],
-        ],
-    ])
+        ]
+    )
 
     jax_code = """def noisy_jax_model(key, theta, sigma):
     b = jax.random.bernoulli(key, theta)

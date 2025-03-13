@@ -335,22 +335,23 @@ def create_cluster_visualization(
     """
 
     # Return the complete visualization
-    return Plot.html([
-        "div",
-        {"className": "grid grid-cols-3 gap-4 p-4"},
+    return Plot.html(
         [
             "div",
-            {"className": "col-span-2"},
-            Plot.Frames(frames),
-        ],
-        [
-            "div",
-            {"className": "col-span-1"},
-            Plot.js(
-                """function() {
+            {"className": "grid grid-cols-3 gap-4 p-4"},
+            [
+                "div",
+                {"className": "col-span-2"},
+                Plot.Frames(frames),
+            ],
+            [
+                "div",
+                {"className": "col-span-1"},
+                Plot.js(
+                    """function() {
                 """
-                + frame_data_js
-                + """
+                    + frame_data_js
+                    + """
                 // Get current frame index
                 const frame = $state.frame || 0;
 
@@ -411,6 +412,7 @@ def create_cluster_visualization(
                     ]
                 ];
             }()"""
-            ),
-        ],
-    ])
+                ),
+            ],
+        ]
+    )
