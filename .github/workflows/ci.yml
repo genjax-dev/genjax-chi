@@ -34,7 +34,5 @@ jobs:
           curl -fsSL https://pixi.sh/install.sh | bash
           source ~/.bashrc
           export PATH=$HOME/.pixi/bin
-          ls -la
-          cd packages/genjax
-          pixi run -e gpu-dev tests
-          pixi run -e cpu-dev tests
+          pixi run --manifest-path packages/genjax -e gpu-dev tests
+          pixi run --manifest-path packages/genjax -e cpu-dev tests
