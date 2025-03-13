@@ -25,8 +25,6 @@
 
 ## 🔎 What is GenJAX?
 
-[Enjoyer of syntax?](https://github.com/ChiSym/genjax/tree/mrb/readme?tab=readme-ov-file#quick-example-)
-
 (**A PPL**) GenJAX is a GPU-accelerated probabilistic programming language (PPL): a system which provides automation for building programs which denote probability distributions, and as well as automation for constructing samplers, variational approximations, gradient estimators for expected values, and more.
 
 (**With programmable inference**) The design of GenJAX is centered on _programmable inference_: automation which allows users to express and customize Bayesian inference algorithms, including advanced forms of Monte Carlo and variational inference methods.
@@ -46,30 +44,7 @@ GenJAX's automation is based on two key concepts: _generative functions_ (GenJAX
 > [!TIP]
 > GenJAX is part of a larger ecosystem of probabilistic programming tools based upon Gen. [Explore more...](https://www.gen.dev/)
 
-## Quickstart
-
-To install GenJAX, run
-
-```bash
-pip install genjax
-```
-
-Then install [JAX](https://github.com/google/jax) using [this
-guide](https://jax.readthedocs.io/en/latest/installation.html) to choose the command for the
-architecture you're targeting. To run GenJAX without GPU support:
-
-```sh
-pip install jax[cpu]~=0.4.24
-```
-
-On a Linux machine with a GPU, run the following command:
-
-```sh
-pip install jax[cuda12]~=0.4.24
-```
-
-### Quick example [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1KWMa5No95tMDYEdmA4N0iqVFD-UsCSgp?usp=sharing)
-
+## ELI5 GenJAX example [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1KWMa5No95tMDYEdmA4N0iqVFD-UsCSgp?usp=sharing)
 
 The following code snippet defines a generative function called `beta_bernoulli` which represents [a Beta-Bernoulli model](https://en.wikipedia.org/wiki/Beta-binomial_distribution).
 
@@ -115,7 +90,7 @@ def inference_via_editing_traces(key, obs, α, β):
         # run a single step of HMC for "p" with eps=1e-3.
         HMC(Sel.at["p"], jnp.array(1e-3))
     )
-    _, (tr, Z) = tr.resample_k(key, lws + lws_)
+    _, (tr, _) = tr.resample_k(key, lws + lws_)
     return jnp.mean(tr.get_choices()["p"])
 
 α, β = 1.0, 1.0
@@ -126,6 +101,29 @@ obs = True
 )
 # (0.6666666666666666, Array(0.6506245, dtype=float32))
 ```
+
+## Installing and using GenJAX
+
+To install GenJAX, run
+
+```bash
+pip install genjax
+```
+
+Then install [JAX](https://github.com/google/jax) using [this
+guide](https://jax.readthedocs.io/en/latest/installation.html) to choose the command for the
+architecture you're targeting. To run GenJAX without GPU support:
+
+```sh
+pip install jax[cpu]~=0.4.24
+```
+
+On a Linux machine with a GPU, run the following command:
+
+```sh
+pip install jax[cuda12]~=0.4.24
+```
+
 
 ## References
 
