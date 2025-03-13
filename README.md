@@ -48,13 +48,65 @@ GenJAX's automation is based on two key concepts: _generative functions_ (GenJAX
 
 The following code snippet defines a generative function called `beta_bernoulli` which represents [a Beta-Bernoulli model](https://en.wikipedia.org/wiki/Beta-binomial_distribution).
 
+```python
+from genjax import beta, flip, gen
+
+# Create a generative model.
+@gen
+def beta_bernoulli(α, β):
+    p = beta(α, β) @ "p"
+    v = flip(p) @ "v"
+    return v
+```
+
 - The _address syntax_ `"p"` and `"v"` denotes _the random variables_ in the program. Here, there are two: a random variable representing a draw from a prior over the probability of success `p` and a random variable for a Bernoulli trial `v`.
+
 - We will observe a coin flip `obs` - in this model, we can exactly compute the conditional distribution of `p` given `v = obs` using an analytic property called conjugacy.
+
+```python
+α, β = 1.0, 1.0
+obs = True
+
+def exact_posterior_mean(obs, α, β):
+    return (α + obs) / (α + β + 1)
+
+exact_posterior_mean(obs, α, β),
+# 0.6666666666666666
+```
+
 - But we can also construct an approximate sampler using programmable inference! Programmable inference works for much more complicated models than the Beta-Bernoulli model.
+
+```python
+# Implements HMC-within-SIR:
+# create a trace, edit it with HMC, resample.
+from jax import jit
+import jax.numpy as jnp
+import jax.random as jrand
+from genjax import ChoiceMap as Chm
+from genjax import Selection as Sel
+from genjax.inference.requests import HMC
+
+@jit
+def inference_via_editing_traces(key, obs, α, β):
+    key, (tr, lws) = beta_bernoulli.importance_k(500)(
+        key, # fresh randomness
+        Chm.d({"v": obs}), # constraint: "v" -> True
+        (α, β), # (α, β)
+    )
+    key, (tr, lws_, *_) = tr.edit_k(
+        key, # fresh randomness
+        # run a single step of HMC for "p" with eps=1e-3.
+        HMC(Sel.at["p"], jnp.array(1e-3))
+    )
+    _, (tr, _) = tr.resample_k(key, lws + lws_)
+    return jnp.mean(tr.get_choices()["p"])
+```
+
 - We build an approximate sampler using HMC-within-SIR, a type of hybrid algorithm in [the sequential Monte Carlo](https://en.wikipedia.org/wiki/Sequential_Monte_Carlo) algorithm family.
 - GenJAX provides concise idioms to express this algorithm by exposing vectorized interfaces that automate the vectorization and the math (`inference_via_editing_traces`)
 - We create 500 properly weighted samples (`importance_k`), then edit all of them using HMC applied to the `"p"` variable, keeping track of the weights, and then resample from the edited samples (`resample_k`) and estimate the posterior mean.
 
+**Full snippet:**
 ```python
 import jax
 from jax import jit
