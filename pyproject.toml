@@ -39,7 +39,7 @@ Changelog = "https://github.com/chisym/genjax/releases"
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
 jax = "^0.4.24"
-tensorflow-probability = "^0.23.0"
+tensorflow-probability = ">=0.23.0"
 jaxtyping = "^0.2.24"
 beartype = "^0.20.0"
 deprecated = "^1.2.14"
@@ -49,6 +49,7 @@ treescope = "^0.1.5"
 # remove this constraint when that issue is closed.
 numpy = ">=1.22,<2.0.0"
 genstudio = ">=2025.2.1"
+poetry = "1.8.5"
 
 [tool.poetry.group.dev]
 optional = true
