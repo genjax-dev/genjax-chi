@@ -1755,7 +1755,7 @@ packages:
   - treescope >=0.1.5
   - python
   input:
-    hash: 55fb0a406314195e01ce6cf586bb2f1aa447dcdca18d185bb10b63bd75aa66a9
+    hash: e10bfdcba7d8d123e6997ff26b8ec48d1bbf112fe96cc9ffc4193cc917f5c502
     globs:
     - pixi.toml
 - pypi: https://files.pythonhosted.org/packages/af/b3/02869ca980c8bcb95cdaa970139b4b3f190d820859fb08726751d3dcf40f/genstudio-2025.3.9-py3-none-any.whl
