@@ -25,9 +25,15 @@
 
 ## 🔎 What is GenJAX?
 
-Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://chisym.github.io/genjax/cookbook/active/intro.html#generative-functions).
+GenJAX is a GPU-accelerated probabilistic programming system.
 
-GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax) - exposing the ability to programmatically construct and manipulate generative functions, as well as [JIT compile + auto-batch inference computations using generative functions onto GPU devices](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html).
+It is designed to support _programmable inference_ (allowing users to express complex Bayesian inference algorithms, including advanced forms of Monte Carlo and variational inference methods) for probabilistic models represented as programs.
+
+GenJAX's automation is centered on two key concepts: _generative functions_ (probabilistic programs) and _traces_ (samples from probabilistic programs). GenJAX provides:
+* Modeling language automation for constructing complex probability distributions from pieces
+* Inference automation for constructing Monte Carlo samplers using convenient idioms (programs involve "editing" traces), and [variational inference automation](https://dl.acm.org/doi/10.1145/3656463) using [new extensions to automatic differentation for expected values](https://dl.acm.org/doi/10.1145/3571198).
+
+All of GenJAX's automation is fully compatible with JAX, implying that any program written in GenJAX can be `vmap`'d and `jit` compiled.
 
 <div align="center">
 <a href="https://chisym.github.io/genjax/cookbook/">Jump into the notebooks!</a>
