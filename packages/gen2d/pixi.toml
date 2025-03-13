@@ -20,6 +20,7 @@ gen2d = { path = "." }
 genjax = { path = "../genjax" }
 python = ">=3.11,<4.0"
 pooch = ">=1.8.2,<2"
+dm-tree = ">=0.1.9,<0.2"
 
 [pypi-dependencies]
 genstudio = ">=2025.2.1"

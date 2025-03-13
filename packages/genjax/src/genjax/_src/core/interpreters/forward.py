@@ -63,7 +63,7 @@ class FlatPrimitive(jc.Primitive):
         self.multiple_results = True
 
         def _abstract(*flat_avals, **params):
-            return pe.abstract_eval_fun(self.impl, *flat_avals, **params)
+            return pe.abstract_eval_fun(self.impl, *flat_avals, debug_info=None, **params)
 
         self.def_abstract_eval(_abstract)
 
