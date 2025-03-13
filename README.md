@@ -25,6 +25,8 @@
 
 ## 🔎 What is GenJAX?
 
+[Enjoyer of syntax?](https://github.com/ChiSym/genjax/tree/mrb/readme?tab=readme-ov-file#quick-example-)
+
 (**A PPL**) GenJAX is a GPU-accelerated probabilistic programming language (PPL): a system which provides automation for building programs which denote probability distributions, and as well as automation for constructing samplers, variational approximations, gradient estimators for expected values, and more.
 
 (**With programmable inference**) The design of GenJAX is centered on _programmable inference_: automation which allows users to express and customize Bayesian inference algorithms, including advanced forms of Monte Carlo and variational inference methods.
@@ -69,26 +71,25 @@ pip install jax[cuda12]~=0.4.24
 ### Quick example [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1KWMa5No95tMDYEdmA4N0iqVFD-UsCSgp?usp=sharing)
 
 
-The following code snippet defines a generative function called `beta_bernoulli` that
+The following code snippet defines a generative function called `beta_bernoulli` which represents [a Beta-Bernoulli model](https://en.wikipedia.org/wiki/Beta-binomial_distribution).
 
-- takes a shape parameter `beta`
-- uses this to create and draw a value `p` from a [Beta
-  distribution](https://en.wikipedia.org/wiki/Beta_distribution)
-- Flips a coin that returns 1 with probability `p`, 0 with probability `1-p` and
-  returns that value
-
-Then, we create an inference problem (by specifying a posterior target), and utilize sampling
-importance resampling to give produce single sample estimator of `p`.
-
-We can JIT compile that entire process, run it in parallel, etc - which we utilize to produce an estimate for `p`
-over 50 independent trials of SIR (with K = 50 particles).
+- The _address syntax_ `"p"` and `"v"` denotes _the random variables_ in the program. Here, there are two: a random variable representing a draw from a prior over the probability of success `p` and a random variable for a Bernoulli trial `v`.
+- We will observe a coin flip `obs` - in this model, we can exactly compute the conditional distribution of `p` given `v = obs` using an analytic property called conjugacy.
+- But we can also construct an approximate sampler using programmable inference! Programmable inference works for much more complicated models than the Beta-Bernoulli model.
+- We build an approximate sampler using HMC-within-SIR, a type of hybrid algorithm in [the sequential Monte Carlo](https://en.wikipedia.org/wiki/Sequential_Monte_Carlo) algorithm family.
+- GenJAX provides concise idioms to express this algorithm by exposing vectorized interfaces that automate the vectorization and the math (`inference_via_editing_traces`)
+- We create 500 properly weighted samples (`importance_k`), then edit all of them using HMC applied to the `"p"` variable, keeping track of the weights, and then resample from the edited samples (`resample_k`) and estimate the posterior mean.
 
 ```python
 import jax
+from jax import jit
 import jax.numpy as jnp
+import jax.random as jrand
 import genjax
-from genjax import beta, flip, gen, Target, ChoiceMap
-from genjax.inference.smc import ImportanceK
+from genjax import beta, flip, gen
+from genjax import ChoiceMap as Chm
+from genjax import Selection as Sel
+from genjax.inference.requests import HMC
 
 # Create a generative model.
 @gen
@@ -97,34 +98,33 @@ def beta_bernoulli(α, β):
     v = flip(p) @ "v"
     return v
 
-@jax.jit
-def run_inference(obs: bool):
-    # Create an inference query - a posterior target - by specifying
-    # the model, arguments to the model, and constraints.
-    posterior_target = Target(beta_bernoulli, # the model
-                              (2.0, 2.0), # arguments to the model
-                              ChoiceMap.d({"v": obs}), # constraints
-                            )
+def exact_posterior_mean(obs, α, β):
+    return (α + obs) / (α + β + 1)
 
-    # Use a library algorithm, or design your own - more on that in the docs!
-    alg = ImportanceK(posterior_target, k_particles=50)
-
-    # Everything is JAX compatible by default.
-    # JIT, vmap, to your heart's content.
-    key = jax.random.key(314159)
-    sub_keys = jax.random.split(key, 50)
-    _, p_chm = jax.vmap(alg.random_weighted, in_axes=(0, None))(
-        sub_keys, posterior_target
+# Implements HMC-within-SIR:
+# create a trace, edit it with HMC, resample.
+@jit
+def inference_via_editing_traces(key, obs, α, β):
+    key, (tr, lws) = beta_bernoulli.importance_k(500)(
+        key, # fresh randomness
+        Chm.d({"v": obs}), # constraint: "v" -> True
+        (α, β), # (α, β)
     )
+    key, (tr, lws_, *_) = tr.edit_k(
+        key, # fresh randomness
+        # run a single step of HMC for "p" with eps=1e-3.
+        HMC(Sel.at["p"], jnp.array(1e-3))
+    )
+    _, (tr, Z) = tr.resample_k(key, lws + lws_)
+    return jnp.mean(tr.get_choices()["p"])
 
-    # An estimate of `p` over 50 independent trials of SIR (with K = 50 particles).
-    return jnp.mean(p_chm["p"])
-
-(run_inference(True), run_inference(False))
-```
-
-```python
-(Array(0.6039314, dtype=float32), Array(0.3679334, dtype=float32))
+α, β = 1.0, 1.0
+obs = True
+(
+    exact_posterior_mean(obs, α, β),
+    inference_via_editing_traces(jrand.key(1), obs, α, β),
+)
+# (0.6666666666666666, Array(0.6506245, dtype=float32))
 ```
 
 ## References

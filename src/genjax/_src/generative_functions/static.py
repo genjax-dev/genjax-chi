@@ -100,6 +100,7 @@ class StaticTrace(Generic[R], Trace[R]):
     def get_score(self) -> Score:
         return jnp.sum(
             jnp.array([tr.get_score() for tr in self.subtraces.values()], copy=False),
+            axis=0,
         )
 
     def get_inner_trace(self, address: Address):
