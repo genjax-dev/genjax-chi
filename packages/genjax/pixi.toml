@@ -98,6 +98,7 @@ docs-build = { cmd = [
     "--strict",
 ] }
 
+
 docs-serve = { cmd = [
     "python",
     "-m",
