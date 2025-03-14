@@ -4,7 +4,7 @@
 </p>
 <p align="center">
   <strong>
-    Probabilistic programming with programmable inference.
+    Scaling probabilistic programming with programmable inference.
   </strong>
 </p>
 
