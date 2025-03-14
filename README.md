@@ -199,7 +199,9 @@ If you want to discuss an idea for a new feature or ask us a question, discussio
 
 ## Citing GenJAX
 
-To cite GenJAX, please use the following BibTeX entry for [our initial work on programmable variational inference](https://dl.acm.org/doi/10.1145/3656463):
+If you're using GenJAX for your research, there are multiple ways to cite it:
+- If you'd like to cite the software, use the [`CITATION.cff`](https://github.com/ChiSym/genjax/blob/main/CITATION.cff)
+- If you'd like to cite academic papers about the software, please use the following BibTeX entry for [our initial work on programmable variational inference](https://dl.acm.org/doi/10.1145/3656463):
 
 ```bibtex
 @article{10.1145/3656463,

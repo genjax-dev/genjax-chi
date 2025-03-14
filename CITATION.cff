@@ -12,7 +12,7 @@ authors:
   orcid: "https://orcid.org/0000-0002-0545-6360"
 - family-names: "Smith"
   given-names: "Colin"
-title: "GenJAX: Probabilistic Programming with Gen, built on top of JAX"
+title: "GenJAX: Probabilistic Programming with Programmable Inference"
 version: 0.10.0
 date-released: 2025
 type: software
