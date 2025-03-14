@@ -16,7 +16,12 @@ import functools
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
+import jax.numpy as jnp
+import jax.random as jrand
+import jax.tree_util as jtu
 from deprecated import deprecated
+from jax import vmap
+from jax.scipy.special import logsumexp
 
 from genjax._src.core.generative.choice_map import (
     Address,
@@ -196,6 +201,21 @@ class Trace(Generic[R], Pytree):
             Diff.no_change(self.get_args()) if argdiffs is None else argdiffs,
         )  # pyright: ignore[reportReturnType]
 
+    def edit_k(
+        self,
+        key: PRNGKey,
+        request: EditRequest,
+        argdiffs: tuple[Any, ...] | None = None,
+    ) -> tuple[PRNGKey, tuple[Self, Weight, Retdiff[R], EditRequest]]:
+        nk, sk = jrand.split(key)
+        batch_shape = self.batch_shape()
+        sks = jrand.split(sk, batch_shape)
+        tr, ws, retdiff, bwd_request = vmap(
+            lambda _tr, k, r, a: _tr.edit(k, r, a),
+            in_axes=(0, 0, None, None),
+        )(self, sks, request, argdiffs)
+        return nk, (tr, ws, retdiff, bwd_request)
+
     def update(
         self,
         key: PRNGKey,
@@ -225,13 +245,31 @@ class Trace(Generic[R], Pytree):
             selection,
         )
 
+    def resample_k(
+        self,
+        key: PRNGKey,
+        ws: Weight,
+    ) -> tuple[PRNGKey, tuple[Self, Weight]]:
+        from tensorflow_probability.substrates import jax as tfp
+
+        tfd = tfp.distributions
+
+        ks, sk = jrand.split(key)
+        batch_shape = self.batch_shape()
+        idx = tfd.Categorical(logits=ws).sample(
+            seed=sk,
+            sample_shape=batch_shape,
+        )
+        tr_k = jtu.tree_map(lambda x: x[idx], self)
+        Z = logsumexp(ws)
+        return ks, (tr_k, Z)
+
     ###################
     # Batch semantics #
     ###################
 
-    @property
     def batch_shape(self):
-        return len(self.get_score())
+        return jnp.array(self.get_score(), copy=False).shape
 
 
 #######################
@@ -659,6 +697,22 @@ class GenerativeFunction(Generic[R], Pytree):
             constraint,
             args,
         )
+
+    def importance_k(self, n: int):
+        def _importance_k(
+            key: PRNGKey,
+            constraint: ChoiceMap,
+            args: Arguments,
+        ) -> tuple[Any, tuple[Trace[R], Weight]]:
+            nk, sk = jrand.split(key)
+            sks = jrand.split(sk, n)
+            tr, ws = vmap(
+                lambda g, k, c, a: g.importance(k, c, a),
+                in_axes=(None, 0, None, None),
+            )(self, sks, constraint, args)
+            return nk, (tr, ws)
+
+        return _importance_k
 
     def propose(
         self,
