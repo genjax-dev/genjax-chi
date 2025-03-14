@@ -175,6 +175,31 @@ On a Linux machine with a GPU, run the following command:
 pip install jax[cuda12]~=0.4.24
 ```
 
+## Citing GenJAX
+
+To cite GenJAX, please use the following BibTeX entry for [our initial work on programmable variational inference](https://dl.acm.org/doi/10.1145/3656463):
+
+```bibtex
+@article{10.1145/3656463,
+    author = {Becker, McCoy R. and Lew, Alexander K. and Wang, Xiaoyan and Ghavami, Matin and Huot, Mathieu and Rinard, Martin C. and Mansinghka, Vikash K.},
+    title = {Probabilistic Programming with Programmable Variational Inference},
+    year = {2024},
+    issue_date = {June 2024},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    volume = {8},
+    number = {PLDI},
+    url = {https://doi.org/10.1145/3656463},
+    doi = {10.1145/3656463},
+    journal = {Proc. ACM Program. Lang.},
+    month = jun,
+    articleno = {233},
+    numpages = {25},
+    keywords = {automatic differentiation, correctness, probabilistic programming, semantics, variational inference}
+}
+```
+
+We will continue to add papers as we put them out.
 
 ## References
 
