@@ -264,6 +264,9 @@ class Trace(Generic[R], Pytree):
         Z = logsumexp(ws)
         return ks, (tr_k, Z)
 
+    def __getitem__(self, k):
+        return self.get_choices().__getitem__(k)
+
     ###################
     # Batch semantics #
     ###################

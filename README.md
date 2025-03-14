@@ -143,7 +143,7 @@ def inference_via_editing_traces(key, obs, α, β):
         HMC(Sel.at["p"], jnp.array(1e-3))
     )
     _, (tr, _) = tr.resample_k(key, lws + lws_)
-    return jnp.mean(tr.get_choices()["p"])
+    return jnp.mean(tr["p"])
 
 α, β = 1.0, 1.0
 obs = True
