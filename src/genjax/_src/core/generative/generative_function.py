@@ -1288,7 +1288,12 @@ class GenerativeFunction(Generic[R], Pytree):
 
         return genjax.switch(self, *branches)
 
-    def mix(self, *fns: "GenerativeFunction[R]") -> "GenerativeFunction[R]":
+    def mix(
+        self,
+        *fns: "GenerativeFunction[R]",
+        mix_address: str | None = None,
+        component_address: str | None,
+    ) -> "GenerativeFunction[R]":
         """
         Takes any number of [`genjax.GenerativeFunction`][]s and returns a new [`genjax.GenerativeFunction`][] that represents a mixture model.
 
@@ -1334,7 +1339,9 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.mix(self, *fns)
+        return genjax.mix(
+            self, *fns, mix_address=mix_address, component_address=component_address
+        )
 
     def dimap(
         self,

@@ -24,7 +24,11 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
 from genjax._src.generative_functions.static import gen
 
 
-def mix(*gen_fns: GenerativeFunction[R]) -> GenerativeFunction[R]:
+def mix(
+    *gen_fns: GenerativeFunction[R],
+    mix_address: str | None = None,
+    component_address: str | None = None,
+) -> GenerativeFunction[R]:
     """
     Creates a mixture model from a set of generative functions.
 
@@ -70,12 +74,14 @@ def mix(*gen_fns: GenerativeFunction[R]) -> GenerativeFunction[R]:
         print(trace.render_html())
         ```
     """
+    mix_addr = mix_address or "mixture_component"
+    component_addr = component_address or "component_sample"
 
     inner_combinator_closure = switch(*gen_fns)
 
     def mixture_model(mixture_logits, *args) -> R:
-        mix_idx = categorical(mixture_logits) @ "mixture_component"
-        v = inner_combinator_closure(mix_idx, *args) @ "component_sample"
+        mix_idx = categorical(mixture_logits) @ mix_addr
+        v = inner_combinator_closure(mix_idx, *args) @ component_addr
         return v
 
     return gen(mixture_model)
