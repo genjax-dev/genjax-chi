@@ -91,7 +91,7 @@ from genjax.edits import HMC
 def inference_via_editing_traces(key, obs, α, β):
     key, (tr, lws) = beta_bernoulli.importance_k(500)(
         key, # fresh randomness
-        Chm.d({"v": obs}), # constraint: "v" -> True
+        Chm.d({"v": obs}), # constraint: "v" -> obs
         (α, β), # (α, β)
     )
     key, (tr, lws_, *_) = tr.edit_k(
@@ -134,7 +134,7 @@ def exact_posterior_mean(obs, α, β):
 def inference_via_editing_traces(key, obs, α, β):
     key, (tr, lws) = beta_bernoulli.importance_k(500)(
         key, # fresh randomness
-        Chm.d({"v": obs}), # constraint: "v" -> True
+        Chm.d({"v": obs}), # constraint: "v" -> obs
         (α, β), # (α, β)
     )
     key, (tr, lws_, *_) = tr.edit_k(
