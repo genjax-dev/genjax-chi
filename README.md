@@ -74,7 +74,7 @@ exact_posterior_mean(obs, α, β),
 # 0.6666666666666666
 ```
 
-- But we can also construct an approximate sampler using programmable inference! Programmable inference works for much more complicated models than the Beta-Bernoulli model. We will build an approximate sampler using HMC-within-SIR, a type of algorithm in [the sequential Monte Carlo](https://en.wikipedia.org/wiki/Sequential_Monte_Carlo) algorithm family.
+- But we can also construct an approximate sampler using programmable inference! Programmable inference works for much more complicated models than the Beta-Bernoulli model. We will build an approximate sampler using HMC-within-SIR (mouthful: Hamiltonian Monte Carlo within Sampling Importance Resampling), a type of algorithm in [the sequential Monte Carlo](https://en.wikipedia.org/wiki/Sequential_Monte_Carlo) algorithm family.
 
 ```python
 # Implements HMC-within-SIR:
@@ -103,7 +103,7 @@ def inference_via_editing_traces(key, obs, α, β):
 ```
 
 - GenJAX provides concise idioms to express this algorithm by exposing vectorized interfaces that automate the vectorization and the math (`inference_via_editing_traces`)
-- We create 500 properly weighted samples (`importance_k`), then edit all of them using HMC applied to the `"p"` variable, keeping track of the weights, and then resample from the edited samples (`resample_k`) and estimate the posterior mean.
+- We create 500 properly weighted samples (`importance_k`), then edit all of them (`edit_k`) using HMC applied to the `"p"` variable, keeping track of the weights, and then resample from the edited samples (`resample_k`) and estimate the posterior mean.
 
 **Full snippet:**
 ```python
