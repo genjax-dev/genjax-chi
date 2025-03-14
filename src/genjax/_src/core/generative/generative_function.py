@@ -32,7 +32,6 @@ from genjax._src.core.generative.core import (
     Argdiffs,
     Arguments,
     EditRequest,
-    PrimitiveEditRequest,
     Retdiff,
     Score,
     Weight,
@@ -155,6 +154,38 @@ class Trace(Generic[R], Pytree):
         """Returns the [`GenerativeFunction`][genjax.core.GenerativeFunction] whose invocation created the [`Trace`][genjax.core.Trace]."""
         pass
 
+    def get_subtrace(self, *addresses: Address) -> "Trace[Any]":
+        """
+        Return the subtrace having the supplied address. Specifying multiple addresses
+        will apply the operation recursively.
+
+        GenJAX does not guarantee the validity of any inference computations performed
+        using information from the returned subtrace. In other words, it is safe to
+        inspect the data of subtraces -- but it not safe to use that data to make decisions
+        about inference. This is true of all the methods on the subtrace, including
+        `Trace.get_args`, `Trace.get_score`, `Trace.get_retval`, etc. It is safe to look,
+        but don't use the data for non-trivial things!"""
+
+        return functools.reduce(
+            lambda tr, addr: tr.get_inner_trace(addr), addresses, self
+        )
+
+    def get_inner_trace(self, _address: Address) -> "Trace[Any]":
+        """Override this method to provide `Trace.get_subtrace` support
+        for those trace types that have substructure that can be addressed
+        in this way.
+
+        NOTE: `get_inner_trace` takes a full `Address` because, unlike `ChoiceMap`, if a user traces to a tupled address like ("a", "b"), then the resulting `StaticTrace` will store a sub-trace at this address, vs flattening it out.
+
+        As a result, `tr.get_inner_trace(("a", "b"))` does not equal `tr.get_inner_trace("a").get_inner_trace("b")`."""
+        raise NotImplementedError(
+            "This type of Trace object does not possess subtraces."
+        )
+
+    ######################
+    # Derived interfaces #
+    ######################
+
     def edit(
         self,
         key: PRNGKey,
@@ -190,16 +221,17 @@ class Trace(Generic[R], Pytree):
         key: PRNGKey,
         constraint: ChoiceMap,
         argdiffs: tuple[Any, ...] | None = None,
-    ) -> tuple[Self, Weight, Retdiff[R], ChoiceMap]:
-        """
-        This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
-        """
-        return self.get_gen_fn().update(
+    ) -> "tuple[Trace[R], Weight, Retdiff[R], ChoiceMap]":
+        from genjax import Update
+
+        request = Update(constraint)
+        tr, w, retdiff, bwd_request = request.edit(
             key,
             self,
-            constraint,
-            Diff.no_change(self.get_args()) if argdiffs is None else argdiffs,
-        )  # pyright: ignore[reportReturnType]
+            argdiffs if argdiffs else Diff.no_change(self.get_args()),
+        )
+        assert isinstance(bwd_request, Update)
+        return tr, w, retdiff, bwd_request.constraint
 
     def project(
         self,
@@ -231,34 +263,6 @@ class Trace(Generic[R], Pytree):
         tr_k = jtu.tree_map(lambda x: x[idx], self)
         Z = logsumexp(ws)
         return ks, (tr_k, Z)
-
-    def get_subtrace(self, *addresses: Address) -> "Trace[Any]":
-        """
-        Return the subtrace having the supplied address. Specifying multiple addresses
-        will apply the operation recursively.
-
-        GenJAX does not guarantee the validity of any inference computations performed
-        using information from the returned subtrace. In other words, it is safe to
-        inspect the data of subtraces -- but it not safe to use that data to make decisions
-        about inference. This is true of all the methods on the subtrace, including
-        `Trace.get_args`, `Trace.get_score`, `Trace.get_retval`, etc. It is safe to look,
-        but don't use the data for non-trivial things!"""
-
-        return functools.reduce(
-            lambda tr, addr: tr.get_inner_trace(addr), addresses, self
-        )
-
-    def get_inner_trace(self, _address: Address) -> "Trace[Any]":
-        """Override this method to provide `Trace.get_subtrace` support
-        for those trace types that have substructure that can be addressed
-        in this way.
-
-        NOTE: `get_inner_trace` takes a full `Address` because, unlike `ChoiceMap`, if a user traces to a tupled address like ("a", "b"), then the resulting `StaticTrace` will store a sub-trace at this address, vs flattening it out.
-
-        As a result, `tr.get_inner_trace(("a", "b"))` does not equal `tr.get_inner_trace("a").get_inner_trace("b")`."""
-        raise NotImplementedError(
-            "This type of Trace object does not possess subtraces."
-        )
 
     ###################
     # Batch semantics #
@@ -646,24 +650,6 @@ class GenerativeFunction(Generic[R], Pytree):
     # Derived interfaces #
     ######################
 
-    def update(
-        self,
-        key: PRNGKey,
-        trace: Trace[R],
-        constraint: ChoiceMap,
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], ChoiceMap]:
-        request = Update(
-            constraint,
-        )
-        tr, w, rd, bwd = request.edit(
-            key,
-            trace,
-            argdiffs,
-        )
-        assert isinstance(bwd, Update), type(bwd)
-        return tr, w, rd, bwd.constraint
-
     def importance(
         self,
         key: PRNGKey,
@@ -742,13 +728,9 @@ class GenerativeFunction(Generic[R], Pytree):
         retval = tr.get_retval()
         return sample, score, retval
 
-    ######################################################
-    # Convenience: postfix syntax for combinators / DSLs #
-    ######################################################
-
-    ###############
-    # Combinators #
-    ###############
+    ###################################
+    # Convenience: combinators / DSLs #
+    ###################################
 
     # TODO think through, or note, that the R that comes out will have to be bounded by pytree.
     def vmap(self, /, *, in_axes: InAxes = 0) -> "GenerativeFunction[R]":
@@ -1736,8 +1718,3 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
             )
         else:
             return self.gen_fn.assess(sample, full_args)
-
-
-@Pytree.dataclass(match_args=True)
-class Update(PrimitiveEditRequest):
-    constraint: ChoiceMap

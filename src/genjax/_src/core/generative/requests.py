@@ -28,7 +28,6 @@ from genjax._src.core.generative.core import (
 )
 from genjax._src.core.generative.generative_function import (
     Trace,
-    Update,
 )
 from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
@@ -63,6 +62,11 @@ class EmptyRequest(EditRequest):
 @Pytree.dataclass(match_args=True)
 class Regenerate(PrimitiveEditRequest):
     selection: Selection
+
+
+@Pytree.dataclass(match_args=True)
+class Update(PrimitiveEditRequest):
+    constraint: ChoiceMap
 
 
 # NOTE: can be used in an unsafe fashion!

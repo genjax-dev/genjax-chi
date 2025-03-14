@@ -155,17 +155,15 @@ class TestMaskCombinator:
 
         assert jnp.array_equal(init_particle.get_retval(), jnp.array(0.0))
 
-        step_particle, step_weight, _, _ = model.update(
-            key, init_particle, C.n(), Diff.no_change((0.0, mask_steps))
+        step_particle, step_weight, _, _ = init_particle.update(
+            key, C.n(), Diff.no_change((0.0, mask_steps))
         )
         assert jnp.array_equal(step_weight, jnp.array(0.0))
         assert jnp.array_equal(step_particle.get_retval(), jnp.array(0.0))
 
         # Testing inference working when we extend the model by unmasking a value.
         argdiffs_ = (Diff.no_change(0.0), Diff.unknown_change(jnp.arange(10) < 6))
-        step_particle, step_weight, _, _ = model.update(
-            key, init_particle, C.n(), argdiffs_
-        )
+        step_particle, step_weight, _, _ = init_particle.update(key, C.n(), argdiffs_)
         assert step_weight != jnp.array(0.0)
         assert step_particle.get_score() == step_weight + init_particle.get_score()
 

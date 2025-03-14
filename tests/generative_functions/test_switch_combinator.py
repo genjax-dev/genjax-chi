@@ -156,9 +156,8 @@ class TestSwitch:
         v2 = tr.get_choices()["y2"]
         score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (tr, _, _, _) = jax.jit(switch.update)(
+        (tr, _, _, _) = jax.jit(tr.update)(
             sub_key,
-            tr,
             C.n(),
             (Diff.no_change(0), ()),
         )
@@ -197,9 +196,8 @@ class TestSwitch:
         assert wt == tr.get_score()
 
         key, update_key = jax.random.split(key)
-        (new_tr, new_wt, _, _) = switch.update(
+        (new_tr, new_wt, _, _) = tr.update(
             update_key,
-            tr,
             C.n(),
             (Diff.unknown_change(1), (), ()),
         )

@@ -40,11 +40,11 @@ from .generative_function import (
     GenerativeFunctionClosure,
     IgnoreKwargs,
     Trace,
-    Update,
 )
 from .requests import (
     EmptyRequest,
     Regenerate,
+    Update,
 )
 
 __all__ = [

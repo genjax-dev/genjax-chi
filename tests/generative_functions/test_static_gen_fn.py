@@ -501,15 +501,13 @@ class TestStaticGenFnUpdate:
         key = jax.random.key(314159)
         key, sub_key = jax.random.split(key)
         tr = jax.jit(simple_normal.simulate)(sub_key, ())
-        jitted = jax.jit(simple_normal.update)
 
         new = C["y1"].set(2.0)
         original_choice = tr.get_choices()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (updated, w, _, discard) = jitted(
+        (updated, w, _, discard) = tr.update(
             sub_key,
-            tr,
             new,
             (),
         )
@@ -531,7 +529,7 @@ class TestStaticGenFnUpdate:
         new = C["y1"].set(2.0).at["y2"].set(3.0)
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (updated, w, _, discard) = jitted(sub_key, tr, new, ())
+        (updated, w, _, discard) = tr.update(sub_key, new, ())
         updated_choice = updated.get_choices()
         y1 = updated_choice.get_submap("y1")
         y2 = updated_choice.get_submap("y2")
@@ -552,13 +550,12 @@ class TestStaticGenFnUpdate:
         key = jax.random.key(314159)
         key, sub_key = jax.random.split(key)
         tr = jax.jit(simple_linked_normal.simulate)(sub_key, ())
-        jitted = jax.jit(simple_linked_normal.update)
 
         new = C["y1"].set(2.0)
         original_choice = tr.get_choices()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
-        (updated, w, _, discard) = jitted(sub_key, tr, new, ())
+        (updated, w, _, discard) = tr.update(sub_key, new, ())
 
         updated_choice = updated.get_choices()
         y1 = updated_choice["y1"]
@@ -588,14 +585,13 @@ class TestStaticGenFnUpdate:
         key = jax.random.key(314159)
         key, sub_key = jax.random.split(key)
         tr = jax.jit(simple_hierarchical_normal.simulate)(sub_key, ())
-        jitted = jax.jit(simple_hierarchical_normal.update)
 
         new = C["y1"].set(2.0)
         original_choice = tr.get_choices()
         original_score = tr.get_score()
         key, sub_key = jax.random.split(key)
 
-        (updated, w, _, discard) = jitted(sub_key, tr, new, ())
+        (updated, w, _, discard) = tr.update(sub_key, new, ())
 
         updated_choice = updated.get_choices()
         y1 = updated_choice["y1"]
@@ -616,7 +612,6 @@ class TestStaticGenFnUpdate:
         key = jax.random.key(314159)
         key, sub_key = jax.random.split(key)
         tr = jax.jit(simple_linked_normal.simulate)(sub_key, ())
-        jitted = jax.jit(simple_linked_normal.update)
 
         old_y1 = tr.get_choices()["y1"]
         old_y2 = tr.get_choices()["y2"]
@@ -624,7 +619,7 @@ class TestStaticGenFnUpdate:
         new_y1 = 2.0
         new = C["y1"].set(new_y1)
         key, sub_key = jax.random.split(key)
-        (updated, w, _, _) = jitted(sub_key, tr, new, ())
+        (updated, w, _, _) = tr.update(sub_key, new, ())
         (_, w_edit, _, _) = tr.edit(sub_key, Update(new))
         assert w_edit == w
 
@@ -650,7 +645,7 @@ class TestStaticGenFnUpdate:
         new_y3 = 2.0
         new = C["y3"].set(new_y3)
         key, sub_key = jax.random.split(key)
-        (updated, w, _, _) = jitted(sub_key, updated, new, ())
+        (updated, w, _, _) = updated.update(sub_key, new, ())
         assert updated.get_choices()["y3"] == 2.0
         correct_w = (
             genjax.normal.assess(C.v(new_y3), (new_y1 + old_y2, 1.0))[0]
@@ -739,22 +734,19 @@ class TestStaticGenFnUpdate:
         tr = jax.jit(simple_linked_normal_with_tree_argument.simulate)(
             sub_key, (init_tree,)
         )
-        jitted = jax.jit(simple_linked_normal_with_tree_argument.update)
         new_y1 = 2.0
         constraints = C["y1"].set(new_y1)
         key, sub_key = jax.random.split(key)
-        (updated, _w, _, _) = jitted(
+        (updated, _w, _, _) = tr.update(
             sub_key,
-            tr,
             constraints,
             (Diff.no_change(init_tree),),
         )
         assert updated.get_choices()["y1"] == new_y1
         new_tree = SomePytree(1.0, 2.0)
         key, sub_key = jax.random.split(key)
-        (updated, _w, _, _) = jitted(
+        (updated, _w, _, _) = tr.update(
             sub_key,
-            tr,
             constraints,
             (Diff.unknown_change(new_tree),),
         )
@@ -1055,7 +1047,7 @@ class TestStaticGenFnInline:
         tr = jax.jit(higher_model.simulate)(sub_key, ())
         old_value = tr.get_choices().get_submap("y1")
         key, sub_key = jax.random.split(key)
-        (tr, w, _rd, _) = jax.jit(higher_model.update)(sub_key, tr, choice, ())
+        (tr, w, _rd, _) = jax.jit(tr.update)(sub_key, choice, ())
         choices = tr.get_choices()
         assert (
             w
@@ -1065,7 +1057,7 @@ class TestStaticGenFnInline:
         key, sub_key = jax.random.split(key)
         tr = jax.jit(higher_higher_model.simulate)(sub_key, ())
         old_value = tr.get_choices().get_submap("y1")
-        (tr, w, _rd, _) = jax.jit(higher_higher_model.update)(key, tr, choice, ())
+        (tr, w, _rd, _) = jax.jit(tr.update)(key, choice, ())
         choices = tr.get_choices()
         assert w == pytest.approx(
             genjax.normal.assess(choices.get_submap("y1"), (0.0, 1.0))[0]
