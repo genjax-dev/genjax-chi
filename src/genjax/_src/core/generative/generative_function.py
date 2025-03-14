@@ -172,10 +172,10 @@ class Trace(Generic[R], Pytree):
 
     def edit_k(
         self,
-        key: Any,
+        key: PRNGKey,
         request: EditRequest,
         argdiffs: tuple[Any, ...] | None = None,
-    ) -> tuple[Any, tuple[Self, Weight, Retdiff[R], EditRequest]]:
+    ) -> tuple[PRNGKey, tuple[Self, Weight, Retdiff[R], EditRequest]]:
         nk, sk = jrand.split(key)
         batch_shape = self.batch_shape()
         sks = jrand.split(sk, batch_shape)
@@ -217,7 +217,7 @@ class Trace(Generic[R], Pytree):
         self,
         key: PRNGKey,
         ws: Weight,
-    ):
+    ) -> tuple[PRNGKey, tuple[Self, Weight]]:
         from tensorflow_probability.substrates import jax as tfp
 
         tfd = tfp.distributions
@@ -714,7 +714,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
     def importance_k(self, n: int):
         def _importance_k(
-            key: Any,
+            key: PRNGKey,
             constraint: ChoiceMap,
             args: Arguments,
         ) -> tuple[Any, tuple[Trace[R], Weight]]:
