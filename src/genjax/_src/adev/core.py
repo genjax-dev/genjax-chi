@@ -20,7 +20,6 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 from jax import core as jc
 from jax import util as jax_util
-from jax.extend import linear_util as lu
 from jax.extend import source_info_util as src_util
 from jax.interpreters import ad as jax_autodiff
 from jax.interpreters import batching
@@ -28,7 +27,6 @@ from jax.interpreters import batching
 from genjax._src.core.interpreters.forward import (
     Environment,
     InitialStylePrimitive,
-    batch_fun,
     initial_style_bind,
 )
 from genjax._src.core.interpreters.staging import stage
@@ -159,31 +157,7 @@ def sample_primitive(adev_prim: ADEVPrimitive, *args, key=jax.random.key(0)):
 
 # TODO: this is gnarly as fuck.
 def batch_primitive(args, dims, **params):
-    def fun_impl(*args, **params):
-        consts, args = jax_util.split_list(args, [params["num_consts"]])
-        return jc.eval_jaxpr(params["_jaxpr"], consts, *args)
-
-    batched, out_dims = batch_fun(lu.wrap_init(fun_impl, params), dims)
-
-    # populate the out_dims generator
-    _ = batched.call_wrapped(*args)  # pyright: ignore
-
-    # Now, we construct our actual batch primitive, and insert it
-    # into the IR by binding it via `sample_primitive`.
-    in_tree = params["in_tree"]
-    key, *rest = args
-    adev_prim, *primals = jtu.tree_unflatten(in_tree, rest)
-    batched_prim = adev_prim.get_batched_prim(dims)
-
-    # Insert into the IR.
-    v = sample_primitive(
-        batched_prim,
-        *primals,
-        key=key,
-    )
-
-    # TODO: static check on out_dims?
-    return jtu.tree_leaves(v), out_dims()
+    raise NotImplementedError
 
 
 batching.primitive_batchers[sample_p] = batch_primitive

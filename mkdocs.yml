@@ -46,6 +46,7 @@ nav:
               - Custom proposal: cookbook/inactive/inference/custom_proposal.ipynb
               - MCMC: cookbook/inactive/inference/mcmc.ipynb
               - Block-Gibbs: cookbook/inactive/update/7_application_dirichlet_mixture_model.ipynb
+              - Mapping tutorial (Gibbs sampling): cookbook/inactive/inference/mapping_tutorial.ipynb
 
           - Differentiation:
               - ADEV Example: cookbook/inactive/differentiation/adev_example.py
