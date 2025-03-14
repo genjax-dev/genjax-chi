@@ -83,7 +83,7 @@ import jax.numpy as jnp
 import jax.random as jrand
 from genjax import ChoiceMap as Chm
 from genjax import Selection as Sel
-from genjax.inference.requests import HMC
+from genjax.edits import HMC
 
 # Implements HMC-within-SIR:
 # create a trace, edit it with HMC, resample.
@@ -116,7 +116,7 @@ import genjax
 from genjax import beta, flip, gen
 from genjax import ChoiceMap as Chm
 from genjax import Selection as Sel
-from genjax.inference.requests import HMC
+from genjax.edits import HMC
 
 # Create a generative model.
 @gen
