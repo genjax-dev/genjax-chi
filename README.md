@@ -25,9 +25,9 @@
 
 ## 🔎 What is GenJAX?
 
-(**Probabilistic programming language**) GenJAX is a GPU-accelerated probabilistic programming language (PPL): a system which provides automation for building programs which denote probability distributions, and as well as automation for constructing samplers, variational approximations, gradient estimators for expected values, and more.
+(**Probabilistic programming language**) GenJAX is a probabilistic programming language (PPL): a system which provides automation for writing programs which perform computations on probability distributions, including sampling, variational approximation, gradient estimation for expected values, and more.
 
-(**With programmable inference**) The design of GenJAX is centered on _programmable inference_: automation which allows users to express and customize Bayesian inference algorithms, including advanced forms of Monte Carlo and variational inference methods.
+(**With programmable inference**) The design of GenJAX is centered on _programmable inference_: automation which allows users to express and customize Bayesian inference algorithms (algorithms for computing with posterior distributions: "_x_ affects _y_, and I observe _y_, what are my new beliefs about _x_?"). Programmable inference includes advanced forms of Monte Carlo and variational inference methods.
 
 GenJAX's automation is based on two key concepts: _generative functions_ (GenJAX's version of probabilistic programs) and _traces_ (samples from probabilistic programs). GenJAX provides:
 * Modeling language automation for constructing complex probability distributions from pieces
@@ -61,7 +61,7 @@ def beta_bernoulli(α, β):
 
 - The _address syntax_ `"p"` and `"v"` denotes _the random variables_ in the program. Here, there are two: a random variable representing a draw from a prior over the probability of success `p` and a random variable for a Bernoulli trial `v`.
 
-- We will observe a coin flip `obs` - in this model, we can exactly compute the conditional distribution of `p` given `v = obs` using an analytic property called conjugacy.
+- We will observe a coin flip `obs` - in this model, we can exactly compute the mean of the conditional distribution of `p` given `v = obs` using an analytic property called conjugacy.
 
 ```python
 α, β = 1.0, 1.0
@@ -74,7 +74,8 @@ exact_posterior_mean(obs, α, β),
 # 0.6666666666666666
 ```
 
-- But we can also construct an approximate sampler using programmable inference! Programmable inference works for much more complicated models than the Beta-Bernoulli model. We will build an approximate sampler using HMC-within-SIR (mouthful: Hamiltonian Monte Carlo within Sampling Importance Resampling), a type of algorithm in [the sequential Monte Carlo](https://en.wikipedia.org/wiki/Sequential_Monte_Carlo) algorithm family.
+- But we can also construct an approximate sampler using programmable inference! Programmable inference works for much more complicated models than the Beta-Bernoulli model (models where conjugacy isn't available, for instance).
+- We will build an approximate sampler using HMC-within-SIR (mouthful: Hamiltonian Monte Carlo within Sampling Importance Resampling), a type of algorithm in [the sequential Monte Carlo](https://en.wikipedia.org/wiki/Sequential_Monte_Carlo) algorithm family.
 
 ```python
 from jax import jit
@@ -175,6 +176,27 @@ On a Linux machine with a GPU, run the following command:
 pip install jax[cuda12]~=0.4.24
 ```
 
+## Disclaimer
+
+This is a research project. Expect bugs and sharp edges. Please help by trying out GenJAX, [reporting bugs](https://github.com/ChiSym/genjax/issues), and letting us know what you think!
+
+## Geting involved + support
+
+Pull requests and bug reports are always welcome! Check out our [Contributor's
+Guide](CONTRIBUTING.md) for information on how to get started contributing to GenJAX.
+
+The TL;DR; is:
+
+- send us a pull request,
+- iterate on the feedback + discussion, and
+- get a +1 from a maintainer
+
+in order to get your PR accepted.
+
+Issues should be reported on the [GitHub issue tracker](https://github.com/ChiSym/genjax/issues).
+
+If you want to discuss an idea for a new feature or ask us a question, discussion occurs primarily in the body of [Github Issues](https://github.com/ChiSym/genjax/issues)
+
 ## Citing GenJAX
 
 To cite GenJAX, please use the following BibTeX entry for [our initial work on programmable variational inference](https://dl.acm.org/doi/10.1145/3656463):
@@ -201,26 +223,6 @@ To cite GenJAX, please use the following BibTeX entry for [our initial work on p
 
 We will continue to add papers as we put them out.
 
-## Disclaimer
-
-This is a research project. Expect bugs and sharp edges. Please help by trying out GenJAX, [reporting bugs](https://github.com/ChiSym/genjax/issues), and letting us know what you think!
-
-## Get Involved + Get Support
-
-Pull requests and bug reports are always welcome! Check out our [Contributor's
-Guide](CONTRIBUTING.md) for information on how to get started contributing to GenJAX.
-
-The TL;DR; is:
-
-- send us a pull request,
-- iterate on the feedback + discussion, and
-- get a +1 from a maintainer
-
-in order to get your PR accepted.
-
-Issues should be reported on the [GitHub issue tracker](https://github.com/ChiSym/genjax/issues).
-
-If you want to discuss an idea for a new feature or ask us a question, discussion occurs primarily in the body of [Github Issues](https://github.com/ChiSym/genjax/issues)
 
 ## References
 
