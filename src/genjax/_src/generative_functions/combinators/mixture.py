@@ -74,7 +74,7 @@ def mix(*gen_fns: GenerativeFunction[R]) -> GenerativeFunction[R]:
     inner_combinator_closure = switch(*gen_fns)
 
     def mixture_model(mixture_logits, *args) -> R:
-        mix_idx = categorical(mixture_logits) @ "mixture_component"
+        mix_idx = categorical(logits=mixture_logits) @ "mixture_component"
         v = inner_combinator_closure(mix_idx, *args) @ "component_sample"
         return v
 
