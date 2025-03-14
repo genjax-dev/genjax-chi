@@ -118,7 +118,7 @@ plugins:
   - markdown-exec
   - mkdocs-jupyter:
         execute: true
-        allow_errors: true
+        allow_errors: false
         ignore:
          # TODO: re-enable once we can support marginals as targets
           - "cookbook/inactive/expressivity/ravi_stack.ipynb"
