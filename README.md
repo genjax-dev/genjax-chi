@@ -201,6 +201,27 @@ To cite GenJAX, please use the following BibTeX entry for [our initial work on p
 
 We will continue to add papers as we put them out.
 
+## Disclaimer
+
+This is a research project. Expect bugs and sharp edges. Please help by trying out GenJAX, [reporting bugs](https://github.com/ChiSym/genjax/issues), and letting us know what you think!
+
+## Get Involved + Get Support
+
+Pull requests and bug reports are always welcome! Check out our [Contributor's
+Guide](CONTRIBUTING.md) for information on how to get started contributing to GenJAX.
+
+The TL;DR; is:
+
+- send us a pull request,
+- iterate on the feedback + discussion, and
+- get a +1 from a maintainer
+
+in order to get your PR accepted.
+
+Issues should be reported on the [GitHub issue tracker](https://github.com/ChiSym/genjax/issues).
+
+If you want to discuss an idea for a new feature or ask us a question, discussion occurs primarily in the body of [Github Issues](https://github.com/ChiSym/genjax/issues)
+
 ## References
 
 Many bits of knowledge have gone into this project -- [you can find many of these bits at the MIT Probabilistic Computing Project page](http://probcomp.csail.mit.edu/) under publications. Here's an abbreviated list of high value references:
@@ -223,27 +244,6 @@ This project has several JAX-based influences. Here's an abbreviated list:
 ### Acknowledgements
 
 The maintainers of this library would like to acknowledge the JAX and Oryx maintainers for useful discussions and reference code for interpreter-based transformation patterns.
-
-## Disclaimer
-
-This is a research project. Expect bugs and sharp edges. Please help by trying out GenJAX, [reporting bugs](https://github.com/ChiSym/genjax/issues), and letting us know what you think!
-
-## Get Involved + Get Support
-
-Pull requests and bug reports are always welcome! Check out our [Contributor's
-Guide](CONTRIBUTING.md) for information on how to get started contributing to GenJAX.
-
-The TL;DR; is:
-
-- send us a pull request,
-- iterate on the feedback + discussion, and
-- get a +1 from a maintainer
-
-in order to get your PR accepted.
-
-Issues should be reported on the [GitHub issue tracker](https://github.com/ChiSym/genjax/issues).
-
-If you want to discuss an idea for a new feature or ask us a question, discussion occurs primarily in the body of [Github Issues](https://github.com/ChiSym/genjax/issues)
 
 <div align="center">
 Created and maintained by the <a href="http://probcomp.csail.mit.edu/">MIT Probabilistic Computing Project</a>. All code is licensed under the <a href="LICENSE">Apache 2.0 License</a>.
