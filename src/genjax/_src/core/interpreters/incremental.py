@@ -28,9 +28,9 @@ By default, `genjax` provides two types of `ChangeTangent`:
 
 import functools
 
-import jax.core as jc
 import jax.tree_util as jtu
 from jax import util as jax_util
+from jax.extend.core import Jaxpr, Primitive
 
 from genjax._src.core.interpreters.forward import Environment, StatefulHandler
 from genjax._src.core.interpreters.staging import stage
@@ -308,14 +308,14 @@ def default_propagation_rule(prim, *args, **_params):
 
 @Pytree.dataclass
 class IncrementalInterpreter(Pytree):
-    custom_rules: dict[jc.Primitive, Callable[..., Any]] = Pytree.static(
+    custom_rules: dict[Primitive, Callable[..., Any]] = Pytree.static(
         default_factory=dict
     )
 
     def _eval_jaxpr_forward(
         self,
         _stateful_handler,
-        jaxpr: jc.Jaxpr,
+        jaxpr: Jaxpr,
         consts: list[Any],
         primals: list[Any],
         tangents: list[ChangeTangent],

@@ -20,6 +20,7 @@ import jax.core as jc
 import jax.tree_util as jtu
 from jax import tree_util
 from jax import util as jax_util
+from jax.extend.core import Jaxpr, Literal, Primitive, Var
 from jax.interpreters import mlir
 from jax.interpreters import partial_eval as pe
 
@@ -32,7 +33,7 @@ from genjax._src.core.typing import Any, Callable
 #########################
 
 
-class InitialStylePrimitive(jc.Primitive):
+class InitialStylePrimitive(Primitive):
     """Contains default implementations of transformations."""
 
     def __init__(self, name):
@@ -68,13 +69,19 @@ def initial_style_bind(prim, **params):
         def wrapped(*args, **kwargs):
             """Runs a function and binds it to a call primitive."""
             jaxpr, (flat_args, in_tree, out_tree) = stage(f)(*args, **kwargs)
+            debug_info = jaxpr.jaxpr.debug_info
 
             def _impl(*args, **params):
                 consts, args = jax_util.split_list(args, [params["num_consts"]])
                 return jc.eval_jaxpr(jaxpr.jaxpr, consts, *args)
 
             def _abs_eval(*flat_avals, **params):
-                return pe.abstract_eval_fun(_impl, *flat_avals, **params)
+                return pe.abstract_eval_fun(
+                    _impl,
+                    *flat_avals,
+                    debug_info=debug_info,
+                    **params,
+                )
 
             outs = prim.bind(
                 *it.chain(jaxpr.literals, flat_args),
@@ -96,7 +103,7 @@ def initial_style_bind(prim, **params):
 # Forward interpreter #
 #######################
 
-VarOrLiteral = jc.Var | jc.Literal
+VarOrLiteral = Var | Literal
 
 
 @Pytree.dataclass
@@ -106,7 +113,7 @@ class Environment(Pytree):
     env: dict[int, Any] = Pytree.field(default_factory=dict)
 
     def read(self, var: VarOrLiteral) -> Any:
-        if isinstance(var, jc.Literal):
+        if isinstance(var, Literal):
             return var.val
         else:
             v = self.env.get(var.count)
@@ -117,13 +124,13 @@ class Environment(Pytree):
             return v
 
     def get(self, var: VarOrLiteral) -> Any:
-        if isinstance(var, jc.Literal):
+        if isinstance(var, Literal):
             return var.val
         else:
             return self.env.get(var.count)
 
     def write(self, var: VarOrLiteral, cell: Any) -> Any:
-        if isinstance(var, jc.Literal):
+        if isinstance(var, Literal):
             return cell
         cur_cell = self.get(var)
         if isinstance(var, jc.DropVar):
@@ -141,7 +148,7 @@ class Environment(Pytree):
         )
 
     def __contains__(self, var: VarOrLiteral):
-        if isinstance(var, jc.Literal):
+        if isinstance(var, Literal):
             return True
         return var.count in self.env
 
@@ -152,13 +159,13 @@ class Environment(Pytree):
 
 class StatefulHandler:
     @abc.abstractmethod
-    def handles(self, primitive: jc.Primitive) -> bool:
+    def handles(self, primitive: Primitive) -> bool:
         pass
 
     @abc.abstractmethod
     def dispatch(
         self,
-        primitive: jc.Primitive,
+        primitive: Primitive,
         *args,
         **kwargs,
     ) -> list[Any]:
@@ -170,7 +177,7 @@ class ForwardInterpreter(Pytree):
     def _eval_jaxpr_forward(
         self,
         stateful_handler,
-        _jaxpr: jc.Jaxpr,
+        _jaxpr: Jaxpr,
         consts: list[Any],
         args: list[Any],
     ):
