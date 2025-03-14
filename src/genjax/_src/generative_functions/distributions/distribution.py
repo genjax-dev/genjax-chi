@@ -45,7 +45,9 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
+    FloatArray,
     Generic,
+    InAxes,
     PRNGKey,
 )
 
@@ -418,6 +420,15 @@ class ExactDensity(Generic[R], Distribution[R]):
                 w = self.estimate_logpdf(key, v, *args)
                 return w, v
 
+    def mixture(self, in_axes: InAxes) -> "ExactDensity[R]":
+        def sample(key: PRNGKey, logprobs: FloatArray, *args):
+            i = jax.random.categorical(key, logprobs)
+            args = [a[i] if in_axis is not None else a for a, in_axis in zip(args, in_axes)]
+            return self.sample(key, *args)
+        def logpdf(v: R, logprobs: FloatArray, *args):
+            orig_logpdfs = jax.vmap(lambda *args: self.logpdf(v, *args), in_axes=in_axes)(*args)
+            return jax.scipy.special.logsumexp(logprobs + orig_logpdfs)
+        return exact_density(sample, logpdf, name=f"{self.__class__.__name__}.mixture")
 
 def canonicalize_distribution_name(s: str) -> str:
     """Converts underlying distribution name from CamelCase to snake_case
