@@ -19,10 +19,12 @@ from typing import TYPE_CHECKING
 import jax
 import jax.numpy as jnp
 from beartype.typing import overload
+from jax import api_util
 from jax import core as jc
 from jax import tree_util as jtu
 from jax.experimental import checkify
 from jax.extend import linear_util as lu
+from jax.extend.core import ClosedJaxpr
 from jax.interpreters import partial_eval as pe
 from jax.util import safe_map
 
@@ -278,13 +280,13 @@ def staged_err(check: Flag, msg, **kwargs):
 
 
 def get_shaped_aval(x):
-    return jc.raise_to_shaped(jc.get_aval(x))
+    return jc.get_aval(x)
 
 
 @lu.cache
 def cached_stage_dynamic(flat_fun, in_avals):
     jaxpr, _, consts = pe.trace_to_jaxpr_dynamic(flat_fun, in_avals)
-    typed_jaxpr = jc.ClosedJaxpr(jaxpr, consts)
+    typed_jaxpr = ClosedJaxpr(jaxpr, consts)
     return typed_jaxpr
 
 
@@ -305,7 +307,8 @@ def stage(f):
     """Returns a function that stages a function to a ClosedJaxpr."""
 
     def wrapped(*args, **kwargs):
-        fun = lu.wrap_init(f, kwargs)
+        debug_info = api_util.debug_info("Tracing to Jaxpr", f, args, kwargs)
+        fun = lu.wrap_init(f, params=kwargs, debug_info=debug_info)
         flat_args, in_tree = jtu.tree_flatten(args)
         flat_fun, out_tree = flatten_fun_nokwargs(fun, in_tree)
         flat_avals = safe_map(get_shaped_aval, flat_args)

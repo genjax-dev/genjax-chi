@@ -38,7 +38,7 @@ Changelog = "https://github.com/chisym/genjax/releases"
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
-jax = "^0.4.24"
+jax = "^0.5.0"
 tensorflow-probability = "^0.23.0"
 jaxtyping = "^0.2.24"
 beartype = "^0.20.0"
@@ -79,10 +79,10 @@ mkdocs-git-authors-plugin = "^0.7.2"
 mkdocs-git-revision-date-localized-plugin = "^1.1.0"
 mkdocs-git-committers-plugin-2 = "^1.1.1"
 markdown-exec = { version = "^1.8.3", extras = ["ansi"] }
-mkdocs-material = { git = "git@github.com:probcomp/mkdocs-material-insiders.git" }
-mkdocstrings-python = { git = "git@github.com:probcomp/mkdocstrings-python.git" }
 black = "^24.4.2"
 mkdocs-jupyter = "^0.25.1"
+mkdocstrings-python = "^1.16.5"
+mkdocs-material = "^9.6.8"
 
 [tool.poetry.extras]
 genstudio = ["genstudio"]

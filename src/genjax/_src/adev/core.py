@@ -18,9 +18,9 @@ from functools import wraps
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from jax import core as jc
 from jax import util as jax_util
 from jax.extend import source_info_util as src_util
+from jax.extend.core import Jaxpr, jaxpr_as_fun
 from jax.interpreters import ad as jax_autodiff
 from jax.interpreters import batching
 
@@ -250,7 +250,7 @@ class ADInterpreter(Pytree):
     @staticmethod
     def _eval_jaxpr_adev_jvp(
         key: PRNGKey,
-        jaxpr: jc.Jaxpr,
+        jaxpr: Jaxpr,
         consts: list[ArrayLike],
         flat_duals: list[Dual],
     ):
@@ -345,7 +345,7 @@ class ADInterpreter(Pytree):
                         branch_adev_functions = list(
                             map(
                                 lambda fn: ADInterpreter.forward_mode(
-                                    jc.jaxpr_as_fun(fn),
+                                    jaxpr_as_fun(fn),
                                     _cond_dual_kont,
                                 ),
                                 params["branches"],
