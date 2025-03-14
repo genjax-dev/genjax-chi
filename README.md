@@ -4,7 +4,7 @@
 </p>
 <p align="center">
   <strong>
-    Probabilistic programming with (parallel & differentiable) programmable inference.
+    Probabilistic programming with programmable inference.
   </strong>
 </p>
 
