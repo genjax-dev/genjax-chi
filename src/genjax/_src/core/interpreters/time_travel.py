@@ -25,10 +25,11 @@ from genjax._src.core.interpreters.forward import (
     initial_style_bind,
 )
 from genjax._src.core.interpreters.staging import stage
-from genjax._src.core.pytree import Closure, Pytree
+from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     ArrayLike,
+    BoolArray,
     Callable,
     Generic,
     TypeVar,
@@ -38,36 +39,92 @@ R = TypeVar("R")
 S = TypeVar("S")
 
 record_p = InitialStylePrimitive("record_p")
+contract_p = InitialStylePrimitive("contract_p")
 
 
 @Pytree.dataclass
-class FrameRecording(Generic[R, S], Pytree):
-    f: Callable[..., R]
+class Contract(Generic[R, S], Pytree):
+    f: Callable[..., R] = Pytree.static()
+    pre: Callable[..., BoolArray] = Pytree.static()
+    post: Callable[..., BoolArray] = Pytree.static()
+
+    # Default implementation -- just call the function
+    # as we would ordinarily do!
+    def default_call(self, *args) -> R:
+        return self.f(*args)
+
+    def __call__(self, *args):
+        def _cont_prim_call(contract, *args):
+            return contract.default_call(*args)
+
+        # Bind the primitive with the default implementation.
+        return initial_style_bind(contract_p)(_cont_prim_call)(self, *args)
+
+
+@Pytree.dataclass
+class ClosedContract(Generic[R, S], Pytree):
+    """
+    A closed contract represents a contract to be applied to a set of arguments, and a return value.
+
+    These are created by the `TimeTravelCPSInterpreter` below, they store information from the recording of the execution, and can be checked against the recorded values.
+    """
+
+    contract: Contract[R, S]
     args: tuple[Any, ...]
-    local_retval: R
-    cont: Callable[..., S]
+    result: R
+
+    def check(self):
+        return self.contract.pre(*self.args) and self.contract.post(self.result)
+
+
+# Used as a decorator to create a contract on a function.
+def contract(pre, post):
+    def inner(fn):
+        return Contract(fn, pre, post)
+
+    return inner
 
 
 @Pytree.dataclass
-class RecordPoint(Generic[R, S], Pytree):
-    callable: Closure[R]
+class Frame(Generic[R, S], Pytree):
+    """
+    A frame represents a point in the computation preceding the application of a function `f` to arguments `args`.
+
+    A frame also stores the contracts which have been accumulated between this point, and the previous frame.
+    """
+
+    args: tuple[Any, ...]
+    contracts: list[ClosedContract[Any, Any]]
+    f: Callable[..., R] = Pytree.static()
+    cont: Callable[..., S] = Pytree.static()
+
+    def check(self):
+        return all(contract.check() for contract in self.contracts)
+
+
+@Pytree.dataclass
+class Breakpoint(Generic[R, S], Pytree):
+    callable: Callable[..., R] = Pytree.static()
     debug_tag: str | None = Pytree.static()
 
     def default_call(self, *args) -> R:
         return self.callable(*args)
 
-    def handle(self, cont: Callable[[R], tuple[S, Any]], *args):
-        @Pytree.partial()
+    def handle(
+        self,
+        contracts: list[ClosedContract[Any, Any]],
+        cont: Callable[[R], tuple[S, Any]],
+        *args,
+    ):
         def _cont(*args) -> S:
             final_ret, _ = cont(self.callable(*args))
             return final_ret
 
         # Normal execution.
-        ret = self.callable(*args)
         final_ret = _cont(*args)
         return final_ret, (
             self.debug_tag,
-            FrameRecording(self.callable, args, ret, _cont),
+            Frame(args, contracts, self.callable, _cont),
         )
 
     def __call__(self, *args):
@@ -77,21 +134,15 @@ class RecordPoint(Generic[R, S], Pytree):
         return initial_style_bind(record_p)(_cont_prim_call)(self, *args)
 
 
-def rec(
+def brk(
     callable: Callable[..., R],
     debug_tag: str | None = None,
 ):
-    if not isinstance(callable, Closure):
-        callable = Closure[R]((), callable)
-
-    def inner(*args):
-        return RecordPoint(callable, debug_tag)(*args)
-
-    return inner
+    return Breakpoint(callable, debug_tag)
 
 
 def tag(v, name=None):
-    return rec(lambda v: v, name)(v)
+    return brk(lambda v: v, name)(v)
 
 
 ##########################
@@ -111,6 +162,7 @@ class TimeTravelCPSInterpreter(Pytree):
         env = Environment()
         jax_util.safe_map(env.write, jaxpr.constvars, consts)
         jax_util.safe_map(env.write, jaxpr.invars, flat_args)
+        closed_contracts = []
 
         # Hybrid CPS evaluation.
         def eval_jaxpr_iterate_cps(
@@ -131,7 +183,6 @@ class TimeTravelCPSInterpreter(Pytree):
                     if eqn.primitive == record_p:
                         env = env.copy()
 
-                        @Pytree.partial()
                         def _kont(*args):
                             leaves = jtu.tree_leaves(args)
                             return eval_jaxpr_iterate_cps(
@@ -144,12 +195,25 @@ class TimeTravelCPSInterpreter(Pytree):
 
                         in_tree = params["in_tree"]
                         num_consts = params["num_consts"]
-                        cps_prim, *args = jtu.tree_unflatten(in_tree, args[num_consts:])
+                        record_pt, *args = jtu.tree_unflatten(
+                            in_tree, args[num_consts:]
+                        )
+                        assert isinstance(record_pt, Breakpoint)
                         if rebind:
-                            return _kont(cps_prim(*args))
+                            return _kont(record_pt(*args))
 
                         else:
-                            return cps_prim.handle(_kont, *args)
+                            return record_pt.handle(closed_contracts, _kont, *args)
+
+                    elif eqn.primitive == contract_p:
+                        in_tree = params["in_tree"]
+                        num_consts = params["num_consts"]
+                        contract, *args = jtu.tree_unflatten(in_tree, args[num_consts:])
+                        retval = contract.f(*args)
+                        closed_contracts.append(
+                            ClosedContract(contract, tuple(args), retval)
+                        )
+                        outs = jtu.tree_leaves(retval)
 
                     else:
                         outs = eqn.primitive.bind(*args, **params)
@@ -197,76 +261,94 @@ def time_travel(f):
 
 
 @Pytree.dataclass
-class TimeTravelingDebugger(Pytree):
+class Debugger(Pytree):
     final_retval: Any
-    sequence: list[FrameRecording[Any, Any]]
+    sequence: list[Frame[Any, Any]]
     jump_points: dict[Any, Any] = Pytree.static()
     ptr: int = Pytree.static()
 
-    def frame(self) -> tuple[str | None, FrameRecording[Any, Any]]:
+    def frame(self) -> tuple[str | None, Frame[Any, Any]]:
         frame = self.sequence[self.ptr]
         reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
         jump_tag = reverse_jump_points.get(self.ptr, None)
         return jump_tag, frame
 
-    def summary(self) -> tuple[Any, tuple[str | None, FrameRecording[Any, Any]]]:
+    @Pytree.dataclass
+    class Summary(Pytree):
+        retval: Any
+        jump_tag: str
+        frame: Frame[Any, Any]
+
+    def summary(self) -> Summary:
         frame = self.sequence[self.ptr]
         reverse_jump_points = {v: k for (k, v) in self.jump_points.items()}
         jump_tag = reverse_jump_points.get(self.ptr, None)
-        return self.final_retval, (jump_tag, frame)
+        return Debugger.Summary(
+            self.final_retval,
+            jump_tag,
+            frame,
+        )
 
-    def jump(self, debug_tag: str) -> "TimeTravelingDebugger":
+    def jump(self, debug_tag: str) -> "Debugger":
         jump_pt = self.jump_points[debug_tag]
-        return TimeTravelingDebugger(
+        return Debugger(
             self.final_retval,
             self.sequence,
             self.jump_points,
             jump_pt,
         )
 
-    def fwd(self) -> "TimeTravelingDebugger":
+    def fwd(self) -> "Debugger":
         new_ptr = self.ptr + 1
         if new_ptr >= len(self.sequence):
             return self
         else:
-            return TimeTravelingDebugger(
+            return Debugger(
                 self.final_retval,
                 self.sequence,
                 self.jump_points,
                 self.ptr + 1,
             )
 
-    def bwd(self) -> "TimeTravelingDebugger":
+    def bwd(self) -> "Debugger":
         new_ptr = self.ptr - 1
         if new_ptr >= len(self.sequence) or new_ptr < 0:
             return self
         else:
-            return TimeTravelingDebugger(
+            return Debugger(
                 self.final_retval,
                 self.sequence,
                 self.jump_points,
                 new_ptr,
             )
 
-    def remix(self, *args) -> "TimeTravelingDebugger":
+    def remix(self, *args) -> "Debugger":
         frame = self.sequence[self.ptr]
-        f, cont = frame.f, frame.cont
-        local_retval = f(*args)
+        contracts, f, cont = frame.contracts, frame.f, frame.cont
         _, debugger = _record(cont)(*args)
-        new_frame = FrameRecording(f, args, local_retval, cont)
-        return TimeTravelingDebugger(
+        new_frame = Frame(args, contracts, f, cont)
+        return Debugger(
             debugger.final_retval,
             [*self.sequence[: self.ptr], new_frame, *debugger.sequence],
             self.jump_points,
             self.ptr,
         )
 
+    def enter(self) -> "Debugger":
+        return self.jump("enter")
+
+    def exit(self) -> "Debugger":
+        return self.jump("exit")
+
+    def check(self):
+        return self.summary().frame.check()
+
     def __call__(self, *args):
         return self.remix(*args)
 
 
 def _record(source: Callable[..., Any]):
-    def inner(*args) -> tuple[Any, TimeTravelingDebugger]:
+    def inner(*args) -> tuple[Any, Debugger]:
         retval, next = time_travel(source)(*args)  # pyright: ignore[reportGeneralTypeIssues]
         sequence = []
         jump_points = {}
@@ -277,16 +359,16 @@ def _record(source: Callable[..., Any]):
                 jump_points[debug_tag] = len(sequence) - 1
             args, cont = frame.args, frame.cont
             retval, next = time_travel(cont)(*args)  # pyright: ignore[reportGeneralTypeIssues]
-        return retval, TimeTravelingDebugger(retval, sequence, jump_points, 0)
+        return retval, Debugger(retval, sequence, jump_points, 0)
 
     return inner
 
 
-def time_machine(source: Callable[..., Any]):
+def debug(source: Callable[..., Any]):
     def instrumented(*args):
-        return tag(rec(source, "_enter")(*args), "exit")
+        return tag(brk(source, "enter")(*args), "exit")
 
-    def inner(*args) -> TimeTravelingDebugger:
+    def inner(*args) -> Debugger:
         _, debugger = _record(instrumented)(*args)
         return debugger
 
