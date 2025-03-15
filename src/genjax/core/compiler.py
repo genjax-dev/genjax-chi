@@ -12,7 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.compiler.interpreters.incremental import incremental
+from genjax._src.core.compiler.initial_style_primitive import (
+    InitialStylePrimitive,
+    initial_style_bind,
+)
+from genjax._src.core.compiler.interpreters.common import Environment
+from genjax._src.core.compiler.interpreters.incremental import (
+    Diff,
+    NoChange,
+    UnknownChange,
+    incremental,
+)
 from genjax._src.core.compiler.interpreters.stateful import StatefulHandler, stateful
 from genjax._src.core.compiler.staging import (
     get_shaped_aval,
@@ -24,7 +34,13 @@ __all__ = [
     "StatefulHandler",
     "get_shaped_aval",
     "incremental",
+    "Diff",
+    "NoChange",
+    "UnknownChange",
     "stage",
     "stateful",
     "to_shape_fn",
+    "Environment",
+    "InitialStylePrimitive",
+    "initial_style_bind",
 ]
