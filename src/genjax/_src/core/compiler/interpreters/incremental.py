@@ -32,8 +32,9 @@ import jax.tree_util as jtu
 from jax import util as jax_util
 from jax.extend.core import Jaxpr, Primitive
 
-from genjax._src.core.interpreters.forward import Environment, StatefulHandler
-from genjax._src.core.interpreters.staging import stage
+from genjax._src.core.compiler.interpreters.common import Environment
+from genjax._src.core.compiler.interpreters.stateful import StatefulHandler
+from genjax._src.core.compiler.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,

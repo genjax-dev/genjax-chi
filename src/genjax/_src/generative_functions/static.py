@@ -22,6 +22,19 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
+from genjax._src.core.compiler.initial_style_primitive import (
+    InitialStylePrimitive,
+    initial_style_bind,
+)
+from genjax._src.core.compiler.interpreters.incremental import (
+    Diff,
+    incremental,
+)
+from genjax._src.core.compiler.interpreters.stateful import (
+    StatefulHandler,
+    stateful,
+)
+from genjax._src.core.compiler.staging import to_shape_fn
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
@@ -42,17 +55,6 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.choice_map import Address
 from genjax._src.core.generative.generative_function import R
-from genjax._src.core.interpreters.forward import (
-    InitialStylePrimitive,
-    StatefulHandler,
-    forward,
-    initial_style_bind,
-)
-from genjax._src.core.interpreters.incremental import (
-    Diff,
-    incremental,
-)
-from genjax._src.core.interpreters.staging import to_shape_fn
 from genjax._src.core.pytree import Closure, Const, Pytree
 from genjax._src.core.typing import (
     Any,
@@ -280,7 +282,7 @@ def simulate_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(key, args):
         stateful_handler = SimulateHandler(key)
-        retval = forward(source_fn)(stateful_handler, *args)
+        retval = stateful(source_fn)(stateful_handler, *args)
         traces = stateful_handler.yield_state()
         return (args, retval, traces)
 
@@ -323,7 +325,7 @@ def assess_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(choice_map_sample: ChoiceMap, args):
         stateful_handler = AssessHandler(choice_map_sample)
-        retval = forward(source_fn)(stateful_handler, *args)
+        retval = stateful(source_fn)(stateful_handler, *args)
         (score,) = stateful_handler.yield_state()
         return (retval, score)
 
@@ -386,7 +388,7 @@ def generate_transform(source_fn):
         args: tuple[Any, ...],
     ):
         stateful_handler = GenerateHandler(key, choice_map)
-        retval = forward(source_fn)(stateful_handler, *args)
+        retval = stateful(source_fn)(stateful_handler, *args)
         (weight, traces) = stateful_handler.yield_state()
         return (
             weight,

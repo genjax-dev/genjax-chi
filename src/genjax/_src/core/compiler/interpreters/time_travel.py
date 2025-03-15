@@ -19,12 +19,14 @@ import jax.tree_util as jtu
 from jax import util as jax_util
 from jax.extend import source_info_util as src_util
 
-from genjax._src.core.interpreters.forward import (
-    Environment,
+from genjax._src.core.compiler.initial_style_primitive import (
     InitialStylePrimitive,
     initial_style_bind,
 )
-from genjax._src.core.interpreters.staging import stage
+from genjax._src.core.compiler.interpreters.common import (
+    Environment,
+)
+from genjax._src.core.compiler.staging import stage
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,

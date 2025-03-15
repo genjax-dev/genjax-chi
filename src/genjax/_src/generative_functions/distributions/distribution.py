@@ -23,6 +23,8 @@ from jax.experimental import checkify
 from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.checkify import optional_check
+from genjax._src.core.compiler.interpreters.incremental import Diff
+from genjax._src.core.compiler.staging import FlagOp, to_shape_fn
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
@@ -39,8 +41,6 @@ from genjax._src.core.generative import (
     Update,
     Weight,
 )
-from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import FlagOp, to_shape_fn
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,

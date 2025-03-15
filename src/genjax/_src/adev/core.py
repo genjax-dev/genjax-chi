@@ -24,12 +24,12 @@ from jax.extend.core import Jaxpr, jaxpr_as_fun
 from jax.interpreters import ad as jax_autodiff
 from jax.interpreters import batching
 
-from genjax._src.core.interpreters.forward import (
-    Environment,
+from genjax._src.core.compiler.initial_style_primitive import (
     InitialStylePrimitive,
     initial_style_bind,
 )
-from genjax._src.core.interpreters.staging import stage
+from genjax._src.core.compiler.interpreters.common import Environment
+from genjax._src.core.compiler.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Annotated,

@@ -15,11 +15,12 @@
 
 import jax.numpy as jnp
 
+from genjax._src.core.compiler.interpreters.incremental import Diff
 from genjax._src.core.generative.choice_map import (
     ChoiceMap,
     Selection,
 )
-from genjax._src.core.generative.core import (
+from genjax._src.core.generative.concepts import (
     Argdiffs,
     EditRequest,
     PrimitiveEditRequest,
@@ -30,7 +31,6 @@ from genjax._src.core.generative.generative_function import (
     Trace,
     Update,
 )
-from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,

@@ -19,7 +19,7 @@ import numpy as np
 from scipy.linalg import circulant
 from tensorflow_probability.substrates import jax as tfp
 
-from genjax._src.core.generative.core import Score
+from genjax._src.core.generative.concepts import Score
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Array,

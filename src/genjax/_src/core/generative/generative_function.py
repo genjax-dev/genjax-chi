@@ -18,12 +18,14 @@ from typing import TYPE_CHECKING
 
 from deprecated import deprecated
 
+from genjax._src.core.compiler.interpreters.incremental import Diff
+from genjax._src.core.compiler.staging import empty_trace
 from genjax._src.core.generative.choice_map import (
     Address,
     ChoiceMap,
     Selection,
 )
-from genjax._src.core.generative.core import (
+from genjax._src.core.generative.concepts import (
     Argdiffs,
     Arguments,
     EditRequest,
@@ -32,8 +34,6 @@ from genjax._src.core.generative.core import (
     Score,
     Weight,
 )
-from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import empty_trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,

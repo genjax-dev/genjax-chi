@@ -24,7 +24,7 @@ from jax.extend.core import Jaxpr, Literal, Primitive, Var
 from jax.interpreters import mlir
 from jax.interpreters import partial_eval as pe
 
-from genjax._src.core.interpreters.staging import stage
+from genjax._src.core.compiler.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any, Callable
 
@@ -173,8 +173,8 @@ class StatefulHandler:
 
 
 @Pytree.dataclass
-class ForwardInterpreter(Pytree):
-    def _eval_jaxpr_forward(
+class PJAXInterpreter(Pytree):
+    def _eval_jaxpr_pjax(
         self,
         stateful_handler,
         _jaxpr: Jaxpr,
@@ -204,7 +204,7 @@ class ForwardInterpreter(Pytree):
 
         closed_jaxpr, (flat_args, _, out_tree) = stage(_inner)(*args)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        flat_out = self._eval_jaxpr_forward(
+        flat_out = self._eval_jaxpr_pjax(
             stateful_handler,
             jaxpr,
             consts,
@@ -213,7 +213,7 @@ class ForwardInterpreter(Pytree):
         return jtu.tree_unflatten(out_tree(), flat_out)
 
 
-def forward(f: Callable[..., Any]):
+def pjax(f: Callable[..., Any]):
     @functools.wraps(f)
     def wrapped(stateful_handler: StatefulHandler, *args):
         interpreter = ForwardInterpreter()
