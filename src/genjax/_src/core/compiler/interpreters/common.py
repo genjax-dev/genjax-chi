@@ -27,15 +27,13 @@ class Environment(Pytree):
     env: dict[int, Any] = Pytree.field(default_factory=dict)
 
     def read(self, var: VarOrLiteral) -> Any:
-        if isinstance(var, Literal):
-            return var.val
-        else:
-            v = self.env.get(var.count)
-            if v is None:
-                raise ValueError(
-                    f"Unbound variable in interpreter environment at count {var.count}:\nEnvironment keys (count): {list(self.env.keys())}"
-                )
-            return v
+        v = self.get(var)
+        if v is None:
+            assert isinstance(var, Var)
+            raise ValueError(
+                f"Unbound variable in interpreter environment at count {var.count}:\nEnvironment keys (count): {list(self.env.keys())}"
+            )
+        return v
 
     def get(self, var: VarOrLiteral) -> Any:
         if isinstance(var, Literal):
