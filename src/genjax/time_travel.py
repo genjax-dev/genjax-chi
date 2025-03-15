@@ -13,13 +13,15 @@
 # limitations under the License.
 
 from genjax._src.core.interpreters.time_travel import (
-    rec,
+    brk,
+    contract,
+    debug,
     tag,
-    time_machine,
 )
 
 __all__ = [
-    "rec",
+    "brk",
+    "contract",
+    "debug",
     "tag",
-    "time_machine",
 ]
