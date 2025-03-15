@@ -23,7 +23,7 @@ from genjax._src.core.compiler.initial_style_primitive import (
     InitialStylePrimitive,
     initial_style_bind,
 )
-from genjax._src.core.compiler.interpreters.common import (
+from genjax._src.core.compiler.interpreters.environment import (
     Environment,
 )
 from genjax._src.core.compiler.staging import stage
@@ -104,7 +104,7 @@ def tag(v, name=None):
 @Pytree.dataclass
 class TimeTravelCPSInterpreter(Pytree):
     @staticmethod
-    def _eval_jaxpr_hybrid_cps(
+    def eval_jaxpr_time_travel(
         jaxpr: jc.Jaxpr,
         consts: list[ArrayLike],
         flat_args: list[ArrayLike],
@@ -184,7 +184,7 @@ class TimeTravelCPSInterpreter(Pytree):
         def _inner(*args):
             closed_jaxpr, (flat_args, _, out_tree) = stage(f)(*args)
             jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-            return TimeTravelCPSInterpreter._eval_jaxpr_hybrid_cps(
+            return TimeTravelCPSInterpreter.eval_jaxpr_time_travel(
                 jaxpr,
                 consts,
                 flat_args,

@@ -1,4 +1,5 @@
 data
+.hypothesis
 *.pyc
 *.so
 *.egg-info
