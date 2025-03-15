@@ -78,9 +78,15 @@ def initial_style_bind(prim, **params):
                     **params,
                 )
 
+            if "abs_eval" in params:
+                abs_eval = params["abs_eval"]
+                params.pop("abs_eval")
+            else:
+                abs_eval = _abs_eval
+
             outs = prim.bind(
                 *it.chain(jaxpr.literals, flat_args),
-                abs_eval=params.get("abs_eval", _abs_eval),
+                abs_eval=abs_eval,
                 impl=_impl,
                 in_tree=in_tree,
                 out_tree=out_tree,

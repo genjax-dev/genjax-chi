@@ -26,7 +26,6 @@ from genjax._src.core.compiler.initial_style_primitive import (
 )
 from genjax._src.core.compiler.interpreters.common import Environment
 from genjax._src.core.compiler.staging import stage
-from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import Any, Callable, PRNGKey
 
 ######################
@@ -40,7 +39,17 @@ def sample_binder(
     jax_impl: Callable[[PRNGKey, Any], Any],
     **kwargs,
 ):
-    return initial_style_bind(sample_p, **kwargs)(jax_impl)
+    def sampler(*args):
+        def keyless_jax_impl(*args):
+            return jax_impl(jrand.PRNGKey(1), *args)
+
+        return initial_style_bind(
+            sample_p,
+            jax_impl=jax_impl,
+            **kwargs,
+        )(keyless_jax_impl)(*args)
+
+    return sampler
 
 
 ####################
@@ -49,7 +58,7 @@ def sample_binder(
 
 
 @dataclass
-class PJAXInterpreter(Pytree):
+class PJAXInterpreter:
     key: PRNGKey
 
     def _eval_jaxpr_pjax(
@@ -70,9 +79,11 @@ class PJAXInterpreter(Pytree):
                 invals = jax_util.safe_map(env.read, eqn.invars)
                 subfuns, params = eqn.primitive.get_bind_params(eqn.params)
                 args = subfuns + invals
-                _impl = params["_impl"]
+                jax_impl = params["jax_impl"]
                 self.key, sub_key = jrand.split(self.key)
-                outvals = _impl(sub_key, *args, **params)
+                outvals = jtu.tree_leaves(
+                    jax_impl(sub_key, *args),
+                )
             if not eqn.primitive.multiple_results:
                 outvals = [outvals]
             jax_util.safe_map(env.write, eqn.outvars, outvals)

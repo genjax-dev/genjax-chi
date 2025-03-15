@@ -23,6 +23,7 @@ from genjax._src.core.compiler.interpreters.incremental import (
     UnknownChange,
     incremental,
 )
+from genjax._src.core.compiler.interpreters.pjax import pjax, sample_binder
 from genjax._src.core.compiler.interpreters.stateful import StatefulHandler, stateful
 from genjax._src.core.compiler.staging import (
     get_shaped_aval,
@@ -40,6 +41,8 @@ __all__ = [
     "get_shaped_aval",
     "incremental",
     "initial_style_bind",
+    "pjax",
+    "sample_binder",
     "stage",
     "stateful",
     "to_shape_fn",
