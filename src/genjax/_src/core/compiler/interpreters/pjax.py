@@ -22,6 +22,7 @@ from jax.extend.core import Jaxpr
 
 from genjax._src.core.compiler.initial_style_primitive import (
     InitialStylePrimitive,
+    NotEliminatedException,
     initial_style_bind,
 )
 from genjax._src.core.compiler.interpreters.environment import Environment
@@ -43,9 +44,15 @@ def sample_binder(
         def keyless_jax_impl(*args):
             return jax_impl(jrand.PRNGKey(1), *args)
 
+        def raise_exception():
+            raise NotEliminatedException(
+                "JAX is attempting to invoke the implementation of a sampler defined using the `sample_p` primitive in your function.\n\nEliminate `sample_p` in `your_fn` by using the `genjax.pjax(your_fn, key: PRNGKey)(*your_args)` transformation, which allows you to use the JAX implementation of the sampler."
+            )
+
         return initial_style_bind(
             sample_p,
             jax_impl=jax_impl,
+            raise_exception=raise_exception,
             **kwargs,
         )(keyless_jax_impl)(*args)
 
@@ -74,7 +81,6 @@ class PJAXInterpreter:
             invals = jax_util.safe_map(env.read, eqn.invars)
             subfuns, params = eqn.primitive.get_bind_params(eqn.params)
             args = subfuns + invals
-            outvals = eqn.primitive.bind(*args, **params)
             if eqn.primitive == sample_p:
                 invals = jax_util.safe_map(env.read, eqn.invars)
                 subfuns, params = eqn.primitive.get_bind_params(eqn.params)
@@ -84,17 +90,16 @@ class PJAXInterpreter:
                 outvals = jtu.tree_leaves(
                     jax_impl(sub_key, *args),
                 )
+            else:
+                outvals = eqn.primitive.bind(*args, **params)
             if not eqn.primitive.multiple_results:
                 outvals = [outvals]
             jax_util.safe_map(env.write, eqn.outvars, outvals)
 
         return jax_util.safe_map(env.read, _jaxpr.outvars)
 
-    def run_interpreter(self, fn, *args, **kwargs):
-        def _inner(*args):
-            return fn(*args, **kwargs)
-
-        closed_jaxpr, (flat_args, _, out_tree) = stage(_inner)(*args)
+    def run_interpreter(self, fn, *args):
+        closed_jaxpr, (flat_args, _, out_tree) = stage(fn)(*args)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
         flat_out = self._eval_jaxpr_pjax(
             jaxpr,

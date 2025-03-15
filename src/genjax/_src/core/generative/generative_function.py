@@ -152,7 +152,6 @@ class Trace(Generic[R], Pytree):
 
     def edit(
         self,
-        key: PRNGKey,
         request: EditRequest,
         argdiffs: tuple[Any, ...] | None = None,
     ) -> tuple[Self, Weight, Retdiff[R], EditRequest]:
@@ -160,14 +159,12 @@ class Trace(Generic[R], Pytree):
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
         """
         return request.edit(
-            key,
             self,
             Diff.no_change(self.get_args()) if argdiffs is None else argdiffs,
         )  # pyright: ignore[reportReturnType]
 
     def update(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         argdiffs: tuple[Any, ...] | None = None,
     ) -> tuple[Self, Weight, Retdiff[R], ChoiceMap]:
@@ -175,7 +172,6 @@ class Trace(Generic[R], Pytree):
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
         """
         return self.get_gen_fn().update(
-            key,
             self,
             constraint,
             Diff.no_change(self.get_args()) if argdiffs is None else argdiffs,
@@ -183,12 +179,10 @@ class Trace(Generic[R], Pytree):
 
     def project(
         self,
-        key: PRNGKey,
         selection: Selection,
     ) -> Weight:
         gen_fn = self.get_gen_fn()
         return gen_fn.project(
-            key,
             self,
             selection,
         )
@@ -378,7 +372,6 @@ class GenerativeFunction(Generic[R], Pytree):
     @abstractmethod
     def simulate(
         self,
-        key: PRNGKey,
         args: Arguments,
     ) -> Trace[R]:
         """
@@ -477,7 +470,6 @@ class GenerativeFunction(Generic[R], Pytree):
     @abstractmethod
     def generate(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[R], Weight]:
@@ -486,7 +478,6 @@ class GenerativeFunction(Generic[R], Pytree):
     @abstractmethod
     def project(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         selection: Selection,
     ) -> Weight:
@@ -495,7 +486,6 @@ class GenerativeFunction(Generic[R], Pytree):
     @abstractmethod
     def edit(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
@@ -628,7 +618,6 @@ class GenerativeFunction(Generic[R], Pytree):
 
     def importance(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[R], Weight]:
@@ -669,14 +658,12 @@ class GenerativeFunction(Generic[R], Pytree):
         """
 
         return self.generate(
-            key,
             constraint,
             args,
         )
 
     def propose(
         self,
-        key: PRNGKey,
         args: Arguments,
     ) -> tuple[ChoiceMap, Score, R]:
         """

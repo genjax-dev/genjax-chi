@@ -16,6 +16,7 @@
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 
+from genjax._src.core.compiler.interpreters.pjax import sample_binder
 from genjax._src.core.typing import Array, Callable
 from genjax._src.generative_functions.distributions.distribution import (
     ExactDensity,
@@ -48,9 +49,11 @@ def tfp_distribution(
     `log_prob` methods to define the generative function's behavior.
     """
 
-    def sampler(key, *args, **kwargs):
-        d = dist(*args, **kwargs)
-        return d.sample(seed=key)
+    def sampler(*args, **kwargs):
+        def _sampler(key, *args):
+            return dist(*args).sample(seed=key)
+
+        return sample_binder(_sampler)(*args)
 
     def logpdf(v, *args, **kwargs):
         d = dist(*args, **kwargs)

@@ -18,7 +18,6 @@ import jax.core as jc
 from jax import tree_util
 from jax import util as jax_util
 from jax.extend.core import Primitive
-from jax.interpreters import mlir
 from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.compiler.staging import stage
@@ -26,6 +25,10 @@ from genjax._src.core.compiler.staging import stage
 #########################
 # Custom JAX primitives #
 #########################
+
+
+class NotEliminatedException(Exception):
+    """Raised when a primitive is not eliminated."""
 
 
 class InitialStylePrimitive(Primitive):
@@ -42,16 +45,9 @@ class InitialStylePrimitive(Primitive):
         self.def_abstract_eval(_abstract)
 
         def fun_impl(*args, **params):
-            impl = params["impl"]
-            return impl(*args, **params)
+            params["raise_exception"]()
 
         self.def_impl(fun_impl)
-
-        def _mlir(ctx: mlir.LoweringRuleContext, *mlir_args, **params):
-            lowering = mlir.lower_fun(self.impl, multiple_results=True)
-            return lowering(ctx, *mlir_args, **params)
-
-        mlir.register_lowering(self, _mlir)
 
 
 def initial_style_bind(prim, **params):
