@@ -31,16 +31,16 @@ from genjax._src.core.compiler.staging import (
 )
 
 __all__ = [
+    "Diff",
+    "Environment",
+    "InitialStylePrimitive",
+    "NoChange",
     "StatefulHandler",
+    "UnknownChange",
     "get_shaped_aval",
     "incremental",
-    "Diff",
-    "NoChange",
-    "UnknownChange",
+    "initial_style_bind",
     "stage",
     "stateful",
     "to_shape_fn",
-    "Environment",
-    "InitialStylePrimitive",
-    "initial_style_bind",
 ]
