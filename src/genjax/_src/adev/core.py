@@ -248,7 +248,7 @@ class ADInterpreter(Pytree):
         return list(primals), list(tangents)
 
     @staticmethod
-    def _eval_jaxpr_adev_jvp(
+    def eval_jaxpr_adev(
         key: PRNGKey,
         jaxpr: Jaxpr,
         consts: list[ArrayLike],
@@ -404,7 +404,7 @@ class ADInterpreter(Pytree):
             closed_jaxpr, (_, _, out_tree) = stage(f)(*primals)
             jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
             dual_leaves = Dual.tree_leaves(Dual.tree_pure(dual_tree))
-            out_duals = ADInterpreter._eval_jaxpr_adev_jvp(
+            out_duals = ADInterpreter.eval_jaxpr_adev(
                 key,
                 jaxpr,
                 consts,

@@ -46,17 +46,17 @@ class StatefulHandler:
 
 @Pytree.dataclass
 class StatefulInterpreter(Pytree):
-    def _eval_jaxpr_stateful(
+    def eval_jaxpr_stateful(
         self,
         stateful_handler,
-        _jaxpr: Jaxpr,
+        jaxpr: Jaxpr,
         consts: list[Any],
         args: list[Any],
     ):
         env = Environment()
-        jax_util.safe_map(env.write, _jaxpr.constvars, consts)
-        jax_util.safe_map(env.write, _jaxpr.invars, args)
-        for eqn in _jaxpr.eqns:
+        jax_util.safe_map(env.write, jaxpr.constvars, consts)
+        jax_util.safe_map(env.write, jaxpr.invars, args)
+        for eqn in jaxpr.eqns:
             invals = jax_util.safe_map(env.read, eqn.invars)
             subfuns, params = eqn.primitive.get_bind_params(eqn.params)
             args = subfuns + invals
@@ -69,7 +69,7 @@ class StatefulInterpreter(Pytree):
                 outvals = [outvals]
             jax_util.safe_map(env.write, eqn.outvars, outvals)
 
-        return jax_util.safe_map(env.read, _jaxpr.outvars)
+        return jax_util.safe_map(env.read, jaxpr.outvars)
 
     def run_interpreter(self, stateful_handler, fn, *args, **kwargs):
         def _inner(*args):
@@ -77,7 +77,7 @@ class StatefulInterpreter(Pytree):
 
         closed_jaxpr, (flat_args, _, out_tree) = stage(_inner)(*args)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        flat_out = self._eval_jaxpr_stateful(
+        flat_out = self.eval_jaxpr_stateful(
             stateful_handler,
             jaxpr,
             consts,

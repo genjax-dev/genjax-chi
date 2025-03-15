@@ -313,9 +313,9 @@ class IncrementalInterpreter(Pytree):
         default_factory=dict
     )
 
-    def _eval_jaxpr_forward(
+    def eval_jaxpr_incremental(
         self,
-        _stateful_handler,
+        stateful_handler,
         jaxpr: Jaxpr,
         consts: list[Any],
         primals: list[Any],
@@ -335,8 +335,8 @@ class IncrementalInterpreter(Pytree):
             ]
             subfuns, params = _eqn.primitive.get_bind_params(_eqn.params)
             args = subfuns + induals
-            if _stateful_handler and _stateful_handler.handles(_eqn.primitive):
-                outduals = _stateful_handler.dispatch(_eqn.primitive, *args, **params)
+            if stateful_handler and stateful_handler.handles(_eqn.primitive):
+                outduals = stateful_handler.dispatch(_eqn.primitive, *args, **params)
             else:
                 outduals = default_propagation_rule(_eqn.primitive, *args, **params)
             if not _eqn.primitive.multiple_results:
@@ -354,7 +354,7 @@ class IncrementalInterpreter(Pytree):
             tangents, is_leaf=lambda v: isinstance(v, ChangeTangent)
         )
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        flat_out = self._eval_jaxpr_forward(
+        flat_out = self.eval_jaxpr_incremental(
             _stateful_handler,
             jaxpr,
             consts,
