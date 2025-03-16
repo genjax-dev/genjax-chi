@@ -18,6 +18,7 @@ import jax.core as jc
 from jax import tree_util
 from jax import util as jax_util
 from jax.extend.core import Primitive
+from jax.interpreters import batching
 from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.compiler.staging import stage
@@ -38,16 +39,21 @@ class InitialStylePrimitive(Primitive):
         super(InitialStylePrimitive, self).__init__(name)
         self.multiple_results = True
 
-        def _abstract(*flat_avals, **params):
-            abs_eval = params["abs_eval"]
-            return abs_eval(*flat_avals, **params)
-
-        self.def_abstract_eval(_abstract)
-
-        def fun_impl(*args, **params):
+        def impl(*args, **params):
             params["raise_exception"]()
 
-        self.def_impl(fun_impl)
+        self.def_impl(impl)
+
+        def abstract(*flat_avals, **params):
+            abs_eval = params["abstract"]
+            return abs_eval(*flat_avals, **params)
+
+        self.def_abstract_eval(abstract)
+
+        def batch(args, dim, **params):
+            return params["batch"](args, dim)
+
+        batching.primitive_batchers[self] = batch
 
 
 def initial_style_bind(prim, **params):
@@ -62,28 +68,26 @@ def initial_style_bind(prim, **params):
             jaxpr, (flat_args, in_tree, out_tree) = stage(f)(*args, **kwargs)
             debug_info = jaxpr.jaxpr.debug_info
 
-            def _impl(*args, **params):
+            def impl(*args, **params):
                 consts, args = jax_util.split_list(args, [params["num_consts"]])
                 return jc.eval_jaxpr(jaxpr.jaxpr, consts, *args)
 
-            def _abs_eval(*flat_avals, **params):
+            def abstract(*flat_avals, **params):
                 return pe.abstract_eval_fun(
-                    _impl,
+                    impl,
                     *flat_avals,
                     debug_info=debug_info,
                     **params,
                 )
 
             if "abs_eval" in params:
-                abs_eval = params["abs_eval"]
-                params.pop("abs_eval")
-            else:
-                abs_eval = _abs_eval
+                abstract = params["abstract"]
+                params.pop("abstract")
 
             outs = prim.bind(
                 *it.chain(jaxpr.literals, flat_args),
-                abs_eval=abs_eval,
-                impl=_impl,
+                impl=impl,
+                abstract=abstract,
                 in_tree=in_tree,
                 out_tree=out_tree,
                 num_consts=len(jaxpr.literals),

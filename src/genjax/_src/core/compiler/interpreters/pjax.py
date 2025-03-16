@@ -18,6 +18,7 @@ from dataclasses import dataclass
 import jax.random as jrand
 import jax.tree_util as jtu
 from jax import util as jax_util
+from jax import vmap
 from jax.extend.core import Jaxpr
 
 from genjax._src.core.compiler.initial_style_primitive import (
@@ -49,9 +50,21 @@ def sample_binder(
                 "JAX is attempting to invoke the implementation of a sampler defined using the `sample_p` primitive in your function.\n\nEliminate `sample_p` in `your_fn` by using the `genjax.pjax(your_fn, key: PRNGKey)(*your_args)` transformation, which allows you to use the JAX implementation of the sampler."
             )
 
+        def keyless_batch_impl(vector_args, batch_axes):
+            v = initial_style_bind(
+                sample_p,
+                jax_impl=vmap(
+                    jax_impl,
+                    in_axes=(None, *batch_axes),
+                ),
+                raise_exception=raise_exception,
+            )(vmap(keyless_jax_impl, in_axes=batch_axes))(*vector_args)
+            return (v,), (0,)
+
         return initial_style_bind(
             sample_p,
             jax_impl=jax_impl,
+            batch=keyless_batch_impl,
             raise_exception=raise_exception,
             **kwargs,
         )(keyless_jax_impl)(*args)
