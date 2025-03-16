@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .compiler import *
 from .generative import *
-from .interpreters import *
 from .pytree import *
 from .requests import *

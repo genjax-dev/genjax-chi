@@ -22,7 +22,7 @@ from genjax._src.core.generative import (
     Selection,
     Weight,
 )
-from genjax._src.core.generative.core import Score
+from genjax._src.core.generative.concepts import Score
 from genjax._src.core.generative.generative_function import Trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (

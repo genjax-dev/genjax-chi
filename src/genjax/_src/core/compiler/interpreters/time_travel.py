@@ -19,12 +19,14 @@ import jax.tree_util as jtu
 from jax import util as jax_util
 from jax.extend import source_info_util as src_util
 
-from genjax._src.core.interpreters.forward import (
-    Environment,
+from genjax._src.core.compiler.initial_style_primitive import (
     InitialStylePrimitive,
     initial_style_bind,
 )
-from genjax._src.core.interpreters.staging import stage
+from genjax._src.core.compiler.interpreters.environment import (
+    Environment,
+)
+from genjax._src.core.compiler.staging import stage
 from genjax._src.core.pytree import Closure, Pytree
 from genjax._src.core.typing import (
     Any,
@@ -102,7 +104,7 @@ def tag(v, name=None):
 @Pytree.dataclass
 class TimeTravelCPSInterpreter(Pytree):
     @staticmethod
-    def _eval_jaxpr_hybrid_cps(
+    def eval_jaxpr_time_travel(
         jaxpr: jc.Jaxpr,
         consts: list[ArrayLike],
         flat_args: list[ArrayLike],
@@ -182,7 +184,7 @@ class TimeTravelCPSInterpreter(Pytree):
         def _inner(*args):
             closed_jaxpr, (flat_args, _, out_tree) = stage(f)(*args)
             jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-            return TimeTravelCPSInterpreter._eval_jaxpr_hybrid_cps(
+            return TimeTravelCPSInterpreter.eval_jaxpr_time_travel(
                 jaxpr,
                 consts,
                 flat_args,

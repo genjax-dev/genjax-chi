@@ -13,7 +13,11 @@
 # limitations under the License.
 
 
-from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
+from genjax._src.core.compiler.interpreters.incremental import (
+    Diff,
+    NoChange,
+    UnknownChange,
+)
 
 
 class TestDiff:

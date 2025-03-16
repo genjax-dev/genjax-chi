@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.interpreters.time_travel import (
+from genjax._src.core.compiler.interpreters.time_travel import (
     rec,
     tag,
     time_machine,

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 
+from genjax._src.core.compiler.interpreters.incremental import Diff, incremental
 from genjax._src.core.generative import (
     Argdiffs,
     EditRequest,
@@ -27,7 +28,6 @@ from genjax._src.core.generative.choice_map import (
     ChoiceMap,
     Selection,
 )
-from genjax._src.core.interpreters.incremental import Diff, incremental
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
