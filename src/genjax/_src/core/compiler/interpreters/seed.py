@@ -34,10 +34,10 @@ from genjax._src.core.typing import Any, Callable, PRNGKey
 
 
 @dataclass
-class JAXCInterpreter:
+class SeedInterpreter:
     key: PRNGKey
 
-    def eval_jaxpr_jaxc(
+    def eval_jaxpr_seed(
         self,
         jaxpr: Jaxpr,
         consts: list[Any],
@@ -65,13 +65,14 @@ class JAXCInterpreter:
                 branch_closed_jaxprs = params["branches"]
                 self.key, sub_key = jrand.split(self.key)
                 branches = tuple(
-                    seed(sub_key, jex.core.jaxpr_as_fun(branch))
+                    seed(jex.core.jaxpr_as_fun(branch))
                     for branch in branch_closed_jaxprs
                 )
                 index_val, ops_vals = invals[0], invals[1:]
                 outvals = switch(
                     index_val,
                     branches,
+                    sub_key,
                     *ops_vals,
                 )
 
@@ -89,27 +90,21 @@ class JAXCInterpreter:
                     invals, [num_consts, num_carry]
                 )
 
-                def new_flat_scan(carry, scanned_in):
-                    (key, original_carries) = carry
-                    (idx, original_scanned_in) = scanned_in
+                body_fun = jex.core.jaxpr_as_fun(body_jaxpr)
+
+                def new_body(carry, scanned_in):
+                    (key, in_carry) = carry
+                    (idx, in_scan) = scanned_in
+                    all_values = const_vals + jtu.tree_leaves((in_carry, in_scan))
                     sub_key = jrand.fold_in(key, idx)
-                    interpreter = JAXCInterpreter(sub_key)
-                    outvals = interpreter.eval_jaxpr_jaxc(
-                        body_jaxpr.jaxpr,
-                        const_vals,
-                        jtu.tree_leaves(
-                            (original_carries, original_scanned_in),
-                        ),
-                    )
-                    _, carry_out, scanned_out = jax_util.split_list(
-                        outvals, [num_consts, num_carry]
-                    )
-                    return (key, carry_out), scanned_out
+                    outs = seed(body_fun)(sub_key, *all_values)
+                    out_carry, out_scan = jax_util.split_list(outs, [num_carry])
+                    return (key, out_carry), out_scan
 
                 self.key, sub_key = jrand.split(self.key)
                 fold_idxs = jnp.arange(length)
                 (_, flat_carry_out), scanned_out = scan(
-                    new_flat_scan,
+                    new_body,
                     (sub_key, carry_vals),
                     (fold_idxs, xs_vals),
                     length=length,
@@ -130,7 +125,7 @@ class JAXCInterpreter:
     def run_interpreter(self, fn, *args):
         closed_jaxpr, (flat_args, _, out_tree) = stage(fn)(*args)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        flat_out = self.eval_jaxpr_jaxc(
+        flat_out = self.eval_jaxpr_seed(
             jaxpr,
             consts,
             flat_args,
@@ -139,12 +134,11 @@ class JAXCInterpreter:
 
 
 def seed(
-    key: PRNGKey,
     f: Callable[..., Any],
 ):
     @functools.wraps(f)
-    def wrapped(*args):
-        interpreter = JAXCInterpreter(key)
+    def wrapped(key: PRNGKey, *args):
+        interpreter = SeedInterpreter(key)
         return interpreter.run_interpreter(
             f,
             *args,

@@ -426,6 +426,6 @@ class TestDiffCoercion:
             "y1": Regenerate(Selection.all()).contramap(assert_no_change),
             "y2": EmptyRequest().map(assert_no_change),
         })
-        _, w, _, _ = genjax.seed(jrand.key(1), unwrapped_request.edit)(tr, ())
-        _, w_, _, _ = genjax.seed(jrand.key(1), wrapped_request.edit)(tr, ())
+        _, w, _, _ = genjax.seed(unwrapped_request.edit)(jrand.key(1), tr, ())
+        _, w_, _, _ = genjax.seed(wrapped_request.edit)(jrand.key(1), tr, ())
         assert w == w_

@@ -60,5 +60,5 @@ class TestMixture:
         def g2():
             return f() @ "f"
 
-        tr = genjax.seed(jrand.key(1), g2.simulate)(())
-        assert tr == genjax.seed(jrand.key(1), g2.simulate)(())
+        tr = genjax.seed(g2.simulate)(jrand.key(1), ())
+        assert tr == genjax.seed(g2.simulate)(jrand.key(1), ())

@@ -357,19 +357,19 @@ class TestScanWithParameters:
             return new_x, new_x
 
         args = (0.0, jnp.array([2.0, 4.0, 3.0, 5.0, 1.0]))
-        tr = genjax.seed(jrand.key(1), walk_step.scan(n=5).simulate)(args)
+        tr = genjax.seed(walk_step.scan(n=5).simulate)(jrand.key(1), args)
         _, expected = tr.get_retval()
         assert jnp.allclose(
             tr.get_choices()[:, "x"],
             expected,
         )
 
-        tr = genjax.seed(jrand.key(1), walk_step.scan().simulate)(args)
+        tr = genjax.seed(walk_step.scan().simulate)(jrand.key(1), args)
         assert jnp.allclose(tr.get_choices()[:, "x"], expected)
 
         # now with jit
-        jitted = jax.jit(genjax.seed(jrand.key(1), walk_step.scan().simulate))
-        tr = jitted(args)
+        jitted = jax.jit(genjax.seed(walk_step.scan().simulate))
+        tr = jitted(jrand.key(1), args)
         assert jnp.allclose(tr.get_choices()[:, "x"], expected)
 
     def test_zero_length_scan(self):

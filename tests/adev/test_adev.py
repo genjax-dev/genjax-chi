@@ -88,11 +88,11 @@ class TestBaselineFlip:
             return v + 10.0
 
         p_dual_no_baseline = jax.jit(
-            genjax.seed(jrand.key(1), flip_reinforce_loss_no_baseline.jvp_estimate)
-        )(Dual(0.1, 1.0))
+            genjax.seed(flip_reinforce_loss_no_baseline.jvp_estimate)
+        )(jrand.key(1), Dual(0.1, 1.0))
 
-        p_dual = jax.jit(genjax.seed(jrand.key(1), flip_reinforce_loss.jvp_estimate))(
-            Dual(0.1, 1.0)
+        p_dual = jax.jit(genjax.seed(flip_reinforce_loss.jvp_estimate))(
+            jrand.key(1), Dual(0.1, 1.0)
         )
 
         assert p_dual.tangent == pytest.approx(p_dual_no_baseline.tangent, 1e-3)
