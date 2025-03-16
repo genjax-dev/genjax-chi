@@ -426,7 +426,7 @@ def exact_density(
         warnings.warn("You should supply a name argument to exact_density")
         name = "unknown"
 
-    def _(f, a0, args, kwargs):
+    def kwargle(f, args, kwargs):
         """Keyword arguments currently get unusual treatment in GenJAX: when
         a keyword argument is provided to a generative function, the function
         is asked to provide a new version of itself which receives a different
@@ -438,6 +438,12 @@ def exact_density(
         We are assuming that this will not represent a useful argument package
         to any of the TF distributions."""
         if len(args) == 2 and isinstance(args[1], dict):
+            return f(*args[0], **args[1])
+        else:
+            return f(*args, **kwargs)
+
+    def kwargle_v(f, a0, args, kwargs):
+        if len(args) == 2 and isinstance(args[1], dict):
             return f(a0, *args[0], **args[1])
         else:
             return f(a0, *args, **kwargs)
@@ -446,8 +452,10 @@ def exact_density(
         canonicalize_distribution_name(name),
         (ExactDensity,),
         {
-            "sample": lambda self, *args: sample(*args),
-            "logpdf": lambda self, v, *args: logpdf(v, *args),
+            "sample": lambda self, *args, **kwargs: kwargle(sample, args, kwargs),
+            "logpdf": lambda self, v, *args, **kwargs: kwargle_v(
+                logpdf, v, args, kwargs
+            ),
             "handle_kwargs": lambda self: self,
         },
     )

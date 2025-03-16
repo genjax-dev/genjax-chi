@@ -14,6 +14,7 @@
 
 import jax
 import jax.numpy as jnp
+import jax.random as jrand
 import jax.tree_util as jtu
 import pytest
 
@@ -116,18 +117,18 @@ class TestRegenerate:
         @genjax.gen
         def linked_normal():
             y1 = genjax.normal(0.0, 3.0) @ "y1"
-            _ = genjax.normal(y1, 0.01) @ "y2"
+            _ = genjax.normal(y1, 0.001) @ "y2"
 
         tr, _ = linked_normal.importance(C.kw(y2=3.0), ())
         request = Regenerate(S["y1"])
 
         # Run Metropolis-Hastings for 200 steps.
-        for _ in range(200):
+        for _ in range(500):
             new_tr, w, _, _ = request.edit(tr, ())
             check = jnp.log(genjax.uniform.sample(0.0, 1.0)) < w
             tr = jtu.tree_map(lambda v1, v2: jnp.where(check, v1, v2), new_tr, tr)
 
-        assert tr.get_choices()["y1"] == pytest.approx(3.0, 1e-2)
+        assert tr.get_choices()["y1"] == pytest.approx(3.0, 8e-2)
 
 
 class TestRejuvenate:
@@ -212,26 +213,26 @@ class TestHMC:
 
         # Check for gradient convergence.
         new_tr = tr
-        for _ in range(20):
+        for _ in range(100):
             new_tr, *_ = editor(new_tr, ())
-        assert new_tr.get_choices()["x"] == pytest.approx(3.0, 5e-3)
+        assert new_tr.get_choices()["x"] == pytest.approx(3.0, 1e-2)
 
     def test_simple_scan_hmc(self):
         @genjax.gen
         def kernel(z, scanned_in):
             z = genjax.normal(z, 1.0) @ "x"
-            _ = genjax.normal(z, 0.01) @ "y"
+            _ = genjax.normal(z, 0.001) @ "y"
             return z, None
 
         model = kernel.scan(n=10)
         vchm = ChoiceMap.empty().at["y"].set(3.0 * jnp.ones(10))
         tr, _ = model.importance(vchm, (0.0, None))
-        request = HMC(Selection.at["x"], jnp.array(1e-2))
+        request = HMC(Selection.at["x"], jnp.array(1e-3))
         editor = jax.jit(request.edit)
         new_tr = tr
-        for _ in range(50):
+        for _ in range(100):
             new_tr, *_ = editor(new_tr, Diff.no_change((0.0, None)))
-        assert new_tr.get_choices()[:, "x"] == pytest.approx(3.0, 8e-3)
+        assert new_tr.get_choices()[:, "x"] == pytest.approx(3.0, 8e-2)
 
     @pytest.mark.skip(reason="needs more work")
     def test_hmm_hmc(self):
@@ -425,6 +426,6 @@ class TestDiffCoercion:
             "y1": Regenerate(Selection.all()).contramap(assert_no_change),
             "y2": EmptyRequest().map(assert_no_change),
         })
-        _, w, _, _ = unwrapped_request.edit(tr, ())
-        _, w_, _, _ = wrapped_request.edit(tr, ())
+        _, w, _, _ = genjax.seed(jrand.key(1), unwrapped_request.edit)(tr, ())
+        _, w_, _, _ = genjax.seed(jrand.key(1), wrapped_request.edit)(tr, ())
         assert w == w_

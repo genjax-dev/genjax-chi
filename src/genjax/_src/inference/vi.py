@@ -67,8 +67,8 @@ def adev_distribution(
     Exact densities created using this function can be used as distributions in variational guide programs.
     """
 
-    def sampler(key: PRNGKey, *args: Any) -> Any:
-        return sample_primitive(adev_primitive, *args, key=key)
+    def sampler(*args: Any) -> Any:
+        return sample_primitive(adev_primitive, *args)
 
     def logpdf(v: Any, *args: Any) -> FloatArray:
         lp = differentiable_logpdf(v, *args)

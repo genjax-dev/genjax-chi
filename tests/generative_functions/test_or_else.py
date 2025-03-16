@@ -12,31 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
-import pytest
+import jax.random as jrand
 
 import genjax
 
 
 class TestOrElse:
-    @pytest.fixture
-    def key(self):
-        return jax.random.key(314159)
-
-    def test_assess_or_else(self, key):
+    def test_assess_or_else(self):
         @genjax.gen
         def f():
             return genjax.normal(0.0, 1.0) @ "value"
 
         f_or_f = f.or_else(f)
         args = (True, (), ())
-        tr = f_or_f.simulate(args)
-        score, ret = f_or_f.assess(f_or_f.simulate(args).get_choices(), args)
+        tr = genjax.seed(jrand.key(1), f_or_f.simulate)(args)
+        score, ret = f_or_f.assess(
+            genjax.seed(jrand.key(1), f_or_f.simulate)(args).get_choices(), args
+        )
 
         assert tr.get_score() == score
         assert tr.get_retval() == ret
 
-    def test_assess_or_else_inside_fn(self, key):
+    def test_assess_or_else_inside_fn(self):
         p = 0.5
 
         @genjax.gen

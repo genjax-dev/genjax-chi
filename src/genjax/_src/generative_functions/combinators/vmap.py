@@ -146,7 +146,10 @@ class Vmap(Generic[R], GenerativeFunction[R]):
     in_axes: InAxes = Pytree.static()
 
     def __abstract_call__(self, *args) -> Any:
-        return jax.vmap(self.gen_fn.__abstract_call__, in_axes=self.in_axes)(*args)
+        return jax.vmap(
+            self.gen_fn.__abstract_call__,
+            in_axes=self.in_axes,
+        )(*args)
 
     @staticmethod
     def _static_broadcast_dim_length(in_axes: InAxes, args: tuple[Any, ...]) -> int:
@@ -183,7 +186,7 @@ class Vmap(Generic[R], GenerativeFunction[R]):
         dim_length = self._static_broadcast_dim_length(self.in_axes, args)
 
         # vmapping over `gen_fn`'s `simulate` gives us a new trace with vector-shaped leaves.
-        tr = jax.vmap(self.gen_fn.simulate, in_axes=self.in_axes)(args)
+        tr = jax.vmap(self.gen_fn.simulate, in_axes=(self.in_axes,))(args)
 
         return VmapTrace.build(self, tr, args, dim_length)
 
@@ -204,7 +207,7 @@ class Vmap(Generic[R], GenerativeFunction[R]):
             )
             return tr, w
 
-        tr, weight_v = jax.vmap(_inner, in_axes=(0, 0, self.in_axes))(idx_array, args)
+        tr, weight_v = jax.vmap(_inner, in_axes=(0, self.in_axes))(idx_array, args)
         w = jnp.sum(weight_v)
         map_tr = VmapTrace.build(self, tr, args, dim_length)
         return map_tr, w
@@ -248,7 +251,7 @@ class Vmap(Generic[R], GenerativeFunction[R]):
             return (new_subtrace, w, retdiff, inner_chm)
 
         new_subtraces, w, retdiff, bwd_constraints = jax.vmap(
-            _edit, in_axes=(0, 0, 0, self.in_axes)
+            _edit, in_axes=(0, 0, self.in_axes)
         )(idx_array, trace.inner, argdiffs)
         w = jnp.sum(w)
         map_tr = VmapTrace.build(self, new_subtraces, primals, dim_length)

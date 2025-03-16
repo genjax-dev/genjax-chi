@@ -172,8 +172,6 @@ class TestCombinators:
     """Tests for the generative function combinator methods."""
 
     def test_vmap(self):
-        key = jax.random.key(314159)
-
         @genjax.gen
         def model(x):
             v = genjax.normal(x, 1.0) @ "v"
@@ -183,7 +181,7 @@ class TestCombinators:
 
         jit_fn = jax.jit(vmapped_model.simulate)
 
-        tr = jit_fn(key, (jnp.array([10.0, 20.0, 30.0]),))
+        tr = jit_fn((jnp.array([10.0, 20.0, 30.0]),))
         chm = tr.get_choices()
         varr, qarr = tr.get_retval()
 
@@ -192,8 +190,6 @@ class TestCombinators:
         assert jnp.array_equal(chm[:, "q"], qarr)
 
     def test_repeat(self):
-        key = jax.random.key(314159)
-
         @genjax.gen
         def model(x):
             return genjax.normal(x, 1.0) @ "x"
@@ -201,8 +197,8 @@ class TestCombinators:
         vmap_model = model.vmap()
         repeat_model = model.repeat(n=3)
 
-        vmap_tr = jax.jit(vmap_model.simulate)(key, (jnp.zeros(3),))
-        repeat_tr = jax.jit(repeat_model.simulate)(key, (0.0,))
+        vmap_tr = jax.jit(vmap_model.simulate)((jnp.zeros(3),))
+        repeat_tr = jax.jit(repeat_model.simulate)((0.0,))
 
         repeatarr = repeat_tr.get_retval()
         varr = vmap_tr.get_retval()
@@ -217,8 +213,6 @@ class TestCombinators:
         assert jnp.array_equal(vmap_tr.get_choices()[:, "x"], varr)
 
     def test_or_else(self):
-        key = jax.random.key(314159)
-
         @genjax.gen
         def if_model(x):
             return genjax.normal(x, 1.0) @ "if_value"
@@ -232,8 +226,8 @@ class TestCombinators:
             return if_model.or_else(else_model)(toss, (1.0,), (10.0,)) @ "tossed"
 
         jit_fn = jax.jit(switch_model.simulate)
-        if_tr = jit_fn(key, (True,))
+        if_tr = jit_fn((True,))
         assert "if_value" in if_tr.get_choices()("tossed")
 
-        else_tr = jit_fn(key, (False,))
+        else_tr = jit_fn((False,))
         assert "else_value" in else_tr.get_choices()("tossed")

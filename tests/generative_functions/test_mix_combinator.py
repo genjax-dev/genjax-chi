@@ -14,6 +14,7 @@
 
 
 import jax.numpy as jnp
+import jax.random as jrand
 
 import genjax
 from genjax import ChoiceMapBuilder as C
@@ -59,6 +60,5 @@ class TestMixture:
         def g2():
             return f() @ "f"
 
-        tr = g2.simulate(())
-        genjax.mix(genjax.flip, genjax.flip)
-        assert tr == g2.simulate(())
+        tr = genjax.seed(jrand.key(1), g2.simulate)(())
+        assert tr == genjax.seed(jrand.key(1), g2.simulate)(())

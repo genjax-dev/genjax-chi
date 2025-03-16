@@ -36,7 +36,6 @@ from genjax._src.core.typing import (
     BoolArray,
     FloatArray,
     Generic,
-    PRNGKey,
     TypeVar,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
@@ -142,7 +141,6 @@ class SMCAlgorithm(Generic[R], Algorithm[R]):
     # of the target.
     def log_marginal_likelihood_estimate(
         self,
-        key: PRNGKey,
         target: Target[R] | None = None,
     ):
         if target:
@@ -286,14 +284,14 @@ class ImportanceK(Generic[R], SMCAlgorithm[R]):
     def run_smc(self):
         if self.q is not None:
             log_weights, choices = vmap(self.q.random_weighted, in_axes=(0, None))(
-                self.target
+                jnp.zeros(self.k_particles), self.target
             )
             trs, target_scores = vmap(self.target.importance)(choices)
         else:
             log_weights = 0.0
-            trs, target_scores = vmap(self.target.importance, in_axes=(0, None))(
-                ChoiceMap.empty()
-            )
+            trs, target_scores = vmap(
+                lambda k, chm: self.target.importance(chm), in_axes=(0, None)
+            )(jnp.zeros(self.k_particles), ChoiceMap.empty())
         return ParticleCollection(
             trs,
             target_scores - log_weights,

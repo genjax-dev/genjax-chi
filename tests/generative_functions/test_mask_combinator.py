@@ -14,6 +14,7 @@
 
 import jax
 import jax.numpy as jnp
+import jax.random as jrand
 import jax.tree_util as jtu
 import pytest
 
@@ -31,21 +32,17 @@ def model(x):
 
 
 class TestMaskCombinator:
-    @pytest.fixture
-    def key(self):
-        return jax.random.key(314159)
-
-    def test_mask_simple_normal_true(self, key):
-        tr = jax.jit(model.simulate)(key, (True, -4.0))
+    def test_mask_simple_normal_true(self):
+        tr = jax.jit(model.simulate)((True, -4.0))
         assert tr.get_score() == tr.inner.get_score()
         assert tr.get_retval() == genjax.Mask(tr.inner.get_retval(), jnp.array(True))
 
-        tr = jax.jit(model.simulate)(key, (False, -4.0))
+        tr = jax.jit(model.simulate)((False, -4.0))
         assert tr.get_score() == 0.0
         assert tr.get_retval() == genjax.Mask(tr.inner.get_retval(), jnp.array(False))
 
-    def test_mask_simple_normal_false(self, key):
-        tr = jax.jit(model.simulate)(key, (False, 2.0))
+    def test_mask_simple_normal_false(self):
+        tr = jax.jit(model.simulate)((False, 2.0))
         assert tr.get_score() == 0.0
         assert not tr.get_retval().flag
 
@@ -53,10 +50,10 @@ class TestMaskCombinator:
         assert score == 0.0
         assert not retval.flag
 
-        _, w = jax.jit(model.importance)(key, C["z"].set(-2.0), tr.get_args())
+        _, w = jax.jit(model.importance)(C["z"].set(-2.0), tr.get_args())
         assert w == 0.0
 
-    def test_mask_update_weight_to_argdiffs_from_true(self, key):
+    def test_mask_update_weight_to_argdiffs_from_true(self):
         # pre-update, the mask is True
         tr = model.simulate((True, 2.0))
 
@@ -70,22 +67,20 @@ class TestMaskCombinator:
         w = tr.update(C.n(), argdiffs)[1]
         assert w == -tr.get_score()
 
-    def test_mask_update_weight_to_argdiffs_from_false(self, key):
+    def test_mask_update_weight_to_argdiffs_from_false(self):
         # pre-update mask arg is False
-        tr = jax.jit(model.simulate)(key, (False, 2.0))
+        tr = jax.jit(model.simulate)((False, 2.0))
 
         # mask check arg transition: False --> True
         w = tr.update(
-            key,
             C.n(),
             (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1])),
         )[1]
-        assert w == tr.inner.update(key, C.n())[1] + tr.inner.get_score()
-        assert w == tr.inner.update(key, C.n())[0].get_score()
+        assert w == tr.inner.update(C.n())[1] + tr.inner.get_score()
+        assert w == tr.inner.update(C.n())[0].get_score()
 
         # mask check arg transition: False --> False
         w = tr.update(
-            key,
             C.n(),
             (
                 Diff.unknown_change(False),
@@ -95,7 +90,7 @@ class TestMaskCombinator:
         assert w == 0.0
         assert w == tr.get_score()
 
-    def test_mask_vmap(self, key):
+    def test_mask_vmap(self):
         @genjax.gen
         def init():
             x = genjax.normal(0.0, 1.0) @ "x"
@@ -122,21 +117,21 @@ class TestMaskCombinator:
         # score should be sum of sub-scores masked True
         assert tr.get_score() == inner_scores[0] + inner_scores[2]
 
-    def test_mask_update_weight_to_argdiffs_from_false_(self, key):
+    def test_mask_update_weight_to_argdiffs_from_false_(self):
         # pre-update mask arg is False
-        tr = jax.jit(model.simulate)(key, (False, 2.0))
+        tr = jax.jit(model.simulate)((False, 2.0))
         # mask check arg transition: False --> True
         argdiffs = (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1]))
-        w = tr.update(key, C.n(), argdiffs)[1]
-        assert w == tr.inner.update(key, C.n())[1] + tr.inner.get_score()
-        assert w == tr.inner.update(key, C.n())[0].get_score()
+        w = tr.update(C.n(), argdiffs)[1]
+        assert w == tr.inner.update(C.n())[1] + tr.inner.get_score()
+        assert w == tr.inner.update(C.n())[0].get_score()
         # mask check arg transition: False --> False
         argdiffs = (Diff.unknown_change(False), Diff.no_change(tr.get_args()[1]))
-        w = tr.update(key, C.n(), argdiffs)[1]
+        w = tr.update(C.n(), argdiffs)[1]
         assert w == 0.0
         assert w == tr.get_score()
 
-    def test_masked_iterate_final_update(self, key):
+    def test_masked_iterate_final_update(self):
         masks = jnp.array([True, True])
 
         @genjax.gen
@@ -166,7 +161,7 @@ class TestMaskCombinator:
         assert step_weight != jnp.array(0.0)
         assert step_particle.get_score() == step_weight + init_particle.get_score()
 
-    def test_masked_iterate(self, key):
+    def test_masked_iterate(self):
         masks = jnp.array([True, True])
 
         @genjax.gen
@@ -185,7 +180,7 @@ class TestMaskCombinator:
             "0.0 is threaded through 10 times in addition to the initial value"
         )
 
-    def test_mask_scan_update_type_error(self, key):
+    def test_mask_scan_update_type_error(self):
         @genjax.gen
         def model_inside():
             masks = jnp.array([True, False, True])
@@ -202,8 +197,8 @@ class TestMaskCombinator:
         # When inside, the array is recast by JAX into a numpy array, since it appears in the
         # literal pool of a compiled function, but not when outside, where it escapes such
         # treatment.
-        inside_tr = model_inside.simulate(())
-        outside_tr = model_outside.simulate(())
+        inside_tr = genjax.seed(jrand.key(1), model_inside.simulate)(())
+        outside_tr = genjax.seed(jrand.key(1), model_outside.simulate)(())
 
         assert outside_tr.get_score() == inside_tr.get_score()
         assert jtu.tree_map(
@@ -221,18 +216,18 @@ class TestMaskCombinator:
             * jax.vmap(lambda v: genjax.normal.logpdf(v, 0.0, 1.0))(retval_value)
         )
 
-    def test_mask_fails_with_vector_mask(self, key):
+    def test_mask_fails_with_vector_mask(self):
         @genjax.gen
         def model():
             return genjax.normal(0.0, 1.0) @ "x"
 
         masks = jnp.array([True, True, False])
 
-        def simulate_masked(key, masks):
+        def simulate_masked(masks):
             return model.mask().simulate((masks,))
 
         with pytest.raises(TypeError):
-            simulate_masked(key, masks)
+            simulate_masked(masks)
 
         tr = model.mask().vmap().simulate((masks,))
 

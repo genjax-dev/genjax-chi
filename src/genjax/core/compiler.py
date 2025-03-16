@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.compiler.backends.jax import pjax_to_jax
+from genjax._src.core.compiler.backends.jax import seed
 from genjax._src.core.compiler.initial_style_primitive import (
     InitialStylePrimitive,
     initial_style_bind,
@@ -42,8 +42,8 @@ __all__ = [
     "get_shaped_aval",
     "incremental",
     "initial_style_bind",
-    "pjax_to_jax",
     "sample_binder",
+    "seed",
     "stage",
     "stateful",
     "to_shape_fn",

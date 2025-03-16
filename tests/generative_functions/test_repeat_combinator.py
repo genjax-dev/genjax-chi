@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
 import jax.numpy as jnp
 
 from genjax import ChoiceMapBuilder as C
@@ -33,12 +32,11 @@ class TestRepeatCombinator:
         def square(x):
             return x * x
 
-        key = jax.random.key(314)
-        repeat_retval = square.repeat(n=10)(2)(key)
+        repeat_retval = square.repeat(n=10)(2)()
 
         assert repeat_retval.shape == (10,), "We asked for and received 10 squares"
 
-        assert jnp.array_equal(square.vmap()(jnp.repeat(2, 10))(key), repeat_retval), (
+        assert jnp.array_equal(square.vmap()(jnp.repeat(2, 10))(), repeat_retval), (
             "Repeat 10 times matches vmap with 10 equal inputs"
         )
 

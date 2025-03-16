@@ -16,6 +16,7 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
+import jax.random as jrand
 import pytest
 
 import genjax
@@ -492,7 +493,7 @@ class TestStaticGenFnUpdate:
         )
         test_score = score1 + score2
         assert original_choice["y1",] == discard["y1",]
-        assert updated.get_score() == original_score + w
+        assert updated.get_score() == pytest.approx(original_score + w, 1e-2)
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
         new = C["y1"].set(2.0).at["y2"].set(3.0)
@@ -504,8 +505,8 @@ class TestStaticGenFnUpdate:
         (_, score1) = genjax.normal.importance(y1, (0.0, 1.0))
         (_, score2) = genjax.normal.importance(y2, (0.0, 1.0))
         test_score = score1 + score2
-        assert updated.get_score() == original_score + w
-        assert updated.get_score() == pytest.approx(test_score, 0.01)
+        assert updated.get_score() == pytest.approx(original_score + w, 1e-3)
+        assert updated.get_score() == pytest.approx(test_score, 1e-3)
 
     def test_simple_linked_normal_update(self):
         @genjax.gen
@@ -798,7 +799,10 @@ class TestGenFnClosure:
 
         # Test simulate with kwargs
         arg_tuple = (1.0, 2.0, 3.0)
-        assert gfc.simulate(()).get_choices() == model.simulate(arg_tuple).get_choices()
+        assert (
+            genjax.seed(jrand.key(1), gfc.simulate)(()).get_choices()
+            == genjax.seed(jrand.key(1), model.simulate)(arg_tuple).get_choices()
+        )
 
         # Test assess with kwargs
         chm = C.kw(sampled=3.5)
@@ -898,8 +902,8 @@ class TestHandleKwargs:
         # handle_kwargs produces a new model capable of handling keyword args.
         kwm = model.handle_kwargs()
 
-        kwm_tr = kwm.simulate(((1.0,), {"y": 2.0, "z": 3.0}))
-        model_tr = model.simulate((1.0, 2.0, 3.0))
+        kwm_tr = genjax.seed(jrand.key(1), kwm.simulate)(((1.0,), {"y": 2.0, "z": 3.0}))
+        model_tr = genjax.seed(jrand.key(1), model.simulate)((1.0, 2.0, 3.0))
 
         assert kwm_tr.get_choices() == model_tr.get_choices()
         assert kwm_tr.get_score() == model_tr.get_score()

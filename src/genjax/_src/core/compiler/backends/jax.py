@@ -65,7 +65,7 @@ class JAXCInterpreter:
                 branch_closed_jaxprs = params["branches"]
                 self.key, sub_key = jrand.split(self.key)
                 branches = tuple(
-                    pjax_to_jax(sub_key, jex.core.jaxpr_as_fun(branch))
+                    seed(sub_key, jex.core.jaxpr_as_fun(branch))
                     for branch in branch_closed_jaxprs
                 )
                 index_val, ops_vals = invals[0], invals[1:]
@@ -138,7 +138,7 @@ class JAXCInterpreter:
         return jtu.tree_unflatten(out_tree(), flat_out)
 
 
-def pjax_to_jax(
+def seed(
     key: PRNGKey,
     f: Callable[..., Any],
 ):
