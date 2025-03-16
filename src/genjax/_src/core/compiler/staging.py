@@ -328,6 +328,7 @@ def to_shape_fn(
 
     return typing.cast(F, wrapped)
 
+
 def empty_trace(
     gen_fn: "genjax.GenerativeFunction[R]", args: "genjax.Arguments"
 ) -> "genjax.Trace[R]":
