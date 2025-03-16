@@ -197,8 +197,8 @@ class TestMaskCombinator:
         # When inside, the array is recast by JAX into a numpy array, since it appears in the
         # literal pool of a compiled function, but not when outside, where it escapes such
         # treatment.
-        inside_tr = genjax.seed(jrand.key(1), model_inside.simulate)(())
-        outside_tr = genjax.seed(jrand.key(1), model_outside.simulate)(())
+        inside_tr = genjax.seed(model_inside.simulate)(jrand.key(1), ())
+        outside_tr = genjax.seed(model_outside.simulate)(jrand.key(1), ())
 
         assert outside_tr.get_score() == inside_tr.get_score()
         assert jtu.tree_map(

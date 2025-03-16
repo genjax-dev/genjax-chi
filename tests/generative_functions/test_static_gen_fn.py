@@ -786,8 +786,8 @@ class TestGenFnClosure:
         # Test simulate with kwargs
         arg_tuple = (1.0, 2.0, 3.0)
         assert (
-            genjax.seed(jrand.key(1), gfc.simulate)(()).get_choices()
-            == genjax.seed(jrand.key(1), model.simulate)(arg_tuple).get_choices()
+            genjax.seed(gfc.simulate)(jrand.key(1), ()).get_choices()
+            == genjax.seed(model.simulate)(jrand.key(1), arg_tuple).get_choices()
         )
 
         # Test assess with kwargs
@@ -888,8 +888,8 @@ class TestHandleKwargs:
         # handle_kwargs produces a new model capable of handling keyword args.
         kwm = model.handle_kwargs()
 
-        kwm_tr = genjax.seed(jrand.key(1), kwm.simulate)(((1.0,), {"y": 2.0, "z": 3.0}))
-        model_tr = genjax.seed(jrand.key(1), model.simulate)((1.0, 2.0, 3.0))
+        kwm_tr = genjax.seed(kwm.simulate)(jrand.key(1), ((1.0,), {"y": 2.0, "z": 3.0}))
+        model_tr = genjax.seed(model.simulate)(jrand.key(1), (1.0, 2.0, 3.0))
 
         assert kwm_tr.get_choices() == model_tr.get_choices()
         assert kwm_tr.get_score() == model_tr.get_score()

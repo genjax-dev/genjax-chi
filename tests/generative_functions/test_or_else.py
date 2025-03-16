@@ -25,9 +25,9 @@ class TestOrElse:
 
         f_or_f = f.or_else(f)
         args = (True, (), ())
-        tr = genjax.seed(jrand.key(1), f_or_f.simulate)(args)
+        tr = genjax.seed(f_or_f.simulate)(jrand.key(1), args)
         score, ret = f_or_f.assess(
-            genjax.seed(jrand.key(1), f_or_f.simulate)(args).get_choices(), args
+            genjax.seed(f_or_f.simulate)(jrand.key(1), args).get_choices(), args
         )
 
         assert tr.get_score() == score
