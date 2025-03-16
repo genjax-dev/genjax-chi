@@ -88,7 +88,7 @@ from genjax.edits import HMC
 # create a trace, edit it with HMC, resample.
 @jit
 def inference_via_editing_traces(obs, α, β):
-    (tr, lws) = beta_bernoulli.importance_k(500)(
+    (tr, lws) = beta_bernoulli.importance_k(50)(
         Chm.d({"v": obs}), # constraint: "v" -> obs
         (α, β), # (α, β)
     )
