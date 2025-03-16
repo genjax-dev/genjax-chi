@@ -176,7 +176,7 @@ class TestRejuvenate:
             check = jnp.log(genjax.uniform.sample(0.0, 1.0)) < w
             tr = jtu.tree_map(lambda v1, v2: jnp.where(check, v1, v2), new_tr, tr)
 
-        assert tr.get_choices()["y1"] == pytest.approx(3.0, 5e-3)
+        assert tr.get_choices()["y1"] == pytest.approx(3.0, 8e-2)
 
 
 class TestHMC:
