@@ -57,8 +57,7 @@ class TestDistributions:
         tr = genjax.normal.simulate((0.0, 1.0))
 
         # No constraint, no change to arguments.
-        (new_tr, w, _, _) = genjax.normal.update(
-            tr,
+        (new_tr, w, _, _) = tr.update(
             C.n(),
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
@@ -69,8 +68,7 @@ class TestDistributions:
         assert w == 0.0
 
         # Constraint, no change to arguments.
-        (new_tr, w, _, _) = genjax.normal.update(
-            tr,
+        (new_tr, w, _, _) = tr.update(
             C.v(1.0),
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
@@ -83,8 +81,7 @@ class TestDistributions:
         )
 
         # No constraint, change to arguments.
-        (new_tr, w, _, _) = genjax.normal.update(
-            tr,
+        (new_tr, w, _, _) = tr.update(
             C.n(),
             (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
         )
@@ -99,8 +96,7 @@ class TestDistributions:
         )
 
         # Constraint, change to arguments.
-        (new_tr, w, _, _) = genjax.normal.update(
-            tr,
+        (new_tr, w, _, _) = tr.update(
             C.v(1.0),
             (Diff(1.0, UnknownChange), Diff(2.0, UnknownChange)),
         )
@@ -113,8 +109,7 @@ class TestDistributions:
         )
 
         # Constraint is masked (True), no change to arguments.
-        (new_tr, w, _, _) = genjax.normal.update(
-            tr,
+        (new_tr, w, _, _) = tr.update(
             C.v(1.0).mask(jnp.array(True)),
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
@@ -127,8 +122,7 @@ class TestDistributions:
         )
 
         # Constraint is masked (True), change to arguments.
-        (new_tr, w, _, _) = genjax.normal.update(
-            tr,
+        (new_tr, w, _, _) = tr.update(
             C.v(1.0).mask(True),
             (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
         )
@@ -141,8 +135,7 @@ class TestDistributions:
         )
 
         # Constraint is masked (False), no change to arguments.
-        (new_tr, w, _, _) = genjax.normal.update(
-            tr,
+        (new_tr, w, _, _) = tr.update(
             C.v(1.0).mask(False),
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
         )
@@ -153,8 +146,7 @@ class TestDistributions:
         assert w == 0.0
 
         # Constraint is masked (False), change to arguments.
-        (new_tr, w, _, _) = genjax.normal.update(
-            tr,
+        (new_tr, w, _, _) = tr.update(
             C.v(1.0).mask(False),
             (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
         )

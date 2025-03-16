@@ -136,8 +136,7 @@ class TestSwitch:
         v1 = tr.get_choices()["y1"]
         v2 = tr.get_choices()["y2"]
         score = tr.get_score()
-        (tr, _, _, _) = jax.jit(switch.update)(
-            tr,
+        (tr, _, _, _) = jax.jit(tr.update)(
             C.n(),
             (Diff.no_change(0), ()),
         )
@@ -171,8 +170,7 @@ class TestSwitch:
         )
         assert wt == tr.get_score()
 
-        (new_tr, new_wt, _, _) = switch.update(
-            tr,
+        (new_tr, new_wt, _, _) = tr.update(
             C.n(),
             (Diff.unknown_change(1), (), ()),
         )

@@ -29,7 +29,6 @@ from genjax._src.core.generative.concepts import (
 )
 from genjax._src.core.generative.generative_function import (
     Trace,
-    Update,
 )
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
@@ -61,6 +60,11 @@ class EmptyRequest(EditRequest):
 @Pytree.dataclass(match_args=True)
 class Regenerate(PrimitiveEditRequest):
     selection: Selection
+
+
+@Pytree.dataclass(match_args=True)
+class Update(PrimitiveEditRequest):
+    constraint: ChoiceMap
 
 
 # NOTE: can be used in an unsafe fashion!

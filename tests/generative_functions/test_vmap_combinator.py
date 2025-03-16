@@ -180,7 +180,7 @@ class TestVmap:
         with pytest.raises(
             IndexError,
         ):
-            jax.jit(foo.vmap(in_axes=0).simulate)((jnp.arange(2), jnp.arange(3)))
+            jax.jit(foo.vmap(in_axes=(0, 0)).simulate)((jnp.arange(2), jnp.arange(3)))
 
         # in_axes doesn't match args
         with pytest.raises(

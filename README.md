@@ -4,7 +4,7 @@
 </p>
 <p align="center">
   <strong>
-    Probabilistic programming with (parallel & differentiable) programmable inference.
+    Scaling probabilistic programming with programmable inference.
   </strong>
 </p>
 
@@ -23,11 +23,17 @@
 
 </div>
 
-## 🔎 What is GenJAX?
+## What is GenJAX?
 
-Gen is a multi-paradigm (generative, differentiable, incremental) language for probabilistic programming focused on [**generative functions**: computational objects which represent probability measures over structured sample spaces](https://chisym.github.io/genjax/cookbook/active/intro.html#generative-functions).
+(**Probabilistic programming language**) GenJAX is a probabilistic programming language (PPL): a system which provides automation for writing programs which perform computations on probability distributions, including sampling, variational approximation, gradient estimation for expected values, and more.
 
-GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax) - exposing the ability to programmatically construct and manipulate generative functions, as well as [JIT compile + auto-batch inference computations using generative functions onto GPU devices](https://jax.readthedocs.io/en/latest/jax-101/02-jitting.html).
+(**With programmable inference**) The design of GenJAX is centered on _programmable inference_: automation which allows users to express and customize Bayesian inference algorithms (algorithms for computing with posterior distributions: "_x_ affects _y_, and I observe _y_, what are my new beliefs about _x_?"). Programmable inference includes advanced forms of Monte Carlo and variational inference methods.
+
+GenJAX's automation is based on two key concepts: _generative functions_ (GenJAX's version of probabilistic programs) and _traces_ (samples from probabilistic programs). GenJAX provides:
+* Modeling language automation for constructing complex probability distributions from pieces
+* Inference automation for constructing Monte Carlo samplers using convenient idioms (programs expressed by creating and editing traces), and [variational inference automation](https://dl.acm.org/doi/10.1145/3656463) using [new extensions to automatic differentation for expected values](https://dl.acm.org/doi/10.1145/3571198).
+
+(**Fully vectorized & compatible with JAX**) All of GenJAX's automation is fully compatible with JAX, implying that any program written in GenJAX can be `vmap`'d and `jit` compiled.
 
 <div align="center">
 <a href="https://chisym.github.io/genjax/cookbook/">Jump into the notebooks!</a>
@@ -38,7 +44,111 @@ GenJAX is an implementation of Gen on top of [JAX](https://github.com/google/jax
 > [!TIP]
 > GenJAX is part of a larger ecosystem of probabilistic programming tools based upon Gen. [Explore more...](https://www.gen.dev/)
 
-## Quickstart
+## Seriously, what is it? [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1KWMa5No95tMDYEdmA4N0iqVFD-UsCSgp?usp=sharing)
+
+The following code snippet defines a generative function called `beta_bernoulli` which represents [a Beta-Bernoulli model](https://en.wikipedia.org/wiki/Beta-binomial_distribution).
+
+```python
+from genjax import beta, flip, gen
+
+# Create a generative model.
+@gen
+def beta_bernoulli(α, β):
+    p = beta(α, β) @ "p"
+    v = flip(p) @ "v"
+    return v
+```
+
+- The _address syntax_ `"p"` and `"v"` denotes _the random variables_ in the program. Here, there are two: a random variable representing a draw from a prior over the probability of success `p` and a random variable for a Bernoulli trial `v`.
+
+- We will observe a coin flip `obs` - in this model, we can exactly compute the mean of the conditional distribution of `p` given `v = obs` using an analytic property called conjugacy.
+
+```python
+α, β = 1.0, 1.0
+obs = True
+
+def exact_posterior_mean(obs, α, β):
+    return (α + obs) / (α + β + 1)
+
+exact_posterior_mean(obs, α, β),
+# 0.6666666666666666
+```
+
+- But we can also construct an approximate sampler using programmable inference! Programmable inference works for much more complicated models than the Beta-Bernoulli model (models where conjugacy isn't available, for instance).
+- We will build an approximate sampler using HMC-within-SIR (mouthful: Hamiltonian Monte Carlo within Sampling Importance Resampling), a type of algorithm in [the sequential Monte Carlo](https://en.wikipedia.org/wiki/Sequential_Monte_Carlo) algorithm family.
+
+```python
+from jax import jit
+import jax.numpy as jnp
+from genjax import ChoiceMap as Chm
+from genjax import Selection as Sel
+from genjax.edits import HMC
+
+# Implements HMC-within-SIR:
+# create a trace, edit it with HMC, resample.
+@jit
+def inference_via_editing_traces(obs, α, β):
+    (tr, lws) = beta_bernoulli.importance_k(50)(
+        Chm.d({"v": obs}), # constraint: "v" -> obs
+        (α, β), # (α, β)
+    )
+    (tr, lws_, *_) = tr.edit_k(
+        # run a single step of HMC for "p" with eps=1e-3.
+        HMC(Sel.at["p"], jnp.array(1e-3))
+    )
+    (tr, _) = tr.resample_k(lws + lws_)
+    return jnp.mean(tr.get_choices()["p"])
+```
+
+- GenJAX provides concise idioms to express this algorithm by exposing vectorized interfaces that automate the vectorization and the math (`inference_via_editing_traces`)
+- We create 500 properly weighted samples (`importance_k`), then edit all of them (`edit_k`) using HMC applied to the `"p"` variable, keeping track of the weights, and then resample from the edited samples (`resample_k`) and estimate the posterior mean.
+
+**Full snippet:**
+```python
+import jax
+from jax import jit
+import jax.numpy as jnp
+import genjax
+from genjax import beta, flip, gen
+from genjax import ChoiceMap as Chm
+from genjax import Selection as Sel
+from genjax.edits import HMC
+
+# Create a generative model.
+@gen
+def beta_bernoulli(α, β):
+    p = beta(α, β) @ "p"
+    v = flip(p) @ "v"
+    return v
+
+def exact_posterior_mean(obs, α, β):
+    return (α + obs) / (α + β + 1)
+
+# Implements HMC-within-SIR:
+# create a trace, edit it with HMC, resample.
+@jit
+def inference_via_editing_traces(obs, α, β):
+    (tr, lws) = beta_bernoulli.importance_k(500)(
+        Chm.d({"v": obs}), # constraint: "v" -> obs
+        (α, β), # (α, β)
+    )
+    (tr, lws_, *_) = tr.edit_k(
+        # run a single step of HMC for "p" with eps=1e-3.
+        HMC(Sel.at["p"], jnp.array(1e-3))
+    )
+    (tr, _) = tr.resample_k(lws + lws_)
+    return jnp.mean(tr["p"])
+
+α, β = 1.0, 1.0
+obs = True
+(
+    exact_posterior_mean(obs, α, β),
+    inference_via_editing_traces(obs, α, β),
+)
+# (0.6666666666666666, Array(0.6506245, dtype=float32))
+```
+
+## Installing and using GenJAX
 
 To install GenJAX, run
 
@@ -60,66 +170,55 @@ On a Linux machine with a GPU, run the following command:
 pip install jax[cuda12]~=0.4.24
 ```
 
-### Quick example [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1KWMa5No95tMDYEdmA4N0iqVFD-UsCSgp?usp=sharing)
+## Disclaimer
 
+This is a research project. Expect bugs and sharp edges. Please help by trying out GenJAX, [reporting bugs](https://github.com/ChiSym/genjax/issues), and letting us know what you think!
 
-The following code snippet defines a generative function called `beta_bernoulli` that
+## Geting involved + support
 
-- takes a shape parameter `beta`
-- uses this to create and draw a value `p` from a [Beta
-  distribution](https://en.wikipedia.org/wiki/Beta_distribution)
-- Flips a coin that returns 1 with probability `p`, 0 with probability `1-p` and
-  returns that value
+Pull requests and bug reports are always welcome! Check out our [Contributor's
+Guide](CONTRIBUTING.md) for information on how to get started contributing to GenJAX.
 
-Then, we create an inference problem (by specifying a posterior target), and utilize sampling
-importance resampling to give produce single sample estimator of `p`.
+The TL;DR; is:
 
-We can JIT compile that entire process, run it in parallel, etc - which we utilize to produce an estimate for `p`
-over 50 independent trials of SIR (with K = 50 particles).
+- send us a pull request,
+- iterate on the feedback + discussion, and
+- get a +1 from a maintainer
 
-```python
-import jax
-import jax.numpy as jnp
-import genjax
-from genjax import beta, flip, gen, Target, ChoiceMap
-from genjax.inference.smc import ImportanceK
+in order to get your PR accepted.
 
-# Create a generative model.
-@gen
-def beta_bernoulli(α, β):
-    p = beta(α, β) @ "p"
-    v = flip(p) @ "v"
-    return v
+Issues should be reported on the [GitHub issue tracker](https://github.com/ChiSym/genjax/issues).
 
-@jax.jit
-def run_inference(obs: bool):
-    # Create an inference query - a posterior target - by specifying
-    # the model, arguments to the model, and constraints.
-    posterior_target = Target(beta_bernoulli, # the model
-                              (2.0, 2.0), # arguments to the model
-                              ChoiceMap.d({"v": obs}), # constraints
-                            )
+If you want to discuss an idea for a new feature or ask us a question, discussion occurs primarily in the body of [Github Issues](https://github.com/ChiSym/genjax/issues)
 
-    # Use a library algorithm, or design your own - more on that in the docs!
-    alg = ImportanceK(posterior_target, k_particles=50)
+## Citing GenJAX
 
-    # Everything is JAX compatible by default.
-    # JIT, vmap, to your heart's content.
-    key = jax.random.key(314159)
-    sub_keys = jax.random.split(key, 50)
-    _, p_chm = jax.vmap(alg.random_weighted, in_axes=(0, None))(
-        sub_keys, posterior_target
-    )
+If you're using GenJAX for your research, there are multiple ways to cite it:
+- If you'd like to cite the software, use the [`CITATION.cff`](https://github.com/ChiSym/genjax/blob/main/CITATION.cff)
+- If you'd like to cite academic papers about the software, please use the following BibTeX entry for [our initial work on programmable variational inference](https://dl.acm.org/doi/10.1145/3656463):
 
-    # An estimate of `p` over 50 independent trials of SIR (with K = 50 particles).
-    return jnp.mean(p_chm["p"])
-
-(run_inference(True), run_inference(False))
+```bibtex
+@article{10.1145/3656463,
+    author = {Becker, McCoy R. and Lew, Alexander K. and Wang, Xiaoyan and Ghavami, Matin and Huot, Mathieu and Rinard, Martin C. and Mansinghka, Vikash K.},
+    title = {Probabilistic Programming with Programmable Variational Inference},
+    year = {2024},
+    issue_date = {June 2024},
+    publisher = {Association for Computing Machinery},
+    address = {New York, NY, USA},
+    volume = {8},
+    number = {PLDI},
+    url = {https://doi.org/10.1145/3656463},
+    doi = {10.1145/3656463},
+    journal = {Proc. ACM Program. Lang.},
+    month = jun,
+    articleno = {233},
+    numpages = {25},
+    keywords = {automatic differentiation, correctness, probabilistic programming, semantics, variational inference}
+}
 ```
 
-```python
-(Array(0.6039314, dtype=float32), Array(0.3679334, dtype=float32))
-```
+We will continue to add papers as we put them out.
+
 
 ## References
 
@@ -143,27 +242,6 @@ This project has several JAX-based influences. Here's an abbreviated list:
 ### Acknowledgements
 
 The maintainers of this library would like to acknowledge the JAX and Oryx maintainers for useful discussions and reference code for interpreter-based transformation patterns.
-
-## Disclaimer
-
-This is a research project. Expect bugs and sharp edges. Please help by trying out GenJAX, [reporting bugs](https://github.com/ChiSym/genjax/issues), and letting us know what you think!
-
-## Get Involved + Get Support
-
-Pull requests and bug reports are always welcome! Check out our [Contributor's
-Guide](CONTRIBUTING.md) for information on how to get started contributing to GenJAX.
-
-The TL;DR; is:
-
-- send us a pull request,
-- iterate on the feedback + discussion, and
-- get a +1 from a maintainer
-
-in order to get your PR accepted.
-
-Issues should be reported on the [GitHub issue tracker](https://github.com/ChiSym/genjax/issues).
-
-If you want to discuss an idea for a new feature or ask us a question, discussion occurs primarily in the body of [Github Issues](https://github.com/ChiSym/genjax/issues)
 
 <div align="center">
 Created and maintained by the <a href="http://probcomp.csail.mit.edu/">MIT Probabilistic Computing Project</a>. All code is licensed under the <a href="LICENSE">Apache 2.0 License</a>.

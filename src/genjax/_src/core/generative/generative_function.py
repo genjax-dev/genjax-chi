@@ -16,7 +16,11 @@ import functools
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
+import jax.numpy as jnp
+import jax.tree_util as jtu
 from deprecated import deprecated
+from jax import vmap
+from jax.scipy.special import logsumexp
 
 from genjax._src.core.compiler.interpreters.incremental import Diff
 from genjax._src.core.compiler.staging import empty_trace
@@ -29,7 +33,6 @@ from genjax._src.core.generative.concepts import (
     Argdiffs,
     Arguments,
     EditRequest,
-    PrimitiveEditRequest,
     Retdiff,
     Score,
     Weight,
@@ -149,43 +152,6 @@ class Trace(Generic[R], Pytree):
         """Returns the [`GenerativeFunction`][genjax.core.GenerativeFunction] whose invocation created the [`Trace`][genjax.core.Trace]."""
         pass
 
-    def edit(
-        self,
-        request: EditRequest,
-        argdiffs: tuple[Any, ...] | None = None,
-    ) -> tuple[Self, Weight, Retdiff[R], EditRequest]:
-        """
-        This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
-        """
-        return request.edit(
-            self,
-            Diff.no_change(self.get_args()) if argdiffs is None else argdiffs,
-        )  # pyright: ignore[reportReturnType]
-
-    def update(
-        self,
-        constraint: ChoiceMap,
-        argdiffs: tuple[Any, ...] | None = None,
-    ) -> tuple[Self, Weight, Retdiff[R], ChoiceMap]:
-        """
-        This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
-        """
-        return self.get_gen_fn().update(
-            self,
-            constraint,
-            Diff.no_change(self.get_args()) if argdiffs is None else argdiffs,
-        )  # pyright: ignore[reportReturnType]
-
-    def project(
-        self,
-        selection: Selection,
-    ) -> Weight:
-        gen_fn = self.get_gen_fn()
-        return gen_fn.project(
-            self,
-            selection,
-        )
-
     def get_subtrace(self, *addresses: Address) -> "Trace[Any]":
         """
         Return the subtrace having the supplied address. Specifying multiple addresses
@@ -214,13 +180,84 @@ class Trace(Generic[R], Pytree):
             "This type of Trace object does not possess subtraces."
         )
 
+    ######################
+    # Derived interfaces #
+    ######################
+
+    def edit(
+        self,
+        request: EditRequest,
+        argdiffs: tuple[Any, ...] | None = None,
+    ) -> tuple[Self, Weight, Retdiff[R], EditRequest]:
+        """
+        This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
+        """
+        return request.edit(
+            self,
+            Diff.no_change(self.get_args()) if argdiffs is None else argdiffs,
+        )  # pyright: ignore[reportReturnType]
+
+    def edit_k(
+        self,
+        request: EditRequest,
+        argdiffs: tuple[Any, ...] | None = None,
+    ) -> tuple[Self, Weight, Retdiff[R], EditRequest]:
+        tr, ws, retdiff, bwd_request = vmap(
+            lambda _tr, r, a: _tr.edit(r, a),
+            in_axes=(0, None, None),
+        )(self, request, argdiffs)
+        return (tr, ws, retdiff, bwd_request)
+
+    def update(
+        self,
+        constraint: ChoiceMap,
+        argdiffs: tuple[Any, ...] | None = None,
+    ) -> "tuple[Trace[R], Weight, Retdiff[R], ChoiceMap]":
+        from genjax import Update
+
+        request = Update(constraint)
+        tr, w, retdiff, bwd_request = request.edit(
+            self,
+            argdiffs if argdiffs else Diff.no_change(self.get_args()),
+        )
+        assert isinstance(bwd_request, Update)
+        return tr, w, retdiff, bwd_request.constraint
+
+    def project(
+        self,
+        selection: Selection,
+    ) -> Weight:
+        gen_fn = self.get_gen_fn()
+        return gen_fn.project(
+            self,
+            selection,
+        )
+
+    def resample_k(
+        self,
+        ws: Weight,
+    ) -> tuple[Self, Weight]:
+        from genjax import categorical
+
+        batch_shape = self.batch_shape()
+        idx = vmap(
+            categorical.sample,
+            in_axes=None,
+            axis_size=batch_shape,
+        )(ws)
+        tr_k = jtu.tree_map(lambda x: x[idx], self)
+        Z = logsumexp(ws)
+        return (tr_k, Z)
+
+    def __getitem__(self, k):
+        return self.get_choices().__getitem__(k)
+
     ###################
     # Batch semantics #
     ###################
 
-    @property
-    def batch_shape(self):
-        return len(self.get_score())
+    def batch_shape(self) -> int:
+        return jnp.array(self.get_score(), copy=False).shape[0]
 
 
 #######################
@@ -597,22 +634,6 @@ class GenerativeFunction(Generic[R], Pytree):
     # Derived interfaces #
     ######################
 
-    def update(
-        self,
-        trace: Trace[R],
-        constraint: ChoiceMap,
-        argdiffs: Argdiffs,
-    ) -> tuple[Trace[R], Weight, Retdiff[R], ChoiceMap]:
-        request = Update(
-            constraint,
-        )
-        tr, w, rd, bwd = request.edit(
-            trace,
-            argdiffs,
-        )
-        assert isinstance(bwd, Update), type(bwd)
-        return tr, w, rd, bwd.constraint
-
     def importance(
         self,
         constraint: ChoiceMap,
@@ -659,6 +680,20 @@ class GenerativeFunction(Generic[R], Pytree):
             args,
         )
 
+    def importance_k(self, n: int):
+        def _importance_k(
+            constraint: ChoiceMap,
+            args: Arguments,
+        ) -> tuple[Trace[R], Weight]:
+            tr, ws = vmap(
+                lambda g, c, a: g.importance(c, a),
+                in_axes=(None, None, None),
+                axis_size=n,
+            )(self, constraint, args)
+            return (tr, ws)
+
+        return _importance_k
+
     def propose(
         self,
         args: Arguments,
@@ -672,13 +707,9 @@ class GenerativeFunction(Generic[R], Pytree):
         retval = tr.get_retval()
         return sample, score, retval
 
-    ######################################################
-    # Convenience: postfix syntax for combinators / DSLs #
-    ######################################################
-
-    ###############
-    # Combinators #
-    ###############
+    ###################################
+    # Convenience: combinators / DSLs #
+    ###################################
 
     # TODO think through, or note, that the R that comes out will have to be bounded by pytree.
     def vmap(self, /, *, in_axes: InAxes = 0) -> "GenerativeFunction[R]":
@@ -1655,8 +1686,3 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
             )
         else:
             return self.gen_fn.assess(sample, full_args)
-
-
-@Pytree.dataclass(match_args=True)
-class Update(PrimitiveEditRequest):
-    constraint: ChoiceMap

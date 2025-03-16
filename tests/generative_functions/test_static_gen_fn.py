@@ -471,13 +471,10 @@ class TestStaticGenFnUpdate:
             return y1 + y2
 
         tr = jax.jit(simple_normal.simulate)(())
-        jitted = jax.jit(simple_normal.update)
-
         new = C["y1"].set(2.0)
         original_choice = tr.get_choices()
         original_score = tr.get_score()
-        (updated, w, _, discard) = jitted(
-            tr,
+        (updated, w, _, discard) = tr.update(
             new,
             (),
         )
@@ -498,7 +495,7 @@ class TestStaticGenFnUpdate:
 
         new = C["y1"].set(2.0).at["y2"].set(3.0)
         original_score = tr.get_score()
-        (updated, w, _, discard) = jitted(tr, new, ())
+        (updated, w, _, discard) = tr.update(new, ())
         updated_choice = updated.get_choices()
         y1 = updated_choice.get_submap("y1")
         y2 = updated_choice.get_submap("y2")
@@ -517,12 +514,10 @@ class TestStaticGenFnUpdate:
             return y1 + y2 + y3
 
         tr = jax.jit(simple_linked_normal.simulate)(())
-        jitted = jax.jit(simple_linked_normal.update)
-
         new = C["y1"].set(2.0)
         original_choice = tr.get_choices()
         original_score = tr.get_score()
-        (updated, w, _, discard) = jitted(tr, new, ())
+        (updated, w, _, discard) = tr.update(new, ())
 
         updated_choice = updated.get_choices()
         y1 = updated_choice["y1"]
@@ -550,14 +545,10 @@ class TestStaticGenFnUpdate:
             return y1 + y2 + y3
 
         tr = jax.jit(simple_hierarchical_normal.simulate)(())
-        jitted = jax.jit(simple_hierarchical_normal.update)
-
         new = C["y1"].set(2.0)
         original_choice = tr.get_choices()
         original_score = tr.get_score()
-
-        (updated, w, _, discard) = jitted(tr, new, ())
-
+        (updated, w, _, discard) = tr.update(new, ())
         updated_choice = updated.get_choices()
         y1 = updated_choice["y1"]
         y2 = updated_choice["y2", "y1"]
@@ -575,14 +566,12 @@ class TestStaticGenFnUpdate:
 
     def update_weight_correctness_general_assertions(self, simple_linked_normal):
         tr = jax.jit(simple_linked_normal.simulate)(())
-        jitted = jax.jit(simple_linked_normal.update)
-
         old_y1 = tr.get_choices()["y1"]
         old_y2 = tr.get_choices()["y2"]
         old_y3 = tr.get_choices()["y3"]
         new_y1 = 2.0
         new = C["y1"].set(new_y1)
-        (updated, w, _, _) = jitted(tr, new, ())
+        (updated, w, _, _) = tr.update(new, ())
         (_, w_edit, _, _) = tr.edit(Update(new))
         assert w_edit == w
 
@@ -607,7 +596,7 @@ class TestStaticGenFnUpdate:
         # TestStaticGenFn composition of update calls.
         new_y3 = 2.0
         new = C["y3"].set(new_y3)
-        (updated, w, _, _) = jitted(updated, new, ())
+        (updated, w, _, _) = updated.update(new, ())
         assert updated.get_choices()["y3"] == 2.0
         correct_w = (
             genjax.normal.assess(C.v(new_y3), (new_y1 + old_y2, 1.0))[0]
@@ -692,18 +681,15 @@ class TestStaticGenFnUpdate:
 
         init_tree = SomePytree(0.0, 1.0)
         tr = jax.jit(simple_linked_normal_with_tree_argument.simulate)((init_tree,))
-        jitted = jax.jit(simple_linked_normal_with_tree_argument.update)
         new_y1 = 2.0
         constraints = C["y1"].set(new_y1)
-        (updated, _w, _, _) = jitted(
-            tr,
+        (updated, _w, _, _) = tr.update(
             constraints,
             (Diff.no_change(init_tree),),
         )
         assert updated.get_choices()["y1"] == new_y1
         new_tree = SomePytree(1.0, 2.0)
-        (updated, _w, _, _) = jitted(
-            tr,
+        (updated, _w, _, _) = tr.update(
             constraints,
             (Diff.unknown_change(new_tree),),
         )
@@ -985,7 +971,7 @@ class TestStaticGenFnInline:
         choice = C["y1"].set(3.0)
         tr = jax.jit(higher_model.simulate)(())
         old_value = tr.get_choices().get_submap("y1")
-        (tr, w, _rd, _) = jax.jit(higher_model.update)(tr, choice, ())
+        (tr, w, _rd, _) = jax.jit(tr.update)(choice, ())
         choices = tr.get_choices()
         assert (
             w
@@ -994,7 +980,7 @@ class TestStaticGenFnInline:
         )
         tr = jax.jit(higher_higher_model.simulate)(())
         old_value = tr.get_choices().get_submap("y1")
-        (tr, w, _rd, _) = jax.jit(higher_higher_model.update)(tr, choice, ())
+        (tr, w, _rd, _) = jax.jit(tr.update)(choice, ())
         choices = tr.get_choices()
         assert w == pytest.approx(
             genjax.normal.assess(choices.get_submap("y1"), (0.0, 1.0))[0]
