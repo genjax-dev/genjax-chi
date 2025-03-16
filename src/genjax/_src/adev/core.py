@@ -462,10 +462,10 @@ class Expectation(Pytree):
     # The JVP rules here are registered below.
     # (c.f. Register custom forward mode with JAX)
     def grad_estimate(self, *primals):
-        def _invoke_closed_over(primals):
-            return invoke_closed_over(self, primals)
+        def _invoke_closed_over(*primals):
+            return invoke_closed_over(self, *primals)
 
-        return jax.grad(_invoke_closed_over)(primals)
+        return jax.grad(_invoke_closed_over)(*primals)
 
 
 def expectation(source: Callable[..., Any]):
@@ -481,8 +481,8 @@ def expectation(source: Callable[..., Any]):
 # These two functions are defined to external to `Expectation`
 # to ignore complexities with defining custom JVP rules for Pytree classes.
 @jax.custom_jvp
-def invoke_closed_over(instance, args):
-    return instance.estimate(args)
+def invoke_closed_over(instance, *args):
+    return instance.estimate(*args)
 
 
 def invoke_closed_over_jvp(primals, tangents):

@@ -48,8 +48,8 @@ class TestADEVFlipCond:
             )
 
         for p in [0.1, 0.3, 0.5, 0.7, 0.9]:
-            (p_grad,) = jax.jit(flip_exact_loss.grad_estimate)(p)
-            assert p_grad == pytest.approx(p - 0.5, rel=0.0001)
+            p_grad = jax.jit(flip_exact_loss.grad_estimate)(p)
+            assert p_grad == pytest.approx(p - 0.5, 1e-4)
 
     def test_flip_cond_smoke_test_symbolic_zeros(self):
         @expectation
