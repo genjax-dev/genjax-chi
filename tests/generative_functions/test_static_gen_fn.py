@@ -14,7 +14,6 @@
 
 from typing import Any
 
-import jax
 import jax.numpy as jnp
 import jax.random as jrand
 import pytest
@@ -106,7 +105,6 @@ class TestMisc:
         """
         gf = genjax.flip.vmap(in_axes=(0,))
 
-        @jax.jit
         def get_choicemap(idx):
             return genjax.ChoiceMap.switch(
                 idx=idx,
@@ -190,7 +188,7 @@ class TestStaticGenFnSimulate:
         def empty(x):
             return jnp.square(x - 3.0)
 
-        fn = jax.jit(empty.simulate)
+        fn = empty.simulate
         tr = fn((jnp.ones(4),))
         assert tr.get_score() == 0.0
 
@@ -201,7 +199,7 @@ class TestStaticGenFnSimulate:
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        fn = jax.jit(simple_normal.simulate)
+        fn = simple_normal.simulate
         tr = fn(())
         choice = tr.get_choices()
         (_, score1) = genjax.normal.importance(choice.get_submap("y1"), (0.0, 1.0))
@@ -216,7 +214,7 @@ class TestStaticGenFnSimulate:
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1, y2
 
-        fn = jax.jit(simple_normal_multiple_returns.simulate)
+        fn = simple_normal_multiple_returns.simulate
         tr = fn(())
         y1_ = tr.get_choices()["y1"]
         y2_ = tr.get_choices()["y2"]
@@ -240,7 +238,7 @@ class TestStaticGenFnSimulate:
             y1, y2 = _submodel() @ "y1"
             return y1, y2
 
-        fn = jax.jit(hierarchical_simple_normal_multiple_returns.simulate)
+        fn = hierarchical_simple_normal_multiple_returns.simulate
         tr = fn(())
         y1_ = tr.get_choices()["y1", "y1"]
         y2_ = tr.get_choices()["y1", "y2"]
@@ -259,10 +257,9 @@ class TestStaticGenFnAssess:
         def empty(x):
             return jnp.square(x - 3.0)
 
-        tr = jax.jit(empty.simulate)((jnp.ones(4),))
-        jitted = jax.jit(empty.assess)
+        tr = empty.simulate((jnp.ones(4),))
         chm = tr.get_choices()
-        (score, _retval) = jitted(chm, (jnp.ones(4),))
+        (score, _retval) = empty.assess(chm, (jnp.ones(4),))
         assert score == tr.get_score()
 
     def test_simple_normal_assess(self):
@@ -272,10 +269,9 @@ class TestStaticGenFnAssess:
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        tr = jax.jit(simple_normal.simulate)(())
-        jitted = jax.jit(simple_normal.assess)
+        tr = simple_normal.simulate(())
         choice = tr.get_choices()
-        (score, _retval) = jitted(choice, ())
+        (score, _retval) = simple_normal.assess(choice, ())
         assert score == tr.get_score()
 
     def test_assess_missing_address(self):
@@ -334,7 +330,7 @@ def custom_normal(custom_tree):
 class TestStaticGenFnCustomPytree:
     def test_simple_normal_simulate(self):
         init_tree = CustomTree(3.0, 5.0)
-        fn = jax.jit(simple_normal.simulate)
+        fn = simple_normal.simulate
         tr = fn((init_tree,))
         choice = tr.get_choices()
         (_, score1) = genjax.normal.importance(
@@ -348,7 +344,7 @@ class TestStaticGenFnCustomPytree:
 
     def test_custom_normal_simulate(self):
         init_tree = CustomTree(3.0, 5.0)
-        fn = jax.jit(custom_normal.simulate)
+        fn = custom_normal.simulate
         tr = fn((init_tree,))
         choice = tr.get_choices()
         (_, score) = genjax.normal.importance(
@@ -360,7 +356,7 @@ class TestStaticGenFnCustomPytree:
     def test_simple_normal_importance(self):
         init_tree = CustomTree(3.0, 5.0)
         choice = C["y1"].set(5.0)
-        fn = jax.jit(simple_normal.importance)
+        fn = simple_normal.importance
         (tr, w) = fn(choice, (init_tree,))
         choice = tr.get_choices()
         (_, score1) = genjax.normal.importance(
@@ -382,10 +378,9 @@ class TestStaticGenFnGradients:
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        tr = jax.jit(simple_normal.simulate)(())
-        jitted = jax.jit(simple_normal.assess)
+        tr = simple_normal.simulate(())
         choice = tr.get_choices()
-        (score, _) = jitted(choice, ())
+        (score, _) = simple_normal.assess(choice, ())
         assert score == tr.get_score()
 
 
@@ -470,7 +465,7 @@ class TestStaticGenFnUpdate:
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        tr = jax.jit(simple_normal.simulate)(())
+        tr = simple_normal.simulate(())
         new = C["y1"].set(2.0)
         original_choice = tr.get_choices()
         original_score = tr.get_score()
@@ -513,7 +508,7 @@ class TestStaticGenFnUpdate:
             y3 = genjax.normal(y1 + y2, 1.0) @ "y3"
             return y1 + y2 + y3
 
-        tr = jax.jit(simple_linked_normal.simulate)(())
+        tr = simple_linked_normal.simulate(())
         new = C["y1"].set(2.0)
         original_choice = tr.get_choices()
         original_score = tr.get_score()
@@ -544,7 +539,7 @@ class TestStaticGenFnUpdate:
             y3 = _inner(y1 + y2) @ "y3"
             return y1 + y2 + y3
 
-        tr = jax.jit(simple_hierarchical_normal.simulate)(())
+        tr = simple_hierarchical_normal.simulate(())
         new = C["y1"].set(2.0)
         original_choice = tr.get_choices()
         original_score = tr.get_score()
@@ -565,7 +560,7 @@ class TestStaticGenFnUpdate:
         assert updated.get_score() == pytest.approx(test_score, 0.01)
 
     def update_weight_correctness_general_assertions(self, simple_linked_normal):
-        tr = jax.jit(simple_linked_normal.simulate)(())
+        tr = simple_linked_normal.simulate(())
         old_y1 = tr.get_choices()["y1"]
         old_y2 = tr.get_choices()["y2"]
         old_y3 = tr.get_choices()["y3"]
@@ -680,7 +675,7 @@ class TestStaticGenFnUpdate:
             return y1
 
         init_tree = SomePytree(0.0, 1.0)
-        tr = jax.jit(simple_linked_normal_with_tree_argument.simulate)((init_tree,))
+        tr = simple_linked_normal_with_tree_argument.simulate((init_tree,))
         new_y1 = 2.0
         constraints = C["y1"].set(new_y1)
         (updated, _w, _, _) = tr.update(
@@ -786,8 +781,8 @@ class TestGenFnClosure:
         # Test simulate with kwargs
         arg_tuple = (1.0, 2.0, 3.0)
         assert (
-            genjax.seed(jrand.key(1), gfc.simulate)(()).get_choices()
-            == genjax.seed(jrand.key(1), model.simulate)(arg_tuple).get_choices()
+            genjax.seed(gfc.simulate)(jrand.key(1), ()).get_choices()
+            == genjax.seed(model.simulate)(jrand.key(1), arg_tuple).get_choices()
         )
 
         # Test assess with kwargs
@@ -888,8 +883,8 @@ class TestHandleKwargs:
         # handle_kwargs produces a new model capable of handling keyword args.
         kwm = model.handle_kwargs()
 
-        kwm_tr = genjax.seed(jrand.key(1), kwm.simulate)(((1.0,), {"y": 2.0, "z": 3.0}))
-        model_tr = genjax.seed(jrand.key(1), model.simulate)((1.0, 2.0, 3.0))
+        kwm_tr = genjax.seed(kwm.simulate)(jrand.key(1), ((1.0,), {"y": 2.0, "z": 3.0}))
+        model_tr = genjax.seed(model.simulate)(jrand.key(1), (1.0, 2.0, 3.0))
 
         assert kwm_tr.get_choices() == model_tr.get_choices()
         assert kwm_tr.get_score() == model_tr.get_score()
@@ -917,11 +912,11 @@ class TestStaticGenFnInline:
             y = higher_model.inline()
             return y
 
-        tr = jax.jit(higher_model.simulate)(())
+        tr = higher_model.simulate(())
         choices = tr.get_choices()
         assert "y1" in choices
         assert "y2" in choices
-        tr = jax.jit(higher_higher_model.simulate)(())
+        tr = higher_higher_model.simulate(())
         choices = tr.get_choices()
         assert "y1" in choices
         assert "y2" in choices
@@ -944,10 +939,10 @@ class TestStaticGenFnInline:
             return y
 
         choice = C["y1"].set(3.0)
-        (tr, w) = jax.jit(higher_model.importance)(choice, ())
+        (tr, w) = higher_model.importance(choice, ())
         choices = tr.get_choices()
         assert w == genjax.normal.assess(choices.get_submap("y1"), (0.0, 1.0))[0]
-        (tr, w) = jax.jit(higher_higher_model.importance)(choice, ())
+        (tr, w) = higher_higher_model.importance(choice, ())
         choices = tr.get_choices()
         assert w == genjax.normal.assess(choices.get_submap("y1"), (0.0, 1.0))[0]
 
@@ -969,18 +964,18 @@ class TestStaticGenFnInline:
             return y
 
         choice = C["y1"].set(3.0)
-        tr = jax.jit(higher_model.simulate)(())
+        tr = higher_model.simulate(())
         old_value = tr.get_choices().get_submap("y1")
-        (tr, w, _rd, _) = jax.jit(tr.update)(choice, ())
+        (tr, w, _rd, _) = tr.update(choice, ())
         choices = tr.get_choices()
         assert (
             w
             == genjax.normal.assess(choices.get_submap("y1"), (0.0, 1.0))[0]
             - genjax.normal.assess(old_value, (0.0, 1.0))[0]
         )
-        tr = jax.jit(higher_higher_model.simulate)(())
+        tr = higher_higher_model.simulate(())
         old_value = tr.get_choices().get_submap("y1")
-        (tr, w, _rd, _) = jax.jit(tr.update)(choice, ())
+        (tr, w, _rd, _) = tr.update(choice, ())
         choices = tr.get_choices()
         assert w == pytest.approx(
             genjax.normal.assess(choices.get_submap("y1"), (0.0, 1.0))[0]
@@ -1006,13 +1001,13 @@ class TestStaticGenFnInline:
             return y
 
         choice = C["y1"].set(3.0).at["y2"].set(3.0)
-        (score, _ret) = jax.jit(higher_model.assess)(choice, ())
+        (score, _ret) = higher_model.assess(choice, ())
         assert (
             score
             == genjax.normal.assess(choice.get_submap("y1"), (0.0, 1.0))[0]
             + genjax.normal.assess(choice.get_submap("y2"), (0.0, 1.0))[0]
         )
-        (score, _ret) = jax.jit(higher_higher_model.assess)(choice, ())
+        (score, _ret) = higher_higher_model.assess(choice, ())
         assert (
             score
             == genjax.normal.assess(choice.get_submap("y1"), (0.0, 1.0))[0]

@@ -20,7 +20,6 @@ from jax import vmap
 
 from genjax._src.core.compiler.initial_style_primitive import (
     InitialStylePrimitive,
-    NotEliminatedException,
     initial_style_bind,
 )
 from genjax._src.core.typing import Any, Callable, PRNGKey
@@ -28,6 +27,12 @@ from genjax._src.core.typing import Any, Callable, PRNGKey
 ######################
 # Sampling primitive #
 ######################
+
+
+class FrozenKeysInMLIRLowering(Exception):
+    """Exception raised because MLIR lowering has a thorny edge that
+    the user needs to know about and deal with."""
+
 
 sample_p = InitialStylePrimitive("sample")
 
@@ -76,9 +81,9 @@ def sample_binder(
             global_counter.count += 1
             return jax_impl(jrand.PRNGKey(global_counter.count), *args)
 
-        def raise_exception():
-            raise NotEliminatedException(
-                "JAX is attempting to invoke the implementation of a sampler defined using the `sample_p` primitive in your function.\n\nEliminate `sample_p` in `your_fn` by using the `genjax.pjax(your_fn, key: PRNGKey)(*your_args)` transformation, which allows you to use the JAX implementation of the sampler."
+        def raise_jit_exception():
+            raise FrozenKeysInMLIRLowering(
+                "JAX is attempting to lower the implementation of a sampler defined using the `pjax.sample_p` primitive to MLIR. (This can occur when using `jax.jit`, or other JAX control flow primitives, like `jax.lax.cond` or `jax.lax.scan`.)\n\nThis will bake in the values of the PRNG keys, and calling the JIT'd version of your sampler will always produce the same value!\n\nInstead, seed `your_fn` by using the `genjax.seed(your_fn)(key, *your_args)` transformation, which will allow you to pass in keys to your sampler."
             )
 
         # Holy smokes recursion.
@@ -96,7 +101,7 @@ def sample_binder(
             sample_p,
             jax_impl=jax_impl,
             batch=batch,
-            raise_exception=raise_exception,
+            raise_jit_exception=raise_jit_exception,
             **kwargs,
         )(keyless_jax_impl)(*args)
 

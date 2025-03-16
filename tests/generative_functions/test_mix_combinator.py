@@ -14,7 +14,6 @@
 
 
 import jax.numpy as jnp
-import jax.random as jrand
 
 import genjax
 from genjax import ChoiceMapBuilder as C
@@ -36,7 +35,7 @@ class TestMixture:
 
         # Test simulation
         logits = jnp.array([-0.1, -0.2])
-        trace = mixture.simulate((logits, (0.0,), (0.0,)))
+        trace = genjax.default_seed(mixture.simulate)((logits, (0.0,), (0.0,)))
 
         # Check structure
         chm = trace.get_choices()
@@ -60,5 +59,5 @@ class TestMixture:
         def g2():
             return f() @ "f"
 
-        tr = genjax.seed(jrand.key(1), g2.simulate)(())
-        assert tr == genjax.seed(jrand.key(1), g2.simulate)(())
+        tr = genjax.default_seed(g2.simulate)(())
+        assert tr == genjax.default_seed(g2.simulate)(())

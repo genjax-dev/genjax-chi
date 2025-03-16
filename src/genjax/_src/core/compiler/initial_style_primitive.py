@@ -28,7 +28,7 @@ from genjax._src.core.compiler.staging import stage
 #########################
 
 
-class NotEliminatedException(Exception):
+class NotEliminated(Exception):
     """Raised when a primitive is not eliminated."""
 
 
@@ -40,18 +40,12 @@ class InitialStylePrimitive(Primitive):
         self.multiple_results = True
 
         def impl(*args, **params):
-            if "impl" in params:
-                return params["impl"](*args, **params)
-            elif "raise_exception" in params:
-                params["raise_exception"]()
-            else:
-                raise Exception("No implementation provided.")
+            return params["impl"](*args, **params)
 
         self.def_impl(impl)
 
         def abstract(*flat_avals, **params):
-            abs_eval = params["abstract"]
-            return abs_eval(*flat_avals, **params)
+            return params["abstract"](*flat_avals, **params)
 
         self.def_abstract_eval(abstract)
 
@@ -61,8 +55,13 @@ class InitialStylePrimitive(Primitive):
         batching.primitive_batchers[self] = batch
 
         def _mlir(ctx: mlir.LoweringRuleContext, *mlir_args, **params):
-            lowering = mlir.lower_fun(self.impl, multiple_results=True)
-            return lowering(ctx, *mlir_args, **params)
+            if "mlir_lowering" in params:
+                return params["mlir_lowering"](ctx, *mlir_args)
+            else:
+                if "raise_jit_exception" in params:
+                    return params["raise_jit_exception"]()
+                else:
+                    raise NotEliminated(f"{self.name} not eliminated.")
 
         mlir.register_lowering(self, _mlir)
 

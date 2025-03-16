@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.compiler.backends.jax import seed
 from genjax._src.core.compiler.initial_style_primitive import (
     InitialStylePrimitive,
     initial_style_bind,
@@ -24,6 +23,7 @@ from genjax._src.core.compiler.interpreters.incremental import (
     UnknownChange,
     incremental,
 )
+from genjax._src.core.compiler.interpreters.seed import default_seed, seed
 from genjax._src.core.compiler.interpreters.stateful import StatefulHandler, stateful
 from genjax._src.core.compiler.pjax import sample_binder
 from genjax._src.core.compiler.staging import (
@@ -39,6 +39,7 @@ __all__ = [
     "NoChange",
     "StatefulHandler",
     "UnknownChange",
+    "default_seed",
     "get_shaped_aval",
     "incremental",
     "initial_style_bind",

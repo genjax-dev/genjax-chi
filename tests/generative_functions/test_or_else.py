@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax.random as jrand
-
 import genjax
+from genjax import default_seed
 
 
 class TestOrElse:
@@ -25,9 +24,9 @@ class TestOrElse:
 
         f_or_f = f.or_else(f)
         args = (True, (), ())
-        tr = genjax.seed(jrand.key(1), f_or_f.simulate)(args)
-        score, ret = f_or_f.assess(
-            genjax.seed(jrand.key(1), f_or_f.simulate)(args).get_choices(), args
+        tr = default_seed(f_or_f.simulate)(args)
+        score, ret = default_seed(f_or_f.assess)(
+            default_seed(f_or_f.simulate)(args).get_choices(), args
         )
 
         assert tr.get_score() == score
@@ -45,8 +44,8 @@ class TestOrElse:
             )
 
         args = ()
-        tr = f.simulate(args)
-        score, ret = f.assess(tr.get_choices(), args)
+        tr = default_seed(f.simulate)(args)
+        score, ret = default_seed(f.assess)(tr.get_choices(), args)
 
         assert tr.get_score() == score
         assert tr.get_retval() == ret

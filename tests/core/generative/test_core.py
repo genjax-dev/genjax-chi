@@ -13,8 +13,8 @@
 # limitations under the License.
 
 
-import jax
 import jax.numpy as jnp
+import jax.random as jrand
 import pytest
 
 import genjax
@@ -134,7 +134,7 @@ class TestGetSubtrace:
             flip = genjax.flip(0.5) @ "flip"
             return f.or_else(g)(flip, (), ()) @ "z"
 
-        tr = h.simulate(())
+        tr = genjax.seed(h.simulate)(jrand.key(1), ())
         flip_tr = tr.get_subtrace("flip")
         flip = flip_tr.get_retval()
         if flip:
@@ -163,7 +163,7 @@ class TestGetSubtrace:
         def f(state, step):
             return state + genjax.normal(step, 0.01) @ "y", None
 
-        tr = f.scan().simulate((5.0, jnp.arange(3.0)))
+        tr = genjax.seed(f.scan().simulate)(jrand.key(1), ((5.0, jnp.arange(3.0))))
         assert tr.get_subtrace("y").get_score().shape == (3,)
         assert tr.get_score() == jnp.sum(tr.get_subtrace("y").get_score())
 
@@ -178,10 +178,7 @@ class TestCombinators:
             return (v, genjax.normal(v, 0.01) @ "q")
 
         vmapped_model = model.vmap()
-
-        jit_fn = jax.jit(vmapped_model.simulate)
-
-        tr = jit_fn((jnp.array([10.0, 20.0, 30.0]),))
+        tr = vmapped_model.simulate((jnp.array([10.0, 20.0, 30.0]),))
         chm = tr.get_choices()
         varr, qarr = tr.get_retval()
 
@@ -197,8 +194,8 @@ class TestCombinators:
         vmap_model = model.vmap()
         repeat_model = model.repeat(n=3)
 
-        vmap_tr = jax.jit(vmap_model.simulate)((jnp.zeros(3),))
-        repeat_tr = jax.jit(repeat_model.simulate)((0.0,))
+        vmap_tr = vmap_model.simulate((jnp.zeros(3),))
+        repeat_tr = repeat_model.simulate((0.0,))
 
         repeatarr = repeat_tr.get_retval()
         varr = vmap_tr.get_retval()
@@ -225,9 +222,8 @@ class TestCombinators:
         def switch_model(toss: bool):
             return if_model.or_else(else_model)(toss, (1.0,), (10.0,)) @ "tossed"
 
-        jit_fn = jax.jit(switch_model.simulate)
-        if_tr = jit_fn((True,))
+        if_tr = genjax.seed(switch_model.simulate)(jrand.key(1), (True,))
         assert "if_value" in if_tr.get_choices()("tossed")
 
-        else_tr = jit_fn((False,))
+        else_tr = genjax.seed(switch_model.simulate)(jrand.key(1), (False,))
         assert "else_value" in else_tr.get_choices()("tossed")

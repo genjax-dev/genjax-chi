@@ -21,7 +21,7 @@ import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import Diff, IndexRequest, Regenerate, StaticRequest
+from genjax import Diff, IndexRequest, Regenerate, StaticRequest, default_seed
 from genjax import Selection as S
 from genjax._src.core.typing import ArrayLike
 from genjax.typing import FloatArray
@@ -42,14 +42,16 @@ class TestIterateSimpleNormal:
             z = genjax.normal(x, 1.0) @ "z"
             return z
 
-        tr = jax.jit(scanner.simulate)((0.01,))
+        tr = jax.jit(default_seed(scanner.simulate))((0.01,))
         scan_score = tr.get_score()
         sel = genjax.Selection.all()
         assert tr.project(sel) == scan_score
 
     def test_iterate_simple_normal_importance(self):
         for i in range(1, 5):
-            tr, w = jax.jit(scanner.importance)(C[i, "z"].set(0.5), (0.01,))
+            tr, w = jax.jit(default_seed(scanner.importance))(
+                C[i, "z"].set(0.5), (0.01,)
+            )
             value = tr.get_choices()[i, "z"]
             assert value == 0.5
             prev = tr.get_choices()[i - 1, "z"]
@@ -63,7 +65,9 @@ class TestIterateSimpleNormal:
             return z
 
         for i in range(1, 5):
-            tr, _w = jax.jit(scanner.importance)(C[i, "z"].set(0.5), (0.01,))
+            tr, _w = jax.jit(default_seed(scanner.importance))(
+                C[i, "z"].set(0.5), (0.01,)
+            )
             new_tr, _w, _rd, _bwd_request = jax.jit(tr.update)(
                 C[i, "z"].set(1.0),
                 Diff.no_change((0.01,)),
@@ -312,7 +316,7 @@ class TestScanUpdate:
         def model(k):
             return step.scan(n=3)(k, A(jnp.array([1.0, 2.0, 3.0]))) @ "steps"
 
-        tr = model.simulate((jnp.array(1.0),))
+        tr = default_seed(model.simulate)((jnp.array(1.0),))
         u, w, _, _ = tr.update(C["steps", 1, "b"].set(99.0))
         assert jnp.allclose(
             u.get_choices()["steps", :, "b"], jnp.array([2.0, 99.0, 7.0]), atol=0.1
@@ -334,7 +338,7 @@ class TestScanWithParameters:
         return stepper.scan(n=3)(data["initial"], data["updates"]) @ "s"
 
     def test_scan_with_parameters(self):
-        tr = TestScanWithParameters.model.simulate(
+        tr = default_seed(TestScanWithParameters.model.simulate)(
             (
                 {
                     "initial": jnp.array(3.0),
@@ -356,19 +360,19 @@ class TestScanWithParameters:
             return new_x, new_x
 
         args = (0.0, jnp.array([2.0, 4.0, 3.0, 5.0, 1.0]))
-        tr = genjax.seed(jrand.key(1), walk_step.scan(n=5).simulate)(args)
+        tr = default_seed(walk_step.scan(n=5).simulate)(args)
         _, expected = tr.get_retval()
         assert jnp.allclose(
             tr.get_choices()[:, "x"],
             expected,
         )
 
-        tr = genjax.seed(jrand.key(1), walk_step.scan().simulate)(args)
+        tr = default_seed(walk_step.scan().simulate)(args)
         assert jnp.allclose(tr.get_choices()[:, "x"], expected)
 
         # now with jit
-        jitted = jax.jit(genjax.seed(jrand.key(1), walk_step.scan().simulate))
-        tr = jitted(args)
+        jitted = jax.jit(genjax.seed(walk_step.scan().simulate))
+        tr = jitted(jrand.key(1), args)
         assert jnp.allclose(tr.get_choices()[:, "x"], expected)
 
     def test_zero_length_scan(self):
@@ -418,7 +422,9 @@ class TestScanWithParameters:
         xs = jnp.arange(5, dtype=float)
         args = (jnp.array(1.0), xs)
 
-        results = jax.vmap(lambda k: vmapped.simulate(args))(jnp.zeros(10))
+        results = jax.vmap(lambda k: default_seed(vmapped.simulate)(args))(
+            jnp.zeros(10)
+        )
 
         chm = results.get_choices()
 
@@ -442,7 +448,7 @@ class TestScanRegenerate:
             _ = genjax.normal(0.0, 1.0) @ "y2"
             return kernel.scan(n=10)(y1, None) @ "kernel"
 
-        tr = scanned_normal.simulate(())
+        tr = default_seed(scanned_normal.simulate)(())
         # First, try y1 and test for correctness.
         old_y1 = tr.get_choices()["y1"]
         old_target_density = genjax.normal.logpdf(old_y1, 0.0, 1.0)
@@ -466,7 +472,7 @@ class TestScanIndexRequest:
             _ = genjax.normal(0.0, 1.0) @ "y2"
             return kernel.scan(n=10)(y1, None) @ "kernel"
 
-        tr = scanned_normal.simulate(())
+        tr = default_seed(scanned_normal.simulate)(())
         # Try all indices and test for correctness.
         for idx in range(10):
             old_z = tr.get_choices()["kernel", idx, "z"]

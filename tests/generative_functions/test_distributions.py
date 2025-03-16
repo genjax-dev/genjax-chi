@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import jax.numpy as jnp
+import jax.random as jrand
 import pytest
 
 import genjax
@@ -492,5 +493,5 @@ class TestDistributions:
         prim_kw = genjax.bernoulli(probs=0.3)
 
         with pytest.warns(DeprecationWarning):
-            genjax.switch(prim, prim).simulate((0, (), ()))
-        genjax.switch(prim_kw, prim_kw).simulate((0, (), ()))
+            genjax.seed(genjax.switch(prim, prim).simulate)(jrand.key(1), (0, (), ()))
+        genjax.seed(genjax.switch(prim_kw, prim_kw).simulate)(jrand.key(1), (0, (), ()))

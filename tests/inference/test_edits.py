@@ -14,7 +14,6 @@
 
 import jax
 import jax.numpy as jnp
-import jax.random as jrand
 import jax.tree_util as jtu
 import pytest
 
@@ -189,7 +188,7 @@ class TestHMC:
 
         tr, _ = model.importance(ChoiceMap.kw(y=3.0), ())
         request = HMC(Selection.at["x"], jnp.array(1e-2))
-        editor = jax.jit(request.edit)
+        editor = request.edit
 
         # First, try moving x and test for correctness.
         old_x = tr.get_choices()["x"]
@@ -226,9 +225,9 @@ class TestHMC:
 
         model = kernel.scan(n=10)
         vchm = ChoiceMap.empty().at["y"].set(3.0 * jnp.ones(10))
-        tr, _ = model.importance(vchm, (0.0, None))
+        tr, _ = genjax.default_seed(model.importance)(vchm, (0.0, None))
         request = HMC(Selection.at["x"], jnp.array(1e-3))
-        editor = jax.jit(request.edit)
+        editor = request.edit
         new_tr = tr
         for _ in range(100):
             new_tr, *_ = editor(new_tr, Diff.no_change((0.0, None)))
@@ -313,7 +312,7 @@ class TestHMC:
             return _inner
 
         def rejuvenation(length: int):
-            def inner(key, tr, eps):
+            def inner(tr, eps):
                 (new_tr,), _ = jax.lax.scan(
                     _rejuvenation(eps),
                     (tr,),
@@ -324,7 +323,7 @@ class TestHMC:
             return inner
 
         # Run MH with HMC.
-        rejuvenator = jax.jit(rejuvenation(3000))
+        rejuvenator = rejuvenation(3000)
         new_tr = rejuvenator(init_tr, jnp.array(1e-4))
         assert init_tr.get_choices()["tracks", 0, "pos"] != pytest.approx(
             ground_truth.get_choices()["tracks", 0, "pos"], 1e-5
@@ -361,7 +360,7 @@ class TestHMC:
         request = StaticRequest(
             {"x": SafeHMC(Selection.at["x"], jnp.array(1e-2))},
         )
-        editor = jax.jit(request.edit)
+        editor = request.edit
         new_tr, w, *_ = editor(tr, ())
         assert new_tr.get_choices()["x", "x"] != tr.get_choices()["x", "x"]
         assert w != 0.0
@@ -376,7 +375,7 @@ class TestHMC:
                 }),
             },
         )
-        editor = jax.jit(request.edit)
+        editor = request.edit
         new_tr, w, *_ = editor(tr, ())
         assert new_tr.get_choices()["x", "x"] != tr.get_choices()["x", "x"]
         assert new_tr.get_choices()["y", "x"] != tr.get_choices()["y", "x"]
@@ -385,7 +384,7 @@ class TestHMC:
         request = StaticRequest(
             {"x": SafeHMC(Selection.at["y"], jnp.array(1e-2))},
         )
-        editor = jax.jit(request.edit)
+        editor = request.edit
         with pytest.raises(Exception):
             new_tr, w, *_ = editor(tr, ())
 
@@ -426,6 +425,6 @@ class TestDiffCoercion:
             "y1": Regenerate(Selection.all()).contramap(assert_no_change),
             "y2": EmptyRequest().map(assert_no_change),
         })
-        _, w, _, _ = genjax.seed(jrand.key(1), unwrapped_request.edit)(tr, ())
-        _, w_, _, _ = genjax.seed(jrand.key(1), wrapped_request.edit)(tr, ())
+        _, w, _, _ = genjax.default_seed(unwrapped_request.edit)(tr, ())
+        _, w_, _, _ = genjax.default_seed(wrapped_request.edit)(tr, ())
         assert w == w_

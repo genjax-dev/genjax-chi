@@ -14,7 +14,6 @@
 
 import jax
 import jax.numpy as jnp
-import jax.random as jrand
 import jax.tree_util as jtu
 import pytest
 
@@ -33,16 +32,16 @@ def model(x):
 
 class TestMaskCombinator:
     def test_mask_simple_normal_true(self):
-        tr = jax.jit(model.simulate)((True, -4.0))
+        tr = jax.jit(genjax.default_seed(model.simulate))((True, -4.0))
         assert tr.get_score() == tr.inner.get_score()
         assert tr.get_retval() == genjax.Mask(tr.inner.get_retval(), jnp.array(True))
 
-        tr = jax.jit(model.simulate)((False, -4.0))
+        tr = jax.jit(genjax.default_seed(model.simulate))((False, -4.0))
         assert tr.get_score() == 0.0
         assert tr.get_retval() == genjax.Mask(tr.inner.get_retval(), jnp.array(False))
 
     def test_mask_simple_normal_false(self):
-        tr = jax.jit(model.simulate)((False, 2.0))
+        tr = jax.jit(genjax.default_seed(model.simulate))((False, 2.0))
         assert tr.get_score() == 0.0
         assert not tr.get_retval().flag
 
@@ -69,7 +68,7 @@ class TestMaskCombinator:
 
     def test_mask_update_weight_to_argdiffs_from_false(self):
         # pre-update mask arg is False
-        tr = jax.jit(model.simulate)((False, 2.0))
+        tr = jax.jit(genjax.default_seed(model.simulate))((False, 2.0))
 
         # mask check arg transition: False --> True
         w = tr.update(
@@ -119,7 +118,7 @@ class TestMaskCombinator:
 
     def test_mask_update_weight_to_argdiffs_from_false_(self):
         # pre-update mask arg is False
-        tr = jax.jit(model.simulate)((False, 2.0))
+        tr = jax.jit(genjax.default_seed(model.simulate))((False, 2.0))
         # mask check arg transition: False --> True
         argdiffs = (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1]))
         w = tr.update(C.n(), argdiffs)[1]
@@ -145,7 +144,7 @@ class TestMaskCombinator:
         # Create some initial traces:
         mask_steps = jnp.arange(10) < 5
         model = step.masked_iterate_final()
-        init_particle = model.simulate((0.0, mask_steps))
+        init_particle = genjax.default_seed(model.simulate)((0.0, mask_steps))
 
         assert jnp.array_equal(init_particle.get_retval(), jnp.array(0.0))
 
@@ -175,7 +174,7 @@ class TestMaskCombinator:
         # Create some initial traces:
         mask_steps = jnp.arange(10) < 5
         model = step.masked_iterate()
-        init_particle = model.simulate((0.0, mask_steps))
+        init_particle = genjax.default_seed(model.simulate)((0.0, mask_steps))
         assert jnp.array_equal(init_particle.get_retval(), jnp.zeros(11)), (
             "0.0 is threaded through 10 times in addition to the initial value"
         )
@@ -197,8 +196,8 @@ class TestMaskCombinator:
         # When inside, the array is recast by JAX into a numpy array, since it appears in the
         # literal pool of a compiled function, but not when outside, where it escapes such
         # treatment.
-        inside_tr = genjax.seed(jrand.key(1), model_inside.simulate)(())
-        outside_tr = genjax.seed(jrand.key(1), model_outside.simulate)(())
+        inside_tr = genjax.default_seed(model_inside.simulate)(())
+        outside_tr = genjax.default_seed(model_outside.simulate)(())
 
         assert outside_tr.get_score() == inside_tr.get_score()
         assert jtu.tree_map(

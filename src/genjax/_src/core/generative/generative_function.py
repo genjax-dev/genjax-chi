@@ -249,6 +249,15 @@ class Trace(Generic[R], Pytree):
         Z = logsumexp(ws)
         return (tr_k, Z)
 
+    def estimate_k(
+        self,
+        fn: Callable[[Self], Any],
+        ws: Weight,
+    ) -> Any:
+        lnws = ws - logsumexp(ws)
+        vs = vmap(fn)(self)
+        return jnp.sum(jnp.exp(lnws) * vs)
+
     def __getitem__(self, k):
         return self.get_choices().__getitem__(k)
 
@@ -682,14 +691,14 @@ class GenerativeFunction(Generic[R], Pytree):
 
     def importance_k(self, n: int):
         def _importance_k(
-            constraint: ChoiceMap,
+            chm: ChoiceMap,
             args: Arguments,
         ) -> tuple[Trace[R], Weight]:
             tr, ws = vmap(
                 lambda g, c, a: g.importance(c, a),
                 in_axes=(None, None, None),
                 axis_size=n,
-            )(self, constraint, args)
+            )(self, chm, args)
             return (tr, ws)
 
         return _importance_k
