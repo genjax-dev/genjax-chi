@@ -219,7 +219,9 @@ def tree_choose(
 
 
 def multi_switch(
-    idx, branches: Iterable[Callable[..., Any]], arg_tuples: Iterable[tuple[Any, ...]]
+    idx,
+    branches: Iterable[Callable[..., Any]],
+    arg_tuples: Iterable[tuple[Any, ...]],
 ):
     """
     A wrapper around switch that allows selection between functions with differently-shaped return values.
@@ -299,7 +301,8 @@ def stage(f):
 
 
 def to_shape_fn(
-    callable: F, fill_fn: Callable[[tuple[int], jnp.dtype[Any]], Array] | None = None
+    callable: F,
+    fill_fn: Callable[[tuple[int], jnp.dtype[Any]], Array] | None = None,
 ) -> F:
     """
     Convert a callable to a function that returns an empty pytree with the same structure as the original output (without any FLOPs).

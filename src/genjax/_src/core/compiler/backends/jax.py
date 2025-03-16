@@ -15,12 +15,13 @@
 import functools
 from dataclasses import dataclass
 
+import jax.extend as jex
 import jax.numpy as jnp
 import jax.random as jrand
 import jax.tree_util as jtu
 from jax import util as jax_util
 from jax.extend.core import Jaxpr
-from jax.lax import cond_p, scan, scan_p
+from jax.lax import cond_p, scan, scan_p, switch
 
 from genjax._src.core.compiler.interpreters.environment import Environment
 from genjax._src.core.compiler.pjax import sample_p
@@ -62,23 +63,17 @@ class JAXCInterpreter:
                 invals = jax_util.safe_map(env.read, eqn.invars)
                 subfuns, params = eqn.primitive.get_bind_params(eqn.params)
                 branch_closed_jaxprs = params["branches"]
-                index_val, ops_vals = invals[0], invals[1:]
-
-                def new_branch(key, closed_jaxpr, *args):
-                    interpreter = JAXCInterpreter(key)
-                    jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-                    return interpreter.eval_jaxpr_jaxc(
-                        jaxpr,
-                        consts,
-                        list(args),
-                    )
-
                 self.key, sub_key = jrand.split(self.key)
-                new_branches = [
-                    lambda *args: new_branch(sub_key, branch_closed_jaxpr, *args)
-                    for branch_closed_jaxpr in branch_closed_jaxprs
-                ]
-                outvals = new_branches[0](*ops_vals)
+                branches = tuple(
+                    pjax_to_jax(sub_key, jex.core.jaxpr_as_fun(branch))
+                    for branch in branch_closed_jaxprs
+                )
+                index_val, ops_vals = invals[0], invals[1:]
+                outvals = switch(
+                    index_val,
+                    branches,
+                    *ops_vals,
+                )
 
             # We replace the original scan with a new scan
             # that calls the interpreter on the scan body,
