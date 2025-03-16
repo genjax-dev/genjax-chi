@@ -13,6 +13,12 @@
 # limitations under the License.
 
 
+from genjax._src.core.compiler.interpreters.incremental import (
+    Diff,
+    NoChange,
+    UnknownChange,
+)
+from genjax._src.core.compiler.staging import multi_switch, tree_choose
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
@@ -25,15 +31,12 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.generative.choice_map import Address, Selection
-from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
-from genjax._src.core.interpreters.staging import multi_switch, tree_choose
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     FloatArray,
     Generic,
     IntArray,
-    PRNGKey,
     TypeVar,
 )
 
@@ -156,14 +159,13 @@ class Switch(Generic[R], GenerativeFunction[R]):
 
     def simulate(
         self,
-        key: PRNGKey,
         args: tuple[Any, ...],
     ) -> SwitchTrace[R]:
         idx, branch_args = args[0], args[1:]
         self._check_args_match_branches(branch_args)
 
         fs = list(f.simulate for f in self.branches)
-        f_args = list((key, args) for args in branch_args)
+        f_args = list((args,) for args in branch_args)
 
         subtraces = multi_switch(idx, fs, f_args)
         retval, score = tree_choose(
@@ -186,7 +188,6 @@ class Switch(Generic[R], GenerativeFunction[R]):
 
     def generate(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[SwitchTrace[R], Weight]:
@@ -194,7 +195,7 @@ class Switch(Generic[R], GenerativeFunction[R]):
         self._check_args_match_branches(branch_args)
 
         fs = list(f.generate for f in self.branches)
-        f_args = list((key, constraint, args) for args in branch_args)
+        f_args = list((constraint, args) for args in branch_args)
 
         pairs = multi_switch(idx, fs, f_args)
         subtraces = list(tr for tr, _ in pairs)
@@ -206,7 +207,6 @@ class Switch(Generic[R], GenerativeFunction[R]):
 
     def project(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         selection: Selection,
     ) -> Weight:
@@ -214,7 +214,7 @@ class Switch(Generic[R], GenerativeFunction[R]):
         idx = trace.get_idx()
 
         fs = list(f.project for f in self.branches)
-        f_args = list((key, tr, selection) for tr in trace.subtraces)
+        f_args = list((tr, selection) for tr in trace.subtraces)
 
         return tree_choose(idx, multi_switch(idx, fs, f_args))
 
@@ -228,7 +228,6 @@ class Switch(Generic[R], GenerativeFunction[R]):
         """
 
         def inner(
-            key: PRNGKey,
             edit_request: Update,
             argdiffs: Argdiffs,
         ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
@@ -238,10 +237,9 @@ class Switch(Generic[R], GenerativeFunction[R]):
             # - call `edit` with that new trace (setting the argdiffs passed into `edit` as `no_change`, since we used the same args to create the new trace)
             # - return the edit result with the `retdiff` wrapped in `unknown_change` (since our return value comes from a new branch)
             primals = Diff.tree_primal(argdiffs)
-            new_trace = gen_fn.simulate(key, primals)
+            new_trace = gen_fn.simulate(primals)
 
             tr, w, rd, bwd_request = gen_fn.edit(
-                key,
                 new_trace,
                 edit_request,
                 Diff.no_change(argdiffs),
@@ -252,7 +250,6 @@ class Switch(Generic[R], GenerativeFunction[R]):
 
     def edit(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
@@ -270,12 +267,12 @@ class Switch(Generic[R], GenerativeFunction[R]):
             # If the index hasn't changed, perform edits on each branch.
             fs = list(f.edit for f in self.branches)
             f_args = list(
-                (key, trace, edit_request, argdiffs)
+                (trace, edit_request, argdiffs)
                 for trace, argdiffs in zip(trace.subtraces, branch_argdiffs)
             )
         else:
             fs = list(self._make_edit_fresh_trace(f) for f in self.branches)
-            f_args = list((key, edit_request, argdiffs) for argdiffs in branch_argdiffs)
+            f_args = list((edit_request, argdiffs) for argdiffs in branch_argdiffs)
 
         rets = multi_switch(new_idx, fs, f_args)
 

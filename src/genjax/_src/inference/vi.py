@@ -13,7 +13,6 @@
 # limitations under the License.
 
 
-import jax
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 
@@ -27,7 +26,6 @@ from genjax._src.adev.primitives import (
     flip_enum,
     flip_mvd,
     geometric_reinforce,
-    mv_normal_diag_reparam,
     normal_reinforce,
     normal_reparam,
 )
@@ -36,7 +34,6 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     FloatArray,
-    PRNGKey,
 )
 from genjax._src.generative_functions.distributions.distribution import (
     ExactDensity,
@@ -67,8 +64,8 @@ def adev_distribution(
     Exact densities created using this function can be used as distributions in variational guide programs.
     """
 
-    def sampler(key: PRNGKey, *args: Any) -> Any:
-        return sample_primitive(adev_primitive, *args, key=key)
+    def sampler(*args: Any) -> Any:
+        return sample_primitive(adev_primitive, *args)
 
     def logpdf(v: Any, *args: Any) -> FloatArray:
         lp = differentiable_logpdf(v, *args)
@@ -103,13 +100,6 @@ normal_reinforce = adev_distribution(
 
 normal_reparam = adev_distribution(normal_reparam, logpdf(normal), "normal_reparam")
 
-mv_normal_diag_reparam = adev_distribution(
-    mv_normal_diag_reparam,
-    lambda v, loc, scale_diag: tfd.MultivariateNormalDiag(
-        loc=loc, scale_diag=scale_diag
-    ).log_prob(v),
-    "mv_normal_diag_reparam",
-)
 
 geometric_reinforce = adev_distribution(
     geometric_reinforce, logpdf(geometric), "geometric_reinforce"
@@ -129,24 +119,21 @@ The type of gradient estimates returned by sampling from gradient estimators for
 def ELBO(
     guide: SampleDistribution,
     make_target: Callable[..., Target[Any]],
-) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
+) -> Callable[[Arguments], GradientEstimate]:
     """
     Return a function that computes the gradient estimate of the ELBO loss term.
     """
 
-    def grad_estimate(
-        key: PRNGKey,
-        args: tuple[Any, ...],
-    ) -> tuple[Any, ...]:
+    def grad_estimate(*args) -> GradientEstimate:
         # In the source language of ADEV.
         @expectation
         def _loss(*args):
             target = make_target(*args)
             guide_alg = Importance(target, guide)
-            w = guide_alg.estimate_normalizing_constant(key, target)
+            w = guide_alg.estimate_normalizing_constant(target)
             return -w
 
-        return _loss.grad_estimate(key, args)
+        return _loss.grad_estimate(*args)
 
     return grad_estimate
 
@@ -155,24 +142,21 @@ def IWELBO(
     proposal: SampleDistribution,
     make_target: Callable[[Any], Target[Any]],
     N: int,
-) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
+) -> Callable[[Arguments], GradientEstimate]:
     """
     Return a function that computes the gradient estimate of the IWELBO loss term.
     """
 
-    def grad_estimate(
-        key: PRNGKey,
-        args: Arguments,
-    ) -> GradientEstimate:
+    def grad_estimate(*args) -> GradientEstimate:
         # In the source language of ADEV.
         @expectation
         def _loss(*args):
             target = make_target(*args)
             guide = ImportanceK(target, proposal, N)
-            w = guide.estimate_normalizing_constant(key, target)
+            w = guide.estimate_normalizing_constant(target)
             return -w
 
-        return _loss.grad_estimate(key, args)
+        return _loss.grad_estimate(*args)
 
     return grad_estimate
 
@@ -180,26 +164,21 @@ def IWELBO(
 def PWake(
     posterior_approx: SampleDistribution,
     make_target: Callable[[Any], Target[Any]],
-) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
+) -> Callable[[Arguments], GradientEstimate]:
     """
     Return a function that computes the gradient estimate of the PWake loss term.
     """
 
-    def grad_estimate(
-        key: PRNGKey,
-        args: tuple[Any, ...],
-    ) -> tuple[Any, ...]:
-        key, sub_key1, sub_key2 = jax.random.split(key, 3)
-
+    def grad_estimate(*args) -> GradientEstimate:
         # In the source language of ADEV.
         @expectation
         def _loss(*target_args):
             target = make_target(*target_args)
-            _, sample = posterior_approx.random_weighted(sub_key1, target)
-            tr, _ = target.importance(sub_key2, sample)
+            _, sample = posterior_approx.random_weighted(target)
+            tr, _ = target.importance(sample)
             return -tr.get_score()
 
-        return _loss.grad_estimate(key, args)
+        return _loss.grad_estimate(*args)
 
     return grad_estimate
 
@@ -208,25 +187,20 @@ def QWake(
     proposal: SampleDistribution,
     posterior_approx: SampleDistribution,
     make_target: Callable[[Any], Target[Any]],
-) -> Callable[[PRNGKey, Arguments], GradientEstimate]:
+) -> Callable[[Arguments], GradientEstimate]:
     """
     Return a function that computes the gradient estimate of the QWake loss term.
     """
 
-    def grad_estimate(
-        key: PRNGKey,
-        args: tuple[Any, ...],
-    ) -> tuple[Any, ...]:
-        key, sub_key1, sub_key2 = jax.random.split(key, 3)
-
+    def grad_estimate(*args) -> GradientEstimate:
         # In the source language of ADEV.
         @expectation
         def _loss(*target_args):
             target = make_target(*target_args)
-            _, sample = posterior_approx.random_weighted(sub_key1, target)
-            w = proposal.estimate_logpdf(sub_key2, sample, target)
+            _, sample = posterior_approx.random_weighted(target)
+            w = proposal.estimate_logpdf(sample, target)
             return -w
 
-        return _loss.grad_estimate(key, args)
+        return _loss.grad_estimate(*args)
 
     return grad_estimate

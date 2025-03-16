@@ -20,8 +20,8 @@ import jax.tree_util as jtu
 from jax.experimental import checkify
 
 from genjax._src.checkify import optional_check
-from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import FlagOp, tree_choose
+from genjax._src.core.compiler.interpreters.incremental import Diff
+from genjax._src.core.compiler.staging import FlagOp, tree_choose
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Array,

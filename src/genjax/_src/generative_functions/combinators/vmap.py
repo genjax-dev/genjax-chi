@@ -21,6 +21,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
+from genjax._src.core.compiler.interpreters.incremental import Diff
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
@@ -38,7 +39,6 @@ from genjax._src.core.generative.choice_map import (
     Address,
     Selection,
 )
-from genjax._src.core.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -47,7 +47,6 @@ from genjax._src.core.typing import (
     Generic,
     InAxes,
     IntArray,
-    PRNGKey,
 )
 
 
@@ -147,7 +146,10 @@ class Vmap(Generic[R], GenerativeFunction[R]):
     in_axes: InAxes = Pytree.static()
 
     def __abstract_call__(self, *args) -> Any:
-        return jax.vmap(self.gen_fn.__abstract_call__, in_axes=self.in_axes)(*args)
+        return jax.vmap(
+            self.gen_fn.__abstract_call__,
+            in_axes=self.in_axes,
+        )(*args)
 
     @staticmethod
     def _static_broadcast_dim_length(in_axes: InAxes, args: tuple[Any, ...]) -> int:
@@ -179,64 +181,52 @@ class Vmap(Generic[R], GenerativeFunction[R]):
 
     def simulate(
         self,
-        key: PRNGKey,
         args: tuple[Any, ...],
     ) -> VmapTrace[R]:
         dim_length = self._static_broadcast_dim_length(self.in_axes, args)
-        sub_keys = jax.random.split(key, dim_length)
 
         # vmapping over `gen_fn`'s `simulate` gives us a new trace with vector-shaped leaves.
-        tr = jax.vmap(self.gen_fn.simulate, (0, self.in_axes))(sub_keys, args)
+        tr = jax.vmap(self.gen_fn.simulate, in_axes=(self.in_axes,))(args)
 
         return VmapTrace.build(self, tr, args, dim_length)
 
     def generate(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[VmapTrace[R], Weight]:
         dim_length = self._static_broadcast_dim_length(self.in_axes, args)
         idx_array = jnp.arange(dim_length)
-        sub_keys = jax.random.split(key, dim_length)
 
-        def _inner(key, idx, args):
+        def _inner(idx, args):
             # Here we have to vmap across indices and perform individual lookups because the user might only constrain a subset of all indices. This forces recomputation.
             submap = constraint.get_submap(idx)
             tr, w = self.gen_fn.generate(
-                key,
                 submap,
                 args,
             )
             return tr, w
 
-        tr, weight_v = jax.vmap(_inner, in_axes=(0, 0, self.in_axes))(
-            sub_keys, idx_array, args
-        )
+        tr, weight_v = jax.vmap(_inner, in_axes=(0, self.in_axes))(idx_array, args)
         w = jnp.sum(weight_v)
         map_tr = VmapTrace.build(self, tr, args, dim_length)
         return map_tr, w
 
     def project(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         selection: Selection,
     ) -> Weight:
         assert isinstance(trace, VmapTrace)
 
-        dim_length = trace.dim_length
-        sub_keys = jax.random.split(key, dim_length)
+        def _project(subtrace):
+            return subtrace.project(selection)
 
-        def _project(key, subtrace):
-            return subtrace.project(key, selection)
-
-        weights = jax.vmap(_project)(sub_keys, trace.inner)
+        weights = jax.vmap(_project)(trace.inner)
         return jnp.sum(weights)
 
     def edit_choice_map(
         self,
-        key: PRNGKey,
         trace: VmapTrace[R],
         constraint: ChoiceMap,
         argdiffs: Argdiffs,
@@ -246,14 +236,12 @@ class Vmap(Generic[R], GenerativeFunction[R]):
         # TODO for McCoy... what if someone has inflated the dimension out from around us? How do we re-use this?
         dim_length = trace.dim_length
         idx_array = jnp.arange(dim_length)
-        sub_keys = jax.random.split(key, dim_length)
 
-        def _edit(key, idx, subtrace, argdiffs):
+        def _edit(idx, subtrace, argdiffs):
             # Here we have to vmap across indices and perform individual lookups because the user might only constrain a subset of all indices. This forces recomputation.
             subconstraint = constraint(idx)
 
             new_subtrace, w, retdiff, bwd_request = self.gen_fn.edit(
-                key,
                 subtrace,
                 Update(subconstraint),
                 argdiffs,
@@ -263,8 +251,8 @@ class Vmap(Generic[R], GenerativeFunction[R]):
             return (new_subtrace, w, retdiff, inner_chm)
 
         new_subtraces, w, retdiff, bwd_constraints = jax.vmap(
-            _edit, in_axes=(0, 0, 0, self.in_axes)
-        )(sub_keys, idx_array, trace.inner, argdiffs)
+            _edit, in_axes=(0, 0, self.in_axes)
+        )(idx_array, trace.inner, argdiffs)
         w = jnp.sum(w)
         map_tr = VmapTrace.build(self, new_subtraces, primals, dim_length)
         return (
@@ -276,7 +264,6 @@ class Vmap(Generic[R], GenerativeFunction[R]):
 
     def edit_index(
         self,
-        key: PRNGKey,
         trace: VmapTrace[R],
         idx: IntArray,
         request: EditRequest,
@@ -314,7 +301,6 @@ class Vmap(Generic[R], GenerativeFunction[R]):
         argdiffs_slice = Diff.tree_diff(primal_slice, Diff.tree_tangent(argdiffs))
 
         new_trace_slice, w, _, bwd_request = self.gen_fn.edit(
-            key,
             trace_slice,
             request,
             argdiffs_slice,
@@ -333,7 +319,6 @@ class Vmap(Generic[R], GenerativeFunction[R]):
 
     def edit(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
@@ -344,14 +329,12 @@ class Vmap(Generic[R], GenerativeFunction[R]):
             case Update(constraint):
                 constraint = edit_request.constraint
                 return self.edit_choice_map(
-                    key,
                     trace,
                     constraint,
                     argdiffs,
                 )
             case IndexRequest(idx, subrequest):
                 return self.edit_index(
-                    key,
                     trace,
                     idx,
                     subrequest,

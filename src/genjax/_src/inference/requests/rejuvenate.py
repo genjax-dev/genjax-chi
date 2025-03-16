@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax.random as jrand
 
 from genjax._src.core.generative import (
     GenerativeFunction,
@@ -22,7 +21,7 @@ from genjax._src.core.generative import (
 from genjax._src.core.generative.choice_map import (
     ChoiceMap,
 )
-from genjax._src.core.generative.core import (
+from genjax._src.core.generative.concepts import (
     Argdiffs,
     EditRequest,
     Retdiff,
@@ -32,7 +31,6 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
-    PRNGKey,
     TypeVar,
 )
 
@@ -69,18 +67,16 @@ class Rejuvenate(EditRequest):
 
     def edit(
         self,
-        key: PRNGKey,
         tr: Trace[Any],
         argdiffs: Argdiffs,
     ) -> tuple[Trace[Any], Weight, Retdiff[Any], "EditRequest"]:
         chm = tr.get_choices()
         fwd_proposal_args = self.argument_mapping(chm)
-        key, sub_key = jrand.split(key)
         proposed_change, fwd_proposal_score, _ = self.proposal.propose(
-            sub_key, fwd_proposal_args
+            fwd_proposal_args
         )
         request = Update(proposed_change)
-        new_tr, w, retdiff, bwd_request = request.edit(key, tr, argdiffs)
+        new_tr, w, retdiff, bwd_request = request.edit(tr, argdiffs)
         assert isinstance(bwd_request, Update)
         bwd_chm = bwd_request.constraint
         bwd_proposal_args = self.argument_mapping(bwd_chm)

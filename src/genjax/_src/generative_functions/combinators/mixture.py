@@ -14,7 +14,7 @@
 
 
 from genjax._src.core.generative import GenerativeFunction
-from genjax._src.core.generative.core import R
+from genjax._src.core.generative.concepts import R
 from genjax._src.generative_functions.combinators.switch import (
     switch,
 )

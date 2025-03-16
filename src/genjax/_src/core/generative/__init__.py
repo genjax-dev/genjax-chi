@@ -22,7 +22,7 @@ from .choice_map import (
     StaticAddress,
     StaticAddressComponent,
 )
-from .core import (
+from .concepts import (
     Argdiffs,
     Arguments,
     EditRequest,

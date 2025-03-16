@@ -22,13 +22,11 @@ from beartype.typing import overload
 from jax import api_util
 from jax import core as jc
 from jax import tree_util as jtu
-from jax.experimental import checkify
 from jax.extend import linear_util as lu
 from jax.extend.core import ClosedJaxpr
 from jax.interpreters import partial_eval as pe
 from jax.util import safe_map
 
-from genjax._src.checkify import optional_check
 from genjax._src.core.typing import (
     Any,
     Array,
@@ -221,7 +219,9 @@ def tree_choose(
 
 
 def multi_switch(
-    idx, branches: Iterable[Callable[..., Any]], arg_tuples: Iterable[tuple[Any, ...]]
+    idx,
+    branches: Iterable[Callable[..., Any]],
+    arg_tuples: Iterable[tuple[Any, ...]],
 ):
     """
     A wrapper around switch that allows selection between functions with differently-shaped return values.
@@ -254,24 +254,6 @@ def multi_switch(
     shapes = list(to_shape_fn(f, jnp.zeros)(*args) for f, args in pairs)
     fns = list(_make_setter(i, f, args) for i, (f, args) in enumerate(pairs))
     return jax.lax.switch(idx, fns, operand=shapes)
-
-
-#########################
-# Staged error handling #
-#########################
-
-
-def staged_err(check: Flag, msg, **kwargs):
-    if FlagOp.concrete_true(check):
-        raise Exception(msg)
-    elif FlagOp.concrete_false(check):
-        pass
-    else:
-
-        def _check():
-            checkify.check(check, msg, **kwargs)
-
-        optional_check(_check)
 
 
 #######################################
@@ -319,7 +301,8 @@ def stage(f):
 
 
 def to_shape_fn(
-    callable: F, fill_fn: Callable[[tuple[int], jnp.dtype[Any]], Array] | None = None
+    callable: F,
+    fill_fn: Callable[[tuple[int], jnp.dtype[Any]], Array] | None = None,
 ) -> F:
     """
     Convert a callable to a function that returns an empty pytree with the same structure as the original output (without any FLOPs).
@@ -346,9 +329,6 @@ def to_shape_fn(
     return typing.cast(F, wrapped)
 
 
-_fake_key = jnp.array([0, 0], dtype=jnp.uint32)
-
-
 def empty_trace(
     gen_fn: "genjax.GenerativeFunction[R]", args: "genjax.Arguments"
 ) -> "genjax.Trace[R]":
@@ -364,4 +344,4 @@ def empty_trace(
     Returns:
         A trace with the same structure as a real trace, but filled with zero values.
     """
-    return to_shape_fn(gen_fn.simulate, jnp.zeros)(_fake_key, args)
+    return to_shape_fn(gen_fn.simulate, jnp.zeros)(args)

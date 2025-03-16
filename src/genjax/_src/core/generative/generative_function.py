@@ -17,18 +17,19 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 import jax.numpy as jnp
-import jax.random as jrand
 import jax.tree_util as jtu
 from deprecated import deprecated
 from jax import vmap
 from jax.scipy.special import logsumexp
 
+from genjax._src.core.compiler.interpreters.incremental import Diff
+from genjax._src.core.compiler.staging import empty_trace
 from genjax._src.core.generative.choice_map import (
     Address,
     ChoiceMap,
     Selection,
 )
-from genjax._src.core.generative.core import (
+from genjax._src.core.generative.concepts import (
     Argdiffs,
     Arguments,
     EditRequest,
@@ -36,15 +37,12 @@ from genjax._src.core.generative.core import (
     Score,
     Weight,
 )
-from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import empty_trace
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
     Generic,
     InAxes,
-    PRNGKey,
     Self,
     TypeVar,
     nobeartype,
@@ -188,7 +186,6 @@ class Trace(Generic[R], Pytree):
 
     def edit(
         self,
-        key: PRNGKey,
         request: EditRequest,
         argdiffs: tuple[Any, ...] | None = None,
     ) -> tuple[Self, Weight, Retdiff[R], EditRequest]:
@@ -196,29 +193,23 @@ class Trace(Generic[R], Pytree):
         This method calls out to the underlying [`GenerativeFunction.edit`][genjax.core.GenerativeFunction.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GenerativeFunction.edit] for more information.
         """
         return request.edit(
-            key,
             self,
             Diff.no_change(self.get_args()) if argdiffs is None else argdiffs,
         )  # pyright: ignore[reportReturnType]
 
     def edit_k(
         self,
-        key: PRNGKey,
         request: EditRequest,
         argdiffs: tuple[Any, ...] | None = None,
-    ) -> tuple[PRNGKey, tuple[Self, Weight, Retdiff[R], EditRequest]]:
-        nk, sk = jrand.split(key)
-        batch_shape = self.batch_shape()
-        sks = jrand.split(sk, batch_shape)
+    ) -> tuple[Self, Weight, Retdiff[R], EditRequest]:
         tr, ws, retdiff, bwd_request = vmap(
-            lambda _tr, k, r, a: _tr.edit(k, r, a),
-            in_axes=(0, 0, None, None),
-        )(self, sks, request, argdiffs)
-        return nk, (tr, ws, retdiff, bwd_request)
+            lambda _tr, r, a: _tr.edit(r, a),
+            in_axes=(0, None, None),
+        )(self, request, argdiffs)
+        return (tr, ws, retdiff, bwd_request)
 
     def update(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         argdiffs: tuple[Any, ...] | None = None,
     ) -> "tuple[Trace[R], Weight, Retdiff[R], ChoiceMap]":
@@ -226,7 +217,6 @@ class Trace(Generic[R], Pytree):
 
         request = Update(constraint)
         tr, w, retdiff, bwd_request = request.edit(
-            key,
             self,
             argdiffs if argdiffs else Diff.no_change(self.get_args()),
         )
@@ -235,34 +225,25 @@ class Trace(Generic[R], Pytree):
 
     def project(
         self,
-        key: PRNGKey,
         selection: Selection,
     ) -> Weight:
         gen_fn = self.get_gen_fn()
         return gen_fn.project(
-            key,
             self,
             selection,
         )
 
     def resample_k(
         self,
-        key: PRNGKey,
         ws: Weight,
-    ) -> tuple[PRNGKey, tuple[Self, Weight]]:
-        from tensorflow_probability.substrates import jax as tfp
+    ) -> tuple[Self, Weight]:
+        from genjax import categorical
 
-        tfd = tfp.distributions
-
-        ks, sk = jrand.split(key)
         batch_shape = self.batch_shape()
-        idx = tfd.Categorical(logits=ws).sample(
-            seed=sk,
-            sample_shape=batch_shape,
-        )
+        idx = vmap(categorical.sample, axis_size=batch_shape)(ws)
         tr_k = jtu.tree_map(lambda x: x[idx], self)
         Z = logsumexp(ws)
-        return ks, (tr_k, Z)
+        return (tr_k, Z)
 
     def __getitem__(self, k):
         return self.get_choices().__getitem__(k)
@@ -271,8 +252,8 @@ class Trace(Generic[R], Pytree):
     # Batch semantics #
     ###################
 
-    def batch_shape(self):
-        return jnp.array(self.get_score(), copy=False).shape
+    def batch_shape(self) -> int:
+        return jnp.array(self.get_score(), copy=False).shape[0]
 
 
 #######################
@@ -339,7 +320,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
     def __abstract_call__(self, *args) -> R:
         """Used to support JAX tracing, although this default implementation involves no
-        JAX operations (it takes a fixed-key sample from the return value).
+        JAX operations.
 
         Generative functions may customize this to improve compilation time.
         """
@@ -423,7 +404,6 @@ class GenerativeFunction(Generic[R], Pytree):
     @abstractmethod
     def simulate(
         self,
-        key: PRNGKey,
         args: Arguments,
     ) -> Trace[R]:
         """
@@ -522,7 +502,6 @@ class GenerativeFunction(Generic[R], Pytree):
     @abstractmethod
     def generate(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[R], Weight]:
@@ -531,7 +510,6 @@ class GenerativeFunction(Generic[R], Pytree):
     @abstractmethod
     def project(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         selection: Selection,
     ) -> Weight:
@@ -540,7 +518,6 @@ class GenerativeFunction(Generic[R], Pytree):
     @abstractmethod
     def edit(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
@@ -655,7 +632,6 @@ class GenerativeFunction(Generic[R], Pytree):
 
     def importance(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[R], Weight]:
@@ -696,36 +672,31 @@ class GenerativeFunction(Generic[R], Pytree):
         """
 
         return self.generate(
-            key,
             constraint,
             args,
         )
 
     def importance_k(self, n: int):
         def _importance_k(
-            key: PRNGKey,
             constraint: ChoiceMap,
             args: Arguments,
         ) -> tuple[Any, tuple[Trace[R], Weight]]:
-            nk, sk = jrand.split(key)
-            sks = jrand.split(sk, n)
             tr, ws = vmap(
-                lambda g, k, c, a: g.importance(k, c, a),
-                in_axes=(None, 0, None, None),
-            )(self, sks, constraint, args)
-            return nk, (tr, ws)
+                lambda g, c, a: g.importance(c, a),
+                axis_size=n,
+            )(self, constraint, args)
+            return (tr, ws)
 
         return _importance_k
 
     def propose(
         self,
-        key: PRNGKey,
         args: Arguments,
     ) -> tuple[ChoiceMap, Score, R]:
         """
         Samples a [`ChoiceMap`][genjax.core.ChoiceMap] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the `R` of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
         """
-        tr = self.simulate(key, args)
+        tr = self.simulate(args)
         sample = tr.get_choices()
         score = tr.get_score()
         retval = tr.get_retval()
@@ -1551,11 +1522,10 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
 
     def simulate(
         self,
-        key: PRNGKey,
         args: Arguments,
     ) -> Trace[R]:
         (args, _kwargs) = args
-        return self.wrapped.simulate(key, args)
+        return self.wrapped.simulate(args)
 
     def assess(
         self,
@@ -1567,30 +1537,27 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
 
     def generate(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[Any], Weight]:
         (args, _kwargs) = args
-        return self.wrapped.generate(key, constraint, args)
+        return self.wrapped.generate(constraint, args)
 
     def project(
         self,
-        key: PRNGKey,
         trace: Trace[Any],
         selection: Selection,
     ) -> Weight:
-        return self.wrapped.project(key, trace, selection)
+        return self.wrapped.project(trace, selection)
 
     def edit(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         (argdiffs, _kwargs) = argdiffs
-        return self.wrapped.edit(key, trace, edit_request, argdiffs)
+        return self.wrapped.edit(trace, edit_request, argdiffs)
 
 
 @Pytree.dataclass
@@ -1623,15 +1590,15 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
     # This override returns `R`, while the superclass returns a `GenerativeFunctionClosure`; this is
     # a hint that subclassing may not be the right relationship here.
-    def __call__(self, key: PRNGKey, *args, **kwargs) -> R:  # pyright: ignore[reportIncompatibleMethodOverride]
+    def __call__(self, *args, **kwargs) -> R:  # pyright: ignore[reportIncompatibleMethodOverride]
         full_args = self.args + args
         full_kwargs = self.kwargs | kwargs
 
         if full_kwargs:
             kwarg_fn = self._with_kwargs()
-            return kwarg_fn.simulate(key, (full_args, full_kwargs)).get_retval()
+            return kwarg_fn.simulate((full_args, full_kwargs)).get_retval()
         else:
-            return self.gen_fn.simulate(key, full_args).get_retval()
+            return self.gen_fn.simulate(full_args).get_retval()
 
     def __abstract_call__(self, *args, **kwargs) -> R:
         full_args = self.args + args
@@ -1649,22 +1616,19 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
     def simulate(
         self,
-        key: PRNGKey,
         args: tuple[Any, ...],
     ) -> Trace[R]:
         full_args = self.args + args
         if self.kwargs:
             maybe_kwarged_gen_fn = self._with_kwargs()
             return maybe_kwarged_gen_fn.simulate(
-                key,
                 (full_args, self.kwargs),
             )
         else:
-            return self.gen_fn.simulate(key, full_args)
+            return self.gen_fn.simulate(full_args)
 
     def generate(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[Any], Weight]:
@@ -1672,24 +1636,21 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         if self.kwargs:
             maybe_kwarged_gen_fn = self._with_kwargs()
             return maybe_kwarged_gen_fn.generate(
-                key,
                 constraint,
                 (full_args, self.kwargs),
             )
         else:
-            return self.gen_fn.generate(key, constraint, full_args)
+            return self.gen_fn.generate(constraint, full_args)
 
     def project(
         self,
-        key: PRNGKey,
         trace: Trace[Any],
         selection: Selection,
     ):
-        return self.gen_fn.project(key, trace, selection)
+        return self.gen_fn.project(trace, selection)
 
     def edit(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
@@ -1699,13 +1660,12 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         if self.kwargs:
             maybe_kwarged_gen_fn = self._with_kwargs()
             return maybe_kwarged_gen_fn.edit(
-                key,
                 trace,
                 edit_request,
                 (full_args, Diff.unknown_change(self.kwargs)),
             )
         else:
-            return self.gen_fn.edit(key, trace, edit_request, argdiffs)
+            return self.gen_fn.edit(trace, edit_request, argdiffs)
 
     def assess(
         self,

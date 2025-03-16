@@ -37,9 +37,7 @@ class TestSwitch:
             s = f.switch(f)(jnp.int32(b), (), ()) @ "s"
             return s
 
-        key = jax.random.key(314159)
-        key, sub_key = jax.random.split(key)
-        tr = model.simulate(sub_key, ())
+        tr = model.simulate(())
         assert tr.get_retval() == tr.get_choices()["s", "x"].unmask()
 
     def test_switch_combinator_simulate(self):
@@ -54,24 +52,18 @@ class TestSwitch:
 
         switch = simple_normal.switch(simple_flip)
 
-        key = jax.random.key(314159)
         jitted = jax.jit(switch.simulate)
-        key, sub_key = jax.random.split(key)
-        tr = jitted(sub_key, (0, (), ()))
+        tr = jitted((0, (), ()))
         v1 = tr.get_choices()["y1"]
         v2 = tr.get_choices()["y2"]
         score = tr.get_score()
-        key, sub_key = jax.random.split(key)
         v1_score, _ = genjax.normal.assess(C.v(v1), (0.0, 1.0))
-        key, sub_key = jax.random.split(key)
         v2_score, _ = genjax.normal.assess(C.v(v2), (0.0, 1.0))
         assert score == v1_score + v2_score
         assert tr.get_args() == (0, (), ())
-        key, sub_key = jax.random.split(key)
-        tr = jitted(sub_key, (1, (), ()))
+        tr = jitted((1, (), ()))
         b = tr.get_choices().get_submap("y3")
         score = tr.get_score()
-        key, sub_key = jax.random.split(key)
         (flip_score, _) = genjax.flip.assess(b, (0.3,))
         assert score == flip_score
         (idx, *_) = tr.get_args()
@@ -89,9 +81,8 @@ class TestSwitch:
 
         switch = simple_normal.switch(simple_flip)
 
-        key = jax.random.key(314159)
         jitted = jax.jit(switch.simulate)
-        tr = jitted(key, (0, (), ()))
+        tr = jitted((0, (), ()))
         chm = tr.get_choices()
         assert "y1" in chm
         assert "y2" in chm
@@ -110,34 +101,26 @@ class TestSwitch:
 
         switch = simple_normal.switch(simple_flip)
 
-        key = jax.random.key(314159)
         chm = C.n()
         jitted = jax.jit(switch.importance)
-        key, sub_key = jax.random.split(key)
-        (tr, w) = jitted(sub_key, chm, (0, (), ()))
+        (tr, w) = jitted(chm, (0, (), ()))
         v1 = tr.get_choices().get_submap("y1")
         v2 = tr.get_choices().get_submap("y2")
         score = tr.get_score()
-        key, sub_key = jax.random.split(key)
         v1_score, _ = genjax.normal.assess(v1, (0.0, 1.0))
-        key, sub_key = jax.random.split(key)
         v2_score, _ = genjax.normal.assess(v2, (0.0, 1.0))
         assert score == v1_score + v2_score
         assert w == 0.0
-        key, sub_key = jax.random.split(key)
-        (tr, w) = jitted(sub_key, chm, (1, (), ()))
+        (tr, w) = jitted(chm, (1, (), ()))
         b = tr.get_choices().get_submap("y3")
         score = tr.get_score()
-        key, sub_key = jax.random.split(key)
         (flip_score, _) = genjax.flip.assess(b, (0.3,))
         assert score == flip_score
         assert w == 0.0
         chm = C["y3"].set(1)
-        key, sub_key = jax.random.split(key)
-        (tr, w) = jitted(sub_key, chm, (1, (), ()))
+        (tr, w) = jitted(chm, (1, (), ()))
         b = tr.get_choices().get_submap("y3")
         score = tr.get_score()
-        key, sub_key = jax.random.split(key)
         (flip_score, _) = genjax.flip.assess(b, (0.3,))
         assert score == flip_score
         assert w == score
@@ -149,15 +132,11 @@ class TestSwitch:
             _y2 = genjax.normal(0.0, 1.0) @ "y2"
 
         switch = simple_normal.switch()
-        key = jax.random.key(314159)
-        key, sub_key = jax.random.split(key)
-        tr = jax.jit(switch.simulate)(sub_key, (0, ()))
+        tr = jax.jit(switch.simulate)((0, ()))
         v1 = tr.get_choices()["y1"]
         v2 = tr.get_choices()["y2"]
         score = tr.get_score()
-        key, sub_key = jax.random.split(key)
         (tr, _, _, _) = jax.jit(tr.update)(
-            sub_key,
             C.n(),
             (Diff.no_change(0), ()),
         )
@@ -180,13 +159,9 @@ class TestSwitch:
             x = genjax.normal(0.0, outlier_stddev) @ "x"
             return x
 
-        key = jax.random.key(314159)
         switch = regular.switch(outlier)
-        key, importance_key = jax.random.split(key)
 
-        (tr, wt) = switch.importance(
-            importance_key, C["x"].set(sample_value), (0, (), ())
-        )
+        (tr, wt) = switch.importance(C["x"].set(sample_value), (0, (), ()))
         (idx, *_) = tr.get_args()
         assert idx == 0
         assert (
@@ -195,9 +170,7 @@ class TestSwitch:
         )
         assert wt == tr.get_score()
 
-        key, update_key = jax.random.split(key)
         (new_tr, new_wt, _, _) = tr.update(
-            update_key,
             C.n(),
             (Diff.unknown_change(1), (), ()),
         )
@@ -217,9 +190,10 @@ class TestSwitch:
 
         s = f1.switch(f2)
 
-        keys = jax.random.split(jax.random.key(17), 3)
         # Just select 0 in all branches for simplicity:
-        tr = jax.vmap(s.simulate, in_axes=(0, None))(keys, (0, (), ()))
+        tr = jax.vmap(lambda k, args: s.simulate(args), in_axes=(0, None))(
+            jnp.zeros(3), (0, (), ())
+        )
         y = tr.get_choices()["y"].unmask()
         assert y.shape == (3,)
 
@@ -239,10 +213,8 @@ class TestSwitch:
             s = f.switch(empty)(jnp.int32(b), (), ()) @ "s"
             return s
 
-        key = jax.random.key(314159)
-        key, sub_key = jax.random.split(key)
         chm = C["b"].set(1)
-        tr, _ = model.importance(sub_key, chm, ())
+        tr, _ = model.importance(chm, ())
         assert 0.0 == tr.get_retval()
 
     def test_switch_combinator_with_different_return_types(self):
@@ -254,16 +226,14 @@ class TestSwitch:
         def bool_branch(_: int) -> Array:
             return jnp.asarray(True)
 
-        k = jax.random.key(0)
-
         switch_model = genjax.switch(identity, bool_branch)
 
-        bare_idx_result = switch_model(1, (10,), (10,))(k)
+        bare_idx_result = switch_model(1, (10,), (10,))()
         assert bare_idx_result == jnp.asarray(1)
         assert bare_idx_result.dtype == jnp.int32
 
         # this case returns 1
-        array_idx_result = switch_model(jnp.array(1), (10,), (10,))(k)
+        array_idx_result = switch_model(jnp.array(1), (10,), (10,))()
         assert array_idx_result == jnp.asarray(1)
         assert array_idx_result.dtype == bare_idx_result.dtype
 
@@ -276,11 +246,10 @@ class TestSwitch:
         def four_branch(_: int):
             return jax.numpy.ones(4)
 
-        k = jax.random.key(0)
         switch_model = three_branch.switch(four_branch)
 
         with pytest.raises(ValueError, match="Incompatible shapes for broadcasting"):
-            switch_model(0, (10,), (10,))(k)
+            switch_model(0, (10,), (10,))()
 
     def test_switch_distinct_addresses(self):
         @genjax.gen
@@ -296,8 +265,7 @@ class TestSwitch:
             return x
 
         model = x_z.switch(x_y)
-        k = jax.random.key(0)
-        tr = model.simulate(k, (jnp.array(0), (), ()))
+        tr = model.simulate((jnp.array(0), (), ()))
 
         # both xs match, so it's fine to combine across models
         assert tr.get_choices()["x"].unmask().shape == ()
@@ -312,7 +280,7 @@ class TestSwitch:
             _ = genjax.normal(0.0, jnp.ones(20)) @ "y"
             return jnp.array(1.0)
 
-        mismatched_tr = x_z.switch(arr_x).simulate(k, (jnp.array(0), (), ()))
+        mismatched_tr = x_z.switch(arr_x).simulate((jnp.array(0), (), ()))
 
         with pytest.raises(
             ValueError,

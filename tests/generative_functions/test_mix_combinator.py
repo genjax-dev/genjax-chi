@@ -13,8 +13,8 @@
 # limitations under the License.
 
 
-import jax
 import jax.numpy as jnp
+import jax.random as jrand
 
 import genjax
 from genjax import ChoiceMapBuilder as C
@@ -35,9 +35,8 @@ class TestMixture:
         mixture = genjax.mix(comp1, comp2)
 
         # Test simulation
-        key = jax.random.key(0)
         logits = jnp.array([-0.1, -0.2])
-        trace = mixture.simulate(key, (logits, (0.0,), (0.0,)))
+        trace = mixture.simulate((logits, (0.0,), (0.0,)))
 
         # Check structure
         chm = trace.get_choices()
@@ -61,7 +60,5 @@ class TestMixture:
         def g2():
             return f() @ "f"
 
-        key = jax.random.key(0)
-        tr = g2.simulate(key, ())
-        genjax.mix(genjax.flip, genjax.flip)
-        assert tr == g2.simulate(key, ())
+        tr = genjax.seed(jrand.key(1), g2.simulate)(())
+        assert tr == genjax.seed(jrand.key(1), g2.simulate)(())

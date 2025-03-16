@@ -18,10 +18,22 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from typing import cast
 
-import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
+from genjax._src.core.compiler.initial_style_primitive import (
+    InitialStylePrimitive,
+    initial_style_bind,
+)
+from genjax._src.core.compiler.interpreters.incremental import (
+    Diff,
+    incremental,
+)
+from genjax._src.core.compiler.interpreters.stateful import (
+    StatefulHandler,
+    stateful,
+)
+from genjax._src.core.compiler.staging import to_shape_fn
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
@@ -42,23 +54,11 @@ from genjax._src.core.generative import (
 )
 from genjax._src.core.generative.choice_map import Address
 from genjax._src.core.generative.generative_function import R
-from genjax._src.core.interpreters.forward import (
-    InitialStylePrimitive,
-    StatefulHandler,
-    forward,
-    initial_style_bind,
-)
-from genjax._src.core.interpreters.incremental import (
-    Diff,
-    incremental,
-)
-from genjax._src.core.interpreters.staging import to_shape_fn
 from genjax._src.core.pytree import Closure, Const, Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
     Generic,
-    PRNGKey,
     TypeAlias,
 )
 
@@ -251,15 +251,8 @@ class StaticHandler(StatefulHandler):
 
 
 class SimulateHandler(StaticHandler):
-    def __init__(self, key: PRNGKey):
+    def __init__(self):
         super().__init__()
-        self.key = key
-        self.key_counter = 1
-
-    def fresh_key_and_increment(self):
-        new_key = jax.random.fold_in(self.key, self.key_counter)
-        self.key_counter += 1
-        return new_key
 
     def yield_state(self):
         return self.traces
@@ -270,8 +263,7 @@ class SimulateHandler(StaticHandler):
         gen_fn: GenerativeFunction[Any],
         args: tuple[Any, ...],
     ):
-        sub_key = self.fresh_key_and_increment()
-        tr = gen_fn.simulate(sub_key, args)
+        tr = gen_fn.simulate(args)
         self.record(addr, tr)
         v = tr.get_retval()
         return v
@@ -279,9 +271,9 @@ class SimulateHandler(StaticHandler):
 
 def simulate_transform(source_fn):
     @functools.wraps(source_fn)
-    def wrapper(key, args):
-        stateful_handler = SimulateHandler(key)
-        retval = forward(source_fn)(stateful_handler, *args)
+    def wrapper(args):
+        stateful_handler = SimulateHandler()
+        retval = stateful(source_fn)(stateful_handler, *args)
         traces = stateful_handler.yield_state()
         return (args, retval, traces)
 
@@ -324,7 +316,7 @@ def assess_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(choice_map_sample: ChoiceMap, args):
         stateful_handler = AssessHandler(choice_map_sample)
-        retval = forward(source_fn)(stateful_handler, *args)
+        retval = stateful(source_fn)(stateful_handler, *args)
         (score,) = stateful_handler.yield_state()
         return (retval, score)
 
@@ -338,17 +330,13 @@ def assess_transform(source_fn):
 
 @dataclass
 class GenerateHandler(StaticHandler):
-    def __init__(self, key: PRNGKey, choice_map: ChoiceMap):
+    def __init__(
+        self,
+        choice_map: ChoiceMap,
+    ):
         super().__init__()
-        self.key = key
         self.choice_map = choice_map
         self.weight: Weight = jnp.zeros(())
-        self.key_counter = 1
-
-    def fresh_key_and_increment(self):
-        new_key = jax.random.fold_in(self.key, self.key_counter)
-        self.key_counter += 1
-        return new_key
 
     def yield_state(
         self,
@@ -371,8 +359,7 @@ class GenerateHandler(StaticHandler):
         args: tuple[Any, ...],
     ):
         subconstraint = self.get_subconstraint(addr)
-        sub_key = self.fresh_key_and_increment()
-        (tr, w) = gen_fn.generate(sub_key, subconstraint, args)
+        (tr, w) = gen_fn.generate(subconstraint, args)
         self.weight += w
         self.record(addr, tr)
 
@@ -382,12 +369,11 @@ class GenerateHandler(StaticHandler):
 def generate_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
-        key: PRNGKey,
         choice_map: ChoiceMap,
         args: tuple[Any, ...],
     ):
-        stateful_handler = GenerateHandler(key, choice_map)
-        retval = forward(source_fn)(stateful_handler, *args)
+        stateful_handler = GenerateHandler(choice_map)
+        retval = stateful(source_fn)(stateful_handler, *args)
         (weight, traces) = stateful_handler.yield_state()
         return (
             weight,
@@ -405,20 +391,15 @@ def generate_transform(source_fn):
 
 class UpdateHandler(StaticHandler):
     def __init__(
-        self, key: PRNGKey, previous_trace: StaticTrace[Any], constraint: ChoiceMap
+        self,
+        previous_trace: StaticTrace[Any],
+        constraint: ChoiceMap,
     ):
         super().__init__()
-        self.key = key
         self.previous_trace = previous_trace
         self.constraint = constraint
         self.weight = jnp.zeros(())
         self.bwd_constraints: list[ChoiceMap] = []
-        self.key_counter = 1
-
-    def fresh_key_and_increment(self):
-        new_key = jax.random.fold_in(self.key, self.key_counter)
-        self.key_counter += 1
-        return new_key
 
     def yield_state(self):
         return (
@@ -448,10 +429,8 @@ class UpdateHandler(StaticHandler):
         argdiffs: Argdiffs = args
         subtrace = self.get_inner_trace(addr)
         constraint = self.get_subconstraint(addr)
-        sub_key = self.fresh_key_and_increment()
         request = Update(constraint)
         (tr, w, retval_diff, bwd_request) = request.edit(
-            sub_key,
             subtrace,
             argdiffs,
         )
@@ -468,12 +447,11 @@ class UpdateHandler(StaticHandler):
 def update_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
-        key: PRNGKey,
         previous_trace: StaticTrace[R],
         constraint: ChoiceMap,
         diffs: tuple[Any, ...],
     ):
-        stateful_handler = UpdateHandler(key, previous_trace, constraint)
+        stateful_handler = UpdateHandler(previous_trace, constraint)
         diff_primals = Diff.tree_primal(diffs)
         diff_tangents = Diff.tree_tangent(diffs)
         retval_diffs = incremental(source_fn)(
@@ -510,20 +488,15 @@ def update_transform(source_fn):
 
 class StaticEditRequestHandler(StaticHandler):
     def __init__(
-        self, key: PRNGKey, previous_trace: StaticTrace[Any], addressed: StaticDict
+        self,
+        previous_trace: StaticTrace[Any],
+        addressed: StaticDict,
     ):
         super().__init__()
-        self.key = key
         self.previous_trace = previous_trace
         self.addressed = addressed
         self.weight = jnp.zeros(())
         self.bwd_requests: list[EditRequest] = []
-        self.key_counter = 1
-
-    def fresh_key_and_increment(self):
-        new_key = jax.random.fold_in(self.key, self.key_counter)
-        self.key_counter += 1
-        return new_key
 
     def yield_state(self):
         return (
@@ -553,9 +526,7 @@ class StaticEditRequestHandler(StaticHandler):
         argdiffs: Argdiffs = args
         subtrace = self.get_subtrace(addr)
         subrequest = self.get_subrequest(addr)
-        sub_key = self.fresh_key_and_increment()
         (tr, w, retval_diff, bwd_request) = subrequest.edit(
-            sub_key,
             subtrace,
             argdiffs,
         )
@@ -568,13 +539,11 @@ class StaticEditRequestHandler(StaticHandler):
 def static_edit_request_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
-        key: PRNGKey,
         previous_trace: StaticTrace[R],
         addressed: dict[StaticAddress, EditRequest],
         diffs: tuple[Any, ...],
     ):
         stateful_handler = StaticEditRequestHandler(
-            key,
             previous_trace,
             addressed,
         )
@@ -615,24 +584,16 @@ def static_edit_request_transform(source_fn):
 class RegenerateRequestHandler(StaticHandler):
     def __init__(
         self,
-        key: PRNGKey,
         previous_trace: StaticTrace[Any],
         selection: Selection,
         edit_request: EditRequest,
     ):
         super().__init__()
-        self.key = key
         self.previous_trace = previous_trace
         self.selection = selection
         self.edit_request = edit_request
         self.weight = jnp.zeros(())
         self.bwd_requests: list[EditRequest] = []
-        self.key_counter = 1
-
-    def fresh_key_and_increment(self):
-        new_key = jax.random.fold_in(self.key, self.key_counter)
-        self.key_counter += 1
-        return new_key
 
     def yield_state(self):
         return (
@@ -662,9 +623,8 @@ class RegenerateRequestHandler(StaticHandler):
         argdiffs: Argdiffs = args
         subtrace = self.get_subtrace(addr)
         subselection = self.get_subselection(addr)
-        sub_key = self.fresh_key_and_increment()
         subrequest = Regenerate(subselection)
-        tr, w, retval_diff, bwd_request = subrequest.edit(sub_key, subtrace, argdiffs)
+        tr, w, retval_diff, bwd_request = subrequest.edit(subtrace, argdiffs)
         self.bwd_requests.append(bwd_request)
         self.weight += w
         self.record(addr, tr)
@@ -675,14 +635,12 @@ class RegenerateRequestHandler(StaticHandler):
 def regenerate_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
-        key: PRNGKey,
         previous_trace: StaticTrace[R],
         selection: Selection,
         edit_request: EditRequest,
         diffs: tuple[Any, ...],
     ):
         stateful_handler = RegenerateRequestHandler(
-            key,
             previous_trace,
             selection,
             edit_request,
@@ -785,15 +743,13 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
     def simulate(
         self,
-        key: PRNGKey,
         args: tuple[Any, ...],
     ) -> StaticTrace[R]:
-        (args, retval, traces) = simulate_transform(self.source)(key, args)
+        (args, retval, traces) = simulate_transform(self.source)(args)
         return StaticTrace(self, args, retval, traces)
 
     def generate(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[StaticTrace[R], Weight]:
@@ -805,12 +761,11 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 retval,
                 traces,
             ),
-        ) = generate_transform(self.source)(key, constraint, args)
+        ) = generate_transform(self.source)(constraint, args)
         return StaticTrace(self, args, retval, traces), weight
 
     def project(
         self,
-        key: PRNGKey,
         trace: Trace[Any],
         selection: Selection,
     ) -> Weight:
@@ -820,12 +775,11 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         for addr in trace.subtraces.keys():
             subprojection = selection(addr)
             subtrace = trace.get_subtrace(addr)
-            weight += subtrace.project(key, subprojection)
+            weight += subtrace.project(subprojection)
         return weight
 
     def edit_update(
         self,
-        key: PRNGKey,
         trace: StaticTrace[R],
         constraint: ChoiceMap,
         argdiffs: Argdiffs,
@@ -841,7 +795,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_requests,
             ),
-        ) = update_transform(self.source)(key, trace, constraint, argdiffs)
+        ) = update_transform(self.source)(trace, constraint, argdiffs)
         if not Diff.static_check_tree_diff(retval_diffs):
             retval_diffs = Diff.no_change(retval_diffs)
 
@@ -865,7 +819,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
     def edit_static_edit_request(
         self,
-        key: PRNGKey,
         trace: StaticTrace[R],
         addressed: StaticDict,
         argdiffs: Argdiffs,
@@ -881,7 +834,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_requests,
             ),
-        ) = static_edit_request_transform(self.source)(key, trace, addressed, argdiffs)
+        ) = static_edit_request_transform(self.source)(trace, addressed, argdiffs)
 
         def make_bwd_request(
             traces: dict[StaticAddress, Trace[R]],
@@ -904,7 +857,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
     def edit_regenerate(
         self,
-        key: PRNGKey,
         trace: StaticTrace[R],
         selection: Selection,
         edit_request: EditRequest,
@@ -921,9 +873,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_requests,
             ),
-        ) = regenerate_transform(self.source)(
-            key, trace, selection, edit_request, argdiffs
-        )
+        ) = regenerate_transform(self.source)(trace, selection, edit_request, argdiffs)
 
         def make_bwd_request(
             traces: dict[StaticAddress, Trace[R]],
@@ -946,7 +896,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
     def edit(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
@@ -955,7 +904,6 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         match edit_request:
             case Update(constraint):
                 return self.edit_update(
-                    key,
                     trace,
                     constraint,
                     argdiffs,
@@ -963,14 +911,12 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
             case StaticRequest(addressed):
                 return self.edit_static_edit_request(
-                    key,
                     trace,
                     addressed,
                     argdiffs,
                 )
             case Regenerate(selection):
                 return self.edit_regenerate(
-                    key,
                     trace,
                     selection,
                     edit_request,

@@ -11,31 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from genjax._src.inference.vi import (
-    ELBO,
-    IWELBO,
-    PWake,
-    QWake,
-    adev_distribution,
-    categorical_enum,
-    flip_enum,
-    flip_mvd,
-    geometric_reinforce,
-    normal_reinforce,
-    normal_reparam,
-)
-
-__all__ = [
-    "ELBO",
-    "IWELBO",
-    "PWake",
-    "QWake",
-    "adev_distribution",
-    "categorical_enum",
-    "flip_enum",
-    "flip_mvd",
-    "geometric_reinforce",
-    "normal_reinforce",
-    "normal_reparam",
-]

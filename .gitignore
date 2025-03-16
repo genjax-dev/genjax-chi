@@ -1,4 +1,5 @@
 data
+.hypothesis
 *.pyc
 *.so
 *.egg-info
@@ -30,7 +31,6 @@ CMakeCache.txt
 CMakeFiles/
 Makefile
 cmake_install.cmake
-scratch
 docs/_build
 notebooks/hidden
 notebooks/dippl/data

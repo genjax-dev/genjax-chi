@@ -28,7 +28,7 @@ from genjax._src.core.generative import (
     ChoiceMap,
     Trace,
 )
-from genjax._src.core.generative.core import Score
+from genjax._src.core.generative.concepts import Score
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -36,7 +36,6 @@ from genjax._src.core.typing import (
     BoolArray,
     FloatArray,
     Generic,
-    PRNGKey,
     TypeVar,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
@@ -99,13 +98,13 @@ class ParticleCollection(Generic[R], Pytree):
     def __getitem__(self, idx) -> tuple[Any, ...]:
         return jtu.tree_map(lambda v: v[idx], (self.particles, self.log_weights))
 
-    def sample_particle(self, key) -> Trace[R]:
+    def sample_particle(self) -> Trace[R]:
         """
         Samples a particle from the collection, with probability proportional to its weight.
         """
         log_weights = self.get_log_weights()
         logits = log_weights - logsumexp(log_weights)
-        _, idx = categorical.random_weighted(key, logits)
+        _, idx = categorical.random_weighted(logits)
         return self.get_particle(idx)
 
 
@@ -128,14 +127,12 @@ class SMCAlgorithm(Generic[R], Algorithm[R]):
     @abstractmethod
     def run_smc(
         self,
-        key: PRNGKey,
     ) -> ParticleCollection[R]:
         pass
 
     @abstractmethod
     def run_csmc(
         self,
-        key: PRNGKey,
         retained: ChoiceMap,
     ) -> ParticleCollection[R]:
         pass
@@ -144,15 +141,13 @@ class SMCAlgorithm(Generic[R], Algorithm[R]):
     # of the target.
     def log_marginal_likelihood_estimate(
         self,
-        key: PRNGKey,
         target: Target[R] | None = None,
     ):
         if target:
             algorithm = ChangeTarget(self, target)
         else:
             algorithm = self
-        key, sub_key = jrandom.split(key)
-        particle_collection = algorithm.run_smc(sub_key)
+        particle_collection = algorithm.run_smc()
         return particle_collection.get_log_marginal_likelihood_estimate()
 
     #########
@@ -161,16 +156,14 @@ class SMCAlgorithm(Generic[R], Algorithm[R]):
 
     def random_weighted(
         self,
-        key: PRNGKey,
         *args: Any,
     ) -> tuple[Score, ChoiceMap]:
         assert isinstance(args[0], Target)
 
         target: Target[R] = args[0]
         algorithm = ChangeTarget(self, target)
-        key, sub_key = jrandom.split(key)
-        particle_collection = algorithm.run_smc(key)
-        particle = particle_collection.sample_particle(sub_key)
+        particle_collection = algorithm.run_smc()
+        particle = particle_collection.sample_particle()
         log_density_estimate = (
             particle.get_score()
             - particle_collection.get_log_marginal_likelihood_estimate()
@@ -180,7 +173,6 @@ class SMCAlgorithm(Generic[R], Algorithm[R]):
 
     def estimate_logpdf(
         self,
-        key: PRNGKey,
         v: ChoiceMap,
         *args: tuple[Any, ...],
     ) -> Score:
@@ -188,9 +180,8 @@ class SMCAlgorithm(Generic[R], Algorithm[R]):
 
         target: Target[R] = args[0]
         algorithm = ChangeTarget(self, target)
-        key, sub_key = jrandom.split(key)
-        particle_collection = algorithm.run_csmc(key, v)
-        particle = particle_collection.sample_particle(sub_key)
+        particle_collection = algorithm.run_csmc(v)
+        particle = particle_collection.sample_particle()
         log_density_estimate = (
             particle.get_score()
             - particle_collection.get_log_marginal_likelihood_estimate()
@@ -203,17 +194,14 @@ class SMCAlgorithm(Generic[R], Algorithm[R]):
 
     def estimate_normalizing_constant(
         self,
-        key: PRNGKey,
         target: Target[R],
     ) -> FloatArray:
         algorithm = ChangeTarget(self, target)
-        key, sub_key = jrandom.split(key)
-        particle_collection = algorithm.run_smc(sub_key)
+        particle_collection = algorithm.run_smc()
         return particle_collection.get_log_marginal_likelihood_estimate()
 
     def estimate_reciprocal_normalizing_constant(
         self,
-        key: PRNGKey,
         target: Target[R],
         latent_choices: ChoiceMap,
         w: FloatArray,
@@ -222,7 +210,7 @@ class SMCAlgorithm(Generic[R], Algorithm[R]):
         # Special, for ChangeTarget -- to avoid a redundant reweighting step,
         # when we have `w` which (with `latent_choices`) is already properly weighted
         # for the `target`.
-        return algorithm.run_csmc_for_normalizing_constant(key, latent_choices, w)
+        return algorithm.run_csmc_for_normalizing_constant(latent_choices, w)
 
 
 #######################
@@ -251,27 +239,25 @@ class Importance(Generic[R], SMCAlgorithm[R]):
     def get_final_target(self):
         return self.target
 
-    def run_smc(self, key: PRNGKey):
-        key, sub_key = jrandom.split(key)
+    def run_smc(self):
         if self.q is not None:
-            log_weight, choice = self.q.random_weighted(sub_key, self.target)
-            tr, target_score = self.target.importance(key, choice)
+            log_weight, choice = self.q.random_weighted(self.target)
+            tr, target_score = self.target.importance(choice)
         else:
             log_weight = 0.0
-            tr, target_score = self.target.importance(key, ChoiceMap.empty())
+            tr, target_score = self.target.importance(ChoiceMap.empty())
         return ParticleCollection(
             jtu.tree_map(lambda v: jnp.expand_dims(v, axis=0), tr),
             jnp.array([target_score - log_weight]),
             jnp.array(True),
         )
 
-    def run_csmc(self, key: PRNGKey, retained: ChoiceMap):
-        key, sub_key = jrandom.split(key)
+    def run_csmc(self, retained: ChoiceMap):
         if self.q:
-            q_score = self.q.estimate_logpdf(sub_key, retained, self.target)
+            q_score = self.q.estimate_logpdf(retained, self.target)
         else:
             q_score = 0.0
-        target_trace, target_score = self.target.importance(key, retained)
+        target_trace, target_score = self.target.importance(retained)
         return ParticleCollection(
             jtu.tree_map(lambda v: jnp.expand_dims(v, axis=0), target_trace),
             jnp.array([target_score - q_score]),
@@ -295,48 +281,39 @@ class ImportanceK(Generic[R], SMCAlgorithm[R]):
     def get_final_target(self):
         return self.target
 
-    def run_smc(self, key: PRNGKey):
-        key, sub_key = jrandom.split(key)
-        sub_keys = jrandom.split(sub_key, self.get_num_particles())
+    def run_smc(self):
         if self.q is not None:
             log_weights, choices = vmap(self.q.random_weighted, in_axes=(0, None))(
-                sub_keys, self.target
+                jnp.zeros(self.k_particles), self.target
             )
-            trs, target_scores = vmap(self.target.importance)(sub_keys, choices)
+            trs, target_scores = vmap(self.target.importance)(choices)
         else:
             log_weights = 0.0
-            trs, target_scores = vmap(self.target.importance, in_axes=(0, None))(
-                sub_keys, ChoiceMap.empty()
-            )
+            trs, target_scores = vmap(
+                lambda k, chm: self.target.importance(chm), in_axes=(0, None)
+            )(jnp.zeros(self.k_particles), ChoiceMap.empty())
         return ParticleCollection(
             trs,
             target_scores - log_weights,
             jnp.array(True),
         )
 
-    def run_csmc(self, key: PRNGKey, retained: ChoiceMap):
-        key, sub_key = jrandom.split(key)
-        sub_keys = jrandom.split(sub_key, self.get_num_particles() - 1)
+    def run_csmc(self, retained: ChoiceMap):
         if self.q:
             log_scores, choices = vmap(self.q.random_weighted, in_axes=(0, None))(
-                sub_keys, self.target
+                self.target
             )
-            retained_choice_score = self.q.estimate_logpdf(key, retained, self.target)
+            retained_choice_score = self.q.estimate_logpdf(retained, self.target)
             stacked_choices = jtu.tree_map(stack_to_first_dim, choices, retained)
             stacked_scores = jtu.tree_map(
                 stack_to_first_dim, log_scores, retained_choice_score
             )
-            sub_keys = jrandom.split(key, self.get_num_particles())
-            target_traces, target_scores = vmap(self.target.importance)(
-                sub_keys, stacked_choices
-            )
+            target_traces, target_scores = vmap(self.target.importance)(stacked_choices)
         else:
             ignored_traces, ignored_scores = vmap(
                 self.target.importance, in_axes=(0, None)
-            )(sub_keys, ChoiceMap.empty())
-            retained_trace, retained_choice_score = self.target.importance(
-                key, retained
-            )
+            )(ChoiceMap.empty())
+            retained_trace, retained_choice_score = self.target.importance(retained)
             target_scores = jtu.tree_map(
                 stack_to_first_dim, ignored_scores, retained_choice_score
             )
@@ -369,23 +346,20 @@ class ChangeTarget(Generic[R], SMCAlgorithm[R]):
 
     def run_smc(
         self,
-        key: PRNGKey,
     ) -> ParticleCollection[R]:
-        collection = self.prev.run_smc(key)
+        collection = self.prev.run_smc()
 
         # Convert the existing set of particles and weights
         # to a new set which is properly weighted for the new target.
-        def _reweight(key, particle, weight) -> tuple[Trace[R], Any]:
+        def _reweight(particle, weight) -> tuple[Trace[R], Any]:
             latents = self.prev.get_final_target().filter_to_unconstrained(
                 particle.get_choices()
             )
-            new_trace, new_weight = self.target.importance(key, latents)
+            new_trace, new_weight = self.target.importance(latents)
             this_weight = new_weight - particle.get_score() + weight
             return (new_trace, this_weight)
 
-        sub_keys = jrandom.split(key, self.get_num_particles())
         new_particles, new_weights = vmap(_reweight)(
-            sub_keys,
             collection.get_particles(),
             collection.get_log_weights(),
         )
@@ -397,24 +371,21 @@ class ChangeTarget(Generic[R], SMCAlgorithm[R]):
 
     def run_csmc(
         self,
-        key: PRNGKey,
         retained: ChoiceMap,
     ) -> ParticleCollection[R]:
-        collection = self.prev.run_csmc(key, retained)
+        collection = self.prev.run_csmc(retained)
 
         # Convert the existing set of particles and weights
         # to a new set which is properly weighted for the new target.
-        def _reweight(key, particle, weight) -> tuple[Trace[R], Any]:
+        def _reweight(particle, weight) -> tuple[Trace[R], Any]:
             latents = self.prev.get_final_target().filter_to_unconstrained(
                 particle.get_choices()
             )
-            new_trace, new_score = self.target.importance(key, latents)
+            new_trace, new_score = self.target.importance(latents)
             this_weight = new_score - particle.get_score() + weight
             return (new_trace, this_weight)
 
-        sub_keys = jrandom.split(key, self.get_num_particles())
         new_particles, new_weights = vmap(_reweight)(
-            sub_keys,
             collection.get_particles(),
             collection.get_log_weights(),
         )
@@ -431,12 +402,10 @@ class ChangeTarget(Generic[R], SMCAlgorithm[R]):
 
     def run_csmc_for_normalizing_constant(
         self,
-        key: PRNGKey,
         latent_choices: ChoiceMap,
         w: FloatArray,
     ) -> FloatArray:
-        key, sub_key = jrandom.split(key)
-        particle_collection = self.prev.run_csmc(sub_key, latent_choices)
+        particle_collection = self.prev.run_csmc(latent_choices)
 
         # Convert the existing set of particles and weights
         # to a new set which is properly weighted for the new target.
@@ -444,12 +413,12 @@ class ChangeTarget(Generic[R], SMCAlgorithm[R]):
             latents = self.prev.get_final_target().filter_to_unconstrained(
                 particle.get_choices()
             )
-            _, new_score = self.target.importance(key, latents)
+            _, new_score = self.target.importance(latents)
             this_weight = new_score - particle.get_score() + weight
             return this_weight
 
         num_particles = self.get_num_particles()
-        sub_keys = jrandom.split(key, num_particles - 1)
+        sub_keys = jrandom.split(num_particles - 1)
         new_rejected_weights = vmap(_reweight)(
             sub_keys,
             jtu.tree_map(lambda v: v[:-1], particle_collection.get_particles()),

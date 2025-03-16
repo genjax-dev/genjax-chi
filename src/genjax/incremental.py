@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.interpreters.incremental import (
+from genjax._src.core.compiler.interpreters.incremental import (
     Diff,
     NoChange,
     UnknownChange,

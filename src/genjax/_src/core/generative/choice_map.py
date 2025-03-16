@@ -918,8 +918,7 @@ class ChoiceMap(Pytree):
                 return x
 
 
-            key = jax.random.key(314159)
-            tr = model.simulate(key, ())
+            tr = model.simulate(())
             chm = tr.get_choices()
             selection = S["x"]
             filtered = chm.filter(selection)
