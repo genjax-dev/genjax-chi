@@ -22,11 +22,14 @@ VarOrLiteral = Var | Literal
 
 @Pytree.dataclass
 class Environment(Pytree):
-    """Keeps track of variables and their values during propagation."""
+    """Keeps track of variables and their values during interpretation."""
 
     env: dict[int, Any] = Pytree.field(default_factory=dict)
 
     def read(self, var: VarOrLiteral) -> Any:
+        """
+        Read a value from a variable in the environment.
+        """
         v = self.get(var)
         if v is None:
             assert isinstance(var, Var)
@@ -42,6 +45,9 @@ class Environment(Pytree):
             return self.env.get(var.count)
 
     def write(self, var: VarOrLiteral, cell: Any) -> Any:
+        """
+        Write a value to a variable in the environment.
+        """
         if isinstance(var, Literal):
             return cell
         cur_cell = self.get(var)
@@ -60,10 +66,16 @@ class Environment(Pytree):
         )
 
     def __contains__(self, var: VarOrLiteral):
+        """
+        Check if a variable is in the environment.
+        """
         if isinstance(var, Literal):
             return True
         return var.count in self.env
 
     def copy(self):
+        """
+        `Environment.copy` is sometimes used to create a new environment with the same variables and values as the original, especially in CPS interpreters (where a continuation closes over the application of an interpreter to a `Jaxpr`).
+        """
         keys = list(self.env.keys())
         return Environment({k: self.env[k] for k in keys})

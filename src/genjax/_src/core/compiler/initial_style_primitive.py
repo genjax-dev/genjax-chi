@@ -27,7 +27,6 @@ from genjax._src.core.compiler.staging import stage
 # Custom JAX primitives #
 #########################
 
-
 class NotEliminatedException(Exception):
     """Raised when a primitive is not eliminated."""
 
