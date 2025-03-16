@@ -58,16 +58,16 @@ class TestMaskCombinator:
 
     def test_mask_update_weight_to_argdiffs_from_true(self, key):
         # pre-update, the mask is True
-        tr = model.simulate(key, (True, 2.0))
+        tr = model.simulate((True, 2.0))
 
         # mask check arg transition: True --> True
         argdiffs = (Diff.unknown_change(True), Diff.no_change(tr.get_args()[1]))
-        w = tr.update(key, C.n(), argdiffs)[1]
-        assert w == tr.inner.update(key, C.n())[1]
+        w = tr.update(C.n(), argdiffs)[1]
+        assert w == tr.inner.update(C.n())[1]
         assert w == 0.0
         # mask check arg transition: True --> False
         argdiffs = (Diff.unknown_change(False), Diff.no_change(tr.get_args()[1]))
-        w = tr.update(key, C.n(), argdiffs)[1]
+        w = tr.update(C.n(), argdiffs)[1]
         assert w == -tr.get_score()
 
     def test_mask_update_weight_to_argdiffs_from_false(self, key):
@@ -108,7 +108,7 @@ class TestMaskCombinator:
             vmask_init = init.mask().vmap(in_axes=(0))(masks) @ "init"
             return vmask_init
 
-        tr = model_2.simulate(key, ())
+        tr = model_2.simulate(())
         retval = tr.get_retval()
         retval_flag = retval.flag
         retval_val = retval.unmask()
@@ -148,24 +148,21 @@ class TestMaskCombinator:
             return x
 
         # Create some initial traces:
-        key = jax.random.key(0)
         mask_steps = jnp.arange(10) < 5
         model = step.masked_iterate_final()
-        init_particle = model.simulate(key, (0.0, mask_steps))
+        init_particle = model.simulate((0.0, mask_steps))
 
         assert jnp.array_equal(init_particle.get_retval(), jnp.array(0.0))
 
         step_particle, step_weight, _, _ = model.update(
-            key, init_particle, C.n(), Diff.no_change((0.0, mask_steps))
+            init_particle, C.n(), Diff.no_change((0.0, mask_steps))
         )
         assert jnp.array_equal(step_weight, jnp.array(0.0))
         assert jnp.array_equal(step_particle.get_retval(), jnp.array(0.0))
 
         # Testing inference working when we extend the model by unmasking a value.
         argdiffs_ = (Diff.no_change(0.0), Diff.unknown_change(jnp.arange(10) < 6))
-        step_particle, step_weight, _, _ = model.update(
-            key, init_particle, C.n(), argdiffs_
-        )
+        step_particle, step_weight, _, _ = model.update(init_particle, C.n(), argdiffs_)
         assert step_weight != jnp.array(0.0)
         assert step_particle.get_score() == step_weight + init_particle.get_score()
 
@@ -181,10 +178,9 @@ class TestMaskCombinator:
             return x
 
         # Create some initial traces:
-        key = jax.random.key(0)
         mask_steps = jnp.arange(10) < 5
         model = step.masked_iterate()
-        init_particle = model.simulate(key, (0.0, mask_steps))
+        init_particle = model.simulate((0.0, mask_steps))
         assert jnp.array_equal(init_particle.get_retval(), jnp.zeros(11)), (
             "0.0 is threaded through 10 times in addition to the initial value"
         )
@@ -206,8 +202,8 @@ class TestMaskCombinator:
         # When inside, the array is recast by JAX into a numpy array, since it appears in the
         # literal pool of a compiled function, but not when outside, where it escapes such
         # treatment.
-        inside_tr = model_inside.simulate(key, ())
-        outside_tr = model_outside.simulate(key, ())
+        inside_tr = model_inside.simulate(())
+        outside_tr = model_outside.simulate(())
 
         assert outside_tr.get_score() == inside_tr.get_score()
         assert jtu.tree_map(
@@ -233,12 +229,12 @@ class TestMaskCombinator:
         masks = jnp.array([True, True, False])
 
         def simulate_masked(key, masks):
-            return model.mask().simulate(key, (masks,))
+            return model.mask().simulate((masks,))
 
         with pytest.raises(TypeError):
             simulate_masked(key, masks)
 
-        tr = model.mask().vmap().simulate(key, (masks,))
+        tr = model.mask().vmap().simulate((masks,))
 
         # note that it's still possible to vmap.
         assert jnp.all(tr.get_retval().flag == masks)

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import jax.numpy as jnp
-import jax.random as jrand
 import jax.tree_util as jtu
 from jax import grad
 from jax.lax import scan
@@ -36,10 +35,9 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     FloatArray,
-    IntArray,
-    PRNGKey,
     static_check_supports_grad,
 )
+from genjax._src.generative_functions.distributions.tensorflow_probability import normal
 
 tfd = tfp.distributions
 
@@ -97,8 +95,8 @@ def selection_gradient(
 
 
 # Utilities for momenta sampling and score evaluation.
-def normal_sample(key: PRNGKey, shape) -> FloatArray:
-    return tfd.Normal(jnp.zeros(shape), 1.0).sample(seed=key)
+def normal_sample(shape) -> FloatArray:
+    return normal.sample(jnp.zeros(shape), 1.0)
 
 
 def normal_score(v) -> Score:
@@ -117,14 +115,10 @@ def assess_momenta(momenta, mul=1.0):
     )
 
 
-def sample_momenta(key, choice_gradients):
-    total_length = len(jtu.tree_leaves(choice_gradients))
-    int_seeds = jnp.arange(total_length)
-    int_seed_tree = jtu.tree_unflatten(jtu.tree_structure(choice_gradients), int_seeds)
+def sample_momenta(choice_gradients):
     momenta_tree = jtu.tree_map(
-        lambda v, int_seed: normal_sample(jrand.fold_in(key, int_seed), v.shape),
+        lambda v: normal_sample(v.shape),
         choice_gradients,
-        int_seed_tree,
     )
     momenta_score = assess_momenta(momenta_tree)
     return momenta_tree, momenta_score
@@ -155,7 +149,6 @@ class HMC(EditRequest):
 
     def edit(
         self,
-        key: PRNGKey,
         tr: Trace[Any],
         argdiffs: Argdiffs,
     ) -> tuple[Trace[Any], Weight, Retdiff[Any], "EditRequest"]:
@@ -164,32 +157,27 @@ class HMC(EditRequest):
 
         original_model_score = tr.get_score()
         values, gradients = selection_gradient(self.selection, tr, argdiffs)
-        key, sub_key = jrand.split(key)
-        momenta, original_momenta_score = sample_momenta(sub_key, gradients)
+        momenta, original_momenta_score = sample_momenta(gradients)
 
         def kernel(
             carry: tuple[Trace[Any], ChoiceMap, ChoiceMap, ChoiceMap],
-            scanned_in: IntArray,
+            scanned_in,
         ) -> tuple[tuple[Trace[Any], ChoiceMap, ChoiceMap, ChoiceMap], Retdiff[Any]]:
             trace, values, gradient, momenta = carry
-            int_seed = scanned_in
             momenta = jtu.tree_map(
                 lambda v, g: v + (self.eps / 2) * g, momenta, gradient
             )
             values = jtu.tree_map(lambda v, m: v + self.eps * m, values, momenta)
-            new_key = jrand.fold_in(key, int_seed)
-            new_trace, _, retdiff, _ = Update(values).edit(new_key, trace, argdiffs)
+            new_trace, _, retdiff, _ = Update(values).edit(trace, argdiffs)
             values, gradients = selection_gradient(self.selection, new_trace, argdiffs)
             momenta = jtu.tree_map(
                 lambda v, g: v + (self.eps / 2) * g, momenta, gradients
             )
             return (new_trace, values, gradient, momenta), retdiff
 
-        int_seeds = jnp.arange(self.L) + 1
         (final_trace, _, _, final_momenta), retdiffs = scan(
             kernel,
             (tr, values, gradients, momenta),
-            int_seeds,
             length=self.L,
         )
 

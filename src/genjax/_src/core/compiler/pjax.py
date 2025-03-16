@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from dataclasses import dataclass
 
 import jax.random as jrand
 import jax.tree_util as jtu
@@ -56,13 +57,24 @@ def static_dim_length(in_axes, args: tuple[Any, ...]) -> int:
     return jtu.tree_leaves(axis_sizes)[0]
 
 
+# This is very cheeky.
+@dataclass
+class GlobalKeyCounter:
+    count: int = 0
+
+
+# Very large source of unique keys.
+global_counter = GlobalKeyCounter()
+
+
 def sample_binder(
     jax_impl: Callable[[PRNGKey, Any], Any],
     **kwargs,
 ):
     def sampler(*args):
         def keyless_jax_impl(*args):
-            return jax_impl(jrand.PRNGKey(1), *args)
+            global_counter.count += 1
+            return jax_impl(jrand.PRNGKey(global_counter.count), *args)
 
         def raise_exception():
             raise NotEliminatedException(

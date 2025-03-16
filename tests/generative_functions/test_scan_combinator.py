@@ -98,7 +98,7 @@ class TestIterate:
 
     def test_inc(self, key):
         """Baseline test that `inc` works!"""
-        result = inc.simulate(key, (0,)).get_retval()
+        result = inc.simulate((0,)).get_retval()
         assert result == 1
 
     def test_iterate(self, key):
@@ -107,11 +107,11 @@ class TestIterate:
         function `n` times and returns an array of each result (not including
         the initial value).
         """
-        result = inc.iterate(n=4).simulate(key, (0,)).get_retval()
+        result = inc.iterate(n=4).simulate((0,)).get_retval()
         assert jnp.array_equal(jnp.asarray(result), jnp.array([0, 1, 2, 3, 4]))
 
         # same as result, with a jnp.array-wrapped accumulator
-        result_wrapped = inc.iterate(n=4).simulate(key, (jnp.array(0),)).get_retval()
+        result_wrapped = inc.iterate(n=4).simulate((jnp.array(0),)).get_retval()
         assert jnp.array_equal(jnp.asarray(result), result_wrapped)
 
     def test_iterate_final(self, key):
@@ -120,12 +120,12 @@ class TestIterate:
         function `n` times and returns the final result.
         """
 
-        result = inc.iterate_final(n=10).simulate(key, (0,)).get_retval()
+        result = inc.iterate_final(n=10).simulate((0,)).get_retval()
         assert jnp.array_equal(result, 10)
 
     def test_inc_tupled(self, key):
         """Baseline test demonstrating `inc_tupled`."""
-        result = inc_tupled.simulate(key, ((0, 2),)).get_retval()
+        result = inc_tupled.simulate(((0, 2),)).get_retval()
         assert jnp.array_equal(jnp.asarray(result), jnp.array((2, 2)))
 
     def test_iterate_tupled(self, key):
@@ -133,7 +133,7 @@ class TestIterate:
         `iterate` on function from tuple => tuple passes the tuple correctly
         from invocation to invocation.
         """
-        result = inc_tupled.iterate(n=4).simulate(key, ((0, 2),)).get_retval()
+        result = inc_tupled.iterate(n=4).simulate(((0, 2),)).get_retval()
         assert jnp.array_equal(
             jnp.asarray(result),
             jnp.array([[0, 2, 4, 6, 8], [2, 2, 2, 2, 2]]),
@@ -145,7 +145,7 @@ class TestIterate:
         from invocation to invocation. Same idea as above, but with
         `iterate_final`.
         """
-        result = inc_tupled.iterate_final(n=10).simulate(key, ((0, 2),)).get_retval()
+        result = inc_tupled.iterate_final(n=10).simulate(((0, 2),)).get_retval()
         assert jnp.array_equal(jnp.asarray(result), jnp.array((20, 2)))
 
     def test_iterate_array(self, key):
@@ -157,7 +157,7 @@ class TestIterate:
         def double(prev):
             return prev + prev
 
-        result = double.iterate(n=4).simulate(key, (jnp.ones(4),)).get_retval()
+        result = double.iterate(n=4).simulate((jnp.ones(4),)).get_retval()
 
         assert jnp.array_equal(
             result,
@@ -182,7 +182,7 @@ class TestIterate:
             return fibonacci_matrix @ prev
 
         iterated_fib = fibonacci_step.iterate(n=5)
-        result = iterated_fib.simulate(key, (fibonacci_matrix,)).get_retval()
+        result = iterated_fib.simulate((fibonacci_matrix,)).get_retval()
 
         # sequence of F^n fibonacci matrices
         expected = jnp.array([
@@ -216,7 +216,7 @@ class TestAccumulateReduceMethods:
 
     def test_add(self, key):
         """Baseline test that `add` works!"""
-        result = add.simulate(key, (0, 2)).get_retval()
+        result = add.simulate((0, 2)).get_retval()
         assert result == 2
 
     def test_accumulate(self, key):
@@ -226,13 +226,13 @@ class TestAccumulateReduceMethods:
         - takes `(accumulator, jnp.array(v)) -> accumulator`
         - and returns an array of each intermediate accumulator value seen (not including the initial value).
         """
-        result = add.accumulate().simulate(key, (0, jnp.ones(4))).get_retval()
+        result = add.accumulate().simulate((0, jnp.ones(4))).get_retval()
 
         assert jnp.array_equal(result, jnp.array([0, 1, 2, 3, 4]))
 
         # same as result, but with a wrapped scalar vs a bare `0`.
         result_wrapped = (
-            add.accumulate().simulate(key, (jnp.array(0), jnp.ones(4))).get_retval()
+            add.accumulate().simulate((jnp.array(0), jnp.ones(4))).get_retval()
         )
         assert jnp.array_equal(result, result_wrapped)
 
@@ -244,21 +244,19 @@ class TestAccumulateReduceMethods:
         - and returns the final `accumulator` produces by folding in each element of `jnp.array(v)`.
         """
 
-        result = add.reduce().simulate(key, (0, jnp.ones(10))).get_retval()
+        result = add.reduce().simulate((0, jnp.ones(10))).get_retval()
         assert jnp.array_equal(result, 10)
 
     def test_add_tupled(self, key):
         """Baseline test demonstrating `add_tupled`."""
-        result = add_tupled.simulate(key, ((0, 2), 10)).get_retval()
+        result = add_tupled.simulate(((0, 2), 10)).get_retval()
         assert jnp.array_equal(jnp.asarray(result), jnp.array((12, 2)))
 
     def test_accumulate_tupled(self, key):
         """
         `accumulate` on function with tupled carry state works correctly.
         """
-        result = (
-            add_tupled.accumulate().simulate(key, ((0, 2), jnp.ones(4))).get_retval()
-        )
+        result = add_tupled.accumulate().simulate(((0, 2), jnp.ones(4))).get_retval()
         assert jnp.array_equal(
             jnp.asarray(result), jnp.array([[0, 3, 6, 9, 12], [2, 2, 2, 2, 2]])
         )
@@ -268,14 +266,14 @@ class TestAccumulateReduceMethods:
         """
         `reduce` on function with tupled carry state works correctly.
         """
-        result = add_tupled.reduce().simulate(key, ((0, 2), jnp.ones(10))).get_retval()
+        result = add_tupled.reduce().simulate(((0, 2), jnp.ones(10))).get_retval()
         assert jnp.array_equal(jnp.asarray(result), jnp.array((30, 2)))
 
     def test_accumulate_array(self, key):
         """
         `accumulate` with an array-shaped accumulator works correctly, including the initial value.
         """
-        result = add.accumulate().simulate(key, (jnp.ones(4), jnp.eye(4))).get_retval()
+        result = add.accumulate().simulate((jnp.ones(4), jnp.eye(4))).get_retval()
 
         assert jnp.array_equal(
             result,
@@ -301,7 +299,7 @@ class TestAccumulateReduceMethods:
             return prev @ next
 
         fib_steps = matmul.accumulate()
-        result = fib_steps.simulate(key, (fib, repeated_fib)).get_retval()
+        result = fib_steps.simulate((fib, repeated_fib)).get_retval()
 
         # sequence of F^n fibonacci matrices
         expected = jnp.array([
@@ -334,9 +332,8 @@ class TestScanUpdate:
         def model(k):
             return step.scan(n=3)(k, A(jnp.array([1.0, 2.0, 3.0]))) @ "steps"
 
-        k1, k2 = jax.random.split(key)
-        tr = model.simulate(k1, (jnp.array(1.0),))
-        u, w, _, _ = tr.update(k2, C["steps", 1, "b"].set(99.0))
+        tr = model.simulate((jnp.array(1.0),))
+        u, w, _, _ = tr.update(C["steps", 1, "b"].set(99.0))
         assert jnp.allclose(
             u.get_choices()["steps", :, "b"], jnp.array([2.0, 99.0, 7.0]), atol=0.1
         )
@@ -362,7 +359,6 @@ class TestScanWithParameters:
 
     def test_scan_with_parameters(self, key):
         tr = TestScanWithParameters.model.simulate(
-            key,
             (
                 {
                     "initial": jnp.array(3.0),
@@ -384,14 +380,14 @@ class TestScanWithParameters:
             return new_x, new_x
 
         args = (0.0, jnp.array([2.0, 4.0, 3.0, 5.0, 1.0]))
-        tr = walk_step.scan(n=5).simulate(key, args)
+        tr = walk_step.scan(n=5).simulate(args)
         _, expected = tr.get_retval()
         assert jnp.allclose(
             tr.get_choices()[:, "x"],
             expected,
         )
 
-        tr = walk_step.scan().simulate(key, args)
+        tr = walk_step.scan().simulate(args)
         assert jnp.allclose(tr.get_choices()[:, "x"], expected)
 
         # now with jit
@@ -406,15 +402,13 @@ class TestScanWithParameters:
             new_x = genjax.normal(state, sigma) @ "x"
             return (new_x, new_x + 1)
 
-        trace = step.scan(n=0).simulate(key, (2.0, jnp.arange(0, dtype=float)))
+        trace = step.scan(n=0).simulate((2.0, jnp.arange(0, dtype=float)))
 
         assert trace.get_choices().static_is_empty(), (
             "zero-length scan produces empty choicemaps."
         )
 
-        key, subkey = jax.random.split(key)
         step.scan().importance(
-            subkey,
             trace.get_choices(),
             (2.0, 2.0 + jnp.arange(0, dtype=float)),
         )
@@ -449,7 +443,7 @@ class TestScanWithParameters:
         xs = jnp.arange(5, dtype=float)
         args = (jnp.array(1.0), xs)
 
-        results = jax.vmap(lambda k: vmapped.simulate(k, args))(jnp.array(keys))
+        results = jax.vmap(lambda k: vmapped.simulate(args))(jnp.array(keys))
 
         chm = results.get_choices()
 
@@ -477,13 +471,12 @@ class TestScanRegenerate:
             _ = genjax.normal(0.0, 1.0) @ "y2"
             return kernel.scan(n=10)(y1, None) @ "kernel"
 
-        key, sub_key = jax.random.split(key)
-        tr = scanned_normal.simulate(sub_key, ())
+        tr = scanned_normal.simulate(())
         # First, try y1 and test for correctness.
         old_y1 = tr.get_choices()["y1"]
         old_target_density = genjax.normal.logpdf(old_y1, 0.0, 1.0)
         request = genjax.Regenerate(S.at["y1"])
-        new_tr, fwd_w, _, _ = request.edit(key, tr, ())
+        new_tr, fwd_w, _, _ = request.edit(tr, ())
         new_y1 = new_tr.get_choices()["y1"]
         new_target_density = genjax.normal.logpdf(new_y1, 0.0, 1.0)
         assert fwd_w == new_target_density - old_target_density
@@ -506,9 +499,7 @@ class TestScanIndexRequest:
             _ = genjax.normal(0.0, 1.0) @ "y2"
             return kernel.scan(n=10)(y1, None) @ "kernel"
 
-        key = jax.random.key(314159)
-        key, sub_key = jax.random.split(key)
-        tr = scanned_normal.simulate(sub_key, ())
+        tr = scanned_normal.simulate(())
         # Try all indices and test for correctness.
         for idx in range(10):
             old_z = tr.get_choices()["kernel", idx, "z"]
@@ -516,7 +507,7 @@ class TestScanIndexRequest:
             request = StaticRequest({
                 "kernel": IndexRequest(jnp.array(idx), Regenerate(S.at["z"])),
             })
-            new_tr, fwd_w, _, _ = request.edit(key, tr, ())
+            new_tr, fwd_w, _, _ = request.edit(tr, ())
             new_z = new_tr.get_choices()["kernel", idx, "z"]
             new_target_density = genjax.normal.logpdf(new_z, 0.0, 1.0)
             assert fwd_w == new_target_density - old_target_density
@@ -528,7 +519,7 @@ class TestScanIndexRequest:
             request = StaticRequest({
                 "kernel": IndexRequest(jnp.array(idx), Regenerate(S.at["z"])),
             })
-            new_tr, fwd_w, _, _ = request.edit(key, tr, ())
+            new_tr, fwd_w, _, _ = request.edit(tr, ())
             new_z = new_tr.get_choices()["kernel", idx, "z"]
             new_target_density = genjax.normal.logpdf(new_z, 0.0, 1.0)
             assert fwd_w == new_target_density - old_target_density

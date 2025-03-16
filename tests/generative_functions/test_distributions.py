@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
 import jax.numpy as jnp
 import pytest
 
@@ -23,25 +22,21 @@ from genjax import Diff, NoChange, UnknownChange
 
 class TestDistributions:
     def test_simulate(self):
-        key = jax.random.key(314159)
-        tr = genjax.normal(0.0, 1.0).simulate(key, ())
+        tr = genjax.normal(0.0, 1.0).simulate(())
         assert tr.get_score() == genjax.normal(0.0, 1.0).assess(tr.get_choices(), ())[0]
 
     def test_importance(self):
-        key = jax.random.key(314159)
-
         # No constraint.
-        (tr, w) = genjax.normal.importance(key, C.n(), (0.0, 1.0))
+        (tr, w) = genjax.normal.importance(C.n(), (0.0, 1.0))
         assert w == 0.0
 
         # Constraint, no mask.
-        (tr, w) = genjax.normal.importance(key, C.v(1.0), (0.0, 1.0))
+        (tr, w) = genjax.normal.importance(C.v(1.0), (0.0, 1.0))
         v = tr.get_choices()
         assert w == genjax.normal(0.0, 1.0).assess(v, ())[0]
 
         # Constraint, mask with True flag.
         (tr, w) = genjax.normal.importance(
-            key,
             C.v(1.0).mask(jnp.array(True)),
             (0.0, 1.0),
         )
@@ -51,7 +46,6 @@ class TestDistributions:
 
         # Constraint, mask with False flag.
         (tr, w) = genjax.normal.importance(
-            key,
             C.v(1.0).mask(jnp.array(False)),
             (0.0, 1.0),
         )
@@ -60,13 +54,10 @@ class TestDistributions:
         assert w == 0.0
 
     def test_update(self):
-        key = jax.random.key(314159)
-        key, sub_key = jax.random.split(key)
-        tr = genjax.normal.simulate(sub_key, (0.0, 1.0))
+        tr = genjax.normal.simulate((0.0, 1.0))
 
         # No constraint, no change to arguments.
         (new_tr, w, _, _) = genjax.normal.update(
-            sub_key,
             tr,
             C.n(),
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
@@ -78,9 +69,7 @@ class TestDistributions:
         assert w == 0.0
 
         # Constraint, no change to arguments.
-        key, sub_key = jax.random.split(key)
         (new_tr, w, _, _) = genjax.normal.update(
-            sub_key,
             tr,
             C.v(1.0),
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
@@ -94,9 +83,7 @@ class TestDistributions:
         )
 
         # No constraint, change to arguments.
-        key, sub_key = jax.random.split(key)
         (new_tr, w, _, _) = genjax.normal.update(
-            sub_key,
             tr,
             C.n(),
             (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
@@ -112,9 +99,7 @@ class TestDistributions:
         )
 
         # Constraint, change to arguments.
-        key, sub_key = jax.random.split(key)
         (new_tr, w, _, _) = genjax.normal.update(
-            sub_key,
             tr,
             C.v(1.0),
             (Diff(1.0, UnknownChange), Diff(2.0, UnknownChange)),
@@ -128,9 +113,7 @@ class TestDistributions:
         )
 
         # Constraint is masked (True), no change to arguments.
-        key, sub_key = jax.random.split(key)
         (new_tr, w, _, _) = genjax.normal.update(
-            sub_key,
             tr,
             C.v(1.0).mask(jnp.array(True)),
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
@@ -144,9 +127,7 @@ class TestDistributions:
         )
 
         # Constraint is masked (True), change to arguments.
-        key, sub_key = jax.random.split(key)
         (new_tr, w, _, _) = genjax.normal.update(
-            sub_key,
             tr,
             C.v(1.0).mask(True),
             (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
@@ -160,9 +141,7 @@ class TestDistributions:
         )
 
         # Constraint is masked (False), no change to arguments.
-        key, sub_key = jax.random.split(key)
         (new_tr, w, _, _) = genjax.normal.update(
-            sub_key,
             tr,
             C.v(1.0).mask(False),
             (Diff(0.0, NoChange), Diff(1.0, NoChange)),
@@ -174,9 +153,7 @@ class TestDistributions:
         assert w == 0.0
 
         # Constraint is masked (False), change to arguments.
-        key, sub_key = jax.random.split(key)
         (new_tr, w, _, _) = genjax.normal.update(
-            sub_key,
             tr,
             C.v(1.0).mask(False),
             (Diff(1.0, UnknownChange), Diff(1.0, NoChange)),
@@ -469,8 +446,7 @@ class TestDistributions:
             )
             return None
 
-        key = jax.random.key(314159)
-        _ = model.simulate(key, ())
+        _ = model.simulate(())
 
     def test_distribution_repr(self):
         @genjax.gen
@@ -481,7 +457,7 @@ class TestDistributions:
             t = genjax.categorical(logits=[0.0, 0.0]) @ "t"
             return x, y, z, t
 
-        tr = model.simulate(jax.random.key(0), ())
+        tr = model.simulate(())
         assert str(tr.get_subtrace("x").get_gen_fn()) == "genjax.normal()"
         assert str(tr.get_subtrace("y").get_gen_fn()) == "genjax.bernoulli()"
         assert str(tr.get_subtrace("z").get_gen_fn()) == "genjax.flip()"
@@ -495,7 +471,7 @@ class TestDistributions:
             n = genjax.normal(loc=0.0, scale=0.1) @ "n"
             return c + p + n
 
-        tr = model.simulate(jax.random.key(0), ())
+        tr = model.simulate(())
         assert tr.get_subtrace("c").get_args() == ((), {"logits": [-0.3, -0.5]})
         assert tr.get_subtrace("p").get_args() == ((), {"probs": [0.3, 0.7]})
         assert tr.get_subtrace("n").get_args() == ((), {"loc": 0.0, "scale": 0.1})
@@ -512,18 +488,17 @@ class TestDistributions:
         with pytest.warns(
             DeprecationWarning, match="bare argument to genjax.categorical"
         ):
-            _ = f.simulate(jax.random.key(0), ())
+            _ = f.simulate(())
 
         with pytest.warns(
             DeprecationWarning, match="bare argument to genjax.bernoulli"
         ):
-            _ = g.simulate(jax.random.key(0), ())
+            _ = g.simulate(())
 
     def test_switch_with_kwargs(self):
         prim = genjax.bernoulli(0.3)
         prim_kw = genjax.bernoulli(probs=0.3)
 
-        key = jax.random.key(314159)
         with pytest.warns(DeprecationWarning):
-            genjax.switch(prim, prim).simulate(key, (0, (), ()))
-        genjax.switch(prim_kw, prim_kw).simulate(key, (0, (), ()))
+            genjax.switch(prim, prim).simulate((0, (), ()))
+        genjax.switch(prim_kw, prim_kw).simulate((0, (), ()))

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
 
 import genjax
 from genjax import ChoiceMapBuilder as C
@@ -39,8 +38,7 @@ class TestDimap:
         dimap_model = model.dimap(pre=pre_process, post=post_process)
 
         # Use the dimap model
-        key = jax.random.key(0)
-        trace = dimap_model.simulate(key, (2.0, 3.0))
+        trace = dimap_model.simulate((2.0, 3.0))
         assert trace.get_retval() == trace.get_choices()["z"] + 2.0, (
             "initial retval is a square of random draw"
         )
@@ -58,14 +56,12 @@ class TestDimap:
             "final score sees pre-processing but not post-processing (note the inverse). This is only true here because we are returning the sampled value."
         )
 
-        updated_tr, _, _, _ = trace.update(key, C["z"].set(-2.0))
+        updated_tr, _, _, _ = trace.update(C["z"].set(-2.0))
         assert 0.0 == updated_tr.get_retval(), (
             "updated 'z' must hit `post_process` before returning"
         )
 
-        importance_tr, _ = dimap_model.importance(
-            key, updated_tr.get_choices(), (1.0, 2.0)
-        )
+        importance_tr, _ = dimap_model.importance(updated_tr.get_choices(), (1.0, 2.0))
         assert importance_tr.get_retval() == updated_tr.get_retval(), (
             "importance shouldn't update the retval"
         )

@@ -14,8 +14,6 @@
 
 from abc import abstractmethod
 
-import jax
-
 from genjax._src.core.generative import (
     ChoiceMap,
     GenerativeFunction,
@@ -31,7 +29,6 @@ from genjax._src.core.typing import (
     Callable,
     Generic,
     Is,
-    PRNGKey,
     TypeVar,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
@@ -81,10 +78,11 @@ class Target(Generic[R], Pytree):
     constraint: ChoiceMap
 
     def importance(
-        self, key: PRNGKey, constraint: ChoiceMap
+        self,
+        constraint: ChoiceMap,
     ) -> tuple[Trace[R], Weight]:
         merged = self.constraint.merge(constraint)
-        return self.p.importance(key, merged, self.args)
+        return self.p.importance(merged, self.args)
 
     def filter_to_unconstrained(self, choice_map):
         selection = ~self.constraint.get_selection()
@@ -142,7 +140,6 @@ class Algorithm(Generic[R], SampleDistribution):
     @abstractmethod
     def random_weighted(
         self,
-        key: PRNGKey,
         *args: Any,
     ) -> tuple[Score, ChoiceMap]:
         """
@@ -161,9 +158,7 @@ class Algorithm(Generic[R], SampleDistribution):
         assert isinstance(args[0], Target)
 
     @abstractmethod
-    def estimate_logpdf(
-        self, key: PRNGKey, v: ChoiceMap, *args: tuple[Any, ...]
-    ) -> Score:
+    def estimate_logpdf(self, v: ChoiceMap, *args: tuple[Any, ...]) -> Score:
         """
         Given a [`ChoiceMap`][genjax.core.ChoiceMap] and a [`Target`][genjax.inference.Target], return a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
 
@@ -183,7 +178,6 @@ class Algorithm(Generic[R], SampleDistribution):
     @abstractmethod
     def estimate_normalizing_constant(
         self,
-        key: PRNGKey,
         target: Target[R],
     ) -> Weight:
         pass
@@ -191,7 +185,6 @@ class Algorithm(Generic[R], SampleDistribution):
     @abstractmethod
     def estimate_reciprocal_normalizing_constant(
         self,
-        key: PRNGKey,
         target: Target[R],
         latent_choices: ChoiceMap,
         w: Weight,
@@ -216,39 +209,35 @@ class Marginal(Generic[R], SampleDistribution):
 
     def random_weighted(
         self,
-        key: PRNGKey,
         *args: Any,
     ) -> tuple[Score, ChoiceMap]:
-        key, sub_key = jax.random.split(key)
-        tr = self.gen_fn.simulate(sub_key, args)
+        tr = self.gen_fn.simulate(args)
         choices: ChoiceMap = tr.get_choices()
         latent_choices = choices.filter(self.selection)
-        key, sub_key = jax.random.split(key)
         bwd_request = ~self.selection
-        weight = tr.project(sub_key, bwd_request)
+        weight = tr.project(bwd_request)
         if self.algorithm is None:
             return weight, latent_choices
         else:
             target = Target(self.gen_fn, args, latent_choices)
             other_choices = choices.filter(~self.selection)
             Z = self.algorithm.estimate_reciprocal_normalizing_constant(
-                key, target, other_choices, weight
+                target, other_choices, weight
             )
 
             return (Z, latent_choices)
 
     def estimate_logpdf(
         self,
-        key: PRNGKey,
         v: ChoiceMap,
         *args: tuple[Any, ...],
     ) -> Score:
         if self.algorithm is None:
-            _, weight = self.gen_fn.importance(key, v, args)
+            _, weight = self.gen_fn.importance(v, args)
             return weight
         else:
             target = Target(self.gen_fn, args, v)
-            Z = self.algorithm.estimate_normalizing_constant(key, target)
+            Z = self.algorithm.estimate_normalizing_constant(target)
             return Z
 
 

@@ -14,7 +14,6 @@
 
 import jax
 import jax.numpy as jnp
-import jax.random as jrand
 import jax.tree_util as jtu
 import pytest
 
@@ -42,21 +41,19 @@ class TestRegenerate:
             y2 = genjax.normal(0.0, 1.0) @ "y2"
             return y1 + y2
 
-        key = jax.random.key(314159)
-        key, sub_key = jax.random.split(key)
-        tr = simple_normal.simulate(sub_key, ())
+        tr = simple_normal.simulate(())
 
         # First, try y1 and test for correctness.
         old_v = tr.get_choices()["y1"]
         request = genjax.Regenerate(S["y1"])
-        new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
+        new_tr, fwd_w, _, bwd_request = request.edit(tr, ())
         old_density = genjax.normal.logpdf(old_v, 0.0, 1.0)
         new_density = genjax.normal.logpdf(new_tr.get_choices()["y1"], 0.0, 1.0)
         assert fwd_w != 0.0
         assert fwd_w == new_density - old_density
         new_v = new_tr.get_choices()["y1"]
         assert old_v != new_v
-        old_tr, bwd_w, _, bwd_request = bwd_request.edit(sub_key, new_tr, ())
+        old_tr, bwd_w, _, bwd_request = bwd_request.edit(new_tr, ())
         assert bwd_w != 0.0
         assert (fwd_w + bwd_w) == 0.0
         old_old_v = old_tr.get_choices()["y1"]
@@ -65,14 +62,14 @@ class TestRegenerate:
         # Now, do y2
         old_v = tr.get_choices()["y2"]
         request = genjax.Regenerate(S["y2"])
-        new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
+        new_tr, fwd_w, _, bwd_request = request.edit(tr, ())
         old_density = genjax.normal.logpdf(old_v, 0.0, 1.0)
         new_density = genjax.normal.logpdf(new_tr.get_choices()["y2"], 0.0, 1.0)
         assert fwd_w != 0.0
         assert fwd_w == new_density - old_density
         new_v = new_tr.get_choices()["y2"]
         assert old_v != new_v
-        old_tr, bwd_w, _, bwd_request = bwd_request.edit(key, new_tr, ())
+        old_tr, bwd_w, _, bwd_request = bwd_request.edit(new_tr, ())
         assert bwd_w != 0.0
         assert (fwd_w + bwd_w) == 0.0
         old_old_v = old_tr.get_choices()["y2"]
@@ -83,10 +80,10 @@ class TestRegenerate:
         request = genjax.Regenerate(
             S["y1"] | S["y2"],
         )
-        new_tr, fwd_w, _, bwd_request = request.edit(key, tr, ())
+        new_tr, fwd_w, _, bwd_request = request.edit(tr, ())
         new_v = new_tr.get_choices()["y2"]
         assert old_v != new_v
-        old_tr, bwd_w, _, bwd_request = bwd_request.edit(key, new_tr, ())
+        old_tr, bwd_w, _, bwd_request = bwd_request.edit(new_tr, ())
         assert (fwd_w + bwd_w) == 0.0
         old_old_v = old_tr.get_choices()["y2"]
         assert old_old_v == old_v
@@ -97,9 +94,7 @@ class TestRegenerate:
             y1 = genjax.normal(0.0, 1.0) @ "y1"
             _ = genjax.normal(y1, 1.0) @ "y2"
 
-        key = jax.random.key(314159)
-        key, sub_key = jax.random.split(key)
-        tr = linked_normal.simulate(sub_key, ())
+        tr = linked_normal.simulate(())
 
         # First, try y1 and test for correctness.
         old_y1 = tr.get_choices()["y1"]
@@ -108,7 +103,7 @@ class TestRegenerate:
             old_y1, 0.0, 1.0
         ) + genjax.normal.logpdf(old_y2, old_y1, 1.0)
         request = genjax.Regenerate(S["y1"])
-        new_tr, fwd_w, _, _ = request.edit(key, tr, ())
+        new_tr, fwd_w, _, _ = request.edit(tr, ())
         new_y1 = new_tr.get_choices()["y1"]
         new_y2 = new_tr.get_choices()["y2"]
         new_target_density = genjax.normal.logpdf(
@@ -123,17 +118,13 @@ class TestRegenerate:
             y1 = genjax.normal(0.0, 3.0) @ "y1"
             _ = genjax.normal(y1, 0.01) @ "y2"
 
-        key = jax.random.key(314159)
-        key, sub_key = jax.random.split(key)
-        tr, _ = linked_normal.importance(sub_key, C.kw(y2=3.0), ())
+        tr, _ = linked_normal.importance(C.kw(y2=3.0), ())
         request = Regenerate(S["y1"])
 
         # Run Metropolis-Hastings for 200 steps.
         for _ in range(200):
-            key, sub_key = jax.random.split(key)
-            new_tr, w, _, _ = request.edit(sub_key, tr, ())
-            key, sub_key = jax.random.split(key)
-            check = jnp.log(genjax.uniform.sample(sub_key, 0.0, 1.0)) < w
+            new_tr, w, _, _ = request.edit(tr, ())
+            check = jnp.log(genjax.uniform.sample(0.0, 1.0)) < w
             tr = jtu.tree_map(lambda v1, v2: jnp.where(check, v1, v2), new_tr, tr)
 
         assert tr.get_choices()["y1"] == pytest.approx(3.0, 1e-2)
@@ -145,9 +136,7 @@ class TestRejuvenate:
         def simple_normal():
             _ = genjax.normal(0.0, 1.0) @ "y1"
 
-        key = jax.random.key(314159)
-        key, sub_key = jax.random.split(key)
-        tr = simple_normal.simulate(sub_key, ())
+        tr = simple_normal.simulate(())
         old_v = tr.get_choices()["y1"]
 
         #####
@@ -160,7 +149,7 @@ class TestRejuvenate:
                 lambda chm: (0.0, 1.0),
             )
         })
-        new_tr, w, _, _ = request.edit(sub_key, tr, ())
+        new_tr, w, _, _ = request.edit(tr, ())
         new_v = new_tr.get_choices()["y1"]
         assert old_v != new_v
         assert w == 0.0
@@ -171,9 +160,7 @@ class TestRejuvenate:
             y1 = genjax.normal(0.0, 3.0) @ "y1"
             _ = genjax.normal(y1, 0.001) @ "y2"
 
-        key = jax.random.key(314159)
-        key, sub_key = jax.random.split(key)
-        tr, _ = linked_normal.importance(sub_key, C.kw(y2=3.0), ())
+        tr, _ = linked_normal.importance(C.kw(y2=3.0), ())
 
         request = StaticRequest({
             "y1": Rejuvenate(
@@ -184,10 +171,8 @@ class TestRejuvenate:
 
         # Run Metropolis-Hastings for 100 steps.
         for _ in range(100):
-            key, sub_key = jax.random.split(key)
-            new_tr, w, _, _ = request.edit(sub_key, tr, ())
-            key, sub_key = jax.random.split(key)
-            check = jnp.log(genjax.uniform.sample(sub_key, 0.0, 1.0)) < w
+            new_tr, w, _, _ = request.edit(tr, ())
+            check = jnp.log(genjax.uniform.sample(0.0, 1.0)) < w
             tr = jtu.tree_map(lambda v1, v2: jnp.where(check, v1, v2), new_tr, tr)
 
         assert tr.get_choices()["y1"] == pytest.approx(3.0, 5e-3)
@@ -201,9 +186,7 @@ class TestHMC:
             y = genjax.normal(x, 0.01) @ "y"
             return y
 
-        key = jrand.key(0)
-        key, sub_key = jrand.split(key)
-        tr, _ = model.importance(sub_key, ChoiceMap.kw(y=3.0), ())
+        tr, _ = model.importance(ChoiceMap.kw(y=3.0), ())
         request = HMC(Selection.at["x"], jnp.array(1e-2))
         editor = jax.jit(request.edit)
 
@@ -213,7 +196,7 @@ class TestHMC:
         old_target_density = genjax.normal.logpdf(
             old_x, 0.0, 1.0
         ) + genjax.normal.logpdf(old_y, old_x, 0.01)
-        new_tr, fwd_w, _, _ = editor(key, tr, ())
+        new_tr, fwd_w, _, _ = editor(tr, ())
         new_x = new_tr.get_choices()["x"]
         new_y = new_tr.get_choices()["y"]
         new_target_density = genjax.normal.logpdf(
@@ -230,8 +213,7 @@ class TestHMC:
         # Check for gradient convergence.
         new_tr = tr
         for _ in range(20):
-            key, sub_key = jrand.split(key)
-            new_tr, *_ = editor(sub_key, new_tr, ())
+            new_tr, *_ = editor(new_tr, ())
         assert new_tr.get_choices()["x"] == pytest.approx(3.0, 5e-3)
 
     def test_simple_scan_hmc(self):
@@ -241,17 +223,14 @@ class TestHMC:
             _ = genjax.normal(z, 0.01) @ "y"
             return z, None
 
-        key = jrand.key(0)
-        key, sub_key = jrand.split(key)
         model = kernel.scan(n=10)
         vchm = ChoiceMap.empty().at["y"].set(3.0 * jnp.ones(10))
-        tr, _ = model.importance(sub_key, vchm, (0.0, None))
+        tr, _ = model.importance(vchm, (0.0, None))
         request = HMC(Selection.at["x"], jnp.array(1e-2))
         editor = jax.jit(request.edit)
         new_tr = tr
         for _ in range(50):
-            key, sub_key = jrand.split(key)
-            new_tr, *_ = editor(sub_key, new_tr, Diff.no_change((0.0, None)))
+            new_tr, *_ = editor(new_tr, Diff.no_change((0.0, None)))
         assert new_tr.get_choices()[:, "x"] == pytest.approx(3.0, 8e-3)
 
     @pytest.mark.skip(reason="needs more work")
@@ -291,10 +270,7 @@ class TestHMC:
             return jnp.vstack([initial_position, tracks])
 
         # Simulate ground truth from the model.
-        key = jrand.key(0)
-        key, sub_key = jax.random.split(key)
         ground_truth = simple_hmm.simulate(
-            sub_key,
             (jnp.array([1e-1, 1e-1]), jnp.array([1e-1, 1e-1]), 0.1),
         )
 
@@ -304,9 +280,7 @@ class TestHMC:
             ground_truth.get_choices()["tracks", :, "obs_pos"]
         )
         obs = obs.at["init_obs_pos"].set(ground_truth.get_choices()["init_obs_pos"])
-        key, sub_key = jax.random.split(key)
         init_tr, _ = simple_hmm.importance(
-            sub_key,
             obs,
             (jnp.array([1e-1, 1e-1]), jnp.array([1e-1, 1e-1]), 0.1),
         )
@@ -316,10 +290,7 @@ class TestHMC:
                 (key, tr) = carry
                 key, sub_key = jax.random.split(key)
                 request = HMC(Selection.at["init_pos"], eps)
-                new_tr, w, _, _ = request.edit(
-                    sub_key, tr, Diff.no_change(tr.get_args())
-                )
-                key, sub_key = jax.random.split(key)
+                new_tr, w, _, _ = request.edit(tr, Diff.no_change(tr.get_args()))
                 check = jnp.log(genjax.uniform.sample(sub_key, 0.0, 1.0)) < w
                 tr = jtu.tree_map(
                     lambda v1, v2: jnp.where(check, v1, v2),
@@ -328,9 +299,7 @@ class TestHMC:
                 )
                 request = HMC(Selection.at["tracks", ..., "pos"], eps)
                 key, sub_key = jax.random.split(key)
-                new_tr, w, _, _ = request.edit(
-                    sub_key, tr, Diff.no_change(tr.get_args())
-                )
+                new_tr, w, _, _ = request.edit(tr, Diff.no_change(tr.get_args()))
                 key, sub_key = jax.random.split(key)
                 check = jnp.log(genjax.uniform.sample(sub_key, 0.0, 1.0)) < w
                 tr = jtu.tree_map(
@@ -338,15 +307,15 @@ class TestHMC:
                     new_tr,
                     tr,
                 )
-                return (key, tr), None
+                return (tr,), None
 
             return _inner
 
         def rejuvenation(length: int):
             def inner(key, tr, eps):
-                (_, new_tr), _ = jax.lax.scan(
+                (new_tr,), _ = jax.lax.scan(
                     _rejuvenation(eps),
-                    (key, tr),
+                    (tr,),
                     length=length,
                 )
                 return new_tr
@@ -354,9 +323,8 @@ class TestHMC:
             return inner
 
         # Run MH with HMC.
-        key, sub_key = jrand.split(key)
         rejuvenator = jax.jit(rejuvenation(3000))
-        new_tr = rejuvenator(sub_key, init_tr, jnp.array(1e-4))
+        new_tr = rejuvenator(init_tr, jnp.array(1e-4))
         assert init_tr.get_choices()["tracks", 0, "pos"] != pytest.approx(
             ground_truth.get_choices()["tracks", 0, "pos"], 1e-5
         )
@@ -388,15 +356,12 @@ class TestHMC:
             _ = submodel() @ "x"
             _ = submodel() @ "y"
 
-        key = jrand.key(0)
-        key, sub_key = jrand.split(key)
-        tr, _ = model.importance(sub_key, ChoiceMap.kw(y=3.0), ())
+        tr, _ = model.importance(ChoiceMap.kw(y=3.0), ())
         request = StaticRequest(
             {"x": SafeHMC(Selection.at["x"], jnp.array(1e-2))},
         )
         editor = jax.jit(request.edit)
-        key, sub_key = jrand.split(key)
-        new_tr, w, *_ = editor(sub_key, tr, ())
+        new_tr, w, *_ = editor(tr, ())
         assert new_tr.get_choices()["x", "x"] != tr.get_choices()["x", "x"]
         assert w != 0.0
 
@@ -411,8 +376,7 @@ class TestHMC:
             },
         )
         editor = jax.jit(request.edit)
-        key, sub_key = jrand.split(key)
-        new_tr, w, *_ = editor(sub_key, tr, ())
+        new_tr, w, *_ = editor(tr, ())
         assert new_tr.get_choices()["x", "x"] != tr.get_choices()["x", "x"]
         assert new_tr.get_choices()["y", "x"] != tr.get_choices()["y", "x"]
         assert w != 0.0
@@ -421,9 +385,8 @@ class TestHMC:
             {"x": SafeHMC(Selection.at["y"], jnp.array(1e-2))},
         )
         editor = jax.jit(request.edit)
-        key, sub_key = jrand.split(key)
         with pytest.raises(Exception):
-            new_tr, w, *_ = editor(sub_key, tr, ())
+            new_tr, w, *_ = editor(tr, ())
 
 
 class TestDiffCoercion:
@@ -434,9 +397,7 @@ class TestDiffCoercion:
             y2 = genjax.normal(y1, 1.0) @ "y2"
             return y1 + y2
 
-        key = jax.random.key(314159)
-        key, sub_key = jax.random.split(key)
-        tr = simple_normal.simulate(sub_key, ())
+        tr = simple_normal.simulate(())
 
         # Test that DiffCoercion.edit is being
         # properly used compositionally.
@@ -453,7 +414,7 @@ class TestDiffCoercion:
         })
 
         with pytest.raises(Exception):
-            request.edit(key, tr, ())
+            request.edit(tr, ())
 
         # Test equivalent between requests which use
         # DiffCoercion in trivial ways.
@@ -464,6 +425,6 @@ class TestDiffCoercion:
             "y1": Regenerate(Selection.all()).contramap(assert_no_change),
             "y2": EmptyRequest().map(assert_no_change),
         })
-        _, w, _, _ = unwrapped_request.edit(key, tr, ())
-        _, w_, _, _ = wrapped_request.edit(key, tr, ())
+        _, w, _, _ = unwrapped_request.edit(tr, ())
+        _, w_, _, _ = wrapped_request.edit(tr, ())
         assert w == w_

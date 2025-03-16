@@ -143,7 +143,7 @@ def ELBO(
         def _loss(*args):
             target = make_target(*args)
             guide_alg = Importance(target, guide)
-            w = guide_alg.estimate_normalizing_constant(key, target)
+            w = guide_alg.estimate_normalizing_constant(target)
             return -w
 
         return _loss.grad_estimate(key, args)
@@ -169,7 +169,7 @@ def IWELBO(
         def _loss(*args):
             target = make_target(*args)
             guide = ImportanceK(target, proposal, N)
-            w = guide.estimate_normalizing_constant(key, target)
+            w = guide.estimate_normalizing_constant(target)
             return -w
 
         return _loss.grad_estimate(key, args)
@@ -189,14 +189,12 @@ def PWake(
         key: PRNGKey,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        key, sub_key1, sub_key2 = jax.random.split(key, 3)
-
         # In the source language of ADEV.
         @expectation
         def _loss(*target_args):
             target = make_target(*target_args)
-            _, sample = posterior_approx.random_weighted(sub_key1, target)
-            tr, _ = target.importance(sub_key2, sample)
+            _, sample = posterior_approx.random_weighted(target)
+            tr, _ = target.importance(sample)
             return -tr.get_score()
 
         return _loss.grad_estimate(key, args)

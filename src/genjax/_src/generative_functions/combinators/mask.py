@@ -36,7 +36,6 @@ from genjax._src.core.typing import (
     Any,
     Flag,
     Generic,
-    PRNGKey,
     ScalarFlag,
     TypeVar,
 )
@@ -150,27 +149,24 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
     def simulate(
         self,
-        key: PRNGKey,
         args: tuple[Any, ...],
     ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
-        tr = self.gen_fn.simulate(key, inner_args)
+        tr = self.gen_fn.simulate(inner_args)
         return MaskTrace.build(self, tr, check)
 
     def generate(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[MaskTrace[R], Weight]:
         check, inner_args = args[0], args[1:]
 
-        tr, w = self.gen_fn.generate(key, constraint, inner_args)
+        tr, w = self.gen_fn.generate(constraint, inner_args)
         return MaskTrace.build(self, tr, check), w * check
 
     def project(
         self,
-        key: PRNGKey,
         trace: Trace[Mask[R]],
         selection: Selection,
     ) -> Weight:
@@ -178,7 +174,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
     def edit(
         self,
-        key: PRNGKey,
         trace: Trace[Mask[R]],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
@@ -197,7 +192,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         subrequest = Update(edit_request.constraint)
 
         premasked_trace, weight, retdiff, bwd_request = self.gen_fn.edit(
-            key, original_trace, subrequest, inner_argdiffs
+            original_trace, subrequest, inner_argdiffs
         )
 
         final_trace: Trace[R] = jtu.tree_map(

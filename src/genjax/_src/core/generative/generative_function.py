@@ -40,7 +40,6 @@ from genjax._src.core.typing import (
     Callable,
     Generic,
     InAxes,
-    PRNGKey,
     Self,
     TypeVar,
     nobeartype,
@@ -288,7 +287,7 @@ class GenerativeFunction(Generic[R], Pytree):
 
     def __abstract_call__(self, *args) -> R:
         """Used to support JAX tracing, although this default implementation involves no
-        JAX operations (it takes a fixed-key sample from the return value).
+        JAX operations.
 
         Generative functions may customize this to improve compilation time.
         """
@@ -600,7 +599,6 @@ class GenerativeFunction(Generic[R], Pytree):
 
     def update(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         constraint: ChoiceMap,
         argdiffs: Argdiffs,
@@ -609,7 +607,6 @@ class GenerativeFunction(Generic[R], Pytree):
             constraint,
         )
         tr, w, rd, bwd = request.edit(
-            key,
             trace,
             argdiffs,
         )
@@ -669,7 +666,7 @@ class GenerativeFunction(Generic[R], Pytree):
         """
         Samples a [`ChoiceMap`][genjax.core.ChoiceMap] and any untraced randomness $r$ from the generative function's distribution over samples ($P$), and returns the [`Score`][genjax.core.Score] of that sample under the distribution, and the `R` of the generative function's return value function $f(r, t, a)$ for the sample and untraced randomness.
         """
-        tr = self.simulate(key, args)
+        tr = self.simulate(args)
         sample = tr.get_choices()
         score = tr.get_score()
         retval = tr.get_retval()
@@ -1499,11 +1496,10 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
 
     def simulate(
         self,
-        key: PRNGKey,
         args: Arguments,
     ) -> Trace[R]:
         (args, _kwargs) = args
-        return self.wrapped.simulate(key, args)
+        return self.wrapped.simulate(args)
 
     def assess(
         self,
@@ -1515,30 +1511,27 @@ class IgnoreKwargs(Generic[R], GenerativeFunction[R]):
 
     def generate(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[Any], Weight]:
         (args, _kwargs) = args
-        return self.wrapped.generate(key, constraint, args)
+        return self.wrapped.generate(constraint, args)
 
     def project(
         self,
-        key: PRNGKey,
         trace: Trace[Any],
         selection: Selection,
     ) -> Weight:
-        return self.wrapped.project(key, trace, selection)
+        return self.wrapped.project(trace, selection)
 
     def edit(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
         (argdiffs, _kwargs) = argdiffs
-        return self.wrapped.edit(key, trace, edit_request, argdiffs)
+        return self.wrapped.edit(trace, edit_request, argdiffs)
 
 
 @Pytree.dataclass
@@ -1571,15 +1564,15 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
     # This override returns `R`, while the superclass returns a `GenerativeFunctionClosure`; this is
     # a hint that subclassing may not be the right relationship here.
-    def __call__(self, key: PRNGKey, *args, **kwargs) -> R:  # pyright: ignore[reportIncompatibleMethodOverride]
+    def __call__(self, *args, **kwargs) -> R:  # pyright: ignore[reportIncompatibleMethodOverride]
         full_args = self.args + args
         full_kwargs = self.kwargs | kwargs
 
         if full_kwargs:
             kwarg_fn = self._with_kwargs()
-            return kwarg_fn.simulate(key, (full_args, full_kwargs)).get_retval()
+            return kwarg_fn.simulate((full_args, full_kwargs)).get_retval()
         else:
-            return self.gen_fn.simulate(key, full_args).get_retval()
+            return self.gen_fn.simulate(full_args).get_retval()
 
     def __abstract_call__(self, *args, **kwargs) -> R:
         full_args = self.args + args
@@ -1597,22 +1590,19 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
 
     def simulate(
         self,
-        key: PRNGKey,
         args: tuple[Any, ...],
     ) -> Trace[R]:
         full_args = self.args + args
         if self.kwargs:
             maybe_kwarged_gen_fn = self._with_kwargs()
             return maybe_kwarged_gen_fn.simulate(
-                key,
                 (full_args, self.kwargs),
             )
         else:
-            return self.gen_fn.simulate(key, full_args)
+            return self.gen_fn.simulate(full_args)
 
     def generate(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: Arguments,
     ) -> tuple[Trace[Any], Weight]:
@@ -1620,24 +1610,21 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         if self.kwargs:
             maybe_kwarged_gen_fn = self._with_kwargs()
             return maybe_kwarged_gen_fn.generate(
-                key,
                 constraint,
                 (full_args, self.kwargs),
             )
         else:
-            return self.gen_fn.generate(key, constraint, full_args)
+            return self.gen_fn.generate(constraint, full_args)
 
     def project(
         self,
-        key: PRNGKey,
         trace: Trace[Any],
         selection: Selection,
     ):
-        return self.gen_fn.project(key, trace, selection)
+        return self.gen_fn.project(trace, selection)
 
     def edit(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
@@ -1647,13 +1634,12 @@ class GenerativeFunctionClosure(Generic[R], GenerativeFunction[R]):
         if self.kwargs:
             maybe_kwarged_gen_fn = self._with_kwargs()
             return maybe_kwarged_gen_fn.edit(
-                key,
                 trace,
                 edit_request,
                 (full_args, Diff.unknown_change(self.kwargs)),
             )
         else:
-            return self.gen_fn.edit(key, trace, edit_request, argdiffs)
+            return self.gen_fn.edit(trace, edit_request, argdiffs)
 
     def assess(
         self,

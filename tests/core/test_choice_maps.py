@@ -840,8 +840,7 @@ class TestChoiceMap:
             y = genjax.normal(10.0, 1.0) @ "y"
             return x, y
 
-        key = jax.random.key(0)
-        tr = f.repeat(n=4).simulate(key, ())
+        tr = f.repeat(n=4).simulate(())
 
         xs = jnp.ones(4)
         ys = 5 * jnp.ones(4)
@@ -849,14 +848,12 @@ class TestChoiceMap:
         only_xs = constraint.filter(S["x"])
         only_ys = constraint.filter(S["y"])
 
-        key, subkey = jax.random.split(key)
-        new_tr, _, _, _ = tr.update(subkey, only_xs)
+        new_tr, _, _, _ = tr.update(only_xs)
         new_choices = new_tr.get_choices()
         assert jnp.array_equal(new_choices[:, "x"], xs)
         assert not jnp.array_equal(new_choices[:, "y"], ys)
 
-        key, subkey = jax.random.split(key)
-        new_tr_2, _, _, _ = tr.update(subkey, only_ys)
+        new_tr_2, _, _, _ = tr.update(only_ys)
         new_choices_2 = new_tr_2.get_choices()
         assert not jnp.array_equal(new_choices_2[:, "x"], xs)
         assert jnp.array_equal(new_choices_2[:, "y"], ys)

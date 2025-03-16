@@ -426,7 +426,7 @@ def exact_density(
         warnings.warn("You should supply a name argument to exact_density")
         name = "unknown"
 
-    def kwargle(f, a0, args, kwargs):
+    def _(f, a0, args, kwargs):
         """Keyword arguments currently get unusual treatment in GenJAX: when
         a keyword argument is provided to a generative function, the function
         is asked to provide a new version of itself which receives a different

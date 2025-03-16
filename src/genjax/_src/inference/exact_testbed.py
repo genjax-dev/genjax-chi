@@ -70,7 +70,7 @@ def build_test_against_exact_inference(
     def inference_test_generator(key: PRNGKey):
         key, sub_key = jax.random.split(key)
         initial_state = categorical.sample(sub_key, jnp.ones(config.linear_grid_dim))
-        tr = markov_chain.simulate(sub_key, (max_length - 1, initial_state, config))
+        tr = markov_chain.simulate((max_length - 1, initial_state, config))
         z_sel = SelectionBuilder["z"]
         x_sel = SelectionBuilder["x"]
         latent_sequence = tr.get_choices().filter(z_sel)["z"]

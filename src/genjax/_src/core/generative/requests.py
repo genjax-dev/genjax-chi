@@ -36,7 +36,6 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     Generic,
-    PRNGKey,
     TypeVar,
 )
 
@@ -49,7 +48,6 @@ ER = TypeVar("ER", bound=EditRequest)
 class EmptyRequest(EditRequest):
     def edit(
         self,
-        key: PRNGKey,
         tr: Trace[R],
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
@@ -57,7 +55,7 @@ class EmptyRequest(EditRequest):
             return tr, jnp.array(0.0), Diff.no_change(tr.get_retval()), EmptyRequest()
         else:
             request = Update(ChoiceMap.empty())
-            return request.edit(key, tr, argdiffs)
+            return request.edit(tr, argdiffs)
 
 
 @Pytree.dataclass(match_args=True)
@@ -85,11 +83,10 @@ class DiffAnnotate(Generic[ER], EditRequest):
 
     def edit(
         self,
-        key: PRNGKey,
         tr: Trace[R],
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], "EditRequest"]:
         new_argdiffs = self.argdiff_fn(argdiffs)
-        tr, w, retdiff, bwd_request = self.request.edit(key, tr, new_argdiffs)
+        tr, w, retdiff, bwd_request = self.request.edit(tr, new_argdiffs)
         new_retdiff = self.retdiff_fn(retdiff)
         return tr, w, new_retdiff, bwd_request

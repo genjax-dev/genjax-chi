@@ -33,7 +33,6 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     Generic,
-    PRNGKey,
     TypeVar,
 )
 
@@ -115,39 +114,35 @@ class Dimap(Generic[ArgTuple, R, S], GenerativeFunction[S]):
 
     def simulate(
         self,
-        key: PRNGKey,
         args: tuple[Any, ...],
     ) -> DimapTrace[R, S]:
         inner_args = self.argument_mapping(*args)
-        tr = self.inner.simulate(key, inner_args)
+        tr = self.inner.simulate(inner_args)
         inner_retval = tr.get_retval()
         retval = self.retval_mapping(args, inner_args, inner_retval)
         return DimapTrace(self, tr, args, retval)
 
     def generate(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[DimapTrace[R, S], Weight]:
         inner_args = self.argument_mapping(*args)
-        tr, weight = self.inner.generate(key, constraint, inner_args)
+        tr, weight = self.inner.generate(constraint, inner_args)
         inner_retval = tr.get_retval()
         retval = self.retval_mapping(args, inner_args, inner_retval)
         return DimapTrace(self, tr, args, retval), weight
 
     def project(
         self,
-        key: PRNGKey,
         trace: Trace[S],
         selection: Selection,
     ) -> Weight:
         assert isinstance(trace, DimapTrace)
-        return trace.inner.project(key, selection)
+        return trace.inner.project(selection)
 
     def edit_change_target(
         self,
-        key: PRNGKey,
         trace: Trace[S],
         request: EditRequest,
         argdiffs: Argdiffs,
@@ -165,7 +160,6 @@ class Dimap(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         inner_trace: Trace[R] = trace.inner
 
         tr, w, inner_retdiff, bwd_request = self.inner.edit(
-            key,
             inner_trace,
             request,
             inner_argdiffs,
@@ -194,12 +188,11 @@ class Dimap(Generic[ArgTuple, R, S], GenerativeFunction[S]):
 
     def edit(
         self,
-        key: PRNGKey,
         trace: Trace[S],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
-        return self.edit_change_target(key, trace, edit_request, argdiffs)
+        return self.edit_change_target(trace, edit_request, argdiffs)
 
     def assess(
         self,

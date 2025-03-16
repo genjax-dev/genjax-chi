@@ -30,8 +30,8 @@ class TestOrElse:
 
         f_or_f = f.or_else(f)
         args = (True, (), ())
-        tr = f_or_f.simulate(key, args)
-        score, ret = f_or_f.assess(f_or_f.simulate(key, args).get_choices(), args)
+        tr = f_or_f.simulate(args)
+        score, ret = f_or_f.assess(f_or_f.simulate(args).get_choices(), args)
 
         assert tr.get_score() == score
         assert tr.get_retval() == ret
@@ -48,7 +48,7 @@ class TestOrElse:
             )
 
         args = ()
-        tr = f.simulate(key, args)
+        tr = f.simulate(args)
         score, ret = f.assess(tr.get_choices(), args)
 
         assert tr.get_score() == score

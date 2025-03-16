@@ -18,7 +18,7 @@ import jax.core as jc
 from jax import tree_util
 from jax import util as jax_util
 from jax.extend.core import Primitive
-from jax.interpreters import batching
+from jax.interpreters import batching, mlir
 from jax.interpreters import partial_eval as pe
 
 from genjax._src.core.compiler.staging import stage
@@ -40,7 +40,12 @@ class InitialStylePrimitive(Primitive):
         self.multiple_results = True
 
         def impl(*args, **params):
-            params["raise_exception"]()
+            if "impl" in params:
+                return params["impl"](*args, **params)
+            elif "raise_exception" in params:
+                params["raise_exception"]()
+            else:
+                raise Exception("No implementation provided.")
 
         self.def_impl(impl)
 
@@ -54,6 +59,12 @@ class InitialStylePrimitive(Primitive):
             return params["batch"](args, dim)
 
         batching.primitive_batchers[self] = batch
+
+        def _mlir(ctx: mlir.LoweringRuleContext, *mlir_args, **params):
+            lowering = mlir.lower_fun(self.impl, multiple_results=True)
+            return lowering(ctx, *mlir_args, **params)
+
+        mlir.register_lowering(self, _mlir)
 
 
 def initial_style_bind(prim, **params):
