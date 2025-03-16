@@ -59,7 +59,26 @@ class JAXCInterpreter:
                     jax_impl(sub_key, *args),
                 )
             elif eqn.primitive == cond_p:
-                raise NotImplementedError("lax.cond_p is not supported")
+                invals = jax_util.safe_map(env.read, eqn.invars)
+                subfuns, params = eqn.primitive.get_bind_params(eqn.params)
+                branch_closed_jaxprs = params["branches"]
+                index_val, ops_vals = invals[0], invals[1:]
+
+                def new_branch(key, closed_jaxpr, *args):
+                    interpreter = JAXCInterpreter(key)
+                    jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
+                    return interpreter.eval_jaxpr_jaxc(
+                        jaxpr,
+                        consts,
+                        list(args),
+                    )
+
+                self.key, sub_key = jrand.split(self.key)
+                new_branches = [
+                    lambda *args: new_branch(sub_key, branch_closed_jaxpr, *args)
+                    for branch_closed_jaxpr in branch_closed_jaxprs
+                ]
+                outvals = new_branches[0](*ops_vals)
 
             # We replace the original scan with a new scan
             # that calls the interpreter on the scan body,

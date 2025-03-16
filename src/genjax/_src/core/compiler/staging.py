@@ -326,9 +326,6 @@ def to_shape_fn(
     return typing.cast(F, wrapped)
 
 
-_fake_key = jnp.array([0, 0], dtype=jnp.uint32)
-
-
 def empty_trace(
     gen_fn: "genjax.GenerativeFunction[R]", args: "genjax.Arguments"
 ) -> "genjax.Trace[R]":
@@ -344,4 +341,4 @@ def empty_trace(
     Returns:
         A trace with the same structure as a real trace, but filled with zero values.
     """
-    return to_shape_fn(gen_fn.simulate, jnp.zeros)(_fake_key, args)
+    return to_shape_fn(gen_fn.simulate, jnp.zeros)(args)
