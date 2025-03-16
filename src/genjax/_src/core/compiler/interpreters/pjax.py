@@ -37,6 +37,31 @@ from genjax._src.core.typing import Any, Callable, PRNGKey
 sample_p = InitialStylePrimitive("sample")
 
 
+def static_dim_length(in_axes, args: tuple[Any, ...]) -> int:
+    # perform the in_axes massaging that vmap performs internally:
+    if isinstance(in_axes, int):
+        in_axes = (in_axes,) * len(args)
+    elif isinstance(in_axes, list):
+        in_axes = tuple(in_axes)
+
+    def find_axis_size(axis: int | None, x: Any) -> int | None:
+        """Find the size of the axis specified by `axis` for the argument `x`."""
+        if axis is not None:
+            leaf = jtu.tree_leaves(x)[0]
+            return leaf.shape[axis]
+
+    # tree_map uses in_axes as a template. To have passed vmap validation, Any non-None entry
+    # must bottom out in an array-shaped leaf, and all such leafs must have the same size for
+    # the specified dimension. Fetching the first is sufficient.
+    axis_sizes = jtu.tree_map(
+        find_axis_size,
+        in_axes,
+        args,
+        is_leaf=lambda x: x is None,
+    )
+    return jtu.tree_leaves(axis_sizes)[0]
+
+
 def sample_binder(
     jax_impl: Callable[[PRNGKey, Any], Any],
     **kwargs,
@@ -50,21 +75,21 @@ def sample_binder(
                 "JAX is attempting to invoke the implementation of a sampler defined using the `sample_p` primitive in your function.\n\nEliminate `sample_p` in `your_fn` by using the `genjax.pjax(your_fn, key: PRNGKey)(*your_args)` transformation, which allows you to use the JAX implementation of the sampler."
             )
 
-        def keyless_batch_impl(vector_args, batch_axes):
-            v = initial_style_bind(
-                sample_p,
-                jax_impl=vmap(
-                    jax_impl,
-                    in_axes=(None, *batch_axes),
-                ),
-                raise_exception=raise_exception,
-            )(vmap(keyless_jax_impl, in_axes=batch_axes))(*vector_args)
+        # Holy smokes recursion.
+        def batch(vector_args, batch_axes):
+            def batch_jax_impl(key, *args):
+                n = static_dim_length(batch_axes, args)
+                ks = jrand.split(key, n)
+                return vmap(jax_impl, in_axes=(0, *batch_axes))(ks, *args)
+
+            batched_sampler = sample_binder(batch_jax_impl)
+            v = batched_sampler(*vector_args)
             return (v,), (0,)
 
         return initial_style_bind(
             sample_p,
             jax_impl=jax_impl,
-            batch=keyless_batch_impl,
+            batch=batch,
             raise_exception=raise_exception,
             **kwargs,
         )(keyless_jax_impl)(*args)
