@@ -80,7 +80,6 @@ exact_posterior_mean(obs, α, β),
 ```python
 from jax import jit
 import jax.numpy as jnp
-import jax.random as jrand
 from genjax import ChoiceMap as Chm
 from genjax import Selection as Sel
 from genjax.edits import HMC
@@ -88,18 +87,16 @@ from genjax.edits import HMC
 # Implements HMC-within-SIR:
 # create a trace, edit it with HMC, resample.
 @jit
-def inference_via_editing_traces(key, obs, α, β):
-    key, (tr, lws) = beta_bernoulli.importance_k(500)(
-        key, # fresh randomness
+def inference_via_editing_traces(obs, α, β):
+    (tr, lws) = beta_bernoulli.importance_k(500)(
         Chm.d({"v": obs}), # constraint: "v" -> obs
         (α, β), # (α, β)
     )
-    key, (tr, lws_, *_) = tr.edit_k(
-        key, # fresh randomness
+    (tr, lws_, *_) = tr.edit_k(
         # run a single step of HMC for "p" with eps=1e-3.
         HMC(Sel.at["p"], jnp.array(1e-3))
     )
-    _, (tr, _) = tr.resample_k(key, lws + lws_)
+    (tr, _) = tr.resample_k(lws + lws_)
     return jnp.mean(tr.get_choices()["p"])
 ```
 
@@ -111,7 +108,6 @@ def inference_via_editing_traces(key, obs, α, β):
 import jax
 from jax import jit
 import jax.numpy as jnp
-import jax.random as jrand
 import genjax
 from genjax import beta, flip, gen
 from genjax import ChoiceMap as Chm
@@ -131,25 +127,23 @@ def exact_posterior_mean(obs, α, β):
 # Implements HMC-within-SIR:
 # create a trace, edit it with HMC, resample.
 @jit
-def inference_via_editing_traces(key, obs, α, β):
-    key, (tr, lws) = beta_bernoulli.importance_k(500)(
-        key, # fresh randomness
+def inference_via_editing_traces(obs, α, β):
+    (tr, lws) = beta_bernoulli.importance_k(500)(
         Chm.d({"v": obs}), # constraint: "v" -> obs
         (α, β), # (α, β)
     )
-    key, (tr, lws_, *_) = tr.edit_k(
-        key, # fresh randomness
+    (tr, lws_, *_) = tr.edit_k(
         # run a single step of HMC for "p" with eps=1e-3.
         HMC(Sel.at["p"], jnp.array(1e-3))
     )
-    _, (tr, _) = tr.resample_k(key, lws + lws_)
+    (tr, _) = tr.resample_k(lws + lws_)
     return jnp.mean(tr["p"])
 
 α, β = 1.0, 1.0
 obs = True
 (
     exact_posterior_mean(obs, α, β),
-    inference_via_editing_traces(jrand.key(1), obs, α, β),
+    inference_via_editing_traces(obs, α, β),
 )
 # (0.6666666666666666, Array(0.6506245, dtype=float32))
 ```

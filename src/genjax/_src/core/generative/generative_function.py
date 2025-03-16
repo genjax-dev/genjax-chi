@@ -240,7 +240,11 @@ class Trace(Generic[R], Pytree):
         from genjax import categorical
 
         batch_shape = self.batch_shape()
-        idx = vmap(categorical.sample, axis_size=batch_shape)(ws)
+        idx = vmap(
+            categorical.sample,
+            in_axes=None,
+            axis_size=batch_shape,
+        )(ws)
         tr_k = jtu.tree_map(lambda x: x[idx], self)
         Z = logsumexp(ws)
         return (tr_k, Z)
@@ -680,9 +684,10 @@ class GenerativeFunction(Generic[R], Pytree):
         def _importance_k(
             constraint: ChoiceMap,
             args: Arguments,
-        ) -> tuple[Any, tuple[Trace[R], Weight]]:
+        ) -> tuple[Trace[R], Weight]:
             tr, ws = vmap(
                 lambda g, c, a: g.importance(c, a),
+                in_axes=(None, None, None),
                 axis_size=n,
             )(self, constraint, args)
             return (tr, ws)
