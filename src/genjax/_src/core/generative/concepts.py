@@ -28,7 +28,6 @@ from genjax._src.core.typing import (
     FloatArray,
     IntArray,
     Is,
-    PRNGKey,
     Self,
     TypeVar,
 )
@@ -102,7 +101,6 @@ class EditRequest(Pytree):
     @abstractmethod
     def edit(
         self,
-        key: PRNGKey,
         tr: "genjax.Trace[R]",
         argdiffs: Argdiffs,
     ) -> "tuple[genjax.Trace[R], Weight, Retdiff[R], EditRequest]":
@@ -142,12 +140,11 @@ class PrimitiveEditRequest(EditRequest):
 
     def edit(
         self,
-        key: PRNGKey,
         tr: "genjax.Trace[R]",
         argdiffs: Argdiffs,
     ) -> "tuple[genjax.Trace[R], Weight, Retdiff[R], EditRequest]":
         gen_fn = tr.get_gen_fn()
-        return gen_fn.edit(key, tr, self, argdiffs)
+        return gen_fn.edit(tr, self, argdiffs)
 
 
 @Pytree.dataclass(match_args=True)

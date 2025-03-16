@@ -16,7 +16,7 @@
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 
-from genjax._src.core.compiler.interpreters.pjax import sample_binder
+from genjax._src.core.compiler.pjax import sample_binder
 from genjax._src.core.typing import Array, Callable
 from genjax._src.generative_functions.distributions.distribution import (
     ExactDensity,
