@@ -22,7 +22,6 @@ from genjax._src.inference.vi import (
     flip_enum,
     flip_mvd,
     geometric_reinforce,
-    mv_normal_diag_reparam,
     normal_reinforce,
     normal_reparam,
 )
@@ -37,7 +36,6 @@ __all__ = [
     "flip_enum",
     "flip_mvd",
     "geometric_reinforce",
-    "mv_normal_diag_reparam",
     "normal_reinforce",
     "normal_reparam",
 ]

@@ -27,7 +27,6 @@ from genjax._src.adev.primitives import (
     flip_enum,
     flip_mvd,
     geometric_reinforce,
-    mv_normal_diag_reparam,
     normal_reinforce,
     normal_reparam,
 )
@@ -103,13 +102,6 @@ normal_reinforce = adev_distribution(
 
 normal_reparam = adev_distribution(normal_reparam, logpdf(normal), "normal_reparam")
 
-mv_normal_diag_reparam = adev_distribution(
-    mv_normal_diag_reparam,
-    lambda v, loc, scale_diag: tfd.MultivariateNormalDiag(
-        loc=loc, scale_diag=scale_diag
-    ).log_prob(v),
-    "mv_normal_diag_reparam",
-)
 
 geometric_reinforce = adev_distribution(
     geometric_reinforce, logpdf(geometric), "geometric_reinforce"
@@ -146,7 +138,7 @@ def ELBO(
             w = guide_alg.estimate_normalizing_constant(target)
             return -w
 
-        return _loss.grad_estimate(key, args)
+        return _loss.grad_estimate(args)
 
     return grad_estimate
 
@@ -172,7 +164,7 @@ def IWELBO(
             w = guide.estimate_normalizing_constant(target)
             return -w
 
-        return _loss.grad_estimate(key, args)
+        return _loss.grad_estimate(args)
 
     return grad_estimate
 
@@ -197,7 +189,7 @@ def PWake(
             tr, _ = target.importance(sample)
             return -tr.get_score()
 
-        return _loss.grad_estimate(key, args)
+        return _loss.grad_estimate(args)
 
     return grad_estimate
 
@@ -225,6 +217,6 @@ def QWake(
             w = proposal.estimate_logpdf(sub_key2, sample, target)
             return -w
 
-        return _loss.grad_estimate(key, args)
+        return _loss.grad_estimate(args)
 
     return grad_estimate

@@ -37,7 +37,6 @@ from genjax._src.core.typing import (
     ArrayLike,
     Callable,
     Is,
-    PRNGKey,
 )
 
 DualTree = Annotated[
@@ -59,13 +58,12 @@ class ADEVPrimitive(Pytree):
     """
 
     @abstractmethod
-    def sample(self, key, *args) -> Any:
+    def sample(self, *args) -> Any:
         pass
 
     @abstractmethod
     def jvp_estimate(
         self,
-        key: PRNGKey,
         dual_tree: DualTree,  # Pytree with Dual leaves.
         konts: tuple[Callable[..., Any], Callable[..., Any]],
     ) -> "Dual":
@@ -87,19 +85,17 @@ class TailCallADEVPrimitive(ADEVPrimitive):
     @abstractmethod
     def before_tail_call(
         self,
-        key: PRNGKey,
         dual_tree: DualTree,  # Pytree with Dual leaves.
     ) -> "Dual":
         pass
 
     def jvp_estimate(
         self,
-        key: PRNGKey,
         dual_tree: DualTree,  # Pytree with Dual leaves.
         konts: tuple[Callable[..., Any], Callable[..., Any]],
     ) -> "Dual":
         _, kdual = konts
-        return kdual(key, self.before_tail_call(key, dual_tree))
+        return kdual(self.before_tail_call(dual_tree))
 
     def get_batched_prim(self, dims: tuple[Any, ...]):
         return TailCallBatchedADEVPrimitive(self, dims)
@@ -110,26 +106,24 @@ class TailCallBatchedADEVPrimitive(TailCallADEVPrimitive):
     original_prim: TailCallADEVPrimitive
     dims: tuple[Any, ...] = Pytree.static()
 
-    def sample(self, key, *args):
-        return jax.vmap(self.original_prim.sample, in_axes=self.dims)(key, *args)
+    def sample(self, *args):
+        return jax.vmap(self.original_prim.sample, in_axes=self.dims)(*args)
 
     def before_tail_call(
         self,
-        key: PRNGKey,
         dual_tree: DualTree,  # Pytree with Dual leaves.
     ) -> "Dual":
-        key_dim, tree_dim = jax_util.split_list(self.dims, [1])
         tree_primals = Dual.tree_primal(dual_tree)
         tree_tangents = Dual.tree_tangent(dual_tree)
 
-        def _before_tail_call(key, tree_primals, tree_tangents):
+        def _before_tail_call(tree_primals, tree_tangents):
             dual_tree = Dual.dual_tree(tree_primals, tree_tangents)
-            return self.original_prim.before_tail_call(key, dual_tree)
+            return self.original_prim.before_tail_call(dual_tree)
 
         return jax.vmap(
             _before_tail_call,
-            in_axes=(key_dim, tree_dim, tree_dim),
-        )(key, tree_primals, tree_tangents)
+            in_axes=(self.dims, self.dims),
+        )(tree_primals, tree_tangents)
 
 
 ####################
@@ -140,13 +134,9 @@ class TailCallBatchedADEVPrimitive(TailCallADEVPrimitive):
 sample_p = InitialStylePrimitive("sample")
 
 
-def sample_primitive(adev_prim: ADEVPrimitive, *args, key=jax.random.key(0)):
+def sample_primitive(adev_prim: ADEVPrimitive, *args):
     def _adev_prim_call(adev_prim, *args):
-        # When used for abstract tracing, value of the key doesn't matter.
-        # However, we support overloading the key for other transformations,
-        # which will rely on the default semantics of `initial_style_bind`,
-        # which is to call this function -- then, the value of the key will matter.
-        v = adev_prim.sample(key, *args)
+        v = adev_prim.sample(*args)
         return v
 
     return initial_style_bind(sample_p)(_adev_prim_call)(
@@ -249,7 +239,6 @@ class ADInterpreter(Pytree):
 
     @staticmethod
     def eval_jaxpr_adev(
-        key: PRNGKey,
         jaxpr: Jaxpr,
         consts: list[ArrayLike],
         flat_duals: list[Dual],
@@ -259,7 +248,7 @@ class ADInterpreter(Pytree):
         jax_util.safe_map(dual_env.write, jaxpr.invars, flat_duals)
 
         # TODO: Pure evaluation.
-        def eval_jaxpr_iterate_pure(key, eqns, pure_env, invars, flat_args):
+        def eval_jaxpr_iterate_pure(eqns, pure_env, invars, flat_args):
             jax_util.safe_map(pure_env.write, invars, flat_args)
             for eqn in eqns:
                 in_vals = jax_util.safe_map(pure_env.read, eqn.invars)
@@ -276,7 +265,7 @@ class ADInterpreter(Pytree):
             return jax_util.safe_map(pure_env.read, jaxpr.outvars)
 
         # Dual evaluation.
-        def eval_jaxpr_iterate_dual(key, eqns, dual_env, invars, flat_duals):
+        def eval_jaxpr_iterate_dual(eqns, dual_env, invars, flat_duals):
             jax_util.safe_map(dual_env.write, invars, flat_duals)
 
             for eqn_idx, eqn in enumerate(eqns):
@@ -291,9 +280,8 @@ class ADInterpreter(Pytree):
                         pure_env = Dual.tree_primal(dual_env)
 
                         # Create pure continuation.
-                        def _sample_pure_kont(key, *args):
+                        def _sample_pure_kont(*args):
                             return eval_jaxpr_iterate_pure(
-                                key,
                                 eqns[eqn_idx + 1 :],
                                 pure_env,
                                 eqn.outvars,
@@ -301,10 +289,9 @@ class ADInterpreter(Pytree):
                             )
 
                         # Create dual continuation.
-                        def _sample_dual_kont(key, dual_tree):
+                        def _sample_dual_kont(dual_tree):
                             dual_leaves = Dual.tree_leaves(dual_tree)
                             return eval_jaxpr_iterate_dual(
-                                key,
                                 eqns[eqn_idx + 1 :],
                                 dual_env,
                                 eqn.outvars,
@@ -322,7 +309,6 @@ class ADInterpreter(Pytree):
                         dual_tree = Dual.dual_tree(primals, tangents)
 
                         return adev_prim.jvp_estimate(
-                            key,
                             dual_tree,
                             (_sample_pure_kont, _sample_dual_kont),
                         )
@@ -335,7 +321,6 @@ class ADInterpreter(Pytree):
                         def _cond_dual_kont(dual_tree: list[Any]):
                             dual_leaves = Dual.tree_pure(dual_tree)
                             return eval_jaxpr_iterate_dual(
-                                key,
                                 eqns[eqn_idx + 1 :],
                                 dual_env,
                                 eqn.outvars,
@@ -358,7 +343,6 @@ class ADInterpreter(Pytree):
                         return jax.lax.cond(
                             Dual.tree_primal(in_vals[0]),
                             *reversed(branch_adev_functions),
-                            key,
                             in_vals[1:],
                         )
 
@@ -393,19 +377,16 @@ class ADInterpreter(Pytree):
                 out_dual = Dual(out_dual, jnp.zeros_like(out_dual))
             return out_dual
 
-        return eval_jaxpr_iterate_dual(
-            key, jaxpr.eqns, dual_env, jaxpr.invars, flat_duals
-        )
+        return eval_jaxpr_iterate_dual(jaxpr.eqns, dual_env, jaxpr.invars, flat_duals)
 
     @staticmethod
     def forward_mode(f, kont=lambda v: v):
-        def _inner(key, dual_tree: DualTree):
+        def _inner(dual_tree: DualTree):
             primals = jtu.tree_leaves(Dual.tree_primal(dual_tree))
             closed_jaxpr, (_, _, out_tree) = stage(f)(*primals)
             jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
             dual_leaves = Dual.tree_leaves(Dual.tree_pure(dual_tree))
             out_duals = ADInterpreter.eval_jaxpr_adev(
-                key,
                 jaxpr,
                 consts,
                 dual_leaves,
@@ -423,9 +404,9 @@ class ADInterpreter(Pytree):
         def maybe_array(v):
             return jnp.array(v, copy=False)
 
-        def _dual(key, dual_tree: DualTree):
+        def _dual(dual_tree: DualTree):
             dual_tree = jtu.tree_map(maybe_array, dual_tree)
-            return _inner(key, dual_tree)
+            return _inner(dual_tree)
 
         return _dual
 
@@ -441,16 +422,13 @@ class ADEVProgram(Pytree):
 
     def jvp_estimate(
         self,
-        key: PRNGKey,
         dual_tree: DualTree,  # Pytree with Dual leaves.
         dual_kont: Callable[..., Any],
     ) -> Dual:
         def adev_jvp(f):
             @wraps(f)
             def wrapped(dual_tree: DualTree):
-                return ADInterpreter.forward_mode(self.source, dual_kont)(
-                    key, dual_tree
-                )
+                return ADInterpreter.forward_mode(self.source, dual_kont)(dual_tree)
 
             return wrapped
 
@@ -466,16 +444,16 @@ class ADEVProgram(Pytree):
 class Expectation(Pytree):
     prog: ADEVProgram
 
-    def jvp_estimate(self, key: PRNGKey, dual_tree: DualTree):
+    def jvp_estimate(self, dual_tree: DualTree):
         # Trivial continuation.
         def _identity(v):
             return v
 
-        return self.prog.jvp_estimate(key, dual_tree, _identity)
+        return self.prog.jvp_estimate(dual_tree, _identity)
 
-    def estimate(self, key, args):
+    def estimate(self, args):
         tangents = jtu.tree_map(lambda _: 0.0, args)
-        return self.jvp_estimate(key, tangents).primal
+        return self.jvp_estimate(tangents).primal
 
     ##################################
     # JAX's native `grad` interface. #
@@ -483,9 +461,9 @@ class Expectation(Pytree):
 
     # The JVP rules here are registered below.
     # (c.f. Register custom forward mode with JAX)
-    def grad_estimate(self, key: PRNGKey, primals: tuple[Any, ...]):
+    def grad_estimate(self, *primals):
         def _invoke_closed_over(primals):
-            return invoke_closed_over(self, key, primals)
+            return invoke_closed_over(self, primals)
 
         return jax.grad(_invoke_closed_over)(primals)
 
@@ -503,15 +481,15 @@ def expectation(source: Callable[..., Any]):
 # These two functions are defined to external to `Expectation`
 # to ignore complexities with defining custom JVP rules for Pytree classes.
 @jax.custom_jvp
-def invoke_closed_over(instance, key, args):
-    return instance.estimate(key, args)
+def invoke_closed_over(instance, args):
+    return instance.estimate(args)
 
 
 def invoke_closed_over_jvp(primals, tangents):
-    (instance, key, primals) = primals
-    (_, _, tangents) = tangents
+    (instance, primals) = primals
+    (_, tangents) = tangents
     duals = Dual.dual_tree(primals, tangents)
-    out_dual = instance.jvp_estimate(key, duals)
+    out_dual = instance.jvp_estimate(duals)
     (v,), (tangent,) = Dual.tree_unzip(out_dual)
     return v, tangent
 
