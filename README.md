@@ -1,10 +1,10 @@
 <br>
 <p align="center">
-<img width="500px" src="./docs/assets/img/logo.png"/>
+<img width="350px" src="./docs/assets/img/logo.png"/>
 </p>
 <p align="center">
   <strong>
-    Probabilistic programming with (parallel & differentiable) programmable inference.
+    Scaling probabilistic programming with programmable inference.
   </strong>
 </p>
 
