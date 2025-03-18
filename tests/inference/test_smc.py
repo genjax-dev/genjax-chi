@@ -20,7 +20,6 @@ from jax.scipy.special import logsumexp
 import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import SelectionBuilder as S
-from genjax._src.core.typing import Any
 from genjax._src.inference.sp import Target
 
 
@@ -36,7 +35,7 @@ class TestSMC:
             _ = genjax.flip(0.5) @ "x"
             _ = genjax.flip(0.7) @ "y"
 
-        def flip_flip_exact_log_marginal_density(target: genjax.Target[Any]):
+        def flip_flip_exact_log_marginal_density(target: genjax.Target):
             y = target.constraint.get_submap("y")
             return genjax.flip.assess(y, (0.7,))[0]
 
@@ -63,7 +62,7 @@ class TestSMC:
             p = jax.lax.cond(v1, lambda: 0.9, lambda: 0.3)
             _ = genjax.flip(p) @ "y"
 
-        def flip_flip_exact_log_marginal_density(target: genjax.Target[Any]):
+        def flip_flip_exact_log_marginal_density(target: genjax.Target):
             y = target["y"]
             x_prior = jnp.array([
                 logpdf(genjax.flip)(True, 0.5),

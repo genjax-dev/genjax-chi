@@ -29,15 +29,15 @@ from genjax._src.adev.primitives import (
     normal_reinforce,
     normal_reparam,
 )
-from genjax._src.core.generative import Arguments, ChoiceMap
+from genjax._src.core.generative import ChoiceMap
 from genjax._src.core.typing import (
     Any,
     Callable,
     FloatArray,
 )
 from genjax._src.generative_functions.distributions.distribution import (
-    ExactDensity,
-    exact_density,
+    Distribution,
+    distribution,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     flip,
@@ -45,7 +45,7 @@ from genjax._src.generative_functions.distributions.tensorflow_probability impor
     normal,
 )
 from genjax._src.inference.smc import Importance, ImportanceK
-from genjax._src.inference.sp import SampleDistribution, Target
+from genjax._src.inference.sp import ChoiceMapDistribution, Target
 
 tfd = tfp.distributions
 
@@ -57,9 +57,9 @@ tfd = tfp.distributions
 
 def adev_distribution(
     adev_primitive: ADEVPrimitive, differentiable_logpdf: Callable[..., Any], name: str
-) -> ExactDensity[Any]:
+) -> Distribution[Any]:
     """
-    Return an [`ExactDensity`][genjax.ExactDensity] distribution whose sampler invokes an ADEV sampling primitive, with a provided differentiable log density function.
+    Return an [`Distribution`][genjax.Distribution] distribution whose sampler invokes an ADEV sampling primitive, with a provided differentiable log density function.
 
     Exact densities created using this function can be used as distributions in variational guide programs.
     """
@@ -75,7 +75,7 @@ def adev_distribution(
         else:
             return lp
 
-    return exact_density(sampler, logpdf, name)
+    return distribution(sampler, logpdf, name)
 
 
 def logpdf(gen_fn):
@@ -117,9 +117,9 @@ The type of gradient estimates returned by sampling from gradient estimators for
 
 
 def ELBO(
-    guide: SampleDistribution,
-    make_target: Callable[..., Target[Any]],
-) -> Callable[[Arguments], GradientEstimate]:
+    guide: ChoiceMapDistribution,
+    make_target: Callable[..., Target],
+) -> Callable[..., GradientEstimate]:
     """
     Return a function that computes the gradient estimate of the ELBO loss term.
     """
@@ -139,10 +139,10 @@ def ELBO(
 
 
 def IWELBO(
-    proposal: SampleDistribution,
-    make_target: Callable[[Any], Target[Any]],
+    proposal: ChoiceMapDistribution,
+    make_target: Callable[[Any], Target],
     N: int,
-) -> Callable[[Arguments], GradientEstimate]:
+) -> Callable[..., GradientEstimate]:
     """
     Return a function that computes the gradient estimate of the IWELBO loss term.
     """
@@ -162,9 +162,9 @@ def IWELBO(
 
 
 def PWake(
-    posterior_approx: SampleDistribution,
-    make_target: Callable[[Any], Target[Any]],
-) -> Callable[[Arguments], GradientEstimate]:
+    posterior_approx: ChoiceMapDistribution,
+    make_target: Callable[[Any], Target],
+) -> Callable[..., GradientEstimate]:
     """
     Return a function that computes the gradient estimate of the PWake loss term.
     """
@@ -184,10 +184,10 @@ def PWake(
 
 
 def QWake(
-    proposal: SampleDistribution,
-    posterior_approx: SampleDistribution,
-    make_target: Callable[[Any], Target[Any]],
-) -> Callable[[Arguments], GradientEstimate]:
+    proposal: ChoiceMapDistribution,
+    posterior_approx: ChoiceMapDistribution,
+    make_target: Callable[[Any], Target],
+) -> Callable[..., GradientEstimate]:
     """
     Return a function that computes the gradient estimate of the QWake loss term.
     """

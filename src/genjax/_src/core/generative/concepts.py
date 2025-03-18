@@ -46,13 +46,13 @@ S = TypeVar("S")
 
 Weight = FloatArray
 """
-A _weight_ is a density ratio which often occurs in the context of proper weighting for [`Target`][genjax.inference.Target] distributions, or in Gen's [`edit`][genjax.core.GenerativeFunction.edit] interface, whose mathematical content is described in [`edit`][genjax.core.GenerativeFunction.edit].
+A _weight_ is a density ratio which often occurs in the context of proper weighting for [`Target`][genjax.inference.Target] distributions, or in Gen's [`edit`][genjax.core.GFI.edit] interface, whose mathematical content is described in [`edit`][genjax.core.GFI.edit].
 
 The type `Weight` does not enforce any meaningful mathematical invariants, but is used to denote the type of weights in GenJAX, to improve readability and parsing of interface specifications / expectations.
 """
 Score = FloatArray
 """
-A _score_ is a density ratio, described fully in [`simulate`][genjax.core.GenerativeFunction.simulate].
+A _score_ is a density ratio, described fully in [`simulate`][genjax.core.GFI.simulate].
 
 The type `Score` does not enforce any meaningful mathematical invariants, but is used to denote the type of scores in the GenJAX system, to improve readability and parsing of interface specifications.
 """
@@ -67,7 +67,7 @@ Argdiffs = Annotated[
     Is[lambda x: Diff.static_check_tree_diff(x)],
 ]
 """
-`Argdiffs` is the type of argument values with an attached `ChangeType` (c.f. [`edit`][genjax.core.GenerativeFunction.edit]).
+`Argdiffs` is the type of argument values with an attached `ChangeType` (c.f. [`edit`][genjax.core.GFI.edit]).
 
 When used under type checking, `Retdiff` assumes that the argument values are `Pytree` (either, defined via GenJAX's `Pytree` interface or registered with JAX's system). For each argument, it checks that _the leaves_ are `Diff` type with attached `ChangeType`.
 """
@@ -80,7 +80,7 @@ Retdiff = Annotated[
 
 
 """
-`Retdiff` is the type of return values with an attached `ChangeType` (c.f. [`edit`][genjax.core.GenerativeFunction.edit]).
+`Retdiff` is the type of return values with an attached `ChangeType` (c.f. [`edit`][genjax.core.GFI.edit]).
 
 When used under type checking, `Retdiff` assumes that the return value is a `Pytree` (either, defined via GenJAX's `Pytree` interface or registered with JAX's system). It checks that _the leaves_ are `Diff` type with attached `ChangeType`.
 """
@@ -93,7 +93,7 @@ When used under type checking, `Retdiff` assumes that the return value is a `Pyt
 
 class EditRequest(Pytree):
     """
-    An `EditRequest` is a request to edit a trace of a generative function. Generative functions respond to instances of subtypes of `EditRequest` by providing an [`edit`][genjax.core.GenerativeFunction.edit] implementation.
+    An `EditRequest` is a request to edit a trace of a generative function. Generative functions respond to instances of subtypes of `EditRequest` by providing an [`edit`][genjax.core.GFI.edit] implementation.
 
     Updating a trace is a common operation in inference processes, but naively mutating the trace will invalidate the mathematical invariants that Gen retains. `EditRequest` instances denote requests for _SMC moves_ in the framework of [SMCP3](https://proceedings.mlr.press/v206/lew23a.html), which preserve these invariants.
     """

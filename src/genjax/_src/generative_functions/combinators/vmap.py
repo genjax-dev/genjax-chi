@@ -23,10 +23,10 @@ import jax.tree_util as jtu
 
 from genjax._src.core.compiler.interpreters.incremental import Diff
 from genjax._src.core.generative import (
+    GFI,
     Argdiffs,
     ChoiceMap,
     EditRequest,
-    GenerativeFunction,
     IndexRequest,
     R,
     Retdiff,
@@ -43,7 +43,6 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
-    FloatArray,
     Generic,
     InAxes,
     IntArray,
@@ -55,23 +54,14 @@ class VmapTrace(Generic[R], Trace[R]):
     gen_fn: "Vmap[R]"
     inner: Trace[R]
     args: tuple[Any, ...]
-    score: FloatArray
-    chm: ChoiceMap
-
-    # TODO is this really helpful? what if someone has inflated the dimension out from around us? How do we re-use this?
-    dim_length: int = Pytree.static()
 
     @staticmethod
     def build(
-        gen_fn: "Vmap[R]", tr: Trace[R], args: tuple[Any, ...], length: int
+        gen_fn: "Vmap[R]",
+        tr: Trace[R],
+        args: tuple[Any, ...],
     ) -> "VmapTrace[R]":
-        score = jnp.sum(jax.vmap(lambda tr: tr.get_score())(tr))
-        # TODO make a note here about why we are jax.vmapping; we are library authors!! we should not depend on the user convenience here of get_choices() on a vectorized choicemap.
-        if length == 0:
-            chm = ChoiceMap.empty()
-        else:
-            chm = jax.vmap(lambda tr: tr.get_choices())(tr)
-        return VmapTrace(gen_fn, tr, args, score, chm, length)
+        return VmapTrace(gen_fn, tr, args)
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
@@ -84,23 +74,23 @@ class VmapTrace(Generic[R], Trace[R]):
         return self.gen_fn
 
     def get_choices(self) -> ChoiceMap:
-        return self.chm
+        return self.inner.get_choices()
 
     def get_score(self) -> Score:
-        return self.score
+        return jnp.sum(jax.vmap(lambda tr: tr.get_score())(self.inner))
 
     def get_inner_trace(self, address: Address):
         return self.inner.get_inner_trace(address)
 
 
 @Pytree.dataclass
-class Vmap(Generic[R], GenerativeFunction[R]):
+class Vmap(Generic[R], GFI[R]):
     """`Vmap` is a generative function which lifts another generative function to support `vmap`-based patterns of parallel (and generative) computation.
 
     In contrast to the full set of options which [`jax.vmap`](https://jax.readthedocs.io/en/latest/_autosummary/jax.vmap.html), this combinator expects an `in_axes: tuple` configuration argument, which indicates how the underlying `vmap` patterns should be broadcast across the input arguments to the generative function.
 
     Attributes:
-        gen_fn: A [`genjax.GenerativeFunction`][] to be vectorized.
+        gen_fn: A [`genjax.GFI`][] to be vectorized.
 
         in_axes: A tuple specifying which input arguments (or indices into them) should be vectorized. `in_axes` must match (or prefix) the `Pytree` type of the argument tuple for the underlying `gen_fn`. Defaults to 0, i.e., the first argument. See [this link](https://jax/readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
 
@@ -126,7 +116,7 @@ class Vmap(Generic[R], GenerativeFunction[R]):
         print(tr.render_html())
         ```
 
-        Use the [`genjax.GenerativeFunction.vmap`][] method:
+        Use the [`genjax.GFI.vmap`][] method:
         ```python exec="yes" html="true" source="material-block" session="vmap"
         @genjax.gen
         def add_normal_noise(x):
@@ -142,7 +132,7 @@ class Vmap(Generic[R], GenerativeFunction[R]):
         ```
     """
 
-    gen_fn: GenerativeFunction[R]
+    gen_fn: GFI[R]
     in_axes: InAxes = Pytree.static()
 
     def __abstract_call__(self, *args) -> Any:
@@ -183,12 +173,10 @@ class Vmap(Generic[R], GenerativeFunction[R]):
         self,
         args: tuple[Any, ...],
     ) -> VmapTrace[R]:
-        dim_length = self._static_broadcast_dim_length(self.in_axes, args)
-
         # vmapping over `gen_fn`'s `simulate` gives us a new trace with vector-shaped leaves.
         tr = jax.vmap(self.gen_fn.simulate, in_axes=(self.in_axes,))(args)
 
-        return VmapTrace.build(self, tr, args, dim_length)
+        return VmapTrace.build(self, tr, args)
 
     def generate(
         self,
@@ -209,7 +197,7 @@ class Vmap(Generic[R], GenerativeFunction[R]):
 
         tr, weight_v = jax.vmap(_inner, in_axes=(0, self.in_axes))(idx_array, args)
         w = jnp.sum(weight_v)
-        map_tr = VmapTrace.build(self, tr, args, dim_length)
+        map_tr = VmapTrace.build(self, tr, args)
         return map_tr, w
 
     def project(
@@ -233,17 +221,10 @@ class Vmap(Generic[R], GenerativeFunction[R]):
     ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
         primals = Diff.tree_primal(argdiffs)
 
-        # TODO for McCoy... what if someone has inflated the dimension out from around us? How do we re-use this?
-        dim_length = trace.dim_length
-        idx_array = jnp.arange(dim_length)
-
-        def _edit(idx, subtrace, argdiffs):
-            # Here we have to vmap across indices and perform individual lookups because the user might only constrain a subset of all indices. This forces recomputation.
-            subconstraint = constraint(idx)
-
+        def _edit(subtrace, constraint, argdiffs):
             new_subtrace, w, retdiff, bwd_request = self.gen_fn.edit(
                 subtrace,
-                Update(subconstraint),
+                Update(constraint),
                 argdiffs,
             )
             assert isinstance(bwd_request, Update)
@@ -252,9 +233,9 @@ class Vmap(Generic[R], GenerativeFunction[R]):
 
         new_subtraces, w, retdiff, bwd_constraints = jax.vmap(
             _edit, in_axes=(0, 0, self.in_axes)
-        )(idx_array, trace.inner, argdiffs)
+        )(trace.inner, constraint, argdiffs)
         w = jnp.sum(w)
-        map_tr = VmapTrace.build(self, new_subtraces, primals, dim_length)
+        map_tr = VmapTrace.build(self, new_subtraces, primals)
         return (
             map_tr,
             w,
@@ -272,7 +253,6 @@ class Vmap(Generic[R], GenerativeFunction[R]):
         # For now, we don't allow changes to the arguments for this type of edit.
         assert Diff.static_check_no_change(argdiffs)
         primals = Diff.tree_primal(argdiffs)
-        dim_length = trace.dim_length
 
         trace_slice = jtu.tree_map(lambda v: v[idx], trace.inner)
 
@@ -310,7 +290,7 @@ class Vmap(Generic[R], GenerativeFunction[R]):
             lambda v, v_: v.at[idx].set(v_), trace.inner, new_trace_slice
         )
 
-        map_tr = VmapTrace.build(self, new_inner_trace, primals, dim_length)
+        map_tr = VmapTrace.build(self, new_inner_trace, primals)
 
         # We always set the carried out value to be an unknown change, conservatively.
         retdiff = Diff.unknown_change(map_tr.get_retval())
@@ -345,13 +325,13 @@ class Vmap(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: ChoiceMap,
+        chm: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
         dim_length = self._static_broadcast_dim_length(self.in_axes, args)
 
         def _inner(idx, args):
-            return self.gen_fn.assess(sample(idx), args)
+            return self.gen_fn.assess(chm(idx), args)
 
         scores, retvals = jax.vmap(_inner, in_axes=(0, self.in_axes))(
             jnp.arange(dim_length), args
@@ -364,15 +344,15 @@ class Vmap(Generic[R], GenerativeFunction[R]):
 #############
 
 
-def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction[R]], Vmap[R]]:
+def vmap(*, in_axes: InAxes = 0) -> Callable[[GFI[R]], Vmap[R]]:
     """
-    Returns a decorator that wraps a [`GenerativeFunction`][genjax.GenerativeFunction] and returns a new `GenerativeFunction` that performs a vectorized map over the argument specified by `in_axes`. Traced values are nested under an index, and the retval is vectorized.
+    Returns a decorator that wraps a [`GFI`][genjax.GFI] and returns a new `GFI` that performs a vectorized map over the argument specified by `in_axes`. Traced values are nested under an index, and the retval is vectorized.
 
     Args:
         in_axes: Selector specifying which input arguments (or index into them) should be vectorized. `in_axes` must match (or prefix) the `Pytree` type of the argument tuple for the underlying `gen_fn`. Defaults to 0, i.e., the first argument. See [this link](https://jax.readthedocs.io/en/latest/pytrees.html#applying-optional-parameters-to-pytrees) for more detail.
 
     Returns:
-        A decorator that converts a [`genjax.GenerativeFunction`][] into a new [`genjax.GenerativeFunction`][] that accepts an argument of one-higher dimension at the position specified by `in_axes`.
+        A decorator that converts a [`genjax.GFI`][] into a new [`genjax.GFI`][] that accepts an argument of one-higher dimension at the position specified by `in_axes`.
 
     Examples:
         ```python exec="yes" html="true" source="material-block" session="vmap"
@@ -397,7 +377,7 @@ def vmap(*, in_axes: InAxes = 0) -> Callable[[GenerativeFunction[R]], Vmap[R]]:
         ```
     """
 
-    def decorator(gen_fn: GenerativeFunction[R]) -> Vmap[R]:
+    def decorator(gen_fn: GFI[R]) -> Vmap[R]:
         return Vmap(gen_fn, in_axes)
 
     return decorator

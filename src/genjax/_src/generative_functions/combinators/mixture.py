@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from genjax._src.core.generative import GenerativeFunction
+from genjax._src.core.generative import GFI
 from genjax._src.core.generative.concepts import R
 from genjax._src.generative_functions.combinators.switch import (
     switch,
@@ -21,10 +21,10 @@ from genjax._src.generative_functions.combinators.switch import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
 )
-from genjax._src.generative_functions.static import gen
+from genjax._src.generative_functions.fn import gen
 
 
-def mix(*gen_fns: GenerativeFunction[R]) -> GenerativeFunction[R]:
+def mix(*gen_fns: GFI[R]) -> GFI[R]:
     """
     Creates a mixture model from a set of generative functions.
 
@@ -38,10 +38,10 @@ def mix(*gen_fns: GenerativeFunction[R]) -> GenerativeFunction[R]:
     and samples from one of the input generative functions based on draw from a categorical distribution defined by the provided mixture logits.
 
     Args:
-        *gen_fns: Variable number of [`genjax.GenerativeFunction`][]s to be mixed.
+        *gen_fns: Variable number of [`genjax.GFI`][]s to be mixed.
 
     Returns:
-        A new [`genjax.GenerativeFunction`][] representing the mixture model.
+        A new [`genjax.GFI`][] representing the mixture model.
 
     Examples:
         ```python exec="yes" html="true" source="material-block" session="mix"

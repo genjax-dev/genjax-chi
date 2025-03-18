@@ -64,7 +64,7 @@ def grad_tree_zip(
 
 
 # Compute the gradient of a selection of random choices
-# in a trace -- uses `GenerativeFunction.assess`.
+# in a trace -- uses `GFI.assess`.
 def selection_gradient(
     selection: Selection,
     trace: Trace[Any],

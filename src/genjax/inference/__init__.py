@@ -14,8 +14,8 @@
 
 from genjax._src.inference.sp import (
     Algorithm,
+    ChoiceMapDistribution,
     Marginal,
-    SampleDistribution,
     Target,
     marginal,
 )
@@ -26,8 +26,8 @@ from genjax.inference import (
 
 __all__ = [
     "Algorithm",
+    "ChoiceMapDistribution",
     "Marginal",
-    "SampleDistribution",
     "Target",
     "marginal",
     "smc",

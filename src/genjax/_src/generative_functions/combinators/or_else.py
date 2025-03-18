@@ -14,18 +14,18 @@
 
 import jax.numpy as jnp
 
-from genjax._src.core.generative import GenerativeFunction
+from genjax._src.core.generative import GFI
 from genjax._src.core.typing import Any, ScalarFlag, TypeVar
 
 R = TypeVar("R")
 
 
 def or_else(
-    if_gen_fn: GenerativeFunction[R],
-    else_gen_fn: GenerativeFunction[R],
-) -> GenerativeFunction[R]:
+    if_gen_fn: GFI[R],
+    else_gen_fn: GFI[R],
+) -> GFI[R]:
     """
-    Given two [`genjax.GenerativeFunction`][]s `if_gen_fn` and `else_gen_fn`, returns a new [`genjax.GenerativeFunction`][] that accepts
+    Given two [`genjax.GFI`][]s `if_gen_fn` and `else_gen_fn`, returns a new [`genjax.GFI`][] that accepts
 
     - a boolean argument
     - an argument tuple for `if_gen_fn`
@@ -37,7 +37,7 @@ def or_else(
         else_gen_fn: called when the boolean argument is `False`.
 
     Returns:
-        A [`genjax.GenerativeFunction`][] modified for conditional execution.
+        A [`genjax.GFI`][] modified for conditional execution.
 
     Examples:
         ```python exec="yes" html="true" source="material-block" session="or_else"

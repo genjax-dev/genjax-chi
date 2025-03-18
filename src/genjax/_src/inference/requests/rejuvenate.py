@@ -14,7 +14,7 @@
 
 
 from genjax._src.core.generative import (
-    GenerativeFunction,
+    GFI,
     Trace,
     Update,
 )
@@ -62,7 +62,7 @@ class Rejuvenate(EditRequest):
     the SMCP3 move. The accept-reject ratio is returned as the SMCP3 weight of the move.
     """
 
-    proposal: GenerativeFunction[Any]
+    proposal: GFI[Any]
     argument_mapping: Callable[[ChoiceMap], Any] = Pytree.static()
 
     def edit(

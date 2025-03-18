@@ -178,7 +178,7 @@ class TestVmap:
             jax.jit(foo.vmap(in_axes=(0, (0, None))).simulate)((10.0, jnp.arange(3.0)))
 
         with pytest.raises(
-            IndexError,
+            ValueError,
         ):
             jax.jit(foo.vmap(in_axes=(0, 0)).simulate)((jnp.arange(2), jnp.arange(3)))
 
@@ -205,8 +205,8 @@ class TestVmap:
 
         chm = results.get_choices()
 
-        # the inner vmap aggregates a score, while the outer vmap does not accumulate anything
-        assert results.get_score().shape == (10,)
+        # No matter if we batch, scores on the outside have scalar shape.
+        assert results.get_score().shape == ()
 
         # the inner vmap has vmap'd over the y's
         assert chm[:, "y"].shape == (10, 5)

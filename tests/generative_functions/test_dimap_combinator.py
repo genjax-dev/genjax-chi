@@ -49,7 +49,8 @@ class TestDimap:
 
         assert (
             genjax.normal.logpdf(
-                invert_post(trace.get_retval()), *pre_process(2.0, 3.0)
+                invert_post(trace.get_retval()),
+                *pre_process(2.0, 3.0)[:-1],
             )
             == trace.get_score()
         ), (
@@ -68,7 +69,7 @@ class TestDimap:
 
         assert (
             genjax.normal.logpdf(
-                invert_post(importance_tr.get_retval()), *pre_process(1.0, 2.0)
+                invert_post(importance_tr.get_retval()), *pre_process(1.0, 2.0)[:-1]
             )
             == importance_tr.get_score()
         ), (

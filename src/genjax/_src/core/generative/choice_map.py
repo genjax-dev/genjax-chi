@@ -1356,7 +1356,7 @@ class ChoiceMap(Pytree):
 
     def invalid_subset(
         self,
-        gen_fn: "genjax.GenerativeFunction[Any]",
+        gen_fn: "genjax.GFI[Any]",
         args: tuple[Any, ...],
     ) -> "ChoiceMap | None":
         """

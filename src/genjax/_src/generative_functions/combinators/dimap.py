@@ -15,9 +15,9 @@
 
 from genjax._src.core.compiler.interpreters.incremental import Diff, incremental
 from genjax._src.core.generative import (
+    GFI,
     Argdiffs,
     EditRequest,
-    GenerativeFunction,
     Retdiff,
     Score,
     Trace,
@@ -51,7 +51,7 @@ class DimapTrace(Generic[R, S], Trace[S]):
     def get_args(self) -> tuple[Any, ...]:
         return self.args
 
-    def get_gen_fn(self) -> GenerativeFunction[S]:
+    def get_gen_fn(self) -> GFI[S]:
         return self.gen_fn
 
     def get_choices(self) -> ChoiceMap:
@@ -68,9 +68,9 @@ class DimapTrace(Generic[R, S], Trace[S]):
 
 
 @Pytree.dataclass
-class Dimap(Generic[ArgTuple, R, S], GenerativeFunction[S]):
+class Dimap(Generic[ArgTuple, R, S], GFI[S]):
     """
-    A combinator that transforms both the arguments and return values of a [`genjax.GenerativeFunction`][].
+    A combinator that transforms both the arguments and return values of a [`genjax.GFI`][].
 
     This combinator allows for the modification of input arguments and return values through specified mapping functions, enabling the adaptation of a generative function to different contexts or requirements.
 
@@ -108,7 +108,7 @@ class Dimap(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         ```
     """
 
-    inner: GenerativeFunction[R]
+    inner: GFI[R]
     argument_mapping: Callable[..., ArgTuple] = Pytree.static()
     retval_mapping: Callable[[tuple[Any, ...], ArgTuple, R], S] = Pytree.static()
 
@@ -196,11 +196,11 @@ class Dimap(Generic[ArgTuple, R, S], GenerativeFunction[S]):
 
     def assess(
         self,
-        sample: ChoiceMap,
+        chm: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, S]:
         inner_args = self.argument_mapping(*args)
-        w, inner_retval = self.inner.assess(sample, inner_args)
+        w, inner_retval = self.inner.assess(chm, inner_args)
         retval = self.retval_mapping(args, inner_args, inner_retval)
         return w, retval
 
@@ -216,9 +216,9 @@ def dimap(
     post: Callable[[tuple[Any, ...], ArgTuple, R], S] = lambda _,
     _xformed,
     retval: retval,
-) -> Callable[[GenerativeFunction[R]], Dimap[ArgTuple, R, S]]:
+) -> Callable[[GFI[R]], Dimap[ArgTuple, R, S]]:
     """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies pre- and post-processing functions to its arguments and return value.
+    Returns a decorator that wraps a [`genjax.GFI`][] and applies pre- and post-processing functions to its arguments and return value.
 
     !!! info
         Prefer [`genjax.map`][] if you only need to transform the return value, or [`genjax.contramap`][] if you need to transform the arguments.
@@ -228,7 +228,7 @@ def dimap(
         post: A callable that postprocesses the return value of the wrapped function. Default is the identity function.
 
     Returns:
-        A decorator that takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] with the same behavior but with the arguments and return value transformed according to `pre` and `post`.
+        A decorator that takes a [`genjax.GFI`][] and returns a new [`genjax.GFI`][] with the same behavior but with the arguments and return value transformed according to `pre` and `post`.
 
     Examples:
         ```python exec="yes" html="true" source="material-block" session="dimap"
@@ -259,7 +259,7 @@ def dimap(
         ```
     """
 
-    def decorator(f: GenerativeFunction[R]) -> Dimap[ArgTuple, R, S]:
+    def decorator(f: GFI[R]) -> Dimap[ArgTuple, R, S]:
         return Dimap(f, pre, post)
 
     return decorator
@@ -267,9 +267,9 @@ def dimap(
 
 def map(
     f: Callable[[R], S],
-) -> Callable[[GenerativeFunction[R]], Dimap[tuple[Any, ...], R, S]]:
+) -> Callable[[GFI[R]], Dimap[tuple[Any, ...], R, S]]:
     """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies a post-processing function to its return value.
+    Returns a decorator that wraps a [`genjax.GFI`][] and applies a post-processing function to its return value.
 
     This is a specialized version of [`genjax.dimap`][] where only the post-processing function is applied.
 
@@ -277,7 +277,7 @@ def map(
         f: A callable that postprocesses the return value of the wrapped function.
 
     Returns:
-        A decorator that takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] with the same behavior but with the return value transformed according to `f`.
+        A decorator that takes a [`genjax.GFI`][] and returns a new [`genjax.GFI`][] with the same behavior but with the return value transformed according to `f`.
 
     Examples:
         ```python exec="yes" html="true" source="material-block" session="map"
@@ -312,9 +312,9 @@ def map(
 
 def contramap(
     f: Callable[..., ArgTuple],
-) -> Callable[[GenerativeFunction[R]], Dimap[ArgTuple, R, R]]:
+) -> Callable[[GFI[R]], Dimap[ArgTuple, R, R]]:
     """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] and applies a pre-processing function to its arguments.
+    Returns a decorator that wraps a [`genjax.GFI`][] and applies a pre-processing function to its arguments.
 
     This is a specialized version of [`genjax.dimap`][] where only the pre-processing function is applied.
 
@@ -322,7 +322,7 @@ def contramap(
         f: A callable that preprocesses the arguments of the wrapped function. Note that `f` must return a _tuple_ of arguments, not a bare argument.
 
     Returns:
-        A decorator that takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] with the same behavior but with the arguments transformed according to `f`.
+        A decorator that takes a [`genjax.GFI`][] and returns a new [`genjax.GFI`][] with the same behavior but with the arguments transformed according to `f`.
 
     Examples:
         ```python exec="yes" html="true" source="material-block" session="contramap"

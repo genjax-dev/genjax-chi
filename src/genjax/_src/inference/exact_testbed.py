@@ -30,7 +30,7 @@ from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
 )
-from genjax._src.generative_functions.static import gen
+from genjax._src.generative_functions.fn import gen
 
 
 @Pytree.dataclass
@@ -77,7 +77,7 @@ def build_test_against_exact_inference(
         observation_sequence = tr.get_choices().filter(x_sel)["x"]
         log_data_marginal = DiscreteHMM.data_logpdf(config, observation_sequence)
         # This actually doesn't use any randomness.
-        (log_posterior, _) = DiscreteHMM.estimate_logpdf(
+        log_posterior = DiscreteHMM.logpdf(
             key, latent_sequence, config, observation_sequence
         )
         return DiscreteHMMInferenceProblem(

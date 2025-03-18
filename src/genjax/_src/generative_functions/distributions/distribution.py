@@ -24,12 +24,12 @@ from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.compiler.interpreters.incremental import Diff
-from genjax._src.core.compiler.staging import FlagOp, to_shape_fn
+from genjax._src.core.compiler.staging import FlagOp
 from genjax._src.core.generative import (
+    GFI,
     Argdiffs,
     ChoiceMap,
     EditRequest,
-    GenerativeFunction,
     Mask,
     NotSupportedEditRequest,
     R,
@@ -56,14 +56,10 @@ tfd = tfp.distributions
 
 
 @Pytree.dataclass
-class DistributionTrace(
-    Generic[R],
-    Trace[R],
-):
-    gen_fn: GenerativeFunction[R]
+class DistributionTrace(Generic[R], Trace[R]):
+    distribution: "Distribution[R]"
     args: tuple[Any, ...]
     value: R
-    score: Score
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
@@ -71,11 +67,16 @@ class DistributionTrace(
     def get_retval(self) -> R:
         return self.value
 
-    def get_gen_fn(self) -> GenerativeFunction[R]:
-        return self.gen_fn
+    def get_gen_fn(self) -> "Distribution[R]":
+        return self.distribution
 
     def get_score(self) -> Score:
-        return self.score
+        gen_fn = self.get_gen_fn()
+        w = gen_fn.logpdf(self.value, *self.args)
+        if jnp.shape(w):
+            return jnp.sum(w)
+        else:
+            return w
 
     def get_choices(self) -> ChoiceMap:
         return ChoiceMap.choice(self.value)
@@ -86,28 +87,39 @@ class DistributionTrace(
 ################
 
 
-class Distribution(Generic[R], GenerativeFunction[R]):
+class Distribution(Generic[R], GFI[R]):
     @abstractmethod
-    def random_weighted(
+    def sample(
         self,
         *args,
-    ) -> tuple[Score, R]:
+        **kwargs,
+    ) -> R:
         pass
 
     @abstractmethod
-    def estimate_logpdf(
+    def logpdf(
         self,
         v: R,
         *args,
+        **kwargs,
     ) -> Score:
         pass
+
+    def sample_and_logpdf(
+        self,
+        *args,
+        **kwargs,
+    ) -> tuple[Score, R]:
+        v = self.sample(*args)
+        w = self.logpdf(v, *args)
+        return w, v
 
     def simulate(
         self,
         args: tuple[Any, ...],
     ) -> Trace[R]:
-        (w, v) = self.random_weighted(*args)
-        tr = DistributionTrace(self, args, v, w)
+        v = self.sample(*args)
+        tr = DistributionTrace(self, args, v)
         return tr
 
     def generate_choice_map(
@@ -124,21 +136,21 @@ class Distribution(Generic[R], GenerativeFunction[R]):
             case Mask(value, flag):
 
                 def _simulate(v):
-                    score, new_v = self.random_weighted(*args)
+                    new_v = self.sample(*args)
                     w = 0.0
-                    return (score, w, new_v)
+                    return (w, new_v)
 
                 def _importance(v):
-                    w = self.estimate_logpdf(v, *args)
-                    return (w, w, v)
+                    w = self.logpdf(v, *args)
+                    return (w, v)
 
-                score, w, new_v = jax.lax.cond(flag, _importance, _simulate, value)
-                tr = DistributionTrace(self, args, new_v, score)
+                w, new_v = jax.lax.cond(flag, _importance, _simulate, value)
+                tr = DistributionTrace(self, args, new_v)
                 return tr, w
 
             case _:
-                w = self.estimate_logpdf(v, *args)
-                tr = DistributionTrace(self, args, v, w)
+                tr = DistributionTrace(self, args, v)
+                w = self.logpdf(v, *args)
                 return tr, w
 
     def generate(
@@ -159,10 +171,11 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         trace: Trace[R],
         argdiffs: Argdiffs,
     ) -> tuple[Trace[R], Weight, Retdiff[R], Update]:
-        sample = trace.get_choices()
+        chm = trace.get_choices()
         primals = Diff.tree_primal(argdiffs)
-        new_score, _ = self.assess(sample, primals)
-        new_trace = DistributionTrace(self, primals, sample.get_value(), new_score)
+        v = chm.get_value()
+        new_trace = DistributionTrace(self, primals, v)
+        new_score, _ = self.assess(chm, primals)
         return (
             new_trace,
             new_score - trace.get_score(),
@@ -183,23 +196,23 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     case Mask() as masked_value:
 
                         def _true_branch(new_value: R, _):
-                            fwd = self.estimate_logpdf(new_value, *primals)
+                            fwd = self.logpdf(new_value, *primals)
                             bwd = trace.get_score()
                             w = fwd - bwd
-                            return (new_value, w, fwd)
+                            return (new_value, w)
 
                         def _false_branch(_, old_value: R):
-                            fwd = self.estimate_logpdf(old_value, *primals)
+                            fwd = self.logpdf(old_value, *primals)
                             bwd = trace.get_score()
                             w = fwd - bwd
-                            return (old_value, w, fwd)
+                            return (old_value, w)
 
                         flag = masked_value.primal_flag()
                         new_value: R = masked_value.value
                         old_choices = trace.get_choices()
                         old_value: R = old_choices.get_value()
 
-                        new_value, w, score = FlagOp.cond(
+                        new_value, w = FlagOp.cond(
                             flag,
                             _true_branch,
                             _false_branch,
@@ -207,7 +220,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                             old_value,
                         )
                         return (
-                            DistributionTrace(self, primals, new_value, score),
+                            DistributionTrace(self, primals, new_value),
                             w,
                             Diff.unknown_change(new_value),
                             Update(
@@ -217,18 +230,18 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                     case None:
                         value_chm = trace.get_choices()
                         v = value_chm.get_value()
-                        fwd = self.estimate_logpdf(v, *primals)
+                        fwd = self.logpdf(v, *primals)
                         bwd = trace.get_score()
                         w = fwd - bwd
-                        new_tr = DistributionTrace(self, primals, v, fwd)
+                        new_tr = DistributionTrace(self, primals, v)
                         retval_diff = Diff.no_change(v)
                         return (new_tr, w, retval_diff, Update(ChoiceMap.empty()))
 
                     case v:
-                        fwd = self.estimate_logpdf(v, *primals)
+                        fwd = self.logpdf(v, *primals)
                         bwd = trace.get_score()
                         w = fwd - bwd
-                        new_tr = DistributionTrace(self, primals, v, fwd)
+                        new_tr = DistributionTrace(self, primals, v)
                         discard = trace.get_choices()
                         retval_diff = Diff.unknown_change(v)
                         return (new_tr, w, retval_diff, Update(discard))
@@ -255,10 +268,10 @@ class Distribution(Generic[R], GenerativeFunction[R]):
         check = () in selection
         if FlagOp.concrete_true(check):
             primals = Diff.tree_primal(argdiffs)
-            w, new_v = self.random_weighted(*primals)
+            w, new_v = self.sample_and_logpdf(*primals)
             incremental_w = w - trace.get_score()
             old_v = trace.get_retval()
-            new_trace = DistributionTrace(self, primals, new_v, w)
+            new_trace = DistributionTrace(self, primals, new_v)
             return (
                 new_trace,
                 incremental_w,
@@ -277,7 +290,7 @@ class Distribution(Generic[R], GenerativeFunction[R]):
                 chm = trace.get_choices()
                 primals = Diff.tree_primal(argdiffs)
                 new_score, _ = self.assess(chm, primals)
-                new_trace = DistributionTrace(self, primals, chm.get_value(), new_score)
+                new_trace = DistributionTrace(self, primals, chm.get_value())
                 return (
                     new_trace,
                     new_score - trace.get_score(),
@@ -327,60 +340,10 @@ class Distribution(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: ChoiceMap,
-        args: tuple[Any, ...],
-    ):
-        raise NotImplementedError
-
-
-################
-# ExactDensity #
-################
-
-
-class ExactDensity(Generic[R], Distribution[R]):
-    @abstractmethod
-    def sample(self, *args) -> R:
-        pass
-
-    @abstractmethod
-    def logpdf(self, v: R, *args, **kwargs) -> Score:
-        pass
-
-    def __abstract_call__(self, *args):
-        return to_shape_fn(self.sample, jnp.zeros)(*args)
-
-    def random_weighted(
-        self,
-        *args,
-    ) -> tuple[Score, R]:
-        """
-        Given arguments to the distribution, sample from the distribution, and return the exact log density of the sample, and the sample.
-        """
-        v = self.sample(*args)
-        w = self.estimate_logpdf(v, *args)
-        return (w, v)
-
-    def estimate_logpdf(
-        self,
-        v: R,
-        *args,
-    ) -> Weight:
-        """
-        Given a sample and arguments to the distribution, return the exact log density of the sample.
-        """
-        w = self.logpdf(v, *args)
-        if w.shape:
-            return jnp.sum(w)
-        else:
-            return w
-
-    def assess(
-        self,
-        sample: ChoiceMap,
+        chm: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Weight, R]:
-        v = sample.get_value()
+        v = chm.get_value()
         match v:
             case Mask(value, flag):
 
@@ -391,10 +354,10 @@ class ExactDensity(Generic[R], Distribution[R]):
                     )
 
                 optional_check(_check)
-                w = self.estimate_logpdf(value, *args)
+                w = self.logpdf(value, *args)
                 return w, value
             case _:
-                w = self.estimate_logpdf(v, *args)
+                w = self.logpdf(v, *args)
                 return w, v
 
 
@@ -412,12 +375,12 @@ def canonicalize_distribution_name(s: str) -> str:
     return "genjax." + "".join(t)
 
 
-def exact_density(
+def distribution(
     sample: Callable[..., R],
     logpdf: Callable[..., Score],
     name: str | None = None,
-) -> ExactDensity[R]:
-    """Construct a new type, a subclass of ExactDensity, with the given name,
+) -> Distribution[R]:
+    """Construct a new type, a subclass of Distribution, with the given name,
     (with `genjax.` prepended, to avoid confusion with the underlying object,
     which may not share the same interface) and attach the supplied functions
     as the `sample` and `logpdf` methods. The return value is an instance of
@@ -450,7 +413,7 @@ def exact_density(
 
     T = type(
         canonicalize_distribution_name(name),
-        (ExactDensity,),
+        (Distribution,),
         {
             "sample": lambda self, *args, **kwargs: kwargle(sample, args, kwargs),
             "logpdf": lambda self, v, *args, **kwargs: kwargle_v(

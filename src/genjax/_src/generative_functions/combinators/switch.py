@@ -20,10 +20,10 @@ from genjax._src.core.compiler.interpreters.incremental import (
 )
 from genjax._src.core.compiler.staging import multi_switch, tree_choose
 from genjax._src.core.generative import (
+    GFI,
     Argdiffs,
     ChoiceMap,
     EditRequest,
-    GenerativeFunction,
     Retdiff,
     Score,
     Trace,
@@ -94,9 +94,9 @@ class SwitchTrace(Generic[R], Trace[R]):
 
 
 @Pytree.dataclass
-class Switch(Generic[R], GenerativeFunction[R]):
+class Switch(Generic[R], GFI[R]):
     """
-    `Switch` accepts `n` generative functions as input and returns a new [`genjax.GenerativeFunction`][] that accepts `n+1` arguments:
+    `Switch` accepts `n` generative functions as input and returns a new [`genjax.GFI`][] that accepts `n+1` arguments:
 
     - an index in the range `[0, n-1]`
     - a tuple of arguments for each of the input generative functions
@@ -140,7 +140,7 @@ class Switch(Generic[R], GenerativeFunction[R]):
         ```
     """
 
-    branches: tuple[GenerativeFunction[R], ...]
+    branches: tuple[GFI[R], ...]
 
     def _indices(self):
         return range(len(self.branches))
@@ -175,14 +175,14 @@ class Switch(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: ChoiceMap,
+        chm: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
         idx, branch_args = args[0], args[1:]
         self._check_args_match_branches(branch_args)
 
         fs = list(f.assess for f in self.branches)
-        f_args = list((sample, args) for args in branch_args)
+        f_args = list((chm, args) for args in branch_args)
 
         return tree_choose(idx, multi_switch(idx, fs, f_args))
 
@@ -218,7 +218,7 @@ class Switch(Generic[R], GenerativeFunction[R]):
 
         return tree_choose(idx, multi_switch(idx, fs, f_args))
 
-    def _make_edit_fresh_trace(self, gen_fn: GenerativeFunction[R]):
+    def _make_edit_fresh_trace(self, gen_fn: GFI[R]):
         """
         Creates a function to handle editing a fresh trace when the switch index changes.
 
@@ -302,10 +302,10 @@ class Switch(Generic[R], GenerativeFunction[R]):
 
 
 def switch(
-    *gen_fns: GenerativeFunction[R],
+    *gen_fns: GFI[R],
 ) -> Switch[R]:
     """
-    Given `n` [`genjax.GenerativeFunction`][] inputs, returns a [`genjax.GenerativeFunction`][] that accepts `n+1` arguments:
+    Given `n` [`genjax.GFI`][] inputs, returns a [`genjax.GFI`][] that accepts `n+1` arguments:
 
     - an index in the range $[0, n)$
     - a tuple of arguments for each of the input generative functions (`n` total tuples)

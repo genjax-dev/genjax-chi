@@ -19,10 +19,10 @@ import jax.tree_util as jtu
 from genjax._src.core.compiler.interpreters.incremental import Diff
 from genjax._src.core.compiler.staging import FlagOp
 from genjax._src.core.generative import (
+    GFI,
     Argdiffs,
     ChoiceMap,
     EditRequest,
-    GenerativeFunction,
     Mask,
     Retdiff,
     Score,
@@ -107,9 +107,9 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
 
 
 @Pytree.dataclass
-class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
+class MaskCombinator(Generic[R], GFI[Mask[R]]):
     """
-    Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
+    Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GFI`][] and returns a new [`genjax.GFI`][] which accepts an additional boolean first argument.
 
     If `True`, the invocation of the generative function is masked, and its contribution to the score is ignored. If `False`, it has the same semantics as if one was invoking the generative function without masking.
 
@@ -145,7 +145,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         ```
     """
 
-    gen_fn: GenerativeFunction[R]
+    gen_fn: GFI[R]
 
     def simulate(
         self,
@@ -261,11 +261,11 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
     def assess(
         self,
-        sample: ChoiceMap,
+        chm: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, Mask[R]]:
         check, inner_args = args[0], args[1:]
-        score, retval = self.gen_fn.assess(sample, inner_args)
+        score, retval = self.gen_fn.assess(chm, inner_args)
         return (
             check * score,
             Mask(retval, check),
@@ -277,9 +277,9 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 #############
 
 
-def mask(f: GenerativeFunction[R]) -> MaskCombinator[R]:
+def mask(f: GFI[R]) -> MaskCombinator[R]:
     """
-    Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
+    Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GFI`][] and returns a new [`genjax.GFI`][] which accepts an additional boolean first argument.
 
     If `True`, the invocation of the generative function is masked, and its contribution to the score is ignored. If `False`, it has the same semantics as if one was invoking the generative function without masking.
 

@@ -422,8 +422,8 @@ class TestScanWithParameters:
 
         chm = results.get_choices()
 
-        # the inner scan aggregates a score, while the outer vmap does not accumulate anything
-        assert results.get_score().shape == (10,)
+        # Batched traces always return scalar scores on the outside.
+        assert results.get_score().shape == ()
 
         # the inner scan has scanned over the y's
         assert chm[:, "y"].shape == (10, 5)

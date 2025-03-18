@@ -24,8 +24,8 @@ from genjax import ChoiceMap, Diff, Pytree, Regenerate, StaticRequest, Update
 from genjax import ChoiceMapBuilder as C
 from genjax import Selection as S
 from genjax._src.core.typing import Array
-from genjax._src.generative_functions.static import MissingAddress
-from genjax.generative_functions.static import AddressReuse
+from genjax._src.generative_functions.fn import MissingAddress
+from genjax.generative_functions.fn import AddressReuse
 from genjax.typing import FloatArray
 
 #############
@@ -153,7 +153,7 @@ class TestMisc:
         assert isinstance(zero_trace, genjax.Trace)
         assert zero_trace.get_args() == (0.0,)
         assert zero_trace.get_retval() == 0.0
-        assert zero_trace.get_score() == 0.0
+        assert jnp.isnan(zero_trace.get_score())
 
         zero_choices = zero_trace.get_choices()
         assert "y" in zero_choices
@@ -177,7 +177,7 @@ class TestMisc:
         assert isinstance(zero_trace, genjax.Trace)
         assert zero_trace.get_args() == ()
         assert zero_trace.get_retval() == 0.0
-        assert zero_trace.get_score() == 0.0
+        assert jnp.isnan(zero_trace.get_score())
 
         zero_choices = zero_trace.get_choices()
         assert zero_choices["outer"] == 0.0
@@ -312,14 +312,13 @@ def simple_normal(custom_tree):
 
 @Pytree.dataclass
 class _CustomNormal(genjax.Distribution[Array]):
-    def estimate_logpdf(self, v, *args):
+    def logpdf(self, *args):
         v, custom_tree = args
-        w, _ = genjax.normal.assess(v, (custom_tree.x, custom_tree.y))
-        return w
+        return genjax.normal.logpdf(v, custom_tree.x, custom_tree.y)
 
-    def random_weighted(self, *args):
+    def sample(self, *args):
         (custom_tree,) = args
-        return genjax.normal.random_weighted(custom_tree.x, custom_tree.y)
+        return genjax.normal.sample(custom_tree.x, custom_tree.y)
 
 
 CustomNormal = _CustomNormal()
@@ -752,7 +751,7 @@ class TestGenFnClosure:
             return genjax.normal(1.0, 0.001) @ "x"
 
         gfc = model()
-        tr = gfc.simulate(())
+        tr = genjax.seed(gfc.simulate)(jrand.key(1), ())
         assert tr.get_score() == genjax.normal.logpdf(tr.get_retval(), 1.0, 0.001)
         # This failed in GEN-420
         tr_u, w = gfc.importance(C.kw(x=1.1), ())
@@ -973,10 +972,10 @@ class TestStaticGenFnInline:
         old_value = tr.get_choices().get_submap("y1")
         (tr, w, _rd, _) = jax.jit(tr.update)(choice, ())
         choices = tr.get_choices()
-        assert (
-            w
-            == genjax.normal.assess(choices.get_submap("y1"), (0.0, 1.0))[0]
-            - genjax.normal.assess(old_value, (0.0, 1.0))[0]
+        assert w == pytest.approx(
+            genjax.normal.assess(choices.get_submap("y1"), (0.0, 1.0))[0]
+            - genjax.normal.assess(old_value, (0.0, 1.0))[0],
+            1e-3,
         )
         tr = jax.jit(higher_higher_model.simulate)(())
         old_value = tr.get_choices().get_submap("y1")

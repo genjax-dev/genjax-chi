@@ -14,24 +14,34 @@
 
 from abc import abstractmethod
 
+import jax.numpy as jnp
+from jax.lax import cond
+
 from genjax._src.core.generative import (
+    GFI,
     ChoiceMap,
-    GenerativeFunction,
     Selection,
     Weight,
 )
-from genjax._src.core.generative.concepts import Score
-from genjax._src.core.generative.generative_function import Trace
+from genjax._src.core.generative.concepts import (
+    Argdiffs,
+    EditRequest,
+    NotSupportedEditRequest,
+    Retdiff,
+    Score,
+    Weight,
+)
+from genjax._src.core.generative.functional_types import Mask
+from genjax._src.core.generative.interface import Trace
+from genjax._src.core.generative.requests import Regenerate, Update
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Annotated,
     Any,
     Callable,
-    Generic,
     Is,
     TypeVar,
 )
-from genjax._src.generative_functions.distributions.distribution import Distribution
 
 R = TypeVar("R")
 
@@ -47,7 +57,7 @@ def validate_non_marginal(x):
 
 
 @Pytree.dataclass
-class Target(Generic[R], Pytree):
+class Target(Pytree):
     """
     A `Target` represents an unnormalized target distribution induced by conditioning a generative function on a [`genjax.ChoiceMap`][].
 
@@ -73,14 +83,14 @@ class Target(Generic[R], Pytree):
         ```
     """
 
-    p: Annotated[GenerativeFunction[R], Is[validate_non_marginal]]
+    p: Annotated[GFI[Any], Is[validate_non_marginal]]
     args: tuple[Any, ...]
     constraint: ChoiceMap
 
     def importance(
         self,
         constraint: ChoiceMap,
-    ) -> tuple[Trace[R], Weight]:
+    ) -> tuple[Trace[Any], Weight]:
         merged = self.constraint.merge(constraint)
         return self.p.importance(merged, self.args)
 
@@ -96,17 +106,161 @@ class Target(Generic[R], Pytree):
 # Sample distribution #
 #######################
 
-SampleDistribution = Distribution[ChoiceMap]
-"""
-The abstract class `SampleDistribution` represents the type of distributions whose return value type is a `ChoiceMap`. This is the abstract base class of `Algorithm`, as well as `Marginal`.
-"""
+
+@Pytree.dataclass
+class ChoiceMapDistributionTrace(Trace[ChoiceMap]):
+    gen_fn: GFI[Any]
+    args: tuple[Any, ...]
+    value: ChoiceMap
+    score: Score
+
+    def get_args(self) -> tuple[Any, ...]:
+        return self.args
+
+    def get_retval(self) -> ChoiceMap:
+        return self.value
+
+    def get_gen_fn(self) -> GFI[Any]:
+        return self.gen_fn
+
+    def get_score(self) -> Score:
+        return self.score
+
+    def get_choices(self) -> ChoiceMap:
+        return ChoiceMap.choice(self.value)
+
+
+class ChoiceMapDistribution(GFI[ChoiceMap], Pytree):
+    """
+    The abstract class `SampleDistribution` represents the type of distributions whose return value type is a `ChoiceMap`. This is the abstract base class of `Algorithm`, as well as `Marginal`.
+    """
+
+    @abstractmethod
+    def random_weighted(
+        self,
+        *args: Any,
+    ) -> tuple[Score, ChoiceMap]:
+        """
+        Given a [`Target`][genjax.inference.Target], return a [`ChoiceMap`][genjax.core.ChoiceMap] from an approximation to the normalized distribution of the target, and a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
+
+        The `sample` is a sample on the support of `target.gen_fn` which _are not in_ `target.constraints`, produced by running the inference algorithm.
+
+        Let $T_P(a, c)$ denote the target, with $P$ the distribution on samples represented by `target.gen_fn`, and $S$ denote the sample. Let $w$ denote the weight `w`. The weight $w$ is a random weight such that $w$ satisfies:
+
+        $$
+        \\mathbb{E}\\big[\\frac{1}{w} \\mid S \\big] = \\frac{1}{P(S \\mid c; a)}
+        $$
+
+        This interface corresponds to **(Defn 3.2) Unbiased Density Sampler** in [[Lew23](https://dl.acm.org/doi/pdf/10.1145/3591290)].
+        """
+        assert isinstance(args[0], Target)
+
+    @abstractmethod
+    def estimate_logpdf(
+        self,
+        v: ChoiceMap,
+        *args,
+    ) -> Score:
+        """
+        Given a [`ChoiceMap`][genjax.core.ChoiceMap] and a [`Target`][genjax.inference.Target], return a random [`Weight`][genjax.core.Weight] estimate of the normalized density of the target at the sample.
+
+        Let $T_P(a, c)$ denote the target, with $P$ the distribution on samples represented by `target.gen_fn`, and $S$ denote the sample. Let $w$ denote the weight `w`. The weight $w$ is a random weight such that $w$ satisfies:
+
+        $$
+        \\mathbb{E}[w] = P(S \\mid c, a)
+        $$
+
+        This interface corresponds to **(Defn 3.1) Positive Unbiased Density Estimator** in [[Lew23](https://dl.acm.org/doi/pdf/10.1145/3591290)].
+        """
+
+    def simulate(
+        self,
+        args: tuple[Any, ...],
+    ) -> Trace[ChoiceMap]:
+        (w, v) = self.random_weighted(*args)
+        tr = ChoiceMapDistributionTrace(self, args, v, w)
+        return tr
+
+    def generate_choice_map(
+        self,
+        chm: ChoiceMap,
+        args: tuple[Any, ...],
+    ) -> tuple[Trace[ChoiceMap], Weight]:
+        v = chm.get_value()
+        match v:
+            case None:
+                tr = self.simulate(args)
+                return tr, jnp.array(0.0)
+
+            case Mask(value, flag):
+
+                def _simulate(v):
+                    score, new_v = self.random_weighted(*args)
+                    w = 0.0
+                    return (score, w, new_v)
+
+                def _importance(v):
+                    w = self.estimate_logpdf(v, *args)
+                    return (w, w, v)
+
+                score, w, new_v = cond(flag, _importance, _simulate, value)
+                tr = ChoiceMapDistributionTrace(self, args, new_v, score)
+                return tr, w
+
+            case _:
+                w = self.estimate_logpdf(v, *args)
+                tr = ChoiceMapDistributionTrace(self, args, v, w)
+                return tr, w
+
+    def generate(
+        self,
+        constraint: ChoiceMap,
+        args: tuple[Any, ...],
+    ) -> tuple[Trace[ChoiceMap], Weight]:
+        match constraint:
+            case ChoiceMap():
+                tr, w = self.generate_choice_map(constraint, args)
+
+            case _:
+                raise Exception("Unhandled type.")
+        return tr, w
+
+    def project(
+        self,
+        trace: Trace[ChoiceMap],
+        selection: Selection,
+    ) -> Weight:
+        raise NotImplementedError
+
+    def edit(
+        self,
+        trace: Trace[ChoiceMap],
+        edit_request: EditRequest,
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[ChoiceMap], Weight, Retdiff[ChoiceMap], EditRequest]:
+        match edit_request:
+            case Update(_):
+                raise NotImplementedError
+            case Regenerate(_):
+                raise NotImplementedError
+
+            case _:
+                raise NotSupportedEditRequest(edit_request)
+
+    def assess(
+        self,
+        chm: ChoiceMap,
+        args: tuple[Any, ...],
+    ):
+        raise NotImplementedError
+
 
 ########################
 # Inference algorithms #
 ########################
 
 
-class Algorithm(Generic[R], SampleDistribution):
+class Algorithm(ChoiceMapDistribution):
     """`Algorithm` is the type of inference
     algorithms: probabilistic programs which provide interfaces for sampling from
     posterior approximations, and estimating densities.
@@ -178,14 +332,14 @@ class Algorithm(Generic[R], SampleDistribution):
     @abstractmethod
     def estimate_normalizing_constant(
         self,
-        target: Target[R],
+        target: Target,
     ) -> Weight:
         pass
 
     @abstractmethod
     def estimate_reciprocal_normalizing_constant(
         self,
-        target: Target[R],
+        target: Target,
         latent_choices: ChoiceMap,
         w: Weight,
     ) -> Weight:
@@ -198,14 +352,14 @@ class Algorithm(Generic[R], SampleDistribution):
 
 
 @Pytree.dataclass
-class Marginal(Generic[R], SampleDistribution):
+class Marginal(ChoiceMapDistribution):
     """The `Marginal` class represents the marginal distribution of a generative function over
     a selection of addresses.
     """
 
-    gen_fn: GenerativeFunction[R]
+    gen_fn: GFI[Any]
     selection: Selection = Pytree.field(default=Selection.all())
-    algorithm: Algorithm[R] | None = Pytree.field(default=None)
+    algorithm: Algorithm | None = Pytree.field(default=None)
 
     def random_weighted(
         self,
@@ -248,11 +402,11 @@ class Marginal(Generic[R], SampleDistribution):
 
 def marginal(
     selection: Selection = Selection.all(),
-    algorithm: Algorithm[R] | None = None,
-) -> Callable[[GenerativeFunction[R]], Marginal[R]]:
+    algorithm: Algorithm | None = None,
+) -> Callable[[GFI[Any]], Marginal]:
     def decorator(
-        gen_fn: GenerativeFunction[R],
-    ) -> Marginal[R]:
+        gen_fn: GFI[R],
+    ) -> Marginal:
         return Marginal(
             gen_fn,
             selection,

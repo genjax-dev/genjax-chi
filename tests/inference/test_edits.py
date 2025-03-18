@@ -30,7 +30,7 @@ from genjax import (
 )
 from genjax import ChoiceMap as C
 from genjax import SelectionBuilder as S
-from genjax._src.generative_functions.static import StaticRequest
+from genjax._src.generative_functions.fn import StaticRequest
 from genjax.edits import HMC, Rejuvenate, SafeHMC
 
 

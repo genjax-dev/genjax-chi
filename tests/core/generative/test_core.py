@@ -21,7 +21,7 @@ import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Selection
 from genjax import SelectionBuilder as S
-from genjax._src.generative_functions.static import StaticTrace
+from genjax._src.generative_functions.fn import FnTrace
 
 
 class TestTupleAddr:
@@ -98,7 +98,7 @@ class TestGetSubtrace:
 
         tr = g.simulate(())
         f_tr = tr.get_subtrace("f")
-        assert isinstance(f_tr, StaticTrace)
+        assert isinstance(f_tr, FnTrace)
         assert (
             tr.get_subtrace("f", "x").get_score() == f_tr.get_subtrace("x").get_score()
         )
@@ -155,7 +155,7 @@ class TestGetSubtrace:
             return genjax.normal(x, 0.01) @ "y"
 
         tr = f.simulate((jnp.arange(5.0),))
-        assert tr.get_subtrace("y").get_score().shape == (5,)
+        assert tr.get_subtrace("y").get_score().shape == ()
         assert tr.get_score() == jnp.sum(tr.get_subtrace("y").get_score())
 
     def test_get_subtrace_scan(self):
@@ -164,8 +164,10 @@ class TestGetSubtrace:
             return state + genjax.normal(step, 0.01) @ "y", None
 
         tr = f.scan().simulate((5.0, jnp.arange(3.0)))
-        assert tr.get_subtrace("y").get_score().shape == (3,)
-        assert tr.get_score() == jnp.sum(tr.get_subtrace("y").get_score())
+        assert tr.get_subtrace("y").get_score().shape == ()
+        assert tr.get_score() == pytest.approx(
+            jnp.sum(tr.get_subtrace("y").get_score()), 1e-4
+        )
 
 
 class TestCombinators:

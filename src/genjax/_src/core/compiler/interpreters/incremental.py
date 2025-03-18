@@ -32,6 +32,7 @@ import jax.tree_util as jtu
 from jax import util as jax_util
 from jax.extend.core import Jaxpr, Primitive
 
+from genjax._src.core.compiler.initial_style_primitive import ElaboratedPrimitive
 from genjax._src.core.compiler.interpreters.environment import Environment
 from genjax._src.core.compiler.interpreters.stateful import StatefulHandler
 from genjax._src.core.compiler.staging import stage
@@ -326,22 +327,23 @@ class IncrementalInterpreter(Pytree):
         jax_util.safe_map(
             dual_env.write, jaxpr.invars, Diff.tree_diff(primals, tangents)
         )
-        for _eqn in jaxpr.eqns:
-            induals = jax_util.safe_map(dual_env.read, _eqn.invars)
+        for eqn in jaxpr.eqns:
+            induals = jax_util.safe_map(dual_env.read, eqn.invars)
             # TODO: why isn't this handled automatically by the environment,
             # especially the line above with _jaxpr.constvars?
             induals = [
                 Diff(v, NoChange) if not isinstance(v, Diff) else v for v in induals
             ]
-            subfuns, params = _eqn.primitive.get_bind_params(_eqn.params)
+            subfuns, params = eqn.primitive.get_bind_params(eqn.params)
             args = subfuns + induals
-            if stateful_handler and stateful_handler.handles(_eqn.primitive):
-                outduals = stateful_handler.dispatch(_eqn.primitive, *args, **params)
+            primitive = ElaboratedPrimitive.unwrap(eqn.primitive)
+            if stateful_handler and stateful_handler.handles(primitive):
+                outduals = stateful_handler.dispatch(primitive, *args, **params)
             else:
-                outduals = default_propagation_rule(_eqn.primitive, *args, **params)
-            if not _eqn.primitive.multiple_results:
+                outduals = default_propagation_rule(primitive, *args, **params)
+            if not eqn.primitive.multiple_results:
                 outduals = [outduals]
-            jax_util.safe_map(dual_env.write, _eqn.outvars, outduals)
+            jax_util.safe_map(dual_env.write, eqn.outvars, outduals)
 
         return jax_util.safe_map(dual_env.read, jaxpr.outvars)
 

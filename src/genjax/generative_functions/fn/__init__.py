@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.static import (
+from genjax._src.generative_functions.fn import (
     AddressReuse,
+    Fn,
     MissingAddress,
-    StaticGenerativeFunction,
     StaticRequest,
     gen,
     trace,
@@ -24,8 +24,8 @@ from genjax._src.generative_functions.static import (
 
 __all__ = [
     "AddressReuse",
+    "Fn",
     "MissingAddress",
-    "StaticGenerativeFunction",
     "StaticRequest",
     "gen",
     "trace",

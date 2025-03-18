@@ -20,11 +20,11 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 from jax import util as jax_util
 from jax.extend import source_info_util as src_util
-from jax.extend.core import Jaxpr, jaxpr_as_fun
+from jax.extend.core import Jaxpr, JaxprEqn, Var, jaxpr_as_fun
 from jax.interpreters import ad as jax_autodiff
-from jax.interpreters import batching
 
 from genjax._src.core.compiler.initial_style_primitive import (
+    ElaboratedPrimitive,
     InitialStylePrimitive,
     initial_style_bind,
 )
@@ -145,14 +145,6 @@ def sample_primitive(adev_prim: ADEVPrimitive, *args):
     )
 
 
-# TODO: this is gnarly as fuck.
-def batch_primitive(args, dims, **params):
-    raise NotImplementedError
-
-
-batching.primitive_batchers[sample_p] = batch_primitive
-
-
 ####################
 # ADEV interpreter #
 ####################
@@ -175,7 +167,11 @@ class Dual(Pytree):
 
     @staticmethod
     def dual_tree(primals, tangents):
-        return jtu.tree_map(lambda v1, v2: Dual(v1, v2), primals, tangents)
+        return jtu.tree_map(
+            lambda v1, v2: Dual(v1, v2),
+            primals,
+            tangents,
+        )
 
     @staticmethod
     def tree_primal(v):
@@ -233,7 +229,7 @@ class ADInterpreter(Pytree):
     """
 
     @staticmethod
-    def flat_unzip(duals: list[Any]):
+    def flat_unzip(duals: list[Any]) -> tuple[list[Any], list[Any]]:
         primals, tangents = jax_util.unzip2((t.primal, t.tangent) for t in duals)
         return list(primals), list(tangents)
 
@@ -248,24 +244,35 @@ class ADInterpreter(Pytree):
         jax_util.safe_map(dual_env.write, jaxpr.invars, flat_duals)
 
         # TODO: Pure evaluation.
-        def eval_jaxpr_iterate_pure(eqns, pure_env, invars, flat_args):
+        def eval_jaxpr_iterate_pure(
+            eqns: list[JaxprEqn],
+            pure_env: Environment,
+            invars: list[Var],
+            flat_args: list[Any],
+        ):
             jax_util.safe_map(pure_env.write, invars, flat_args)
             for eqn in eqns:
                 in_vals = jax_util.safe_map(pure_env.read, eqn.invars)
                 subfuns, params = eqn.primitive.get_bind_params(eqn.params)
                 args = subfuns + in_vals
-                if eqn.primitive is sample_p:
+                primitive = ElaboratedPrimitive.unwrap(eqn.primitive)
+                if primitive is sample_p:
                     pass
                 else:
-                    outs = eqn.primitive.bind(*args, **params)
-                    if not eqn.primitive.multiple_results:
+                    outs = primitive.bind(*args, **params)
+                    if not primitive.multiple_results:
                         outs = [outs]
                     jax_util.safe_map(pure_env.write, eqn.outvars, outs)
 
             return jax_util.safe_map(pure_env.read, jaxpr.outvars)
 
         # Dual evaluation.
-        def eval_jaxpr_iterate_dual(eqns, dual_env, invars, flat_duals):
+        def eval_jaxpr_iterate_dual(
+            eqns: list[JaxprEqn],
+            dual_env: Environment,
+            invars: list[Var],
+            flat_duals: list[Dual],
+        ):
             jax_util.safe_map(dual_env.write, invars, flat_duals)
 
             for eqn_idx, eqn in enumerate(eqns):
@@ -275,7 +282,8 @@ class ADInterpreter(Pytree):
                     duals = subfuns + in_vals
 
                     # Our sample_p primitive.
-                    if eqn.primitive is sample_p:
+                    primitive = ElaboratedPrimitive.unwrap(eqn.primitive)
+                    if primitive is sample_p:
                         dual_env = dual_env.copy()
                         pure_env = Dual.tree_primal(dual_env)
 
@@ -305,6 +313,7 @@ class ADInterpreter(Pytree):
                             Dual.tree_leaves(Dual.tree_pure(duals[num_consts:]))
                         )
                         adev_prim, *primals = jtu.tree_unflatten(in_tree, flat_primals)
+                        assert isinstance(adev_prim, ADEVPrimitive)
                         _, *tangents = jtu.tree_unflatten(in_tree, flat_tangents)
                         dual_tree = Dual.dual_tree(primals, tangents)
 
@@ -314,7 +323,7 @@ class ADInterpreter(Pytree):
                         )
 
                     # Handle branching.
-                    elif eqn.primitive is jax.lax.cond_p:
+                    elif primitive is jax.lax.cond_p:
                         pure_env = Dual.tree_primal(dual_env)
 
                         # Create dual continuation for the computation after the cond_p.
@@ -352,16 +361,22 @@ class ADInterpreter(Pytree):
                             Dual.tree_leaves(Dual.tree_pure(duals))
                         )
                         if len(flat_primals) == 0:
-                            primal_outs = eqn.primitive.bind(*flat_primals, **params)
+                            primal_outs = primitive.bind(*flat_primals, **params)
                             tangent_outs = jtu.tree_map(jnp.zeros_like, primal_outs)
                         else:
-                            jvp = jax_autodiff.primitive_jvps.get(eqn.primitive)
+                            jvp = jax_autodiff.primitive_jvps.get(primitive)
                             if not jvp:
-                                msg = f"differentiation rule for '{eqn.primitive}' not implemented"
+                                msg = f"differentiation rule for '{primitive}' not implemented"
                                 raise NotImplementedError(msg)
-                            primal_outs, tangent_outs = jvp(
-                                flat_primals, flat_tangents, **params
-                            )
+                            else:
+                                primal_outs, tangent_outs = jvp(
+                                    flat_primals, flat_tangents, **params
+                                )
+                                print({
+                                    "prim": primitive,
+                                    "ins": (flat_primals, flat_tangents),
+                                    "outs": (primal_outs, tangent_outs),
+                                })
 
                 if not eqn.primitive.multiple_results:
                     primal_outs = [primal_outs]
@@ -377,7 +392,12 @@ class ADInterpreter(Pytree):
                 out_dual = Dual(out_dual, jnp.zeros_like(out_dual))
             return out_dual
 
-        return eval_jaxpr_iterate_dual(jaxpr.eqns, dual_env, jaxpr.invars, flat_duals)
+        return eval_jaxpr_iterate_dual(
+            jaxpr.eqns,
+            dual_env,
+            jaxpr.invars,
+            flat_duals,
+        )
 
     @staticmethod
     def forward_mode(f, kont=lambda v: v):

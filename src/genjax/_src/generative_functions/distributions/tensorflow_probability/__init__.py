@@ -16,11 +16,11 @@
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 
-from genjax._src.core.compiler.pjax import sample_binder
+from genjax._src.core.compiler.pjax import log_density_binder, sample_binder
 from genjax._src.core.typing import Array, Callable
 from genjax._src.generative_functions.distributions.distribution import (
-    ExactDensity,
-    exact_density,
+    Distribution,
+    distribution,
     implicit_logit_warning,
 )
 
@@ -33,8 +33,9 @@ if TYPE_CHECKING:
 
 
 def tfp_distribution(
-    dist: Callable[..., "dist.Distribution"], name: str | None = None
-) -> ExactDensity[Array]:
+    dist: Callable[..., "dist.Distribution"],
+    name: str | None = None,
+) -> Distribution[Array]:
     """
     Creates a generative function from a TensorFlow Probability distribution.
 
@@ -50,15 +51,22 @@ def tfp_distribution(
     """
 
     def sampler(*args, **kwargs):
-        def _sampler(key, *args):
+        def _sampler(key, *args, **kwargs):
             return dist(*args, **kwargs).sample(seed=key)
 
-        return sample_binder(_sampler)(*args)
+        return sample_binder(_sampler, name=name)(*args, **kwargs)
 
     def logpdf(v, *args, **kwargs):
-        return dist(*args, **kwargs).log_prob(v)
+        def _log_density(v, *args, **kwargs):
+            return dist(*args, **kwargs).log_prob(v)
 
-    return exact_density(sampler, logpdf, name or dist.__name__)
+        return log_density_binder(_log_density, name=name)(v, *args, **kwargs)
+
+    return distribution(
+        sampler,
+        logpdf,
+        name or dist.__name__,
+    )
 
 
 #####################
@@ -66,7 +74,10 @@ def tfp_distribution(
 #####################
 
 
-bernoulli = tfp_distribution(implicit_logit_warning(tfd.Bernoulli), name="bernoulli")
+bernoulli = tfp_distribution(
+    implicit_logit_warning(tfd.Bernoulli),
+    name="bernoulli",
+)
 
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Bernoulli`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Bernoulli) distribution from TensorFlow Probability distributions.
@@ -91,7 +102,7 @@ beta_quotient = tfp_distribution(tfd.BetaQuotient)
 A `tfp_distribution` generative function which wraps the [`tfd.BetaQuotient`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/BetaQuotient) distribution from TensorFlow Probability distributions.
 """
 
-binomial: ExactDensity[Array] = tfp_distribution(tfd.Binomial)
+binomial: Distribution[Array] = tfp_distribution(tfd.Binomial)
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Binomial`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Binomial) distribution from TensorFlow Probability distributions.
 """
@@ -253,7 +264,7 @@ non_central_chi2 = tfp_distribution(tfd.NoncentralChi2)
 A `tfp_distribution` generative function which wraps the [`tfd.NoncentralChi2`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/NoncentralChi2) distribution from TensorFlow Probability distributions.
 """
 
-normal = tfp_distribution(tfd.Normal)
+normal = tfp_distribution(tfd.Normal, name="Normal")
 """
 A `tfp_distribution` generative function which wraps the [`tfd.Normal`](https://www.tensorflow.org/probability/api_docs/python/tfp/distributions/Normal) distribution from TensorFlow Probability distributions.
 """

@@ -995,7 +995,7 @@ class TestChoiceMap:
 
         @genjax.gen
         def outer_model():
-            choice = genjax.categorical(probs=[0.3, 0.3, 0.4]) @ "choice"
+            choice = genjax.categorical(probs=jnp.array([0.3, 0.3, 0.4])) @ "choice"
             return switch_model(choice, (), (), ()) @ "out"
 
         # Valid ChoiceMap for model1

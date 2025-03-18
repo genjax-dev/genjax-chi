@@ -18,12 +18,11 @@ import jax.tree_util as jtu
 
 from genjax._src.core.compiler.interpreters.incremental import Diff
 from genjax._src.core.generative import (
+    GFI,
     Argdiffs,
     ChoiceMap,
     EditRequest,
-    GenerativeFunction,
     IndexRequest,
-    PrimitiveEditRequest,
     Regenerate,
     Retdiff,
     Score,
@@ -41,7 +40,6 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     Flag,
-    FloatArray,
     Generic,
     IntArray,
     TypeVar,
@@ -57,8 +55,6 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
     inner: Trace[tuple[Carry, Y]]
     args: tuple[Any, ...]
     retval: tuple[Carry, Y]
-    score: FloatArray
-    chm: ChoiceMap
     scan_length: int = Pytree.static()
 
     @staticmethod
@@ -67,14 +63,9 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
         inner: Trace[tuple[Carry, Y]],
         args: tuple[Any, ...],
         retval: tuple[Carry, Y],
-        score: FloatArray,
         scan_length: int,
     ) -> "ScanTrace[Carry, Y]":
-        if scan_length == 0:
-            chm = ChoiceMap.empty()
-        else:
-            chm = jax.vmap(lambda tr: tr.get_choices())(inner)
-        return ScanTrace(scan_gen_fn, inner, args, retval, score, chm, scan_length)
+        return ScanTrace(scan_gen_fn, inner, args, retval, scan_length)
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
@@ -83,21 +74,21 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
         return self.retval
 
     def get_choices(self) -> ChoiceMap:
-        return self.chm
+        if self.scan_length == 0:
+            chm = ChoiceMap.empty()
+        else:
+            chm = jax.vmap(lambda tr: tr.get_choices())(self.inner)
+        return chm
 
     def get_gen_fn(self):
         return self.scan_gen_fn
 
     def get_score(self):
-        return self.score
+        scores = jax.vmap(lambda tr: tr.get_score())(self.inner)
+        return jnp.sum(scores)
 
     def get_inner_trace(self, address: Address):
         return self.inner.get_inner_trace(address)
-
-
-@Pytree.dataclass(match_args=True)
-class VectorRequest(PrimitiveEditRequest):
-    request: EditRequest
 
 
 ###################
@@ -106,9 +97,9 @@ class VectorRequest(PrimitiveEditRequest):
 
 
 @Pytree.dataclass
-class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
-    """`Scan` wraps a `kernel_gen_fn` [`genjax.GenerativeFunction`][]
-    of type `(c, a) -> (c, b)` in a new [`genjax.GenerativeFunction`][] of type
+class Scan(Generic[Carry, Y], GFI[tuple[Carry, Y]]):
+    """`Scan` wraps a `kernel_gen_fn` [`genjax.GFI`][]
+    of type `(c, a) -> (c, b)` in a new [`genjax.GFI`][] of type
     `(c, [a]) -> (c, [b])`, where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
@@ -119,7 +110,7 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
     For any array type specifier `t`, `[t]` represents the type with an additional leading axis, and if `t` is a pytree (container) type with array leaves then `[t]` represents the type with the same pytree structure and corresponding leaves each with an additional leading axis.
 
-    When the type of `xs` in the snippet below (denoted `[a]` above) is an array type or None, and the type of `ys` in the snippet below (denoted `[b]` above) is an array type, the semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation:
+    When the type of `xs` in the snippet below (denoted `[a]` above) is an array type or None, and the type of `ys` in the snippet below (denoted `[b]` above) is an array type, the semantics of the returned [`genjax.GFI`][] are given roughly by this Python implementation:
 
     ```python
     def scan(f, init, xs, length=None):
@@ -143,7 +134,7 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         length: optional integer specifying the number of loop iterations, which (if supplied) must agree with the sizes of leading axes of the arrays in the returned function's second argument. If supplied then the returned generative function can take `None` as its second argument.
 
     Examples:
-        Use the [`genjax.GenerativeFunction.scan`][] method:
+        Use the [`genjax.GFI.scan`][] method:
         ```python exec="yes" html="true" source="material-block" session="scan"
         import jax
         import genjax
@@ -179,7 +170,7 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         ```
     """
 
-    kernel_gen_fn: GenerativeFunction[tuple[Carry, Y]]
+    kernel_gen_fn: GFI[tuple[Carry, Y]]
 
     # Only required for `None` carry inputs
     length: int | None = Pytree.static()
@@ -207,17 +198,16 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             scanned_in: Any,
         ) -> tuple[
             Carry,
-            tuple[Trace[tuple[Carry, Y]], Y, Score],
+            tuple[Trace[tuple[Carry, Y]], Y],
         ]:
             carried_value = carry
 
             tr = self.kernel_gen_fn.simulate((carried_value, scanned_in))
             (carried_out, scanned_out) = tr.get_retval()
-            score = tr.get_score()
 
-            return carried_out, (tr, scanned_out, score)
+            return carried_out, (tr, scanned_out)
 
-        carried_out, (tr, scanned_out, scores) = jax.lax.scan(
+        carried_out, (tr, scanned_out) = jax.lax.scan(
             _inner,
             carry,
             scanned_in,
@@ -229,7 +219,6 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             tr,
             args,
             (carried_out, scanned_out),
-            jnp.sum(scores),
             self._static_scan_length(scanned_in, self.length),
         )
 
@@ -244,33 +233,32 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             constraint: ChoiceMap,
             carry: Carry,
             scanned_in: Any,
-        ) -> tuple[tuple[Carry, Score], tuple[Trace[tuple[Carry, Y]], Y, Weight]]:
+        ) -> tuple[tuple[Carry], tuple[Trace[tuple[Carry, Y]], Y, Weight]]:
             tr, w = self.kernel_gen_fn.generate(
                 constraint,
                 (carry, scanned_in),
             )
             (carry, scanned_out) = tr.get_retval()
-            score = tr.get_score()
-            return (carry, score), (tr, scanned_out, w)
+            return (carry,), (tr, scanned_out, w)
 
         def _generate(
             carry: tuple[IntArray, Carry],
             scanned_over: Any,
         ) -> tuple[
             tuple[IntArray, Carry],
-            tuple[Trace[tuple[Carry, Y]], Y, Score, Weight],
+            tuple[Trace[tuple[Carry, Y]], Y, Weight],
         ]:
             idx, carried_value = carry
             submap = constraint.get_submap(idx)
             subconstraint = submap
 
-            (carried_out, score), (tr, scanned_out, w) = _inner_generate(
+            (carried_out,), (tr, scanned_out, w) = _inner_generate(
                 subconstraint, carried_value, scanned_over
             )
 
-            return (idx + 1, carried_out), (tr, scanned_out, score, w)
+            return (idx + 1, carried_out), (tr, scanned_out, w)
 
-        (_, carried_out), (tr, scanned_out, scores, ws) = jax.lax.scan(
+        (_, carried_out), (tr, scanned_out, ws) = jax.lax.scan(
             _generate,
             (jnp.asarray(0), carry),
             scanned_in,
@@ -282,7 +270,6 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 tr,
                 args,
                 (carried_out, scanned_out),
-                jnp.sum(scores),
                 self._static_scan_length(scanned_in, self.length),
             ),
             jnp.sum(ws),
@@ -377,8 +364,6 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         new_inner_trace = jtu.tree_map(
             lambda v, v_: mutator(v, idx + 1, v_), new_inner_trace, next_slice_trace
         )
-        scores = jax.vmap(lambda tr: tr.get_score())(new_inner_trace)
-
         # We don't actually know if the index which was updated was the last one.
         # Therefore, we need to provide a where selection
         # between the carry from index, and the next slice --
@@ -396,7 +381,6 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 new_inner_trace,
                 Diff.tree_primal(argdiffs),
                 (carried_out, new_scanned_out),
-                jnp.sum(scores),
                 self._static_scan_length(scanned_in, self.length),
             ),
             w + (next_w * (idx + 1 < max_length)),
@@ -421,7 +405,7 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             carry: Carry,
             scanned_in: Any,
         ) -> tuple[
-            tuple[Carry, Score],
+            tuple[Carry],
             tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Weight, EditRequest],
         ]:
             request = Regenerate(subselection)
@@ -435,8 +419,7 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 (carry, scanned_in),
             )
             (carry_retdiff, scanned_out_retdiff) = Diff.unknown_change(kernel_retdiff)
-            score = new_subtrace.get_score()
-            return (carry_retdiff, score), (
+            return (carry_retdiff,), (
                 new_subtrace,
                 scanned_out_retdiff,
                 w,
@@ -448,26 +431,25 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             scanned_over: tuple[Trace[tuple[Carry, Y]], Any],
         ) -> tuple[
             tuple[IntArray, Carry],
-            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Score, Weight, EditRequest],
+            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Weight, EditRequest],
         ]:
             idx, carried_value = carry
             subtrace, scanned_in = scanned_over
             (
-                (carried_out, score),
+                (carried_out,),
                 (new_subtrace, scanned_out, w, inner_bwd_request),
             ) = _inner_edit(subtrace, selection, carried_value, scanned_in)
 
             return (idx + 1, carried_out), (
                 new_subtrace,
                 scanned_out,
-                score,
                 w,
                 inner_bwd_request,
             )
 
         (
             (_, carried_out_diff),
-            (new_subtraces, scanned_out_diff, scores, ws, bwd_constraints),
+            (new_subtrace, scanned_out_diff, ws, bwd_request),
         ) = jax.lax.scan(
             _edit,
             (jnp.asarray(0), carry_diff),
@@ -481,15 +463,14 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         return (
             ScanTrace.build(
                 self,
-                new_subtraces,
+                new_subtrace,
                 Diff.tree_primal(argdiffs),
                 (carried_out, scanned_out),
-                jnp.sum(scores),
                 trace.scan_length,
             ),
             jnp.sum(ws),
             (carried_out_diff, scanned_out_diff),
-            VectorRequest(bwd_constraints),
+            bwd_request,
         )
 
     def edit_update(
@@ -508,7 +489,7 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             carry: Carry,
             scanned_in: Any,
         ) -> tuple[
-            tuple[Carry, Score],
+            tuple[Carry],
             tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Weight, EditRequest],
         ]:
             (
@@ -522,8 +503,7 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
                 (carry, scanned_in),
             )
             (carry_retdiff, scanned_out_retdiff) = Diff.unknown_change(kernel_retdiff)
-            score = new_subtrace.get_score()
-            return (carry_retdiff, score), (
+            return (carry_retdiff,), (
                 new_subtrace,
                 scanned_out_retdiff,
                 w,
@@ -535,14 +515,14 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             scanned_over: tuple[Trace[tuple[Carry, Y]], Any],
         ) -> tuple[
             tuple[IntArray, Carry],
-            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Score, Weight, ChoiceMap],
+            tuple[Trace[tuple[Carry, Y]], Retdiff[Y], Weight, ChoiceMap],
         ]:
             idx, carried_value = carry
             subtrace, scanned_in = scanned_over
             subconstraint = constraint(idx)
             assert isinstance(subconstraint, ChoiceMap)
             (
-                (carried_out, score),
+                (carried_out,),
                 (new_subtrace, scanned_out, w, inner_bwd_request),
             ) = _inner_edit(subtrace, subconstraint, carried_value, scanned_in)
             assert isinstance(inner_bwd_request, Update)
@@ -551,14 +531,13 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
             return (idx + 1, carried_out), (
                 new_subtrace,
                 scanned_out,
-                score,
                 w,
                 bwd_chm,
             )
 
         (
             (_, carried_out_diff),
-            (new_subtraces, scanned_out_diff, scores, ws, bwd_constraints),
+            (new_subtrace, scanned_out_diff, ws, bwd_constraints),
         ) = jax.lax.scan(
             _edit,
             (jnp.asarray(0), carry_diff),
@@ -572,10 +551,9 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
         return (
             ScanTrace.build(
                 self,
-                new_subtraces,
+                new_subtrace,
                 Diff.tree_primal(argdiffs),
                 (carried_out, scanned_out),
-                jnp.sum(scores),
                 trace.scan_length,
             ),
             jnp.sum(ws),
@@ -615,14 +593,14 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
     def assess(
         self,
-        sample: ChoiceMap,
+        chm: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, Any]:
         (carry, scanned_in) = args
 
         def _assess(carry, scanned_in):
             idx, carried_value = carry
-            submap = sample.get_submap(idx)
+            submap = chm.get_submap(idx)
 
             score, (carry, scanned_out) = self.kernel_gen_fn.assess(
                 submap, (carried_value, scanned_in)
@@ -649,11 +627,9 @@ class Scan(Generic[Carry, Y], GenerativeFunction[tuple[Carry, Y]]):
 
 def scan(
     *, n: int | None = None
-) -> Callable[
-    [GenerativeFunction[tuple[Carry, Y]]], GenerativeFunction[tuple[Carry, Y]]
-]:
-    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
-    `(c, a) -> (c, b)`and returns a new [`genjax.GenerativeFunction`][] of type
+) -> Callable[[GFI[tuple[Carry, Y]]], GFI[tuple[Carry, Y]]]:
+    """Returns a decorator that wraps a [`genjax.GFI`][] of type
+    `(c, a) -> (c, b)`and returns a new [`genjax.GFI`][] of type
     `(c, [a]) -> (c, [b])` where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
@@ -664,7 +640,7 @@ def scan(
 
     For any array type specifier `t`, `[t]` represents the type with an additional leading axis, and if `t` is a pytree (container) type with array leaves then `[t]` represents the type with the same pytree structure and corresponding leaves each with an additional leading axis.
 
-    When the type of `xs` in the snippet below (denoted `[a]` above) is an array type or None, and the type of `ys` in the snippet below (denoted `[b]` above) is an array type, the semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation:
+    When the type of `xs` in the snippet below (denoted `[a]` above) is an array type or None, and the type of `ys` in the snippet below (denoted `[b]` above) is an array type, the semantics of the returned [`genjax.GFI`][] are given roughly by this Python implementation:
 
     ```python
     def scan(f, init, xs, length=None):
@@ -686,7 +662,7 @@ def scan(
         n: optional integer specifying the number of loop iterations, which (if supplied) must agree with the sizes of leading axes of the arrays in the returned function's second argument. If supplied then the returned generative function can take `None` as its second argument.
 
     Returns:
-        A new [`genjax.GenerativeFunction`][] that takes a loop-carried value and a new input, and returns a new loop-carried value along with either `None` or an output to be collected into the second return value.
+        A new [`genjax.GFI`][] that takes a loop-carried value and a new input, and returns a new loop-carried value along with either `None` or an output to be collected into the second return value.
 
     Examples:
         Scan for 1000 iterations with no array input:
@@ -731,7 +707,7 @@ def scan(
         ```
     """
 
-    def decorator(f: GenerativeFunction[tuple[Carry, Y]]):
+    def decorator(f: GFI[tuple[Carry, Y]]):
         return Scan[Carry, Y](f, length=n)
 
     return decorator
@@ -766,9 +742,9 @@ def prepend_initial_acc(
     return jax.tree.map(cat, init_acc, xs)
 
 
-def accumulate() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]:
-    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
-    `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type
+def accumulate() -> Callable[[GFI[Carry]], GFI[Carry]]:
+    """Returns a decorator that wraps a [`genjax.GFI`][] of type
+    `(c, a) -> c` and returns a new [`genjax.GFI`][] of type
     `(c, [a]) -> [c]` where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
@@ -779,7 +755,7 @@ def accumulate() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Car
 
     For any array type specifier `t`, `[t]` represents the type with an additional leading axis, and if `t` is a pytree (container) type with array leaves then `[t]` represents the type with the same pytree structure and corresponding leaves each with an additional leading axis.
 
-    The semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation (note the similarity to [`itertools.accumulate`](https://docs.python.org/3/library/itertools.html#itertools.accumulate)):
+    The semantics of the returned [`genjax.GFI`][] are given roughly by this Python implementation (note the similarity to [`itertools.accumulate`](https://docs.python.org/3/library/itertools.html#itertools.accumulate)):
 
     ```python
     def accumulate(f, init, xs):
@@ -819,7 +795,7 @@ def accumulate() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Car
         ```
     """
 
-    def decorator(f: GenerativeFunction[Carry]) -> GenerativeFunction[Carry]:
+    def decorator(f: GFI[Carry]) -> GFI[Carry]:
         return (
             f.map(lambda ret: (ret, ret))
             .scan()
@@ -829,9 +805,9 @@ def accumulate() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Car
     return decorator
 
 
-def reduce() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]:
-    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
-    `(c, a) -> c` and returns a new [`genjax.GenerativeFunction`][] of type
+def reduce() -> Callable[[GFI[Carry]], GFI[Carry]]:
+    """Returns a decorator that wraps a [`genjax.GFI`][] of type
+    `(c, a) -> c` and returns a new [`genjax.GFI`][] of type
     `(c, [a]) -> c` where.
 
     - `c` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
@@ -841,7 +817,7 @@ def reduce() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]
 
     For any array type specifier `t`, `[t]` represents the type with an additional leading axis, and if `t` is a pytree (container) type with array leaves then `[t]` represents the type with the same pytree structure and corresponding leaves each with an additional leading axis.
 
-    The semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation (note the similarity to [`functools.reduce`](https://docs.python.org/3/library/itertools.html#functools.reduce)):
+    The semantics of the returned [`genjax.GFI`][] are given roughly by this Python implementation (note the similarity to [`functools.reduce`](https://docs.python.org/3/library/itertools.html#functools.reduce)):
 
     ```python
     def reduce(f, init, xs):
@@ -879,7 +855,7 @@ def reduce() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]
         ```
     """
 
-    def decorator(f: GenerativeFunction[Carry]) -> GenerativeFunction[Carry]:
+    def decorator(f: GFI[Carry]) -> GFI[Carry]:
         def pre(ret: Carry):
             return ret, None
 
@@ -891,9 +867,9 @@ def reduce() -> Callable[[GenerativeFunction[Carry]], GenerativeFunction[Carry]]
     return decorator
 
 
-def iterate(*, n: int) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
-    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
-    `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a ->
+def iterate(*, n: int) -> Callable[[GFI[Y]], GFI[Y]]:
+    """Returns a decorator that wraps a [`genjax.GFI`][] of type
+    `a -> a` and returns a new [`genjax.GFI`][] of type `a ->
     [a]` where.
 
     - `a` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
@@ -901,7 +877,7 @@ def iterate(*, n: int) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y
 
     All traced values are nested under an index.
 
-    The semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation:
+    The semantics of the returned [`genjax.GFI`][] are given roughly by this Python implementation:
 
     ```python
     def iterate(f, n, init):
@@ -941,7 +917,7 @@ def iterate(*, n: int) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y
         ```
     """
 
-    def decorator(f: GenerativeFunction[Y]) -> GenerativeFunction[Y]:
+    def decorator(f: GFI[Y]) -> GFI[Y]:
         # strip off the JAX-supplied `None` on the way in, accumulate `ret` on the way out.
         return (
             f.dimap(
@@ -955,11 +931,9 @@ def iterate(*, n: int) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y
     return decorator
 
 
-def iterate_final(
-    *, n: int
-) -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
-    """Returns a decorator that wraps a [`genjax.GenerativeFunction`][] of type
-    `a -> a` and returns a new [`genjax.GenerativeFunction`][] of type `a -> a`
+def iterate_final(*, n: int) -> Callable[[GFI[Y]], GFI[Y]]:
+    """Returns a decorator that wraps a [`genjax.GFI`][] of type
+    `a -> a` and returns a new [`genjax.GFI`][] of type `a -> a`
     where.
 
     - `a` is a loop-carried value, which must hold a fixed shape and dtype across all iterations
@@ -967,7 +941,7 @@ def iterate_final(
 
     All traced values are nested under an index.
 
-    The semantics of the returned [`genjax.GenerativeFunction`][] are given roughly by this Python implementation:
+    The semantics of the returned [`genjax.GFI`][] are given roughly by this Python implementation:
 
     ```python
     def iterate_final(f, n, init):
@@ -1005,7 +979,7 @@ def iterate_final(
         ```
     """
 
-    def decorator(f: GenerativeFunction[Y]) -> GenerativeFunction[Y]:
+    def decorator(f: GFI[Y]) -> GFI[Y]:
         # strip off the JAX-supplied `None` on the way in, no accumulation on the way out.
         def pre_post(_, _xformed, ret: Y):
             return ret, None
@@ -1025,7 +999,7 @@ def iterate_final(
 # Masked Combinators
 
 
-def masked_iterate_final() -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
+def masked_iterate_final() -> Callable[[GFI[Y]], GFI[Y]]:
     """
     Transforms a generative function that takes a single argument of type `a` and returns a value of type `a`, into a function that takes a tuple of arguments `(a, [mask])` and returns a value of type `a`.
 
@@ -1062,7 +1036,7 @@ def masked_iterate_final() -> Callable[[GenerativeFunction[Y]], GenerativeFuncti
         ```
     """
 
-    def decorator(step: GenerativeFunction[Y]) -> GenerativeFunction[Y]:
+    def decorator(step: GFI[Y]) -> GFI[Y]:
         def pre(state, flag: Flag):
             return flag, state
 
@@ -1076,7 +1050,7 @@ def masked_iterate_final() -> Callable[[GenerativeFunction[Y]], GenerativeFuncti
     return decorator
 
 
-def masked_iterate() -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]:
+def masked_iterate() -> Callable[[GFI[Y]], GFI[Y]]:
     """
     Transforms a generative function that takes a single argument of type `a` and returns a value of type `a`, into a function that takes a tuple of arguments `(a, [mask])` and returns a list of values of type `a`.
 
@@ -1113,7 +1087,7 @@ def masked_iterate() -> Callable[[GenerativeFunction[Y]], GenerativeFunction[Y]]
         ```
     """
 
-    def decorator(step: GenerativeFunction[Y]) -> GenerativeFunction[Y]:
+    def decorator(step: GFI[Y]) -> GFI[Y]:
         def pre(state, flag: Flag):
             return flag, state
 

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from genjax._src.core.generative import (
+    GFI,
     Address,
     AddressComponent,
     Argdiffs,
@@ -20,8 +21,7 @@ from genjax._src.core.generative import (
     ChoiceMap,
     ChoiceMapBuilder,
     EditRequest,
-    GenerativeFunction,
-    GenerativeFunctionClosure,
+    GFIClosure,
     Mask,
     R,
     Retdiff,
@@ -34,6 +34,7 @@ from genjax._src.core.generative import (
 )
 
 __all__ = [
+    "GFI",
     "Address",
     "AddressComponent",
     "Argdiffs",
@@ -41,8 +42,7 @@ __all__ = [
     "ChoiceMap",
     "ChoiceMapBuilder",
     "EditRequest",
-    "GenerativeFunction",
-    "GenerativeFunctionClosure",
+    "GFIClosure",
     "Mask",
     "R",
     "Retdiff",

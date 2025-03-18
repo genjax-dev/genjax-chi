@@ -27,7 +27,7 @@ from genjax._src.core.generative.concepts import (
     Retdiff,
     Weight,
 )
-from genjax._src.core.generative.generative_function import (
+from genjax._src.core.generative.interface import (
     Trace,
 )
 from genjax._src.core.pytree import Pytree

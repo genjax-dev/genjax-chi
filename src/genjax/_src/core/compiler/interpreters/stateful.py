@@ -19,6 +19,7 @@ import jax.tree_util as jtu
 from jax import util as jax_util
 from jax.extend.core import Jaxpr, Primitive
 
+from genjax._src.core.compiler.initial_style_primitive import ElaboratedPrimitive
 from genjax._src.core.compiler.interpreters.environment import Environment
 from genjax._src.core.compiler.staging import stage
 from genjax._src.core.pytree import Pytree
@@ -61,10 +62,11 @@ class StatefulInterpreter(Pytree):
             subfuns, params = eqn.primitive.get_bind_params(eqn.params)
             args = subfuns + invals
             # Allow the stateful handler to handle the primitive.
-            if stateful_handler.handles(eqn.primitive):
-                outvals = stateful_handler.dispatch(eqn.primitive, *args, **params)
+            primitive = ElaboratedPrimitive.unwrap(eqn.primitive)
+            if stateful_handler.handles(primitive):
+                outvals = stateful_handler.dispatch(primitive, *args, **params)
             else:
-                outvals = eqn.primitive.bind(*args, **params)
+                outvals = primitive.bind(*args, **params)
             if not eqn.primitive.multiple_results:
                 outvals = [outvals]
             jax_util.safe_map(env.write, eqn.outvars, outvals)
