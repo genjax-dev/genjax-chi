@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     import genjax
 
-from genjax._src.core.interpreters.incremental import Diff
+from genjax._src.core.compiler.interpreters.incremental import Diff
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Annotated,

@@ -1,10 +1,10 @@
 <br>
 <p align="center">
-<img width="500px" src="./docs/assets/img/logo.png"/>
+<img width="350px" src="./docs/assets/img/logo.png"/>
 </p>
 <p align="center">
   <strong>
-    Probabilistic programming with (parallel & differentiable) programmable inference.
+    Scaling probabilistic programming with programmable inference.
   </strong>
 </p>
 
@@ -151,7 +151,7 @@ This is a research project. Expect bugs and sharp edges. Please help by trying o
 ## Get Involved + Get Support
 
 Pull requests and bug reports are always welcome! Check out our [Contributor's
-Guide](CONTRIBUTING.md) for information on how to get started contributing to Caliban.
+Guide](CONTRIBUTING.md) for information on how to get started contributing to GenJAX.
 
 The TL;DR; is:
 

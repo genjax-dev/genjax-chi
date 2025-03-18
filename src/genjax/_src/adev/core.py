@@ -18,20 +18,18 @@ from functools import wraps
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from jax import core as jc
 from jax import util as jax_util
-from jax.extend import linear_util as lu
 from jax.extend import source_info_util as src_util
+from jax.extend.core import Jaxpr, jaxpr_as_fun
 from jax.interpreters import ad as jax_autodiff
 from jax.interpreters import batching
 
-from genjax._src.core.interpreters.forward import (
-    Environment,
+from genjax._src.core.compiler.initial_style_primitive import (
     InitialStylePrimitive,
-    batch_fun,
     initial_style_bind,
 )
-from genjax._src.core.interpreters.staging import stage
+from genjax._src.core.compiler.interpreters.environment import Environment
+from genjax._src.core.compiler.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Annotated,
@@ -159,31 +157,7 @@ def sample_primitive(adev_prim: ADEVPrimitive, *args, key=jax.random.key(0)):
 
 # TODO: this is gnarly as fuck.
 def batch_primitive(args, dims, **params):
-    def fun_impl(*args, **params):
-        consts, args = jax_util.split_list(args, [params["num_consts"]])
-        return jc.eval_jaxpr(params["_jaxpr"], consts, *args)
-
-    batched, out_dims = batch_fun(lu.wrap_init(fun_impl, params), dims)
-
-    # populate the out_dims generator
-    _ = batched.call_wrapped(*args)  # pyright: ignore
-
-    # Now, we construct our actual batch primitive, and insert it
-    # into the IR by binding it via `sample_primitive`.
-    in_tree = params["in_tree"]
-    key, *rest = args
-    adev_prim, *primals = jtu.tree_unflatten(in_tree, rest)
-    batched_prim = adev_prim.get_batched_prim(dims)
-
-    # Insert into the IR.
-    v = sample_primitive(
-        batched_prim,
-        *primals,
-        key=key,
-    )
-
-    # TODO: static check on out_dims?
-    return jtu.tree_leaves(v), out_dims()
+    raise NotImplementedError
 
 
 batching.primitive_batchers[sample_p] = batch_primitive
@@ -274,9 +248,9 @@ class ADInterpreter(Pytree):
         return list(primals), list(tangents)
 
     @staticmethod
-    def _eval_jaxpr_adev_jvp(
+    def eval_jaxpr_adev(
         key: PRNGKey,
-        jaxpr: jc.Jaxpr,
+        jaxpr: Jaxpr,
         consts: list[ArrayLike],
         flat_duals: list[Dual],
     ):
@@ -371,7 +345,7 @@ class ADInterpreter(Pytree):
                         branch_adev_functions = list(
                             map(
                                 lambda fn: ADInterpreter.forward_mode(
-                                    jc.jaxpr_as_fun(fn),
+                                    jaxpr_as_fun(fn),
                                     _cond_dual_kont,
                                 ),
                                 params["branches"],
@@ -430,7 +404,7 @@ class ADInterpreter(Pytree):
             closed_jaxpr, (_, _, out_tree) = stage(f)(*primals)
             jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
             dual_leaves = Dual.tree_leaves(Dual.tree_pure(dual_tree))
-            out_duals = ADInterpreter._eval_jaxpr_adev_jvp(
+            out_duals = ADInterpreter.eval_jaxpr_adev(
                 key,
                 jaxpr,
                 consts,

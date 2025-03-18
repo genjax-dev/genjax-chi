@@ -28,12 +28,13 @@ By default, `genjax` provides two types of `ChangeTangent`:
 
 import functools
 
-import jax.core as jc
 import jax.tree_util as jtu
 from jax import util as jax_util
+from jax.extend.core import Jaxpr, Primitive
 
-from genjax._src.core.interpreters.forward import Environment, StatefulHandler
-from genjax._src.core.interpreters.staging import stage
+from genjax._src.core.compiler.interpreters.environment import Environment
+from genjax._src.core.compiler.interpreters.stateful import StatefulHandler
+from genjax._src.core.compiler.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -308,14 +309,14 @@ def default_propagation_rule(prim, *args, **_params):
 
 @Pytree.dataclass
 class IncrementalInterpreter(Pytree):
-    custom_rules: dict[jc.Primitive, Callable[..., Any]] = Pytree.static(
+    custom_rules: dict[Primitive, Callable[..., Any]] = Pytree.static(
         default_factory=dict
     )
 
-    def _eval_jaxpr_forward(
+    def eval_jaxpr_incremental(
         self,
-        _stateful_handler,
-        jaxpr: jc.Jaxpr,
+        stateful_handler,
+        jaxpr: Jaxpr,
         consts: list[Any],
         primals: list[Any],
         tangents: list[ChangeTangent],
@@ -334,8 +335,8 @@ class IncrementalInterpreter(Pytree):
             ]
             subfuns, params = _eqn.primitive.get_bind_params(_eqn.params)
             args = subfuns + induals
-            if _stateful_handler and _stateful_handler.handles(_eqn.primitive):
-                outduals = _stateful_handler.dispatch(_eqn.primitive, *args, **params)
+            if stateful_handler and stateful_handler.handles(_eqn.primitive):
+                outduals = stateful_handler.dispatch(_eqn.primitive, *args, **params)
             else:
                 outduals = default_propagation_rule(_eqn.primitive, *args, **params)
             if not _eqn.primitive.multiple_results:
@@ -353,7 +354,7 @@ class IncrementalInterpreter(Pytree):
             tangents, is_leaf=lambda v: isinstance(v, ChangeTangent)
         )
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
-        flat_out = self._eval_jaxpr_forward(
+        flat_out = self.eval_jaxpr_incremental(
             _stateful_handler,
             jaxpr,
             consts,

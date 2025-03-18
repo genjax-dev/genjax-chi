@@ -13,6 +13,7 @@
 # limitations under the License.
 
 
+from genjax._src.core.compiler.interpreters.incremental import Diff, incremental
 from genjax._src.core.generative import (
     Argdiffs,
     EditRequest,
@@ -20,7 +21,6 @@ from genjax._src.core.generative import (
     Retdiff,
     Score,
     Trace,
-    Update,
     Weight,
 )
 from genjax._src.core.generative.choice_map import (
@@ -28,7 +28,6 @@ from genjax._src.core.generative.choice_map import (
     ChoiceMap,
     Selection,
 )
-from genjax._src.core.interpreters.incremental import Diff, incremental
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
@@ -200,7 +199,6 @@ class Dimap(Generic[ArgTuple, R, S], GenerativeFunction[S]):
         edit_request: EditRequest,
         argdiffs: Argdiffs,
     ) -> tuple[DimapTrace[R, S], Weight, Retdiff[S], EditRequest]:
-        assert isinstance(edit_request, Update)
         return self.edit_change_target(key, trace, edit_request, argdiffs)
 
     def assess(
