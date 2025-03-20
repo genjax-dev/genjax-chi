@@ -30,7 +30,7 @@ from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
 )
-from genjax._src.generative_functions.fn import gen
+from genjax._src.generative_functions.gen import gen
 
 
 @Pytree.dataclass

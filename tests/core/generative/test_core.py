@@ -21,7 +21,7 @@ import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Selection
 from genjax import SelectionBuilder as S
-from genjax._src.generative_functions.fn import FnTrace
+from genjax._src.generative_functions.gen import DefTrace
 
 
 class TestTupleAddr:
@@ -98,7 +98,7 @@ class TestGetSubtrace:
 
         tr = g.simulate(())
         f_tr = tr.get_subtrace("f")
-        assert isinstance(f_tr, FnTrace)
+        assert isinstance(f_tr, DefTrace)
         assert (
             tr.get_subtrace("f", "x").get_score() == f_tr.get_subtrace("x").get_score()
         )

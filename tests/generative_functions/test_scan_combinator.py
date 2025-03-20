@@ -21,7 +21,7 @@ import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import Diff, IndexRequest, Regenerate, StaticRequest
+from genjax import DefRequest, Diff, IndexRequest, Regenerate
 from genjax import Selection as S
 from genjax._src.core.typing import ArrayLike
 from genjax.typing import FloatArray
@@ -471,7 +471,7 @@ class TestScanIndexRequest:
         for idx in range(10):
             old_z = tr.get_choices()["kernel", idx, "z"]
             old_target_density = genjax.normal.logpdf(old_z, 0.0, 1.0)
-            request = StaticRequest({
+            request = DefRequest({
                 "kernel": IndexRequest(jnp.array(idx), Regenerate(S.at["z"])),
             })
             new_tr, fwd_w, _, _ = request.edit(tr, ())
@@ -483,7 +483,7 @@ class TestScanIndexRequest:
             idx = 11
             old_z = tr.get_choices()["kernel", idx, "z"]
             old_target_density = genjax.normal.logpdf(old_z, 0.0, 1.0)
-            request = StaticRequest({
+            request = DefRequest({
                 "kernel": IndexRequest(jnp.array(idx), Regenerate(S.at["z"])),
             })
             new_tr, fwd_w, _, _ = request.edit(tr, ())

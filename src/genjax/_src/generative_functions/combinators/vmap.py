@@ -21,6 +21,7 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
+import genjax._src.core.compiler.pjax as pjax
 from genjax._src.core.compiler.interpreters.incremental import Diff
 from genjax._src.core.generative import (
     GFI,
@@ -77,7 +78,12 @@ class VmapTrace(Generic[R], Trace[R]):
         return self.inner.get_choices()
 
     def get_score(self) -> Score:
-        return jnp.sum(jax.vmap(lambda tr: tr.get_score())(self.inner))
+        return jnp.sum(
+            jax.vmap(
+                lambda tr: tr.get_score(),
+                in_axes=0,
+            )(self.inner)
+        )
 
     def get_inner_trace(self, address: Address):
         return self.inner.get_inner_trace(address)
@@ -136,7 +142,7 @@ class Vmap(Generic[R], GFI[R]):
     in_axes: InAxes = Pytree.static()
 
     def __abstract_call__(self, *args) -> Any:
-        return jax.vmap(
+        return pjax.vmap(
             self.gen_fn.__abstract_call__,
             in_axes=self.in_axes,
         )(*args)
@@ -174,7 +180,7 @@ class Vmap(Generic[R], GFI[R]):
         args: tuple[Any, ...],
     ) -> VmapTrace[R]:
         # vmapping over `gen_fn`'s `simulate` gives us a new trace with vector-shaped leaves.
-        tr = jax.vmap(self.gen_fn.simulate, in_axes=(self.in_axes,))(args)
+        tr = pjax.vmap(self.gen_fn.simulate, in_axes=(self.in_axes,))(args)
 
         return VmapTrace.build(self, tr, args)
 
@@ -195,7 +201,7 @@ class Vmap(Generic[R], GFI[R]):
             )
             return tr, w
 
-        tr, weight_v = jax.vmap(_inner, in_axes=(0, self.in_axes))(idx_array, args)
+        tr, weight_v = pjax.vmap(_inner, in_axes=(0, self.in_axes))(idx_array, args)
         w = jnp.sum(weight_v)
         map_tr = VmapTrace.build(self, tr, args)
         return map_tr, w
@@ -210,7 +216,7 @@ class Vmap(Generic[R], GFI[R]):
         def _project(subtrace):
             return subtrace.project(selection)
 
-        weights = jax.vmap(_project)(trace.inner)
+        weights = pjax.vmap(_project)(trace.inner)
         return jnp.sum(weights)
 
     def edit_choice_map(
@@ -231,7 +237,7 @@ class Vmap(Generic[R], GFI[R]):
             inner_chm = bwd_request.constraint
             return (new_subtrace, w, retdiff, inner_chm)
 
-        new_subtraces, w, retdiff, bwd_constraints = jax.vmap(
+        new_subtraces, w, retdiff, bwd_constraints = pjax.vmap(
             _edit, in_axes=(0, 0, self.in_axes)
         )(trace.inner, constraint, argdiffs)
         w = jnp.sum(w)
@@ -333,7 +339,7 @@ class Vmap(Generic[R], GFI[R]):
         def _inner(idx, args):
             return self.gen_fn.assess(chm(idx), args)
 
-        scores, retvals = jax.vmap(_inner, in_axes=(0, self.in_axes))(
+        scores, retvals = pjax.vmap(_inner, in_axes=(0, self.in_axes))(
             jnp.arange(dim_length), args
         )
         return jnp.sum(scores), retvals

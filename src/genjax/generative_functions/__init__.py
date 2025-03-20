@@ -15,4 +15,4 @@
 
 from .combinators import *
 from .distributions import *
-from .fn import *
+from .gen import *

@@ -328,10 +328,10 @@ class Closure(Generic[R], Pytree):
     """
 
     dyn_args: tuple[Any, ...]
-    fn: Callable[..., R] = Pytree.static()
+    static_fn: Callable[..., R] = Pytree.static()
 
     def __call__(self, *args, **kwargs) -> R:
-        return self.fn(*self.dyn_args, *args, **kwargs)
+        return self.static_fn(*self.dyn_args, *args, **kwargs)
 
 
 def nth(x: Pytree, idx: int | slice | jnp.ndarray):

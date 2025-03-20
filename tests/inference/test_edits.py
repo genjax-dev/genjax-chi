@@ -30,7 +30,7 @@ from genjax import (
 )
 from genjax import ChoiceMap as C
 from genjax import SelectionBuilder as S
-from genjax._src.generative_functions.fn import StaticRequest
+from genjax._src.generative_functions.gen import DefRequest
 from genjax.edits import HMC, Rejuvenate, SafeHMC
 
 
@@ -144,7 +144,7 @@ class TestRejuvenate:
         # Suppose the proposal is the prior, and its symmetric.
         #####
 
-        request = StaticRequest({
+        request = DefRequest({
             "y1": Rejuvenate(
                 genjax.normal,
                 lambda chm: (0.0, 1.0),
@@ -163,7 +163,7 @@ class TestRejuvenate:
 
         tr, _ = linked_normal.importance(C.kw(y2=3.0), ())
 
-        request = StaticRequest({
+        request = DefRequest({
             "y1": Rejuvenate(
                 genjax.normal,
                 lambda chm: (chm.get_value(), 0.3),
@@ -358,7 +358,7 @@ class TestHMC:
             _ = submodel() @ "y"
 
         tr, _ = model.importance(ChoiceMap.kw(y=3.0), ())
-        request = StaticRequest(
+        request = DefRequest(
             {"x": SafeHMC(Selection.at["x"], jnp.array(1e-2))},
         )
         editor = jax.jit(request.edit)
@@ -367,10 +367,10 @@ class TestHMC:
         assert w != 0.0
 
         # Compositional request _including_ HMC.
-        request = StaticRequest(
+        request = DefRequest(
             {
                 "x": SafeHMC(Selection.at["x"], jnp.array(1e-2)),
-                "y": StaticRequest({
+                "y": DefRequest({
                     "x": Regenerate(Selection.all()),
                     "y": Update(C.choice(3.0)),
                 }),
@@ -382,7 +382,7 @@ class TestHMC:
         assert new_tr.get_choices()["y", "x"] != tr.get_choices()["y", "x"]
         assert w != 0.0
 
-        request = StaticRequest(
+        request = DefRequest(
             {"x": SafeHMC(Selection.at["y"], jnp.array(1e-2))},
         )
         editor = jax.jit(request.edit)
@@ -406,7 +406,7 @@ class TestDiffCoercion:
             assert Diff.static_check_no_change(v)
             return v
 
-        request = StaticRequest({
+        request = DefRequest({
             "y1": Regenerate(Selection.all()),
             "y2": DiffAnnotate(
                 EmptyRequest(),
@@ -419,10 +419,10 @@ class TestDiffCoercion:
 
         # Test equivalent between requests which use
         # DiffCoercion in trivial ways.
-        unwrapped_request = StaticRequest({
+        unwrapped_request = DefRequest({
             "y1": Regenerate(Selection.all()),
         })
-        wrapped_request = StaticRequest({
+        wrapped_request = DefRequest({
             "y1": Regenerate(Selection.all()).contramap(assert_no_change),
             "y2": EmptyRequest().map(assert_no_change),
         })

@@ -50,9 +50,9 @@ def tfp_distribution(
     `log_prob` methods to define the generative function's behavior.
     """
 
-    def sampler(*args, **kwargs):
-        def _sampler(key, *args, **kwargs):
-            return dist(*args, **kwargs).sample(seed=key)
+    def sampler(*args, shape=(), **kwargs):
+        def _sampler(key, *args, shape=shape, **kwargs):
+            return dist(*args, **kwargs).sample(seed=key, sample_shape=shape)
 
         return sample_binder(_sampler, name=name)(*args, **kwargs)
 

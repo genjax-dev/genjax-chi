@@ -20,7 +20,7 @@ import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax import IndexRequest, Regenerate, Selection, StaticRequest, Update
+from genjax import DefRequest, IndexRequest, Regenerate, Selection, Update
 from genjax import Selection as S
 from genjax._src.core.typing import IntArray
 
@@ -269,7 +269,7 @@ class TestVmapIndexRequest:
             old_a = tr.get_choices()["a", idx]
             old_target_density = genjax.normal.logpdf(old_a, 0.0, 1.0)
 
-            request = StaticRequest({
+            request = DefRequest({
                 "a": IndexRequest(jnp.array(idx), Regenerate(S.all()))
             })
 
@@ -291,7 +291,7 @@ class TestVmapIndexRequest:
             old_a = tr.get_choices()["a", idx]
             old_target_density = genjax.normal.logpdf(old_a, 0.0, 1.0)
 
-            request = StaticRequest({
+            request = DefRequest({
                 "a": IndexRequest(jnp.array(idx), Update(C.v(idx + 7.0)))
             })
 

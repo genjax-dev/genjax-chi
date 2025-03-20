@@ -76,16 +76,10 @@ class InitialStylePrimitive(Primitive):
 
 class ElaboratedPrimitive(Primitive):
     """
-    An `ElaboratedPrimitive` is a primitive which wraps an underlying primitive, but is elaborated with additional parameters, and which hides excess metadata when pretty-printed
-    in the `Jaxpr`.
+    An `ElaboratedPrimitive` is a primitive which wraps an underlying primitive, but is elaborated with additional parameters that only show up in the pretty printing of a `Jaxpr`.
+    In addition, `ElaboratedPrimitive` instances hide excess metadata in
+    pretty printing.
     """
-
-    @classmethod
-    def unwrap(cls, v):
-        return v.prim if isinstance(v, ElaboratedPrimitive) else v
-
-    def get_bind_params(self, params):
-        return [], {**self.params, **params}
 
     def __init__(self, prim: InitialStylePrimitive, **params):
         super(ElaboratedPrimitive, self).__init__(prim.name)
@@ -113,6 +107,27 @@ class ElaboratedPrimitive(Primitive):
         self.def_abstract_eval(abstract)
         batching.primitive_batchers[self] = batch
         mlir.register_lowering(self, lowering)
+
+    def get_bind_params(self, params):
+        return [], params
+
+    @classmethod
+    def unwrap(cls, v):
+        return (v.prim, v.params) if isinstance(v, ElaboratedPrimitive) else (v, {})
+
+    @classmethod
+    def check(cls, primitive, other):
+        if isinstance(primitive, ElaboratedPrimitive):
+            return primitive.prim == other
+        else:
+            return primitive == other
+
+    @classmethod
+    def rebind(cls, primitive, *args, **params):
+        if isinstance(primitive, ElaboratedPrimitive):
+            return primitive.bind(*args, **params)
+        else:
+            return primitive.bind(*args, **params)
 
 
 def batch_fun(fun: lu.WrappedFun, axis_data, in_dims):

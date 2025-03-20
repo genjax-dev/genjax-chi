@@ -21,7 +21,7 @@ from genjax._src.generative_functions.combinators.switch import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
 )
-from genjax._src.generative_functions.fn import gen
+from genjax._src.generative_functions.gen import gen
 
 
 def mix(*gen_fns: GFI[R]) -> GFI[R]:
