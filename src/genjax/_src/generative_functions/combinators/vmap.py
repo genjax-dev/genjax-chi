@@ -21,7 +21,6 @@ import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
-import genjax._src.core.compiler.pjax as pjax
 from genjax._src.core.compiler.interpreters.incremental import Diff
 from genjax._src.core.generative import (
     GFI,
@@ -48,24 +47,23 @@ from genjax._src.core.typing import (
     InAxes,
     IntArray,
 )
+from genjax.pjax import vmap as modular_vmap
 
 
 @Pytree.dataclass
 class VmapTrace(Generic[R], Trace[R]):
     gen_fn: "Vmap[R]"
     inner: Trace[R]
-    args: tuple[Any, ...]
 
     @staticmethod
     def build(
         gen_fn: "Vmap[R]",
         tr: Trace[R],
-        args: tuple[Any, ...],
     ) -> "VmapTrace[R]":
-        return VmapTrace(gen_fn, tr, args)
+        return VmapTrace(gen_fn, tr)
 
     def get_args(self) -> tuple[Any, ...]:
-        return self.args
+        return self.inner.get_args()
 
     def get_retval(self):
         # returns the vectorized retval from self.inner.
@@ -79,7 +77,7 @@ class VmapTrace(Generic[R], Trace[R]):
 
     def get_score(self) -> Score:
         return jnp.sum(
-            jax.vmap(
+            modular_vmap(
                 lambda tr: tr.get_score(),
                 in_axes=0,
             )(self.inner)
@@ -142,7 +140,7 @@ class Vmap(Generic[R], GFI[R]):
     in_axes: InAxes = Pytree.static()
 
     def __abstract_call__(self, *args) -> Any:
-        return pjax.vmap(
+        return modular_vmap(
             self.gen_fn.__abstract_call__,
             in_axes=self.in_axes,
         )(*args)
@@ -180,11 +178,11 @@ class Vmap(Generic[R], GFI[R]):
         args: tuple[Any, ...],
     ) -> VmapTrace[R]:
         # vmapping over `gen_fn`'s `simulate` gives us a new trace with vector-shaped leaves.
-        tr = pjax.vmap(self.gen_fn.simulate, in_axes=(self.in_axes,))(args)
+        tr = modular_vmap(self.gen_fn.simulate, in_axes=(self.in_axes,))(args)
 
-        return VmapTrace.build(self, tr, args)
+        return VmapTrace.build(self, tr)
 
-    def generate(
+    def bad_importance(
         self,
         constraint: ChoiceMap,
         args: tuple[Any, ...],
@@ -201,9 +199,21 @@ class Vmap(Generic[R], GFI[R]):
             )
             return tr, w
 
-        tr, weight_v = pjax.vmap(_inner, in_axes=(0, self.in_axes))(idx_array, args)
+        tr, weight_v = modular_vmap(_inner, in_axes=(0, self.in_axes))(idx_array, args)
         w = jnp.sum(weight_v)
-        map_tr = VmapTrace.build(self, tr, args)
+        map_tr = VmapTrace.build(self, tr)
+        return map_tr, w
+
+    def generate(
+        self,
+        constraint: ChoiceMap,
+        args: tuple[Any, ...],
+    ) -> tuple[VmapTrace[R], Weight]:
+        tr, weight_v = modular_vmap(self.gen_fn.generate, in_axes=(0, self.in_axes))(
+            constraint, args
+        )
+        w = jnp.sum(weight_v)
+        map_tr = VmapTrace.build(self, tr)
         return map_tr, w
 
     def project(
@@ -212,11 +222,7 @@ class Vmap(Generic[R], GFI[R]):
         selection: Selection,
     ) -> Weight:
         assert isinstance(trace, VmapTrace)
-
-        def _project(subtrace):
-            return subtrace.project(selection)
-
-        weights = pjax.vmap(_project)(trace.inner)
+        weights = modular_vmap(lambda tr: tr.project(selection))(trace.inner)
         return jnp.sum(weights)
 
     def edit_choice_map(
@@ -225,8 +231,6 @@ class Vmap(Generic[R], GFI[R]):
         constraint: ChoiceMap,
         argdiffs: Argdiffs,
     ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
-        primals = Diff.tree_primal(argdiffs)
-
         def _edit(subtrace, constraint, argdiffs):
             new_subtrace, w, retdiff, bwd_request = self.gen_fn.edit(
                 subtrace,
@@ -237,11 +241,11 @@ class Vmap(Generic[R], GFI[R]):
             inner_chm = bwd_request.constraint
             return (new_subtrace, w, retdiff, inner_chm)
 
-        new_subtraces, w, retdiff, bwd_constraints = pjax.vmap(
+        new_subtraces, w, retdiff, bwd_constraints = modular_vmap(
             _edit, in_axes=(0, 0, self.in_axes)
         )(trace.inner, constraint, argdiffs)
         w = jnp.sum(w)
-        map_tr = VmapTrace.build(self, new_subtraces, primals)
+        map_tr = VmapTrace.build(self, new_subtraces)
         return (
             map_tr,
             w,
@@ -296,7 +300,7 @@ class Vmap(Generic[R], GFI[R]):
             lambda v, v_: v.at[idx].set(v_), trace.inner, new_trace_slice
         )
 
-        map_tr = VmapTrace.build(self, new_inner_trace, primals)
+        map_tr = VmapTrace.build(self, new_inner_trace)
 
         # We always set the carried out value to be an unknown change, conservatively.
         retdiff = Diff.unknown_change(map_tr.get_retval())
@@ -334,13 +338,8 @@ class Vmap(Generic[R], GFI[R]):
         chm: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
-        dim_length = self._static_broadcast_dim_length(self.in_axes, args)
-
-        def _inner(idx, args):
-            return self.gen_fn.assess(chm(idx), args)
-
-        scores, retvals = pjax.vmap(_inner, in_axes=(0, self.in_axes))(
-            jnp.arange(dim_length), args
+        scores, retvals = modular_vmap(self.gen_fn.assess, in_axes=(0, self.in_axes))(
+            chm, args
         )
         return jnp.sum(scores), retvals
 

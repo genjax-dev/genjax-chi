@@ -46,7 +46,6 @@ class DimapTrace(Generic[R, S], Trace[S]):
     gen_fn: "Dimap[Any, R, S]"
     inner: Trace[R]
     args: tuple[Any, ...]
-    retval: S
 
     def get_args(self) -> tuple[Any, ...]:
         return self.args
@@ -58,7 +57,10 @@ class DimapTrace(Generic[R, S], Trace[S]):
         return self.inner.get_choices()
 
     def get_retval(self) -> S:
-        return self.retval
+        inner_args = self.gen_fn.argument_mapping(*self.args)
+        inner_retval = self.inner.get_retval()
+        retval = self.gen_fn.retval_mapping(self.args, inner_args, inner_retval)
+        return retval
 
     def get_score(self) -> Score:
         return self.inner.get_score()
@@ -118,9 +120,7 @@ class Dimap(Generic[ArgTuple, R, S], GFI[S]):
     ) -> DimapTrace[R, S]:
         inner_args = self.argument_mapping(*args)
         tr = self.inner.simulate(inner_args)
-        inner_retval = tr.get_retval()
-        retval = self.retval_mapping(args, inner_args, inner_retval)
-        return DimapTrace(self, tr, args, retval)
+        return DimapTrace(self, tr, args)
 
     def generate(
         self,
@@ -129,9 +129,7 @@ class Dimap(Generic[ArgTuple, R, S], GFI[S]):
     ) -> tuple[DimapTrace[R, S], Weight]:
         inner_args = self.argument_mapping(*args)
         tr, weight = self.inner.generate(constraint, inner_args)
-        inner_retval = tr.get_retval()
-        retval = self.retval_mapping(args, inner_args, inner_retval)
-        return DimapTrace(self, tr, args, retval), weight
+        return DimapTrace(self, tr, args), weight
 
     def project(
         self,
@@ -177,10 +175,8 @@ class Dimap(Generic[ArgTuple, R, S], GFI[S]):
             (primals, inner_retval_primals),
             (tangents, inner_retval_tangents),
         )
-
-        retval_primal: S = Diff.tree_primal(retval_diff)
         return (
-            DimapTrace(self, tr, primals, retval_primal),
+            DimapTrace(self, tr, primals),
             w,
             retval_diff,
             bwd_request,

@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.core.compiler.pjax import vmap
+from genjax._src.core.compiler.pjax import modular_vmap as vmap
+from genjax._src.core.compiler.pjax import seed
 
-__all__ = ["vmap"]
+__all__ = [
+    "seed",
+    "vmap",
+]

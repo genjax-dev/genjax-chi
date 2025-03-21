@@ -336,11 +336,15 @@ class IncrementalInterpreter(Pytree):
             ]
             subfuns, params = eqn.primitive.get_bind_params(eqn.params)
             args = subfuns + induals
-            primitive = ElaboratedPrimitive.unwrap(eqn.primitive)
+            primitive, inner_params = ElaboratedPrimitive.unwrap(eqn.primitive)
             if stateful_handler and stateful_handler.handles(primitive):
-                outduals = stateful_handler.dispatch(primitive, *args, **params)
+                outduals = stateful_handler.dispatch(
+                    primitive, *args, **inner_params, **params
+                )
             else:
-                outduals = default_propagation_rule(primitive, *args, **params)
+                outduals = default_propagation_rule(
+                    primitive, *args, **inner_params, **params
+                )
             if not eqn.primitive.multiple_results:
                 outduals = [outduals]
             jax_util.safe_map(dual_env.write, eqn.outvars, outduals)

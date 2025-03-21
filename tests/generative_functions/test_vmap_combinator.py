@@ -217,13 +217,13 @@ class TestVmap:
             new_x = genjax.normal(state, sigma) @ "x"
             return (new_x, new_x + 1)
 
-        trace = step.vmap(in_axes=(None, 0)).simulate(
-            (2.0, jnp.arange(0, dtype=float)),
-        )
-
-        assert trace.get_choices().static_is_empty(), (
-            "zero-length vmap produces empty choicemaps."
-        )
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "vmap was requested to map its argument along axis 0, which implies that its rank should be at least 1, but is only 0 (its shape is ())"
+            ),
+        ):
+            _ = step.vmap(in_axes=(None, 0)).simulate((2.0, jnp.array(0)))
 
 
 @genjax.Pytree.dataclass

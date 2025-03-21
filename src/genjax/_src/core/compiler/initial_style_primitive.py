@@ -131,7 +131,11 @@ def batch_fun(fun: lu.WrappedFun, axis_data, in_dims):
     return batched, out_dims
 
 
-def initial_style_bind(prim, **params):
+def initial_style_bind(
+    prim,
+    modular_vmap_aware=True,
+    **params,
+):
     """Binds a primitive to a function call."""
 
     def bind(f, **elaboration_kwargs):
@@ -152,6 +156,9 @@ def initial_style_bind(prim, **params):
                 return jc.eval_jaxpr(jaxpr.jaxpr, consts, *flat_args)
 
             def abstract(*flat_avals, **params):
+                if modular_vmap_aware:
+                    if "ctx" in params and params["ctx"] == "modular_vmap":
+                        flat_avals = flat_avals[1:]  # ignore dummy
                 return pe.abstract_eval_fun(
                     impl,
                     *flat_avals,
