@@ -62,11 +62,13 @@ class StatefulInterpreter(Pytree):
             subfuns, params = eqn.primitive.get_bind_params(eqn.params)
             args = subfuns + invals
             # Allow the stateful handler to handle the primitive.
-            primitive = ElaboratedPrimitive.unwrap(eqn.primitive)
+            primitive, inner_params = ElaboratedPrimitive.unwrap(eqn.primitive)
             if stateful_handler.handles(primitive):
-                outvals = stateful_handler.dispatch(primitive, *args, **params)
+                outvals = stateful_handler.dispatch(
+                    primitive, *args, **inner_params, **params
+                )
             else:
-                outvals = primitive.bind(*args, **params)
+                outvals = ElaboratedPrimitive.rebind(eqn.primitive, *args, **params)
             if not eqn.primitive.multiple_results:
                 outvals = [outvals]
             jax_util.safe_map(env.write, eqn.outvars, outvals)

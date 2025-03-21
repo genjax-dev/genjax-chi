@@ -1592,7 +1592,7 @@ class GFIClosure(Generic[R], GFI[R]):
 
     # NOTE: Supports callee syntax, and the ability to overload it in callers.
     def __matmul__(self, addr) -> R:
-        from genjax._src.generative_functions.fn import trace
+        from genjax._src.generative_functions.gen import trace
 
         if self.kwargs:
             maybe_kwarged_gen_fn = self._with_kwargs()

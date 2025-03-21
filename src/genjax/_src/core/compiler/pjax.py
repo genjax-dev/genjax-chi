@@ -13,9 +13,8 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from functools import wraps
+from functools import partial, wraps
 
-import jax
 import jax.extend as jex
 import jax.numpy as jnp
 import jax.random as jrand
@@ -25,7 +24,7 @@ from jax import util as jax_util
 from jax.core import eval_jaxpr
 from jax.extend.core import Jaxpr
 from jax.interpreters import batching
-from jax.lax import cond_p, scan, scan_p, switch
+from jax.lax import broadcast, cond_p, scan, scan_p, switch
 
 from genjax._src.core.compiler.initial_style_primitive import (
     ElaboratedPrimitive,
@@ -34,7 +33,7 @@ from genjax._src.core.compiler.initial_style_primitive import (
 )
 from genjax._src.core.compiler.interpreters.environment import Environment
 from genjax._src.core.compiler.staging import stage
-from genjax._src.core.typing import Any, Callable, PRNGKey
+from genjax._src.core.typing import Any, Array, Callable, PRNGKey, Sequence
 
 
 def static_dim_length(in_axes, args: tuple[Any, ...]) -> int | None:
@@ -70,10 +69,7 @@ def static_dim_length(in_axes, args: tuple[Any, ...]) -> int | None:
 
 
 class style:
-    MAGENTA = "\033[35m"
     CYAN = "\033[36m"
-    GREEN = "\033[32m"
-    PINK = "\033[36m"
     BOLD = "\033[1m"
     RESET = "\033[0m"
 
@@ -82,7 +78,7 @@ sample_p = InitialStylePrimitive(
     f"{style.BOLD}{style.CYAN}pjax.sample{style.RESET}",
 )
 log_density_p = InitialStylePrimitive(
-    f"{style.BOLD}{style.MAGENTA}pjax.log_density{style.RESET}",
+    f"{style.BOLD}{style.CYAN}pjax.log_density{style.RESET}",
 )
 
 
@@ -115,9 +111,12 @@ _fake_key = jrand.key(1)
 
 
 def sample_binder(
-    keyful_sampler: Callable[[PRNGKey, Any], Any],
+    keyful_sampler: Callable[..., Any],
     name: str | None = None,
+    batch_shape: tuple[int, ...] = (),
 ):
+    keyful_with_batch_shape = partial(keyful_sampler, sample_shape=batch_shape)
+
     def sampler(*args, **kwargs):
         # We're playing a trick here by allowing users to invoke sample_p
         # without a key. So we hide it inside, and we pass this as the impl of `sample_p`.
@@ -127,25 +126,33 @@ def sample_binder(
         # The `seed` transformation below solves the JIT problem directly.
         def keyless(*args, **kwargs):
             global_counter.count += 1
-            return keyful_sampler(jrand.key(global_counter.count), *args, **kwargs)
+            return keyful_with_batch_shape(
+                jrand.key(global_counter.count),
+                *args,
+                **kwargs,
+            )
 
         # Zero-cost, just staging.
-        flat_keyful_sampler, _ = make_flat(keyful_sampler)(_fake_key, *args, **kwargs)
+        flat_keyful_sampler, _ = make_flat(keyful_with_batch_shape)(
+            _fake_key, *args, **kwargs
+        )
 
         # TODO: this shouldn't actually work.
         # Overload batching so that the primitive is retained
         # in the Jaxpr under vmap.
         # Holy smokes recursion.
         def batch(vector_args, batch_axes, **params):
+            axis_size = params["axis_size"]
             n = static_dim_length(batch_axes, vector_args)
-            assert n is not None
-            batched_keyful = jax.vmap(
-                keyful_sampler, in_axes=(None, *batch_axes), axis_size=n
-            )
-
-            batched_sampler = sample_binder(batched_keyful, name=name)
-            v = batched_sampler(*vector_args)
-            return (v,), (0,)
+            outer_batch_dim = () if n is not None else (axis_size,) if axis_size else ()
+            assert isinstance(outer_batch_dim, tuple)
+            new_batch_shape = outer_batch_dim + batch_shape
+            v = sample_binder(
+                keyful_sampler,
+                name=name,
+                batch_shape=new_batch_shape,
+            )(*vector_args)
+            return (v,), (0 if n or axis_size else None,)
 
         return initial_style_bind(
             sample_p,
@@ -162,14 +169,12 @@ def log_density_binder(
     name: str | None = None,
 ):
     def log_density(*args, **kwargs):
+        # TODO: really not sure if this is right if you
+        # nest vmaps...
         def batch(vector_args, batch_axes, **params):
             n = static_dim_length(batch_axes, tuple(vector_args))
-            assert n is not None
-            batched = jax.vmap(log_density_impl, in_axes=batch_axes, axis_size=n)
-
-            batched_log_density = log_density_binder(batched, name=name)
-            v = batched_log_density(*vector_args)
-            return (v,), (0,)
+            v = log_density_binder(log_density_impl, name=name)(*vector_args)
+            return (v,), (0 if n else None,)
 
         return initial_style_bind(
             log_density_p,
@@ -201,13 +206,13 @@ class SeedInterpreter:
             invals = jax_util.safe_map(env.read, eqn.invars)
             subfuns, params = eqn.primitive.get_bind_params(eqn.params)
             args = subfuns + invals
-            primitive = ElaboratedPrimitive.unwrap(eqn.primitive)
+            primitive, inner_params = ElaboratedPrimitive.unwrap(eqn.primitive)
             if primitive == sample_p:
                 invals = jax_util.safe_map(env.read, eqn.invars)
                 args = subfuns + invals
-                flat_keyful_sampler = params["flat_keyful_sampler"]
+                flat_keyful_sampler = inner_params["flat_keyful_sampler"]
                 self.key, sub_key = jrand.split(self.key)
-                outvals = flat_keyful_sampler(sub_key, *args, **params)
+                outvals = flat_keyful_sampler(sub_key, *args, **inner_params)
             elif primitive == cond_p:
                 invals = jax_util.safe_map(env.read, eqn.invars)
                 subfuns, params = eqn.primitive.get_bind_params(eqn.params)
@@ -301,30 +306,34 @@ def seed(
 
 
 @dataclass
-class Batched:
-    value: Any
+class BatchedArray:
+    v: Array
     batched: int | None = None
 
     @classmethod
     def pure(cls, v):
-        return Batched(v, None)
+        return BatchedArray(v, None)
 
     @classmethod
     def lift(cls, v):
-        return Batched(v[0], v[1])
+        return BatchedArray(v[0], v[1])
 
     @classmethod
-    def primal(cls, v):
-        return v.value if isinstance(v, Batched) else v
+    def value(cls, v):
+        return v.v if isinstance(v, BatchedArray) else v
 
     @classmethod
     def axis(cls, v):
-        return v.batched if isinstance(v, Batched) else None
+        return v.batched if isinstance(v, BatchedArray) else None
+
+
+def check_batched(vs: tuple[int | None, ...]):
+    return any(map(lambda v: v == 0, vs))
 
 
 @dataclass
 class VmapInterpreter:
-    in_axes: None | int | tuple[int | None, ...]
+    in_axes: int | tuple[int | None, ...] | Sequence[Any] | None
     axis_size: int | None
 
     def eval_jaxpr_vmap(
@@ -332,72 +341,109 @@ class VmapInterpreter:
         jaxpr: Jaxpr,
         consts: list[Any],
         flat_args: list[Any],
+        in_axes: list[int | None],
+        axis_size: int | None,
     ):
-        axis_size = static_dim_length(self.in_axes, tuple(flat_args))
-        axis_size = self.axis_size if axis_size is None else axis_size
-        assert axis_size is not None
         env = Environment()
-        jax_util.safe_map(env.write, jaxpr.constvars, map(Batched.pure, consts))
-        invar_in_axes = self.in_axes if self.in_axes else (None,) * len(flat_args)
+        jax_util.safe_map(env.write, jaxpr.constvars, map(BatchedArray.pure, consts))
         jax_util.safe_map(
-            env.write, jaxpr.invars, map(Batched.lift, zip(flat_args, invar_in_axes))
+            env.write,
+            jaxpr.invars,
+            map(BatchedArray.lift, zip(flat_args, in_axes)),
         )
         for eqn in jaxpr.eqns:
             batched_invals = jax_util.safe_map(env.read, eqn.invars)
-            invals = list(map(Batched.primal, batched_invals))
-            batched_axes = tuple(map(Batched.axis, batched_invals))
+            batched_primals = list(map(BatchedArray.value, batched_invals))
+            batched_axes = tuple(map(BatchedArray.axis, batched_invals))
             subfuns, params = eqn.primitive.get_bind_params(eqn.params)
-            flat_args = subfuns + invals
-            primitive = ElaboratedPrimitive.unwrap(eqn.primitive)
-            if primitive == sample_p:
-                batched_args = tuple(
-                    jax.lax.broadcast(v, (axis_size,)) if batched is None else v
-                    for (v, batched) in zip(invals, batched_axes)
-                )
-                outvals, out_axes = batching.primitive_batchers[primitive](
-                    batched_args,
-                    tuple(0 for _ in batched_args),
+            vector_args = subfuns + batched_primals
+
+            # Probabilistic.
+            if ElaboratedPrimitive.check(eqn.primitive, sample_p):
+                outvals, out_axes = batching.primitive_batchers[eqn.primitive](
+                    tuple(vector_args),
+                    batched_axes,
+                    axis_size=axis_size,
                     **params,
                 )
+
+            # Deterministic and not control flow.
             else:
-                if primitive in batching.primitive_batchers:
-                    print(primitive, flat_args, batched_axes)
-                    outvals, out_axes = batching.primitive_batchers[primitive](
-                        flat_args, batched_axes, **params
-                    )
+                if check_batched(batched_axes):
+                    if eqn.primitive in batching.primitive_batchers:
+                        outvals, out_axes = batching.primitive_batchers[eqn.primitive](
+                            tuple(vector_args),
+                            batched_axes,
+                            **params,
+                        )
+                    else:
+                        raise NotImplementedError()
+
+                # Don't batch, just bind.
                 else:
-                    raise NotImplementedError
-            if primitive.multiple_results:
+                    outvals = ElaboratedPrimitive.rebind(
+                        eqn.primitive, *vector_args, **params
+                    )
+                    out_axes = (
+                        None
+                        if not eqn.primitive.multiple_results
+                        else tuple(None for _ in outvals)
+                    )
+
+            if eqn.primitive.multiple_results:
                 assert isinstance(out_axes, tuple)
-                batched_outvals = list(map(Batched.lift, zip(outvals, out_axes)))
+                batched_outvals = list(map(BatchedArray.lift, zip(outvals, out_axes)))
             else:
-                batched_outvals = [Batched.lift((outvals, out_axes))]
+                batched_outvals = [BatchedArray.lift((outvals, out_axes))]
+
             jax_util.safe_map(env.write, eqn.outvars, batched_outvals)
 
-        return list(map(Batched.primal, jax_util.safe_map(env.read, jaxpr.outvars)))
+        batched_outvals = jax_util.safe_map(env.read, jaxpr.outvars)
+        outvals = map(BatchedArray.value, batched_outvals)
+        out_axes = map(BatchedArray.axis, batched_outvals)
+
+        # Finally, broadcast any outval which wasn't batched during the process.
+        if axis_size is not None:
+            outvals = tuple(
+                broadcast(v, (axis_size,)) if axis is None else v
+                for (v, axis) in zip(outvals, out_axes)
+            )
+        return list(outvals)
 
     def run_interpreter(self, fn, *args):
         closed_jaxpr, (flat_args, _, out_tree) = stage(fn)(*args)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
+        if isinstance(self.in_axes, int | None):
+            flat_axes = list((self.in_axes,) * len(flat_args))
+        else:
+            flat_axes, _ = jtu.tree_flatten(self.in_axes, is_leaf=lambda v: v is None)
+        axis_size = (
+            self.axis_size
+            if self.axis_size
+            else static_dim_length(flat_axes, tuple(flat_args))
+        )
         flat_out = self.eval_jaxpr_vmap(
             jaxpr,
             consts,
             flat_args,
+            flat_axes,
+            axis_size,
         )
         return jtu.tree_unflatten(out_tree(), flat_out)
 
 
 def vmap(
     f: Callable[..., Any],
-    in_axes: None | int | tuple[int | None, ...],
+    in_axes: int | tuple[int | None, ...] | Sequence[Any] | None = 0,
     axis_size: int | None = None,
 ):
+    """
+    `pjax.vmap` extends `jax.vmap` to be "aware of probability distributions" as a first class citizen.
+    """
+
     @wraps(f)
-    def wrapped(*args):
+    def wrapped(*args, **kwargs):
         interpreter = VmapInterpreter(in_axes, axis_size)
-        return interpreter.run_interpreter(
-            f,
-            *args,
-        )
+        return interpreter.run_interpreter(f, *args, **kwargs)
 
     return wrapped

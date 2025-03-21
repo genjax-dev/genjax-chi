@@ -76,8 +76,8 @@ _WRAPPER_ASSIGNMENTS = (
 
 
 @Pytree.dataclass
-class FnTrace(Generic[R], Trace[R]):
-    gen_fn: "Fn[R]"
+class DefTrace(Generic[R], Trace[R]):
+    gen_fn: "Def[R]"
     args: tuple[Any, ...]
     retval: R
     subtraces: dict[StaticAddress, Trace[R]]
@@ -126,7 +126,7 @@ StaticDict: TypeAlias = dict[StaticAddress, EditRequest]
 
 
 @Pytree.dataclass(match_args=True)
-class StaticRequest(PrimitiveEditRequest):
+class DefRequest(PrimitiveEditRequest):
     addressed: StaticDict
 
 
@@ -205,7 +205,7 @@ def trace(
 # This explicitly makes assumptions about some common fields:
 # e.g. it assumes if you are using `StaticHandler.get_submap`
 # in your code, that your derived instance has a `constraints` field.
-class StaticHandler(StatefulHandler):
+class DefHandler(StatefulHandler):
     def __init__(self):
         self.traces: dict[StaticAddress, Trace[Any]] = {}
 
@@ -250,7 +250,7 @@ class StaticHandler(StatefulHandler):
 ############
 
 
-class SimulateHandler(StaticHandler):
+class SimulateHandler(DefHandler):
     def __init__(self):
         super().__init__()
 
@@ -286,7 +286,7 @@ def simulate_transform(source_fn):
 
 
 @dataclass
-class AssessHandler(StaticHandler):
+class AssessHandler(DefHandler):
     def __init__(self, chm: ChoiceMap):
         super().__init__()
         self.choice_map_sample = chm
@@ -329,7 +329,7 @@ def assess_transform(source_fn):
 
 
 @dataclass
-class GenerateHandler(StaticHandler):
+class GenerateHandler(DefHandler):
     def __init__(
         self,
         choice_map: ChoiceMap,
@@ -389,10 +389,10 @@ def generate_transform(source_fn):
 ###############
 
 
-class UpdateHandler(StaticHandler):
+class UpdateHandler(DefHandler):
     def __init__(
         self,
-        previous_trace: FnTrace[Any],
+        previous_trace: DefTrace[Any],
         constraint: ChoiceMap,
     ):
         super().__init__()
@@ -447,7 +447,7 @@ class UpdateHandler(StaticHandler):
 def update_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
-        previous_trace: FnTrace[R],
+        previous_trace: DefTrace[R],
         constraint: ChoiceMap,
         diffs: tuple[Any, ...],
     ):
@@ -486,10 +486,10 @@ def update_transform(source_fn):
 ###################################
 
 
-class StaticEditRequestHandler(StaticHandler):
+class StaticEditRequestHandler(DefHandler):
     def __init__(
         self,
-        previous_trace: FnTrace[Any],
+        previous_trace: DefTrace[Any],
         addressed: StaticDict,
     ):
         super().__init__()
@@ -539,7 +539,7 @@ class StaticEditRequestHandler(StaticHandler):
 def static_edit_request_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
-        previous_trace: FnTrace[R],
+        previous_trace: DefTrace[R],
         addressed: dict[StaticAddress, EditRequest],
         diffs: tuple[Any, ...],
     ):
@@ -581,10 +581,10 @@ def static_edit_request_transform(source_fn):
 #####################
 
 
-class RegenerateRequestHandler(StaticHandler):
+class RegenerateRequestHandler(DefHandler):
     def __init__(
         self,
-        previous_trace: FnTrace[Any],
+        previous_trace: DefTrace[Any],
         selection: Selection,
         edit_request: EditRequest,
     ):
@@ -636,7 +636,7 @@ class RegenerateRequestHandler(StaticHandler):
 def regenerate_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
-        previous_trace: FnTrace[R],
+        previous_trace: DefTrace[R],
         selection: Selection,
         edit_request: EditRequest,
         diffs: tuple[Any, ...],
@@ -681,8 +681,8 @@ def regenerate_transform(source_fn):
 
 
 @Pytree.dataclass
-class Fn(Generic[R], GFI[R]):
-    """A `Fn` is a generative function which relies on program
+class Def(Generic[R], GFI[R]):
+    """A `Def` is a generative function relies on program
     transformations applied to JAX-compatible Python programs to implement the generative
     function interface.
 
@@ -712,7 +712,7 @@ class Fn(Generic[R], GFI[R]):
     The source program of the generative function. This is a JAX-compatible Python program.
     """
 
-    def __get__(self, instance, _klass) -> "Fn[R]":
+    def __get__(self, instance, _klass) -> "Def[R]":
         """
         This method allows the @genjax.gen decorator to transform instance methods, turning them into `Fn[R]` calls.
 
@@ -726,7 +726,7 @@ class Fn(Generic[R], GFI[R]):
         return to_shape_fn(self.source_program, jnp.zeros)(*args)
 
     def __post_init__(self):
-        wrapped = self.source_program.fn
+        wrapped = self.source_program.static_fn
         # Preserve the original function's docstring and name
         for k in _WRAPPER_ASSIGNMENTS:
             v = getattr(wrapped, k, None)
@@ -735,25 +735,25 @@ class Fn(Generic[R], GFI[R]):
 
         object.__setattr__(self, "__wrapped__", wrapped)
 
-    def handle_kwargs(self) -> "Fn[R]":
+    def handle_kwargs(self) -> "Def[R]":
         @Pytree.partial()
         def kwarged_source(args, kwargs):
             return self.source_program(*args, **kwargs)
 
-        return Fn(kwarged_source)
+        return Def(kwarged_source)
 
     def simulate(
         self,
         args: tuple[Any, ...],
-    ) -> FnTrace[R]:
+    ) -> DefTrace[R]:
         (args, retval, traces) = simulate_transform(self.source_program)(args)
-        return FnTrace(self, args, retval, traces)
+        return DefTrace(self, args, retval, traces)
 
     def generate(
         self,
         constraint: ChoiceMap,
         args: tuple[Any, ...],
-    ) -> tuple[FnTrace[R], Weight]:
+    ) -> tuple[DefTrace[R], Weight]:
         (
             weight,
             # Trace.
@@ -763,14 +763,14 @@ class Fn(Generic[R], GFI[R]):
                 traces,
             ),
         ) = generate_transform(self.source_program)(constraint, args)
-        return FnTrace(self, args, retval, traces), weight
+        return DefTrace(self, args, retval, traces), weight
 
     def project(
         self,
         trace: Trace[Any],
         selection: Selection,
     ) -> Weight:
-        assert isinstance(trace, FnTrace)
+        assert isinstance(trace, DefTrace)
 
         weight = jnp.array(0.0)
         for addr in trace.subtraces.keys():
@@ -781,10 +781,10 @@ class Fn(Generic[R], GFI[R]):
 
     def edit_update(
         self,
-        trace: FnTrace[R],
+        trace: DefTrace[R],
         constraint: ChoiceMap,
         argdiffs: Argdiffs,
-    ) -> tuple[FnTrace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[DefTrace[R], Weight, Retdiff[R], EditRequest]:
         (
             (
                 retval_diffs,
@@ -807,7 +807,7 @@ class Fn(Generic[R], GFI[R]):
 
         bwd_request = make_bwd_request(traces, bwd_requests)
         return (
-            FnTrace(
+            DefTrace(
                 self,
                 arg_primals,
                 retval_primals,
@@ -820,10 +820,10 @@ class Fn(Generic[R], GFI[R]):
 
     def edit_static_edit_request(
         self,
-        trace: FnTrace[R],
+        trace: DefTrace[R],
         addressed: StaticDict,
         argdiffs: Argdiffs,
-    ) -> tuple[FnTrace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[DefTrace[R], Weight, Retdiff[R], EditRequest]:
         (
             (
                 retval_diffs,
@@ -843,11 +843,11 @@ class Fn(Generic[R], GFI[R]):
             traces: dict[StaticAddress, Trace[R]],
             subrequests: list[EditRequest],
         ):
-            return StaticRequest(dict(zip(traces.keys(), subrequests)))
+            return DefRequest(dict(zip(traces.keys(), subrequests)))
 
         bwd_request = make_bwd_request(traces, bwd_requests)
         return (
-            FnTrace(
+            DefTrace(
                 self,
                 arg_primals,
                 retval_primals,
@@ -860,11 +860,11 @@ class Fn(Generic[R], GFI[R]):
 
     def edit_regenerate(
         self,
-        trace: FnTrace[R],
+        trace: DefTrace[R],
         selection: Selection,
         edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[FnTrace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[DefTrace[R], Weight, Retdiff[R], EditRequest]:
         (
             (
                 retval_diffs,
@@ -888,7 +888,7 @@ class Fn(Generic[R], GFI[R]):
 
         bwd_request = make_bwd_request(traces, discard)
         return (
-            FnTrace(
+            DefTrace(
                 self,
                 arg_primals,
                 retval_primals,
@@ -904,8 +904,8 @@ class Fn(Generic[R], GFI[R]):
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[FnTrace[R], Weight, Retdiff[R], EditRequest]:
-        assert isinstance(trace, FnTrace)
+    ) -> tuple[DefTrace[R], Weight, Retdiff[R], EditRequest]:
+        assert isinstance(trace, DefTrace)
         match edit_request:
             case Update(constraint):
                 return self.edit_update(
@@ -914,7 +914,7 @@ class Fn(Generic[R], GFI[R]):
                     argdiffs,
                 )
 
-            case StaticRequest(addressed):
+            case DefRequest(addressed):
                 return self.edit_static_edit_request(
                     trace,
                     addressed,
@@ -958,7 +958,7 @@ class Fn(Generic[R], GFI[R]):
         """
         return self.source_program.dyn_args
 
-    def partial_apply(self, *args) -> "Fn[R]":
+    def partial_apply(self, *args) -> "Def[R]":
         """
         Returns a new [`Fn`][] with the given arguments partially applied.
 
@@ -983,7 +983,7 @@ class Fn(Generic[R], GFI[R]):
             ```
         """
         all_args = self.source_program.dyn_args + args
-        return gen(Closure[R](all_args, self.source_program.fn))
+        return gen(Closure[R](all_args, self.source_program.static_fn))
 
 
 #############
@@ -991,9 +991,9 @@ class Fn(Generic[R], GFI[R]):
 #############
 
 
-def gen(f: Closure[R] | Callable[..., R]) -> Fn[R]:
+def gen(f: Closure[R] | Callable[..., R]) -> Def[R]:
     if isinstance(f, Closure):
-        return Fn[R](f)
+        return Def[R](f)
     else:
         closure = Closure[R]((), f)
         return gen(closure)
@@ -1005,7 +1005,7 @@ def gen(f: Closure[R] | Callable[..., R]) -> Fn[R]:
 
 __all__ = [
     "AddressReuse",
-    "Fn",
+    "Def",
     "gen",
     "trace",
     "trace_p",

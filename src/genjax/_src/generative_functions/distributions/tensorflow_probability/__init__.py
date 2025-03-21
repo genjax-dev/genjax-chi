@@ -51,14 +51,26 @@ def tfp_distribution(
     """
 
     def sampler(*args, **kwargs):
-        def _sampler(key, *args, **kwargs):
-            return dist(*args, **kwargs).sample(seed=key)
+        def keyful_sampler(key, *args, sample_shape=(), **kwargs):
+            d = dist(*args, **kwargs)
+            return d.sample(seed=key, sample_shape=sample_shape)
 
-        return sample_binder(_sampler, name=name)(*args, **kwargs)
+        batch_shape = kwargs.get("shape", ())
+        if "shape" in kwargs:
+            kwargs.pop("shape")
+        return sample_binder(
+            keyful_sampler,
+            name=name,
+            batch_shape=batch_shape,
+        )(
+            *args,
+            **kwargs,
+        )
 
     def logpdf(v, *args, **kwargs):
         def _log_density(v, *args, **kwargs):
-            return dist(*args, **kwargs).log_prob(v)
+            d = dist(*args, **kwargs)
+            return d.log_prob(v)
 
         return log_density_binder(_log_density, name=name)(v, *args, **kwargs)
 
