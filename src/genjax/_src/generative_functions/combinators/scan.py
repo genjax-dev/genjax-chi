@@ -17,6 +17,7 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from genjax._src.core.compiler.interpreters.incremental import Diff
+from genjax._src.core.compiler.pjax import modular_vmap
 from genjax._src.core.generative import (
     GFI,
     Argdiffs,
@@ -77,14 +78,14 @@ class ScanTrace(Generic[Carry, Y], Trace[tuple[Carry, Y]]):
         if self.scan_length == 0:
             chm = ChoiceMap.empty()
         else:
-            chm = jax.vmap(lambda tr: tr.get_choices())(self.inner)
+            chm = modular_vmap(lambda tr: tr.get_choices())(self.inner)
         return chm
 
     def get_gen_fn(self):
         return self.scan_gen_fn
 
     def get_score(self):
-        scores = jax.vmap(lambda tr: tr.get_score())(self.inner)
+        scores = modular_vmap(lambda tr: tr.get_score())(self.inner)
         return jnp.sum(scores)
 
     def get_inner_trace(self, address: Address):

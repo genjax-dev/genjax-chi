@@ -21,7 +21,6 @@ import pytest
 import genjax
 from genjax import ChoiceMapBuilder as C
 from genjax import Diff
-from genjax._src.generative_functions.combinators.vmap import VmapTrace
 
 
 @genjax.mask
@@ -112,8 +111,7 @@ class TestMaskCombinator:
             * jax.vmap(lambda v: genjax.normal.logpdf(v, 0.0, 1.0))(retval_val)
         )
         vmap_tr = tr.get_subtrace("init")
-        assert isinstance(vmap_tr, VmapTrace)
-        inner_scores = jax.vmap(lambda tr: tr.get_score())(vmap_tr.inner)
+        inner_scores = jax.vmap(lambda tr: tr.get_score())(vmap_tr)
         # score should be sum of sub-scores masked True
         assert tr.get_score() == inner_scores[0] + inner_scores[2]
 

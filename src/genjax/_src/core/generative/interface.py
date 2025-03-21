@@ -19,10 +19,10 @@ from typing import TYPE_CHECKING
 import jax.numpy as jnp
 import jax.tree_util as jtu
 from deprecated import deprecated
-from jax import vmap
 from jax.scipy.special import logsumexp
 
 from genjax._src.core.compiler.interpreters.incremental import Diff
+from genjax._src.core.compiler.pjax import modular_vmap as vmap
 from genjax._src.core.compiler.staging import empty_trace
 from genjax._src.core.generative.choice_map import (
     Address,
@@ -42,7 +42,6 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     Generic,
-    InAxes,
     Self,
     TypeVar,
     nobeartype,
@@ -727,7 +726,7 @@ class GFI(Generic[R], Pytree):
     ###################################
 
     # TODO think through, or note, that the R that comes out will have to be bounded by pytree.
-    def vmap(self, /, *, in_axes: InAxes = 0) -> "GFI[R]":
+    def vmap(self, /, **kwargs) -> "GFI[R]":
         """
         Returns a [`GFI`][genjax.GFI] that performs a vectorized map over the argument specified by `in_axes`. Traced values are nested under an index, and the retval is vectorized.
 
@@ -764,7 +763,7 @@ class GFI(Generic[R], Pytree):
         """
         import genjax
 
-        return genjax.vmap(in_axes=in_axes)(self)
+        return genjax.vmap(**kwargs)(self)
 
     def repeat(self, /, *, n: int) -> "GFI[R]":
         """

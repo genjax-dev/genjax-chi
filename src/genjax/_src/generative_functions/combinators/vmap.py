@@ -17,26 +17,20 @@ on the input arguments of a provided generative function callee.
 This vectorization is implemented using `jax.vmap`, and the combinator expects the user to specify `in_axes` as part of the construction of an instance of this combinator.
 """
 
-import jax
 import jax.numpy as jnp
-import jax.tree_util as jtu
 
-from genjax._src.core.compiler.interpreters.incremental import Diff
 from genjax._src.core.generative import (
     GFI,
     Argdiffs,
     ChoiceMap,
     EditRequest,
-    IndexRequest,
     R,
     Retdiff,
     Score,
     Trace,
-    Update,
     Weight,
 )
 from genjax._src.core.generative.choice_map import (
-    Address,
     Selection,
 )
 from genjax._src.core.pytree import Pytree
@@ -45,46 +39,8 @@ from genjax._src.core.typing import (
     Callable,
     Generic,
     InAxes,
-    IntArray,
 )
 from genjax.pjax import vmap as modular_vmap
-
-
-@Pytree.dataclass
-class VmapTrace(Generic[R], Trace[R]):
-    gen_fn: "Vmap[R]"
-    inner: Trace[R]
-
-    @staticmethod
-    def build(
-        gen_fn: "Vmap[R]",
-        tr: Trace[R],
-    ) -> "VmapTrace[R]":
-        return VmapTrace(gen_fn, tr)
-
-    def get_args(self) -> tuple[Any, ...]:
-        return self.inner.get_args()
-
-    def get_retval(self):
-        # returns the vectorized retval from self.inner.
-        return self.inner.get_retval()
-
-    def get_gen_fn(self):
-        return self.gen_fn
-
-    def get_choices(self) -> ChoiceMap:
-        return self.inner.get_choices()
-
-    def get_score(self) -> Score:
-        return jnp.sum(
-            modular_vmap(
-                lambda tr: tr.get_score(),
-                in_axes=0,
-            )(self.inner)
-        )
-
-    def get_inner_trace(self, address: Address):
-        return self.inner.get_inner_trace(address)
 
 
 @Pytree.dataclass
@@ -138,6 +94,9 @@ class Vmap(Generic[R], GFI[R]):
 
     gen_fn: GFI[R]
     in_axes: InAxes = Pytree.static()
+    axis_size: int | None = Pytree.static()
+    axis_name: str | None = Pytree.static()
+    spmd_axis_name: str | None = Pytree.static()
 
     def __abstract_call__(self, *args) -> Any:
         return modular_vmap(
@@ -145,203 +104,63 @@ class Vmap(Generic[R], GFI[R]):
             in_axes=self.in_axes,
         )(*args)
 
-    @staticmethod
-    def _static_broadcast_dim_length(in_axes: InAxes, args: tuple[Any, ...]) -> int:
-        # We start by triggering a vmap to force all JAX validations to run. If we get past this line we know we have compatible dimensions.
-        jax.vmap(lambda *_: None, in_axes=in_axes)(*args)
-
-        # perform the in_axes massaging that vmap performs internally:
-        if isinstance(in_axes, int):
-            in_axes = (in_axes,) * len(args)
-        elif isinstance(in_axes, list):
-            in_axes = tuple(in_axes)
-
-        def find_axis_size(axis: int | None, x: Any) -> int | None:
-            """Find the size of the axis specified by `axis` for the argument `x`."""
-            if axis is not None:
-                leaf = jax.tree_util.tree_leaves(x)[0]
-                return leaf.shape[axis]
-
-        # tree_map uses in_axes as a template. To have passed vmap validation, Any non-None entry
-        # must bottom out in an array-shaped leaf, and all such leafs must have the same size for
-        # the specified dimension. Fetching the first is sufficient.
-        axis_sizes = jax.tree_util.tree_map(
-            find_axis_size,
-            in_axes,
-            args,
-            is_leaf=lambda x: x is None,
-        )
-        return jtu.tree_leaves(axis_sizes)[0]
-
     def simulate(
         self,
         args: tuple[Any, ...],
-    ) -> VmapTrace[R]:
+    ) -> Trace[R]:
         # vmapping over `gen_fn`'s `simulate` gives us a new trace with vector-shaped leaves.
-        tr = modular_vmap(self.gen_fn.simulate, in_axes=(self.in_axes,))(args)
-
-        return VmapTrace.build(self, tr)
-
-    def bad_importance(
-        self,
-        constraint: ChoiceMap,
-        args: tuple[Any, ...],
-    ) -> tuple[VmapTrace[R], Weight]:
-        dim_length = self._static_broadcast_dim_length(self.in_axes, args)
-        idx_array = jnp.arange(dim_length)
-
-        def _inner(idx, args):
-            # Here we have to vmap across indices and perform individual lookups because the user might only constrain a subset of all indices. This forces recomputation.
-            submap = constraint.get_submap(idx)
-            tr, w = self.gen_fn.generate(
-                submap,
-                args,
-            )
-            return tr, w
-
-        tr, weight_v = modular_vmap(_inner, in_axes=(0, self.in_axes))(idx_array, args)
-        w = jnp.sum(weight_v)
-        map_tr = VmapTrace.build(self, tr)
-        return map_tr, w
-
-    def generate(
-        self,
-        constraint: ChoiceMap,
-        args: tuple[Any, ...],
-    ) -> tuple[VmapTrace[R], Weight]:
-        tr, weight_v = modular_vmap(self.gen_fn.generate, in_axes=(0, self.in_axes))(
-            constraint, args
-        )
-        w = jnp.sum(weight_v)
-        map_tr = VmapTrace.build(self, tr)
-        return map_tr, w
-
-    def project(
-        self,
-        trace: Trace[R],
-        selection: Selection,
-    ) -> Weight:
-        assert isinstance(trace, VmapTrace)
-        weights = modular_vmap(lambda tr: tr.project(selection))(trace.inner)
-        return jnp.sum(weights)
-
-    def edit_choice_map(
-        self,
-        trace: VmapTrace[R],
-        constraint: ChoiceMap,
-        argdiffs: Argdiffs,
-    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
-        def _edit(subtrace, constraint, argdiffs):
-            new_subtrace, w, retdiff, bwd_request = self.gen_fn.edit(
-                subtrace,
-                Update(constraint),
-                argdiffs,
-            )
-            assert isinstance(bwd_request, Update)
-            inner_chm = bwd_request.constraint
-            return (new_subtrace, w, retdiff, inner_chm)
-
-        new_subtraces, w, retdiff, bwd_constraints = modular_vmap(
-            _edit, in_axes=(0, 0, self.in_axes)
-        )(trace.inner, constraint, argdiffs)
-        w = jnp.sum(w)
-        map_tr = VmapTrace.build(self, new_subtraces)
-        return (
-            map_tr,
-            w,
-            retdiff,
-            Update(bwd_constraints),
-        )
-
-    def edit_index(
-        self,
-        trace: VmapTrace[R],
-        idx: IntArray,
-        request: EditRequest,
-        argdiffs: Argdiffs,
-    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
-        # For now, we don't allow changes to the arguments for this type of edit.
-        assert Diff.static_check_no_change(argdiffs)
-        primals = Diff.tree_primal(argdiffs)
-
-        trace_slice = jtu.tree_map(lambda v: v[idx], trace.inner)
-
-        def slice_argdiffs(axis: int | None, x: Any) -> Any:
-            """Helper function to slice argdiffs based on axis.
-
-            Args:
-                axis: The axis to slice along, or None if no slicing needed
-                x: The value to slice
-
-            Returns:
-                The sliced value if axis is provided, otherwise returns x unchanged
-            """
-            if axis is None:
-                return x
-            else:
-                return jtu.tree_map(lambda v: jnp.take(v, idx, axis=axis), x)
-
-        # First get the primal. The shape of this is going to match the in_axes shape.
-        primal_slice = jax.tree_util.tree_map(
-            slice_argdiffs,
-            self.in_axes,
-            primals,
-            is_leaf=lambda x: x is None,
-        )
-        argdiffs_slice = Diff.tree_diff(primal_slice, Diff.tree_tangent(argdiffs))
-
-        new_trace_slice, w, _, bwd_request = self.gen_fn.edit(
-            trace_slice,
-            request,
-            argdiffs_slice,
-        )
-
-        new_inner_trace = jtu.tree_map(
-            lambda v, v_: v.at[idx].set(v_), trace.inner, new_trace_slice
-        )
-
-        map_tr = VmapTrace.build(self, new_inner_trace)
-
-        # We always set the carried out value to be an unknown change, conservatively.
-        retdiff = Diff.unknown_change(map_tr.get_retval())
-
-        return (map_tr, w, retdiff, IndexRequest(idx, bwd_request))
-
-    def edit(
-        self,
-        trace: Trace[R],
-        edit_request: EditRequest,
-        argdiffs: Argdiffs,
-    ) -> tuple[VmapTrace[R], Weight, Retdiff[R], EditRequest]:
-        assert isinstance(trace, VmapTrace)
-
-        match edit_request:
-            case Update(constraint):
-                constraint = edit_request.constraint
-                return self.edit_choice_map(
-                    trace,
-                    constraint,
-                    argdiffs,
-                )
-            case IndexRequest(idx, subrequest):
-                return self.edit_index(
-                    trace,
-                    idx,
-                    subrequest,
-                    argdiffs,
-                )
-            case _:
-                raise NotImplementedError
+        tr = modular_vmap(
+            self.gen_fn.simulate,
+            in_axes=self.in_axes,
+            axis_size=self.axis_size,
+            axis_name=self.axis_name,
+            spmd_axis_name=self.spmd_axis_name,
+        )(args)
+        return tr
 
     def assess(
         self,
         chm: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
-        scores, retvals = modular_vmap(self.gen_fn.assess, in_axes=(0, self.in_axes))(
-            chm, args
-        )
+        scores, retvals = modular_vmap(
+            self.gen_fn.assess,
+            in_axes=(0, self.in_axes),
+            axis_size=self.axis_size,
+            axis_name=self.axis_name,
+            spmd_axis_name=self.spmd_axis_name,
+        )(chm, args)
         return jnp.sum(scores), retvals
+
+    def generate(
+        self,
+        constraint: ChoiceMap,
+        args: tuple[Any, ...],
+    ) -> tuple[Trace[R], Weight]:
+        tr, weight_v = modular_vmap(
+            self.gen_fn.generate,
+            in_axes=(0, self.in_axes),
+            axis_size=self.axis_size,
+            axis_name=self.axis_name,
+            spmd_axis_name=self.spmd_axis_name,
+        )(constraint, args)
+        w = jnp.sum(weight_v)
+        return tr, w
+
+    def project(
+        self,
+        trace: Trace[R],
+        selection: Selection,
+    ) -> Weight:
+        raise NotImplementedError
+
+    def edit(
+        self,
+        trace: Trace[R],
+        edit_request: EditRequest,
+        argdiffs: Argdiffs,
+    ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
+        raise NotImplementedError
 
 
 #############
@@ -349,7 +168,13 @@ class Vmap(Generic[R], GFI[R]):
 #############
 
 
-def vmap(*, in_axes: InAxes = 0) -> Callable[[GFI[R]], Vmap[R]]:
+def vmap(
+    *,
+    in_axes: InAxes = 0,
+    axis_size: int | None = None,
+    axis_name: str | None = None,
+    spmd_axis_name: str | None = None,
+) -> Callable[[GFI[R]], Vmap[R]]:
     """
     Returns a decorator that wraps a [`GFI`][genjax.GFI] and returns a new `GFI` that performs a vectorized map over the argument specified by `in_axes`. Traced values are nested under an index, and the retval is vectorized.
 
@@ -383,6 +208,12 @@ def vmap(*, in_axes: InAxes = 0) -> Callable[[GFI[R]], Vmap[R]]:
     """
 
     def decorator(gen_fn: GFI[R]) -> Vmap[R]:
-        return Vmap(gen_fn, in_axes)
+        return Vmap(
+            gen_fn,
+            in_axes,
+            axis_size,
+            axis_name,
+            spmd_axis_name,
+        )
 
     return decorator

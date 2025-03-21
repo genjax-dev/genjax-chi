@@ -63,9 +63,7 @@ class TestVmap:
             return z
 
         map_over = jnp.arange(0, 3, dtype=float)
-        chm = jax.vmap(lambda idx, v: C[idx, "z"].set(v))(
-            jnp.arange(3), jnp.array([3.0, 2.0, 3.0])
-        )
+        chm = jax.vmap(lambda v: C["z"].set(v))(jnp.array([3.0, 2.0, 3.0]))
 
         (_, w) = jax.jit(kernel.importance)(chm, (map_over,))
         assert (

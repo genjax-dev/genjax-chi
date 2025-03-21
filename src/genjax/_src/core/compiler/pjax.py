@@ -99,6 +99,10 @@ def make_flat(f):
     return _make_flat
 
 
+class LoweringSamplePrimitiveToMLIRException(Exception):
+    pass
+
+
 # This is very cheeky.
 @dataclass
 class GlobalKeyCounter:
@@ -161,11 +165,21 @@ def sample_binder(
             else:
                 raise NotImplementedError()
 
+        lowering_msg = (
+            "JAX is attempting to lower the `pjax.sample_p` primitive to MLIR. "
+            "This will bake a PRNG key into the MLIR code, resulting in deterministic behavior. "
+            "Instead, use `pjax.seed` to transform your function into one which allows keys to be passed in. "
+            "You can do this at any level of your computation above the `sample_p` invocation."
+        )
+        lowering_exception = LoweringSamplePrimitiveToMLIRException(lowering_msg)
+
         return initial_style_bind(
             sample_p,
             keyful_sampler=keyful_sampler,
             flat_keyful_sampler=flat_keyful_sampler,
             batch=batch,
+            lowering_warning=lowering_msg,
+            lowering_exception=lowering_exception,
         )(keyless, dist=name)(*args, **kwargs)
 
     return sampler
@@ -373,6 +387,43 @@ class ModularVmapInterpreter:
                     ops_vals,
                 )
 
+            elif eqn.primitive == scan_p:
+                body_jaxpr = params["jaxpr"]
+                length = params["length"]
+                reverse = params["reverse"]
+                unroll = params["unroll"]
+                num_consts = params["num_consts"]
+                num_carry = params["num_carry"]
+                _, carry_vals, xs_vals = jax_util.split_list(
+                    invals, [num_consts, num_carry]
+                )
+
+                body_fun = partial(
+                    ModularVmapInterpreter.stage_and_run,
+                    axis_size,
+                    jex.core.jaxpr_as_fun(body_jaxpr),
+                )
+
+                def new_body(carry, x):
+                    (dummy, *in_carry) = carry
+                    out_carry, out_scan = body_fun(
+                        dummy,
+                        (*in_carry, *x),
+                    )
+                    return (dummy, out_carry), out_scan
+
+                (_, out_carry), out_scan = scan(
+                    new_body,
+                    (dummy_arg, *carry_vals),
+                    xs=xs_vals,
+                    length=length,
+                    reverse=reverse,
+                    unroll=unroll,
+                )
+                outvals = jtu.tree_leaves(
+                    (out_carry, out_scan),
+                )
+
             # Deterministic and not control flow.
             else:
                 outvals = eqn.primitive.bind(*args, **params)
@@ -467,3 +518,9 @@ def modular_vmap(
         )
 
     return wrapped
+
+
+# Control the behavior of lowering `sample_p`
+# to MLIR.
+enforce_lowering_exception = True
+lowering_warning = True

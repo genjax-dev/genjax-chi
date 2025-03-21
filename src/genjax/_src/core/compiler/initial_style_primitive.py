@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import itertools as it
+import warnings
 
 import jax.core as jc
 import jax.extend.linear_util as lu
@@ -57,6 +58,12 @@ class InitialStylePrimitive(Primitive):
             return params["batch"](flat_vector_args, dim, **params)
 
         def lowering(ctx: mlir.LoweringRuleContext, *mlir_args, **params):
+            from genjax.pjax import enforce_lowering_exception, lowering_warning
+
+            if "lowering_warning" in params and lowering_warning:
+                warnings.warn(params["lowering_warning"])
+            elif "lowering_exception" in params and enforce_lowering_exception:
+                raise params["lowering_exception"]
             lowering = mlir.lower_fun(self.impl, multiple_results=True)
             return lowering(ctx, *mlir_args, **params)
 
