@@ -255,7 +255,7 @@ class ADInterpreter(Pytree):
                 in_vals = jax_util.safe_map(pure_env.read, eqn.invars)
                 subfuns, params = eqn.primitive.get_bind_params(eqn.params)
                 args = subfuns + in_vals
-                primitive = ElaboratedPrimitive.unwrap(eqn.primitive)
+                primitive, _ = ElaboratedPrimitive.unwrap(eqn.primitive)
                 if primitive is sample_p:
                     pass
                 else:
@@ -282,7 +282,7 @@ class ADInterpreter(Pytree):
                     duals = subfuns + in_vals
 
                     # Our sample_p primitive.
-                    primitive = ElaboratedPrimitive.unwrap(eqn.primitive)
+                    primitive, _ = ElaboratedPrimitive.unwrap(eqn.primitive)
                     if primitive is sample_p:
                         dual_env = dual_env.copy()
                         pure_env = Dual.tree_primal(dual_env)

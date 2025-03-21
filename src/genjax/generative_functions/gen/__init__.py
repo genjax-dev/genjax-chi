@@ -25,8 +25,8 @@ from genjax._src.generative_functions.gen import (
 __all__ = [
     "AddressReuse",
     "Def",
-    "MissingAddress",
     "DefRequest",
+    "MissingAddress",
     "gen",
     "trace",
     "trace_p",

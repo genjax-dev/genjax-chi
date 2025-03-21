@@ -413,15 +413,15 @@ class VmapInterpreter:
     def run_interpreter(self, fn, *args):
         closed_jaxpr, (flat_args, _, out_tree) = stage(fn)(*args)
         jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
+        axis_size = (
+            self.axis_size
+            if self.axis_size
+            else static_dim_length(self.in_axes, tuple(args))
+        )
         if isinstance(self.in_axes, int | None):
             flat_axes = list((self.in_axes,) * len(flat_args))
         else:
             flat_axes, _ = jtu.tree_flatten(self.in_axes, is_leaf=lambda v: v is None)
-        axis_size = (
-            self.axis_size
-            if self.axis_size
-            else static_dim_length(flat_axes, tuple(flat_args))
-        )
         flat_out = self.eval_jaxpr_vmap(
             jaxpr,
             consts,
