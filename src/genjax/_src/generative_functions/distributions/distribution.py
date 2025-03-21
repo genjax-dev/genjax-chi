@@ -24,6 +24,7 @@ from tensorflow_probability.substrates import jax as tfp
 
 from genjax._src.checkify import optional_check
 from genjax._src.core.compiler.interpreters.incremental import Diff
+from genjax._src.core.compiler.pjax import seed
 from genjax._src.core.compiler.staging import FlagOp
 from genjax._src.core.generative import (
     GFI,
@@ -46,6 +47,7 @@ from genjax._src.core.typing import (
     Any,
     Callable,
     Generic,
+    PRNGKey,
 )
 
 tfd = tfp.distributions
@@ -113,6 +115,14 @@ class Distribution(Generic[R], GFI[R]):
         v = self.sample(*args)
         w = self.logpdf(v, *args)
         return w, v
+
+    def sample_with_key(
+        self,
+        key: PRNGKey,
+        *args,
+        **kwargs,
+    ) -> R:
+        return seed(self.sample)(key, *args)
 
     def simulate(
         self,
