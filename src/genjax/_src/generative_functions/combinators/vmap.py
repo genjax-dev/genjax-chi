@@ -180,6 +180,7 @@ class Vmap(Generic[R], GFI[R]):
         args: tuple[Any, ...],
     ) -> VmapTrace[R]:
         # vmapping over `gen_fn`'s `simulate` gives us a new trace with vector-shaped leaves.
+        print(self.in_axes, args)
         tr = pjax.vmap(self.gen_fn.simulate, in_axes=(self.in_axes,))(args)
 
         return VmapTrace.build(self, tr, args)

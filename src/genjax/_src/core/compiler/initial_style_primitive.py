@@ -87,29 +87,26 @@ class ElaboratedPrimitive(Primitive):
         self.multiple_results = self.prim.multiple_results
         self.params = params
 
-        def impl(*args, **_):
-            return self.prim.impl(*args, **self.params)
+        def impl(*args, **params):
+            return self.prim.impl(*args, **self.params, **params)
 
-        def abstract(*args, **_):
-            return self.prim.abstract(*args, **self.params)
+        def abstract(*args, **params):
+            return self.prim.abstract(*args, **self.params, **params)
 
-        def jvp(*args, **_):
-            return self.prim.jvp(*args, **self.params)
+        def jvp(*args, **params):
+            return self.prim.jvp(*args, **self.params, **params)
 
-        def batch(*args, **_):
-            return self.prim.batch(*args, **self.params)
+        def batch(*args, **params):
+            return self.prim.batch(*args, **self.params, **params)
 
-        def lowering(*args, **_):
-            return self.prim.lowering(*args, **self.params)
+        def lowering(*args, **params):
+            return self.prim.lowering(*args, **self.params, **params)
 
         self.def_impl(impl)
         ad.primitive_jvps[self] = jvp
         self.def_abstract_eval(abstract)
         batching.primitive_batchers[self] = batch
         mlir.register_lowering(self, lowering)
-
-    def get_bind_params(self, params):
-        return [], params
 
     @classmethod
     def unwrap(cls, v):
@@ -123,11 +120,8 @@ class ElaboratedPrimitive(Primitive):
             return primitive == other
 
     @classmethod
-    def rebind(cls, primitive, *args, **params):
-        if isinstance(primitive, ElaboratedPrimitive):
-            return primitive.bind(*args, **params)
-        else:
-            return primitive.bind(*args, **params)
+    def rebind(cls, primitive: Primitive, *args, **params):
+        return primitive.bind(*args, **params)
 
 
 def batch_fun(fun: lu.WrappedFun, axis_data, in_dims):

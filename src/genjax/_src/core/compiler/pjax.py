@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from functools import wraps
+from functools import partial, wraps
 
 import jax.extend as jex
 import jax.numpy as jnp
@@ -69,10 +69,7 @@ def static_dim_length(in_axes, args: tuple[Any, ...]) -> int | None:
 
 
 class style:
-    MAGENTA = "\033[35m"
     CYAN = "\033[36m"
-    GREEN = "\033[32m"
-    PINK = "\033[36m"
     BOLD = "\033[1m"
     RESET = "\033[0m"
 
@@ -81,7 +78,7 @@ sample_p = InitialStylePrimitive(
     f"{style.BOLD}{style.CYAN}pjax.sample{style.RESET}",
 )
 log_density_p = InitialStylePrimitive(
-    f"{style.BOLD}{style.MAGENTA}pjax.log_density{style.RESET}",
+    f"{style.BOLD}{style.CYAN}pjax.log_density{style.RESET}",
 )
 
 
@@ -114,9 +111,12 @@ _fake_key = jrand.key(1)
 
 
 def sample_binder(
-    keyful_sampler: Callable[[PRNGKey, Any], Any],
+    keyful_sampler: Callable[..., Any],
     name: str | None = None,
+    batch_shape: tuple[int, ...] = (),
 ):
+    keyful_with_batch_shape = partial(keyful_sampler, sample_shape=batch_shape)
+
     def sampler(*args, **kwargs):
         # We're playing a trick here by allowing users to invoke sample_p
         # without a key. So we hide it inside, and we pass this as the impl of `sample_p`.
@@ -126,19 +126,33 @@ def sample_binder(
         # The `seed` transformation below solves the JIT problem directly.
         def keyless(*args, **kwargs):
             global_counter.count += 1
-            return keyful_sampler(jrand.key(global_counter.count), *args, **kwargs)
+            return keyful_with_batch_shape(
+                jrand.key(global_counter.count),
+                *args,
+                **kwargs,
+            )
 
         # Zero-cost, just staging.
-        flat_keyful_sampler, _ = make_flat(keyful_sampler)(_fake_key, *args, **kwargs)
+        flat_keyful_sampler, _ = make_flat(keyful_with_batch_shape)(
+            _fake_key, *args, **kwargs
+        )
 
         # TODO: this shouldn't actually work.
         # Overload batching so that the primitive is retained
         # in the Jaxpr under vmap.
         # Holy smokes recursion.
         def batch(vector_args, batch_axes, **params):
+            axis_size = params["axis_size"]
             n = static_dim_length(batch_axes, vector_args)
-            v = sample_binder(keyful_sampler, name=name)(*vector_args)
-            return (v,), (0 if n else None,)
+            outer_batch_dim = () if n is not None else (axis_size,) if axis_size else ()
+            assert isinstance(outer_batch_dim, tuple)
+            new_batch_shape = outer_batch_dim + batch_shape
+            v = sample_binder(
+                keyful_sampler,
+                name=name,
+                batch_shape=new_batch_shape,
+            )(*vector_args)
+            return (v,), (0 if n or axis_size else None,)
 
         return initial_style_bind(
             sample_p,
@@ -155,12 +169,10 @@ def log_density_binder(
     name: str | None = None,
 ):
     def log_density(*args, **kwargs):
+        # TODO: really not sure if this is right if you
+        # nest vmaps...
         def batch(vector_args, batch_axes, **params):
             n = static_dim_length(batch_axes, tuple(vector_args))
-            # batched_log_density = log_density_binder(
-            #    vmap(log_density_impl, in_axes=batch_axes),
-            #    name=name,
-            # )
             v = log_density_binder(log_density_impl, name=name)(*vector_args)
             return (v,), (0 if n else None,)
 
@@ -194,13 +206,13 @@ class SeedInterpreter:
             invals = jax_util.safe_map(env.read, eqn.invars)
             subfuns, params = eqn.primitive.get_bind_params(eqn.params)
             args = subfuns + invals
-            primitive = ElaboratedPrimitive.unwrap(eqn.primitive)
+            primitive, inner_params = ElaboratedPrimitive.unwrap(eqn.primitive)
             if primitive == sample_p:
                 invals = jax_util.safe_map(env.read, eqn.invars)
                 args = subfuns + invals
-                flat_keyful_sampler = params["flat_keyful_sampler"]
+                flat_keyful_sampler = inner_params["flat_keyful_sampler"]
                 self.key, sub_key = jrand.split(self.key)
-                outvals = flat_keyful_sampler(sub_key, *args, **params)
+                outvals = flat_keyful_sampler(sub_key, *args, **inner_params)
             elif primitive == cond_p:
                 invals = jax_util.safe_map(env.read, eqn.invars)
                 subfuns, params = eqn.primitive.get_bind_params(eqn.params)
@@ -315,6 +327,10 @@ class BatchedArray:
         return v.batched if isinstance(v, BatchedArray) else None
 
 
+def check_batched(vs: tuple[int | None, ...]):
+    return any(map(lambda v: v == 0, vs))
+
+
 @dataclass
 class VmapInterpreter:
     in_axes: int | tuple[int | None, ...] | Sequence[Any] | None
@@ -347,14 +363,13 @@ class VmapInterpreter:
                 outvals, out_axes = batching.primitive_batchers[eqn.primitive](
                     tuple(vector_args),
                     batched_axes,
-                    axis_size=self.axis_size,
+                    axis_size=axis_size,
                     **params,
                 )
 
             # Deterministic and not control flow.
             else:
-                # Need to batch.
-                if any(batched_axes):
+                if check_batched(batched_axes):
                     if eqn.primitive in batching.primitive_batchers:
                         outvals, out_axes = batching.primitive_batchers[eqn.primitive](
                             tuple(vector_args),
@@ -422,9 +437,13 @@ def vmap(
     in_axes: int | tuple[int | None, ...] | Sequence[Any] | None = 0,
     axis_size: int | None = None,
 ):
+    """
+    `pjax.vmap` extends `jax.vmap` to be "aware of probability distributions" as a first class citizen.
+    """
+
     @wraps(f)
-    def wrapped(*args):
+    def wrapped(*args, **kwargs):
         interpreter = VmapInterpreter(in_axes, axis_size)
-        return interpreter.run_interpreter(f, *args)
+        return interpreter.run_interpreter(f, *args, **kwargs)
 
     return wrapped
