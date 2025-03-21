@@ -394,7 +394,7 @@ class ModularVmapInterpreter:
                 unroll = params["unroll"]
                 num_consts = params["num_consts"]
                 num_carry = params["num_carry"]
-                _, carry_vals, xs_vals = jax_util.split_list(
+                const_vals, carry_vals, xs_vals = jax_util.split_list(
                     invals, [num_consts, num_carry]
                 )
 
@@ -406,13 +406,14 @@ class ModularVmapInterpreter:
 
                 def new_body(carry, x):
                     (dummy, *in_carry) = carry
-                    out_carry, out_scan = body_fun(
+                    all_out = body_fun(
                         dummy,
-                        (*in_carry, *x),
+                        (*const_vals, *in_carry, *x),
                     )
-                    return (dummy, out_carry), out_scan
+                    out_carry, out_scan = jax_util.split_list(all_out, [num_carry])
+                    return (dummy, *out_carry), out_scan
 
-                (_, out_carry), out_scan = scan(
+                (_, *out_carry), out_scan = scan(
                     new_body,
                     (dummy_arg, *carry_vals),
                     xs=xs_vals,

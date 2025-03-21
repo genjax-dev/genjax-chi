@@ -178,7 +178,9 @@ class HMC(EditRequest):
         (final_trace, _, _, final_momenta), retdiffs = scan(
             kernel,
             (tr, values, gradients, momenta),
+            xs=None,
             length=self.L,
+            unroll=False,
         )
 
         final_model_score = final_trace.get_score()

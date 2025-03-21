@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax.numpy as jnp
 
 from genjax._src.core.generative import (
     GFI,
@@ -31,11 +30,7 @@ def RepeatCombinator(gen_fn: GFI[R], /, *, n: int) -> GFI[R]:
 
     See [`genjax.repeat`][] for more details.
     """
-    return (
-        gen_fn.contramap(lambda _idx, args: args)
-        .vmap(in_axes=(0, None))
-        .contramap(lambda *args: (jnp.zeros(n), args))
-    )
+    return gen_fn.vmap(in_axes=None, axis_size=n)
 
 
 def repeat(*, n: int) -> Callable[[GFI[R]], GFI[R]]:

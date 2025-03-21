@@ -253,11 +253,10 @@ class Trace(Generic[R], Pytree):
     ) -> tuple[Self, Weight]:
         from genjax import categorical
 
-        batch_shape = self.batch_shape()
         idx = vmap(
             categorical.sample,
             in_axes=None,
-            axis_size=batch_shape,
+            axis_size=jnp.shape(ws)[0],
         )(ws)
         tr_k = jtu.tree_map(lambda x: x[idx], self)
         Z = logsumexp(ws)
