@@ -20,7 +20,7 @@ import jax.random as jrand
 import pytest
 
 import genjax
-from genjax import ChoiceMap, DefRequest, Diff, Pytree, Regenerate, Update
+from genjax import ChoiceMap, Diff, FnRequest, Pytree, Regenerate, Update
 from genjax import ChoiceMapBuilder as C
 from genjax import Selection as S
 from genjax._src.core.typing import Array
@@ -816,7 +816,7 @@ class TestStaticEditRequest:
             return y1 + y2
 
         tr = simple_normal.simulate(())
-        request = DefRequest({
+        request = FnRequest({
             "y1": Regenerate(S.all()),
             "y2": Update(C.v(3.0)),
         })
@@ -836,7 +836,7 @@ class TestStaticEditRequest:
             return y1 + y2
 
         tr = simple_normal.simulate(())
-        request = DefRequest({
+        request = FnRequest({
             ("y1", "y3"): Regenerate(S.all()),
             "y2": Update(C.v(3.0)),
         })
@@ -861,9 +861,9 @@ class TestStaticEditRequest:
             return y1 + y2
 
         tr = simple_normal.simulate(())
-        request = DefRequest({
+        request = FnRequest({
             ("y1", "y3"): Regenerate(S.all()),
-            "y2": DefRequest({"y2": Update(C.v(3.0))}),
+            "y2": FnRequest({"y2": Update(C.v(3.0))}),
         })
         new_tr, w, _, bwd_request = request.edit(tr, ())
         assert new_tr.get_choices()["y2", "y2"] == 3.0

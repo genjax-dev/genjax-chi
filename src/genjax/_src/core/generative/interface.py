@@ -18,7 +18,8 @@ from typing import TYPE_CHECKING
 
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from deprecated import deprecated
+from genstudio.plot import PlotSpec
+from jax.lax import scan
 from jax.scipy.special import logsumexp
 
 from genjax._src.core.compiler.interpreters.incremental import Diff
@@ -44,7 +45,6 @@ from genjax._src.core.typing import (
     Generic,
     Self,
     TypeVar,
-    nobeartype,
 )
 
 # Import `genjax` so static typecheckers can see the circular reference to "genjax.ChoiceMap" below.
@@ -80,14 +80,6 @@ class Trace(Generic[R], Pytree):
     the invocation of a generative function, including the arguments it
     was invoked with, its return value, and the identity of the generative function itself.
     """
-
-    @abstractmethod
-    def get_args(self) -> Arguments:
-        """Returns the [`Arguments`][genjax.core.Arguments] for the [`GFI`][genjax.core.GFI] invocation which created the [`Trace`][genjax.core.Trace]."""
-
-    @abstractmethod
-    def get_retval(self) -> R:
-        """Returns the `R` from the [`GFI`][genjax.core.GFI] invocation which created the [`Trace`][genjax.core.Trace]."""
 
     @abstractmethod
     def get_score(self) -> Score:
@@ -135,16 +127,22 @@ class Trace(Generic[R], Pytree):
         $$
 
         """
+        pass
+
+    @abstractmethod
+    def get_args(self) -> Arguments:
+        """Returns the [`Arguments`][genjax.core.Arguments] for the [`GFI`][genjax.core.GFI] invocation which created the [`Trace`][genjax.core.Trace]."""
+        pass
+
+    @abstractmethod
+    def get_retval(self) -> R:
+        """Returns the `R` from the [`GFI`][genjax.core.GFI] invocation which created the [`Trace`][genjax.core.Trace]."""
+        pass
 
     @abstractmethod
     def get_choices(self) -> "genjax.ChoiceMap":
         """Retrieves the random choices made in a trace in the form of a [`genjax.ChoiceMap`][]."""
         pass
-
-    @nobeartype
-    @deprecated(reason="Use .get_choices() instead.", version="0.8.1")
-    def get_sample(self):
-        return self.get_choices()
 
     @abstractmethod
     def get_gen_fn(self) -> "GFI[R]":
@@ -262,15 +260,74 @@ class Trace(Generic[R], Pytree):
         Z = logsumexp(ws)
         return (tr_k, Z)
 
+    def repeat(self, n: int) -> "RepeatCanvas[R]":
+        return RepeatCanvas(self, n)
+
     def __getitem__(self, k):
         return self.get_choices().__getitem__(k)
 
-    ###################
-    # Batch semantics #
-    ###################
+    #################
+    # Visualization #
+    #################
 
-    def batch_shape(self) -> int:
-        return jnp.array(self.get_score(), copy=False).shape[0]
+    def visualize(
+        self,
+        addr: Address,
+        callable: Callable[..., PlotSpec],
+    ):
+        return callable(self.get_choices()[addr])
+
+
+@Pytree.dataclass
+class RepeatCanvas(Generic[R], Pytree):
+    trace: Trace[R]
+    n: int = Pytree.static()
+
+    def edit(
+        self,
+        request: EditRequest,
+    ) -> tuple[
+        tuple[Trace[R], Weight],
+        tuple[Retdiff[R], EditRequest],
+    ]:
+        """
+        This method calls out to the underlying [`GFI.edit`][genjax.core.GFI.edit] method - see [`EditRequest`][genjax.core.EditRequest] and [`edit`][genjax.core.GFI.edit] for more information.
+        """
+
+        def kernel(carry, xs):
+            new_tr, w, retdiff, bwd_request = request.edit(
+                carry, Diff.no_change(self.trace.get_args())
+            )
+            return new_tr, (w, retdiff, bwd_request)
+
+        new_tr, (ws, retdiffs, bwd_requests) = scan(
+            kernel,
+            self.trace,
+            length=self.n,
+        )
+        return (new_tr, jnp.sum(ws)), (retdiffs, bwd_requests)
+
+    def edit_k(
+        self,
+        request: EditRequest,
+        argdiffs: tuple[Any, ...] | None = None,
+    ) -> tuple[
+        tuple[Trace[R], Weight],
+        tuple[Retdiff[R], EditRequest],
+    ]:
+        def kernel(carry, xs):
+            tr, ws, retdiff, bwd_request = vmap(
+                lambda _tr, r, a: _tr.edit(r, a),
+                in_axes=(0, None, None),
+            )(carry, request, argdiffs)
+            return tr, (ws, retdiff, bwd_request)
+
+        new_tr, (ws, retdiffs, bwd_requests) = scan(
+            kernel,
+            self.trace,
+            length=self.n,
+        )
+        return (new_tr, jnp.sum(ws)), (retdiffs, bwd_requests)
 
 
 #######################

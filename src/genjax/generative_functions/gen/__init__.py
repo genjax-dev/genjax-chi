@@ -14,8 +14,8 @@
 
 from genjax._src.generative_functions.gen import (
     AddressReuse,
-    Def,
-    DefRequest,
+    Fn,
+    FnRequest,
     MissingAddress,
     gen,
     trace,
@@ -24,8 +24,8 @@ from genjax._src.generative_functions.gen import (
 
 __all__ = [
     "AddressReuse",
-    "Def",
-    "DefRequest",
+    "Fn",
+    "FnRequest",
     "MissingAddress",
     "gen",
     "trace",
