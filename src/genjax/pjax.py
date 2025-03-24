@@ -12,11 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.inference.requests.hmc import HMC, SafeHMC
-from genjax._src.inference.requests.rejuvenate import Rejuvenate
+from genjax._src.core.compiler.pjax import (
+    enforce_lowering_exception,
+    lowering_warning,
+    seed,
+)
+from genjax._src.core.compiler.pjax import modular_vmap as vmap
 
 __all__ = [
-    "HMC",
-    "Rejuvenate",
-    "SafeHMC",
+    "enforce_lowering_exception",
+    "lowering_warning",
+    "seed",
+    "vmap",
 ]

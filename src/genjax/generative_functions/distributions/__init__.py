@@ -19,8 +19,7 @@ from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
 )
 from genjax._src.generative_functions.distributions.distribution import (
     Distribution,
-    ExactDensity,
-    exact_density,
+    distribution,
 )
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     bernoulli,
@@ -76,7 +75,7 @@ __all__ = [
     "DiscreteHMM",
     "DiscreteHMMConfiguration",
     "Distribution",
-    "ExactDensity",
+    "Distribution",
     "bernoulli",
     "beta",
     "beta_binomial",
@@ -88,8 +87,8 @@ __all__ = [
     "chi2",
     "dirichlet",
     "dirichlet_multinomial",
+    "distribution",
     "double_sided_maxwell",
-    "exact_density",
     "exp_gamma",
     "exp_inverse_gamma",
     "exponential",

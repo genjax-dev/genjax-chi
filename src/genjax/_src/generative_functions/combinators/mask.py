@@ -19,10 +19,10 @@ import jax.tree_util as jtu
 from genjax._src.core.compiler.interpreters.incremental import Diff
 from genjax._src.core.compiler.staging import FlagOp
 from genjax._src.core.generative import (
+    GFI,
     Argdiffs,
     ChoiceMap,
     EditRequest,
-    GenerativeFunction,
     Mask,
     Retdiff,
     Score,
@@ -36,7 +36,6 @@ from genjax._src.core.typing import (
     Any,
     Flag,
     Generic,
-    PRNGKey,
     ScalarFlag,
     TypeVar,
 )
@@ -108,9 +107,9 @@ class MaskTrace(Generic[R], Trace[Mask[R]]):
 
 
 @Pytree.dataclass
-class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
+class MaskCombinator(Generic[R], GFI[Mask[R]]):
     """
-    Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
+    Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GFI`][] and returns a new [`genjax.GFI`][] which accepts an additional boolean first argument.
 
     If `True`, the invocation of the generative function is masked, and its contribution to the score is ignored. If `False`, it has the same semantics as if one was invoking the generative function without masking.
 
@@ -146,31 +145,28 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         ```
     """
 
-    gen_fn: GenerativeFunction[R]
+    gen_fn: GFI[R]
 
     def simulate(
         self,
-        key: PRNGKey,
         args: tuple[Any, ...],
     ) -> MaskTrace[R]:
         check, inner_args = args[0], args[1:]
-        tr = self.gen_fn.simulate(key, inner_args)
+        tr = self.gen_fn.simulate(inner_args)
         return MaskTrace.build(self, tr, check)
 
     def generate(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[MaskTrace[R], Weight]:
         check, inner_args = args[0], args[1:]
 
-        tr, w = self.gen_fn.generate(key, constraint, inner_args)
+        tr, w = self.gen_fn.generate(constraint, inner_args)
         return MaskTrace.build(self, tr, check), w * check
 
     def project(
         self,
-        key: PRNGKey,
         trace: Trace[Mask[R]],
         selection: Selection,
     ) -> Weight:
@@ -178,7 +174,6 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
     def edit(
         self,
-        key: PRNGKey,
         trace: Trace[Mask[R]],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
@@ -197,7 +192,7 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
         subrequest = Update(edit_request.constraint)
 
         premasked_trace, weight, retdiff, bwd_request = self.gen_fn.edit(
-            key, original_trace, subrequest, inner_argdiffs
+            original_trace, subrequest, inner_argdiffs
         )
 
         final_trace: Trace[R] = jtu.tree_map(
@@ -266,11 +261,11 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 
     def assess(
         self,
-        sample: ChoiceMap,
+        chm: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, Mask[R]]:
         check, inner_args = args[0], args[1:]
-        score, retval = self.gen_fn.assess(sample, inner_args)
+        score, retval = self.gen_fn.assess(chm, inner_args)
         return (
             check * score,
             Mask(retval, check),
@@ -282,9 +277,9 @@ class MaskCombinator(Generic[R], GenerativeFunction[Mask[R]]):
 #############
 
 
-def mask(f: GenerativeFunction[R]) -> MaskCombinator[R]:
+def mask(f: GFI[R]) -> MaskCombinator[R]:
     """
-    Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GenerativeFunction`][] and returns a new [`genjax.GenerativeFunction`][] which accepts an additional boolean first argument.
+    Combinator which enables dynamic masking of generative functions. Takes a [`genjax.GFI`][] and returns a new [`genjax.GFI`][] which accepts an additional boolean first argument.
 
     If `True`, the invocation of the generative function is masked, and its contribution to the score is ignored. If `False`, it has the same semantics as if one was invoking the generative function without masking.
 

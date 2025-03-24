@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax.numpy as jnp
 
 from genjax._src.core.generative import (
-    GenerativeFunction,
+    GFI,
 )
 from genjax._src.core.typing import (
     Callable,
@@ -25,24 +24,18 @@ from genjax._src.core.typing import (
 R = TypeVar("R")
 
 
-def RepeatCombinator(
-    gen_fn: GenerativeFunction[R], /, *, n: int
-) -> GenerativeFunction[R]:
+def RepeatCombinator(gen_fn: GFI[R], /, *, n: int) -> GFI[R]:
     """
-    A combinator that samples from a supplied [`genjax.GenerativeFunction`][] `gen_fn` a fixed number of times, returning a vector of `n` results.
+    A combinator that samples from a supplied [`genjax.GFI`][] `gen_fn` a fixed number of times, returning a vector of `n` results.
 
     See [`genjax.repeat`][] for more details.
     """
-    return (
-        gen_fn.contramap(lambda _idx, args: args)
-        .vmap(in_axes=(0, None))
-        .contramap(lambda *args: (jnp.zeros(n), args))
-    )
+    return gen_fn.vmap(in_axes=None, axis_size=n)
 
 
-def repeat(*, n: int) -> Callable[[GenerativeFunction[R]], GenerativeFunction[R]]:
+def repeat(*, n: int) -> Callable[[GFI[R]], GFI[R]]:
     """
-    Returns a decorator that wraps a [`genjax.GenerativeFunction`][] `gen_fn` of type `a -> b` and returns a new `GenerativeFunction` of type `a -> [b]` that samples from `gen_fn `n` times, returning a vector of `n` results.
+    Returns a decorator that wraps a [`genjax.GFI`][] `gen_fn` of type `a -> b` and returns a new `GFI` of type `a -> [b]` that samples from `gen_fn `n` times, returning a vector of `n` results.
 
     The values traced by each call `gen_fn` will be nested under an integer index that matches the loop iteration index that generated it.
 
@@ -52,7 +45,7 @@ def repeat(*, n: int) -> Callable[[GenerativeFunction[R]], GenerativeFunction[R]
         n: The number of times to sample from the generative function.
 
     Returns:
-        A new [`genjax.GenerativeFunction`][] that samples from the original function `n` times.
+        A new [`genjax.GFI`][] that samples from the original function `n` times.
 
     Examples:
         ```python exec="yes" html="true" source="material-block" session="repeat"
@@ -73,7 +66,7 @@ def repeat(*, n: int) -> Callable[[GenerativeFunction[R]], GenerativeFunction[R]
         ```
     """
 
-    def decorator(gen_fn: GenerativeFunction[R]) -> GenerativeFunction[R]:
+    def decorator(gen_fn: GFI[R]) -> GFI[R]:
         return RepeatCombinator(gen_fn, n=n)
 
     return decorator

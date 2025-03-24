@@ -24,6 +24,7 @@ from genjax._src.core.compiler.interpreters.incremental import (
     incremental,
 )
 from genjax._src.core.compiler.interpreters.stateful import StatefulHandler, stateful
+from genjax._src.core.compiler.pjax import log_density_binder, sample_binder, seed
 from genjax._src.core.compiler.staging import (
     get_shaped_aval,
     stage,
@@ -40,6 +41,9 @@ __all__ = [
     "get_shaped_aval",
     "incremental",
     "initial_style_bind",
+    "log_density_binder",
+    "sample_binder",
+    "seed",
     "stage",
     "stateful",
     "to_shape_fn",

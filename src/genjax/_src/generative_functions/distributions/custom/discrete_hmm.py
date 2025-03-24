@@ -19,16 +19,17 @@ import numpy as np
 from scipy.linalg import circulant
 from tensorflow_probability.substrates import jax as tfp
 
-from genjax._src.core.generative.concepts import Score
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Array,
     FloatArray,
     IntArray,
-    PRNGKey,
     TypeVar,
 )
 from genjax._src.generative_functions.distributions.distribution import Distribution
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    categorical,
+)
 
 tfd = tfp.distributions
 
@@ -96,7 +97,8 @@ class DiscreteHMMConfiguration(Pytree):
 
 
 def forward_filtering_backward_sampling(
-    key: PRNGKey, config: DiscreteHMMConfiguration, observation_sequence
+    config: DiscreteHMMConfiguration,
+    observation_sequence,
 ):
     init = int(config.linear_grid_dim / 2)
     tt = config.transition_tensor()
@@ -157,25 +159,23 @@ def forward_filtering_backward_sampling(
         key, index, prev_sample = carry
         forward_filter = x
 
-        def end_branch(key, prev, forward_filter):
-            sample = jax.random.categorical(key, forward_filter)
+        def end_branch(prev, forward_filter):
+            sample = categorical.sample(forward_filter)
             return sample
 
-        def t_1_branch(key, prev, forward_filter):
+        def t_1_branch(prev, forward_filter):
             backward_distribution = forward_filter + transition_n[:, prev_sample]
             backward_distribution = backward_distribution - jax.scipy.special.logsumexp(
                 backward_distribution
             )
-            sample = jax.random.categorical(key, backward_distribution)
+            sample = categorical.sample(backward_distribution)
             return sample
 
-        key, sub_key = jax.random.split(key)
         check = index == 0
         sample = jax.lax.cond(
             check,
             end_branch,
             t_1_branch,
-            sub_key,
             prev_sample,
             forward_filter,
         )
@@ -183,13 +183,13 @@ def forward_filtering_backward_sampling(
 
     # This is supposed to be scanned in reverse order
     # from the forward order.
-    (key, _, _), samples = jax.lax.scan(
+    _, samples = jax.lax.scan(
         backward_sample,
-        (key, 0, 0),
+        (0, 0),
         jnp.flip(forward_filters, axis=0),
     )
     samples = jnp.flip(samples)
-    return key, (samples, forward_filters)
+    return (samples, forward_filters)
 
 
 #####
@@ -241,17 +241,13 @@ def latent_sequence_posterior(
 
 @Pytree.dataclass
 class _DiscreteHMMLatentSequencePosterior(Distribution[Array]):
-    def random_weighted(self, key, *args, **kwargs) -> tuple[Score, Array]:
+    def sample(self, *args, **kwargs) -> Array:
         config, observation_sequence = args
-        key, k1, k2 = jax.random.split(key, 3)
-        _, (v, _) = forward_filtering_backward_sampling(
-            k1, config, observation_sequence
-        )
+        _, (v, _) = forward_filtering_backward_sampling(config, observation_sequence)
 
-        w = self.estimate_logpdf(k2, v, config, observation_sequence, **kwargs)
-        return (w, v)
+        return v
 
-    def estimate_logpdf(self, key, v, *args, **kwargs) -> Array:
+    def logpdf(self, v, *args, **kwargs) -> Array:
         config, observation_sequence = args
         prob, _ = latent_sequence_posterior(config, v, observation_sequence)
         return prob

@@ -918,8 +918,7 @@ class ChoiceMap(Pytree):
                 return x
 
 
-            key = jax.random.key(314159)
-            tr = model.simulate(key, ())
+            tr = model.simulate(())
             chm = tr.get_choices()
             selection = S["x"]
             filtered = chm.filter(selection)
@@ -1357,7 +1356,7 @@ class ChoiceMap(Pytree):
 
     def invalid_subset(
         self,
-        gen_fn: "genjax.GenerativeFunction[Any]",
+        gen_fn: "genjax.GFI[Any]",
         args: tuple[Any, ...],
     ) -> "ChoiceMap | None":
         """

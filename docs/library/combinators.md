@@ -1,6 +1,6 @@
 # Combinators: structured patterns of composition
 
-While the programmatic [`genjax.StaticGenerativeFunction`][] language is powerful, its restrictions can be limiting. Combinators are a way to express common patterns of composition in a more concise way, and to gain access to effects which are common in JAX (like `jax.vmap`) for generative computations.
+While the programmatic [`genjax.Fn`][] language is powerful, its restrictions can be limiting. Combinators are a way to express common patterns of composition in a more concise way, and to gain access to effects which are common in JAX (like `jax.vmap`) for generative computations.
 
 Each of the combinators below is implemented as a method on [`genjax.GenerativeFunction`][] and as a standalone decorator.
 

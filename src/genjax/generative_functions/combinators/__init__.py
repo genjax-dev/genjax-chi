@@ -35,7 +35,6 @@ from genjax._src.generative_functions.combinators.repeat import (
 from genjax._src.generative_functions.combinators.scan import (
     IndexRequest,
     Scan,
-    VectorRequest,
     accumulate,
     iterate,
     iterate_final,
@@ -60,7 +59,6 @@ __all__ = [
     "RepeatCombinator",
     "Scan",
     "Switch",
-    "VectorRequest",
     "Vmap",
     "accumulate",
     "contramap",

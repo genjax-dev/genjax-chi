@@ -34,6 +34,7 @@ beartype_this_package(conf=conf)
 
 from .checkify import *
 from .core import *
+from .edits import *
 from .experimental import *
 from .generative_functions import *
 from .incremental import *

@@ -35,19 +35,20 @@ from .concepts import (
     Weight,
 )
 from .functional_types import Mask
-from .generative_function import (
-    GenerativeFunction,
-    GenerativeFunctionClosure,
+from .interface import (
+    GFI,
+    GFIClosure,
     IgnoreKwargs,
     Trace,
-    Update,
 )
 from .requests import (
     EmptyRequest,
     Regenerate,
+    Update,
 )
 
 __all__ = [
+    "GFI",
     "Address",
     "AddressComponent",
     "Argdiffs",
@@ -56,8 +57,7 @@ __all__ = [
     "ChoiceMapBuilder",
     "EditRequest",
     "EmptyRequest",
-    "GenerativeFunction",
-    "GenerativeFunctionClosure",
+    "GFIClosure",
     "IgnoreKwargs",
     "IndexRequest",
     "Mask",

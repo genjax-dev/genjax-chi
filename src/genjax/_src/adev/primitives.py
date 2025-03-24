@@ -35,7 +35,12 @@ from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
-    PRNGKey,
+)
+from genjax._src.generative_functions.distributions.tensorflow_probability import (
+    bernoulli,
+    categorical,
+    geometric,
+    normal,
 )
 
 tfd = tfp.distributions
@@ -76,22 +81,20 @@ class REINFORCE(ADEVPrimitive):
     sample_function: Callable[..., Any] = Pytree.static()
     differentiable_logpdf: Callable[..., Any] = Pytree.static()
 
-    def sample(self, key, *args):
-        return self.sample_function(key, *args)
+    def sample(self, *args):
+        return self.sample_function(*args)
 
     def jvp_estimate(
         self,
-        key: PRNGKey,
         dual_tree: DualTree,
         konts: tuple[Any, ...],
     ):
         (_, kdual) = konts
         primals = Dual.tree_primal(dual_tree)
         tangents = Dual.tree_tangent(dual_tree)
-        key, sub_key = jax.random.split(key)
-        v = self.sample(sub_key, *primals)
+        v = self.sample(*primals)
         dual_tree = Dual.tree_pure(v)
-        out_dual = kdual(key, dual_tree)
+        out_dual = kdual(dual_tree)
         (out_primal,), (out_tangent,) = Dual.tree_unzip(out_dual)
         _, lp_tangent = jax.jvp(
             self.differentiable_logpdf,
@@ -112,13 +115,12 @@ def reinforce(sample_func, logpdf_func):
 
 @Pytree.dataclass
 class FlipEnum(ADEVPrimitive):
-    def sample(self, key, *args):
+    def sample(self, *args):
         (probs,) = args
-        return 1 == tfd.Bernoulli(probs=probs).sample(seed=key)
+        return 1 == bernoulli.sample(probs)
 
     def jvp_estimate(
         self,
-        key: PRNGKey,
         dual_tree: DualTree,
         konts: tuple[Any, ...],
     ):
@@ -126,11 +128,9 @@ class FlipEnum(ADEVPrimitive):
         (p_primal,) = Dual.tree_primal(dual_tree)
         (p_tangent,) = Dual.tree_tangent(dual_tree)
         true_dual = kdual(
-            key,
             Dual(jnp.array(True), jnp.zeros_like(jnp.array(True))),
         )
         false_dual = kdual(
-            key,
             Dual(jnp.array(False), jnp.zeros_like(jnp.array(False))),
         )
         (true_primal,), (true_tangent,) = Dual.tree_unzip(true_dual)
@@ -152,24 +152,22 @@ flip_enum = FlipEnum()
 
 @Pytree.dataclass
 class FlipMVD(ADEVPrimitive):
-    def sample(self, key, *args):
+    def sample(self, *args):
         p = (args,)
-        return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
+        return 1 == bernoulli.sample(p)
 
     def jvp_estimate(
         self,
-        key: PRNGKey,
         dual_tree: DualTree,
         konts: tuple[Any, ...],
     ):
         (kpure, kdual) = konts
         (p_primal,) = Dual.tree_primal(dual_tree)
         (p_tangent,) = Dual.tree_primal(dual_tree)
-        key, sub_key = jax.random.split(key)
-        v = tfd.Bernoulli(probs=p_primal).sample(seed=sub_key)
+        v = bernoulli.sample(p_primal)
         b = v == 1
-        b_primal, b_tangent = kdual(key, (b,), (jnp.zeros_like(b),))
-        other = kpure(key, jnp.logical_not(b))
+        b_primal, b_tangent = kdual((b,), (jnp.zeros_like(b),))
+        other = kpure(jnp.logical_not(b))
         est = ((-1) ** v) * (other - b_primal)
         return Dual(b_primal, b_tangent + est * p_tangent)
 
@@ -179,22 +177,19 @@ flip_mvd = FlipMVD()
 
 @Pytree.dataclass
 class FlipEnumParallel(ADEVPrimitive):
-    def sample(self, key, *args):
+    def sample(self, *args):
         (p,) = args
-        return 1 == tfd.Bernoulli(probs=p).sample(seed=key)
+        return 1 == bernoulli.sample(p)
 
     def jvp_estimate(
         self,
-        key: PRNGKey,
         dual_tree: DualTree,
         konts: tuple[Any, ...],
     ):
         (_, kdual) = konts
         (p_primal,) = Dual.tree_primal(dual_tree)
         (p_tangent,) = Dual.tree_tangent(dual_tree)
-        sub_keys = jax.random.split(key, 2)
         ret_primals, ret_tangents = jax.vmap(kdual)(
-            sub_keys,
             (jnp.array([True, False]),),
             (jnp.zeros_like(jnp.array([True, False]))),
         )
@@ -216,13 +211,12 @@ flip_enum_parallel = FlipEnumParallel()
 
 @Pytree.dataclass
 class CategoricalEnumParallel(ADEVPrimitive):
-    def sample(self, key, *args):
+    def sample(self, *args):
         (probs,) = args
-        return tfd.Categorical(probs=probs).sample(seed=key)
+        return categorical.sample(probs)
 
     def jvp_estimate(
         self,
-        key: PRNGKey,
         dual_tree: DualTree,
         konts: tuple[Any, ...],
     ):
@@ -230,10 +224,7 @@ class CategoricalEnumParallel(ADEVPrimitive):
         (probs_primal,) = Dual.tree_primal(dual_tree)
         (probs_tangent,) = Dual.tree_tangent(dual_tree)
         idxs = jnp.arange(len(probs_primal))
-        sub_keys = jax.random.split(key, len(probs_primal))
-        ret_primals, ret_tangents = jax.vmap(kdual)(
-            sub_keys, (idxs,), (jnp.zeros_like(idxs),)
-        )
+        ret_primals, ret_tangents = jax.vmap(kdual)((idxs,), (jnp.zeros_like(idxs),))
 
         def _inner(probs, primals):
             return jnp.sum(jax.nn.softmax(probs) * primals)
@@ -250,36 +241,33 @@ class CategoricalEnumParallel(ADEVPrimitive):
 categorical_enum_parallel = CategoricalEnumParallel()
 
 flip_reinforce = reinforce(
-    lambda key, p: 1 == tfd.Bernoulli(probs=p).sample(seed=key),
-    lambda v, p: tfd.Bernoulli(probs=p).log_prob(v),
+    lambda p: 1 == bernoulli.sample(p),
+    lambda v, p: bernoulli.logpdf(v, p),
 )
 
 geometric_reinforce = reinforce(
-    lambda key, args: tfd.Geometric(*args).sample(seed=key),
-    lambda v, args: tfd.Geometric(*args).log_prob(v),
+    lambda args: geometric.sample(*args), lambda v, args: geometric.logpdf(v, *args)
 )
 
 normal_reinforce = reinforce(
-    lambda key, loc, scale: tfd.Normal(loc, scale).sample(seed=key),
-    lambda v, loc, scale: tfd.Normal(loc, scale).log_prob(v),
+    lambda loc, scale: normal.sample(loc, scale),
+    lambda v, loc, scale: normal.logpdf(v, loc, scale),
 )
 
 
 @Pytree.dataclass
 class NormalREPARAM(TailCallADEVPrimitive):
-    def sample(self, key, *args):
+    def sample(self, *args):
         loc, scale_diag = args
-        return tfd.Normal(loc=loc, scale=scale_diag).sample(seed=key)
+        return normal.sample(loc, scale_diag)
 
     def before_tail_call(
         self,
-        key: PRNGKey,
         dual_tree: DualTree,
     ) -> Dual:
         (mu_primal, sigma_primal) = Dual.tree_primal(dual_tree)
         (mu_tangent, sigma_tangent) = Dual.tree_tangent(dual_tree)
-        key, sub_key = jax.random.split(key)
-        eps = tfd.Normal(loc=0.0, scale=1.0).sample(seed=sub_key)
+        eps = normal.sample(0.0, 1.0)
 
         def _inner(mu, sigma):
             return mu + sigma * eps
@@ -296,90 +284,15 @@ normal_reparam = NormalREPARAM()
 
 
 @Pytree.dataclass
-class MvNormalDiagREPARAM(TailCallADEVPrimitive):
-    def sample(self, key, *args):
-        loc, scale_diag = args
-        return tfd.MultivariateNormalDiag(loc=loc, scale_diag=scale_diag).sample(
-            seed=key
-        )
-
-    def before_tail_call(
-        self,
-        key: PRNGKey,
-        dual_tree: DualTree,
-    ):
-        (loc_primal, diag_scale_primal) = Dual.tree_primal(dual_tree)
-        (loc_tangent, diag_scale_tangent) = Dual.tree_tangent(dual_tree)
-        key, sub_key = jax.random.split(key)
-
-        eps = tfd.Normal(loc=0.0, scale=1.0).sample(
-            sample_shape=loc_primal.shape, seed=sub_key
-        )
-
-        # This takes N samples from N(0.0, 1.0) and transforms
-        # them to MvNormalDiag(loc, diag_scale).
-        def _inner(loc, diag_scale):
-            return loc + jnp.multiply(diag_scale, eps)
-
-        primal_out, tangent_out = jax.jvp(
-            _inner,
-            (loc_primal, diag_scale_primal),
-            (loc_tangent, diag_scale_tangent),
-        )
-        return Dual(primal_out, tangent_out)
-
-
-mv_normal_diag_reparam = MvNormalDiagREPARAM()
-
-
-@Pytree.dataclass
-class MvNormalREPARAM(TailCallADEVPrimitive):
-    def sample(self, key, *args):
-        mu, sigma = args
-        v = tfd.MultivariateNormalFullCovariance(
-            loc=mu, covariance_matrix=sigma
-        ).sample(seed=key)
-        return v
-
-    def before_tail_call(
-        self,
-        key: PRNGKey,
-        dual_tree: DualTree,
-    ):
-        (mu_primal, cov_primal) = Dual.tree_primal(dual_tree)
-        (mu_tangent, cov_tangent) = Dual.tree_primal(dual_tree)
-        key, sub_key = jax.random.split(key)
-
-        eps = tfd.Normal(loc=0.0, scale=1.0).sample(len(mu_primal), seed=sub_key)
-
-        def _inner(eps, mu, cov):
-            L = jnp.linalg.cholesky(cov)
-            return mu + L @ eps
-
-        primal_out, tangent_out = jax.jvp(
-            _inner,
-            (eps, mu_primal, cov_primal),
-            (jnp.zeros_like(eps), mu_tangent, cov_tangent),
-        )
-        return Dual(primal_out, tangent_out)
-
-
-mv_normal_reparam = MvNormalREPARAM()
-
-
-@Pytree.dataclass
 class Uniform(TailCallADEVPrimitive):
-    def sample(self, key: PRNGKey, *_args):
-        v = tfd.Uniform(low=0.0, high=1.0).sample(seed=key)
-        return v
+    def sample(self, *_args):
+        return uniform.sample(0.0, 1.0)
 
     def before_tail_call(
         self,
-        key: PRNGKey,
         dual_tree: tuple[Any, ...],
     ):
-        key, sub_key = jax.random.split(key)
-        x = tfd.Uniform(low=0.0, high=1.0).sample(seed=sub_key)
+        x = uniform.sample(0.0, 1.0)
         return Dual(x, 0.0)
 
 
@@ -388,14 +301,12 @@ uniform = Uniform()
 
 @Pytree.dataclass
 class BetaIMPLICIT(TailCallADEVPrimitive):
-    def sample(self, key, *args):
+    def sample(self, *args):
         alpha, beta = args
-        v = tfd.Beta(concentration1=alpha, concentration0=beta).sample(seed=key)
-        return v
+        return beta.sample(alpha, beta)
 
     def before_tail_call(
         self,
-        key: PRNGKey,
         dual_tree: DualTree,
     ):
         # Because TFP already overloads their Beta sampler with implicit
@@ -403,7 +314,7 @@ class BetaIMPLICIT(TailCallADEVPrimitive):
         def _inner(alpha, beta):
             # Invoking TFP's Implicit reparametrization:
             # https://github.com/tensorflow/probability/blob/v0.23.0/tensorflow_probability/python/distributions/beta.py#L292-L306
-            x = tfd.Beta(concentration1=alpha, concentration0=beta).sample(seed=key)
+            x = beta.sample(alpha, beta)
             return x
 
         # We invoke JAX's JVP (which utilizes TFP's registered implicit differentiation
@@ -421,12 +332,11 @@ beta_implicit = BetaIMPLICIT()
 class Baseline(ADEVPrimitive):
     prim: ADEVPrimitive
 
-    def sample(self, key, *args):
-        return self.prim.sample(key, *args[1:])
+    def sample(self, *args):
+        return self.prim.sample(*args[1:])
 
     def jvp_estimate(
         self,
-        key: PRNGKey,
         dual_tree: DualTree,
         konts: tuple[Any, ...],
     ):
@@ -434,8 +344,8 @@ class Baseline(ADEVPrimitive):
         (b_primal, *prim_primals) = Dual.tree_primal(dual_tree)
         (b_tangent, *prim_tangents) = Dual.tree_tangent(dual_tree)
 
-        def new_kdual(key, dual: Dual):
-            ret_dual = kdual(key, dual)
+        def new_kdual(dual: Dual):
+            ret_dual = kdual(dual)
 
             def _inner(ret, b):
                 return ret - b
@@ -448,7 +358,6 @@ class Baseline(ADEVPrimitive):
             return Dual(primal, tangent)
 
         l_dual = self.prim.jvp_estimate(
-            key,
             Dual.dual_tree(prim_primals, prim_tangents),
             (kpure, new_kdual),
         )
@@ -475,20 +384,19 @@ def baseline(prim):
 
 @Pytree.dataclass
 class AddCost(ADEVPrimitive):
-    def sample(self, key, *args):
+    def sample(self, *args):
         (w,) = args
         return w
 
     def jvp_estimate(
         self,
-        key: PRNGKey,
         dual_tree: DualTree,
         konts: tuple[Any, ...],
     ) -> Dual:
         (_, kdual) = konts
         (w,) = Dual.tree_primal(dual_tree)
         (w_tangent,) = Dual.tree_tangent(dual_tree)
-        l_dual = kdual(key, Dual(None, None))
+        l_dual = kdual(Dual(None, None))
         return Dual(w + l_dual.primal, w_tangent + l_dual.tangent)
 
 

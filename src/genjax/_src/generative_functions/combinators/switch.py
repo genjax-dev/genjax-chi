@@ -20,10 +20,10 @@ from genjax._src.core.compiler.interpreters.incremental import (
 )
 from genjax._src.core.compiler.staging import multi_switch, tree_choose
 from genjax._src.core.generative import (
+    GFI,
     Argdiffs,
     ChoiceMap,
     EditRequest,
-    GenerativeFunction,
     Retdiff,
     Score,
     Trace,
@@ -37,7 +37,6 @@ from genjax._src.core.typing import (
     FloatArray,
     Generic,
     IntArray,
-    PRNGKey,
     TypeVar,
 )
 
@@ -95,9 +94,9 @@ class SwitchTrace(Generic[R], Trace[R]):
 
 
 @Pytree.dataclass
-class Switch(Generic[R], GenerativeFunction[R]):
+class Switch(Generic[R], GFI[R]):
     """
-    `Switch` accepts `n` generative functions as input and returns a new [`genjax.GenerativeFunction`][] that accepts `n+1` arguments:
+    `Switch` accepts `n` generative functions as input and returns a new [`genjax.GFI`][] that accepts `n+1` arguments:
 
     - an index in the range `[0, n-1]`
     - a tuple of arguments for each of the input generative functions
@@ -141,7 +140,7 @@ class Switch(Generic[R], GenerativeFunction[R]):
         ```
     """
 
-    branches: tuple[GenerativeFunction[R], ...]
+    branches: tuple[GFI[R], ...]
 
     def _indices(self):
         return range(len(self.branches))
@@ -160,14 +159,13 @@ class Switch(Generic[R], GenerativeFunction[R]):
 
     def simulate(
         self,
-        key: PRNGKey,
         args: tuple[Any, ...],
     ) -> SwitchTrace[R]:
         idx, branch_args = args[0], args[1:]
         self._check_args_match_branches(branch_args)
 
         fs = list(f.simulate for f in self.branches)
-        f_args = list((key, args) for args in branch_args)
+        f_args = list((args,) for args in branch_args)
 
         subtraces = multi_switch(idx, fs, f_args)
         retval, score = tree_choose(
@@ -177,20 +175,19 @@ class Switch(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: ChoiceMap,
+        chm: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
         idx, branch_args = args[0], args[1:]
         self._check_args_match_branches(branch_args)
 
         fs = list(f.assess for f in self.branches)
-        f_args = list((sample, args) for args in branch_args)
+        f_args = list((chm, args) for args in branch_args)
 
         return tree_choose(idx, multi_switch(idx, fs, f_args))
 
     def generate(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[SwitchTrace[R], Weight]:
@@ -198,7 +195,7 @@ class Switch(Generic[R], GenerativeFunction[R]):
         self._check_args_match_branches(branch_args)
 
         fs = list(f.generate for f in self.branches)
-        f_args = list((key, constraint, args) for args in branch_args)
+        f_args = list((constraint, args) for args in branch_args)
 
         pairs = multi_switch(idx, fs, f_args)
         subtraces = list(tr for tr, _ in pairs)
@@ -210,7 +207,6 @@ class Switch(Generic[R], GenerativeFunction[R]):
 
     def project(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         selection: Selection,
     ) -> Weight:
@@ -218,11 +214,11 @@ class Switch(Generic[R], GenerativeFunction[R]):
         idx = trace.get_idx()
 
         fs = list(f.project for f in self.branches)
-        f_args = list((key, tr, selection) for tr in trace.subtraces)
+        f_args = list((tr, selection) for tr in trace.subtraces)
 
         return tree_choose(idx, multi_switch(idx, fs, f_args))
 
-    def _make_edit_fresh_trace(self, gen_fn: GenerativeFunction[R]):
+    def _make_edit_fresh_trace(self, gen_fn: GFI[R]):
         """
         Creates a function to handle editing a fresh trace when the switch index changes.
 
@@ -232,7 +228,6 @@ class Switch(Generic[R], GenerativeFunction[R]):
         """
 
         def inner(
-            key: PRNGKey,
             edit_request: Update,
             argdiffs: Argdiffs,
         ) -> tuple[Trace[R], Weight, Retdiff[R], EditRequest]:
@@ -242,10 +237,9 @@ class Switch(Generic[R], GenerativeFunction[R]):
             # - call `edit` with that new trace (setting the argdiffs passed into `edit` as `no_change`, since we used the same args to create the new trace)
             # - return the edit result with the `retdiff` wrapped in `unknown_change` (since our return value comes from a new branch)
             primals = Diff.tree_primal(argdiffs)
-            new_trace = gen_fn.simulate(key, primals)
+            new_trace = gen_fn.simulate(primals)
 
             tr, w, rd, bwd_request = gen_fn.edit(
-                key,
                 new_trace,
                 edit_request,
                 Diff.no_change(argdiffs),
@@ -256,7 +250,6 @@ class Switch(Generic[R], GenerativeFunction[R]):
 
     def edit(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
@@ -274,12 +267,12 @@ class Switch(Generic[R], GenerativeFunction[R]):
             # If the index hasn't changed, perform edits on each branch.
             fs = list(f.edit for f in self.branches)
             f_args = list(
-                (key, trace, edit_request, argdiffs)
+                (trace, edit_request, argdiffs)
                 for trace, argdiffs in zip(trace.subtraces, branch_argdiffs)
             )
         else:
             fs = list(self._make_edit_fresh_trace(f) for f in self.branches)
-            f_args = list((key, edit_request, argdiffs) for argdiffs in branch_argdiffs)
+            f_args = list((edit_request, argdiffs) for argdiffs in branch_argdiffs)
 
         rets = multi_switch(new_idx, fs, f_args)
 
@@ -309,10 +302,10 @@ class Switch(Generic[R], GenerativeFunction[R]):
 
 
 def switch(
-    *gen_fns: GenerativeFunction[R],
+    *gen_fns: GFI[R],
 ) -> Switch[R]:
     """
-    Given `n` [`genjax.GenerativeFunction`][] inputs, returns a [`genjax.GenerativeFunction`][] that accepts `n+1` arguments:
+    Given `n` [`genjax.GFI`][] inputs, returns a [`genjax.GFI`][] that accepts `n+1` arguments:
 
     - an index in the range $[0, n)$
     - a tuple of arguments for each of the input generative functions (`n` total tuples)

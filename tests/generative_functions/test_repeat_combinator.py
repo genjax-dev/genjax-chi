@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
 import jax.numpy as jnp
 
 from genjax import ChoiceMapBuilder as C
@@ -25,8 +24,7 @@ class TestRepeatCombinator:
         def model():
             return normal(0.0, 1.0) @ "x"
 
-        key = jax.random.key(314)
-        tr, w = model.repeat(n=10).importance(key, C[1, "x"].set(3.0), ())
+        tr, w = model.repeat(n=10).importance(C[1, "x"].set(3.0), ())
         assert normal.assess(C.v(tr.get_choices()[1, "x"]), (0.0, 1.0))[0] == w
 
     def test_repeat_matches_vmap(self):
@@ -34,12 +32,11 @@ class TestRepeatCombinator:
         def square(x):
             return x * x
 
-        key = jax.random.key(314)
-        repeat_retval = square.repeat(n=10)(2)(key)
+        repeat_retval = square.repeat(n=10)(2)()
 
         assert repeat_retval.shape == (10,), "We asked for and received 10 squares"
 
-        assert jnp.array_equal(square.vmap()(jnp.repeat(2, 10))(key), repeat_retval), (
+        assert jnp.array_equal(square.vmap()(jnp.repeat(2, 10))(), repeat_retval), (
             "Repeat 10 times matches vmap with 10 equal inputs"
         )
 
@@ -49,10 +46,9 @@ class TestRepeatCombinator:
             x = normal(0.0, 1.0) @ "x"
             return x
 
-        key = jax.random.key(0)
         big_model = model.repeat(n=10).repeat(n=10)
 
         chm = C[jnp.array(0), :, "x"].set(jnp.ones(10))
 
-        tr, _ = big_model.importance(key, chm, ())
+        tr, _ = big_model.importance(chm, ())
         assert jnp.array_equal(tr.get_choices()[0, :, "x"], jnp.ones(10))

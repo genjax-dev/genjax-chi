@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import jax
 import pytest
 
 import genjax
@@ -32,13 +31,11 @@ class TestVI:
             (v,) = target.args
             _ = genjax.vi.normal_reparam(v, 0.1) @ "mu"
 
-        key = jax.random.key(314159)
         elbo_grad = genjax.vi.ELBO(
             guide, lambda v: genjax.Target(model, (v,), C["v"].set(3.0))
         )
         v = 0.1
-        jitted = jax.jit(elbo_grad)
         for _ in range(200):
-            (v_grad,) = jitted(key, (v,))
+            v_grad = elbo_grad(v)
             v -= 1e-3 * v_grad
         assert v == pytest.approx(3.0, 5e-2)

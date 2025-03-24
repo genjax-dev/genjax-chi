@@ -12,22 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from genjax._src.generative_functions.static import (
-    AddressReuse,
-    MissingAddress,
-    StaticGenerativeFunction,
-    StaticRequest,
-    gen,
-    trace,
-    trace_p,
-)
+
+from genjax._src.inference.requests.hmc import HMC, SafeHMC
+from genjax._src.inference.requests.rejuvenate import Rejuvenate
 
 __all__ = [
-    "AddressReuse",
-    "MissingAddress",
-    "StaticGenerativeFunction",
-    "StaticRequest",
-    "gen",
-    "trace",
-    "trace_p",
+    "HMC",
+    "Rejuvenate",
+    "SafeHMC",
 ]

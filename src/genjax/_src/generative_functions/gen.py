@@ -18,7 +18,6 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from typing import cast
 
-import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
@@ -36,11 +35,11 @@ from genjax._src.core.compiler.interpreters.stateful import (
 )
 from genjax._src.core.compiler.staging import to_shape_fn
 from genjax._src.core.generative import (
+    GFI,
     Argdiffs,
     ChoiceMap,
     EditRequest,
     EmptyRequest,
-    GenerativeFunction,
     NotSupportedEditRequest,
     PrimitiveEditRequest,
     Regenerate,
@@ -54,13 +53,12 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.generative.choice_map import Address
-from genjax._src.core.generative.generative_function import R
+from genjax._src.core.generative.interface import R
 from genjax._src.core.pytree import Closure, Const, Pytree
 from genjax._src.core.typing import (
     Any,
     Callable,
     Generic,
-    PRNGKey,
     TypeAlias,
 )
 
@@ -78,8 +76,8 @@ _WRAPPER_ASSIGNMENTS = (
 
 
 @Pytree.dataclass
-class StaticTrace(Generic[R], Trace[R]):
-    gen_fn: "StaticGenerativeFunction[R]"
+class FnTrace(Generic[R], Trace[R]):
+    gen_fn: "Fn[R]"
     args: tuple[Any, ...]
     retval: R
     subtraces: dict[StaticAddress, Trace[R]]
@@ -90,7 +88,7 @@ class StaticTrace(Generic[R], Trace[R]):
     def get_retval(self) -> R:
         return self.retval
 
-    def get_gen_fn(self) -> GenerativeFunction[R]:
+    def get_gen_fn(self) -> GFI[R]:
         return self.gen_fn
 
     def get_choices(self) -> ChoiceMap:
@@ -102,6 +100,7 @@ class StaticTrace(Generic[R], Trace[R]):
     def get_score(self) -> Score:
         return jnp.sum(
             jnp.array([tr.get_score() for tr in self.subtraces.values()], copy=False),
+            axis=0,
         )
 
     def get_inner_trace(self, address: Address):
@@ -127,7 +126,7 @@ StaticDict: TypeAlias = dict[StaticAddress, EditRequest]
 
 
 @Pytree.dataclass(match_args=True)
-class StaticRequest(PrimitiveEditRequest):
+class FnRequest(PrimitiveEditRequest):
     addressed: StaticDict
 
 
@@ -166,7 +165,7 @@ trace_p = InitialStylePrimitive("trace")
 # get lifted to by `get_shaped_aval`.
 def _abstract_gen_fn_call(
     _: Const[StaticAddressComponent] | tuple[Const[StaticAddress], ...],
-    gen_fn: GenerativeFunction[R],
+    gen_fn: GFI[R],
     args: tuple[Any, ...],
 ):
     return gen_fn.__abstract_call__(*args)
@@ -174,7 +173,7 @@ def _abstract_gen_fn_call(
 
 def trace(
     addr: StaticAddress,
-    gen_fn: GenerativeFunction[R],
+    gen_fn: GFI[R],
     args: tuple[Any, ...],
 ):
     """Invoke a generative function, binding its generative semantics with the
@@ -182,7 +181,7 @@ def trace(
 
     Arguments:
         addr: An address denoting the site of a generative function invocation.
-        gen_fn: A generative function invoked as a callee of `StaticGenerativeFunction`.
+        gen_fn: A generative function invoked as a callee of `Fn`.
 
     """
     addr = Pytree.tree_const(addr)
@@ -206,7 +205,7 @@ def trace(
 # This explicitly makes assumptions about some common fields:
 # e.g. it assumes if you are using `StaticHandler.get_submap`
 # in your code, that your derived instance has a `constraints` field.
-class StaticHandler(StatefulHandler):
+class DefHandler(StatefulHandler):
     def __init__(self):
         self.traces: dict[StaticAddress, Trace[Any]] = {}
 
@@ -219,7 +218,7 @@ class StaticHandler(StatefulHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction[R],
+        gen_fn: GFI[R],
         args: tuple[Any, ...],
     ):
         pass
@@ -251,16 +250,9 @@ class StaticHandler(StatefulHandler):
 ############
 
 
-class SimulateHandler(StaticHandler):
-    def __init__(self, key: PRNGKey):
+class SimulateHandler(DefHandler):
+    def __init__(self):
         super().__init__()
-        self.key = key
-        self.key_counter = 1
-
-    def fresh_key_and_increment(self):
-        new_key = jax.random.fold_in(self.key, self.key_counter)
-        self.key_counter += 1
-        return new_key
 
     def yield_state(self):
         return self.traces
@@ -268,11 +260,10 @@ class SimulateHandler(StaticHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction[Any],
+        gen_fn: GFI[Any],
         args: tuple[Any, ...],
     ):
-        sub_key = self.fresh_key_and_increment()
-        tr = gen_fn.simulate(sub_key, args)
+        tr = gen_fn.simulate(args)
         self.record(addr, tr)
         v = tr.get_retval()
         return v
@@ -280,8 +271,8 @@ class SimulateHandler(StaticHandler):
 
 def simulate_transform(source_fn):
     @functools.wraps(source_fn)
-    def wrapper(key, args):
-        stateful_handler = SimulateHandler(key)
+    def wrapper(args):
+        stateful_handler = SimulateHandler()
         retval = stateful(source_fn)(stateful_handler, *args)
         traces = stateful_handler.yield_state()
         return (args, retval, traces)
@@ -295,10 +286,10 @@ def simulate_transform(source_fn):
 
 
 @dataclass
-class AssessHandler(StaticHandler):
-    def __init__(self, choice_map_sample: ChoiceMap):
+class AssessHandler(DefHandler):
+    def __init__(self, chm: ChoiceMap):
         super().__init__()
-        self.choice_map_sample = choice_map_sample
+        self.choice_map_sample = chm
         self.score = jnp.zeros(())
 
     def yield_state(self):
@@ -310,7 +301,7 @@ class AssessHandler(StaticHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction[Any],
+        gen_fn: GFI[Any],
         args: tuple[Any, ...],
     ):
         submap = self.get_subsample(addr)
@@ -338,18 +329,14 @@ def assess_transform(source_fn):
 
 
 @dataclass
-class GenerateHandler(StaticHandler):
-    def __init__(self, key: PRNGKey, choice_map: ChoiceMap):
+class GenerateHandler(DefHandler):
+    def __init__(
+        self,
+        choice_map: ChoiceMap,
+    ):
         super().__init__()
-        self.key = key
         self.choice_map = choice_map
         self.weight: Weight = jnp.zeros(())
-        self.key_counter = 1
-
-    def fresh_key_and_increment(self):
-        new_key = jax.random.fold_in(self.key, self.key_counter)
-        self.key_counter += 1
-        return new_key
 
     def yield_state(
         self,
@@ -368,12 +355,11 @@ class GenerateHandler(StaticHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction[Any],
+        gen_fn: GFI[Any],
         args: tuple[Any, ...],
     ):
         subconstraint = self.get_subconstraint(addr)
-        sub_key = self.fresh_key_and_increment()
-        (tr, w) = gen_fn.generate(sub_key, subconstraint, args)
+        (tr, w) = gen_fn.generate(subconstraint, args)
         self.weight += w
         self.record(addr, tr)
 
@@ -383,11 +369,10 @@ class GenerateHandler(StaticHandler):
 def generate_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
-        key: PRNGKey,
         choice_map: ChoiceMap,
         args: tuple[Any, ...],
     ):
-        stateful_handler = GenerateHandler(key, choice_map)
+        stateful_handler = GenerateHandler(choice_map)
         retval = stateful(source_fn)(stateful_handler, *args)
         (weight, traces) = stateful_handler.yield_state()
         return (
@@ -404,22 +389,17 @@ def generate_transform(source_fn):
 ###############
 
 
-class UpdateHandler(StaticHandler):
+class UpdateHandler(DefHandler):
     def __init__(
-        self, key: PRNGKey, previous_trace: StaticTrace[Any], constraint: ChoiceMap
+        self,
+        previous_trace: FnTrace[Any],
+        constraint: ChoiceMap,
     ):
         super().__init__()
-        self.key = key
         self.previous_trace = previous_trace
         self.constraint = constraint
         self.weight = jnp.zeros(())
         self.bwd_constraints: list[ChoiceMap] = []
-        self.key_counter = 1
-
-    def fresh_key_and_increment(self):
-        new_key = jax.random.fold_in(self.key, self.key_counter)
-        self.key_counter += 1
-        return new_key
 
     def yield_state(self):
         return (
@@ -443,16 +423,14 @@ class UpdateHandler(StaticHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction[Any],
+        gen_fn: GFI[Any],
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
         subtrace = self.get_inner_trace(addr)
         constraint = self.get_subconstraint(addr)
-        sub_key = self.fresh_key_and_increment()
         request = Update(constraint)
         (tr, w, retval_diff, bwd_request) = request.edit(
-            sub_key,
             subtrace,
             argdiffs,
         )
@@ -469,12 +447,11 @@ class UpdateHandler(StaticHandler):
 def update_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
-        key: PRNGKey,
-        previous_trace: StaticTrace[R],
+        previous_trace: FnTrace[R],
         constraint: ChoiceMap,
         diffs: tuple[Any, ...],
     ):
-        stateful_handler = UpdateHandler(key, previous_trace, constraint)
+        stateful_handler = UpdateHandler(previous_trace, constraint)
         diff_primals = Diff.tree_primal(diffs)
         diff_tangents = Diff.tree_tangent(diffs)
         retval_diffs = incremental(source_fn)(
@@ -509,22 +486,17 @@ def update_transform(source_fn):
 ###################################
 
 
-class StaticEditRequestHandler(StaticHandler):
+class StaticEditRequestHandler(DefHandler):
     def __init__(
-        self, key: PRNGKey, previous_trace: StaticTrace[Any], addressed: StaticDict
+        self,
+        previous_trace: FnTrace[Any],
+        addressed: StaticDict,
     ):
         super().__init__()
-        self.key = key
         self.previous_trace = previous_trace
         self.addressed = addressed
         self.weight = jnp.zeros(())
         self.bwd_requests: list[EditRequest] = []
-        self.key_counter = 1
-
-    def fresh_key_and_increment(self):
-        new_key = jax.random.fold_in(self.key, self.key_counter)
-        self.key_counter += 1
-        return new_key
 
     def yield_state(self):
         return (
@@ -548,15 +520,13 @@ class StaticEditRequestHandler(StaticHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction[Any],
+        gen_fn: GFI[Any],
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
         subtrace = self.get_subtrace(addr)
         subrequest = self.get_subrequest(addr)
-        sub_key = self.fresh_key_and_increment()
         (tr, w, retval_diff, bwd_request) = subrequest.edit(
-            sub_key,
             subtrace,
             argdiffs,
         )
@@ -569,13 +539,11 @@ class StaticEditRequestHandler(StaticHandler):
 def static_edit_request_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
-        key: PRNGKey,
-        previous_trace: StaticTrace[R],
+        previous_trace: FnTrace[R],
         addressed: dict[StaticAddress, EditRequest],
         diffs: tuple[Any, ...],
     ):
         stateful_handler = StaticEditRequestHandler(
-            key,
             previous_trace,
             addressed,
         )
@@ -613,33 +581,25 @@ def static_edit_request_transform(source_fn):
 #####################
 
 
-class RegenerateRequestHandler(StaticHandler):
+class RegenerateRequestHandler(DefHandler):
     def __init__(
         self,
-        key: PRNGKey,
-        previous_trace: StaticTrace[Any],
+        previous_trace: FnTrace[Any],
         selection: Selection,
         edit_request: EditRequest,
     ):
         super().__init__()
-        self.key = key
         self.previous_trace = previous_trace
         self.selection = selection
         self.edit_request = edit_request
         self.weight = jnp.zeros(())
-        self.bwd_requests: list[EditRequest] = []
-        self.key_counter = 1
-
-    def fresh_key_and_increment(self):
-        new_key = jax.random.fold_in(self.key, self.key_counter)
-        self.key_counter += 1
-        return new_key
+        self.discard: list[ChoiceMap] = []
 
     def yield_state(self):
         return (
             self.weight,
             self.traces,
-            self.bwd_requests,
+            self.discard,
         )
 
     def get_subselection(self, addr: StaticAddress) -> Selection:
@@ -657,16 +617,16 @@ class RegenerateRequestHandler(StaticHandler):
     def handle_trace(
         self,
         addr: StaticAddress,
-        gen_fn: GenerativeFunction[Any],
+        gen_fn: GFI[Any],
         args: tuple[Any, ...],
     ):
         argdiffs: Argdiffs = args
         subtrace = self.get_subtrace(addr)
         subselection = self.get_subselection(addr)
-        sub_key = self.fresh_key_and_increment()
         subrequest = Regenerate(subselection)
-        tr, w, retval_diff, bwd_request = subrequest.edit(sub_key, subtrace, argdiffs)
-        self.bwd_requests.append(bwd_request)
+        tr, w, retval_diff, bwd_request = subrequest.edit(subtrace, argdiffs)
+        assert isinstance(bwd_request, Update), bwd_request
+        self.discard.append(bwd_request.constraint)
         self.weight += w
         self.record(addr, tr)
 
@@ -676,14 +636,12 @@ class RegenerateRequestHandler(StaticHandler):
 def regenerate_transform(source_fn):
     @functools.wraps(source_fn)
     def wrapper(
-        key: PRNGKey,
-        previous_trace: StaticTrace[R],
+        previous_trace: FnTrace[R],
         selection: Selection,
         edit_request: EditRequest,
         diffs: tuple[Any, ...],
     ):
         stateful_handler = RegenerateRequestHandler(
-            key,
             previous_trace,
             selection,
             edit_request,
@@ -723,8 +681,8 @@ def regenerate_transform(source_fn):
 
 
 @Pytree.dataclass
-class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
-    """A `StaticGenerativeFunction` is a generative function which relies on program
+class Fn(Generic[R], GFI[R]):
+    """A `Fn` is a generative function relies on program
     transformations applied to JAX-compatible Python programs to implement the generative
     function interface.
 
@@ -734,7 +692,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
     In addition to JAX footguns, there are a few more which are specific to the generative function interface semantics. Here is the full list of language restrictions (and capabilities):
 
-    * One is allowed to use `jax.lax` control flow primitives _so long as the functions provided to the primitives do not contain `trace` invocations_. In other words, utilizing control flow primitives within the source of a `StaticGenerativeFunction`'s source program requires that the control flow primitives get *deterministic* computation.
+    * One is allowed to use `jax.lax` control flow primitives _so long as the functions provided to the primitives do not contain `trace` invocations_. In other words, utilizing control flow primitives within the source of a `Fn`'s source program requires that the control flow primitives get *deterministic* computation.
 
     * The above restriction also applies to `jax.vmap`.
 
@@ -749,26 +707,26 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         ```
     """
 
-    source: Closure[R]
+    source_program: Closure[R]
     """
     The source program of the generative function. This is a JAX-compatible Python program.
     """
 
-    def __get__(self, instance, _klass) -> "StaticGenerativeFunction[R]":
+    def __get__(self, instance, _klass) -> "Fn[R]":
         """
-        This method allows the @genjax.gen decorator to transform instance methods, turning them into `StaticGenerativeFunction[R]` calls.
+        This method allows the @genjax.gen decorator to transform instance methods, turning them into `Fn[R]` calls.
 
-        NOTE: if you assign an already-created `StaticGenerativeFunction` to a variable inside of a class, it will always receive the instance as its first method.
+        NOTE: if you assign an already-created `Fn` to a variable inside of a class, it will always receive the instance as its first method.
         """
         return self.partial_apply(instance) if instance else self
 
     # To get the type of return value, just invoke
     # the source (with abstract tracer arguments).
     def __abstract_call__(self, *args) -> Any:
-        return to_shape_fn(self.source, jnp.zeros)(*args)
+        return to_shape_fn(self.source_program, jnp.zeros)(*args)
 
     def __post_init__(self):
-        wrapped = self.source.fn
+        wrapped = self.source_program.static_fn
         # Preserve the original function's docstring and name
         for k in _WRAPPER_ASSIGNMENTS:
             v = getattr(wrapped, k, None)
@@ -777,27 +735,25 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
         object.__setattr__(self, "__wrapped__", wrapped)
 
-    def handle_kwargs(self) -> "StaticGenerativeFunction[R]":
+    def handle_kwargs(self) -> "Fn[R]":
         @Pytree.partial()
         def kwarged_source(args, kwargs):
-            return self.source(*args, **kwargs)
+            return self.source_program(*args, **kwargs)
 
-        return StaticGenerativeFunction(kwarged_source)
+        return Fn(kwarged_source)
 
     def simulate(
         self,
-        key: PRNGKey,
         args: tuple[Any, ...],
-    ) -> StaticTrace[R]:
-        (args, retval, traces) = simulate_transform(self.source)(key, args)
-        return StaticTrace(self, args, retval, traces)
+    ) -> FnTrace[R]:
+        (args, retval, traces) = simulate_transform(self.source_program)(args)
+        return FnTrace(self, args, retval, traces)
 
     def generate(
         self,
-        key: PRNGKey,
         constraint: ChoiceMap,
         args: tuple[Any, ...],
-    ) -> tuple[StaticTrace[R], Weight]:
+    ) -> tuple[FnTrace[R], Weight]:
         (
             weight,
             # Trace.
@@ -806,31 +762,29 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 retval,
                 traces,
             ),
-        ) = generate_transform(self.source)(key, constraint, args)
-        return StaticTrace(self, args, retval, traces), weight
+        ) = generate_transform(self.source_program)(constraint, args)
+        return FnTrace(self, args, retval, traces), weight
 
     def project(
         self,
-        key: PRNGKey,
         trace: Trace[Any],
         selection: Selection,
     ) -> Weight:
-        assert isinstance(trace, StaticTrace)
+        assert isinstance(trace, FnTrace)
 
         weight = jnp.array(0.0)
         for addr in trace.subtraces.keys():
             subprojection = selection(addr)
             subtrace = trace.get_subtrace(addr)
-            weight += subtrace.project(key, subprojection)
+            weight += subtrace.project(subprojection)
         return weight
 
     def edit_update(
         self,
-        key: PRNGKey,
-        trace: StaticTrace[R],
+        trace: FnTrace[R],
         constraint: ChoiceMap,
         argdiffs: Argdiffs,
-    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[FnTrace[R], Weight, Retdiff[R], EditRequest]:
         (
             (
                 retval_diffs,
@@ -842,7 +796,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_requests,
             ),
-        ) = update_transform(self.source)(key, trace, constraint, argdiffs)
+        ) = update_transform(self.source_program)(trace, constraint, argdiffs)
         if not Diff.static_check_tree_diff(retval_diffs):
             retval_diffs = Diff.no_change(retval_diffs)
 
@@ -853,7 +807,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
         bwd_request = make_bwd_request(traces, bwd_requests)
         return (
-            StaticTrace(
+            FnTrace(
                 self,
                 arg_primals,
                 retval_primals,
@@ -866,11 +820,10 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
     def edit_static_edit_request(
         self,
-        key: PRNGKey,
-        trace: StaticTrace[R],
+        trace: FnTrace[R],
         addressed: StaticDict,
         argdiffs: Argdiffs,
-    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[FnTrace[R], Weight, Retdiff[R], EditRequest]:
         (
             (
                 retval_diffs,
@@ -882,17 +835,19 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                 ),
                 bwd_requests,
             ),
-        ) = static_edit_request_transform(self.source)(key, trace, addressed, argdiffs)
+        ) = static_edit_request_transform(self.source_program)(
+            trace, addressed, argdiffs
+        )
 
         def make_bwd_request(
             traces: dict[StaticAddress, Trace[R]],
             subrequests: list[EditRequest],
         ):
-            return StaticRequest(dict(zip(traces.keys(), subrequests)))
+            return FnRequest(dict(zip(traces.keys(), subrequests)))
 
         bwd_request = make_bwd_request(traces, bwd_requests)
         return (
-            StaticTrace(
+            FnTrace(
                 self,
                 arg_primals,
                 retval_primals,
@@ -905,12 +860,11 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
     def edit_regenerate(
         self,
-        key: PRNGKey,
-        trace: StaticTrace[R],
+        trace: FnTrace[R],
         selection: Selection,
         edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
+    ) -> tuple[FnTrace[R], Weight, Retdiff[R], EditRequest]:
         (
             (
                 retval_diffs,
@@ -920,21 +874,21 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
                     retval_primals,
                     traces,
                 ),
-                bwd_requests,
+                discard,
             ),
-        ) = regenerate_transform(self.source)(
-            key, trace, selection, edit_request, argdiffs
+        ) = regenerate_transform(self.source_program)(
+            trace, selection, edit_request, argdiffs
         )
 
         def make_bwd_request(
             traces: dict[StaticAddress, Trace[R]],
-            subrequests: list[EditRequest],
+            discard: list[ChoiceMap],
         ):
-            return StaticRequest(dict(zip(traces.keys(), subrequests)))
+            return Update(ChoiceMap.from_mapping((zip(traces.keys(), discard))))
 
-        bwd_request = make_bwd_request(traces, bwd_requests)
+        bwd_request = make_bwd_request(traces, discard)
         return (
-            StaticTrace(
+            FnTrace(
                 self,
                 arg_primals,
                 retval_primals,
@@ -947,31 +901,27 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
     def edit(
         self,
-        key: PRNGKey,
         trace: Trace[R],
         edit_request: EditRequest,
         argdiffs: Argdiffs,
-    ) -> tuple[StaticTrace[R], Weight, Retdiff[R], EditRequest]:
-        assert isinstance(trace, StaticTrace)
+    ) -> tuple[FnTrace[R], Weight, Retdiff[R], EditRequest]:
+        assert isinstance(trace, FnTrace)
         match edit_request:
             case Update(constraint):
                 return self.edit_update(
-                    key,
                     trace,
                     constraint,
                     argdiffs,
                 )
 
-            case StaticRequest(addressed):
+            case FnRequest(addressed):
                 return self.edit_static_edit_request(
-                    key,
                     trace,
                     addressed,
                     argdiffs,
                 )
             case Regenerate(selection):
                 return self.edit_regenerate(
-                    key,
                     trace,
                     selection,
                     edit_request,
@@ -982,14 +932,14 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 
     def assess(
         self,
-        sample: ChoiceMap,
+        chm: ChoiceMap,
         args: tuple[Any, ...],
     ) -> tuple[Score, R]:
-        (retval, score) = assess_transform(self.source)(sample, args)
+        (retval, score) = assess_transform(self.source_program)(chm, args)
         return (score, retval)
 
     def inline(self, *args):
-        return self.source(*args)
+        return self.source_program(*args)
 
     @property
     def partial_args(self) -> tuple[Any, ...]:
@@ -997,7 +947,7 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
         Returns the partially applied arguments of the generative function.
 
         This method retrieves the dynamically applied arguments that were used to create
-        this StaticGenerativeFunction instance through partial application.
+        this Fn instance through partial application.
 
         Returns:
             tuple[Any, ...]: A tuple containing the partially applied arguments.
@@ -1006,19 +956,19 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             This method is particularly useful when working with partially applied
             generative functions, allowing access to the pre-filled arguments.
         """
-        return self.source.dyn_args
+        return self.source_program.dyn_args
 
-    def partial_apply(self, *args) -> "StaticGenerativeFunction[R]":
+    def partial_apply(self, *args) -> "Fn[R]":
         """
-        Returns a new [`StaticGenerativeFunction`][] with the given arguments partially applied.
+        Returns a new [`Fn`][] with the given arguments partially applied.
 
-        This method creates a new [`StaticGenerativeFunction`][] that has some of its arguments pre-filled. When called, the new function will use the pre-filled arguments along with any additional arguments provided.
+        This method creates a new [`Fn`][] that has some of its arguments pre-filled. When called, the new function will use the pre-filled arguments along with any additional arguments provided.
 
         Args:
             *args: Variable length argument list to be partially applied to the function.
 
         Returns:
-            A new [`StaticGenerativeFunction`][] with partially applied arguments.
+            A new [`Fn`][] with partially applied arguments.
 
         Example:
             ```python
@@ -1032,8 +982,8 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
             # Now `partially_applied_model` is equivalent to a model that only takes 'y' as an argument
             ```
         """
-        all_args = self.source.dyn_args + args
-        return gen(Closure[R](all_args, self.source.fn))
+        all_args = self.source_program.dyn_args + args
+        return gen(Closure[R](all_args, self.source_program.static_fn))
 
 
 #############
@@ -1041,9 +991,9 @@ class StaticGenerativeFunction(Generic[R], GenerativeFunction[R]):
 #############
 
 
-def gen(f: Closure[R] | Callable[..., R]) -> StaticGenerativeFunction[R]:
+def gen(f: Closure[R] | Callable[..., R]) -> Fn[R]:
     if isinstance(f, Closure):
-        return StaticGenerativeFunction[R](f)
+        return Fn[R](f)
     else:
         closure = Closure[R]((), f)
         return gen(closure)
@@ -1055,7 +1005,7 @@ def gen(f: Closure[R] | Callable[..., R]) -> StaticGenerativeFunction[R]:
 
 __all__ = [
     "AddressReuse",
-    "StaticGenerativeFunction",
+    "Fn",
     "gen",
     "trace",
     "trace_p",

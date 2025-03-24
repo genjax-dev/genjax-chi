@@ -14,24 +14,22 @@
 
 from genjax._src.inference.sp import (
     Algorithm,
+    ChoiceMapDistribution,
     Marginal,
-    SampleDistribution,
     Target,
     marginal,
 )
 from genjax.inference import (
-    requests,
     smc,
     vi,
 )
 
 __all__ = [
     "Algorithm",
+    "ChoiceMapDistribution",
     "Marginal",
-    "SampleDistribution",
     "Target",
     "marginal",
-    "requests",
     "smc",
     "vi",
 ]

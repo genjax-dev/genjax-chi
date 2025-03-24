@@ -14,12 +14,13 @@
 
 
 import typing
+from functools import wraps
 from typing import TYPE_CHECKING
 
 import jax
 import jax.numpy as jnp
 from beartype.typing import overload
-from jax import api_util
+from jax import api_util, eval_shape
 from jax import core as jc
 from jax import tree_util as jtu
 from jax.extend import linear_util as lu
@@ -219,7 +220,9 @@ def tree_choose(
 
 
 def multi_switch(
-    idx, branches: Iterable[Callable[..., Any]], arg_tuples: Iterable[tuple[Any, ...]]
+    idx,
+    branches: Iterable[Callable[..., Any]],
+    arg_tuples: Iterable[tuple[Any, ...]],
 ):
     """
     A wrapper around switch that allows selection between functions with differently-shaped return values.
@@ -270,36 +273,31 @@ def cached_stage_dynamic(flat_fun, in_avals):
     return typed_jaxpr
 
 
-@lu.transformation_with_aux
-def _flatten_fun_nokwargs(in_tree, *args_flat):
-    py_args = jtu.tree_unflatten(in_tree, args_flat)
-    ans = yield py_args, {}
-    yield jtu.tree_flatten(ans)
-
-
-# Wrapper to assign a correct type.
-flatten_fun_nokwargs: Callable[[lu.WrappedFun, Any], WrappedFunWithAux] = (
-    _flatten_fun_nokwargs  # pyright: ignore[reportAssignmentType]
-)
-
-
-def stage(f):
+def stage(f, **params):
     """Returns a function that stages a function to a ClosedJaxpr."""
 
-    def wrapped(*args, **kwargs):
-        debug_info = api_util.debug_info("Tracing to Jaxpr", f, args, kwargs)
-        fun = lu.wrap_init(f, params=kwargs, debug_info=debug_info)
-        flat_args, in_tree = jtu.tree_flatten(args)
-        flat_fun, out_tree = flatten_fun_nokwargs(fun, in_tree)
+    @wraps(f)
+    def wrapped(
+        *args, **kwargs
+    ) -> tuple[ClosedJaxpr, tuple[list[Any], Any, Callable[..., Any]]]:
+        debug_info = api_util.debug_info("genjax.stage", f, args, kwargs)
+        fun = lu.wrap_init(f, params, debug_info=debug_info)
+        if kwargs:
+            flat_args, in_tree = jtu.tree_flatten((args, kwargs))
+            flat_fun, out_tree = api_util.flatten_fun(fun, in_tree)
+        else:
+            flat_args, in_tree = jtu.tree_flatten(args)
+            flat_fun, out_tree = api_util.flatten_fun_nokwargs(fun, in_tree)
         flat_avals = safe_map(get_shaped_aval, flat_args)
-        typed_jaxpr = cached_stage_dynamic(flat_fun, tuple(flat_avals))
-        return typed_jaxpr, (flat_args, in_tree, out_tree)
+        closed_jaxpr = cached_stage_dynamic(flat_fun, tuple(flat_avals))
+        return closed_jaxpr, (flat_args, in_tree, out_tree)
 
     return wrapped
 
 
 def to_shape_fn(
-    callable: F, fill_fn: Callable[[tuple[int], jnp.dtype[Any]], Array] | None = None
+    callable: F,
+    fill_fn: Callable[[tuple[int], jnp.dtype[Any]], Array] | None = None,
 ) -> F:
     """
     Convert a callable to a function that returns an empty pytree with the same structure as the original output (without any FLOPs).
@@ -316,7 +314,7 @@ def to_shape_fn(
     """
 
     def wrapped(*args, **kwargs):
-        shape = jax.eval_shape(callable, *args, **kwargs)
+        shape = eval_shape(callable, *args, **kwargs)
         if fill_fn is not None:
             f = fill_fn
             return jtu.tree_map(lambda x: f(x.shape, x.dtype), shape)
@@ -326,12 +324,7 @@ def to_shape_fn(
     return typing.cast(F, wrapped)
 
 
-_fake_key = jnp.array([0, 0], dtype=jnp.uint32)
-
-
-def empty_trace(
-    gen_fn: "genjax.GenerativeFunction[R]", args: "genjax.Arguments"
-) -> "genjax.Trace[R]":
+def empty_trace(gen_fn: "genjax.GFI[R]", args: "genjax.Arguments") -> "genjax.Trace[R]":
     """
     Create an empty trace for a generative function with given arguments (without spending any FLOPs).
 
@@ -344,4 +337,4 @@ def empty_trace(
     Returns:
         A trace with the same structure as a real trace, but filled with zero values.
     """
-    return to_shape_fn(gen_fn.simulate, jnp.zeros)(_fake_key, args)
+    return to_shape_fn(gen_fn.simulate, jnp.zeros)(args)

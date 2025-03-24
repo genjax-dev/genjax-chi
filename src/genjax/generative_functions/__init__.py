@@ -15,4 +15,4 @@
 
 from .combinators import *
 from .distributions import *
-from .static import *
+from .gen import *

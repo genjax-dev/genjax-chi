@@ -30,7 +30,7 @@ from genjax._src.generative_functions.distributions.custom.discrete_hmm import (
 from genjax._src.generative_functions.distributions.tensorflow_probability import (
     categorical,
 )
-from genjax._src.generative_functions.static import gen
+from genjax._src.generative_functions.gen import gen
 
 
 @Pytree.dataclass
@@ -70,14 +70,14 @@ def build_test_against_exact_inference(
     def inference_test_generator(key: PRNGKey):
         key, sub_key = jax.random.split(key)
         initial_state = categorical.sample(sub_key, jnp.ones(config.linear_grid_dim))
-        tr = markov_chain.simulate(sub_key, (max_length - 1, initial_state, config))
+        tr = markov_chain.simulate((max_length - 1, initial_state, config))
         z_sel = SelectionBuilder["z"]
         x_sel = SelectionBuilder["x"]
         latent_sequence = tr.get_choices().filter(z_sel)["z"]
         observation_sequence = tr.get_choices().filter(x_sel)["x"]
         log_data_marginal = DiscreteHMM.data_logpdf(config, observation_sequence)
         # This actually doesn't use any randomness.
-        (log_posterior, _) = DiscreteHMM.estimate_logpdf(
+        log_posterior = DiscreteHMM.logpdf(
             key, latent_sequence, config, observation_sequence
         )
         return DiscreteHMMInferenceProblem(
