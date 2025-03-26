@@ -22,7 +22,7 @@ jobs:
       # with the private key, and the mkdocs-material-insiders clone in the
       # library has the public key set as a deploy key.
       - name: Configure SSH key for mkdocs-material-insiders
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@v0.9.1
         with:
           ssh-private-key: |
             ${{ secrets.MKDOCSTRINGS_PYTHON_SSH_KEY }}
