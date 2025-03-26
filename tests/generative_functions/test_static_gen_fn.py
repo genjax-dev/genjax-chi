@@ -84,6 +84,14 @@ class TestStaticGenFnMetadata:
 
 
 class TestMisc:
+    def test_static_sample_shape(self):
+        @genjax.gen
+        def f():
+            return genjax.normal(0.0, 1.0, sample_shape=genjax.Const((2, 2))) @ "normal"
+
+        tr = f.simulate(jax.random.key(0), ())
+        assert tr.get_retval().shape == (2, 2)
+
     def test_switch_chm_and_static(self):
         @genjax.gen
         def model():
