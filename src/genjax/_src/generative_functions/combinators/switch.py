@@ -13,6 +13,12 @@
 # limitations under the License.
 
 
+from genjax._src.core.compiler.interpreters.incremental import (
+    Diff,
+    NoChange,
+    UnknownChange,
+)
+from genjax._src.core.compiler.staging import multi_switch, tree_choose
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
@@ -25,8 +31,6 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.generative.choice_map import Address, Selection
-from genjax._src.core.interpreters.incremental import Diff, NoChange, UnknownChange
-from genjax._src.core.interpreters.staging import multi_switch, tree_choose
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,

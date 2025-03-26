@@ -16,6 +16,8 @@
 import jax.numpy as jnp
 import jax.tree_util as jtu
 
+from genjax._src.core.compiler.interpreters.incremental import Diff
+from genjax._src.core.compiler.staging import FlagOp
 from genjax._src.core.generative import (
     Argdiffs,
     ChoiceMap,
@@ -29,8 +31,6 @@ from genjax._src.core.generative import (
     Weight,
 )
 from genjax._src.core.generative.choice_map import Address, Selection
-from genjax._src.core.interpreters.incremental import Diff
-from genjax._src.core.interpreters.staging import FlagOp
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Any,

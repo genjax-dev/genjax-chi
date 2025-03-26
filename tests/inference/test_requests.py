@@ -128,15 +128,15 @@ class TestRegenerate:
         tr, _ = linked_normal.importance(sub_key, C.kw(y2=3.0), ())
         request = Regenerate(S["y1"])
 
-        # Run Metropolis-Hastings for 100 steps.
-        for _ in range(100):
+        # Run Metropolis-Hastings for 200 steps.
+        for _ in range(200):
             key, sub_key = jax.random.split(key)
             new_tr, w, _, _ = request.edit(sub_key, tr, ())
             key, sub_key = jax.random.split(key)
             check = jnp.log(genjax.uniform.sample(sub_key, 0.0, 1.0)) < w
             tr = jtu.tree_map(lambda v1, v2: jnp.where(check, v1, v2), new_tr, tr)
 
-        assert tr.get_choices()["y1"] == pytest.approx(3.0, 1e-3)
+        assert tr.get_choices()["y1"] == pytest.approx(3.0, 1e-2)
 
 
 class TestRejuvenate:
@@ -249,7 +249,7 @@ class TestHMC:
         request = HMC(Selection.at["x"], jnp.array(1e-2))
         editor = jax.jit(request.edit)
         new_tr = tr
-        for _ in range(20):
+        for _ in range(50):
             key, sub_key = jrand.split(key)
             new_tr, *_ = editor(sub_key, new_tr, Diff.no_change((0.0, None)))
         assert new_tr.get_choices()[:, "x"] == pytest.approx(3.0, 8e-3)

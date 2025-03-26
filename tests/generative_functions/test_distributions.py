@@ -18,7 +18,7 @@ import pytest
 
 import genjax
 from genjax import ChoiceMapBuilder as C
-from genjax.incremental import Diff, NoChange, UnknownChange
+from genjax import Diff, NoChange, UnknownChange
 
 
 class TestDistributions:

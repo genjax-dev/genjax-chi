@@ -34,7 +34,6 @@ nav:
 
           - Expressivity:
               - cookbook/inactive/expressivity/conditionals.ipynb
-              - cookbook/inactive/expressivity/iterating_computation.ipynb
               - cookbook/inactive/expressivity/masking.ipynb
               - cookbook/inactive/expressivity/mixture.ipynb
               - cookbook/inactive/expressivity/custom_distribution.ipynb
@@ -83,7 +82,6 @@ theme:
     repo: fontawesome/brands/github
   features:
     - optimize
-    - typeset
     - content.action.edit
     - content.action.view
     - content.code.annotate
@@ -125,10 +123,9 @@ plugins:
          # TODO: re-enable once we can support marginals as targets
           - "cookbook/inactive/expressivity/ravi_stack.ipynb"
           - "cookbook/inactive/differentiation/adev_demo.py"
+          - "cookbook/inactive/expressivity/iterating_computation.ipynb"
 
         highlight_extra_classes: "custom-css-classes"
-  - typeset:
-      enabled: true
   - git-revision-date-localized:
       enable_creation_date: true
       fallback_to_build_date: true

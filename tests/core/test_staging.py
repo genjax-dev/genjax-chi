@@ -14,7 +14,7 @@
 
 import jax.numpy as jnp
 
-from genjax._src.core.interpreters.staging import FlagOp, multi_switch, tree_choose
+from genjax._src.core.compiler.staging import FlagOp, multi_switch, tree_choose
 
 
 class TestFlag:

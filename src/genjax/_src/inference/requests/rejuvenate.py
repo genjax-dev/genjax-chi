@@ -17,7 +17,7 @@ import jax.random as jrand
 from genjax._src.core.generative.choice_map import (
     ChoiceMap,
 )
-from genjax._src.core.generative.core import (
+from genjax._src.core.generative.concepts import (
     Argdiffs,
     EditRequest,
     Retdiff,

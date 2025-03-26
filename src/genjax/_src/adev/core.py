@@ -18,18 +18,18 @@ from functools import wraps
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from jax import core as jc
 from jax import util as jax_util
 from jax.extend import source_info_util as src_util
+from jax.extend.core import Jaxpr, jaxpr_as_fun
 from jax.interpreters import ad as jax_autodiff
 from jax.interpreters import batching
 
-from genjax._src.core.interpreters.forward import (
-    Environment,
+from genjax._src.core.compiler.initial_style_primitive import (
     InitialStylePrimitive,
     initial_style_bind,
 )
-from genjax._src.core.interpreters.staging import stage
+from genjax._src.core.compiler.interpreters.environment import Environment
+from genjax._src.core.compiler.staging import stage
 from genjax._src.core.pytree import Pytree
 from genjax._src.core.typing import (
     Annotated,
@@ -248,9 +248,9 @@ class ADInterpreter(Pytree):
         return list(primals), list(tangents)
 
     @staticmethod
-    def _eval_jaxpr_adev_jvp(
+    def eval_jaxpr_adev(
         key: PRNGKey,
-        jaxpr: jc.Jaxpr,
+        jaxpr: Jaxpr,
         consts: list[ArrayLike],
         flat_duals: list[Dual],
     ):
@@ -345,7 +345,7 @@ class ADInterpreter(Pytree):
                         branch_adev_functions = list(
                             map(
                                 lambda fn: ADInterpreter.forward_mode(
-                                    jc.jaxpr_as_fun(fn),
+                                    jaxpr_as_fun(fn),
                                     _cond_dual_kont,
                                 ),
                                 params["branches"],
@@ -404,7 +404,7 @@ class ADInterpreter(Pytree):
             closed_jaxpr, (_, _, out_tree) = stage(f)(*primals)
             jaxpr, consts = closed_jaxpr.jaxpr, closed_jaxpr.literals
             dual_leaves = Dual.tree_leaves(Dual.tree_pure(dual_tree))
-            out_duals = ADInterpreter._eval_jaxpr_adev_jvp(
+            out_duals = ADInterpreter.eval_jaxpr_adev(
                 key,
                 jaxpr,
                 consts,
