@@ -250,7 +250,7 @@ class Const(Generic[R], Pytree):
 
 
         def f(c):
-            if c.const == 5:
+            if c.unwrap() == 5:
                 return 10.0
             else:
                 return 5.0

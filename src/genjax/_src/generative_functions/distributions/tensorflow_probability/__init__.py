@@ -16,6 +16,7 @@
 import jax.numpy as jnp
 from tensorflow_probability.substrates import jax as tfp
 
+from genjax._src.core.pytree import Const
 from genjax._src.core.typing import Array, Callable
 from genjax._src.generative_functions.distributions.distribution import (
     ExactDensity,
@@ -49,11 +50,15 @@ def tfp_distribution(
     """
 
     def sampler(key, *args, **kwargs):
+        sample_shape = kwargs.pop("sample_shape", ())
         d = dist(*args, **kwargs)
-        return d.sample(seed=key)
+        return d.sample(seed=key, sample_shape=Const.unwrap(sample_shape))
 
     def logpdf(v, *args, **kwargs):
+        # Remove unused kwarg to match sampler function behavior
+        kwargs.pop("sample_shape", ())
         d = dist(*args, **kwargs)
+
         return d.log_prob(v)
 
     return exact_density(sampler, logpdf, name or dist.__name__)
