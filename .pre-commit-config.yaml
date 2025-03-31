@@ -21,7 +21,7 @@ repos:
       - id: nbstripout
 
   - repo: https://github.com/python-poetry/poetry
-    rev: 2.1.1
+    rev: 2.1.2
     hooks:
       - id: poetry-check
       - id: poetry-install
@@ -43,6 +43,6 @@ repos:
       - id: vulture
 
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.397
+    rev: v1.1.398
     hooks:
     - id: pyright
