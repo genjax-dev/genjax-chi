@@ -17,9 +17,9 @@ maintainers = [
 ]
 license = "Apache 2.0"
 readme = "README.md"
-homepage = "https://github.com/chisym/genjax"
-repository = "https://github.com/chisym/genjax"
-documentation = "https://chisym.github.io/genjax/"
+homepage = "https://github.com/genjax-dev/genjax"
+repository = "https://github.com/genjax-dev/genjax"
+documentation = "https://genjax.gen.dev"
 keywords = [
     "artificial-intelligence",
     "probabilistic-programming",
@@ -34,7 +34,7 @@ classifiers = [
 ]
 
 [tool.poetry.urls]
-Changelog = "https://github.com/chisym/genjax/releases"
+Changelog = "https://github.com/genjax-dev/genjax/releases"
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"

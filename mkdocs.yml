@@ -13,9 +13,9 @@
 # limitations under the License.
 
 site_name: GenJAX
-site_url: https://chisym.github.io/genjax/
-repo_url: https://github.com/chisym/genjax
-repo_name: chisym/genjax
+site_url: https://genjax.gen.dev
+repo_url: https://github.com/genjax-dev/genjax
+repo_name: genjax-dev/genjax
 edit_uri: edit/main/docs/
 copyright: Copyright &copy; 2023 MIT Probabilistic Computing Project
 
@@ -74,7 +74,7 @@ nav:
 theme:
   name: material
   logo: assets/img/small_logo.png
-  favicon: assets/img/gen-logo.png
+  favicon: assets/img/small_logo.png
   font:
       text: Roboto
       code: Berkeley Mono
