@@ -287,8 +287,8 @@ def stage(f):
     """Returns a function that stages a function to a ClosedJaxpr."""
 
     def wrapped(*args, **kwargs):
-        debug_info = api_util.debug_info("Tracing to Jaxpr", f, args, kwargs)
-        fun = lu.wrap_init(f, params=kwargs, debug_info=debug_info)
+        debug_info = api_util.debug_info("Tracing to Jaxpr", f, args, kwargs)  # pyright: ignore[reportAttributeAccessIssue]
+        fun = lu.wrap_init(f, params=kwargs, debug_info=debug_info)  # pyright: ignore[reportCallIssue]
         flat_args, in_tree = jtu.tree_flatten(args)
         flat_fun, out_tree = flatten_fun_nokwargs(fun, in_tree)
         flat_avals = safe_map(get_shaped_aval, flat_args)

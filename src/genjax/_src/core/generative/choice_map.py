@@ -1493,8 +1493,7 @@ class Indexed(ChoiceMap):
             return Indexed(chm, addr)
 
     def filter(self, selection: Selection | Flag) -> ChoiceMap:
-        addr = _full_slice if self.addr is None else self.addr
-        return self.c.filter(selection).extend(addr)
+        return self.c.filter(selection).extend(self.addr)
 
     def get_value(self) -> Any:
         return None
@@ -1510,13 +1509,7 @@ class Indexed(ChoiceMap):
                     "Only scalar dynamic addresses are supported by get_submap."
                 )
 
-            if self.addr is None:
-                # None means that this instance was created with `:`, so no masking is required and we assume that the user will provide an in-bounds `int | ScalarInt`` address. If they don't they will run up against JAX's clamping behavior.
-                return jtu.tree_map(
-                    lambda v: v[addr], self.c, is_leaf=lambda x: isinstance(x, Mask)
-                )
-
-            elif isinstance(self.addr, Array) and self.addr.shape:
+            if isinstance(self.addr, Array) and self.addr.shape:
                 # We can't allow slices, as self.addr might look like, e.g. `[2,5,6]`, and we don't have any way to combine this "sparse array selector" with an incoming slice.
                 assert not isinstance(addr, slice), (
                     f"Slices are not allowed against array-shaped dynamic addresses. Tried to apply {addr} to {self.addr}."
