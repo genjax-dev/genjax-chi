@@ -12,9 +12,9 @@ Here is a list of important resources for contributors:
 - [Code of Conduct]
 
 [apache 2.0 license]: https://opensource.org/licenses/Apache-2.0
-[source code]: https://github.com/genjax-dev/genjax
+[source code]: https://github.com/genjax-dev/genjax-chi
 [documentation]: https://genjax.gen.dev
-[issue tracker]: https://github.com/genjax-dev/genjax/issues
+[issue tracker]: https://github.com/genjax-dev/genjax-chi/issues
 
 ## How to report a bug
 
@@ -100,7 +100,7 @@ Feel free to submit early, though—we can always iterate on this.
 It is recommended to open an issue before starting work on anything.
 This will allow a chance to talk it over with the owners and validate your approach.
 
-[pull request]: https://github.com/genjax-dev/genjax/pulls
+[pull request]: https://github.com/genjax-dev/genjax-chi/pulls
 
 <!-- github-only -->
 
