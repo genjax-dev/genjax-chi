@@ -121,7 +121,7 @@ def compute_jax_vals(f, key, initial_theta, sigma):
             f, key, current_theta, sigma
         )
         new_theta = current_theta + learning_rate * gradient
-        return (key, new_theta), (current_theta, expected, gradient)
+        return (key, new_theta), jnp.array([current_theta, expected, gradient])
 
     _, out = jax.lax.scan(body_fun, (key, initial_theta), None, length=EPOCHS)
     return out
@@ -162,7 +162,7 @@ def compute_adev_vals(g, f, key, initial_theta, sigma):
             g, f, key, current_theta, sigma
         )
         new_theta = current_theta + learning_rate * gradient
-        return (key, new_theta), (current_theta, expected, gradient)
+        return (key, new_theta), jnp.array([current_theta, expected, gradient])
 
     _, out = jax.lax.scan(body_fun, (key, initial_theta), None, length=EPOCHS)
     return out
@@ -387,7 +387,7 @@ def render_plot(initial_val, initial_sigma):
         )
 
         return Plot.new(
-            Plot.domain([0, 1], [0, 0.4]),
+            # Plot.domain([0, 1], [0, 0.4]),
             tangents_plots,
             Plot.title(f"{gradients_id} Gradient Estimates"),
             Plot.color_map({"JAX Tangent": "orange", "ADEV Tangent": "blue"}),
