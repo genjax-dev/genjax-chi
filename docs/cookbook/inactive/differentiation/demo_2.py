@@ -28,6 +28,8 @@ import jax
 import jax.numpy as jnp
 from genstudio.plot import js
 
+import genjax
+from genjax import gen
 from genjax._src.adev.core import Dual, expectation
 from genjax._src.adev.primitives import flip_enum, normal_reparam
 
@@ -44,16 +46,18 @@ jax_code = """def noisy_jax_model(key, theta, sigma):
 # jax_grad = jax.grad(noisy_jax_model)(key, theta, sigma)
     """
 
-adev_code = """@expectation
-def adev_model(theta, sigma):
-    b = flip_enum(theta)
+adev_code = """@genjax.gen
+def model(theta, sigma):
+    b = genjax.vi.flip_enum(theta) @"b"
+    x = genjax.vi.normal_reparam(0.0, sigma) @ "x"
     return jax.lax.cond(
         b,
-        lambda theta: normal_reparam(0.0, sigma) * theta,
-        lambda theta: normal_reparam(theta / 3, sigma),
+        lambda theta: x * theta,
+        lambda theta: x + theta / 3,
         theta,
+    )
 
-# actual_grad = adev_model.grad_estimate(key, (theta, sigma))
+# actual_grad = model.grad_estimate(key, (theta, sigma))
     )"""
 
 key = jax.random.key(314159)
@@ -144,17 +148,65 @@ def adev_model(theta, sigma):
     )
 
 
+@gen
+def branch_1(theta, sigma):
+    x = genjax.vi.normal_reparam(0.0, sigma) @ "x"
+    return x * theta
+
+
+@gen
+def branch_2(theta, sigma):
+    x = genjax.vi.normal_reparam(theta / 3, sigma) @ "x"
+    return x
+
+
+@genjax.gen
+def model(theta, sigma):
+    b = genjax.vi.flip_enum(theta) @ "b"
+    x = genjax.vi.normal_reparam(0.0, sigma) @ "x"
+    return jax.lax.cond(
+        b,
+        lambda theta: x * theta,
+        lambda theta: x + theta / 3,
+        theta,
+    )
+    # args = (theta, sigma)
+    # v = branch_1.or_else(branch_2)(b, args, args) @ "cond"
+    # return v
+
+
+# @expectation
+# def adev_model_2(key, theta, sigma):
+#     tr = model.simulate(key, (theta, sigma))
+#     chm = tr.get_choices()
+#     res = model.assess(chm, (theta, sigma))[1]
+#     return res
+
+
+@partial(jax.jit, static_argnames=["model"])
+def param_grad(model, key, theta, sigma):
+    @expectation
+    def adev_model_2(theta, sigma):
+        tr = model.simulate(key, (theta, sigma))
+        chm = tr.get_choices()
+        res = model.assess(chm, (theta, sigma))[1]
+        return res
+
+    return jax.jit(adev_model_2.jvp_estimate)(key, (Dual(theta, 1.0), Dual(sigma, 0.0)))
+
+
 # Pre-compile the gradient functions with initial models
 jax_grad_compiled = jax.jit(jax.grad(noisy_jax_model, argnums=1))
-adev_jvp_compiled = jax.jit(adev_model.jvp_estimate)
+# adev_jvp_compiled = jax.jit(adev_model.jvp_estimate)
 
 
 @partial(jax.jit, static_argnames=["g", "f"])
 def _compute_adev_step(g, f, key, current_theta, sigma):
     key, subkey = jax.random.split(key)
-    gradient = adev_jvp_compiled(
-        subkey, (Dual(current_theta, 1.0), Dual(sigma, 0.0))
-    ).tangent
+    # gradient = adev_jvp_compiled(
+    #     subkey, (Dual(current_theta, 1.0), Dual(sigma, 0.0))
+    # ).tangent
+    gradient = param_grad(g, subkey, current_theta, sigma).tangent
     key, subkey = jax.random.split(key)
     expected = expected_val(f, subkey, current_theta, sigma)
     return key, current_theta, expected, gradient
@@ -282,7 +334,7 @@ def render_plot(initial_val, initial_sigma):
         return {
             "JAX_gradients": compute_jax_vals(noisy_jax_model, jax_key, val, sigma),
             "ADEV_gradients": compute_adev_vals(
-                adev_model, noisy_jax_model, adev_key, val, sigma
+                model, noisy_jax_model, adev_key, val, sigma
             ),
             "samples": make_samples(noisy_jax_model, samples_key, thetas, sigma),
             "val": val,
@@ -303,7 +355,7 @@ def render_plot(initial_val, initial_sigma):
             noisy_jax_model, key, default_initial_val, default_sigma
         ),
         "ADEV_gradients": compute_adev_vals(
-            adev_model, noisy_jax_model, key, default_initial_val, default_sigma
+            model, noisy_jax_model, key, default_initial_val, default_sigma
         ),
         "val": default_initial_val,
         "sigma": default_sigma,
@@ -317,12 +369,13 @@ def render_plot(initial_val, initial_sigma):
 
     def evaluate(widget, _e):
         # Update random key and evaluate new code from text editor
-        global key, noisy_jax_model, adev_model, jax_grad_compiled, adev_jvp_compiled
-        source = f"global noisy_jax_model, adev_model\n{widget.state.toEval}"
+        global key, noisy_jax_model, model, jax_grad_compiled, adev_jvp_compiled
+        source = f"global noisy_jax_model, model\n{widget.state.toEval}"
         exec(source)
         # Recompile gradient functions with new models
-        jax_grad_compiled = jax.jit(jax.grad(noisy_jax_model, argnums=1))
-        adev_jvp_compiled = jax.jit(adev_model.jvp_estimate)
+        # jax_grad_compiled = jax.jit(jax.grad(noisy_jax_model, argnums=1))
+        # adev_jvp_compiled = jax.jit(adev_model.jvp_estimate)
+
         # Recompute values and reset frame to 0
         jax_key, adev_key, samples_key = jax.random.split(key, num=3)
         new_state = {
@@ -330,7 +383,7 @@ def render_plot(initial_val, initial_sigma):
                 noisy_jax_model, jax_key, widget.state.val, widget.state.sigma
             ),
             "ADEV_gradients": compute_adev_vals(
-                adev_model,
+                model,
                 noisy_jax_model,
                 adev_key,
                 widget.state.val,
