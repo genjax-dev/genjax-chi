@@ -39,7 +39,10 @@ jax_code = """def noisy_jax_model(key, theta, sigma):
         lambda theta: jax.random.normal(key) * sigma * theta,
         lambda theta: jax.random.normal(key) * sigma + theta / 3,
         theta,
-    )"""
+    )
+
+# jax_grad = jax.grad(noisy_jax_model)(key, theta, sigma)
+    """
 
 adev_code = """@expectation
 def adev_model(theta, sigma):
@@ -49,6 +52,8 @@ def adev_model(theta, sigma):
         lambda theta: normal_reparam(0.0, sigma) * theta,
         lambda theta: normal_reparam(theta / 3, sigma),
         theta,
+
+# actual_grad = adev_model.grad_estimate(key, (theta, sigma))
     )"""
 
 key = jax.random.key(314159)
@@ -107,6 +112,7 @@ def expected_val(
 @partial(jax.jit, static_argnames=["f"])
 def _compute_jax_step(f, key, current_theta, sigma):
     key, subkey = jax.random.split(key)
+    gradient = grad_finite_difference(f, subkey, current_theta, sigma)
     gradient = jax.jit(jax.grad(f, argnums=1))(subkey, current_theta, sigma)
     key, subkey = jax.random.split(key)
     expected = expected_val(f, subkey, current_theta, sigma)
@@ -170,12 +176,12 @@ def compute_adev_vals(g, f, key, initial_theta, sigma):
 
 # %%
 
-### ADEV VIZ
 plot_options = Plot.new(
     Plot.color_legend(),
     {"x": {"label": "θ"}, "y": {"label": "y"}},
     Plot.aspect_ratio(1),
     Plot.grid(),
+    {"width": 400, "height": 400},
 )
 
 samples_color_map = Plot.color_map({"Samples": "rgba(0, 128, 128, 0.5)"})
@@ -350,7 +356,10 @@ def render_plot(initial_val, initial_sigma):
     samples_plot = make_samples_plot(thetas, js("$state.samples"))
 
     def plot_tangents(gradients_id):
-        tangents_plots = Plot.new(Plot.aspectRatio(0.5))
+        tangents_plots = Plot.new(
+            Plot.aspectRatio(0.5),
+            {"width": 400, "height": 400},
+        )
         color = "blue" if gradients_id == "ADEV" else "orange"
 
         orange_to_red_plot = Plot.dot(
@@ -386,11 +395,20 @@ def render_plot(initial_val, initial_sigma):
             }}"""),
         )
 
+        color_map = (
+            {
+                "Tangent: JAX": "orange",
+            }
+            if gradients_id == "JAX"
+            else {
+                "Tangent: GenJAX": "blue",
+            }
+        )
+
         return Plot.new(
-            # Plot.domain([0, 1], [0, 0.4]),
             tangents_plots,
             Plot.title(f"{gradients_id} Gradient Estimates"),
-            Plot.color_map({"JAX Tangent": "orange", "ADEV Tangent": "blue"}),
+            Plot.color_map(color_map),
         )
 
     comparison_plot = (
@@ -398,19 +416,19 @@ def render_plot(initial_val, initial_sigma):
             js("$state.JAX_gradients.slice(0, $state.frame+1)"),
             x=Plot.index(),
             y="2",
-            stroke=Plot.constantly("Gradients from JAX"),
+            stroke=Plot.constantly("Gradients: JAX"),
         )
         + Plot.line(
             js("$state.ADEV_gradients.slice(0, $state.frame+1)"),
             x=Plot.index(),
             y="2",
-            stroke=Plot.constantly("Gradients from ADEV"),
+            stroke=Plot.constantly("Gradients: GenJAX"),
         )
         + {"x": {"label": "Iteration"}, "y": {"label": "y"}}
         + Plot.domainX([0, EPOCHS])
         + Plot.title("Comparison of computed gradients JAX vs ADEV")
         + Plot.color_legend()
-        + {"height": COMPARISON_HEIGHT}
+        + {"width": 400, "height": COMPARISON_HEIGHT}
     )
 
     optimization_plot = Plot.new(
@@ -418,14 +436,14 @@ def render_plot(initial_val, initial_sigma):
             js("$state.JAX_gradients"),
             x=Plot.index(),
             y="1",
-            stroke=Plot.constantly("Gradient ascent with JAX"),
+            stroke=Plot.constantly("Gradient ascent: JAX"),
             filter=js("(d, i) => i <= $state.frame"),
         )
         + Plot.line(
             js("$state.ADEV_gradients"),
             x=Plot.index(),
             y="1",
-            stroke=Plot.constantly("Gradient ascent with ADEV"),
+            stroke=Plot.constantly("Gradient ascent: GenJAX"),
             filter=js("(d, i) => i <= $state.frame"),
         )
         + {
@@ -435,7 +453,7 @@ def render_plot(initial_val, initial_sigma):
         + Plot.domainX([0, EPOCHS])
         + Plot.title("Maximization of the expected value of a probabilistic function")
         + Plot.color_legend()
-        + {"height": COMPARISON_HEIGHT}
+        + {"width": 400, "height": COMPARISON_HEIGHT}
     )
 
     jax_tangents_plot = samples_plot + plot_tangents("JAX")
@@ -494,7 +512,7 @@ y(\theta) = \mathbb{E}_{x\sim P(\theta)}[x] = \int_{\mathbb{R}}\left[\theta^2\fr
         "div.flex.flex-row.gap-4",
         [
             "div.flex.flex-col.gap-2.flex-1",
-            ["h3.font-bold", "JAX Model"],
+            ["h3.font-bold", "JAX"],
             [
                 "form.!flex.flex-col.gap-3.h-full",
                 {
@@ -534,7 +552,7 @@ y(\theta) = \mathbb{E}_{x\sim P(\theta)}[x] = \int_{\mathbb{R}}\left[\theta^2\fr
         ],
         [
             "div.flex.flex-col.gap-2.flex-1",
-            ["h3.font-bold", "ADEV Model"],
+            ["h3.font-bold", "GenJAX"],
             [
                 "form.!flex.flex-col.gap-3.h-full",
                 {
