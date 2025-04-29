@@ -231,12 +231,18 @@ def compute_adev_vals(g, f, key, initial_theta, sigma):
 
 # %%
 
+SLIDER_STEP = 0.01
+ANIMATION_STEP = 4
+COMPARISON_HEIGHT = 150
+CODE_HEIGHT = 150
+VIZ_HEIGHT = 300
+
 plot_options = Plot.new(
     Plot.color_legend(),
     {"x": {"label": "θ"}, "y": {"label": "y"}},
     Plot.aspect_ratio(1),
     Plot.grid(),
-    {"width": 400, "height": 400},
+    {"width": 400, "height": VIZ_HEIGHT},
 )
 
 samples_color_map = Plot.color_map({"Samples": "rgba(0, 128, 128, 0.5)"})
@@ -327,9 +333,6 @@ def input_checkbox(label, value, on_change):
 
 
 def render_plot(initial_val, initial_sigma):
-    SLIDER_STEP = 0.01
-    ANIMATION_STEP = 4
-    COMPARISON_HEIGHT = 200
     currentKey = key
 
     def computeState(val, sigma):
@@ -414,7 +417,7 @@ def render_plot(initial_val, initial_sigma):
     def plot_tangents(gradients_id):
         tangents_plots = Plot.new(
             Plot.aspectRatio(0.5),
-            {"width": 400, "height": 400},
+            {"width": 400, "height": VIZ_HEIGHT},
         )
         color = "blue" if gradients_id == "ADEV" else "orange"
 
