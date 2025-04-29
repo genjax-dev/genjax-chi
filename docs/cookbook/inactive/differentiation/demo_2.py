@@ -36,10 +36,11 @@ from genjax._src.adev.primitives import flip_enum, normal_reparam
 # Code strings for editable models
 jax_code = """def noisy_jax_model(key, theta, sigma):
     b = jax.random.bernoulli(key, theta)
+    x = jax.random.normal(key)
     return jax.lax.cond(
         b,
-        lambda theta: jax.random.normal(key) * sigma * theta,
-        lambda theta: jax.random.normal(key) * sigma + theta / 3,
+        lambda theta: x * sigma * theta,
+        lambda theta: x * sigma + theta / 3,
         theta,
     )
 
@@ -58,7 +59,7 @@ def model(theta, sigma):
     )
 
 # actual_grad = model.grad_estimate(key, (theta, sigma))
-    )"""
+"""
 
 key = jax.random.key(314159)
 EPOCHS = 400
@@ -74,10 +75,11 @@ thetas = jnp.arange(0.0, 1.0, 0.0005)
 # Model
 def noisy_jax_model(key, theta, sigma):
     b = jax.random.bernoulli(key, theta)
+    x = jax.random.normal(key)
     return jax.lax.cond(
         b,
-        lambda theta: jax.random.normal(key) * sigma * theta,
-        lambda theta: jax.random.normal(key) * sigma + theta / 3,
+        lambda theta: x * sigma * theta,
+        lambda theta: x * sigma + theta / 3,
         theta,
     )
 
@@ -130,7 +132,8 @@ def compute_jax_vals(f, key, initial_theta, sigma):
         key, current_theta, expected, gradient = _compute_jax_step(
             f, key, current_theta, sigma
         )
-        new_theta = current_theta + learning_rate * gradient
+        new_theta = jnp.clip(current_theta + learning_rate * gradient, 0.0, 1.0)
+
         return (key, new_theta), jnp.array([current_theta, expected, gradient])
 
     _, out = jax.lax.scan(body_fun, (key, initial_theta), None, length=EPOCHS)
@@ -163,6 +166,9 @@ def branch_2(theta, sigma):
 @genjax.gen
 def model(theta, sigma):
     b = genjax.vi.flip_enum(theta) @ "b"
+    # args = (theta, sigma)
+    # v = branch_1.or_else(branch_2)(b, args, args) @ "cond"
+    # return v
     x = genjax.vi.normal_reparam(0.0, sigma) @ "x"
     return jax.lax.cond(
         b,
@@ -170,9 +176,6 @@ def model(theta, sigma):
         lambda theta: x + theta / 3,
         theta,
     )
-    # args = (theta, sigma)
-    # v = branch_1.or_else(branch_2)(b, args, args) @ "cond"
-    # return v
 
 
 # @expectation
@@ -219,7 +222,7 @@ def compute_adev_vals(g, f, key, initial_theta, sigma):
         key, current_theta, expected, gradient = _compute_adev_step(
             g, f, key, current_theta, sigma
         )
-        new_theta = current_theta + learning_rate * gradient
+        new_theta = jnp.clip(current_theta + learning_rate * gradient, 0.0, 1.0)
         return (key, new_theta), jnp.array([current_theta, expected, gradient])
 
     _, out = jax.lax.scan(body_fun, (key, initial_theta), None, length=EPOCHS)
