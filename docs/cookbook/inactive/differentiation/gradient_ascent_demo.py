@@ -37,16 +37,32 @@ f(\theta) = \mathbb{E}_{x\sim P(\theta)}[x] = \int_{\mathbb{R}}\left[\theta\frac
 """
 
 # JAX implementation
+# jax_code = """
+# # Approximate integral
+# expected_val = lambda g: jnp.mean(
+#     jax.vmap(lambda key: g(key, theta, sigma))
+#     (jax.random.split(jax.random.key(0), 10000)))
+
+# g = expected_val(noisy_jax_model)
+
+# # Gradient of approximation
+# h = jax.grad(g)
+# """
+
 jax_code = """
-# Approximate integral
-expected_val = lambda g: jnp.mean(
-    jax.vmap(lambda key: g(key, theta, sigma))
-    (jax.random.split(jax.random.key(0), 10000)))
+def expected_val(f, key, theta, sigma, num_samples=100000):
+    keys = jax.random.split(key, num_samples)
+    vals = jax.vmap(lambda key: f(key, theta, sigma))(keys)
+    return jnp.mean(vals)
 
-g = expected_val(noisy_jax_model)
+def grad_finite_difference(f, key, theta, sigma, num_samples=100000, epsilon=0.001):
+    key, subkey = jax.random.split(key)
+    y_1 = expected_val(f, key, theta + epsilon / 2, sigma, num_samples=num_samples)
+    y_2 = expected_val(f, subkey, theta - epsilon / 2, sigma, num_samples=num_samples)
+    grad_estimate = (y_1 - y_2) / epsilon
+    return grad_estimate
 
-# Gradient of approximation
-h = jax.grad(g)
+g = grad_finite_difference(noisy_jax_model, key, theta, sigma)
 """
 
 # Constants
@@ -159,7 +175,7 @@ def render_function_visualization():
             ],
             [
                 "div",
-                ["h3.font-bold", "JAX Implementation"],
+                ["h3.font-bold", "Gradient using finite differences in JAX"],
                 [
                     "pre.p-2.bg-gray-100.rounded.font-mono.text-sm",
                     jax_code,
