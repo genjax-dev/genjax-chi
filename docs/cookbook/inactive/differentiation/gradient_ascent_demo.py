@@ -32,8 +32,16 @@ import jax.numpy as jnp
 from genstudio.plot import js
 
 # Define the function and its mathematical representation
+# math_representation = r"""
+# f(\theta) = \mathbb{E}_{x\sim P(\theta)}[x] = \int_{\mathbb{R}}\left[\theta\frac{1}{\sqrt{2\pi \sigma^2}}e^{\left(\frac{x}{\sigma}\right)^2} + (1-\theta)\frac{1}{\sqrt{2\pi \sigma^2}}e^{\left(\frac{x-\frac{1}{3}\theta}{\sigma}\right)^2}\right]dx =\frac{\theta-\theta^2}{3}
+# """
+
 math_representation = r"""
-f(\theta) = \mathbb{E}_{x\sim P(\theta)}[x] = \int_{\mathbb{R}}\left[\theta\frac{1}{\sqrt{2\pi \sigma^2}}e^{\left(\frac{x}{\sigma}\right)^2} + (1-\theta)\frac{1}{\sqrt{2\pi \sigma^2}}e^{\left(\frac{x-\frac{1}{3}\theta}{\sigma}\right)^2}\right]dx =\frac{\theta-\theta^2}{3}
+\mathbb{E}_{x\sim P(-\mid \theta)}[f(x, \theta)] = \int P(x_i\mid \theta)f(x, \theta)dx \approx  \sum_iP(x\mid \theta)f(x_i, \theta)
+\\[1em]
+\frac{d}{d\theta}\mathbb{E}_{x\sim P(-\mid \theta)}[f(x, \theta)] \approx  \frac{d}{d\theta} \sum_i P(x_i\mid \theta)f(x_i, \theta)
+\\[1em]
+\sum_i\frac{d}{d\theta}\big(P(x_i\mid \theta)f(x_i, \theta)\big) \neq \sum_i P(x_i\mid \theta) \frac{d}{d\theta} f(x_i, \theta)
 """
 
 # JAX implementation
@@ -170,7 +178,7 @@ def render_function_visualization():
             "div.flex-1.flex.flex-col.gap-4",
             [
                 "div",
-                ["h3.font-bold", "Mathematical Representation"],
+                ["h3.font-bold", "What goes wrong"],
                 ["div.p-2.bg-gray-100.rounded", Plot.katex(math_representation)],
             ],
             [
